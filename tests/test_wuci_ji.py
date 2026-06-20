@@ -211,6 +211,17 @@ def secp256k1_point_mul_ref(scalar: int, point: tuple[int, int]) -> tuple[int, i
     return acc
 
 
+def secp256k1_jacobian_to_affine_ref(point: tuple[int, int, int]) -> tuple[int, int] | None:
+    p = SECP256K1_FIELD_PRIME
+    x, y, z = point
+    if z % p == 0:
+        return None
+    z_inv = pow(z, p - 2, p)
+    z_inv2 = (z_inv * z_inv) % p
+    z_inv3 = (z_inv2 * z_inv) % p
+    return (x * z_inv2) % p, (y * z_inv3) % p
+
+
 def point_hex(point: tuple[int, int]) -> tuple[str, str]:
     return f"{point[0]:064x}", f"{point[1]:064x}"
 
@@ -224,6 +235,18 @@ def parse_point_output(output: bytes) -> tuple[int, int] | None:
     assert lines[0].startswith("x: "), text
     assert lines[1].startswith("y: "), text
     return int(lines[0][3:], 16), int(lines[1][3:], 16)
+
+
+def parse_jacobian_output(output: bytes) -> tuple[int, int, int] | None:
+    text = output.decode("ascii")
+    if text == "infinity\n":
+        return None
+    lines = text.splitlines()
+    assert len(lines) == 3, text
+    assert lines[0].startswith("x: "), text
+    assert lines[1].startswith("y: "), text
+    assert lines[2].startswith("z: "), text
+    return int(lines[0][3:], 16), int(lines[1][3:], 16), int(lines[2][3:], 16)
 
 
 def assert_secp256k1_point_helpers() -> None:
@@ -267,6 +290,67 @@ def assert_secp256k1_point_helpers() -> None:
         assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
         assert parse_point_output(proc.stdout) == secp256k1_point_mul_ref(scalar, g)
 
+    doubled_jacobian = run(["secp256k1-jacobian-double", gx, gy, f"{1:064x}"])
+    assert doubled_jacobian.returncode == 0, doubled_jacobian.stderr.decode("utf-8", "replace")
+    doubled_jacobian_point = parse_jacobian_output(doubled_jacobian.stdout)
+    assert doubled_jacobian_point is not None
+    assert secp256k1_jacobian_to_affine_ref(doubled_jacobian_point) == two_g
+
+    mixed_added = run(
+        [
+            "secp256k1-jacobian-mixed-add",
+            *(f"{coordinate:064x}" for coordinate in doubled_jacobian_point),
+            gx,
+            gy,
+        ]
+    )
+    assert mixed_added.returncode == 0, mixed_added.stderr.decode("utf-8", "replace")
+    mixed_added_point = parse_jacobian_output(mixed_added.stdout)
+    assert mixed_added_point is not None
+    assert secp256k1_jacobian_to_affine_ref(mixed_added_point) == three_g
+
+    identity_added = run(
+        ["secp256k1-jacobian-mixed-add", f"{0:064x}", f"{0:064x}", f"{0:064x}", gx, gy]
+    )
+    assert identity_added.returncode == 0, identity_added.stderr.decode("utf-8", "replace")
+    identity_added_point = parse_jacobian_output(identity_added.stdout)
+    assert identity_added_point is not None
+    assert secp256k1_jacobian_to_affine_ref(identity_added_point) == g
+
+    jacobian_infinity = run(["secp256k1-jacobian-double", gx, gy, f"{0:064x}"])
+    assert jacobian_infinity.returncode == 0, jacobian_infinity.stderr.decode("utf-8", "replace")
+    assert parse_jacobian_output(jacobian_infinity.stdout) is None
+
+    for scalar in (0, 1, 2, 3, 17, (1 << 255) + 7):
+        proc = run(["secp256k1-projective-basepoint-mul", f"{scalar:064x}"])
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert parse_point_output(proc.stdout) == secp256k1_point_mul_ref(scalar, g)
+
+    compressed = run(["secp256k1-point-encode-compressed", gx, gy])
+    assert compressed.returncode == 0, compressed.stderr.decode("utf-8", "replace")
+    assert compressed.stdout == bytes.fromhex("02" + gx).hex().encode("ascii") + b"\n"
+    decoded_compressed = run(["secp256k1-point-decode", compressed.stdout.decode("ascii").strip()])
+    assert decoded_compressed.returncode == 0, decoded_compressed.stderr.decode("utf-8", "replace")
+    assert parse_point_output(decoded_compressed.stdout) == g
+
+    compressed_neg = run(["secp256k1-point-encode-compressed", neg_gx, neg_gy])
+    assert compressed_neg.returncode == 0, compressed_neg.stderr.decode("utf-8", "replace")
+    assert compressed_neg.stdout.startswith(b"03")
+    decoded_compressed_neg = run(
+        ["secp256k1-point-decode", compressed_neg.stdout.decode("ascii").strip()]
+    )
+    assert decoded_compressed_neg.returncode == 0, decoded_compressed_neg.stderr.decode(
+        "utf-8", "replace"
+    )
+    assert parse_point_output(decoded_compressed_neg.stdout) == neg_g
+
+    uncompressed = run(["secp256k1-point-encode-uncompressed", gx, gy])
+    assert uncompressed.returncode == 0, uncompressed.stderr.decode("utf-8", "replace")
+    assert uncompressed.stdout == ("04" + gx + gy + "\n").encode("ascii")
+    decoded_uncompressed = run(["secp256k1-point-decode", uncompressed.stdout.decode("ascii").strip()])
+    assert decoded_uncompressed.returncode == 0, decoded_uncompressed.stderr.decode("utf-8", "replace")
+    assert parse_point_output(decoded_uncompressed.stdout) == g
+
 
 def assert_secp256k1_point_rejects_invalid() -> None:
     gx, gy = point_hex(SECP256K1_G)
@@ -275,6 +359,15 @@ def assert_secp256k1_point_rejects_invalid() -> None:
         ["secp256k1-point-double", gx, bad_y],
         ["secp256k1-point-add", gx, gy, gx, bad_y],
         ["secp256k1-basepoint-mul", "00"],
+        ["secp256k1-jacobian-double", gx, bad_y, f"{1:064x}"],
+        ["secp256k1-jacobian-mixed-add", gx, gy, f"{1:064x}", gx, bad_y],
+        ["secp256k1-projective-basepoint-mul", "00"],
+        ["secp256k1-point-encode-compressed", gx, bad_y],
+        ["secp256k1-point-encode-uncompressed", gx, bad_y],
+        ["secp256k1-point-decode", "00" + gx],
+        ["secp256k1-point-decode", "02" + gx[:-2]],
+        ["secp256k1-point-decode", "02" + f"{SECP256K1_FIELD_PRIME:064x}"],
+        ["secp256k1-point-decode", "04" + gx + bad_y],
     ]
     for args in cases:
         proc = run(args)
@@ -1295,6 +1388,32 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 None,
             ),
             (["secp256k1-basepoint-mul", key.hex(), "extra"], b"", None),
+            (["secp256k1-jacobian-double", key.hex(), key.hex(), key.hex(), "extra"], b"", None),
+            (
+                [
+                    "secp256k1-jacobian-mixed-add",
+                    key.hex(),
+                    key.hex(),
+                    key.hex(),
+                    key.hex(),
+                    key.hex(),
+                    "extra",
+                ],
+                b"",
+                None,
+            ),
+            (["secp256k1-projective-basepoint-mul", key.hex(), "extra"], b"", None),
+            (
+                ["secp256k1-point-encode-compressed", key.hex(), key.hex(), "extra"],
+                b"",
+                None,
+            ),
+            (
+                ["secp256k1-point-encode-uncompressed", key.hex(), key.hex(), "extra"],
+                b"",
+                None,
+            ),
+            (["secp256k1-point-decode", ("02" + key.hex()), "extra"], b"", None),
             (["keygen", "extra"], b"", None),
             (["keypair", "extra"], b"", None),
             (["selftest", "extra"], b"", None),
@@ -1437,6 +1556,12 @@ def assert_help_output() -> None:
         "secp256k1-point-double <x> <y> double an affine point; prints x/y or infinity",
         "secp256k1-point-add <x1> <y1> <x2> <y2> add affine points; prints x/y or infinity",
         "secp256k1-basepoint-mul <k>    multiply the secp256k1 basepoint by a 32-byte hex scalar",
+        "secp256k1-jacobian-double <x> <y> <z> double a Jacobian point; prints x/y/z or infinity",
+        "secp256k1-jacobian-mixed-add <jx> <jy> <jz> <ax> <ay> add Jacobian and affine points",
+        "secp256k1-projective-basepoint-mul <k> multiply the basepoint with Jacobian intermediates",
+        "secp256k1-point-encode-compressed <x> <y> encode affine point as SEC1 compressed hex",
+        "secp256k1-point-encode-uncompressed <x> <y> encode affine point as SEC1 uncompressed hex",
+        "secp256k1-point-decode <point> decode SEC1 compressed or uncompressed hex point",
         "keypair                        write random X25519 private/public keys as hex",
         "seal-to <public> <in> <out>    seal v3 file to X25519 public key; no overwrite",
         "seal-file <key> <in> <out>",

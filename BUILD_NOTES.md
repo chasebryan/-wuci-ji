@@ -118,9 +118,21 @@ Fixes made while executing this checkpoint:
   `secp256k1-point-validate`, `secp256k1-point-double`,
   `secp256k1-point-add`, and `secp256k1-basepoint-mul`. These commands reject
   noncanonical affine coordinates, print `infinity` for neutral results, and are
-  covered against Python reference formulas. This is not yet a signing surface;
-  the next cryptographic hardening step is a projective, constant-time scalar
-  multiplication path with controlled point encoding/decoding.
+  covered against Python reference formulas. This is still not a signing surface;
+  the next cryptographic hardening step is audited constant-time scalar handling
+  and point selection before any secret-bearing signing API is exposed.
+- The secp256k1 group backend now includes Jacobian/projective scaffolding:
+  `secp256k1-jacobian-double`, `secp256k1-jacobian-mixed-add`, and
+  `secp256k1-projective-basepoint-mul`. The projective basepoint path avoids
+  affine inversion inside the 256-bit scalar loop and converts back to affine at
+  the end. The same checkpoint adds SEC1-compatible point helpers:
+  `secp256k1-point-encode-compressed`,
+  `secp256k1-point-encode-uncompressed`, and `secp256k1-point-decode`.
+  Decoding validates canonical field coordinates and curve membership, and the
+  Python harness checks Jacobian outputs by converting them back to affine
+  reference points. This is a correctness and structure milestone, not a final
+  constant-time FROST signing backend; scalar-bit branches still need to be
+  replaced with audited constant-time selection.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
