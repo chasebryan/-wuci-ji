@@ -185,10 +185,11 @@ Fixes made while executing this checkpoint:
 - The sixth assembly modularization checkpoint split the secp256k1 scalar
   backbone into `src/secp256k1_scalar.s`: scalar add/sub/mul/inv CLI handlers,
   FROST Lagrange interpolation, canonical scalar loading/comparison, scalar
-  arithmetic modulo the group order, and scalar output formatting. Scratch
-  buffers and group-order constants remain owned by `src/wuci-ji.s` so the
-  existing process-global zeroization range still covers them while the FROST
-  and curve layers continue to share the scalar helpers.
+  arithmetic modulo the group order, and scalar output formatting. Scalar
+  scratch buffers remain owned by `src/wuci-ji.s` so the existing
+  process-global zeroization range still covers them while the FROST and curve
+  layers continue to share the scalar helpers. The secp256k1 group-order
+  constants are now exported by `src/frost.s`.
 - The seventh assembly modularization checkpoint split the secp256k1 field
   backbone into `src/secp256k1_field.s`: field add/sub/mul/square/inv CLI
   handlers, field output formatting, big-endian/little-endian conversion,
@@ -206,6 +207,13 @@ Fixes made while executing this checkpoint:
   FROST commitment point adapter. Point and Jacobian scratch buffers remain
   owned by `src/wuci-ji.s` so existing zeroization still covers them while the
   remaining FROST transcript code imports the point helpers.
+- The ninth assembly modularization checkpoint split the FROST transcript and
+  round helper layer into `src/frost.s`: P-256 and secp256k1 H1/H2/H3/H4/H5
+  commands, nonce generation, nonce commitment, commitment hash, binding
+  factor, group commitment, challenge, signing share, aggregate, verify,
+  hash-to-scalar, hash-memory, 48-byte scalar reduction, FROST labels/DSTs, and
+  FROST-specific error handlers. FROST scratch buffers remain owned by
+  `src/wuci-ji.s` so the existing exit-path zeroization still covers them.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -393,16 +401,15 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    generation, signature-share aggregation, affine point validation/add/double,
    signature verification, projective basepoint multiplication, and controlled
    SEC1 point encoding/decoding. Next FROST work should wrap these primitives
-   into a safer end-to-end workflow only after the remaining assembly split and
-   constant-time group-operation audit.
-4. Continue the assembly split before adding much more FROST signing code.
+   into a safer end-to-end workflow only after the constant-time
+   group-operation audit.
+4. Continue the security hardening before adding much more FROST signing code.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
-   `src/secp256k1_field.s`, `src/secp256k1_point.s`,
+   `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate; the next split candidate is `frost.s` for transcript and round
-   helpers. After that, audit and remediate the remaining exceptional-case
-   branches in point/Jacobian operations before expanding any secret-bearing
-   FROST workflow. Keep the native and Zig source lists together.
+   separate. Audit and remediate the remaining exceptional-case branches in
+   point/Jacobian operations before expanding any secret-bearing FROST
+   workflow. Keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
