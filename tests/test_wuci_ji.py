@@ -235,6 +235,7 @@ def assert_inspect_v1(sealed: bytes) -> None:
 
 def assert_manifest_v1(sealed: bytes) -> None:
     nonce = sealed[len(ENVELOPE_PREFIX) : ENVELOPE_HEADER_LEN]
+    ciphertext = sealed[ENVELOPE_HEADER_LEN:-ENVELOPE_TAG_LEN]
     ciphertext_len = len(sealed) - ENVELOPE_HEADER_LEN - ENVELOPE_TAG_LEN
     tag = sealed[-ENVELOPE_TAG_LEN:]
     manifested = run(["manifest"], sealed)
@@ -244,6 +245,9 @@ def assert_manifest_v1(sealed: bytes) -> None:
         b"algorithm: 1\n"
         b"header-length: 20\n"
         b"ciphertext-length: " + str(ciphertext_len).encode("ascii") + b"\n"
+        + b"ciphertext-sha256: "
+        + hashlib.sha256(ciphertext).hexdigest().encode("ascii")
+        + b"\n"
         + b"nonce: " + nonce.hex().encode("ascii") + b"\n"
         + b"tag: " + tag.hex().encode("ascii") + b"\n"
     )
@@ -289,6 +293,7 @@ def assert_inspect_v2(sealed: bytes, key_id: bytes) -> None:
 def assert_manifest_v2(sealed: bytes, key_id: bytes) -> None:
     key_id_end = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN
     nonce = sealed[key_id_end:ENVELOPE_V2_HEADER_LEN]
+    ciphertext = sealed[ENVELOPE_V2_HEADER_LEN:-ENVELOPE_TAG_LEN]
     ciphertext_len = len(sealed) - ENVELOPE_V2_HEADER_LEN - ENVELOPE_TAG_LEN
     tag = sealed[-ENVELOPE_TAG_LEN:]
     manifested = run(["manifest"], sealed)
@@ -299,6 +304,9 @@ def assert_manifest_v2(sealed: bytes, key_id: bytes) -> None:
         b"header-length: 36\n"
         + b"key-id: " + key_id.hex().encode("ascii") + b"\n"
         + b"ciphertext-length: " + str(ciphertext_len).encode("ascii") + b"\n"
+        + b"ciphertext-sha256: "
+        + hashlib.sha256(ciphertext).hexdigest().encode("ascii")
+        + b"\n"
         + b"nonce: " + nonce.hex().encode("ascii") + b"\n"
         + b"tag: " + tag.hex().encode("ascii") + b"\n"
     )

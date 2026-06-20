@@ -1374,6 +1374,11 @@ manifest_parse_loaded_envelope:
     mov edx, OFFSET FLAT:newline_msg_len
     call write_all
 
+    lea rdi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    sub rsi, ENVELOPE_MIN_LEN
+    call write_manifest_ciphertext_sha256
+
     mov rdi, STDOUT
     lea rsi, [rip + inspect_nonce_label]
     mov edx, OFFSET FLAT:inspect_nonce_label_len
@@ -1438,6 +1443,11 @@ manifest_parse_loaded_envelope:
     lea rsi, [rip + newline_msg]
     mov edx, OFFSET FLAT:newline_msg_len
     call write_all
+
+    lea rdi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    sub rsi, ENVELOPE_V2_MIN_LEN
+    call write_manifest_ciphertext_sha256
 
     mov rdi, STDOUT
     lea rsi, [rip + inspect_nonce_label]
@@ -2301,6 +2311,41 @@ write_u64_decimal_stdout:
     mov rdx, r12
     call write_all
     pop r13
+    pop r12
+    pop rbx
+    ret
+
+write_manifest_ciphertext_sha256:
+    push rbx
+    push r12
+    mov rbx, rdi
+    mov r12, rsi
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_sha256_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    call write_all
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    mov rsi, rbx
+    mov rdx, r12
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + digest_buf]
+    call sha256_final
+
+    lea rdi, [rip + digest_buf]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
     pop r12
     pop rbx
     ret
@@ -3622,6 +3667,10 @@ manifest_v2_msg:
 manifest_ciphertext_length_label:
     .ascii "ciphertext-length: "
 .set manifest_ciphertext_length_label_len, . - manifest_ciphertext_length_label
+
+manifest_ciphertext_sha256_label:
+    .ascii "ciphertext-sha256: "
+.set manifest_ciphertext_sha256_label_len, . - manifest_ciphertext_sha256_label
 
 manifest_tag_label:
     .ascii "tag: "
