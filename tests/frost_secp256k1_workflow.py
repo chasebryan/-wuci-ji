@@ -102,6 +102,13 @@ def main() -> None:
         assert bad_run.returncode != 0
         assert b"does not match the built-in fixture" in bad_run.stderr
 
+    help_proc = run_tool(["--help"])
+    assert help_proc.returncode == 0
+    assert b"WUCI-FROST / No Such Quorum" in help_proc.stdout
+    assert b"manifest-bound artifact actions" in help_proc.stdout
+    assert b"not\n  encryption" in help_proc.stdout
+    assert b"arbitrary signer material stays blocked" in help_proc.stdout
+
     if args.quiet:
         return
 

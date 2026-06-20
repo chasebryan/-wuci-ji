@@ -18,6 +18,14 @@ DEFAULT_MESSAGE = b"wuci-ji frost integration"
 FIXTURE_WARNING = (
     "NON-PRODUCTION deterministic fixture material only; do not use for real signatures."
 )
+HELP_EPILOG = """\
+WUCI-FROST / No Such Quorum direction:
+  FROST is an authorization layer for manifest-bound artifact actions, not
+  encryption. Wuci-ji artifact secrecy stays in the ChaCha20-Poly1305 envelope.
+  This helper is only a deterministic fixture demo over existing assembly
+  primitives; arbitrary signer material stays blocked until nonce handling,
+  commitment tracking, and constant-time boundaries are hardened.
+"""
 
 FIXTURE_GROUP_SECRET = 5
 FIXTURE_SIGNERS = (
@@ -364,7 +372,9 @@ def main() -> int:
         description=(
             "Run the deterministic 2-of-2 FROST(secp256k1,SHA-256) demo workflow "
             "against the wuci-ji assembly CLI primitives."
-        )
+        ),
+        epilog=HELP_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--bin",

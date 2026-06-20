@@ -39,6 +39,27 @@ artifact containing a magic/version header, random nonce, ciphertext, and tag.
 `open <key>` reads that artifact from stdin, verifies it, and writes plaintext
 only after authentication succeeds.
 
+## WUCI-FROST demo
+
+WUCI-FROST / 无此签 / No Such Quorum is the authorization direction for this
+machine: FROST should sign stable artifact manifests that decide whether an
+artifact may be opened, released, trusted, or published. It is not an encryption
+replacement; artifact secrecy stays in the ChaCha20-Poly1305 envelope.
+
+The current FROST surface is a deterministic, non-production secp256k1 demo
+that exercises the assembly primitives without accepting arbitrary signer
+material:
+
+```sh
+make frost-demo
+python3 tools/frost_secp256k1_workflow.py --print-fixture-manifest
+python3 tools/frost_secp256k1_workflow.py --message "authorize manifest" --json
+```
+
+`--fixture-manifest` accepts only the exact built-in fixture manifest and
+rejects modified signer shares, nonces, production flags, missing fields, and
+extra fields before any signing-share primitive runs.
+
 ## License
 
 NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).
