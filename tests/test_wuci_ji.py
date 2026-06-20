@@ -3,17 +3,20 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
+import shlex
 import subprocess
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BIN = ROOT / "build" / "wuci-ji"
+BIN = Path(os.environ.get("WUCI_JI_BIN", ROOT / "build" / "wuci-ji"))
+RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 
 
 def run(args: list[str], data: bytes = b"") -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
-        [str(BIN), *args],
+        [*RUNNER, str(BIN), *args],
         input=data,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

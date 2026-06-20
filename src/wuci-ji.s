@@ -86,7 +86,7 @@ _start:
 usage_exit:
     mov rdi, STDERR
     lea rsi, [rip + usage_msg]
-    mov edx, OFFSET FLAT:usage_msg_len
+    mov edx, usage_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -94,7 +94,7 @@ usage_exit:
 help_exit:
     mov rdi, STDOUT
     lea rsi, [rip + usage_msg]
-    mov edx, OFFSET FLAT:usage_msg_len
+    mov edx, usage_msg_len
     call write_all
     xor edi, edi
     jmp exit_process
@@ -141,7 +141,7 @@ run_sha256:
 read_error:
     mov rdi, STDERR
     lea rsi, [rip + read_error_msg]
-    mov edx, OFFSET FLAT:read_error_msg_len
+    mov edx, read_error_msg_len
     call write_all
     mov edi, 1
     jmp exit_process
@@ -149,7 +149,7 @@ read_error:
 key_error:
     mov rdi, STDERR
     lea rsi, [rip + key_error_msg]
-    mov edx, OFFSET FLAT:key_error_msg_len
+    mov edx, key_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -157,7 +157,7 @@ key_error:
 chacha_arg_error:
     mov rdi, STDERR
     lea rsi, [rip + chacha_arg_error_msg]
-    mov edx, OFFSET FLAT:chacha_arg_error_msg_len
+    mov edx, chacha_arg_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -165,7 +165,7 @@ chacha_arg_error:
 hkdf_arg_error:
     mov rdi, STDERR
     lea rsi, [rip + hkdf_arg_error_msg]
-    mov edx, OFFSET FLAT:hkdf_arg_error_msg_len
+    mov edx, hkdf_arg_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -173,7 +173,7 @@ hkdf_arg_error:
 poly_arg_error:
     mov rdi, STDERR
     lea rsi, [rip + poly_arg_error_msg]
-    mov edx, OFFSET FLAT:poly_arg_error_msg_len
+    mov edx, poly_arg_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -181,7 +181,7 @@ poly_arg_error:
 aead_arg_error:
     mov rdi, STDERR
     lea rsi, [rip + aead_arg_error_msg]
-    mov edx, OFFSET FLAT:aead_arg_error_msg_len
+    mov edx, aead_arg_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -189,7 +189,7 @@ aead_arg_error:
 aead_auth_error:
     mov rdi, STDERR
     lea rsi, [rip + aead_auth_error_msg]
-    mov edx, OFFSET FLAT:aead_auth_error_msg_len
+    mov edx, aead_auth_error_msg_len
     call write_all
     mov edi, 1
     jmp exit_process
@@ -197,7 +197,7 @@ aead_auth_error:
 aead_size_error:
     mov rdi, STDERR
     lea rsi, [rip + aead_size_error_msg]
-    mov edx, OFFSET FLAT:aead_size_error_msg_len
+    mov edx, aead_size_error_msg_len
     call write_all
     mov edi, 1
     jmp exit_process
@@ -855,7 +855,7 @@ run_selftest:
 
     mov rdi, STDOUT
     lea rsi, [rip + selftest_pass_msg]
-    mov edx, OFFSET FLAT:selftest_pass_msg_len
+    mov edx, selftest_pass_msg_len
     call write_all
     xor edi, edi
     jmp exit_process
@@ -863,7 +863,7 @@ run_selftest:
 selftest_fail:
     mov rdi, STDERR
     lea rsi, [rip + selftest_fail_msg]
-    mov edx, OFFSET FLAT:selftest_fail_msg_len
+    mov edx, selftest_fail_msg_len
     call write_all
     mov edi, 1
     jmp exit_process
