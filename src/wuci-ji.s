@@ -122,6 +122,12 @@ _start:
     je run_inspect
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_manifest]
+    call streq
+    cmp eax, 1
+    je run_manifest
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_aead_seal]
     call streq
     cmp eax, 1
@@ -1009,6 +1015,168 @@ run_inspect:
     xor edi, edi
     jmp exit_process
 
+run_manifest:
+    mov qword ptr [rip + aead_text_len], 0
+
+.Lmanifest_read_loop:
+    mov eax, SYS_READ
+    mov edi, STDIN
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js read_error
+    jz .Lmanifest_eof
+
+    mov rbx, qword ptr [rip + aead_text_len]
+    mov rcx, AEAD_OPEN_MAX
+    sub rcx, rbx
+    cmp rax, rcx
+    ja aead_size_error
+
+    lea rdi, [rip + aead_open_buf]
+    add rdi, rbx
+    lea rsi, [rip + io_buf]
+    mov rcx, rax
+    rep movsb
+    add qword ptr [rip + aead_text_len], rax
+    jmp .Lmanifest_read_loop
+
+.Lmanifest_eof:
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_MIN_LEN
+    jb envelope_error
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lmanifest_v1
+
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V2_MIN_LEN
+    jb envelope_error
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+    jmp .Lmanifest_v2
+
+.Lmanifest_v1:
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_v1_msg]
+    mov edx, OFFSET FLAT:manifest_v1_msg_len
+    call write_all
+
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_MIN_LEN
+    call write_u64_decimal_stdout
+    mov rdi, STDOUT
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_NONCE_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 24], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 25
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_tag_label]
+    mov edx, OFFSET FLAT:manifest_tag_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf]
+    add rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_TAG_LEN
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_TAG_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+.Lmanifest_v2:
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_v2_msg]
+    mov edx, OFFSET FLAT:manifest_v2_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_key_id_label]
+    mov edx, OFFSET FLAT:inspect_key_id_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_KEY_ID_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_length_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
+    call write_all
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_V2_MIN_LEN
+    call write_u64_decimal_stdout
+    mov rdi, STDOUT
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_NONCE_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 24], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 25
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_tag_label]
+    mov edx, OFFSET FLAT:manifest_tag_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf]
+    add rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_TAG_LEN
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_TAG_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
 run_aead_seal:
     cmp qword ptr [rsp], 4
     jb usage_exit
@@ -1612,6 +1780,41 @@ hex_encode:
     dec rcx
     jne .Lhex_loop
 .Lhex_done:
+    pop rbx
+    ret
+
+write_u64_decimal_stdout:
+    push rbx
+    push r12
+    push r13
+    mov rax, rdi
+    lea rbx, [rip + hex_buf + 32]
+    xor r12d, r12d
+    test rax, rax
+    jne .Ldecimal_loop
+    dec rbx
+    mov byte ptr [rbx], '0'
+    mov r12d, 1
+    jmp .Ldecimal_write
+
+.Ldecimal_loop:
+    xor edx, edx
+    mov r13, 10
+    div r13
+    add dl, '0'
+    dec rbx
+    mov byte ptr [rbx], dl
+    inc r12
+    test rax, rax
+    jne .Ldecimal_loop
+
+.Ldecimal_write:
+    mov rdi, STDOUT
+    mov rsi, rbx
+    mov rdx, r12
+    call write_all
+    pop r13
+    pop r12
     pop rbx
     ret
 
@@ -2780,6 +2983,8 @@ cmd_open_keyfile:
     .asciz "open-keyfile"
 cmd_inspect:
     .asciz "inspect"
+cmd_manifest:
+    .asciz "manifest"
 cmd_aead_seal:
     .asciz "aead-seal"
 cmd_aead_open:
@@ -2790,7 +2995,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|inspect|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|inspect|manifest|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -2801,6 +3006,7 @@ usage_msg:
     .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
+    .ascii "  manifest                       print envelope metadata, ciphertext length, and tag\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
     .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
@@ -2876,6 +3082,31 @@ inspect_key_id_label:
 inspect_nonce_label:
     .ascii "nonce: "
 .set inspect_nonce_label_len, . - inspect_nonce_label
+
+manifest_v1_msg:
+    .ascii "version: 1\n"
+    .ascii "algorithm: 1\n"
+    .ascii "header-length: 20\n"
+    .ascii "ciphertext-length: "
+.set manifest_v1_msg_len, . - manifest_v1_msg
+
+manifest_v2_msg:
+    .ascii "version: 2\n"
+    .ascii "algorithm: 1\n"
+    .ascii "header-length: 36\n"
+.set manifest_v2_msg_len, . - manifest_v2_msg
+
+manifest_ciphertext_length_label:
+    .ascii "ciphertext-length: "
+.set manifest_ciphertext_length_label_len, . - manifest_ciphertext_length_label
+
+manifest_tag_label:
+    .ascii "tag: "
+.set manifest_tag_label_len, . - manifest_tag_label
+
+newline_msg:
+    .ascii "\n"
+.set newline_msg_len, . - newline_msg
 
 selftest_pass_msg:
     .ascii "wuci-ji selftest: PASS\n"

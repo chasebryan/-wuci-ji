@@ -111,6 +111,10 @@ Fixes made while executing this checkpoint:
   material and prints fixed metadata fields: version, algorithm, header length,
   nonce, and the v2 key ID when present. It rejects malformed or truncated
   frames before printing any metadata.
+- `manifest` is also keyless and emits the stable artifact metadata needed for
+  cataloging: version, algorithm, header length, v2 key ID when present,
+  ciphertext length, nonce, and the raw trailing authentication tag. It uses the
+  same malformed/truncated frame rejection boundaries as `inspect`.
 
 ## Envelope layouts
 
@@ -164,5 +168,6 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 2. If v2 grows again, keep adding malformed-envelope tests before changing
    `open`; current tests cover truncated v2 headers, truncated bodies/tags,
    authenticated key ID tampering, nonce tampering, and tag tampering.
-3. Consider an `inspect-file <path>` convenience command only if stdin-based
-   inspection proves awkward for artifact workflows.
+3. Consider file-path convenience variants, such as `inspect-file <path>` and
+   `manifest-file <path>`, only if stdin-based artifact workflows become
+   awkward.
