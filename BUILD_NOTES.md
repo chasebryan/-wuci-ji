@@ -169,6 +169,10 @@ Fixes made while executing this checkpoint:
   readers, seal/open file descriptor helpers, output file creation, and
   plaintext output routing. Shared constants now live in `include/wuci.inc`,
   and the Makefile native/Zig source lists include `src/sys.s`.
+- The third assembly modularization checkpoint split `_start`, command
+  dispatch, help/usage exits, command names, and the usage text into
+  `src/main.s`. Dispatch now uses a compact command table that maps command
+  strings to the exported `run_*` handlers still owned by `src/wuci-ji.s`.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -359,10 +363,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    into a safer end-to-end workflow only after the remaining assembly split and
    constant-time group-operation audit.
 4. Continue the assembly split before adding much more FROST signing code.
-   `src/sha256.s` and `src/sys.s` are already separate; next split candidates
-   are `main.s` for `_start`/dispatch, `hmac_hkdf.s` for hash/KDF command
-   glue, and `secp256k1.s`/`frost.s` for curve and FROST primitives. Keep the
-   native and Zig source lists together.
+   `src/main.s`, `src/sha256.s`, and `src/sys.s` are already separate; next
+   split candidates are `encoding.s` for hex/Base64/output formatting,
+   `hmac_hkdf.s` for hash/KDF command glue, and `secp256k1.s`/`frost.s` for
+   curve and FROST primitives. Keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
