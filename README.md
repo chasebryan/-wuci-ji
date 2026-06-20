@@ -1,2 +1,6 @@
 # -wuci-ji
 无此机(Wuci-ji)是一个专为 x86_64 架构机器设计的汇编语言项目，旨在探索机器码、底层执行、系统边界以及精确控制。
+
+## License
+
+NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).
