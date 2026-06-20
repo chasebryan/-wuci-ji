@@ -28,6 +28,12 @@ ENVELOPE_TAG_LEN = 16
 V3_HKDF_INFO = b"wuci-ji v3 X25519 recipient AEAD key"
 ARMOR_HEADER = b"-----BEGIN WUCI-JI ARTIFACT-----"
 ARMOR_FOOTER = b"-----END WUCI-JI ARTIFACT-----"
+FROST_SHA256_HELPERS = {
+    "frost-p256-h4": b"FROST-P256-SHA256-v1msg",
+    "frost-p256-h5": b"FROST-P256-SHA256-v1com",
+    "frost-secp256k1-h4": b"FROST-secp256k1-SHA256-v1msg",
+    "frost-secp256k1-h5": b"FROST-secp256k1-SHA256-v1com",
+}
 
 
 def run(args: list[str], data: bytes = b"") -> subprocess.CompletedProcess[bytes]:
@@ -46,6 +52,15 @@ def assert_sha256(payload: bytes) -> None:
     actual = proc.stdout.decode("ascii")
     assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
     assert actual == expected, (payload[:32], actual, expected)
+
+
+def assert_frost_sha256_helpers(payload: bytes) -> None:
+    for command, prefix in FROST_SHA256_HELPERS.items():
+        proc = run([command], payload)
+        expected = hashlib.sha256(prefix + payload).hexdigest() + "\n"
+        actual = proc.stdout.decode("ascii")
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert actual == expected, (command, payload[:32], actual, expected)
 
 
 def assert_hmac_sha256(key: bytes, payload: bytes) -> None:
@@ -1038,6 +1053,10 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
         cases = [
             (["--help", "extra"], b"", None),
             (["sha256", "extra"], b"abc", None),
+            (["frost-p256-h4", "extra"], b"abc", None),
+            (["frost-p256-h5", "extra"], b"abc", None),
+            (["frost-secp256k1-h4", "extra"], b"abc", None),
+            (["frost-secp256k1-h5", "extra"], b"abc", None),
             (["keygen", "extra"], b"", None),
             (["keypair", "extra"], b"", None),
             (["selftest", "extra"], b"", None),
@@ -1161,6 +1180,10 @@ def assert_help_output() -> None:
     help_text = help_proc.stdout.decode("ascii")
 
     for snippet in (
+        "frost-p256-h4                  RFC9591 FROST(P-256,SHA-256) H4(msg) over stdin",
+        "frost-p256-h5                  RFC9591 FROST(P-256,SHA-256) H5(com) over stdin",
+        "frost-secp256k1-h4             RFC9591 FROST(secp256k1,SHA-256) H4(msg) over stdin",
+        "frost-secp256k1-h5             RFC9591 FROST(secp256k1,SHA-256) H5(com) over stdin",
         "keypair                        write random X25519 private/public keys as hex",
         "seal-to <public> <in> <out>    seal v3 file to X25519 public key; no overwrite",
         "seal-file <key> <in> <out>",
@@ -1193,6 +1216,9 @@ def main() -> None:
     assert_sha256(b"a" * 64)
     assert_sha256(b"a" * 65)
     assert_sha256((b"wuci-ji\0" * 8192) + b"end")
+    assert_frost_sha256_helpers(b"")
+    assert_frost_sha256_helpers(b"abc")
+    assert_frost_sha256_helpers((b"frost-transcript\0" * 4096) + b"end")
 
     key = bytes(range(32))
     assert_hmac_sha256(key, b"")

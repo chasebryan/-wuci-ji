@@ -54,6 +54,30 @@ _start:
     je run_sha256
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_p256_h4]
+    call streq
+    cmp eax, 1
+    je run_frost_p256_h4
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_p256_h5]
+    call streq
+    cmp eax, 1
+    je run_frost_p256_h5
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_h4]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_h4
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_h5]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_h5
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_selftest]
     call streq
     cmp eax, 1
@@ -297,6 +321,84 @@ run_sha256:
     mov edx, 65
     call write_all
 
+    xor edi, edi
+    jmp exit_process
+
+run_frost_p256_h4:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_p256_h4_prefix]
+    mov esi, OFFSET FLAT:frost_p256_h4_prefix_len
+    jmp frost_hash_stdin
+
+run_frost_p256_h5:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_p256_h5_prefix]
+    mov esi, OFFSET FLAT:frost_p256_h5_prefix_len
+    jmp frost_hash_stdin
+
+run_frost_secp256k1_h4:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_secp256k1_h4_prefix]
+    mov esi, OFFSET FLAT:frost_secp256k1_h4_prefix_len
+    jmp frost_hash_stdin
+
+run_frost_secp256k1_h5:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_secp256k1_h5_prefix]
+    mov esi, OFFSET FLAT:frost_secp256k1_h5_prefix_len
+    jmp frost_hash_stdin
+
+frost_hash_stdin:
+    push rbx
+    push r12
+    mov rbx, rdi
+    mov r12, rsi
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    mov rsi, rbx
+    mov rdx, r12
+    call sha256_update
+
+.Lfrost_hash_read_loop:
+    mov eax, SYS_READ
+    mov edi, STDIN
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js read_error
+    jz .Lfrost_hash_eof
+
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, rax
+    call sha256_update
+    jmp .Lfrost_hash_read_loop
+
+.Lfrost_hash_eof:
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + digest_buf]
+    call sha256_final
+
+    lea rdi, [rip + digest_buf]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    pop r12
+    pop rbx
     xor edi, edi
     jmp exit_process
 
@@ -4529,6 +4631,14 @@ sha256_transform:
 .section .rodata
 cmd_sha256:
     .asciz "sha256"
+cmd_frost_p256_h4:
+    .asciz "frost-p256-h4"
+cmd_frost_p256_h5:
+    .asciz "frost-p256-h5"
+cmd_frost_secp256k1_h4:
+    .asciz "frost-secp256k1-h4"
+cmd_frost_secp256k1_h5:
+    .asciz "frost-secp256k1-h5"
 cmd_selftest:
     .asciz "selftest"
 cmd_keygen:
@@ -4593,8 +4703,12 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h4|frost-p256-h5|frost-secp256k1-h4|frost-secp256k1-h5|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
+    .ascii "  frost-p256-h4                  RFC9591 FROST(P-256,SHA-256) H4(msg) over stdin\n"
+    .ascii "  frost-p256-h5                  RFC9591 FROST(P-256,SHA-256) H5(com) over stdin\n"
+    .ascii "  frost-secp256k1-h4             RFC9591 FROST(secp256k1,SHA-256) H4(msg) over stdin\n"
+    .ascii "  frost-secp256k1-h5             RFC9591 FROST(secp256k1,SHA-256) H5(com) over stdin\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
     .ascii "  poly1305 <key>                 authenticate stdin with a 32-byte one-time hex key\n"
@@ -4787,6 +4901,22 @@ armor_header:
 armor_footer:
     .ascii "-----END WUCI-JI ARTIFACT-----"
 .set armor_footer_len, . - armor_footer
+
+frost_p256_h4_prefix:
+    .ascii "FROST-P256-SHA256-v1msg"
+.set frost_p256_h4_prefix_len, . - frost_p256_h4_prefix
+
+frost_p256_h5_prefix:
+    .ascii "FROST-P256-SHA256-v1com"
+.set frost_p256_h5_prefix_len, . - frost_p256_h5_prefix
+
+frost_secp256k1_h4_prefix:
+    .ascii "FROST-secp256k1-SHA256-v1msg"
+.set frost_secp256k1_h4_prefix_len, . - frost_secp256k1_h4_prefix
+
+frost_secp256k1_h5_prefix:
+    .ascii "FROST-secp256k1-SHA256-v1com"
+.set frost_secp256k1_h5_prefix_len, . - frost_secp256k1_h5_prefix
 
 envelope_prefix:
     .ascii "WJSEAL"
