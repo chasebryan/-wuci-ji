@@ -120,6 +120,11 @@ Fixes made while executing this checkpoint:
   redirection. They reuse the same parser/output paths as stdin `inspect` and
   `manifest`, reject unreadable files separately, and preserve the same
   malformed/truncated envelope boundaries.
+- `seal-file <key> <in> <out>` and `open-file <key> <in> <out>` provide
+  no-overwrite file round trips for stored artifacts. `seal-file` streams the
+  input file into a newly created v1 envelope, while `open-file` authenticates
+  the complete artifact before creating the plaintext output. Both commands
+  refuse to overwrite existing output paths.
 
 ## Envelope layouts
 
@@ -173,7 +178,6 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 2. If v2 grows again, keep adding malformed-envelope tests before changing
    `open`; current tests cover truncated v2 headers, truncated bodies/tags,
    authenticated key ID tampering, nonce tampering, and tag tampering.
-3. Consider path-based seal/open commands only after choosing overwrite
-   semantics. A conservative shape would be `seal-file <key> <in> <out>` and
-   `open-file <key> <in> <out>` with output creation failing when the output
-   path already exists.
+3. Consider `seal-file-v2` or key-file-backed path variants only if stored
+   artifact workflows need them; current file commands intentionally keep the
+   smallest no-overwrite surface.

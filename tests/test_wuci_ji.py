@@ -413,6 +413,92 @@ def assert_keyfile_workflow(plaintext: bytes) -> None:
         assert rejected.stdout == b""
 
 
+def assert_file_seal_open_workflow(
+    key: bytes,
+    plaintext: bytes,
+    v2_sealed: bytes,
+    v2_plaintext: bytes,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        plain_path = tmp / "plain.bin"
+        sealed_path = tmp / "sealed.wj"
+        opened_path = tmp / "opened.bin"
+        plain_path.write_bytes(plaintext)
+
+        sealed_proc = run(
+            ["seal-file", key.hex(), str(plain_path), str(sealed_path)]
+        )
+        assert sealed_proc.returncode == 0, sealed_proc.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert sealed_proc.stdout == b""
+        sealed = sealed_path.read_bytes()
+        assert sealed.startswith(ENVELOPE_PREFIX)
+        assert len(sealed) == ENVELOPE_HEADER_LEN + len(plaintext) + ENVELOPE_TAG_LEN
+
+        opened = run(["open", key.hex()], sealed)
+        assert opened.returncode == 0, opened.stderr.decode("utf-8", "replace")
+        assert opened.stdout == plaintext
+
+        opened_proc = run(
+            ["open-file", key.hex(), str(sealed_path), str(opened_path)]
+        )
+        assert opened_proc.returncode == 0, opened_proc.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert opened_proc.stdout == b""
+        assert opened_path.read_bytes() == plaintext
+
+        v2_path = tmp / "sealed-v2.wj"
+        v2_opened_path = tmp / "opened-v2.bin"
+        v2_path.write_bytes(v2_sealed)
+        v2_opened = run(
+            ["open-file", key.hex(), str(v2_path), str(v2_opened_path)]
+        )
+        assert v2_opened.returncode == 0, v2_opened.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert v2_opened.stdout == b""
+        assert v2_opened_path.read_bytes() == v2_plaintext
+
+        existing_sealed_path = tmp / "existing-sealed.wj"
+        existing_sealed_path.write_bytes(b"do-not-touch")
+        rejected_seal = run(
+            ["seal-file", key.hex(), str(plain_path), str(existing_sealed_path)]
+        )
+        assert rejected_seal.returncode != 0
+        assert rejected_seal.stdout == b""
+        assert existing_sealed_path.read_bytes() == b"do-not-touch"
+
+        existing_open_path = tmp / "existing-open.bin"
+        existing_open_path.write_bytes(b"do-not-touch")
+        rejected_open = run(
+            ["open-file", key.hex(), str(sealed_path), str(existing_open_path)]
+        )
+        assert rejected_open.returncode != 0
+        assert rejected_open.stdout == b""
+        assert existing_open_path.read_bytes() == b"do-not-touch"
+
+        bad_path = tmp / "bad.wj"
+        bad_out_path = tmp / "bad-open.bin"
+        bad_path.write_bytes(sealed[:-1] + bytes([sealed[-1] ^ 1]))
+        rejected_bad = run(
+            ["open-file", key.hex(), str(bad_path), str(bad_out_path)]
+        )
+        assert rejected_bad.returncode != 0
+        assert rejected_bad.stdout == b""
+        assert not bad_out_path.exists()
+
+        missing_out_path = tmp / "missing-seal.wj"
+        rejected_missing = run(
+            ["seal-file", key.hex(), str(tmp / "missing.bin"), str(missing_out_path)]
+        )
+        assert rejected_missing.returncode != 0
+        assert rejected_missing.stdout == b""
+        assert not missing_out_path.exists()
+
+
 def main() -> None:
     selftest = run(["selftest"])
     assert selftest.returncode == 0, selftest.stderr.decode("utf-8", "replace")
@@ -488,6 +574,8 @@ def main() -> None:
     v2_key_id = bytes.fromhex("101112131415161718191a1b1c1d1e1f")
     v2_sealed = assert_envelope_v2(rfc_key, v2_key_id, b"")
     assert_envelope_v2(rfc_key, v2_key_id, b"abc")
+    v2_file_plaintext = b"file-v2-artifact"
+    v2_file_sealed = assert_envelope_v2(rfc_key, v2_key_id, v2_file_plaintext)
     assert_envelope_v2(rfc_key, v2_key_id, (b"envelope-v2\0" * 4096) + b"end")
 
     sealed_proc = run(["seal", rfc_key.hex()], b"tamper-target")
@@ -541,6 +629,12 @@ def main() -> None:
     assert bad_key_id.stdout == b""
 
     assert_keyfile_workflow((b"keyfile-artifact\0" * 257) + b"end")
+    assert_file_seal_open_workflow(
+        rfc_key,
+        (b"file-artifact\0" * 257) + b"end",
+        v2_file_sealed,
+        v2_file_plaintext,
+    )
 
 
 if __name__ == "__main__":

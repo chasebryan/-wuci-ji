@@ -12,6 +12,11 @@
 .equ STDERR, 2
 .equ AT_FDCWD, -100
 .equ O_RDONLY, 0
+.equ O_WRONLY, 1
+.equ O_CREAT, 64
+.equ O_EXCL, 128
+.equ FILE_CREATE_FLAGS, O_WRONLY + O_CREAT + O_EXCL
+.equ FILE_CREATE_MODE, 384
 
 .equ SHA256_STATE, 0
 .equ SHA256_BYTES, 32
@@ -92,6 +97,12 @@ _start:
     je run_seal_v2
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_file]
+    call streq
+    cmp eax, 1
+    je run_seal_file
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_seal_keyfile]
     call streq
     cmp eax, 1
@@ -108,6 +119,12 @@ _start:
     call streq
     cmp eax, 1
     je run_open
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_open_file]
+    call streq
+    cmp eax, 1
+    je run_open_file
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_open_keyfile]
@@ -246,6 +263,22 @@ artifact_file_error:
     mov rdi, STDERR
     lea rsi, [rip + artifact_file_error_msg]
     mov edx, OFFSET FLAT:artifact_file_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+input_file_error:
+    mov rdi, STDERR
+    lea rsi, [rip + input_file_error_msg]
+    mov edx, OFFSET FLAT:input_file_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+output_file_error:
+    mov rdi, STDERR
+    lea rsi, [rip + output_file_error_msg]
+    mov edx, OFFSET FLAT:output_file_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -630,7 +663,7 @@ run_seal:
     cmp eax, 1
     jne aead_arg_error
 
-    jmp seal_with_loaded_key
+    jmp seal_stdio_with_loaded_key
 
 run_seal_v2:
     cmp qword ptr [rsp], 4
@@ -648,7 +681,46 @@ run_seal_v2:
     cmp eax, 1
     jne keyid_arg_error
 
-    jmp seal_v2_with_loaded_key
+    jmp seal_v2_stdio_with_loaded_key
+
+run_seal_file:
+    cmp qword ptr [rsp], 5
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call hex32_decode
+    cmp eax, 1
+    jne aead_arg_error
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, qword ptr [rsp + 32]
+    mov edx, O_RDONLY
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js input_file_error
+    mov qword ptr [rip + seal_input_fd], rax
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, qword ptr [rsp + 40]
+    mov edx, FILE_CREATE_FLAGS
+    mov r10d, FILE_CREATE_MODE
+    syscall
+    test rax, rax
+    js .Lseal_file_output_fail
+    mov qword ptr [rip + seal_output_fd], rax
+    mov qword ptr [rip + seal_file_mode], 1
+
+    jmp seal_with_loaded_key
+
+.Lseal_file_output_fail:
+    mov eax, SYS_CLOSE
+    mov rdi, qword ptr [rip + seal_input_fd]
+    syscall
+    jmp output_file_error
 
 run_seal_keyfile:
     cmp qword ptr [rsp], 3
@@ -660,7 +732,7 @@ run_seal_keyfile:
     cmp eax, 1
     jne keyfile_error
 
-    jmp seal_with_loaded_key
+    jmp seal_stdio_with_loaded_key
 
 run_seal_keyfile_v2:
     cmp qword ptr [rsp], 4
@@ -678,6 +750,18 @@ run_seal_keyfile_v2:
     cmp eax, 1
     jne keyid_arg_error
 
+    jmp seal_v2_stdio_with_loaded_key
+
+seal_stdio_with_loaded_key:
+    mov qword ptr [rip + seal_input_fd], STDIN
+    mov qword ptr [rip + seal_output_fd], STDOUT
+    mov qword ptr [rip + seal_file_mode], 0
+    jmp seal_with_loaded_key
+
+seal_v2_stdio_with_loaded_key:
+    mov qword ptr [rip + seal_input_fd], STDIN
+    mov qword ptr [rip + seal_output_fd], STDOUT
+    mov qword ptr [rip + seal_file_mode], 0
     jmp seal_v2_with_loaded_key
 
 seal_with_loaded_key:
@@ -687,15 +771,19 @@ seal_with_loaded_key:
     cmp eax, 1
     jne random_error
 
-    mov rdi, STDOUT
+    mov rdi, qword ptr [rip + seal_output_fd]
     lea rsi, [rip + envelope_prefix]
     mov edx, ENVELOPE_PREFIX_LEN
     call write_all
+    test eax, eax
+    jne seal_output_write_error
 
-    mov rdi, STDOUT
+    mov rdi, qword ptr [rip + seal_output_fd]
     lea rsi, [rip + chacha_nonce]
     mov edx, ENVELOPE_NONCE_LEN
     call write_all
+    test eax, eax
+    jne seal_output_write_error
 
     call aead_poly1305_init
     jmp seal_stream_with_current_aad
@@ -709,10 +797,12 @@ seal_v2_with_loaded_key:
 
     call build_envelope_v2_header
 
-    mov rdi, STDOUT
+    mov rdi, qword ptr [rip + seal_output_fd]
     lea rsi, [rip + envelope_header_buf]
     mov edx, ENVELOPE_V2_HEADER_LEN
     call write_all
+    test eax, eax
+    jne seal_output_write_error
 
     call aead_poly1305_init
     lea rdi, [rip + envelope_header_buf]
@@ -725,12 +815,12 @@ seal_stream_with_current_aad:
 
 .Lseal_read_loop:
     mov eax, SYS_READ
-    mov edi, STDIN
+    mov rdi, qword ptr [rip + seal_input_fd]
     lea rsi, [rip + io_buf]
     mov edx, 4096
     syscall
     test rax, rax
-    js read_error
+    js seal_input_read_error
     jz .Lseal_eof
 
     lea rdi, [rip + io_buf]
@@ -743,10 +833,12 @@ seal_stream_with_current_aad:
     mov rsi, r14
     call poly1305_update
 
-    mov rdi, STDOUT
+    mov rdi, qword ptr [rip + seal_output_fd]
     lea rsi, [rip + io_buf]
     mov rdx, r14
     call write_all
+    test eax, eax
+    jne seal_output_write_error
     jmp .Lseal_read_loop
 
 .Lseal_eof:
@@ -754,13 +846,25 @@ seal_stream_with_current_aad:
     lea rsi, [rip + poly_tag]
     call aead_poly1305_finish
 
-    mov rdi, STDOUT
+    mov rdi, qword ptr [rip + seal_output_fd]
     lea rsi, [rip + poly_tag]
     mov edx, ENVELOPE_TAG_LEN
     call write_all
+    test eax, eax
+    jne seal_output_write_error
+
+    call close_seal_files
 
     xor edi, edi
     jmp exit_process
+
+seal_input_read_error:
+    call close_seal_files
+    jmp read_error
+
+seal_output_write_error:
+    call close_seal_files
+    jmp output_file_error
 
 run_open:
     cmp qword ptr [rsp], 3
@@ -774,6 +878,27 @@ run_open:
 
     jmp open_with_loaded_key
 
+run_open_file:
+    cmp qword ptr [rsp], 5
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call hex32_decode
+    cmp eax, 1
+    jne aead_arg_error
+
+    mov rax, qword ptr [rsp + 40]
+    mov qword ptr [rip + aead_output_path], rax
+
+    mov rdi, qword ptr [rsp + 32]
+    call read_artifact_file
+    cmp eax, 1
+    je open_parse_loaded_envelope
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
 run_open_keyfile:
     cmp qword ptr [rsp], 3
     jb usage_exit
@@ -785,6 +910,7 @@ run_open_keyfile:
     jne keyfile_error
 
 open_with_loaded_key:
+    mov qword ptr [rip + aead_output_path], 0
     mov qword ptr [rip + aead_text_len], 0
 
 .Lopen_read_loop:
@@ -795,7 +921,7 @@ open_with_loaded_key:
     syscall
     test rax, rax
     js read_error
-    jz .Lopen_eof
+    jz open_parse_loaded_envelope
 
     mov rbx, qword ptr [rip + aead_text_len]
     mov rcx, AEAD_OPEN_MAX
@@ -811,7 +937,7 @@ open_with_loaded_key:
     add qword ptr [rip + aead_text_len], rax
     jmp .Lopen_read_loop
 
-.Lopen_eof:
+open_parse_loaded_envelope:
     mov rbx, qword ptr [rip + aead_text_len]
     cmp rbx, ENVELOPE_MIN_LEN
     jb envelope_error
@@ -870,10 +996,12 @@ open_with_loaded_key:
     mov rsi, qword ptr [rip + aead_text_len]
     call chacha20_xor
 
-    mov rdi, STDOUT
     lea rsi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
-    mov rdx, qword ptr [rip + aead_text_len]
-    call write_all
+    mov rdi, rsi
+    mov rsi, qword ptr [rip + aead_text_len]
+    call write_open_plaintext
+    cmp eax, 1
+    jne output_file_error
 
     xor edi, edi
     jmp exit_process
@@ -917,10 +1045,12 @@ open_with_loaded_key:
     mov rsi, qword ptr [rip + aead_text_len]
     call chacha20_xor
 
-    mov rdi, STDOUT
     lea rsi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
-    mov rdx, qword ptr [rip + aead_text_len]
-    call write_all
+    mov rdi, rsi
+    mov rsi, qword ptr [rip + aead_text_len]
+    call write_open_plaintext
+    cmp eax, 1
+    jne output_file_error
 
     xor edi, edi
     jmp exit_process
@@ -1841,6 +1971,82 @@ read_artifact_file:
 .Lread_artifact_file_fail:
     xor eax, eax
 .Lread_artifact_file_done:
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+close_seal_files:
+    cmp qword ptr [rip + seal_file_mode], 1
+    jne .Lclose_seal_files_done
+
+    mov eax, SYS_CLOSE
+    mov rdi, qword ptr [rip + seal_input_fd]
+    syscall
+    mov eax, SYS_CLOSE
+    mov rdi, qword ptr [rip + seal_output_fd]
+    syscall
+    mov qword ptr [rip + seal_file_mode], 0
+
+.Lclose_seal_files_done:
+    ret
+
+write_open_plaintext:
+    push rbx
+    push r12
+    push r13
+    push r14
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, STDOUT
+    xor r14d, r14d
+
+    mov rax, qword ptr [rip + aead_output_path]
+    test rax, rax
+    jz .Lwrite_open_plaintext_write
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, qword ptr [rip + aead_output_path]
+    mov edx, FILE_CREATE_FLAGS
+    mov r10d, FILE_CREATE_MODE
+    syscall
+    test rax, rax
+    js .Lwrite_open_plaintext_fail
+    mov r13, rax
+    mov r14d, 1
+
+.Lwrite_open_plaintext_write:
+    mov rdi, r13
+    mov rsi, rbx
+    mov rdx, r12
+    call write_all
+    test eax, eax
+    jne .Lwrite_open_plaintext_fail_close
+
+    test r14, r14
+    jz .Lwrite_open_plaintext_ok
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    test rax, rax
+    js .Lwrite_open_plaintext_fail
+
+.Lwrite_open_plaintext_ok:
+    mov eax, 1
+    jmp .Lwrite_open_plaintext_done
+
+.Lwrite_open_plaintext_fail_close:
+    test r14, r14
+    jz .Lwrite_open_plaintext_fail
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+
+.Lwrite_open_plaintext_fail:
+    xor eax, eax
+.Lwrite_open_plaintext_done:
+    pop r14
     pop r13
     pop r12
     pop rbx
@@ -3086,12 +3292,16 @@ cmd_seal:
     .asciz "seal"
 cmd_seal_v2:
     .asciz "seal-v2"
+cmd_seal_file:
+    .asciz "seal-file"
 cmd_seal_keyfile:
     .asciz "seal-keyfile"
 cmd_seal_keyfile_v2:
     .asciz "seal-keyfile-v2"
 cmd_open:
     .asciz "open"
+cmd_open_file:
+    .asciz "open-file"
 cmd_open_keyfile:
     .asciz "open-keyfile"
 cmd_inspect:
@@ -3112,7 +3322,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|seal-file|open|open-file|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -3121,7 +3331,9 @@ usage_msg:
     .ascii "  keygen                         write a random 32-byte key as 64 hex plus newline\n"
     .ascii "  seal <key>                     write framed ChaCha20-Poly1305 envelope with random nonce\n"
     .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
+    .ascii "  seal-file <key> <in> <out>     seal file to a new output path; refuses overwrite\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
+    .ascii "  open-file <key> <in> <out>     open file to a new output path; refuses overwrite\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
     .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
     .ascii "  manifest                       print envelope metadata, ciphertext length, and tag\n"
@@ -3149,6 +3361,14 @@ keyfile_error_msg:
 artifact_file_error_msg:
     .ascii "wuci-ji: artifact file could not be read\n"
 .set artifact_file_error_msg_len, . - artifact_file_error_msg
+
+input_file_error_msg:
+    .ascii "wuci-ji: input file could not be read\n"
+.set input_file_error_msg_len, . - input_file_error_msg
+
+output_file_error_msg:
+    .ascii "wuci-ji: output file could not be created or written\n"
+.set output_file_error_msg_len, . - output_file_error_msg
 
 keyid_arg_error_msg:
     .ascii "wuci-ji: key id must contain exactly 32 hex characters\n"
@@ -3449,6 +3669,18 @@ aead_text_len:
     .skip 8
 .align 8
 aead_aad_len:
+    .skip 8
+.align 8
+aead_output_path:
+    .skip 8
+.align 8
+seal_input_fd:
+    .skip 8
+.align 8
+seal_output_fd:
+    .skip 8
+.align 8
+seal_file_mode:
     .skip 8
 .align 16
 chacha_key:
