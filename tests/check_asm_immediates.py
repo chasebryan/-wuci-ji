@@ -289,6 +289,123 @@ def check_scalar_inversion_boundary(disassemblies: list[tuple[Path, str]]) -> No
         raise SystemExit(1)
 
 
+def check_scalar_arithmetic_boundary(disassemblies: list[tuple[Path, str]]) -> None:
+    branchless_helpers = {
+        "secp256k1_scalar_add_limbs",
+        "secp256k1_scalar_sub_limbs",
+        "secp256k1_scalar_conditional_sub_n",
+    }
+    scalar_mul = "secp256k1_scalar_mul_limbs"
+    signing_share = "run_frost_secp256k1_signing_share"
+    aggregate = "run_frost_secp256k1_aggregate"
+    scalar_add = "secp256k1_scalar_add_limbs"
+    scalar_mul_allowed_callers = {
+        "run_secp256k1_scalar_mul",
+        "run_frost_secp256k1_lagrange",
+        signing_share,
+        "secp256k1_scalar_inverse_limbs",
+    }
+    scalar_add_allowed_callers = {
+        "run_secp256k1_scalar_add",
+        signing_share,
+        aggregate,
+        scalar_mul,
+    }
+    aggregate_forbidden = {
+        "frost_secp256k1_commit_scalar",
+        "secp256k1_jacobian_to_affine_finite_limbs",
+        "secp256k1_jacobian_to_affine_limbs",
+        "secp256k1_point_add_limbs",
+        "secp256k1_point_mul_limbs",
+        "secp256k1_projective_basepoint_mul_limbs",
+        "secp256k1_public_point_mul_limbs",
+        "secp256k1_scalar_inverse_limbs",
+        "secp256k1_scalar_mul_limbs",
+    }
+    found_helpers: set[str] = set()
+    found_signing_share = False
+    found_aggregate = False
+    observed_scalar_mul_callers: set[str] = set()
+    observed_scalar_add_callers: set[str] = set()
+    offenders: list[str] = []
+
+    for _obj, disassembly in disassemblies:
+        for function_name, body in iter_function_lines(disassembly):
+            call_targets = relocation_call_targets(body)
+            if scalar_mul in call_targets:
+                observed_scalar_mul_callers.add(function_name)
+            if scalar_add in call_targets:
+                observed_scalar_add_callers.add(function_name)
+
+        for helper in branchless_helpers:
+            body = find_function_lines(disassembly, helper)
+            if body is None:
+                continue
+            found_helpers.add(helper)
+            offenders.extend(
+                f"{helper} contains branch: {line}"
+                for line in local_branch_lines(body)
+            )
+
+        mul_body = find_function_lines(disassembly, scalar_mul)
+        if mul_body is not None:
+            found_helpers.add(scalar_mul)
+            offenders.extend(
+                f"{scalar_mul} branch outside fixed loop: {line}"
+                for line in fixed_loop_branch_offenders(mul_body, scalar_mul)
+            )
+
+        signing_body = find_function_lines(disassembly, signing_share)
+        if signing_body is not None:
+            found_signing_share = True
+            call_targets = relocation_call_targets(signing_body)
+            if scalar_add not in call_targets:
+                offenders.append(f"{signing_share} must call {scalar_add}")
+            if scalar_mul not in call_targets:
+                offenders.append(f"{signing_share} must call {scalar_mul}")
+
+        aggregate_body = find_function_lines(disassembly, aggregate)
+        if aggregate_body is not None:
+            found_aggregate = True
+            call_targets = relocation_call_targets(aggregate_body)
+            if "load_secp256k1_compressed_point_arg" not in call_targets:
+                offenders.append(
+                    f"{aggregate} must call load_secp256k1_compressed_point_arg"
+                )
+            if scalar_add not in call_targets:
+                offenders.append(f"{aggregate} must call {scalar_add}")
+            for forbidden in sorted(aggregate_forbidden & call_targets):
+                offenders.append(f"{aggregate} must not call {forbidden}")
+
+    missing_helpers = sorted((branchless_helpers | {scalar_mul}) - found_helpers)
+    unexpected_mul_callers = sorted(observed_scalar_mul_callers - scalar_mul_allowed_callers)
+    unexpected_add_callers = sorted(observed_scalar_add_callers - scalar_add_allowed_callers)
+    if missing_helpers:
+        raise SystemExit(
+            "scalar arithmetic helpers not found in object disassembly: "
+            + ", ".join(missing_helpers)
+        )
+    if not found_signing_share:
+        raise SystemExit(f"{signing_share} not found in object disassembly")
+    if not found_aggregate:
+        raise SystemExit(f"{aggregate} not found in object disassembly")
+    if unexpected_mul_callers:
+        offenders.append(
+            f"{scalar_mul} has unclassified callers: "
+            + ", ".join(unexpected_mul_callers)
+        )
+    if unexpected_add_callers:
+        offenders.append(
+            f"{scalar_add} has unclassified callers: "
+            + ", ".join(unexpected_add_callers)
+        )
+    if offenders:
+        print("scalar arithmetic boundary audit failed:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  {offender}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def check_public_affine_mul_boundary(disassemblies: list[tuple[Path, str]]) -> None:
     public_wrapper = "secp256k1_public_point_mul_limbs"
     affine_mul = "secp256k1_point_mul_limbs"
@@ -598,6 +715,7 @@ def main() -> None:
     check_finite_affine_boundary(disassemblies)
     check_field_inversion_boundary(disassemblies)
     check_scalar_inversion_boundary(disassemblies)
+    check_scalar_arithmetic_boundary(disassemblies)
     check_public_affine_mul_boundary(disassemblies)
     check_secret_frost_path_boundary(disassemblies)
 

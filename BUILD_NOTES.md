@@ -325,6 +325,16 @@ Fixes made while executing this checkpoint:
   requires signing-share generation to stay scalar-only. It also classifies
   every direct caller of `secp256k1_projective_basepoint_mul_limbs`, so new
   secret or public point paths have to be explicitly reviewed.
+- The ninth constant-time group hardening checkpoint added scalar arithmetic
+  guardrails to the same disassembly audit. `secp256k1_scalar_add_limbs`,
+  `secp256k1_scalar_sub_limbs`, and
+  `secp256k1_scalar_conditional_sub_n` are now required to stay branchless,
+  while `secp256k1_scalar_mul_limbs` is rechecked for a single fixed loop
+  back-edge. The guard also classifies direct scalar add/mul callers and treats
+  `run_frost_secp256k1_aggregate` as public scalar-share aggregation: it may
+  decode the public group commitment and add scalar shares, but it must not
+  call point multiplication, projective basepoint multiplication, affine
+  conversion, scalar multiplication, or scalar inversion.
 - The first FROST workflow checkpoint promoted the deterministic
   FROST(secp256k1,SHA-256) 2-of-2 CLI integration path into
   `tests/frost_secp256k1_workflow.py` and the `make frost-workflow` target.
@@ -522,9 +532,8 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
    separate. Next, continue the constant-time audit before accepting arbitrary
-   signer material by reviewing the scalar add/mul kernels that feed
-   `frost-secp256k1-signing-share` and by deciding whether aggregate-signature
-   share summing needs its own public-vs-secret classification. Keep private
+   signer material by reviewing the hash-to-scalar and scalar-loading boundary
+   used by nonce generation, binding factors, and signing shares. Keep private
    nonce and signing-share paths on projective basepoint helpers and leave
    public verifier aggregation behind
    `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
