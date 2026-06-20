@@ -12,6 +12,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BIN = Path(os.environ.get("WUCI_JI_BIN", ROOT / "build" / "wuci-ji"))
 RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+ENVELOPE_PREFIX = b"WJSEAL\x01\x01"
+ENVELOPE_HEADER_LEN = len(ENVELOPE_PREFIX) + 12
+ENVELOPE_TAG_LEN = 16
 
 
 def run(args: list[str], data: bytes = b"") -> subprocess.CompletedProcess[bytes]:
@@ -181,6 +184,33 @@ def assert_aead(key: bytes, nonce: bytes, plaintext: bytes) -> None:
     assert rejected.stdout == b""
 
 
+def assert_envelope(key: bytes, plaintext: bytes) -> None:
+    sealed = run(["seal", key.hex()], plaintext)
+    assert sealed.returncode == 0, sealed.stderr.decode("utf-8", "replace")
+    assert sealed.stdout.startswith(ENVELOPE_PREFIX)
+    assert len(sealed.stdout) == ENVELOPE_HEADER_LEN + len(plaintext) + ENVELOPE_TAG_LEN
+
+    nonce = sealed.stdout[len(ENVELOPE_PREFIX) : ENVELOPE_HEADER_LEN]
+    body = sealed.stdout[ENVELOPE_HEADER_LEN:]
+    assert len(nonce) == 12
+    assert body == aead_seal_ref(key, nonce, plaintext)
+
+    opened = run(["open", key.hex()], sealed.stdout)
+    assert opened.returncode == 0, opened.stderr.decode("utf-8", "replace")
+    assert opened.stdout == plaintext
+
+    repeated = run(["seal", key.hex()], plaintext)
+    assert repeated.returncode == 0, repeated.stderr.decode("utf-8", "replace")
+    repeated_nonce = repeated.stdout[len(ENVELOPE_PREFIX) : ENVELOPE_HEADER_LEN]
+    assert repeated_nonce != nonce
+
+
+def assert_rejects_envelope(key: bytes, sealed: bytes) -> None:
+    rejected = run(["open", key.hex()], sealed)
+    assert rejected.returncode != 0
+    assert rejected.stdout == b""
+
+
 def main() -> None:
     selftest = run(["selftest"])
     assert selftest.returncode == 0, selftest.stderr.decode("utf-8", "replace")
@@ -248,6 +278,25 @@ def main() -> None:
                       "473917c1402b80099dca5cbc207075c0"),
         bytes.fromhex("000000000102030405060708"),
         (b"sealed-data\0" * 8192) + b"end",
+    )
+
+    assert_envelope(rfc_key, b"")
+    assert_envelope(rfc_key, b"abc")
+    assert_envelope(rfc_key, (b"envelope-data\0" * 4096) + b"end")
+
+    sealed_proc = run(["seal", rfc_key.hex()], b"tamper-target")
+    assert sealed_proc.returncode == 0, sealed_proc.stderr.decode("utf-8", "replace")
+    sealed = sealed_proc.stdout
+    assert_rejects_envelope(rfc_key, b"")
+    assert_rejects_envelope(rfc_key, sealed[: ENVELOPE_HEADER_LEN - 1])
+    assert_rejects_envelope(rfc_key, b"BADSEAL\x01" + sealed[len(ENVELOPE_PREFIX) :])
+    assert_rejects_envelope(
+        rfc_key,
+        sealed[:6] + b"\x02" + sealed[7:],
+    )
+    assert_rejects_envelope(
+        rfc_key,
+        sealed[:-1] + bytes([sealed[-1] ^ 1]),
     )
 
 

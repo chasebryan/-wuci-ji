@@ -30,6 +30,14 @@ machines and does not run this Linux user-space ELF directly.
 
 For a machine handoff checkpoint, see [BUILD_NOTES.md](BUILD_NOTES.md).
 
+## Envelope commands
+
+`seal <key>` reads plaintext from stdin and writes a framed ChaCha20-Poly1305
+artifact containing a magic/version header, random nonce, ciphertext, and tag.
+
+`open <key>` reads that artifact from stdin, verifies it, and writes plaintext
+only after authentication succeeds.
+
 ## License
 
 NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).

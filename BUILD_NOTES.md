@@ -101,7 +101,8 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 ## Next pickup
 
-1. Push the CI workflow and confirm the GitHub Actions run is green.
-2. Add the product envelope: generated nonce, magic/version header, ciphertext,
-   and tag in one self-contained sealed artifact.
-3. Add key/material zeroization and malformed-envelope tests.
+1. Push the `seal`/`open` envelope commands and confirm the GitHub Actions run is
+   green.
+2. Add key/material zeroization for long-lived buffers after command completion.
+3. Expand malformed-envelope tests if the envelope format grows beyond the
+   current prefix, nonce, ciphertext, and tag layout.

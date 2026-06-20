@@ -3,6 +3,7 @@
 .equ SYS_READ, 0
 .equ SYS_WRITE, 1
 .equ SYS_EXIT, 60
+.equ SYS_GETRANDOM, 318
 
 .equ STDIN, 0
 .equ STDOUT, 1
@@ -14,6 +15,11 @@
 .equ SHA256_BUFFER, 48
 .equ SHA256_CTX_SIZE, 112
 .equ AEAD_OPEN_MAX, 1048576
+.equ ENVELOPE_PREFIX_LEN, 8
+.equ ENVELOPE_NONCE_LEN, 12
+.equ ENVELOPE_TAG_LEN, 16
+.equ ENVELOPE_HEADER_LEN, ENVELOPE_PREFIX_LEN + ENVELOPE_NONCE_LEN
+.equ ENVELOPE_MIN_LEN, ENVELOPE_HEADER_LEN + ENVELOPE_TAG_LEN
 
 .section .text
 .global _start
@@ -58,6 +64,18 @@ _start:
     call streq
     cmp eax, 1
     je run_chacha20
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal]
+    call streq
+    cmp eax, 1
+    je run_seal
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_open]
+    call streq
+    cmp eax, 1
+    je run_open
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_aead_seal]
@@ -198,6 +216,22 @@ aead_size_error:
     mov rdi, STDERR
     lea rsi, [rip + aead_size_error_msg]
     mov edx, OFFSET FLAT:aead_size_error_msg_len
+    call write_all
+    mov edi, 1
+    jmp exit_process
+
+random_error:
+    mov rdi, STDERR
+    lea rsi, [rip + random_error_msg]
+    mov edx, OFFSET FLAT:random_error_msg_len
+    call write_all
+    mov edi, 1
+    jmp exit_process
+
+envelope_error:
+    mov rdi, STDERR
+    lea rsi, [rip + envelope_error_msg]
+    mov edx, OFFSET FLAT:envelope_error_msg_len
     call write_all
     mov edi, 1
     jmp exit_process
@@ -476,6 +510,166 @@ run_chacha20:
     jmp .Lchacha_read_loop
 
 .Lchacha_eof:
+    xor edi, edi
+    jmp exit_process
+
+run_seal:
+    cmp qword ptr [rsp], 3
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call hex32_decode
+    cmp eax, 1
+    jne aead_arg_error
+
+    lea rdi, [rip + chacha_nonce]
+    mov esi, ENVELOPE_NONCE_LEN
+    call fill_random
+    cmp eax, 1
+    jne random_error
+
+    mov rdi, STDOUT
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + chacha_nonce]
+    mov edx, ENVELOPE_NONCE_LEN
+    call write_all
+
+    call aead_poly1305_init
+    mov qword ptr [rip + aead_text_len], 0
+    mov dword ptr [rip + chacha_counter], 1
+
+.Lseal_read_loop:
+    mov eax, SYS_READ
+    mov edi, STDIN
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js read_error
+    jz .Lseal_eof
+
+    lea rdi, [rip + io_buf]
+    mov rsi, rax
+    call chacha20_xor
+    mov r14, rax
+    add qword ptr [rip + aead_text_len], r14
+
+    lea rdi, [rip + io_buf]
+    mov rsi, r14
+    call poly1305_update
+
+    mov rdi, STDOUT
+    lea rsi, [rip + io_buf]
+    mov rdx, r14
+    call write_all
+    jmp .Lseal_read_loop
+
+.Lseal_eof:
+    mov rdi, qword ptr [rip + aead_text_len]
+    lea rsi, [rip + poly_tag]
+    call aead_poly1305_finish
+
+    mov rdi, STDOUT
+    lea rsi, [rip + poly_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+run_open:
+    cmp qword ptr [rsp], 3
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call hex32_decode
+    cmp eax, 1
+    jne aead_arg_error
+
+    mov qword ptr [rip + aead_text_len], 0
+
+.Lopen_read_loop:
+    mov eax, SYS_READ
+    mov edi, STDIN
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js read_error
+    jz .Lopen_eof
+
+    mov rbx, qword ptr [rip + aead_text_len]
+    mov rcx, AEAD_OPEN_MAX
+    sub rcx, rbx
+    cmp rax, rcx
+    ja aead_size_error
+
+    lea rdi, [rip + aead_open_buf]
+    add rdi, rbx
+    lea rsi, [rip + io_buf]
+    mov rcx, rax
+    rep movsb
+    add qword ptr [rip + aead_text_len], rax
+    jmp .Lopen_read_loop
+
+.Lopen_eof:
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_MIN_LEN
+    jb envelope_error
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+
+    mov rax, qword ptr [rip + aead_text_len]
+    sub rax, ENVELOPE_MIN_LEN
+    mov qword ptr [rip + aead_text_len], rax
+
+    lea rsi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    add rsi, rax
+    lea rdi, [rip + aead_expected_tag]
+    mov ecx, ENVELOPE_TAG_LEN
+    rep movsb
+
+    call aead_poly1305_init
+    lea rdi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call poly1305_update
+    mov rdi, qword ptr [rip + aead_text_len]
+    lea rsi, [rip + poly_tag]
+    call aead_poly1305_finish
+
+    lea rdi, [rip + poly_tag]
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+
+    mov dword ptr [rip + chacha_counter], 1
+    lea rdi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call chacha20_xor
+
+    mov rdi, STDOUT
+    lea rsi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    mov rdx, qword ptr [rip + aead_text_len]
+    call write_all
+
     xor edi, edi
     jmp exit_process
 
@@ -936,6 +1130,34 @@ write_all:
     mov eax, 1
 .Lwrite_all_done:
     pop r13
+    pop r12
+    pop rbx
+    ret
+
+fill_random:
+    push rbx
+    push r12
+    mov rbx, rdi
+    mov r12, rsi
+.Lfill_random_loop:
+    test r12, r12
+    jz .Lfill_random_ok
+    mov eax, SYS_GETRANDOM
+    mov rdi, rbx
+    mov rsi, r12
+    xor edx, edx
+    syscall
+    cmp rax, 0
+    jle .Lfill_random_fail
+    add rbx, rax
+    sub r12, rax
+    jmp .Lfill_random_loop
+.Lfill_random_ok:
+    mov eax, 1
+    jmp .Lfill_random_done
+.Lfill_random_fail:
+    xor eax, eax
+.Lfill_random_done:
     pop r12
     pop rbx
     ret
@@ -2061,6 +2283,10 @@ cmd_poly1305:
     .asciz "poly1305"
 cmd_chacha20:
     .asciz "chacha20"
+cmd_seal:
+    .asciz "seal"
+cmd_open:
+    .asciz "open"
 cmd_aead_seal:
     .asciz "aead-seal"
 cmd_aead_open:
@@ -2071,12 +2297,14 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|seal|open|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
     .ascii "  poly1305 <key>                 authenticate stdin with a 32-byte one-time hex key\n"
     .ascii "  chacha20 <key> <nonce> <ctr>   xor stdin with ChaCha20; key=64 hex, nonce=24 hex, ctr=8 hex\n"
+    .ascii "  seal <key>                     write framed ChaCha20-Poly1305 envelope with random nonce\n"
+    .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
     .ascii "  aead-seal <key> <nonce>        write ChaCha20-Poly1305 ciphertext || raw tag\n"
     .ascii "  aead-open <key> <nonce> <tag>  verify raw ciphertext, then write plaintext; tag=32 hex\n"
     .ascii "  selftest                       run built-in known-answer tests\n"
@@ -2114,6 +2342,14 @@ aead_size_error_msg:
     .ascii "wuci-ji: aead-open ciphertext exceeds internal verification buffer\n"
 .set aead_size_error_msg_len, . - aead_size_error_msg
 
+random_error_msg:
+    .ascii "wuci-ji: random nonce generation failed\n"
+.set random_error_msg_len, . - random_error_msg
+
+envelope_error_msg:
+    .ascii "wuci-ji: envelope authentication failed\n"
+.set envelope_error_msg_len, . - envelope_error_msg
+
 selftest_pass_msg:
     .ascii "wuci-ji selftest: PASS\n"
 .set selftest_pass_msg_len, . - selftest_pass_msg
@@ -2124,6 +2360,10 @@ selftest_fail_msg:
 
 hex_chars:
     .ascii "0123456789abcdef"
+
+envelope_prefix:
+    .ascii "WJSEAL"
+    .byte 0x01, 0x01
 
 hkdf_counter_one:
     .byte 0x01
