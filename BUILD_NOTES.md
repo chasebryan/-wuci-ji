@@ -325,6 +325,12 @@ Fixes made while executing this checkpoint:
   primitives, then returns the public signature fields. `make test` now runs
   this workflow target as a first-class regression before the broader Python
   suite, while still avoiding a new broad signing API surface.
+- The second FROST workflow checkpoint added
+  `tools/frost_secp256k1_workflow.py` and `make frost-demo`. This is a
+  user-facing deterministic 2-of-2 demo transcript over the assembly CLI
+  primitives, not a production threshold-signing API. `make frost-workflow`
+  now compares the helper output against the direct Python regression path so
+  the demo cannot drift away from the guarded primitive sequence.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -483,11 +489,13 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, decide the user-facing shape for a FROST workflow command or
-   scripted helper, using `make frost-workflow` as the regression lane. Keep
-   private nonce and signing-share paths on projective basepoint helpers and
-   leave public verifier aggregation behind `secp256k1_public_point_mul_limbs`.
-   Keep the native and Zig source lists together.
+   separate. Next, keep hardening the helper boundary before accepting
+   arbitrary signer material: add fixture documentation or a structured
+   non-production input manifest only if it preserves the current warnings and
+   regression checks. Keep private nonce and signing-share paths on projective
+   basepoint helpers and leave public verifier aggregation behind
+   `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
+   together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
