@@ -115,6 +115,14 @@ Fixes made while executing this checkpoint:
   for nonzero, unique participant identifiers and rejects lists that do not
   include `i`. This provides the scalar arithmetic required for signing-share
   generation and aggregation, but it is not yet a complete FROST signing API.
+- FROST(secp256k1,SHA-256) round-one primitives now include
+  `frost-secp256k1-nonce-generate <secret>`, which implements RFC 9591
+  `nonce_generate` with 32 bytes from `getrandom` and the H3 nonce DST, and
+  `frost-secp256k1-commit <hiding> <binding>`, which rejects zero/noncanonical
+  nonce scalars and emits compressed SEC1 hiding and binding commitments. This
+  is enough to build and test signer commitment shares, but signing-share
+  generation remains intentionally withheld until the remaining group-operation
+  exceptional branches and participant validation are tightened.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -297,12 +305,12 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 3. The FROST lane currently exposes RFC 9591 H1/H2/H3 hash-to-scalar and
    H4/H5 transcript primitives for P-256 and secp256k1, plus secp256k1 field
    arithmetic, scalar arithmetic modulo the group order, Lagrange interpolation,
-   affine point validation/add/double, projective basepoint multiplication, and
-   controlled SEC1 point encoding/decoding. Next FROST work should add
-   nonce-generation/commitment commands and binding-factor/group-commitment
-   computation, while continuing to replace or isolate exceptional-case
-   Jacobian add/double branches before any secret-bearing signing-share command
-   is exposed.
+   nonce generation, nonce commitment, affine point validation/add/double,
+   projective basepoint multiplication, and controlled SEC1 point
+   encoding/decoding. Next FROST work should add binding-factor computation and
+   group-commitment aggregation, while continuing to replace or isolate
+   exceptional-case Jacobian add/double branches before any secret-bearing
+   signing-share command is exposed.
 4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

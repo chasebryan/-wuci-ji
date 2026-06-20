@@ -231,6 +231,70 @@ def assert_frost_lagrange_helpers() -> None:
         assert proc.stdout == b""
 
 
+def secp256k1_compressed_ref(point: tuple[int, int]) -> str:
+    x, y = point
+    return f"{2 + (y & 1):02x}{x:064x}"
+
+
+def assert_frost_nonce_generate_helper() -> None:
+    secret = scalar_hex(7)
+    outputs: list[str] = []
+    for _ in range(2):
+        proc = run(["frost-secp256k1-nonce-generate", secret])
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        actual = proc.stdout.decode("ascii").strip()
+        assert len(actual) == 64
+        nonce = int(actual, 16)
+        assert 0 <= nonce < SECP256K1_ORDER
+        outputs.append(actual)
+    assert outputs[0] != outputs[1]
+
+    rejected_cases = [
+        ["frost-secp256k1-nonce-generate", "00"],
+        ["frost-secp256k1-nonce-generate", f"{SECP256K1_ORDER:064x}"],
+    ]
+    for args in rejected_cases:
+        proc = run(args)
+        assert proc.returncode != 0
+        assert proc.stdout == b""
+
+
+def assert_frost_commit_helpers() -> None:
+    cases = [
+        (1, 2),
+        (2, 3),
+        (SECP256K1_ORDER - 1, 1),
+    ]
+    for hiding, binding in cases:
+        proc = run(
+            [
+                "frost-secp256k1-commit",
+                scalar_hex(hiding),
+                scalar_hex(binding),
+            ]
+        )
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        hiding_point = secp256k1_point_mul_ref(hiding, SECP256K1_G)
+        binding_point = secp256k1_point_mul_ref(binding, SECP256K1_G)
+        assert hiding_point is not None
+        assert binding_point is not None
+        expected = (
+            f"hiding_nonce_commitment: {secp256k1_compressed_ref(hiding_point)}\n"
+            f"binding_nonce_commitment: {secp256k1_compressed_ref(binding_point)}\n"
+        )
+        assert proc.stdout.decode("ascii") == expected
+
+    rejected_cases = [
+        ["frost-secp256k1-commit", scalar_hex(0), scalar_hex(1)],
+        ["frost-secp256k1-commit", scalar_hex(1), scalar_hex(0)],
+        ["frost-secp256k1-commit", f"{SECP256K1_ORDER:064x}", scalar_hex(1)],
+    ]
+    for args in rejected_cases:
+        proc = run(args)
+        assert proc.returncode != 0
+        assert proc.stdout == b""
+
+
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
     args = [command, field_hex(a)]
     if b is not None:
@@ -1503,6 +1567,12 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 b"",
                 None,
             ),
+            (["frost-secp256k1-nonce-generate", "01".zfill(64), "extra"], b"", None),
+            (
+                ["frost-secp256k1-commit", "01".zfill(64), "02".zfill(64), "extra"],
+                b"",
+                None,
+            ),
             (["secp256k1-field-add", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
@@ -1680,6 +1750,8 @@ def assert_help_output() -> None:
         "secp256k1-scalar-mul <a> <b>   multiply 32-byte hex scalars modulo group order",
         "secp256k1-scalar-inv <a>       invert a nonzero scalar modulo group order",
         "frost-secp256k1-lagrange <i> <id...> derive RFC9591 interpolation scalar",
+        "frost-secp256k1-nonce-generate <secret> derive one RFC9591 nonce with fresh randomness",
+        "frost-secp256k1-commit <hiding> <binding> derive compressed round-one commitments",
         "secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p",
         "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
         "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
@@ -1736,6 +1808,8 @@ def main() -> None:
     assert_secp256k1_scalar_helpers()
     assert_secp256k1_scalar_rejects_invalid()
     assert_frost_lagrange_helpers()
+    assert_frost_nonce_generate_helper()
+    assert_frost_commit_helpers()
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
     assert_secp256k1_point_helpers()
