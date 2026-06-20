@@ -83,6 +83,8 @@ Fixes made while executing this checkpoint:
 - GNU `as` Intel-syntax `.set` length constants are loaded with
   `OFFSET FLAT:` so status and error writes use immediates rather than absolute
   memory reads.
+- Exit-time zeroization scrubs the process-global BSS working range, including
+  key, nonce, HMAC, HKDF, Poly1305, ChaCha20, AEAD, IO, and envelope buffers.
 
 The native build artifact is:
 
@@ -101,8 +103,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 ## Next pickup
 
-1. Push the `seal`/`open` envelope commands and confirm the GitHub Actions run is
-   green.
-2. Add key/material zeroization for long-lived buffers after command completion.
-3. Expand malformed-envelope tests if the envelope format grows beyond the
+1. Consider stack/register scrubbing in the cryptographic inner routines where
+   it is practical without making the assembly unreadable.
+2. Expand malformed-envelope tests if the envelope format grows beyond the
    current prefix, nonce, ciphertext, and tag layout.
+3. From Linux, keep using `make clean && make test` as the runtime proof before
+   each push when practical.

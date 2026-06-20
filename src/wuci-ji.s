@@ -1063,6 +1063,9 @@ selftest_fail:
     jmp exit_process
 
 exit_process:
+    push rdi
+    call zero_sensitive_state
+    pop rdi
     mov eax, SYS_EXIT
     syscall
 
@@ -1160,6 +1163,17 @@ fill_random:
 .Lfill_random_done:
     pop r12
     pop rbx
+    ret
+
+zero_sensitive_state:
+    lea rdi, [rip + bss_sensitive_start]
+    mov esi, OFFSET FLAT:bss_sensitive_len
+    jmp zero_memory
+
+zero_memory:
+    xor eax, eax
+    mov rcx, rsi
+    rep stosb
     ret
 
 hex_encode:
@@ -2471,6 +2485,7 @@ sha256_k:
 
 .section .bss
 .align 16
+bss_sensitive_start:
 sha_ctx:
     .skip SHA256_CTX_SIZE
 .align 16
@@ -2579,5 +2594,8 @@ aead_open_buf:
 .align 16
 hex_buf:
     .skip 65
+.align 16
+bss_sensitive_end:
+.set bss_sensitive_len, bss_sensitive_end - bss_sensitive_start
 
 .section .note.GNU-stack,"",@progbits
