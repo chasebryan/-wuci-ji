@@ -619,6 +619,223 @@ def check_secret_frost_path_boundary(disassemblies: list[tuple[Path, str]]) -> N
         raise SystemExit(1)
 
 
+def check_frost_hash_scalar_loading_boundary(
+    disassemblies: list[tuple[Path, str]],
+) -> None:
+    scalar_loader = "load_secp256k1_scalar_arg"
+    hash_mem = "frost_hash_to_scalar_mem"
+    hash_stdin = "frost_hash_to_scalar_stdin"
+    hash_prefixed_stdin = "frost_hash_to_scalar_prefixed_stdin"
+    nonce_generate = "run_frost_secp256k1_nonce_generate"
+    binding_factor = "run_frost_secp256k1_binding_factor"
+    challenge = "run_frost_secp256k1_challenge"
+    signing_share = "run_frost_secp256k1_signing_share"
+
+    required_calls = {
+        nonce_generate: {
+            scalar_loader,
+            "fill_random",
+            "store_le4_to_be32",
+            hash_mem,
+        },
+        binding_factor: {
+            "load_secp256k1_compressed_point_arg",
+            "hex32_decode",
+            scalar_loader,
+            "store_le4_to_be32",
+            hash_mem,
+        },
+        challenge: {
+            "load_secp256k1_compressed_point_arg",
+            hash_prefixed_stdin,
+        },
+        signing_share: {
+            scalar_loader,
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+        scalar_loader: {
+            "hex32_decode",
+            "load_be32_to_le4",
+            "secp256k1_scalar_is_canonical_limbs",
+        },
+    }
+    forbidden_calls = {
+        nonce_generate: {
+            hash_stdin,
+            hash_prefixed_stdin,
+            "frost_secp256k1_commit_scalar",
+            "load_secp256k1_compressed_point_arg",
+            "secp256k1_jacobian_to_affine_finite_limbs",
+            "secp256k1_jacobian_to_affine_limbs",
+            "secp256k1_projective_basepoint_mul_limbs",
+            "secp256k1_public_point_mul_limbs",
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_inverse_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+        binding_factor: {
+            hash_stdin,
+            hash_prefixed_stdin,
+            "frost_secp256k1_commit_scalar",
+            "secp256k1_point_add_limbs",
+            "secp256k1_point_mul_limbs",
+            "secp256k1_projective_basepoint_mul_limbs",
+            "secp256k1_public_point_mul_limbs",
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_inverse_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+        challenge: {
+            scalar_loader,
+            hash_mem,
+            hash_stdin,
+            "fill_random",
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_inverse_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+        signing_share: {
+            hash_mem,
+            hash_stdin,
+            hash_prefixed_stdin,
+            "fill_random",
+            "frost_secp256k1_commit_scalar",
+            "load_secp256k1_compressed_point_arg",
+            "secp256k1_jacobian_to_affine_finite_limbs",
+            "secp256k1_jacobian_to_affine_limbs",
+            "secp256k1_projective_basepoint_mul_limbs",
+            "secp256k1_public_point_mul_limbs",
+        },
+        scalar_loader: {
+            hash_mem,
+            hash_stdin,
+            hash_prefixed_stdin,
+            "fill_random",
+            "frost_secp256k1_commit_scalar",
+            "load_secp256k1_compressed_point_arg",
+            "secp256k1_point_add_limbs",
+            "secp256k1_point_mul_limbs",
+            "secp256k1_projective_basepoint_mul_limbs",
+            "secp256k1_public_point_mul_limbs",
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_inverse_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+    }
+    scalar_loader_allowed_callers = {
+        "run_frost_secp256k1_aggregate",
+        binding_factor,
+        "run_frost_secp256k1_commit",
+        "run_frost_secp256k1_commitment_hash",
+        "run_frost_secp256k1_group_commitment",
+        "run_frost_secp256k1_lagrange",
+        nonce_generate,
+        signing_share,
+        "run_frost_secp256k1_verify",
+        "run_secp256k1_basepoint_mul",
+        "run_secp256k1_is_zero",
+        "run_secp256k1_scalar_add",
+        "run_secp256k1_scalar_inv",
+        "run_secp256k1_scalar_mul",
+        "run_secp256k1_scalar_sub",
+    }
+    hash_mem_allowed_callers = {
+        binding_factor,
+        nonce_generate,
+        hash_stdin,
+        hash_prefixed_stdin,
+    }
+    hash_stdin_allowed_callers = {
+        "frost_hash_stdin",
+        "run_frost_p256_h1",
+        "run_frost_p256_h2",
+        "run_frost_p256_h3",
+        "run_frost_secp256k1_h1",
+        "run_frost_secp256k1_h2",
+        "run_frost_secp256k1_h3",
+    }
+    hash_prefixed_allowed_callers = {
+        challenge,
+        hash_stdin,
+    }
+
+    observed_scalar_loader_callers: set[str] = set()
+    observed_hash_mem_callers: set[str] = set()
+    observed_hash_stdin_callers: set[str] = set()
+    observed_hash_prefixed_callers: set[str] = set()
+    found_roots: set[str] = set()
+    offenders: list[str] = []
+
+    for _obj, disassembly in disassemblies:
+        for function_name, body in iter_function_lines(disassembly):
+            call_targets = relocation_call_targets(body)
+            if scalar_loader in call_targets:
+                observed_scalar_loader_callers.add(function_name)
+            if hash_mem in call_targets:
+                observed_hash_mem_callers.add(function_name)
+            if hash_stdin in call_targets:
+                observed_hash_stdin_callers.add(function_name)
+            if hash_prefixed_stdin in call_targets:
+                observed_hash_prefixed_callers.add(function_name)
+
+        for root, required in required_calls.items():
+            body = find_function_lines(disassembly, root)
+            if body is None:
+                continue
+            found_roots.add(root)
+            call_targets = relocation_call_targets(body)
+            for target in sorted(required - call_targets):
+                offenders.append(f"{root} must call {target}")
+            for target in sorted(forbidden_calls[root] & call_targets):
+                offenders.append(f"{root} must not call {target}")
+
+    missing_roots = sorted(set(required_calls) - found_roots)
+    if missing_roots:
+        raise SystemExit(
+            "FROST hash/scalar-loading audit roots not found in object disassembly: "
+            + ", ".join(missing_roots)
+        )
+
+    unexpected_scalar_loader_callers = sorted(
+        observed_scalar_loader_callers - scalar_loader_allowed_callers
+    )
+    unexpected_hash_mem_callers = sorted(
+        observed_hash_mem_callers - hash_mem_allowed_callers
+    )
+    unexpected_hash_stdin_callers = sorted(
+        observed_hash_stdin_callers - hash_stdin_allowed_callers
+    )
+    unexpected_hash_prefixed_callers = sorted(
+        observed_hash_prefixed_callers - hash_prefixed_allowed_callers
+    )
+    if unexpected_scalar_loader_callers:
+        offenders.append(
+            f"{scalar_loader} has unclassified callers: "
+            + ", ".join(unexpected_scalar_loader_callers)
+        )
+    if unexpected_hash_mem_callers:
+        offenders.append(
+            f"{hash_mem} has unclassified callers: "
+            + ", ".join(unexpected_hash_mem_callers)
+        )
+    if unexpected_hash_stdin_callers:
+        offenders.append(
+            f"{hash_stdin} has unclassified callers: "
+            + ", ".join(unexpected_hash_stdin_callers)
+        )
+    if unexpected_hash_prefixed_callers:
+        offenders.append(
+            f"{hash_prefixed_stdin} has unclassified callers: "
+            + ", ".join(unexpected_hash_prefixed_callers)
+        )
+    if offenders:
+        print("FROST hash/scalar-loading boundary audit failed:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  {offender}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def check_finite_affine_boundary(disassemblies: list[tuple[Path, str]]) -> None:
     finite_helper = "secp256k1_jacobian_to_affine_finite_limbs"
     generic_helper = "secp256k1_jacobian_to_affine_limbs"
@@ -718,6 +935,7 @@ def main() -> None:
     check_scalar_arithmetic_boundary(disassemblies)
     check_public_affine_mul_boundary(disassemblies)
     check_secret_frost_path_boundary(disassemblies)
+    check_frost_hash_scalar_loading_boundary(disassemblies)
 
 
 if __name__ == "__main__":

@@ -335,6 +335,17 @@ Fixes made while executing this checkpoint:
   decode the public group commitment and add scalar shares, but it must not
   call point multiplication, projective basepoint multiplication, affine
   conversion, scalar multiplication, or scalar inversion.
+- The tenth constant-time group hardening checkpoint added a FROST
+  hash-to-scalar and scalar-loading boundary audit to
+  `tests/check_asm_immediates.py`. The guard requires nonce generation,
+  binding-factor derivation, challenge derivation, signing-share generation,
+  and canonical secp256k1 scalar argument loading to call only their reviewed
+  helper sets, and it classifies every direct caller of
+  `load_secp256k1_scalar_arg`, `frost_hash_to_scalar_mem`,
+  `frost_hash_to_scalar_stdin`, and `frost_hash_to_scalar_prefixed_stdin`.
+  This keeps hash-derived scalars, random nonce material, canonical scalar
+  parsing, and scalar-only signing-share arithmetic on explicit paths before
+  the project accepts arbitrary signer material.
 - The first FROST workflow checkpoint promoted the deterministic
   FROST(secp256k1,SHA-256) 2-of-2 CLI integration path into
   `tests/frost_secp256k1_workflow.py` and the `make frost-workflow` target.
@@ -531,13 +542,12 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, continue the constant-time audit before accepting arbitrary
-   signer material by reviewing the hash-to-scalar and scalar-loading boundary
-   used by nonce generation, binding factors, and signing shares. Keep private
-   nonce and signing-share paths on projective basepoint helpers and leave
-   public verifier aggregation behind
-   `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
-   together.
+   separate. Next, add nonce-commitment tracking or a manifest-bound
+   authorization workflow that prevents reusing deterministic fixture material
+   as arbitrary signer input. Keep private nonce and signing-share paths on
+   projective basepoint helpers, leave public verifier aggregation behind
+   `secp256k1_public_point_mul_limbs`, and keep the native and Zig source
+   lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
