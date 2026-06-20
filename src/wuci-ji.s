@@ -4827,6 +4827,39 @@ copy_field4:
     mov qword ptr [rsi + 24], rax
     ret
 
+secp256k1_field_select_mask:
+    mov r10, rcx
+    not r10
+
+    mov r8, qword ptr [rsi]
+    and r8, rcx
+    mov r9, qword ptr [rdi]
+    and r9, r10
+    or r8, r9
+    mov qword ptr [rdx], r8
+
+    mov r8, qword ptr [rsi + 8]
+    and r8, rcx
+    mov r9, qword ptr [rdi + 8]
+    and r9, r10
+    or r8, r9
+    mov qword ptr [rdx + 8], r8
+
+    mov r8, qword ptr [rsi + 16]
+    and r8, rcx
+    mov r9, qword ptr [rdi + 16]
+    and r9, r10
+    or r8, r9
+    mov qword ptr [rdx + 16], r8
+
+    mov r8, qword ptr [rsi + 24]
+    and r8, rcx
+    mov r9, qword ptr [rdi + 24]
+    and r9, r10
+    or r8, r9
+    mov qword ptr [rdx + 24], r8
+    ret
+
 secp256k1_field_is_zero_limbs:
     mov rax, qword ptr [rdi]
     or rax, qword ptr [rdi + 8]
@@ -5686,6 +5719,9 @@ secp256k1_jacobian_mixed_add_limbs:
 secp256k1_projective_basepoint_mul_limbs:
     push rbx
     push r12
+    push r13
+    push r14
+    push r15
     mov rbx, rdi
 
     mov qword ptr [rip + secp256k1_jacobian_acc_infinity], 1
@@ -5704,76 +5740,92 @@ secp256k1_projective_basepoint_mul_limbs:
 
     mov r12d, 255
 .Lsecp256k1_projective_mul_loop:
-    cmp qword ptr [rip + secp256k1_jacobian_acc_infinity], 1
-    je .Lsecp256k1_projective_mul_after_double
     lea rdi, [rip + secp256k1_jacobian_acc_x]
     lea rsi, [rip + secp256k1_jacobian_acc_y]
     lea rdx, [rip + secp256k1_jacobian_acc_z]
     call secp256k1_jacobian_double_limbs
-    cmp eax, 1
-    jne .Lsecp256k1_projective_mul_double_infinity
-    lea rdi, [rip + secp256k1_jacobian_rx]
-    lea rsi, [rip + secp256k1_jacobian_acc_x]
-    call copy_field4
-    lea rdi, [rip + secp256k1_jacobian_ry]
-    lea rsi, [rip + secp256k1_jacobian_acc_y]
-    call copy_field4
-    lea rdi, [rip + secp256k1_jacobian_rz]
-    lea rsi, [rip + secp256k1_jacobian_acc_z]
-    call copy_field4
-    jmp .Lsecp256k1_projective_mul_after_double
+    mov r13d, eax
+    mov ecx, eax
+    neg rcx
+    lea rdi, [rip + secp256k1_field_zero]
+    lea rsi, [rip + secp256k1_jacobian_rx]
+    lea rdx, [rip + secp256k1_jacobian_dbl_x]
+    call secp256k1_field_select_mask
+    mov ecx, r13d
+    neg rcx
+    lea rdi, [rip + secp256k1_field_zero]
+    lea rsi, [rip + secp256k1_jacobian_ry]
+    lea rdx, [rip + secp256k1_jacobian_dbl_y]
+    call secp256k1_field_select_mask
+    mov ecx, r13d
+    neg rcx
+    lea rdi, [rip + secp256k1_field_zero]
+    lea rsi, [rip + secp256k1_jacobian_rz]
+    lea rdx, [rip + secp256k1_jacobian_dbl_z]
+    call secp256k1_field_select_mask
 
-.Lsecp256k1_projective_mul_double_infinity:
-    mov qword ptr [rip + secp256k1_jacobian_acc_infinity], 1
+    lea rdi, [rip + secp256k1_jacobian_dbl_x]
+    lea rsi, [rip + secp256k1_jacobian_dbl_y]
+    lea rdx, [rip + secp256k1_jacobian_dbl_z]
+    lea rcx, [rip + secp256k1_basepoint_x]
+    lea r8, [rip + secp256k1_basepoint_y]
+    call secp256k1_jacobian_mixed_add_limbs
+    mov r14d, eax
+    mov ecx, eax
+    neg rcx
+    lea rdi, [rip + secp256k1_field_zero]
+    lea rsi, [rip + secp256k1_jacobian_rx]
+    lea rdx, [rip + secp256k1_jacobian_add_x]
+    call secp256k1_field_select_mask
+    mov ecx, r14d
+    neg rcx
+    lea rdi, [rip + secp256k1_field_zero]
+    lea rsi, [rip + secp256k1_jacobian_ry]
+    lea rdx, [rip + secp256k1_jacobian_add_y]
+    call secp256k1_field_select_mask
+    mov ecx, r14d
+    neg rcx
+    lea rdi, [rip + secp256k1_field_zero]
+    lea rsi, [rip + secp256k1_jacobian_rz]
+    lea rdx, [rip + secp256k1_jacobian_add_z]
+    call secp256k1_field_select_mask
 
-.Lsecp256k1_projective_mul_after_double:
     mov eax, r12d
     shr eax, 6
     mov rdx, qword ptr [rbx + rax * 8]
     mov ecx, r12d
     and ecx, 63
     shr rdx, cl
-    test dl, 1
-    jz .Lsecp256k1_projective_mul_next
+    and edx, 1
+    mov r15, rdx
+    neg r15
 
-    cmp qword ptr [rip + secp256k1_jacobian_acc_infinity], 1
-    jne .Lsecp256k1_projective_mul_add_acc
-    lea rdi, [rip + secp256k1_basepoint_x]
-    lea rsi, [rip + secp256k1_jacobian_acc_x]
-    call copy_field4
-    lea rdi, [rip + secp256k1_basepoint_y]
-    lea rsi, [rip + secp256k1_jacobian_acc_y]
-    call copy_field4
-    mov qword ptr [rip + secp256k1_jacobian_acc_z], 1
-    mov qword ptr [rip + secp256k1_jacobian_acc_z + 8], 0
-    mov qword ptr [rip + secp256k1_jacobian_acc_z + 16], 0
-    mov qword ptr [rip + secp256k1_jacobian_acc_z + 24], 0
-    mov qword ptr [rip + secp256k1_jacobian_acc_infinity], 0
-    jmp .Lsecp256k1_projective_mul_next
-
-.Lsecp256k1_projective_mul_add_acc:
-    lea rdi, [rip + secp256k1_jacobian_acc_x]
-    lea rsi, [rip + secp256k1_jacobian_acc_y]
+    mov rcx, r15
+    lea rdi, [rip + secp256k1_jacobian_dbl_x]
+    lea rsi, [rip + secp256k1_jacobian_add_x]
+    lea rdx, [rip + secp256k1_jacobian_acc_x]
+    call secp256k1_field_select_mask
+    mov rcx, r15
+    lea rdi, [rip + secp256k1_jacobian_dbl_y]
+    lea rsi, [rip + secp256k1_jacobian_add_y]
+    lea rdx, [rip + secp256k1_jacobian_acc_y]
+    call secp256k1_field_select_mask
+    mov rcx, r15
+    lea rdi, [rip + secp256k1_jacobian_dbl_z]
+    lea rsi, [rip + secp256k1_jacobian_add_z]
     lea rdx, [rip + secp256k1_jacobian_acc_z]
-    lea rcx, [rip + secp256k1_basepoint_x]
-    lea r8, [rip + secp256k1_basepoint_y]
-    call secp256k1_jacobian_mixed_add_limbs
-    cmp eax, 1
-    jne .Lsecp256k1_projective_mul_add_infinity
-    lea rdi, [rip + secp256k1_jacobian_rx]
-    lea rsi, [rip + secp256k1_jacobian_acc_x]
-    call copy_field4
-    lea rdi, [rip + secp256k1_jacobian_ry]
-    lea rsi, [rip + secp256k1_jacobian_acc_y]
-    call copy_field4
-    lea rdi, [rip + secp256k1_jacobian_rz]
-    lea rsi, [rip + secp256k1_jacobian_acc_z]
-    call copy_field4
-    mov qword ptr [rip + secp256k1_jacobian_acc_infinity], 0
-    jmp .Lsecp256k1_projective_mul_next
+    call secp256k1_field_select_mask
 
-.Lsecp256k1_projective_mul_add_infinity:
-    mov qword ptr [rip + secp256k1_jacobian_acc_infinity], 1
+    mov rax, r14
+    xor rax, 1
+    and rax, r15
+    mov rdx, r13
+    xor rdx, 1
+    mov rcx, r15
+    not rcx
+    and rdx, rcx
+    or rax, rdx
+    mov qword ptr [rip + secp256k1_jacobian_acc_infinity], rax
 
 .Lsecp256k1_projective_mul_next:
     dec r12d
@@ -5798,6 +5850,9 @@ secp256k1_projective_basepoint_mul_limbs:
     xor eax, eax
 
 .Lsecp256k1_projective_mul_done:
+    pop r15
+    pop r14
+    pop r13
     pop r12
     pop rbx
     ret
@@ -7522,6 +7577,13 @@ secp256k1_field_sqrt_exp_le:
     .quad 0x3fffffffffffffff
 
 .align 8
+secp256k1_field_zero:
+    .quad 0
+    .quad 0
+    .quad 0
+    .quad 0
+
+.align 8
 secp256k1_basepoint_x:
     .quad 0x59f2815b16f81798
     .quad 0x029bfcdb2dce28d9
@@ -7830,6 +7892,24 @@ secp256k1_jacobian_acc_z:
 .align 8
 secp256k1_jacobian_acc_infinity:
     .skip 8
+.align 16
+secp256k1_jacobian_dbl_x:
+    .skip 32
+.align 16
+secp256k1_jacobian_dbl_y:
+    .skip 32
+.align 16
+secp256k1_jacobian_dbl_z:
+    .skip 32
+.align 16
+secp256k1_jacobian_add_x:
+    .skip 32
+.align 16
+secp256k1_jacobian_add_y:
+    .skip 32
+.align 16
+secp256k1_jacobian_add_z:
+    .skip 32
 .align 16
 secp256k1_jacobian_t0:
     .skip 32

@@ -321,7 +321,19 @@ def assert_secp256k1_point_helpers() -> None:
     assert jacobian_infinity.returncode == 0, jacobian_infinity.stderr.decode("utf-8", "replace")
     assert parse_jacobian_output(jacobian_infinity.stdout) is None
 
-    for scalar in (0, 1, 2, 3, 17, (1 << 255) + 7):
+    projective_scalars = (
+        0,
+        1,
+        2,
+        3,
+        17,
+        (1 << 255) + 7,
+        SECP256K1_ORDER - 1,
+        SECP256K1_ORDER,
+        SECP256K1_ORDER + 1,
+        (1 << 256) - 1,
+    )
+    for scalar in projective_scalars:
         proc = run(["secp256k1-projective-basepoint-mul", f"{scalar:064x}"])
         assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
         assert parse_point_output(proc.stdout) == secp256k1_point_mul_ref(scalar, g)

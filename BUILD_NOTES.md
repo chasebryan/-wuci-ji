@@ -131,8 +131,17 @@ Fixes made while executing this checkpoint:
   Decoding validates canonical field coordinates and curve membership, and the
   Python harness checks Jacobian outputs by converting them back to affine
   reference points. This is a correctness and structure milestone, not a final
-  constant-time FROST signing backend; scalar-bit branches still need to be
-  replaced with audited constant-time selection.
+  constant-time FROST signing backend.
+- The projective secp256k1 basepoint scalar loop now computes the double and
+  add candidates on every bit and mask-selects the next Jacobian accumulator
+  instead of branching directly on scalar bits or accumulator-infinity state.
+  `tests/check_asm_immediates.py` also disassembles the native object and fails
+  if a branch appears before the fixed loop back-edge in
+  `secp256k1_projective_basepoint_mul_limbs`. This narrows the scalar-loop
+  leakage shape, but it is still not a production signing backend: the current
+  mixed-add and doubling formulas still contain exceptional-case branches that
+  should be replaced or isolated before any secret-bearing FROST operation is
+  exposed.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -279,10 +288,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    tampering.
 3. The FROST lane currently exposes RFC 9591 H1/H2/H3 hash-to-scalar and
    H4/H5 transcript primitives for P-256 and secp256k1, plus secp256k1 field
-   arithmetic, affine point validation/add/double, and basepoint multiplication.
-   Next FROST work should harden this into a projective constant-time group
-   backend with controlled point encoding/decoding before any key-share, nonce,
-   signing-share, or aggregation commands are exposed.
+   arithmetic, affine point validation/add/double, projective basepoint
+   multiplication, and controlled SEC1 point encoding/decoding. Next FROST work
+   should replace or isolate exceptional-case Jacobian add/double branches and
+   add subgroup/order validation before any key-share, nonce, signing-share, or
+   aggregation commands are exposed.
 4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
