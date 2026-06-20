@@ -13,8 +13,6 @@ Native build and execution require:
 
 - x86_64 Linux
 - GNU-style `as` and `ld`
-- a C compiler with `unsigned __int128` support for the freestanding X25519
-  helper
 - Python 3 for the test harness
 
 Cross-building from macOS or other non-Linux hosts currently uses Zig.
@@ -68,12 +66,14 @@ Leave `WUCI_JI_RUNNER` unset when running a native Linux binary directly.
 Observed host on 2026-06-20:
 
 - Linux x86_64
-- GNU `as`, `ld`, `nm`, `objdump`, and `cc` are available.
+- GNU `as`, `ld`, `nm`, and `objdump` are available.
 - Python 3 is available.
 
 Verified on this host:
 
 - `make clean && make test` succeeds.
+- The native build path assembles `src/wuci-ji.s` and `src/x25519.s`; it no
+  longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in
   `tests/check_asm_immediates.py`.
 - `./build/wuci-ji selftest` succeeds as part of the Python test harness.
@@ -109,9 +109,9 @@ Fixes made while executing this checkpoint:
   v2 frames. The v2 header is fed to Poly1305 as associated data before any
   ciphertext bytes, so key ID, version, algorithm, and nonce tampering fail
   authentication.
-- The v3 recipient envelope adds X25519 file sealing. `keypair` emits random
-  private/public X25519 keys as hex, `seal-to <public> <in> <out>` writes a
-  no-overwrite v3 artifact with an ephemeral X25519 public key, and
+- The all-assembly v3 recipient envelope adds X25519 file sealing. `keypair`
+  emits random private/public X25519 keys as hex. `seal-to <public> <in> <out>`
+  writes a no-overwrite v3 artifact with an ephemeral X25519 public key, and
   `open-to <private> <in> <out>` verifies and opens that artifact with the
   recipient private key. The v3 key ID is `SHA256(recipient-public)[:16]`.
   The AEAD key is derived with HKDF-SHA256 from the X25519 shared secret using
@@ -227,6 +227,6 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 3. The direct-key and key-file-backed no-overwrite file workflows are now both
    covered. Next file-surface work should focus on reducing command-name length
    or adding explicit docs/examples rather than adding more aliases.
-4. `src/x25519.c` is freestanding and linked without libc. A future stricter
-   all-assembly checkpoint can port that helper into `src/wuci-ji.s`, but keep
-   the Python X25519 reference tests as the compatibility guard.
+4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
+   hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
+   reference tests as the compatibility guard.
