@@ -122,10 +122,22 @@ _start:
     je run_inspect
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_inspect_file]
+    call streq
+    cmp eax, 1
+    je run_inspect_file
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_manifest]
     call streq
     cmp eax, 1
     je run_manifest
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_manifest_file]
+    call streq
+    cmp eax, 1
+    je run_manifest_file
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_aead_seal]
@@ -226,6 +238,14 @@ keyfile_error:
     mov rdi, STDERR
     lea rsi, [rip + keyfile_error_msg]
     mov edx, OFFSET FLAT:keyfile_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+artifact_file_error:
+    mov rdi, STDERR
+    lea rsi, [rip + artifact_file_error_msg]
+    mov edx, OFFSET FLAT:artifact_file_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -916,7 +936,7 @@ run_inspect:
     syscall
     test rax, rax
     js read_error
-    jz .Linspect_eof
+    jz inspect_parse_loaded_envelope
 
     mov rbx, qword ptr [rip + aead_text_len]
     mov rcx, AEAD_OPEN_MAX
@@ -932,7 +952,19 @@ run_inspect:
     add qword ptr [rip + aead_text_len], rax
     jmp .Linspect_read_loop
 
-.Linspect_eof:
+run_inspect_file:
+    cmp qword ptr [rsp], 3
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    call read_artifact_file
+    cmp eax, 1
+    je inspect_parse_loaded_envelope
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
+inspect_parse_loaded_envelope:
     mov rbx, qword ptr [rip + aead_text_len]
     cmp rbx, ENVELOPE_MIN_LEN
     jb envelope_error
@@ -1026,7 +1058,7 @@ run_manifest:
     syscall
     test rax, rax
     js read_error
-    jz .Lmanifest_eof
+    jz manifest_parse_loaded_envelope
 
     mov rbx, qword ptr [rip + aead_text_len]
     mov rcx, AEAD_OPEN_MAX
@@ -1042,7 +1074,19 @@ run_manifest:
     add qword ptr [rip + aead_text_len], rax
     jmp .Lmanifest_read_loop
 
-.Lmanifest_eof:
+run_manifest_file:
+    cmp qword ptr [rsp], 3
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    call read_artifact_file
+    cmp eax, 1
+    je manifest_parse_loaded_envelope
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
+manifest_parse_loaded_envelope:
     mov rbx, qword ptr [rip + aead_text_len]
     cmp rbx, ENVELOPE_MIN_LEN
     jb envelope_error
@@ -1728,6 +1772,75 @@ read_key_file:
 .Lread_key_file_fail:
     xor eax, eax
 .Lread_key_file_done:
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+read_artifact_file:
+    push rbx
+    push r12
+    push r13
+    mov rbx, rdi
+    mov qword ptr [rip + aead_text_len], 0
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, rbx
+    mov edx, O_RDONLY
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js .Lread_artifact_file_fail
+
+    mov r12, rax
+
+.Lread_artifact_file_loop:
+    mov eax, SYS_READ
+    mov rdi, r12
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js .Lread_artifact_file_fail_close
+    jz .Lread_artifact_file_ok_close
+
+    mov r13, qword ptr [rip + aead_text_len]
+    mov rdx, AEAD_OPEN_MAX
+    sub rdx, r13
+    cmp rax, rdx
+    ja .Lread_artifact_file_size_close
+
+    lea rdi, [rip + aead_open_buf]
+    add rdi, r13
+    lea rsi, [rip + io_buf]
+    mov rcx, rax
+    rep movsb
+    add qword ptr [rip + aead_text_len], rax
+    jmp .Lread_artifact_file_loop
+
+.Lread_artifact_file_ok_close:
+    mov eax, SYS_CLOSE
+    mov rdi, r12
+    syscall
+    mov eax, 1
+    jmp .Lread_artifact_file_done
+
+.Lread_artifact_file_size_close:
+    mov eax, SYS_CLOSE
+    mov rdi, r12
+    syscall
+    mov eax, 2
+    jmp .Lread_artifact_file_done
+
+.Lread_artifact_file_fail_close:
+    mov eax, SYS_CLOSE
+    mov rdi, r12
+    syscall
+
+.Lread_artifact_file_fail:
+    xor eax, eax
+.Lread_artifact_file_done:
     pop r13
     pop r12
     pop rbx
@@ -2983,8 +3096,12 @@ cmd_open_keyfile:
     .asciz "open-keyfile"
 cmd_inspect:
     .asciz "inspect"
+cmd_inspect_file:
+    .asciz "inspect-file"
 cmd_manifest:
     .asciz "manifest"
+cmd_manifest_file:
+    .asciz "manifest-file"
 cmd_aead_seal:
     .asciz "aead-seal"
 cmd_aead_open:
@@ -2995,7 +3112,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|inspect|manifest|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -3006,7 +3123,9 @@ usage_msg:
     .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
+    .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
     .ascii "  manifest                       print envelope metadata, ciphertext length, and tag\n"
+    .ascii "  manifest-file <path>           print file metadata, ciphertext length, and tag\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
     .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
@@ -3026,6 +3145,10 @@ key_error_msg:
 keyfile_error_msg:
     .ascii "wuci-ji: key file must contain 64 hex characters plus optional newline\n"
 .set keyfile_error_msg_len, . - keyfile_error_msg
+
+artifact_file_error_msg:
+    .ascii "wuci-ji: artifact file could not be read\n"
+.set artifact_file_error_msg_len, . - artifact_file_error_msg
 
 keyid_arg_error_msg:
     .ascii "wuci-ji: key id must contain exactly 32 hex characters\n"

@@ -316,6 +316,47 @@ def assert_rejects_manifest(sealed: bytes) -> None:
     assert rejected.stdout == b""
 
 
+def assert_artifact_file_commands(
+    sealed_v1: bytes,
+    sealed_v2: bytes,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        v1_path = tmp / "artifact-v1.wj"
+        v2_path = tmp / "artifact-v2.wj"
+        bad_path = tmp / "artifact-bad.wj"
+        short_path = tmp / "artifact-short.wj"
+        missing_path = tmp / "missing.wj"
+
+        v1_path.write_bytes(sealed_v1)
+        v2_path.write_bytes(sealed_v2)
+        bad_path.write_bytes(b"BADSEAL\x01" + sealed_v1[len(ENVELOPE_PREFIX) :])
+        short_path.write_bytes(sealed_v2[: ENVELOPE_V2_HEADER_LEN - 1])
+
+        for stdin_command, file_command in (
+            ("inspect", "inspect-file"),
+            ("manifest", "manifest-file"),
+        ):
+            for sealed, artifact_path in (
+                (sealed_v1, v1_path),
+                (sealed_v2, v2_path),
+            ):
+                expected = run([stdin_command], sealed)
+                actual = run([file_command, str(artifact_path)])
+                assert expected.returncode == 0, expected.stderr.decode(
+                    "utf-8", "replace"
+                )
+                assert actual.returncode == 0, actual.stderr.decode(
+                    "utf-8", "replace"
+                )
+                assert actual.stdout == expected.stdout
+
+            for artifact_path in (missing_path, bad_path, short_path):
+                rejected = run([file_command, str(artifact_path)])
+                assert rejected.returncode != 0
+                assert rejected.stdout == b""
+
+
 def assert_rejects_envelope(key: bytes, sealed: bytes) -> None:
     rejected = run(["open", key.hex()], sealed)
     assert rejected.returncode != 0
@@ -456,6 +497,7 @@ def main() -> None:
     assert_inspect_v2(v2_sealed, v2_key_id)
     assert_manifest_v1(sealed)
     assert_manifest_v2(v2_sealed, v2_key_id)
+    assert_artifact_file_commands(sealed, v2_sealed)
     assert_rejects_inspect(b"")
     assert_rejects_inspect(sealed[: ENVELOPE_HEADER_LEN - 1])
     assert_rejects_inspect(b"BADSEAL\x01" + sealed[len(ENVELOPE_PREFIX) :])

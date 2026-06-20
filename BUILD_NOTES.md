@@ -115,6 +115,11 @@ Fixes made while executing this checkpoint:
   cataloging: version, algorithm, header length, v2 key ID when present,
   ciphertext length, nonce, and the raw trailing authentication tag. It uses the
   same malformed/truncated frame rejection boundaries as `inspect`.
+- `inspect-file <path>` and `manifest-file <path>` provide file-path
+  convenience variants for cataloging stored artifacts without shell
+  redirection. They reuse the same parser/output paths as stdin `inspect` and
+  `manifest`, reject unreadable files separately, and preserve the same
+  malformed/truncated envelope boundaries.
 
 ## Envelope layouts
 
@@ -168,6 +173,7 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 2. If v2 grows again, keep adding malformed-envelope tests before changing
    `open`; current tests cover truncated v2 headers, truncated bodies/tags,
    authenticated key ID tampering, nonce tampering, and tag tampering.
-3. Consider file-path convenience variants, such as `inspect-file <path>` and
-   `manifest-file <path>`, only if stdin-based artifact workflows become
-   awkward.
+3. Consider path-based seal/open commands only after choosing overwrite
+   semantics. A conservative shape would be `seal-file <key> <in> <out>` and
+   `open-file <key> <in> <out>` with output creation failing when the output
+   path already exists.
