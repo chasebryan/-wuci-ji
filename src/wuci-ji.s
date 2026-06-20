@@ -180,6 +180,12 @@ _start:
     je run_frost_secp256k1_challenge
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_signing_share]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_signing_share
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_secp256k1_field_add]
     call streq
     cmp eax, 1
@@ -1072,6 +1078,84 @@ run_frost_secp256k1_challenge:
     lea rcx, [rip + frost_challenge_prefix]
     mov r8d, 66
     jmp frost_hash_to_scalar_prefixed_stdin
+
+run_frost_secp256k1_signing_share:
+    cmp qword ptr [rsp], 8
+    jne usage_exit
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + secp256k1_scalar_a]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne scalar_arg_error
+    lea rdi, [rip + secp256k1_scalar_a]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je scalar_arg_error
+
+    mov rdi, qword ptr [rsp + 32]
+    lea rsi, [rip + secp256k1_scalar_b]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne scalar_arg_error
+    lea rdi, [rip + secp256k1_scalar_b]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je scalar_arg_error
+
+    mov rdi, qword ptr [rsp + 40]
+    lea rsi, [rip + secp256k1_scalar_inv_tmp]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne scalar_arg_error
+
+    mov rdi, qword ptr [rsp + 48]
+    lea rsi, [rip + secp256k1_scalar_lagrange_num]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne scalar_arg_error
+    lea rdi, [rip + secp256k1_scalar_lagrange_num]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je scalar_arg_error
+
+    mov rdi, qword ptr [rsp + 56]
+    lea rsi, [rip + secp256k1_scalar_lagrange_den]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne scalar_arg_error
+    lea rdi, [rip + secp256k1_scalar_lagrange_den]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je scalar_arg_error
+
+    mov rdi, qword ptr [rsp + 64]
+    lea rsi, [rip + secp256k1_scalar_lagrange_id]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne scalar_arg_error
+
+    lea rdi, [rip + secp256k1_scalar_b]
+    lea rsi, [rip + secp256k1_scalar_inv_tmp]
+    lea rdx, [rip + secp256k1_scalar_out]
+    call secp256k1_scalar_mul_limbs
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + secp256k1_scalar_out]
+    lea rdx, [rip + secp256k1_scalar_inv_result]
+    call secp256k1_scalar_add_limbs
+
+    lea rdi, [rip + secp256k1_scalar_lagrange_num]
+    lea rsi, [rip + secp256k1_scalar_lagrange_den]
+    lea rdx, [rip + secp256k1_scalar_out]
+    call secp256k1_scalar_mul_limbs
+    lea rdi, [rip + secp256k1_scalar_out]
+    lea rsi, [rip + secp256k1_scalar_lagrange_id]
+    lea rdx, [rip + secp256k1_scalar_inv_tmp]
+    call secp256k1_scalar_mul_limbs
+    lea rdi, [rip + secp256k1_scalar_inv_result]
+    lea rsi, [rip + secp256k1_scalar_inv_tmp]
+    lea rdx, [rip + secp256k1_scalar_out]
+    call secp256k1_scalar_add_limbs
+    jmp write_secp256k1_scalar_out
 
 run_secp256k1_scalar_add:
     cmp qword ptr [rsp], 4
@@ -8387,6 +8471,8 @@ cmd_frost_secp256k1_group_commitment:
     .asciz "frost-secp256k1-group-commitment"
 cmd_frost_secp256k1_challenge:
     .asciz "frost-secp256k1-challenge"
+cmd_frost_secp256k1_signing_share:
+    .asciz "frost-secp256k1-signing-share"
 cmd_secp256k1_field_add:
     .asciz "secp256k1-field-add"
 cmd_secp256k1_field_sub:
@@ -8481,7 +8567,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
     .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
@@ -8504,6 +8590,7 @@ usage_msg:
     .ascii "  frost-secp256k1-binding-factor <PK> <H4> <H5> <id> derive one binding factor\n"
     .ascii "  frost-secp256k1-group-commitment <id D E rho>... aggregate group commitment\n"
     .ascii "  frost-secp256k1-challenge <R> <PK> derive H2 challenge over R, PK, and stdin\n"
+    .ascii "  frost-secp256k1-signing-share <d> <e> <rho> <lambda> <share> <c> derive z_i\n"
     .ascii "  secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p\n"
     .ascii "  secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p\n"
     .ascii "  secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p\n"

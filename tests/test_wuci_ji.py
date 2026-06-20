@@ -448,6 +448,62 @@ def assert_frost_challenge_helper() -> None:
         assert proc.stdout == b""
 
 
+def frost_signing_share_ref(
+    hiding_nonce: int,
+    binding_nonce: int,
+    binding_factor: int,
+    lagrange: int,
+    share: int,
+    challenge: int,
+) -> int:
+    n = SECP256K1_ORDER
+    return (
+        hiding_nonce
+        + (binding_nonce * binding_factor)
+        + (lagrange * share * challenge)
+    ) % n
+
+
+def assert_frost_signing_share_helper() -> None:
+    cases = [
+        (1, 2, 3, 4, 5, 6),
+        (SECP256K1_ORDER - 1, 2, 3, 4, 5, 6),
+        (7, 11, 0, 13, 17, 19),
+        (7, 11, 23, 13, 17, 0),
+    ]
+    for case in cases:
+        proc = run(["frost-secp256k1-signing-share", *(scalar_hex(item) for item in case)])
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert proc.stdout.decode("ascii").strip() == (
+            f"{frost_signing_share_ref(*case):064x}"
+        )
+
+    rejected_cases = [
+        (0, 2, 3, 4, 5, 6),
+        (1, 0, 3, 4, 5, 6),
+        (1, 2, 3, 0, 5, 6),
+        (1, 2, 3, 4, 0, 6),
+    ]
+    for case in rejected_cases:
+        proc = run(["frost-secp256k1-signing-share", *(scalar_hex(item) for item in case)])
+        assert proc.returncode != 0
+        assert proc.stdout == b""
+
+    noncanonical = run(
+        [
+            "frost-secp256k1-signing-share",
+            scalar_hex(1),
+            scalar_hex(2),
+            scalar_hex(3),
+            scalar_hex(4),
+            f"{SECP256K1_ORDER:064x}",
+            scalar_hex(6),
+        ]
+    )
+    assert noncanonical.returncode != 0
+    assert noncanonical.stdout == b""
+
+
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
     args = [command, field_hex(a)]
     if b is not None:
@@ -1766,6 +1822,20 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 b"",
                 None,
             ),
+            (
+                [
+                    "frost-secp256k1-signing-share",
+                    "01".zfill(64),
+                    "02".zfill(64),
+                    "03".zfill(64),
+                    "04".zfill(64),
+                    "05".zfill(64),
+                    "06".zfill(64),
+                    "extra",
+                ],
+                b"",
+                None,
+            ),
             (["secp256k1-field-add", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
@@ -1949,6 +2019,7 @@ def assert_help_output() -> None:
         "frost-secp256k1-binding-factor <PK> <H4> <H5> <id> derive one binding factor",
         "frost-secp256k1-group-commitment <id D E rho>... aggregate group commitment",
         "frost-secp256k1-challenge <R> <PK> derive H2 challenge over R, PK, and stdin",
+        "frost-secp256k1-signing-share <d> <e> <rho> <lambda> <share> <c> derive z_i",
         "secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p",
         "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
         "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
@@ -2009,6 +2080,7 @@ def main() -> None:
     assert_frost_commit_helpers()
     assert_frost_binding_group_helpers()
     assert_frost_challenge_helper()
+    assert_frost_signing_share_helper()
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
     assert_secp256k1_point_helpers()
