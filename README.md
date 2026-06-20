@@ -53,12 +53,16 @@ material:
 ```sh
 make frost-demo
 python3 tools/frost_secp256k1_workflow.py --print-fixture-manifest
+python3 tools/frost_secp256k1_workflow.py --message "authorize manifest" --print-transcript-manifest
 python3 tools/frost_secp256k1_workflow.py --message "authorize manifest" --json
 ```
 
 `--fixture-manifest` accepts only the exact built-in fixture manifest and
 rejects modified signer shares, nonces, production flags, missing fields, and
-extra fields before any signing-share primitive runs.
+extra fields before any signing-share primitive runs. `--transcript-manifest`
+requires an exact unspent transcript manifest for the selected message and
+commitment set, and `--update-transcript-manifest` marks it spent after a
+successful verified run.
 
 ## License
 

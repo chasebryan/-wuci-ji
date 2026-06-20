@@ -384,6 +384,16 @@ Fixes made while executing this checkpoint:
   artifacts, while the current helper is only a deterministic non-production
   fixture. The workflow regression asserts the helper help keeps that boundary
   visible.
+- The fifth FROST workflow checkpoint added a transcript-manifest gate to
+  `tools/frost_secp256k1_workflow.py`. `--print-transcript-manifest` emits an
+  exact unspent manifest binding the selected message bytes, H4 message hash,
+  round-one signer commitments, H5 commitment hash, H1 binding factors,
+  Lagrange factors, group commitment, H2 challenge, and
+  `signing_shares_emitted: false`. `--transcript-manifest` requires that exact
+  unspent transcript before the helper reaches `frost-secp256k1-signing-share`,
+  and `--update-transcript-manifest` atomically marks it spent after a verified
+  run. The workflow regression rejects mismatched messages, tampered commitment
+  hashes, and already-spent manifests.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -542,12 +552,13 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, add nonce-commitment tracking or a manifest-bound
-   authorization workflow that prevents reusing deterministic fixture material
-   as arbitrary signer input. Keep private nonce and signing-share paths on
-   projective basepoint helpers, leave public verifier aggregation behind
-   `secp256k1_public_point_mul_limbs`, and keep the native and Zig source
-   lists together.
+   separate. Next, start binding FROST authorization to Wuci-ji artifact
+   manifests: derive the message bytes from `manifest`/`manifest-file` output,
+   require an unspent transcript manifest, and verify the final quorum
+   signature before introducing any `open`/`release` gate. Keep private nonce
+   and signing-share paths on projective basepoint helpers, leave public
+   verifier aggregation behind `secp256k1_public_point_mul_limbs`, and keep
+   the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

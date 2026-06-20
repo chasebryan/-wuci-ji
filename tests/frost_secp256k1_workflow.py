@@ -67,9 +67,25 @@ def main() -> None:
     assert manifest["production"] is False
     assert "NON-PRODUCTION" in manifest["warning"]
 
+    transcript_proc = run_tool(["--print-transcript-manifest", "--message", MESSAGE])
+    assert transcript_proc.returncode == 0, transcript_proc.stderr.decode(
+        "utf-8", "replace"
+    )
+    transcript = json.loads(transcript_proc.stdout.decode("ascii"))
+    assert transcript["schema"] == "wuci-frost-transcript-v1"
+    assert transcript["production"] is False
+    assert transcript["message_hex"] == MESSAGE.encode("utf-8").hex()
+    assert transcript["signing_shares_emitted"] is False
+    assert transcript["commitment_hash"] == labels["commitment_hash"]
+    assert transcript["message_hash"] == labels["message_hash"]
+    assert transcript["group_commitment"] == labels["group_commitment"]
+    assert transcript["challenge"] == labels["challenge"]
+    assert "signature_share" not in transcript["signers"][0]
+
     with tempfile.TemporaryDirectory() as temp_dir:
         manifest_path = Path(temp_dir) / "frost-fixture.json"
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        transcript_path = Path(temp_dir) / "frost-transcript.json"
 
         manifest_run = run_tool(
             ["--fixture-manifest", str(manifest_path), "--message", MESSAGE]
@@ -102,12 +118,83 @@ def main() -> None:
         assert bad_run.returncode != 0
         assert b"does not match the built-in fixture" in bad_run.stderr
 
+        transcript_path.write_text(json.dumps(transcript), encoding="utf-8")
+        transcript_run = run_tool(
+            ["--transcript-manifest", str(transcript_path), "--message", MESSAGE]
+        )
+        assert transcript_run.returncode == 0, transcript_run.stderr.decode(
+            "utf-8", "replace"
+        )
+        transcript_labels = output_labels(transcript_run.stdout)
+        for name, value in signature.items():
+            assert transcript_labels[name] == value, (
+                name,
+                transcript_labels[name],
+                value,
+            )
+        assert transcript_labels["transcript_signing_shares_emitted"] == "true"
+
+        mismatched_message = run_tool(
+            [
+                "--transcript-manifest",
+                str(transcript_path),
+                "--message",
+                "different message",
+                "--quiet",
+            ]
+        )
+        assert mismatched_message.returncode != 0
+        assert b"does not match the current transcript" in mismatched_message.stderr
+
+        bad_transcript = json.loads(json.dumps(transcript))
+        bad_transcript["commitment_hash"] = "00" * 32
+        transcript_path.write_text(json.dumps(bad_transcript), encoding="utf-8")
+        bad_transcript_run = run_tool(
+            ["--transcript-manifest", str(transcript_path), "--message", MESSAGE, "--quiet"]
+        )
+        assert bad_transcript_run.returncode != 0
+        assert b"commitment_hash" in bad_transcript_run.stderr
+
+        spent_transcript = json.loads(json.dumps(transcript))
+        spent_transcript["signing_shares_emitted"] = True
+        transcript_path.write_text(json.dumps(spent_transcript), encoding="utf-8")
+        spent_run = run_tool(
+            ["--transcript-manifest", str(transcript_path), "--message", MESSAGE, "--quiet"]
+        )
+        assert spent_run.returncode != 0
+        assert b"already emitted signing shares" in spent_run.stderr
+
+        transcript_path.write_text(json.dumps(transcript), encoding="utf-8")
+        update_run = run_tool(
+            [
+                "--transcript-manifest",
+                str(transcript_path),
+                "--update-transcript-manifest",
+                "--message",
+                MESSAGE,
+                "--quiet",
+            ]
+        )
+        assert update_run.returncode == 0, update_run.stderr.decode(
+            "utf-8", "replace"
+        )
+        updated_transcript = json.loads(transcript_path.read_text(encoding="utf-8"))
+        assert updated_transcript["signing_shares_emitted"] is True
+        reuse_run = run_tool(
+            ["--transcript-manifest", str(transcript_path), "--message", MESSAGE, "--quiet"]
+        )
+        assert reuse_run.returncode != 0
+        assert b"already emitted signing shares" in reuse_run.stderr
+
     help_proc = run_tool(["--help"])
     assert help_proc.returncode == 0
+    help_stdout = help_proc.stdout
     assert b"WUCI-FROST / No Such Quorum" in help_proc.stdout
     assert b"manifest-bound artifact actions" in help_proc.stdout
     assert b"not\n  encryption" in help_proc.stdout
-    assert b"arbitrary signer material stays blocked" in help_proc.stdout
+    assert b"arbitrary signer material stays blocked" in help_stdout.lower()
+    assert b"--print-transcript-manifest" in help_proc.stdout
+    assert b"--transcript-manifest" in help_proc.stdout
 
     if args.quiet:
         return

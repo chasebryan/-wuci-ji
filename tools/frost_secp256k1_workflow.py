@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
 SUITE = "FROST-secp256k1-SHA256-v1"
 MODE = "deterministic-2of2-fixture"
+TRANSCRIPT_SCHEMA = "wuci-frost-transcript-v1"
 DEFAULT_MESSAGE = b"wuci-ji frost integration"
 FIXTURE_WARNING = (
     "NON-PRODUCTION deterministic fixture material only; do not use for real signatures."
@@ -23,8 +25,11 @@ WUCI-FROST / No Such Quorum direction:
   FROST is an authorization layer for manifest-bound artifact actions, not
   encryption. Wuci-ji artifact secrecy stays in the ChaCha20-Poly1305 envelope.
   This helper is only a deterministic fixture demo over existing assembly
-  primitives; arbitrary signer material stays blocked until nonce handling,
-  commitment tracking, and constant-time boundaries are hardened.
+  primitives. Use --print-transcript-manifest and --transcript-manifest to bind
+  one message/artifact hash, one commitment set, and one signing-share emission
+  state before the helper reaches signing-share generation.
+  Arbitrary signer material stays blocked until nonce handling, commitment
+  tracking, and constant-time boundaries are hardened.
 """
 
 FIXTURE_GROUP_SECRET = 5
@@ -122,6 +127,108 @@ def load_fixture_manifest(path: Path) -> dict[str, Any]:
         raise WorkflowError(f"fixture manifest is not valid JSON: {exc.msg}") from exc
 
 
+def validate_transcript_manifest(raw: Any, expected: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise WorkflowError("transcript manifest must be a JSON object")
+
+    root_keys = {
+        "schema",
+        "suite",
+        "mode",
+        "production",
+        "warning",
+        "message_hex",
+        "group_public_key",
+        "commitment_hash",
+        "message_hash",
+        "group_commitment",
+        "challenge",
+        "signing_shares_emitted",
+        "signers",
+    }
+    require_exact_keys(raw, root_keys, "transcript manifest")
+    if raw["production"] is not False:
+        raise WorkflowError("transcript manifest must set production to false")
+    if raw["signing_shares_emitted"] is not False:
+        raise WorkflowError("transcript manifest has already emitted signing shares")
+
+    for field in sorted(root_keys - {"production", "signing_shares_emitted", "signers"}):
+        if raw[field] != expected[field]:
+            raise WorkflowError(
+                f"transcript manifest field {field!r} does not match the current transcript"
+            )
+
+    if not isinstance(raw["signers"], list):
+        raise WorkflowError("transcript manifest signers must be a list")
+    if len(raw["signers"]) != len(expected["signers"]):
+        raise WorkflowError("transcript manifest signer count does not match")
+
+    signer_keys = {
+        "id",
+        "hiding_nonce_commitment",
+        "binding_nonce_commitment",
+        "binding_factor",
+        "lagrange",
+    }
+    for index, (actual, expected_signer) in enumerate(
+        zip(raw["signers"], expected["signers"], strict=True), start=1
+    ):
+        if not isinstance(actual, dict):
+            raise WorkflowError(f"transcript manifest signer {index} must be an object")
+        require_exact_keys(actual, signer_keys, f"transcript manifest signer {index}")
+        for field in sorted(signer_keys):
+            if actual[field] != expected_signer[field]:
+                raise WorkflowError(
+                    f"transcript manifest signer {index} field {field!r} does not match the current transcript"
+                )
+    return expected
+
+
+def load_transcript_manifest(path: Path) -> Any:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except OSError as exc:
+        raise WorkflowError(f"could not read transcript manifest {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise WorkflowError(f"transcript manifest is not valid JSON: {exc.msg}") from exc
+
+
+def transcript_with_emission_state(
+    transcript: dict[str, Any],
+    emitted: bool,
+) -> dict[str, Any]:
+    updated = json.loads(json.dumps(transcript))
+    updated["signing_shares_emitted"] = emitted
+    return updated
+
+
+def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            json.dump(value, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temp_path, path)
+        temp_path = None
+    except OSError as exc:
+        raise WorkflowError(f"could not write transcript manifest {path}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+
+
 def parse_labels(output: str) -> dict[str, str]:
     labels: dict[str, str] = {}
     for line in output.splitlines():
@@ -187,11 +294,11 @@ def signer_values(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def run_fixture_workflow(
+def build_fixture_transcript(
     cli: WuciJiCli,
     message: bytes,
     manifest: dict[str, Any],
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     group_public_key = compressed_basepoint_mul(cli, int(manifest["group_secret"], 16))
     signers = signer_values(manifest)
 
@@ -260,6 +367,47 @@ def run_fixture_workflow(
             ]
         )
         signer["lagrange"] = lagrange
+
+    transcript = {
+        "schema": TRANSCRIPT_SCHEMA,
+        "suite": SUITE,
+        "mode": MODE,
+        "production": False,
+        "warning": FIXTURE_WARNING,
+        "message_hex": message.hex(),
+        "group_public_key": group_public_key,
+        "commitment_hash": commitment_hash,
+        "message_hash": message_hash,
+        "group_commitment": group_commitment,
+        "challenge": challenge,
+        "signing_shares_emitted": False,
+        "signers": [
+            {
+                "id": scalar_hex(signer["id"]),
+                "hiding_nonce_commitment": signer["D"],
+                "binding_nonce_commitment": signer["E"],
+                "binding_factor": signer["rho"],
+                "lagrange": signer["lagrange"],
+            }
+            for signer in signers
+        ],
+    }
+    return transcript, signers
+
+
+def run_fixture_workflow(
+    cli: WuciJiCli,
+    message: bytes,
+    manifest: dict[str, Any],
+    transcript_manifest: Any | None = None,
+) -> dict[str, Any]:
+    transcript, signers = build_fixture_transcript(cli, message, manifest)
+    validated_transcript = validate_transcript_manifest(
+        transcript if transcript_manifest is None else transcript_manifest,
+        transcript,
+    )
+
+    for signer in signers:
         signer["z"] = cli.run_scalar(
             [
                 "frost-secp256k1-signing-share",
@@ -268,14 +416,14 @@ def run_fixture_workflow(
                 signer["rho"],
                 signer["lagrange"],
                 scalar_hex(signer["share"]),
-                challenge,
+                validated_transcript["challenge"],
             ]
         )
 
     signature = cli.run_labels(
         [
             "frost-secp256k1-aggregate",
-            group_commitment,
+            validated_transcript["group_commitment"],
             *(signer["z"] for signer in signers),
         ]
     )
@@ -284,23 +432,25 @@ def run_fixture_workflow(
         [
             "frost-secp256k1-verify",
             signature["signature_commitment"],
-            group_public_key,
+            validated_transcript["group_public_key"],
             signature["signature_scalar"],
-            challenge,
+            validated_transcript["challenge"],
         ]
     ).strip()
     if verification != "valid":
         raise WorkflowError(f"verification failed: {verification}")
 
+    spent_transcript = transcript_with_emission_state(validated_transcript, True)
     return {
         "suite": SUITE,
         "mode": MODE,
         "production": False,
         "fixture_warning": FIXTURE_WARNING,
-        "message_hex": message.hex(),
-        "group_public_key": group_public_key,
-        "commitment_hash": commitment_hash,
-        "message_hash": message_hash,
+        "message_hex": validated_transcript["message_hex"],
+        "group_public_key": validated_transcript["group_public_key"],
+        "commitment_hash": validated_transcript["commitment_hash"],
+        "message_hash": validated_transcript["message_hash"],
+        "transcript_manifest": spent_transcript,
         "signers": [
             {
                 "id": scalar_hex(signer["id"]),
@@ -312,8 +462,8 @@ def run_fixture_workflow(
             }
             for signer in signers
         ],
-        "group_commitment": group_commitment,
-        "challenge": challenge,
+        "group_commitment": validated_transcript["group_commitment"],
+        "challenge": validated_transcript["challenge"],
         "signature_commitment": signature["signature_commitment"],
         "signature_scalar": signature["signature_scalar"],
         "verification": verification,
@@ -326,6 +476,8 @@ def text_lines(result: dict[str, Any]) -> list[str]:
         f"mode: {result['mode']}",
         f"production: {str(result['production']).lower()}",
         f"fixture_warning: {result['fixture_warning']}",
+        "transcript_signing_shares_emitted: "
+        f"{str(result['transcript_manifest']['signing_shares_emitted']).lower()}",
         f"message_hex: {result['message_hex']}",
         f"group_public_key: {result['group_public_key']}",
         f"commitment_hash: {result['commitment_hash']}",
@@ -393,6 +545,29 @@ def main() -> int:
         action="store_true",
         help="print the exact non-production fixture manifest and exit",
     )
+    parser.add_argument(
+        "--transcript-manifest",
+        help=(
+            "require an exact unspent transcript manifest before emitting "
+            "signing shares"
+        ),
+    )
+    parser.add_argument(
+        "--print-transcript-manifest",
+        action="store_true",
+        help=(
+            "print the unspent transcript manifest for the selected message "
+            "and exit before signing shares"
+        ),
+    )
+    parser.add_argument(
+        "--update-transcript-manifest",
+        action="store_true",
+        help=(
+            "after a successful run with --transcript-manifest, atomically "
+            "mark that transcript as having emitted signing shares"
+        ),
+    )
     message_group = parser.add_mutually_exclusive_group()
     message_group.add_argument(
         "--message",
@@ -419,21 +594,43 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.update_transcript_manifest and args.transcript_manifest is None:
+        parser.error("--update-transcript-manifest requires --transcript-manifest")
+    if args.print_fixture_manifest and args.print_transcript_manifest:
+        parser.error("--print-fixture-manifest cannot be combined with --print-transcript-manifest")
+    if args.print_transcript_manifest and args.update_transcript_manifest:
+        parser.error("--print-transcript-manifest cannot be combined with --update-transcript-manifest")
+
     if args.print_fixture_manifest:
         print(json.dumps(fixture_manifest(), indent=2, sort_keys=True))
         return 0
 
     try:
+        cli = WuciJiCli(Path(args.bin))
         manifest = (
             load_fixture_manifest(Path(args.fixture_manifest))
             if args.fixture_manifest is not None
             else fixture_manifest()
         )
-        result = run_fixture_workflow(
-            WuciJiCli(Path(args.bin)),
-            parse_message(args),
-            manifest,
+        message = parse_message(args)
+        if args.print_transcript_manifest:
+            transcript, _signers = build_fixture_transcript(cli, message, manifest)
+            print(json.dumps(transcript, indent=2, sort_keys=True))
+            return 0
+
+        transcript_manifest = (
+            load_transcript_manifest(Path(args.transcript_manifest))
+            if args.transcript_manifest is not None
+            else None
         )
+        result = run_fixture_workflow(
+            cli,
+            message,
+            manifest,
+            transcript_manifest,
+        )
+        if args.update_transcript_manifest:
+            write_json_atomic(Path(args.transcript_manifest), result["transcript_manifest"])
     except WorkflowError as exc:
         print(f"frost workflow: {exc}", file=sys.stderr)
         return 1
