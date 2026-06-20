@@ -592,6 +592,134 @@ def assert_frost_verify_helper() -> None:
         assert proc.stdout == b""
 
 
+def output_labels(stdout: bytes) -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for line in stdout.decode("ascii").splitlines():
+        label, value = line.split(": ", 1)
+        labels[label] = value
+    return labels
+
+
+def assert_frost_end_to_end_cli_flow() -> None:
+    message = b"wuci-ji frost integration"
+    group_public_key = secp256k1_compressed_ref(
+        secp256k1_point_mul_ref(5, SECP256K1_G)
+    )
+    signers = [
+        {"id": 1, "share": 12, "hiding": 2, "binding": 3},
+        {"id": 2, "share": 19, "hiding": 4, "binding": 5},
+    ]
+
+    for signer in signers:
+        proc = run(
+            [
+                "frost-secp256k1-commit",
+                scalar_hex(signer["hiding"]),
+                scalar_hex(signer["binding"]),
+            ]
+        )
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        labels = output_labels(proc.stdout)
+        signer["D"] = labels["hiding_nonce_commitment"]
+        signer["E"] = labels["binding_nonce_commitment"]
+
+    commitment_hash_proc = run(
+        [
+            "frost-secp256k1-commitment-hash",
+            *(item for signer in signers for item in (scalar_hex(signer["id"]), signer["D"], signer["E"])),
+        ]
+    )
+    assert commitment_hash_proc.returncode == 0, commitment_hash_proc.stderr.decode(
+        "utf-8", "replace"
+    )
+    commitment_hash = commitment_hash_proc.stdout.decode("ascii").strip()
+
+    msg_hash_proc = run(["frost-secp256k1-h4"], message)
+    assert msg_hash_proc.returncode == 0, msg_hash_proc.stderr.decode("utf-8", "replace")
+    msg_hash = msg_hash_proc.stdout.decode("ascii").strip()
+
+    for signer in signers:
+        rho_proc = run(
+            [
+                "frost-secp256k1-binding-factor",
+                group_public_key,
+                msg_hash,
+                commitment_hash,
+                scalar_hex(signer["id"]),
+            ]
+        )
+        assert rho_proc.returncode == 0, rho_proc.stderr.decode("utf-8", "replace")
+        signer["rho"] = int(rho_proc.stdout.decode("ascii").strip(), 16)
+
+    group_commitment_proc = run(
+        [
+            "frost-secp256k1-group-commitment",
+            *(item for signer in signers for item in (scalar_hex(signer["id"]), signer["D"], signer["E"], scalar_hex(signer["rho"]))),
+        ]
+    )
+    assert group_commitment_proc.returncode == 0, group_commitment_proc.stderr.decode(
+        "utf-8", "replace"
+    )
+    group_commitment = output_labels(group_commitment_proc.stdout)["group_commitment"]
+
+    challenge_proc = run(
+        ["frost-secp256k1-challenge", group_commitment, group_public_key],
+        message,
+    )
+    assert challenge_proc.returncode == 0, challenge_proc.stderr.decode("utf-8", "replace")
+    challenge = int(challenge_proc.stdout.decode("ascii").strip(), 16)
+
+    for signer in signers:
+        lagrange_proc = run(
+            [
+                "frost-secp256k1-lagrange",
+                scalar_hex(signer["id"]),
+                *(scalar_hex(item["id"]) for item in signers),
+            ]
+        )
+        assert lagrange_proc.returncode == 0, lagrange_proc.stderr.decode(
+            "utf-8", "replace"
+        )
+        lagrange = int(lagrange_proc.stdout.decode("ascii").strip(), 16)
+        share_proc = run(
+            [
+                "frost-secp256k1-signing-share",
+                scalar_hex(signer["hiding"]),
+                scalar_hex(signer["binding"]),
+                scalar_hex(signer["rho"]),
+                scalar_hex(lagrange),
+                scalar_hex(signer["share"]),
+                scalar_hex(challenge),
+            ]
+        )
+        assert share_proc.returncode == 0, share_proc.stderr.decode("utf-8", "replace")
+        signer["z"] = int(share_proc.stdout.decode("ascii").strip(), 16)
+
+    aggregate_proc = run(
+        [
+            "frost-secp256k1-aggregate",
+            group_commitment,
+            *(scalar_hex(signer["z"]) for signer in signers),
+        ]
+    )
+    assert aggregate_proc.returncode == 0, aggregate_proc.stderr.decode(
+        "utf-8", "replace"
+    )
+    signature = output_labels(aggregate_proc.stdout)
+
+    verify_proc = run(
+        [
+            "frost-secp256k1-verify",
+            signature["signature_commitment"],
+            group_public_key,
+            signature["signature_scalar"],
+            scalar_hex(challenge),
+        ]
+    )
+    assert verify_proc.returncode == 0, verify_proc.stderr.decode("utf-8", "replace")
+    assert verify_proc.stdout == b"valid\n"
+
+
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
     args = [command, field_hex(a)]
     if b is not None:
@@ -2190,6 +2318,7 @@ def main() -> None:
     assert_frost_signing_share_helper()
     assert_frost_aggregate_helper()
     assert_frost_verify_helper()
+    assert_frost_end_to_end_cli_flow()
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
     assert_secp256k1_point_helpers()

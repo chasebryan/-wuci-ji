@@ -152,6 +152,10 @@ Fixes made while executing this checkpoint:
   equation `z*G = R + c*PK` over validated compressed SEC1 group commitment and
   public-key encodings. Use `frost-secp256k1-challenge` to derive `c` from
   `R || PK || message`.
+- The Python test suite now includes a 2-of-2 FROST(secp256k1,SHA-256)
+  integration proof that composes commitment generation, commitment hashing,
+  binding factors, group commitment, challenge derivation, Lagrange
+  interpolation, signing shares, aggregation, and verification through the CLI.
 - The first assembly modularization checkpoint split the SHA-256 core into
   `src/sha256.s`, linked as `build/sha256.o` beside the main and X25519
   objects. The Makefile now uses assembly source lists for native linking and
