@@ -345,6 +345,13 @@ def frost_group_commitment_ref(
     return acc
 
 
+def frost_challenge_ref(group_commitment: str, group_public_key: str, message: bytes) -> str:
+    payload = bytes.fromhex(group_commitment) + bytes.fromhex(group_public_key) + message
+    return frost_hash_to_scalar_ref(
+        payload, b"FROST-secp256k1-SHA256-v1chal", SECP256K1_ORDER
+    ).hex()
+
+
 def assert_frost_binding_group_helpers() -> None:
     g1 = secp256k1_compressed_ref(SECP256K1_G)
     g2 = secp256k1_compressed_ref(secp256k1_point_mul_ref(2, SECP256K1_G))
@@ -412,6 +419,33 @@ def assert_frost_binding_group_helpers() -> None:
         proc = run(args)
         assert proc.returncode != 0, args
         assert proc.stdout == b"", args
+
+
+def assert_frost_challenge_helper() -> None:
+    group_commitment = secp256k1_compressed_ref(
+        secp256k1_point_mul_ref(7, SECP256K1_G)
+    )
+    group_public_key = secp256k1_compressed_ref(
+        secp256k1_point_mul_ref(5, SECP256K1_G)
+    )
+    for message in (b"", b"test", b"frost-challenge\0" * 128):
+        proc = run(
+            ["frost-secp256k1-challenge", group_commitment, group_public_key],
+            message,
+        )
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert proc.stdout.decode("ascii").strip() == frost_challenge_ref(
+            group_commitment, group_public_key, message
+        )
+
+    rejected_cases = [
+        ["frost-secp256k1-challenge", "00" + group_commitment[2:], group_public_key],
+        ["frost-secp256k1-challenge", group_commitment, "02" + ("00" * 31)],
+    ]
+    for args in rejected_cases:
+        proc = run(args, b"test")
+        assert proc.returncode != 0
+        assert proc.stdout == b""
 
 
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
@@ -1727,6 +1761,11 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 b"",
                 None,
             ),
+            (
+                ["frost-secp256k1-challenge", "02" + key.hex(), "02" + key.hex(), "extra"],
+                b"",
+                None,
+            ),
             (["secp256k1-field-add", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
@@ -1909,6 +1948,7 @@ def assert_help_output() -> None:
         "frost-secp256k1-commitment-hash <id D E>... hash sorted commitment triples",
         "frost-secp256k1-binding-factor <PK> <H4> <H5> <id> derive one binding factor",
         "frost-secp256k1-group-commitment <id D E rho>... aggregate group commitment",
+        "frost-secp256k1-challenge <R> <PK> derive H2 challenge over R, PK, and stdin",
         "secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p",
         "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
         "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
@@ -1968,6 +2008,7 @@ def main() -> None:
     assert_frost_nonce_generate_helper()
     assert_frost_commit_helpers()
     assert_frost_binding_group_helpers()
+    assert_frost_challenge_helper()
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
     assert_secp256k1_point_helpers()

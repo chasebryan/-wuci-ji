@@ -133,6 +133,11 @@ Fixes made while executing this checkpoint:
   `D_i + rho_i * E_i` over sorted participant rows and emits a compressed SEC1
   group commitment. These commands reject malformed compressed points and
   nonzero identifier lists that are not strictly ascending.
+- FROST(secp256k1,SHA-256) challenge computation now includes
+  `frost-secp256k1-challenge <R> <PK>`, which validates compressed SEC1 group
+  commitment and group public-key encodings, prepends them to stdin, and runs
+  RFC 9591 H2/chal hash-to-scalar. This completes the public transcript scalar
+  path needed before signing-share generation.
 - The first assembly modularization checkpoint split the SHA-256 core into
   `src/sha256.s`, linked as `build/sha256.o` beside the main and X25519
   objects. The Makefile now uses assembly source lists for native linking and
@@ -322,9 +327,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    H4/H5 transcript primitives for P-256 and secp256k1, plus secp256k1 field
    arithmetic, scalar arithmetic modulo the group order, Lagrange interpolation,
    nonce generation, nonce commitment, binding-factor derivation,
-   group-commitment aggregation, affine point validation/add/double, projective
-   basepoint multiplication, and controlled SEC1 point encoding/decoding. Next
-   FROST work should add challenge computation and then only expose
+   group-commitment aggregation, challenge computation, affine point
+   validation/add/double, projective basepoint multiplication, and controlled
+   SEC1 point encoding/decoding. Next FROST work should only expose
    signing-share generation after the exceptional-case Jacobian add/double
    branches and participant-share validation are tightened.
 4. Continue the assembly split before adding much more FROST signing code.
