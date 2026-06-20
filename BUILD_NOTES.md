@@ -101,6 +101,42 @@ Fixes made while executing this checkpoint:
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
   newline. The Python harness covers generated key files, raw 64-byte key
   files, malformed key-file rejection, and sealed/opened artifact round trips.
+- The v2 sealed-artifact envelope adds authenticated key ID metadata:
+  `seal-v2 <key> <key-id>` and `seal-keyfile-v2 <path> <key-id>` write a v2
+  frame, while `open <key>` and `open-keyfile <path>` still accept both v1 and
+  v2 frames. The v2 header is fed to Poly1305 as associated data before any
+  ciphertext bytes, so key ID, version, algorithm, and nonce tampering fail
+  authentication.
+
+## Envelope layouts
+
+All multi-byte metadata fields currently used by the envelope are byte strings;
+there are no integer length fields in either frame.
+
+v1 frame:
+
+```text
+offset  size  field
+0       6     ASCII "WJSEAL"
+6       1     version = 0x01
+7       1     algorithm = 0x01
+8       12    random ChaCha20-Poly1305 nonce
+20      N     ciphertext
+20+N    16    Poly1305 tag over ciphertext with zero-length associated data
+```
+
+v2 frame:
+
+```text
+offset  size  field
+0       6     ASCII "WJSEAL"
+6       1     version = 0x02
+7       1     algorithm = 0x01
+8       16    caller-supplied key ID metadata
+24      12    random ChaCha20-Poly1305 nonce
+36      N     ciphertext
+36+N    16    Poly1305 tag over header-associated data and ciphertext
+```
 
 The native build artifact is:
 
@@ -121,8 +157,8 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 1. From Linux, keep using `make clean && make test` as the runtime proof before
    each push when practical.
-2. If the envelope format grows beyond the current prefix, nonce, ciphertext,
-   and tag layout, add malformed-envelope tests before changing `open`.
-3. If this becomes a long-lived artifact format, consider explicit key IDs or
-   associated-data metadata in a versioned envelope extension before adding
-   more command variants.
+2. If v2 grows again, keep adding malformed-envelope tests before changing
+   `open`; current tests cover truncated v2 headers, truncated bodies/tags,
+   authenticated key ID tampering, nonce tampering, and tag tampering.
+3. Consider an `inspect` command that prints envelope version, algorithm, and
+   key ID without attempting decryption.

@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 BIN = Path(os.environ.get("WUCI_JI_BIN", ROOT / "build" / "wuci-ji"))
 RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 ENVELOPE_PREFIX = b"WJSEAL\x01\x01"
+ENVELOPE_V2_PREFIX = b"WJSEAL\x02\x01"
 ENVELOPE_HEADER_LEN = len(ENVELOPE_PREFIX) + 12
+ENVELOPE_V2_KEY_ID_LEN = 16
+ENVELOPE_V2_HEADER_LEN = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN + 12
 ENVELOPE_TAG_LEN = 16
 
 
@@ -152,20 +155,32 @@ def pad16(data: bytes) -> bytes:
     return b"" if rem == 0 else b"\0" * (16 - rem)
 
 
-def aead_tag_ref(key: bytes, nonce: bytes, ciphertext: bytes) -> bytes:
+def aead_tag_ref(
+    key: bytes,
+    nonce: bytes,
+    ciphertext: bytes,
+    aad: bytes = b"",
+) -> bytes:
     otk = chacha20_block(key, nonce, 0)[:32]
     mac_data = (
-        ciphertext
+        aad
+        + pad16(aad)
+        + ciphertext
         + pad16(ciphertext)
-        + (0).to_bytes(8, "little")
+        + len(aad).to_bytes(8, "little")
         + len(ciphertext).to_bytes(8, "little")
     )
     return poly1305_ref(otk, mac_data)
 
 
-def aead_seal_ref(key: bytes, nonce: bytes, plaintext: bytes) -> bytes:
+def aead_seal_ref(
+    key: bytes,
+    nonce: bytes,
+    plaintext: bytes,
+    aad: bytes = b"",
+) -> bytes:
     ciphertext = chacha20_ref(key, nonce, 1, plaintext)
-    return ciphertext + aead_tag_ref(key, nonce, ciphertext)
+    return ciphertext + aead_tag_ref(key, nonce, ciphertext, aad)
 
 
 def assert_aead(key: bytes, nonce: bytes, plaintext: bytes) -> None:
@@ -206,6 +221,29 @@ def assert_envelope(key: bytes, plaintext: bytes) -> None:
     assert repeated_nonce != nonce
 
 
+def assert_envelope_v2(key: bytes, key_id: bytes, plaintext: bytes) -> bytes:
+    sealed = run(["seal-v2", key.hex(), key_id.hex()], plaintext)
+    assert sealed.returncode == 0, sealed.stderr.decode("utf-8", "replace")
+    assert sealed.stdout.startswith(ENVELOPE_V2_PREFIX)
+    assert len(sealed.stdout) == (
+        ENVELOPE_V2_HEADER_LEN + len(plaintext) + ENVELOPE_TAG_LEN
+    )
+    key_id_end = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN
+    assert sealed.stdout[len(ENVELOPE_V2_PREFIX) : key_id_end] == key_id
+
+    header = sealed.stdout[:ENVELOPE_V2_HEADER_LEN]
+    nonce = sealed.stdout[key_id_end:ENVELOPE_V2_HEADER_LEN]
+    body = sealed.stdout[ENVELOPE_V2_HEADER_LEN:]
+    assert len(nonce) == 12
+    assert body == aead_seal_ref(key, nonce, plaintext, header)
+
+    opened = run(["open", key.hex()], sealed.stdout)
+    assert opened.returncode == 0, opened.stderr.decode("utf-8", "replace")
+    assert opened.stdout == plaintext
+
+    return sealed.stdout
+
+
 def assert_rejects_envelope(key: bytes, sealed: bytes) -> None:
     rejected = run(["open", key.hex()], sealed)
     assert rejected.returncode != 0
@@ -243,6 +281,17 @@ def assert_keyfile_workflow(plaintext: bytes) -> None:
         raw_opened = run(["open-keyfile", str(raw_key_path)], sealed.stdout)
         assert raw_opened.returncode == 0, raw_opened.stderr.decode("utf-8", "replace")
         assert raw_opened.stdout == plaintext
+
+        key_id = bytes.fromhex("00112233445566778899aabbccddeeff")
+        sealed_v2 = run(["seal-keyfile-v2", str(key_path), key_id.hex()], plaintext)
+        assert sealed_v2.returncode == 0, sealed_v2.stderr.decode("utf-8", "replace")
+        assert sealed_v2.stdout.startswith(ENVELOPE_V2_PREFIX)
+        key_id_end = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN
+        assert sealed_v2.stdout[len(ENVELOPE_V2_PREFIX) : key_id_end] == key_id
+
+        opened_v2 = run(["open-keyfile", str(key_path)], sealed_v2.stdout)
+        assert opened_v2.returncode == 0, opened_v2.stderr.decode("utf-8", "replace")
+        assert opened_v2.stdout == plaintext
 
         bad_key_path = Path(tmp_dir) / "bad.key"
         bad_key_path.write_bytes(key_hex + b"\nextra")
@@ -323,6 +372,10 @@ def main() -> None:
     assert_envelope(rfc_key, b"")
     assert_envelope(rfc_key, b"abc")
     assert_envelope(rfc_key, (b"envelope-data\0" * 4096) + b"end")
+    v2_key_id = bytes.fromhex("101112131415161718191a1b1c1d1e1f")
+    v2_sealed = assert_envelope_v2(rfc_key, v2_key_id, b"")
+    assert_envelope_v2(rfc_key, v2_key_id, b"abc")
+    assert_envelope_v2(rfc_key, v2_key_id, (b"envelope-v2\0" * 4096) + b"end")
 
     sealed_proc = run(["seal", rfc_key.hex()], b"tamper-target")
     assert sealed_proc.returncode == 0, sealed_proc.stderr.decode("utf-8", "replace")
@@ -339,6 +392,23 @@ def main() -> None:
         rfc_key,
         sealed[:-1] + bytes([sealed[-1] ^ 1]),
     )
+    assert_rejects_envelope(rfc_key, v2_sealed[: ENVELOPE_V2_HEADER_LEN - 1])
+    assert_rejects_envelope(rfc_key, v2_sealed[:-1])
+    assert_rejects_envelope(
+        rfc_key,
+        v2_sealed[:8] + bytes([v2_sealed[8] ^ 1]) + v2_sealed[9:],
+    )
+    assert_rejects_envelope(
+        rfc_key,
+        v2_sealed[:24] + bytes([v2_sealed[24] ^ 1]) + v2_sealed[25:],
+    )
+    assert_rejects_envelope(
+        rfc_key,
+        v2_sealed[:-1] + bytes([v2_sealed[-1] ^ 1]),
+    )
+    bad_key_id = run(["seal-v2", rfc_key.hex(), "00"], b"bad-key-id")
+    assert bad_key_id.returncode != 0
+    assert bad_key_id.stdout == b""
 
     assert_keyfile_workflow((b"keyfile-artifact\0" * 257) + b"end")
 

@@ -24,6 +24,9 @@
 .equ ENVELOPE_TAG_LEN, 16
 .equ ENVELOPE_HEADER_LEN, ENVELOPE_PREFIX_LEN + ENVELOPE_NONCE_LEN
 .equ ENVELOPE_MIN_LEN, ENVELOPE_HEADER_LEN + ENVELOPE_TAG_LEN
+.equ ENVELOPE_KEY_ID_LEN, 16
+.equ ENVELOPE_V2_HEADER_LEN, ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN + ENVELOPE_NONCE_LEN
+.equ ENVELOPE_V2_MIN_LEN, ENVELOPE_V2_HEADER_LEN + ENVELOPE_TAG_LEN
 .equ KEYFILE_READ_MAX, 66
 
 .section .text
@@ -83,10 +86,22 @@ _start:
     je run_seal
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_v2]
+    call streq
+    cmp eax, 1
+    je run_seal_v2
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_seal_keyfile]
     call streq
     cmp eax, 1
     je run_seal_keyfile
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_keyfile_v2]
+    call streq
+    cmp eax, 1
+    je run_seal_keyfile_v2
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_open]
@@ -199,6 +214,14 @@ keyfile_error:
     mov rdi, STDERR
     lea rsi, [rip + keyfile_error_msg]
     mov edx, OFFSET FLAT:keyfile_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+keyid_arg_error:
+    mov rdi, STDERR
+    lea rsi, [rip + keyid_arg_error_msg]
+    mov edx, OFFSET FLAT:keyid_arg_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -577,6 +600,24 @@ run_seal:
 
     jmp seal_with_loaded_key
 
+run_seal_v2:
+    cmp qword ptr [rsp], 4
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call hex32_decode
+    cmp eax, 1
+    jne aead_arg_error
+
+    mov rdi, qword ptr [rsp + 32]
+    lea rsi, [rip + envelope_key_id]
+    call hex16_decode
+    cmp eax, 1
+    jne keyid_arg_error
+
+    jmp seal_v2_with_loaded_key
+
 run_seal_keyfile:
     cmp qword ptr [rsp], 3
     jb usage_exit
@@ -586,6 +627,26 @@ run_seal_keyfile:
     call read_key_file
     cmp eax, 1
     jne keyfile_error
+
+    jmp seal_with_loaded_key
+
+run_seal_keyfile_v2:
+    cmp qword ptr [rsp], 4
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne keyfile_error
+
+    mov rdi, qword ptr [rsp + 32]
+    lea rsi, [rip + envelope_key_id]
+    call hex16_decode
+    cmp eax, 1
+    jne keyid_arg_error
+
+    jmp seal_v2_with_loaded_key
 
 seal_with_loaded_key:
     lea rdi, [rip + chacha_nonce]
@@ -605,6 +666,28 @@ seal_with_loaded_key:
     call write_all
 
     call aead_poly1305_init
+    jmp seal_stream_with_current_aad
+
+seal_v2_with_loaded_key:
+    lea rdi, [rip + chacha_nonce]
+    mov esi, ENVELOPE_NONCE_LEN
+    call fill_random
+    cmp eax, 1
+    jne random_error
+
+    call build_envelope_v2_header
+
+    mov rdi, STDOUT
+    lea rsi, [rip + envelope_header_buf]
+    mov edx, ENVELOPE_V2_HEADER_LEN
+    call write_all
+
+    call aead_poly1305_init
+    lea rdi, [rip + envelope_header_buf]
+    mov esi, ENVELOPE_V2_HEADER_LEN
+    call aead_poly1305_update_aad
+
+seal_stream_with_current_aad:
     mov qword ptr [rip + aead_text_len], 0
     mov dword ptr [rip + chacha_counter], 1
 
@@ -706,8 +789,20 @@ open_with_loaded_key:
     mov edx, ENVELOPE_PREFIX_LEN
     call memeq
     cmp eax, 1
-    jne envelope_error
+    je .Lopen_v1
 
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V2_MIN_LEN
+    jb envelope_error
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+    jmp .Lopen_v2
+
+.Lopen_v1:
     lea rdi, [rip + chacha_nonce]
     lea rsi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
     mov ecx, ENVELOPE_NONCE_LEN
@@ -745,6 +840,53 @@ open_with_loaded_key:
 
     mov rdi, STDOUT
     lea rsi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    mov rdx, qword ptr [rip + aead_text_len]
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+.Lopen_v2:
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+
+    mov rax, qword ptr [rip + aead_text_len]
+    sub rax, ENVELOPE_V2_MIN_LEN
+    mov qword ptr [rip + aead_text_len], rax
+
+    lea rsi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
+    add rsi, rax
+    lea rdi, [rip + aead_expected_tag]
+    mov ecx, ENVELOPE_TAG_LEN
+    rep movsb
+
+    call aead_poly1305_init
+    lea rdi, [rip + aead_open_buf]
+    mov esi, ENVELOPE_V2_HEADER_LEN
+    call aead_poly1305_update_aad
+    lea rdi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call poly1305_update
+    mov rdi, qword ptr [rip + aead_text_len]
+    lea rsi, [rip + poly_tag]
+    call aead_poly1305_finish
+
+    lea rdi, [rip + poly_tag]
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+
+    mov dword ptr [rip + chacha_counter], 1
+    lea rdi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call chacha20_xor
+
+    mov rdi, STDOUT
+    lea rsi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
     mov rdx, qword ptr [rip + aead_text_len]
     call write_all
 
@@ -1307,6 +1449,19 @@ read_key_file:
     pop rbx
     ret
 
+build_envelope_v2_header:
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov ecx, ENVELOPE_PREFIX_LEN
+    rep movsb
+    lea rsi, [rip + envelope_key_id]
+    mov ecx, ENVELOPE_KEY_ID_LEN
+    rep movsb
+    lea rsi, [rip + chacha_nonce]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    ret
+
 zero_sensitive_state:
     lea rdi, [rip + bss_sensitive_start]
     mov esi, OFFSET FLAT:bss_sensitive_len
@@ -1493,6 +1648,26 @@ aead_poly1305_init:
     lea rdi, [rip + chacha_block]
     mov esi, 64
     call zero_memory
+    mov qword ptr [rip + aead_aad_len], 0
+    ret
+
+aead_poly1305_update_aad:
+    push rbx
+    mov rbx, rsi
+    mov qword ptr [rip + aead_aad_len], rsi
+    call poly1305_update
+
+    mov rax, rbx
+    and eax, 15
+    jz .Laead_aad_done
+    mov ecx, 16
+    sub rcx, rax
+    lea rdi, [rip + aead_zero_pad]
+    mov rsi, rcx
+    call poly1305_update
+
+.Laead_aad_done:
+    pop rbx
     ret
 
 aead_poly1305_finish:
@@ -1511,7 +1686,8 @@ aead_poly1305_finish:
     call poly1305_update
 
 .Laead_finish_lengths:
-    mov qword ptr [rip + aead_len_block], 0
+    mov rax, qword ptr [rip + aead_aad_len]
+    mov qword ptr [rip + aead_len_block], rax
     mov qword ptr [rip + aead_len_block + 8], rbx
     lea rdi, [rip + aead_len_block]
     mov esi, 16
@@ -2476,8 +2652,12 @@ cmd_chacha20:
     .asciz "chacha20"
 cmd_seal:
     .asciz "seal"
+cmd_seal_v2:
+    .asciz "seal-v2"
 cmd_seal_keyfile:
     .asciz "seal-keyfile"
+cmd_seal_keyfile_v2:
+    .asciz "seal-keyfile-v2"
 cmd_open:
     .asciz "open"
 cmd_open_keyfile:
@@ -2492,7 +2672,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|open|seal-keyfile|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -2500,8 +2680,10 @@ usage_msg:
     .ascii "  chacha20 <key> <nonce> <ctr>   xor stdin with ChaCha20; key=64 hex, nonce=24 hex, ctr=8 hex\n"
     .ascii "  keygen                         write a random 32-byte key as 64 hex plus newline\n"
     .ascii "  seal <key>                     write framed ChaCha20-Poly1305 envelope with random nonce\n"
+    .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
+    .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
     .ascii "  aead-seal <key> <nonce>        write ChaCha20-Poly1305 ciphertext || raw tag\n"
     .ascii "  aead-open <key> <nonce> <tag>  verify raw ciphertext, then write plaintext; tag=32 hex\n"
@@ -2519,6 +2701,10 @@ key_error_msg:
 keyfile_error_msg:
     .ascii "wuci-ji: key file must contain 64 hex characters plus optional newline\n"
 .set keyfile_error_msg_len, . - keyfile_error_msg
+
+keyid_arg_error_msg:
+    .ascii "wuci-ji: key id must contain exactly 32 hex characters\n"
+.set keyid_arg_error_msg_len, . - keyid_arg_error_msg
 
 chacha_arg_error_msg:
     .ascii "wuci-ji: chacha20 requires key=64 hex, nonce=24 hex, counter=8 hex\n"
@@ -2566,6 +2752,10 @@ hex_chars:
 envelope_prefix:
     .ascii "WJSEAL"
     .byte 0x01, 0x01
+
+envelope_v2_prefix:
+    .ascii "WJSEAL"
+    .byte 0x02, 0x01
 
 hkdf_counter_one:
     .byte 0x01
@@ -2764,6 +2954,9 @@ aead_len_block:
 .align 8
 aead_text_len:
     .skip 8
+.align 8
+aead_aad_len:
+    .skip 8
 .align 16
 chacha_key:
     .skip 32
@@ -2776,6 +2969,12 @@ chacha_counter:
 .align 16
 chacha_block:
     .skip 64
+.align 16
+envelope_key_id:
+    .skip ENVELOPE_KEY_ID_LEN
+.align 16
+envelope_header_buf:
+    .skip ENVELOPE_V2_HEADER_LEN
 .align 16
 aead_open_buf:
     .skip AEAD_OPEN_MAX
