@@ -150,12 +150,19 @@ Fixes made while executing this checkpoint:
   `open-file-keyfile <path> <in> <out>` provide the same no-overwrite file
   workflows while loading the 32-byte key from a 64-hex key file with optional
   trailing newline.
+- `armor-file <in> <out>` and `dearmor-file <in> <out>` provide copy/paste
+  ASCII wrapping for stored artifacts without changing the cryptographic
+  envelope. The encoder writes a fixed WUCI-JI armor header, standard base64
+  body lines wrapped at 64 characters, and a fixed footer. The decoder accepts
+  ASCII whitespace around body lines and after the footer, validates padding and
+  footer presence before opening the output path, and refuses to overwrite
+  existing output files.
 - Fixed-form commands now enforce exact argument counts. Extra positional
   arguments are rejected with usage instead of being silently ignored, including
   stdin-streaming, file-path, metadata, recipient, key-file, and help commands.
 - The Python harness now asserts the built-in help surface for the current
-  file workflow commands, recipient workflow commands, and manifest ciphertext
-  SHA-256 wording.
+  file workflow commands, recipient workflow commands, armor commands, and
+  manifest ciphertext SHA-256 wording.
 
 ## Envelope layouts
 
@@ -201,6 +208,17 @@ offset  size  field
 68+N    16    Poly1305 tag over header-associated data and ciphertext
 ```
 
+ASCII armor frame:
+
+```text
+-----BEGIN WUCI-JI ARTIFACT-----
+<standard base64 of the complete stored artifact, wrapped at 64 columns>
+-----END WUCI-JI ARTIFACT-----
+```
+
+Armor is only a transport wrapper. It can contain v1, v2, or v3 artifact bytes,
+and dearmoring restores the exact original bytes.
+
 The native build artifact is:
 
 ```text
@@ -224,9 +242,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `open`/`open-to`; current tests cover truncated headers, truncated
    bodies/tags, authenticated key ID tampering, nonce tampering, and tag
    tampering.
-3. The direct-key and key-file-backed no-overwrite file workflows are now both
-   covered. Next file-surface work should focus on reducing command-name length
-   or adding explicit docs/examples rather than adding more aliases.
+3. The direct-key, key-file-backed, recipient, and ASCII armor no-overwrite file
+   workflows are now covered. Next file-surface work should focus on public-key
+   bundles or reducing command-name length rather than adding more aliases.
 4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import os
@@ -25,6 +26,8 @@ ENVELOPE_V3_HEADER_LEN = (
 )
 ENVELOPE_TAG_LEN = 16
 V3_HKDF_INFO = b"wuci-ji v3 X25519 recipient AEAD key"
+ARMOR_HEADER = b"-----BEGIN WUCI-JI ARTIFACT-----"
+ARMOR_FOOTER = b"-----END WUCI-JI ARTIFACT-----"
 
 
 def run(args: list[str], data: bytes = b"") -> subprocess.CompletedProcess[bytes]:
@@ -629,6 +632,89 @@ def assert_artifact_file_commands(
                 assert rejected.stdout == b""
 
 
+def assert_ascii_armor_file_commands(payload: bytes) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        artifact_path = tmp / "artifact.wj"
+        armor_path = tmp / "artifact.wj.asc"
+        decoded_path = tmp / "decoded.wj"
+        artifact_path.write_bytes(payload)
+
+        armored = run(["armor-file", str(artifact_path), str(armor_path)])
+        assert armored.returncode == 0, armored.stderr.decode("utf-8", "replace")
+        assert armored.stdout == b""
+
+        armor = armor_path.read_bytes()
+        lines = armor.splitlines()
+        assert lines[0] == ARMOR_HEADER
+        assert lines[-1] == ARMOR_FOOTER
+        assert lines[1:-1]
+        for line in lines[1:-1]:
+            assert len(line) <= 64
+        assert b"".join(lines[1:-1]) == base64.b64encode(payload)
+
+        decoded = run(["dearmor-file", str(armor_path), str(decoded_path)])
+        assert decoded.returncode == 0, decoded.stderr.decode("utf-8", "replace")
+        assert decoded.stdout == b""
+        assert decoded_path.read_bytes() == payload
+
+        whitespace_path = tmp / "whitespace.asc"
+        whitespace_decoded_path = tmp / "whitespace-decoded.wj"
+        whitespace_path.write_bytes(armor.replace(b"\n", b"\r\n") + b" \t\n")
+        whitespace_decoded = run(
+            ["dearmor-file", str(whitespace_path), str(whitespace_decoded_path)]
+        )
+        assert whitespace_decoded.returncode == 0, whitespace_decoded.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert whitespace_decoded.stdout == b""
+        assert whitespace_decoded_path.read_bytes() == payload
+
+        existing_armor_path = tmp / "existing.asc"
+        existing_armor_path.write_bytes(b"do-not-touch")
+        rejected_armor = run(
+            ["armor-file", str(artifact_path), str(existing_armor_path)]
+        )
+        assert rejected_armor.returncode != 0
+        assert rejected_armor.stdout == b""
+        assert existing_armor_path.read_bytes() == b"do-not-touch"
+
+        existing_decoded_path = tmp / "existing-decoded.wj"
+        existing_decoded_path.write_bytes(b"do-not-touch")
+        rejected_dearmor = run(
+            ["dearmor-file", str(armor_path), str(existing_decoded_path)]
+        )
+        assert rejected_dearmor.returncode != 0
+        assert rejected_dearmor.stdout == b""
+        assert existing_decoded_path.read_bytes() == b"do-not-touch"
+
+        missing_armor_path = tmp / "missing.asc"
+        rejected_missing = run(
+            ["armor-file", str(tmp / "missing.wj"), str(missing_armor_path)]
+        )
+        assert rejected_missing.returncode != 0
+        assert rejected_missing.stdout == b""
+        assert not missing_armor_path.exists()
+
+        malformed_cases = [
+            b"BAD\n" + b"\n".join(lines[1:]),
+            armor.replace(lines[1][:1], b"!", 1),
+            b"\n".join(lines[:-1]) + b"\n",
+            ARMOR_HEADER + b"\nAA=A\n" + ARMOR_FOOTER + b"\n",
+            ARMOR_HEADER + b"\nA\n" + ARMOR_FOOTER + b"\n",
+        ]
+        for index, malformed in enumerate(malformed_cases):
+            malformed_path = tmp / f"malformed-{index}.asc"
+            malformed_out_path = tmp / f"malformed-{index}.wj"
+            malformed_path.write_bytes(malformed)
+            rejected = run(
+                ["dearmor-file", str(malformed_path), str(malformed_out_path)]
+            )
+            assert rejected.returncode != 0
+            assert rejected.stdout == b""
+            assert not malformed_out_path.exists()
+
+
 def assert_rejects_envelope(key: bytes, sealed: bytes) -> None:
     rejected = run(["open", key.hex()], sealed)
     assert rejected.returncode != 0
@@ -946,6 +1032,8 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
         open_file_out = tmp / "extra-open.bin"
         open_file_keyfile_out = tmp / "extra-open-keyfile.bin"
         open_to_out = tmp / "extra-open-to.bin"
+        armor_out = tmp / "extra-armor.asc"
+        dearmor_out = tmp / "extra-dearmor.wj"
 
         cases = [
             (["--help", "extra"], b"", None),
@@ -1044,6 +1132,16 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
             (["inspect-file", str(artifact_path), "extra"], b"", None),
             (["manifest", "extra"], sealed, None),
             (["manifest-file", str(artifact_path), "extra"], b"", None),
+            (
+                ["armor-file", str(artifact_path), str(armor_out), "extra"],
+                b"",
+                armor_out,
+            ),
+            (
+                ["dearmor-file", str(artifact_path), str(dearmor_out), "extra"],
+                b"",
+                dearmor_out,
+            ),
             (["seal-keyfile", str(key_path), "extra"], b"abc", None),
             (["open-keyfile", str(key_path), "extra"], sealed, None),
             (["aead-seal", key.hex(), "00" * 12, "extra"], b"abc", None),
@@ -1074,6 +1172,8 @@ def assert_help_output() -> None:
         "open-file-keyfile <path> <in> <out>",
         "manifest                       print metadata, SHA-256 fingerprints, and tag",
         "manifest-file <path>           print file metadata, SHA-256 fingerprints, and tag",
+        "armor-file <in> <out>          wrap an artifact in copy/paste ASCII armor; no overwrite",
+        "dearmor-file <in> <out>        decode copy/paste ASCII armor; no overwrite",
         "selftest                       run built-in known-answer tests",
     ):
         assert snippet in help_text, snippet
@@ -1168,6 +1268,7 @@ def main() -> None:
     assert_manifest_v1(sealed)
     assert_manifest_v2(v2_sealed, v2_key_id)
     assert_artifact_file_commands(sealed, v2_sealed, v3_sealed)
+    assert_ascii_armor_file_commands(v3_sealed)
     assert_rejects_extra_args(rfc_key, v2_key_id, sealed)
     assert_rejects_inspect(b"")
     assert_rejects_inspect(sealed[: ENVELOPE_HEADER_LEN - 1])

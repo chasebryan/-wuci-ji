@@ -204,6 +204,18 @@ _start:
     je run_manifest_file
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_armor_file]
+    call streq
+    cmp eax, 1
+    je run_armor_file
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_dearmor_file]
+    call streq
+    cmp eax, 1
+    je run_dearmor_file
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_aead_seal]
     call streq
     cmp eax, 1
@@ -332,6 +344,14 @@ output_file_error:
     mov rdi, STDERR
     lea rsi, [rip + output_file_error_msg]
     mov edx, OFFSET FLAT:output_file_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+armor_error:
+    mov rdi, STDERR
+    lea rsi, [rip + armor_error_msg]
+    mov edx, OFFSET FLAT:armor_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -1909,6 +1929,59 @@ manifest_parse_loaded_envelope:
     xor edi, edi
     jmp exit_process
 
+run_armor_file:
+    cmp qword ptr [rsp], 4
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    call read_artifact_file
+    cmp eax, 1
+    je .Larmor_file_loaded
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
+.Larmor_file_loaded:
+    mov rdi, qword ptr [rsp + 32]
+    call open_output_file
+    cmp eax, 1
+    jne output_file_error
+
+    call write_armor_loaded_file
+    cmp eax, 1
+    jne output_file_error
+
+    xor edi, edi
+    jmp exit_process
+
+run_dearmor_file:
+    cmp qword ptr [rsp], 4
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    call read_artifact_file
+    cmp eax, 1
+    je .Ldearmor_file_loaded
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
+.Ldearmor_file_loaded:
+    call decode_armor_loaded_file
+    cmp eax, 1
+    jne armor_error
+
+    mov rax, qword ptr [rsp + 32]
+    mov qword ptr [rip + aead_output_path], rax
+    lea rdi, [rip + aead_open_buf]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call write_open_plaintext
+    cmp eax, 1
+    jne output_file_error
+
+    xor edi, edi
+    jmp exit_process
+
 run_aead_seal:
     cmp qword ptr [rsp], 4
     jne usage_exit
@@ -2596,6 +2669,22 @@ close_seal_files:
 .Lclose_seal_files_done:
     ret
 
+open_output_file:
+    mov eax, SYS_OPENAT
+    mov rsi, rdi
+    mov rdi, AT_FDCWD
+    mov edx, FILE_CREATE_FLAGS
+    mov r10d, FILE_CREATE_MODE
+    syscall
+    test rax, rax
+    js .Lopen_output_file_fail
+    mov qword ptr [rip + seal_output_fd], rax
+    mov eax, 1
+    ret
+.Lopen_output_file_fail:
+    xor eax, eax
+    ret
+
 write_open_plaintext:
     push rbx
     push r12
@@ -2784,6 +2873,408 @@ derive_v3_aead_key:
     lea rdi, [rip + sha_ctx]
     lea rsi, [rip + chacha_key]
     call sha256_final
+    ret
+
+write_armor_loaded_file:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + armor_header]
+    mov edx, OFFSET FLAT:armor_header_len
+    call write_all
+    test eax, eax
+    jne .Lwrite_armor_fail_close
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+    test eax, eax
+    jne .Lwrite_armor_fail_close
+
+    lea rbx, [rip + aead_open_buf]
+    mov r12, qword ptr [rip + aead_text_len]
+    lea r13, [rip + io_buf]
+    xor r14d, r14d
+    lea r15, [rip + base64_alphabet]
+
+.Lwrite_armor_loop:
+    test r12, r12
+    jz .Lwrite_armor_flush_tail
+
+    mov r8d, 1
+    movzx r11d, byte ptr [rbx]
+    xor r9d, r9d
+    xor r10d, r10d
+    cmp r12, 2
+    jb .Lwrite_armor_have_group
+    movzx r9d, byte ptr [rbx + 1]
+    mov r8d, 2
+    cmp r12, 3
+    jb .Lwrite_armor_have_group
+    movzx r10d, byte ptr [rbx + 2]
+    mov r8d, 3
+
+.Lwrite_armor_have_group:
+    mov edx, r11d
+    shr edx, 2
+    mov dl, byte ptr [r15 + rdx]
+    mov byte ptr [r13], dl
+    inc r13
+    inc r14
+
+    mov edx, r11d
+    and edx, 3
+    shl edx, 4
+    mov ecx, r9d
+    shr ecx, 4
+    or edx, ecx
+    mov dl, byte ptr [r15 + rdx]
+    mov byte ptr [r13], dl
+    inc r13
+    inc r14
+
+    cmp r8d, 2
+    jb .Lwrite_armor_pad_two
+    mov edx, r9d
+    and edx, 15
+    shl edx, 2
+    mov ecx, r10d
+    shr ecx, 6
+    or edx, ecx
+    mov dl, byte ptr [r15 + rdx]
+    mov byte ptr [r13], dl
+    inc r13
+    inc r14
+    jmp .Lwrite_armor_fourth
+
+.Lwrite_armor_pad_two:
+    mov byte ptr [r13], '='
+    inc r13
+    inc r14
+    mov byte ptr [r13], '='
+    inc r13
+    inc r14
+    jmp .Lwrite_armor_advance
+
+.Lwrite_armor_fourth:
+    cmp r8d, 3
+    jb .Lwrite_armor_pad_one
+    mov edx, r10d
+    and edx, 63
+    mov dl, byte ptr [r15 + rdx]
+    mov byte ptr [r13], dl
+    inc r13
+    inc r14
+    jmp .Lwrite_armor_advance
+
+.Lwrite_armor_pad_one:
+    mov byte ptr [r13], '='
+    inc r13
+    inc r14
+
+.Lwrite_armor_advance:
+    add rbx, r8
+    sub r12, r8
+    cmp r14, 64
+    jne .Lwrite_armor_loop
+
+    mov byte ptr [r13], 10
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + io_buf]
+    mov edx, 65
+    call write_all
+    test eax, eax
+    jne .Lwrite_armor_fail_close
+    lea r13, [rip + io_buf]
+    xor r14d, r14d
+    jmp .Lwrite_armor_loop
+
+.Lwrite_armor_flush_tail:
+    test r14, r14
+    jz .Lwrite_armor_footer
+    mov byte ptr [r13], 10
+    mov rdx, r14
+    inc rdx
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + io_buf]
+    call write_all
+    test eax, eax
+    jne .Lwrite_armor_fail_close
+
+.Lwrite_armor_footer:
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + armor_footer]
+    mov edx, OFFSET FLAT:armor_footer_len
+    call write_all
+    test eax, eax
+    jne .Lwrite_armor_fail_close
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+    test eax, eax
+    jne .Lwrite_armor_fail_close
+
+    mov eax, SYS_CLOSE
+    mov rdi, qword ptr [rip + seal_output_fd]
+    syscall
+    test rax, rax
+    js .Lwrite_armor_fail
+    mov eax, 1
+    jmp .Lwrite_armor_done
+
+.Lwrite_armor_fail_close:
+    mov eax, SYS_CLOSE
+    mov rdi, qword ptr [rip + seal_output_fd]
+    syscall
+.Lwrite_armor_fail:
+    xor eax, eax
+.Lwrite_armor_done:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+decode_armor_loaded_file:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+
+    lea rbx, [rip + aead_open_buf]
+    mov r12, rbx
+    add r12, qword ptr [rip + aead_text_len]
+    mov rax, r12
+    sub rax, rbx
+    cmp rax, OFFSET FLAT:armor_header_len
+    jb .Ldecode_armor_fail
+
+    mov rdi, rbx
+    lea rsi, [rip + armor_header]
+    mov edx, OFFSET FLAT:armor_header_len
+    call memeq
+    cmp eax, 1
+    jne .Ldecode_armor_fail
+    add rbx, OFFSET FLAT:armor_header_len
+
+    lea r13, [rip + aead_open_buf]
+    mov qword ptr [rip + base64_quad_len], 0
+    mov qword ptr [rip + base64_quad_pad], 0
+    mov qword ptr [rip + base64_seen_padding], 0
+
+.Ldecode_armor_loop:
+    cmp rbx, r12
+    jae .Ldecode_armor_fail
+
+.Ldecode_armor_skip_ws:
+    cmp rbx, r12
+    jae .Ldecode_armor_fail
+    mov al, byte ptr [rbx]
+    cmp al, 10
+    je .Ldecode_armor_skip_one
+    cmp al, 13
+    je .Ldecode_armor_skip_one
+    cmp al, 32
+    je .Ldecode_armor_skip_one
+    cmp al, 9
+    jne .Ldecode_armor_check_footer
+.Ldecode_armor_skip_one:
+    inc rbx
+    jmp .Ldecode_armor_skip_ws
+
+.Ldecode_armor_check_footer:
+    mov rax, r12
+    sub rax, rbx
+    cmp rax, OFFSET FLAT:armor_footer_len
+    jb .Ldecode_armor_read_char
+    mov rdi, rbx
+    lea rsi, [rip + armor_footer]
+    mov edx, OFFSET FLAT:armor_footer_len
+    call memeq
+    cmp eax, 1
+    je .Ldecode_armor_footer
+
+.Ldecode_armor_read_char:
+    mov al, byte ptr [rbx]
+    inc rbx
+    cmp al, '='
+    je .Ldecode_armor_padding
+    cmp qword ptr [rip + base64_seen_padding], 0
+    jne .Ldecode_armor_fail
+    cmp qword ptr [rip + base64_quad_pad], 0
+    jne .Ldecode_armor_fail
+    movzx edi, al
+    call base64_decode_char
+    cmp eax, -1
+    je .Ldecode_armor_fail
+    jmp .Ldecode_armor_store_value
+
+.Ldecode_armor_padding:
+    cmp qword ptr [rip + base64_seen_padding], 0
+    jne .Ldecode_armor_fail
+    mov rcx, qword ptr [rip + base64_quad_len]
+    cmp rcx, 2
+    jb .Ldecode_armor_fail
+    inc qword ptr [rip + base64_quad_pad]
+    xor eax, eax
+
+.Ldecode_armor_store_value:
+    mov rcx, qword ptr [rip + base64_quad_len]
+    cmp rcx, 4
+    jae .Ldecode_armor_fail
+    lea rdx, [rip + base64_quad]
+    mov byte ptr [rdx + rcx], al
+    inc rcx
+    mov qword ptr [rip + base64_quad_len], rcx
+    cmp rcx, 4
+    jne .Ldecode_armor_loop
+
+    call base64_emit_quad
+    cmp eax, 1
+    jne .Ldecode_armor_fail
+    jmp .Ldecode_armor_loop
+
+.Ldecode_armor_footer:
+    cmp qword ptr [rip + base64_quad_len], 0
+    jne .Ldecode_armor_fail
+    add rbx, OFFSET FLAT:armor_footer_len
+
+.Ldecode_armor_trailing_ws:
+    cmp rbx, r12
+    je .Ldecode_armor_ok
+    mov al, byte ptr [rbx]
+    cmp al, 10
+    je .Ldecode_armor_trailing_skip
+    cmp al, 13
+    je .Ldecode_armor_trailing_skip
+    cmp al, 32
+    je .Ldecode_armor_trailing_skip
+    cmp al, 9
+    jne .Ldecode_armor_fail
+.Ldecode_armor_trailing_skip:
+    inc rbx
+    jmp .Ldecode_armor_trailing_ws
+
+.Ldecode_armor_ok:
+    mov rax, r13
+    lea rdx, [rip + aead_open_buf]
+    sub rax, rdx
+    mov qword ptr [rip + aead_text_len], rax
+    mov eax, 1
+    jmp .Ldecode_armor_done
+
+.Ldecode_armor_fail:
+    xor eax, eax
+.Ldecode_armor_done:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+base64_emit_quad:
+    mov rax, qword ptr [rip + base64_quad_pad]
+    cmp rax, 2
+    ja .Lbase64_emit_fail
+    test rax, rax
+    jz .Lbase64_emit_values
+    mov qword ptr [rip + base64_seen_padding], 1
+
+.Lbase64_emit_values:
+    lea r15, [rip + base64_quad]
+    movzx eax, byte ptr [r15]
+    movzx edx, byte ptr [r15 + 1]
+    mov ecx, eax
+    shl ecx, 2
+    mov r8d, edx
+    shr r8d, 4
+    or ecx, r8d
+    mov byte ptr [r13], cl
+    inc r13
+
+    cmp qword ptr [rip + base64_quad_pad], 2
+    je .Lbase64_emit_reset
+    mov ecx, edx
+    and ecx, 15
+    shl ecx, 4
+    movzx r8d, byte ptr [r15 + 2]
+    mov r9d, r8d
+    shr r9d, 2
+    or ecx, r9d
+    mov byte ptr [r13], cl
+    inc r13
+
+    cmp qword ptr [rip + base64_quad_pad], 1
+    je .Lbase64_emit_reset
+    mov ecx, r8d
+    and ecx, 3
+    shl ecx, 6
+    movzx r9d, byte ptr [r15 + 3]
+    or ecx, r9d
+    mov byte ptr [r13], cl
+    inc r13
+
+.Lbase64_emit_reset:
+    mov qword ptr [rip + base64_quad_len], 0
+    mov qword ptr [rip + base64_quad_pad], 0
+    mov eax, 1
+    ret
+
+.Lbase64_emit_fail:
+    xor eax, eax
+    ret
+
+base64_decode_char:
+    cmp dil, 'A'
+    jb .Lbase64_decode_lower
+    cmp dil, 'Z'
+    ja .Lbase64_decode_lower
+    movzx eax, dil
+    sub eax, 'A'
+    ret
+
+.Lbase64_decode_lower:
+    cmp dil, 'a'
+    jb .Lbase64_decode_digit
+    cmp dil, 'z'
+    ja .Lbase64_decode_digit
+    movzx eax, dil
+    sub eax, 'a'
+    add eax, 26
+    ret
+
+.Lbase64_decode_digit:
+    cmp dil, '0'
+    jb .Lbase64_decode_plus
+    cmp dil, '9'
+    ja .Lbase64_decode_plus
+    movzx eax, dil
+    sub eax, '0'
+    add eax, 52
+    ret
+
+.Lbase64_decode_plus:
+    cmp dil, '+'
+    jne .Lbase64_decode_slash
+    mov eax, 62
+    ret
+
+.Lbase64_decode_slash:
+    cmp dil, '/'
+    jne .Lbase64_decode_fail
+    mov eax, 63
+    ret
+
+.Lbase64_decode_fail:
+    mov eax, -1
     ret
 
 zero_sensitive_state:
@@ -4088,6 +4579,10 @@ cmd_manifest:
     .asciz "manifest"
 cmd_manifest_file:
     .asciz "manifest-file"
+cmd_armor_file:
+    .asciz "armor-file"
+cmd_dearmor_file:
+    .asciz "dearmor-file"
 cmd_aead_seal:
     .asciz "aead-seal"
 cmd_aead_open:
@@ -4098,7 +4593,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -4121,6 +4616,8 @@ usage_msg:
     .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
     .ascii "  manifest                       print metadata, SHA-256 fingerprints, and tag\n"
     .ascii "  manifest-file <path>           print file metadata, SHA-256 fingerprints, and tag\n"
+    .ascii "  armor-file <in> <out>          wrap an artifact in copy/paste ASCII armor; no overwrite\n"
+    .ascii "  dearmor-file <in> <out>        decode copy/paste ASCII armor; no overwrite\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
     .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
@@ -4160,6 +4657,10 @@ input_file_error_msg:
 output_file_error_msg:
     .ascii "wuci-ji: output file could not be created or written\n"
 .set output_file_error_msg_len, . - output_file_error_msg
+
+armor_error_msg:
+    .ascii "wuci-ji: ASCII armor is malformed\n"
+.set armor_error_msg_len, . - armor_error_msg
 
 keyid_arg_error_msg:
     .ascii "wuci-ji: key id must contain exactly 32 hex characters\n"
@@ -4275,6 +4776,17 @@ selftest_fail_msg:
 
 hex_chars:
     .ascii "0123456789abcdef"
+
+base64_alphabet:
+    .ascii "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+armor_header:
+    .ascii "-----BEGIN WUCI-JI ARTIFACT-----"
+.set armor_header_len, . - armor_header
+
+armor_footer:
+    .ascii "-----END WUCI-JI ARTIFACT-----"
+.set armor_footer_len, . - armor_footer
 
 envelope_prefix:
     .ascii "WJSEAL"
@@ -4546,6 +5058,18 @@ aead_open_buf:
 .align 16
 hex_buf:
     .skip 128
+.align 8
+base64_quad_len:
+    .skip 8
+.align 8
+base64_quad_pad:
+    .skip 8
+.align 8
+base64_seen_padding:
+    .skip 8
+.align 4
+base64_quad:
+    .skip 4
 .align 16
 bss_sensitive_end:
 .set bss_sensitive_len, bss_sensitive_end - bss_sensitive_start
