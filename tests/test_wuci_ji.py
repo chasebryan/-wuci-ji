@@ -534,6 +534,64 @@ def assert_frost_aggregate_helper() -> None:
         assert proc.stdout == b""
 
 
+def assert_frost_verify_helper() -> None:
+    group_public_key = secp256k1_compressed_ref(
+        secp256k1_point_mul_ref(5, SECP256K1_G)
+    )
+    group_commitment = secp256k1_compressed_ref(
+        secp256k1_point_mul_ref(7, SECP256K1_G)
+    )
+    challenge = 3
+    signature_scalar = (7 + (5 * challenge)) % SECP256K1_ORDER
+
+    valid = run(
+        [
+            "frost-secp256k1-verify",
+            group_commitment,
+            group_public_key,
+            scalar_hex(signature_scalar),
+            scalar_hex(challenge),
+        ]
+    )
+    assert valid.returncode == 0, valid.stderr.decode("utf-8", "replace")
+    assert valid.stdout == b"valid\n"
+
+    zero_challenge = run(
+        [
+            "frost-secp256k1-verify",
+            group_commitment,
+            group_public_key,
+            scalar_hex(7),
+            scalar_hex(0),
+        ]
+    )
+    assert zero_challenge.returncode == 0, zero_challenge.stderr.decode(
+        "utf-8", "replace"
+    )
+    assert zero_challenge.stdout == b"valid\n"
+
+    invalid = run(
+        [
+            "frost-secp256k1-verify",
+            group_commitment,
+            group_public_key,
+            scalar_hex(signature_scalar + 1),
+            scalar_hex(challenge),
+        ]
+    )
+    assert invalid.returncode != 0
+    assert invalid.stdout == b"invalid\n"
+
+    rejected_cases = [
+        ["frost-secp256k1-verify", "00" + group_commitment[2:], group_public_key, scalar_hex(1), scalar_hex(1)],
+        ["frost-secp256k1-verify", group_commitment, group_public_key, f"{SECP256K1_ORDER:064x}", scalar_hex(1)],
+    ]
+    for args in rejected_cases:
+        proc = run(args)
+        assert proc.returncode != 0
+        assert proc.stdout == b""
+
+
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
     args = [command, field_hex(a)]
     if b is not None:
@@ -1871,6 +1929,18 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 b"",
                 None,
             ),
+            (
+                [
+                    "frost-secp256k1-verify",
+                    "02" + key.hex(),
+                    "02" + key.hex(),
+                    "01".zfill(64),
+                    "02".zfill(64),
+                    "extra",
+                ],
+                b"",
+                None,
+            ),
             (["secp256k1-field-add", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
@@ -2056,6 +2126,7 @@ def assert_help_output() -> None:
         "frost-secp256k1-challenge <R> <PK> derive H2 challenge over R, PK, and stdin",
         "frost-secp256k1-signing-share <d> <e> <rho> <lambda> <share> <c> derive z_i",
         "frost-secp256k1-aggregate <R> <z...> aggregate signature shares",
+        "frost-secp256k1-verify <R> <PK> <z> <c> verify z*G = R + c*PK",
         "secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p",
         "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
         "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
@@ -2118,6 +2189,7 @@ def main() -> None:
     assert_frost_challenge_helper()
     assert_frost_signing_share_helper()
     assert_frost_aggregate_helper()
+    assert_frost_verify_helper()
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
     assert_secp256k1_point_helpers()
