@@ -15,6 +15,9 @@ DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
 SUITE = "FROST-secp256k1-SHA256-v1"
 MODE = "deterministic-2of2-fixture"
 DEFAULT_MESSAGE = b"wuci-ji frost integration"
+FIXTURE_WARNING = (
+    "NON-PRODUCTION deterministic fixture material only; do not use for real signatures."
+)
 
 FIXTURE_GROUP_SECRET = 5
 FIXTURE_SIGNERS = (
@@ -31,6 +34,84 @@ def scalar_hex(value: int) -> str:
     if value < 0 or value >= 1 << 256:
         raise WorkflowError(f"scalar fixture value out of range: {value}")
     return f"{value:064x}"
+
+
+def fixture_manifest() -> dict[str, Any]:
+    return {
+        "suite": SUITE,
+        "mode": MODE,
+        "production": False,
+        "warning": FIXTURE_WARNING,
+        "group_secret": scalar_hex(FIXTURE_GROUP_SECRET),
+        "signers": [
+            {
+                "id": scalar_hex(signer["id"]),
+                "share": scalar_hex(signer["share"]),
+                "hiding_nonce": scalar_hex(signer["hiding"]),
+                "binding_nonce": scalar_hex(signer["binding"]),
+            }
+            for signer in FIXTURE_SIGNERS
+        ],
+    }
+
+
+def require_exact_keys(
+    value: dict[str, Any],
+    expected_keys: set[str],
+    context: str,
+) -> None:
+    actual_keys = set(value)
+    unknown = actual_keys - expected_keys
+    missing = expected_keys - actual_keys
+    if unknown:
+        raise WorkflowError(f"{context} contains unsupported field: {sorted(unknown)[0]}")
+    if missing:
+        raise WorkflowError(f"{context} is missing required field: {sorted(missing)[0]}")
+
+
+def validate_fixture_manifest(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        raise WorkflowError("fixture manifest must be a JSON object")
+
+    require_exact_keys(
+        raw,
+        {"suite", "mode", "production", "warning", "group_secret", "signers"},
+        "fixture manifest",
+    )
+    expected = fixture_manifest()
+    for field in ("suite", "mode", "warning", "group_secret"):
+        if raw[field] != expected[field]:
+            raise WorkflowError(f"fixture manifest field {field!r} does not match the built-in fixture")
+    if raw["production"] is not False:
+        raise WorkflowError("fixture manifest must set production to false")
+    if not isinstance(raw["signers"], list):
+        raise WorkflowError("fixture manifest signers must be a list")
+    if len(raw["signers"]) != len(expected["signers"]):
+        raise WorkflowError("fixture manifest must contain exactly two signers")
+
+    signer_keys = {"id", "share", "hiding_nonce", "binding_nonce"}
+    for index, (actual, expected_signer) in enumerate(
+        zip(raw["signers"], expected["signers"], strict=True), start=1
+    ):
+        if not isinstance(actual, dict):
+            raise WorkflowError(f"fixture manifest signer {index} must be an object")
+        require_exact_keys(actual, signer_keys, f"fixture manifest signer {index}")
+        for field in sorted(signer_keys):
+            if actual[field] != expected_signer[field]:
+                raise WorkflowError(
+                    f"fixture manifest signer {index} field {field!r} does not match the built-in fixture"
+                )
+    return expected
+
+
+def load_fixture_manifest(path: Path) -> dict[str, Any]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return validate_fixture_manifest(json.load(handle))
+    except OSError as exc:
+        raise WorkflowError(f"could not read fixture manifest {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise WorkflowError(f"fixture manifest is not valid JSON: {exc.msg}") from exc
 
 
 def parse_labels(output: str) -> dict[str, str]:
@@ -86,9 +167,25 @@ def compressed_basepoint_mul(cli: WuciJiCli, scalar: int) -> str:
     )
 
 
-def run_fixture_workflow(cli: WuciJiCli, message: bytes) -> dict[str, Any]:
-    group_public_key = compressed_basepoint_mul(cli, FIXTURE_GROUP_SECRET)
-    signers: list[dict[str, Any]] = [dict(item) for item in FIXTURE_SIGNERS]
+def signer_values(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": int(signer["id"], 16),
+            "share": int(signer["share"], 16),
+            "hiding": int(signer["hiding_nonce"], 16),
+            "binding": int(signer["binding_nonce"], 16),
+        }
+        for signer in manifest["signers"]
+    ]
+
+
+def run_fixture_workflow(
+    cli: WuciJiCli,
+    message: bytes,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    group_public_key = compressed_basepoint_mul(cli, int(manifest["group_secret"], 16))
+    signers = signer_values(manifest)
 
     for signer in signers:
         commitments = cli.run_labels(
@@ -190,6 +287,8 @@ def run_fixture_workflow(cli: WuciJiCli, message: bytes) -> dict[str, Any]:
     return {
         "suite": SUITE,
         "mode": MODE,
+        "production": False,
+        "fixture_warning": FIXTURE_WARNING,
         "message_hex": message.hex(),
         "group_public_key": group_public_key,
         "commitment_hash": commitment_hash,
@@ -217,6 +316,8 @@ def text_lines(result: dict[str, Any]) -> list[str]:
     lines = [
         f"suite: {result['suite']}",
         f"mode: {result['mode']}",
+        f"production: {str(result['production']).lower()}",
+        f"fixture_warning: {result['fixture_warning']}",
         f"message_hex: {result['message_hex']}",
         f"group_public_key: {result['group_public_key']}",
         f"commitment_hash: {result['commitment_hash']}",
@@ -270,6 +371,18 @@ def main() -> int:
         default=os.environ.get("WUCI_JI_BIN", str(DEFAULT_BIN)),
         help="path to the wuci-ji binary; defaults to WUCI_JI_BIN or build/wuci-ji",
     )
+    parser.add_argument(
+        "--fixture-manifest",
+        help=(
+            "load the exact non-production fixture manifest; modified signer "
+            "material is rejected"
+        ),
+    )
+    parser.add_argument(
+        "--print-fixture-manifest",
+        action="store_true",
+        help="print the exact non-production fixture manifest and exit",
+    )
     message_group = parser.add_mutually_exclusive_group()
     message_group.add_argument(
         "--message",
@@ -296,8 +409,21 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.print_fixture_manifest:
+        print(json.dumps(fixture_manifest(), indent=2, sort_keys=True))
+        return 0
+
     try:
-        result = run_fixture_workflow(WuciJiCli(Path(args.bin)), parse_message(args))
+        manifest = (
+            load_fixture_manifest(Path(args.fixture_manifest))
+            if args.fixture_manifest is not None
+            else fixture_manifest()
+        )
+        result = run_fixture_workflow(
+            WuciJiCli(Path(args.bin)),
+            parse_message(args),
+            manifest,
+        )
     except WorkflowError as exc:
         print(f"frost workflow: {exc}", file=sys.stderr)
         return 1

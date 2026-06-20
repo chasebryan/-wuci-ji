@@ -331,6 +331,23 @@ Fixes made while executing this checkpoint:
   primitives, not a production threshold-signing API. `make frost-workflow`
   now compares the helper output against the direct Python regression path so
   the demo cannot drift away from the guarded primitive sequence.
+- The third FROST workflow checkpoint hardened the demo helper boundary with
+  `--print-fixture-manifest` and `--fixture-manifest`. The manifest contract is
+  intentionally exact: it must declare the FROST secp256k1 suite, fixture mode,
+  `production: false`, the non-production warning, the built-in group secret,
+  and the two built-in signer shares/nonces. Modified signer material,
+  production flags, missing fields, and extra fields are rejected before the
+  helper reaches the assembly signing-share primitive.
+- Product direction considered: WUCI-FROST / 无此签 / No Such Quorum should be
+  a threshold authorization layer over Wuci-ji artifacts, not a replacement
+  for envelope encryption. The encryption path stays ChaCha20-Poly1305; FROST
+  should authorize manifest-bound actions such as open, release, trust, or
+  publish by signing stable artifact metadata. Before any `open`-gating mode,
+  prioritize RFC test vectors, random nonce handling, nonce-commitment
+  tracking, and constant-time boundaries. Future ciphersuite work can evaluate
+  FROST(Ed25519,SHA-512) or FROST(ristretto255,SHA-512), while the current
+  assembly lane remains FROST(secp256k1,SHA-256) until its safety boundary is
+  stronger.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -489,11 +506,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, keep hardening the helper boundary before accepting
-   arbitrary signer material: add fixture documentation or a structured
-   non-production input manifest only if it preserves the current warnings and
-   regression checks. Keep private nonce and signing-share paths on projective
-   basepoint helpers and leave public verifier aggregation behind
+   separate. Next, add a compact user-facing FROST demo note or help example
+   that frames WUCI-FROST as manifest authorization, not encryption, then
+   continue the constant-time audit before accepting arbitrary signer material.
+   Keep private nonce and signing-share paths on projective basepoint helpers
+   and leave public verifier aggregation behind
    `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
    together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
