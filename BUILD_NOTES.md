@@ -95,9 +95,9 @@ Fixes made while executing this checkpoint:
   use and after deriving AEAD Poly1305 one-time keys.
 - Malformed-envelope coverage includes empty input, truncated header,
   truncated tag/body, bad magic, bad version, and bad tag rejection.
-- The native test path disassembles `build/wuci-ji.o` and fails if known
-  absolute `*_len` assembly constants are encoded as absolute memory reads
-  instead of immediate loads.
+- The native test path disassembles all native assembly objects and fails if
+  known absolute `*_len` assembly constants are encoded as absolute memory
+  reads instead of immediate loads.
 - The first FROST RFC 9591 lane is intentionally narrow but now covers the
   ciphersuite hash primitives for P-256 and secp256k1. `frost-*-h1`,
   `frost-*-h2`, and `frost-*-h3` run SHA-256 `expand_message_xmd` with
@@ -249,6 +249,16 @@ Fixes made while executing this checkpoint:
   mixed-add and doubling formulas still contain exceptional-case branches that
   should be replaced or isolated before any secret-bearing FROST operation is
   exposed.
+- The first constant-time group hardening checkpoint split a
+  finite-assumption Jacobian double helper,
+  `secp256k1_jacobian_double_finite_limbs`, and made the projective basepoint
+  scalar loop use it instead of the generic Jacobian double path. The loop's
+  explicit accumulator-infinity mask now controls double-result selection, and
+  the disassembly guard fails if the scalar loop regresses to calling
+  `secp256k1_jacobian_double_limbs`. This removes the generic double helper's
+  infinity/Y-zero branches from the scalar loop, but mixed-add exceptional-case
+  branches and final affine conversion remain to be remediated before treating
+  FROST commitment generation as constant-time.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -407,8 +417,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Audit and remediate the remaining exceptional-case branches in
-   point/Jacobian operations before expanding any secret-bearing FROST
+   separate. Next, replace or isolate the remaining mixed-add exceptional-case
+   branches in `secp256k1_jacobian_mixed_add_limbs`, then audit final
+   Jacobian-to-affine conversion before expanding any secret-bearing FROST
    workflow. Keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519

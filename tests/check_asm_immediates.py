@@ -65,9 +65,16 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
     body = find_function_lines(disassembly, "secp256k1_projective_basepoint_mul_limbs")
     if body is None:
         return False
+    body_text = "\n".join(body)
+    call_targets = set(re.findall(r"R_X86_64_[A-Z0-9_]+\s+([A-Za-z0-9_]+)-", body_text))
     saw_back_edge = False
     loop_back_edges = 0
     offenders: list[str] = []
+
+    if "secp256k1_jacobian_double_limbs" in call_targets:
+        offenders.append(
+            "projective scalar loop must not call secp256k1_jacobian_double_limbs"
+        )
 
     for line in body:
         match = INSN_RE.match(line)
@@ -76,6 +83,8 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
         address = int(match.group(1), 16)
         mnemonic = match.group(2)
         rest = match.group(3)
+        if mnemonic.startswith("call"):
+            continue
         if not mnemonic.startswith("j"):
             continue
         target = branch_target(rest)
@@ -91,9 +100,14 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
             "expected exactly one fixed loop back-edge in "
             "secp256k1_projective_basepoint_mul_limbs"
         )
+    if "secp256k1_jacobian_double_finite_limbs" not in call_targets:
+        raise SystemExit(
+            "secp256k1_projective_basepoint_mul_limbs must call "
+            "secp256k1_jacobian_double_finite_limbs"
+        )
     if offenders:
         print(
-            "branch instructions found before the fixed projective scalar-loop back-edge:",
+            "projective scalar-loop audit failed:",
             file=sys.stderr,
         )
         for offender in offenders:

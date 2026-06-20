@@ -28,6 +28,7 @@
 .global secp256k1_point_add_limbs
 .global secp256k1_point_mul_limbs
 .global secp256k1_jacobian_to_affine_limbs
+.global secp256k1_jacobian_double_finite_limbs
 .global secp256k1_jacobian_double_limbs
 .global secp256k1_jacobian_mixed_add_limbs
 .global secp256k1_projective_basepoint_mul_limbs
@@ -1231,6 +1232,15 @@ secp256k1_jacobian_to_affine_limbs:
     pop rbx
     ret
 
+secp256k1_jacobian_double_finite_limbs:
+    push rbx
+    push r12
+    push r13
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+    jmp .Lsecp256k1_jacobian_double_compute
+
 secp256k1_jacobian_double_limbs:
     push rbx
     push r12
@@ -1248,6 +1258,7 @@ secp256k1_jacobian_double_limbs:
     cmp eax, 1
     je .Lsecp256k1_jacobian_double_infinity
 
+.Lsecp256k1_jacobian_double_compute:
     mov rdi, rbx
     mov rsi, rbx
     lea rdx, [rip + secp256k1_jacobian_t0]
@@ -1513,9 +1524,10 @@ secp256k1_projective_basepoint_mul_limbs:
     lea rdi, [rip + secp256k1_jacobian_acc_x]
     lea rsi, [rip + secp256k1_jacobian_acc_y]
     lea rdx, [rip + secp256k1_jacobian_acc_z]
-    call secp256k1_jacobian_double_limbs
-    mov r13d, eax
-    mov ecx, eax
+    call secp256k1_jacobian_double_finite_limbs
+    mov r13, qword ptr [rip + secp256k1_jacobian_acc_infinity]
+    xor r13, 1
+    mov ecx, r13d
     neg rcx
     lea rdi, [rip + secp256k1_field_zero]
     lea rsi, [rip + secp256k1_jacobian_rx]
