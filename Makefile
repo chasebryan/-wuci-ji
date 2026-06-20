@@ -10,6 +10,7 @@ HOST_ARCH := $(shell uname -m)
 TARGET := build/wuci-ji
 OBJECT := build/wuci-ji.o
 SOURCE := src/wuci-ji.s
+CROSS_SOURCE := build/wuci-ji.zig.s
 CROSS_TARGET := build/wuci-ji-linux-x86_64
 ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
@@ -43,11 +44,15 @@ check-qemu-user:
 		exit 2; \
 	fi
 
-build-linux:
+$(CROSS_SOURCE): $(SOURCE)
+	mkdir -p build
+	sed 's/OFFSET FLAT:/OFFSET /g' $(SOURCE) > $@
+
+build-linux: $(CROSS_SOURCE)
 	mkdir -p build $(ZIG_GLOBAL_CACHE_DIR) $(ZIG_LOCAL_CACHE_DIR)
 	ZIG_GLOBAL_CACHE_DIR=$(abspath $(ZIG_GLOBAL_CACHE_DIR)) \
 	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
-	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(SOURCE)
+	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(CROSS_SOURCE)
 
 selftest: check-native $(TARGET)
 	$(TARGET) selftest

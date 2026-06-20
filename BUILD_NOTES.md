@@ -34,6 +34,9 @@ make build-linux
 file build/wuci-ji-linux-x86_64
 ```
 
+`make build-linux` keeps `src/wuci-ji.s` in GNU `as` form and writes a generated
+Zig/LLVM-compatible assembly copy to `build/wuci-ji.zig.s`.
+
 On a Linux host with user-mode QEMU for x86_64:
 
 ```sh
@@ -92,6 +95,9 @@ build/wuci-ji: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically l
 A previous Darwin arm64 checkpoint found that Zig could cross-build the x86_64
 Linux ELF, but Homebrew `qemu` provided `qemu-system-x86_64` rather than Linux
 user-mode `qemu-x86_64`, so that host could not run the ELF test suite directly.
+After the Linux checkpoint restored GNU `OFFSET FLAT:` immediates for native
+correctness, the Darwin cross-build path was adjusted to translate those
+immediates only in the generated `build/wuci-ji.zig.s` source.
 
 ## Next pickup
 
