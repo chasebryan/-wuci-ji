@@ -124,6 +124,113 @@ def field_hex(value: int) -> str:
     return f"{value % (1 << 256):064x}"
 
 
+def scalar_hex(value: int) -> str:
+    return f"{value % (1 << 256):064x}"
+
+
+def assert_secp256k1_scalar_op(command: str, a: int, b: int | None, expected: int) -> None:
+    args = [command, scalar_hex(a)]
+    if b is not None:
+        args.append(scalar_hex(b))
+    proc = run(args)
+    actual = proc.stdout.decode("ascii")
+    assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+    assert actual == f"{expected % SECP256K1_ORDER:064x}\n", (
+        command,
+        scalar_hex(a),
+        None if b is None else scalar_hex(b),
+        actual,
+        expected,
+    )
+
+
+def assert_secp256k1_scalar_helpers() -> None:
+    n = SECP256K1_ORDER
+    values = [
+        0,
+        1,
+        2,
+        7,
+        n - 1,
+        int("1234567890abcdef" * 4, 16),
+        int("fedcba0987654321" * 4, 16) % n,
+    ]
+
+    for a in values:
+        if a % n != 0:
+            assert_secp256k1_scalar_op("secp256k1-scalar-inv", a, None, pow(a, n - 2, n))
+        for b in values:
+            assert_secp256k1_scalar_op("secp256k1-scalar-add", a, b, a + b)
+            assert_secp256k1_scalar_op("secp256k1-scalar-sub", a, b, a - b)
+            assert_secp256k1_scalar_op("secp256k1-scalar-mul", a, b, a * b)
+
+
+def assert_secp256k1_scalar_rejects_invalid() -> None:
+    cases = [
+        ["secp256k1-scalar-add", "00", "00" * 32],
+        ["secp256k1-scalar-add", "00" * 32, "zz" + ("00" * 31)],
+        ["secp256k1-scalar-add", f"{SECP256K1_ORDER:064x}", "00" * 32],
+        ["secp256k1-scalar-inv", "00" * 32],
+    ]
+    for args in cases:
+        proc = run(args)
+        assert proc.returncode != 0, args
+        assert proc.stdout == b"", args
+
+
+def frost_lagrange_ref(identifier: int, identifiers: list[int]) -> int:
+    n = SECP256K1_ORDER
+    if identifier == 0 or identifier not in identifiers or len(set(identifiers)) != len(identifiers):
+        raise ValueError("invalid lagrange identifiers")
+    numerator = 1
+    denominator = 1
+    for other in identifiers:
+        if other == identifier:
+            continue
+        numerator = (numerator * other) % n
+        denominator = (denominator * ((other - identifier) % n)) % n
+    return (numerator * pow(denominator, n - 2, n)) % n
+
+
+def assert_frost_lagrange_helpers() -> None:
+    cases = [
+        (1, [1]),
+        (1, [1, 2]),
+        (2, [1, 2]),
+        (1, [1, 2, 3]),
+        (2, [1, 2, 3]),
+        (3, [1, 2, 3]),
+    ]
+    for identifier, identifiers in cases:
+        proc = run(
+            [
+                "frost-secp256k1-lagrange",
+                scalar_hex(identifier),
+                *(scalar_hex(item) for item in identifiers),
+            ]
+        )
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert proc.stdout == f"{frost_lagrange_ref(identifier, identifiers):064x}\n".encode(
+            "ascii"
+        )
+
+    rejected_cases = [
+        [1, [2, 3]],
+        [1, [0, 1]],
+        [1, [1, 1]],
+    ]
+    for identifier, identifiers in rejected_cases:
+        proc = run(
+            [
+                "frost-secp256k1-lagrange",
+                scalar_hex(identifier),
+                *(scalar_hex(item) for item in identifiers),
+            ]
+        )
+        assert proc.returncode != 0
+        assert proc.stdout == b""
+
+
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
     args = [command, field_hex(a)]
     if b is not None:
@@ -1387,6 +1494,15 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
             (["frost-secp256k1-h3", "extra"], b"abc", None),
             (["frost-secp256k1-h4", "extra"], b"abc", None),
             (["frost-secp256k1-h5", "extra"], b"abc", None),
+            (["secp256k1-scalar-add", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-scalar-sub", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-scalar-mul", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-scalar-inv", key.hex(), "extra"], b"", None),
+            (
+                ["frost-secp256k1-lagrange", "01".zfill(64), "01".zfill(64), "extra"],
+                b"",
+                None,
+            ),
             (["secp256k1-field-add", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
@@ -1559,6 +1675,11 @@ def assert_help_output() -> None:
         "frost-secp256k1-h3             RFC9591 FROST(secp256k1,SHA-256) H3(nonce) scalar over stdin",
         "frost-secp256k1-h4             RFC9591 FROST(secp256k1,SHA-256) H4(msg) over stdin",
         "frost-secp256k1-h5             RFC9591 FROST(secp256k1,SHA-256) H5(com) over stdin",
+        "secp256k1-scalar-add <a> <b>   add 32-byte hex scalars modulo group order",
+        "secp256k1-scalar-sub <a> <b>   subtract 32-byte hex scalars modulo group order",
+        "secp256k1-scalar-mul <a> <b>   multiply 32-byte hex scalars modulo group order",
+        "secp256k1-scalar-inv <a>       invert a nonzero scalar modulo group order",
+        "frost-secp256k1-lagrange <i> <id...> derive RFC9591 interpolation scalar",
         "secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p",
         "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
         "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
@@ -1612,6 +1733,9 @@ def main() -> None:
     assert_frost_sha256_helpers(b"")
     assert_frost_sha256_helpers(b"abc")
     assert_frost_sha256_helpers((b"frost-transcript\0" * 4096) + b"end")
+    assert_secp256k1_scalar_helpers()
+    assert_secp256k1_scalar_rejects_invalid()
+    assert_frost_lagrange_helpers()
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
     assert_secp256k1_point_helpers()
