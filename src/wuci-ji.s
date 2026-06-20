@@ -1066,6 +1066,13 @@ exit_process:
     push rdi
     call zero_sensitive_state
     pop rdi
+    xor esi, esi
+    xor edx, edx
+    xor ecx, ecx
+    xor r8d, r8d
+    xor r9d, r9d
+    xor r10d, r10d
+    xor r11d, r11d
     mov eax, SYS_EXIT
     syscall
 
@@ -1348,6 +1355,9 @@ aead_poly1305_init:
     call chacha20_block
     lea rdi, [rip + chacha_block]
     call poly1305_init
+    lea rdi, [rip + chacha_block]
+    mov esi, 64
+    call zero_memory
     ret
 
 aead_poly1305_finish:
@@ -1377,6 +1387,25 @@ aead_poly1305_finish:
     pop r12
     pop rbx
     ret
+
+.macro SCRUB_STACK bytes
+    lea rdi, [rsp]
+    mov ecx, \bytes
+    xor eax, eax
+    rep stosb
+.endm
+
+.macro SCRUB_VOLATILE
+    xor eax, eax
+    xor ecx, ecx
+    xor edx, edx
+    xor edi, edi
+    xor esi, esi
+    xor r8d, r8d
+    xor r9d, r9d
+    xor r10d, r10d
+    xor r11d, r11d
+.endm
 
 .macro POLY_MULADD acc, h, f
     mov rax, qword ptr [rip + \h]
@@ -1717,12 +1746,14 @@ poly1305_final:
     add rax, r13
     mov dword ptr [r12 + 12], eax
 
+    SCRUB_STACK 40
     add rsp, 40
     pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
+    SCRUB_VOLATILE
     ret
 
 poly1305_blocks:
@@ -1859,10 +1890,12 @@ poly1305_blocks:
     jne .Lpoly_blocks_loop
 
 .Lpoly_blocks_done:
+    SCRUB_STACK 40
     add rsp, 40
     pop r13
     pop r12
     pop rbx
+    SCRUB_VOLATILE
     ret
 
 .macro CHACHA_QR a, b, c, d
@@ -1938,6 +1971,9 @@ chacha20_xor:
     sub r12, r13
     jmp .Lchacha_xor_blocks
 .Lchacha_xor_done:
+    lea rdi, [rip + chacha_block]
+    mov esi, 64
+    call zero_memory
     mov rax, r15
     pop r15
     pop r14
@@ -2011,8 +2047,10 @@ chacha20_block:
     cmp r9, 16
     jne .Lchacha_emit
 
+    SCRUB_STACK 128
     add rsp, 128
     pop rbx
+    SCRUB_VOLATILE
     ret
 
 sha256_init:
@@ -2275,6 +2313,7 @@ sha256_transform:
     add dword ptr [rdi + SHA256_STATE + 24], r10d
     add dword ptr [rdi + SHA256_STATE + 28], r11d
 
+    SCRUB_STACK 272
     add rsp, 272
     pop r15
     pop r14
@@ -2282,6 +2321,7 @@ sha256_transform:
     pop r12
     pop rbx
     pop rbp
+    SCRUB_VOLATILE
     ret
 
 .section .rodata

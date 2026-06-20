@@ -85,6 +85,12 @@ Fixes made while executing this checkpoint:
   memory reads.
 - Exit-time zeroization scrubs the process-global BSS working range, including
   key, nonce, HMAC, HKDF, Poly1305, ChaCha20, AEAD, IO, and envelope buffers.
+- Practical inner-routine scrubbing now wipes stack temporaries in the
+  SHA-256 transform, Poly1305 final/block multiply, and ChaCha20 block
+  functions. The ChaCha20 keystream block is also cleared after streaming XOR
+  use and after deriving AEAD Poly1305 one-time keys.
+- Malformed-envelope coverage includes empty input, truncated header,
+  truncated tag/body, bad magic, bad version, and bad tag rejection.
 
 The native build artifact is:
 
@@ -103,9 +109,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 ## Next pickup
 
-1. Consider stack/register scrubbing in the cryptographic inner routines where
-   it is practical without making the assembly unreadable.
-2. Expand malformed-envelope tests if the envelope format grows beyond the
-   current prefix, nonce, ciphertext, and tag layout.
-3. From Linux, keep using `make clean && make test` as the runtime proof before
+1. From Linux, keep using `make clean && make test` as the runtime proof before
    each push when practical.
+2. If the envelope format grows beyond the current prefix, nonce, ciphertext,
+   and tag layout, add malformed-envelope tests before changing `open`.
+3. Consider a small assembler-level regression check that disassembles the
+   native object and fails if known `.set` length constants are encoded as
+   absolute memory reads.

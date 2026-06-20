@@ -289,6 +289,7 @@ def main() -> None:
     sealed = sealed_proc.stdout
     assert_rejects_envelope(rfc_key, b"")
     assert_rejects_envelope(rfc_key, sealed[: ENVELOPE_HEADER_LEN - 1])
+    assert_rejects_envelope(rfc_key, sealed[:-1])
     assert_rejects_envelope(rfc_key, b"BADSEAL\x01" + sealed[len(ENVELOPE_PREFIX) :])
     assert_rejects_envelope(
         rfc_key,
