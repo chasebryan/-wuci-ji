@@ -182,6 +182,13 @@ Fixes made while executing this checkpoint:
   HKDF-SHA256 CLI handlers plus `hmac_prepare_sha256_key32` into
   `src/hmac_hkdf.s`. HMAC/HKDF scratch buffers remain owned by `src/wuci-ji.s`
   so the existing process-global zeroization range still covers them.
+- The sixth assembly modularization checkpoint split the secp256k1 scalar
+  backbone into `src/secp256k1_scalar.s`: scalar add/sub/mul/inv CLI handlers,
+  FROST Lagrange interpolation, canonical scalar loading/comparison, scalar
+  arithmetic modulo the group order, and scalar output formatting. Scratch
+  buffers and group-order constants remain owned by `src/wuci-ji.s` so the
+  existing process-global zeroization range still covers them while the FROST
+  and curve layers continue to share the scalar helpers.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -372,9 +379,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    into a safer end-to-end workflow only after the remaining assembly split and
    constant-time group-operation audit.
 4. Continue the assembly split before adding much more FROST signing code.
-   `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`, `src/sha256.s`, and
-   `src/sys.s` are already separate; next split candidates are `secp256k1.s`
-   and `frost.s` for curve and FROST primitives. Keep the native and Zig source
+   `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
+   `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
+   separate; next split candidates are `secp256k1_field.s` for field arithmetic
+   and `frost.s` for transcript/round helpers. Keep the native and Zig source
    lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
