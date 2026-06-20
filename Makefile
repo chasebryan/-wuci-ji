@@ -10,11 +10,10 @@ HOST_OS := $(shell uname -s)
 HOST_ARCH := $(shell uname -m)
 
 TARGET := build/wuci-ji
+ASM_SOURCES := src/wuci-ji.s src/sha256.s src/x25519.s
+OBJECTS := $(patsubst src/%.s,build/%.o,$(ASM_SOURCES))
 OBJECT := build/wuci-ji.o
-X25519_OBJECT := build/x25519.o
-SOURCE := src/wuci-ji.s
-X25519_SOURCE := src/x25519.s
-CROSS_SOURCE := build/wuci-ji.zig.s
+CROSS_SOURCES := $(patsubst src/%.s,build/%.zig.s,$(ASM_SOURCES))
 CROSS_TARGET := build/wuci-ji-linux-x86_64
 ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
@@ -24,16 +23,16 @@ ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 
 all: check-native $(TARGET)
 
-$(TARGET): $(OBJECT) $(X25519_OBJECT)
+$(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
 
-$(OBJECT): check-native $(SOURCE)
+build/%.o: src/%.s check-native
 	mkdir -p build
-	$(AS) --64 -o $@ $(SOURCE)
+	$(AS) --64 -o $@ $<
 
-$(X25519_OBJECT): check-native $(X25519_SOURCE)
+build/%.zig.s: src/%.s
 	mkdir -p build
-	$(AS) --64 -o $@ $(X25519_SOURCE)
+	sed 's/OFFSET FLAT:/OFFSET /g' $< > $@
 
 check-native:
 	@if [ "$(HOST_OS)" != "Linux" ] || [ "$(HOST_ARCH)" != "x86_64" ]; then \
@@ -52,15 +51,11 @@ check-qemu-user:
 		exit 2; \
 	fi
 
-$(CROSS_SOURCE): $(SOURCE)
-	mkdir -p build
-	sed 's/OFFSET FLAT:/OFFSET /g' $(SOURCE) > $@
-
-build-linux: $(CROSS_SOURCE) $(X25519_SOURCE)
+build-linux: $(CROSS_SOURCES)
 	mkdir -p build $(ZIG_GLOBAL_CACHE_DIR) $(ZIG_LOCAL_CACHE_DIR)
 	ZIG_GLOBAL_CACHE_DIR=$(abspath $(ZIG_GLOBAL_CACHE_DIR)) \
 	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
-	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(CROSS_SOURCE) $(X25519_SOURCE)
+	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(CROSS_SOURCES)
 
 selftest: check-native $(TARGET)
 	$(TARGET) selftest

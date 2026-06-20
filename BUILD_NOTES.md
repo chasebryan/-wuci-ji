@@ -133,6 +133,12 @@ Fixes made while executing this checkpoint:
   `D_i + rho_i * E_i` over sorted participant rows and emits a compressed SEC1
   group commitment. These commands reject malformed compressed points and
   nonzero identifier lists that are not strictly ascending.
+- The first assembly modularization checkpoint split the SHA-256 core into
+  `src/sha256.s`, linked as `build/sha256.o` beside the main and X25519
+  objects. The Makefile now uses assembly source lists for native linking and
+  generates Zig-compatible transformed sources for every assembly file. Native
+  `make test` passes after the split; `make build-linux` reached the Zig link
+  step but could not complete on this host because `zig` was not installed.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -321,13 +327,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    FROST work should add challenge computation and then only expose
    signing-share generation after the exceptional-case Jacobian add/double
    branches and participant-share validation are tightened.
-4. Before adding much more FROST signing code, split the large
-   `src/wuci-ji.s` by responsibility while preserving the current CLI and test
-   suite: start with `main.s` for `_start`/dispatch, `sys.s` for syscall/file
-   helpers, `sha256.s` plus `hmac_hkdf.s` for hash/KDF code, and
-   `secp256k1.s`/`frost.s` for curve and FROST primitives. Update the native
-   and Zig cross-build rules together so every split assembly file receives the
-   same `OFFSET FLAT:` compatibility transform where needed.
+4. Continue the assembly split before adding much more FROST signing code.
+   `src/sha256.s` is already separate; next split candidates are `main.s` for
+   `_start`/dispatch, `sys.s` for syscall/file helpers, `hmac_hkdf.s` for
+   hash/KDF command glue, and `secp256k1.s`/`frost.s` for curve and FROST
+   primitives. Keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
