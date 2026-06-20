@@ -76,6 +76,28 @@ def local_branch_lines(lines: list[str]) -> list[str]:
     return branches
 
 
+def fixed_loop_branch_offenders(lines: list[str], name: str) -> list[str]:
+    loop_back_edges = 0
+    offenders: list[str] = []
+    for line in lines:
+        match = INSN_RE.match(line)
+        if not match:
+            continue
+        address = int(match.group(1), 16)
+        mnemonic = match.group(2)
+        rest = match.group(3)
+        if not mnemonic.startswith("j"):
+            continue
+        target = branch_target(rest)
+        if mnemonic == "jne" and target is not None and target < address:
+            loop_back_edges += 1
+            continue
+        offenders.append(line.strip())
+    if loop_back_edges != 1:
+        offenders.append(f"{name} must contain exactly one fixed loop back-edge")
+    return offenders
+
+
 def check_projective_scalar_loop(disassembly: str) -> bool:
     body = find_function_lines(disassembly, "secp256k1_projective_basepoint_mul_limbs")
     if body is None:
@@ -146,6 +168,47 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
             print(f"  {offender}", file=sys.stderr)
         raise SystemExit(1)
     return True
+
+
+def check_field_inversion_boundary(disassemblies: list[tuple[Path, str]]) -> None:
+    field_mul = "secp256k1_field_mul_limbs"
+    field_inverse = "secp256k1_field_inverse_limbs"
+    found_mul = False
+    found_inverse = False
+    offenders: list[str] = []
+
+    for _obj, disassembly in disassemblies:
+        mul_body = find_function_lines(disassembly, field_mul)
+        if mul_body is not None:
+            found_mul = True
+            offenders.extend(
+                f"{field_mul} branch outside fixed loop: {line}"
+                for line in fixed_loop_branch_offenders(mul_body, field_mul)
+            )
+
+        inverse_body = find_function_lines(disassembly, field_inverse)
+        if inverse_body is None:
+            continue
+        found_inverse = True
+        call_targets = relocation_call_targets(inverse_body)
+        if field_mul not in call_targets:
+            offenders.append(f"{field_inverse} must call {field_mul}")
+        if "secp256k1_field_select_mask" not in call_targets:
+            offenders.append(f"{field_inverse} must call secp256k1_field_select_mask")
+        offenders.extend(
+            f"{field_inverse} branch outside fixed loop: {line}"
+            for line in fixed_loop_branch_offenders(inverse_body, field_inverse)
+        )
+
+    if not found_mul:
+        raise SystemExit(f"{field_mul} not found in object disassembly")
+    if not found_inverse:
+        raise SystemExit(f"{field_inverse} not found in object disassembly")
+    if offenders:
+        print("field inversion audit failed:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  {offender}", file=sys.stderr)
+        raise SystemExit(1)
 
 
 def check_finite_affine_boundary(disassemblies: list[tuple[Path, str]]) -> None:
@@ -242,6 +305,7 @@ def main() -> None:
         )
 
     check_finite_affine_boundary(disassemblies)
+    check_field_inversion_boundary(disassemblies)
 
 
 if __name__ == "__main__":

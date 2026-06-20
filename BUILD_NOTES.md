@@ -277,6 +277,15 @@ Fixes made while executing this checkpoint:
   local branch. This narrows the final conversion boundary, but the broader
   field inversion and FROST signing workflow still need review before treating
   this as a production constant-time signing backend.
+- The fourth constant-time group hardening checkpoint removed the fixed-exponent
+  skip-multiply branch from `secp256k1_field_inverse_limbs`. Field inversion now
+  computes the multiply candidate on every one of the 256 exponent rounds,
+  mask-selects it according to the public `p - 2` exponent bit, and then squares
+  the base. The disassembly guard now checks that `secp256k1_field_mul_limbs`
+  and `secp256k1_field_inverse_limbs` contain only their fixed loop back-edge,
+  and that inversion calls `secp256k1_field_select_mask`. This hardens the
+  finite affine conversion dependency, but remaining inversion-style helpers and
+  the full FROST workflow still need review.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -435,8 +444,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, audit the field inversion path used by the finite affine
-   converter and keep generic public point/Jacobian helpers isolated from
+   separate. Next, mirror the fixed-loop inversion audit into
+   `secp256k1_scalar_inverse_limbs` and review the field square-root/decode
+   path, while keeping generic public point/Jacobian helpers isolated from
    secret-bearing FROST paths before expanding any signing workflow. Keep the
    native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
