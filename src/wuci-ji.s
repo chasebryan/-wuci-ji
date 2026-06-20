@@ -116,6 +116,12 @@ _start:
     je run_open_keyfile
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_inspect]
+    call streq
+    cmp eax, 1
+    je run_inspect
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_aead_seal]
     call streq
     cmp eax, 1
@@ -888,6 +894,116 @@ open_with_loaded_key:
     mov rdi, STDOUT
     lea rsi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
     mov rdx, qword ptr [rip + aead_text_len]
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+run_inspect:
+    mov qword ptr [rip + aead_text_len], 0
+
+.Linspect_read_loop:
+    mov eax, SYS_READ
+    mov edi, STDIN
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js read_error
+    jz .Linspect_eof
+
+    mov rbx, qword ptr [rip + aead_text_len]
+    mov rcx, AEAD_OPEN_MAX
+    sub rcx, rbx
+    cmp rax, rcx
+    ja aead_size_error
+
+    lea rdi, [rip + aead_open_buf]
+    add rdi, rbx
+    lea rsi, [rip + io_buf]
+    mov rcx, rax
+    rep movsb
+    add qword ptr [rip + aead_text_len], rax
+    jmp .Linspect_read_loop
+
+.Linspect_eof:
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_MIN_LEN
+    jb envelope_error
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Linspect_v1
+
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V2_MIN_LEN
+    jb envelope_error
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+    jmp .Linspect_v2
+
+.Linspect_v1:
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_v1_msg]
+    mov edx, OFFSET FLAT:inspect_v1_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_NONCE_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 24], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 25
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+.Linspect_v2:
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_v2_msg]
+    mov edx, OFFSET FLAT:inspect_v2_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_key_id_label]
+    mov edx, OFFSET FLAT:inspect_key_id_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_KEY_ID_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_NONCE_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 24], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 25
     call write_all
 
     xor edi, edi
@@ -2662,6 +2778,8 @@ cmd_open:
     .asciz "open"
 cmd_open_keyfile:
     .asciz "open-keyfile"
+cmd_inspect:
+    .asciz "inspect"
 cmd_aead_seal:
     .asciz "aead-seal"
 cmd_aead_open:
@@ -2672,7 +2790,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|open|inspect|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -2682,6 +2800,7 @@ usage_msg:
     .ascii "  seal <key>                     write framed ChaCha20-Poly1305 envelope with random nonce\n"
     .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
+    .ascii "  inspect                        print envelope metadata from stdin without a key\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
     .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
@@ -2737,6 +2856,26 @@ random_error_msg:
 envelope_error_msg:
     .ascii "wuci-ji: envelope authentication failed\n"
 .set envelope_error_msg_len, . - envelope_error_msg
+
+inspect_v1_msg:
+    .ascii "version: 1\n"
+    .ascii "algorithm: 1\n"
+    .ascii "header-length: 20\n"
+.set inspect_v1_msg_len, . - inspect_v1_msg
+
+inspect_v2_msg:
+    .ascii "version: 2\n"
+    .ascii "algorithm: 1\n"
+    .ascii "header-length: 36\n"
+.set inspect_v2_msg_len, . - inspect_v2_msg
+
+inspect_key_id_label:
+    .ascii "key-id: "
+.set inspect_key_id_label_len, . - inspect_key_id_label
+
+inspect_nonce_label:
+    .ascii "nonce: "
+.set inspect_nonce_label_len, . - inspect_nonce_label
 
 selftest_pass_msg:
     .ascii "wuci-ji selftest: PASS\n"

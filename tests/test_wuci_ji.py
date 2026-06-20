@@ -221,6 +221,18 @@ def assert_envelope(key: bytes, plaintext: bytes) -> None:
     assert repeated_nonce != nonce
 
 
+def assert_inspect_v1(sealed: bytes) -> None:
+    nonce = sealed[len(ENVELOPE_PREFIX) : ENVELOPE_HEADER_LEN]
+    inspected = run(["inspect"], sealed)
+    assert inspected.returncode == 0, inspected.stderr.decode("utf-8", "replace")
+    assert inspected.stdout == (
+        b"version: 1\n"
+        b"algorithm: 1\n"
+        b"header-length: 20\n"
+        + b"nonce: " + nonce.hex().encode("ascii") + b"\n"
+    )
+
+
 def assert_envelope_v2(key: bytes, key_id: bytes, plaintext: bytes) -> bytes:
     sealed = run(["seal-v2", key.hex(), key_id.hex()], plaintext)
     assert sealed.returncode == 0, sealed.stderr.decode("utf-8", "replace")
@@ -242,6 +254,26 @@ def assert_envelope_v2(key: bytes, key_id: bytes, plaintext: bytes) -> bytes:
     assert opened.stdout == plaintext
 
     return sealed.stdout
+
+
+def assert_inspect_v2(sealed: bytes, key_id: bytes) -> None:
+    key_id_end = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN
+    nonce = sealed[key_id_end:ENVELOPE_V2_HEADER_LEN]
+    inspected = run(["inspect"], sealed)
+    assert inspected.returncode == 0, inspected.stderr.decode("utf-8", "replace")
+    assert inspected.stdout == (
+        b"version: 2\n"
+        b"algorithm: 1\n"
+        b"header-length: 36\n"
+        + b"key-id: " + key_id.hex().encode("ascii") + b"\n"
+        + b"nonce: " + nonce.hex().encode("ascii") + b"\n"
+    )
+
+
+def assert_rejects_inspect(sealed: bytes) -> None:
+    rejected = run(["inspect"], sealed)
+    assert rejected.returncode != 0
+    assert rejected.stdout == b""
 
 
 def assert_rejects_envelope(key: bytes, sealed: bytes) -> None:
@@ -380,6 +412,14 @@ def main() -> None:
     sealed_proc = run(["seal", rfc_key.hex()], b"tamper-target")
     assert sealed_proc.returncode == 0, sealed_proc.stderr.decode("utf-8", "replace")
     sealed = sealed_proc.stdout
+    assert_inspect_v1(sealed)
+    assert_inspect_v2(v2_sealed, v2_key_id)
+    assert_rejects_inspect(b"")
+    assert_rejects_inspect(sealed[: ENVELOPE_HEADER_LEN - 1])
+    assert_rejects_inspect(b"BADSEAL\x01" + sealed[len(ENVELOPE_PREFIX) :])
+    assert_rejects_inspect(sealed[:6] + b"\x03" + sealed[7:])
+    assert_rejects_inspect(v2_sealed[: len(ENVELOPE_V2_PREFIX) + 8])
+    assert_rejects_inspect(v2_sealed[: ENVELOPE_V2_HEADER_LEN - 1])
     assert_rejects_envelope(rfc_key, b"")
     assert_rejects_envelope(rfc_key, sealed[: ENVELOPE_HEADER_LEN - 1])
     assert_rejects_envelope(rfc_key, sealed[:-1])

@@ -107,6 +107,10 @@ Fixes made while executing this checkpoint:
   v2 frames. The v2 header is fed to Poly1305 as associated data before any
   ciphertext bytes, so key ID, version, algorithm, and nonce tampering fail
   authentication.
+- `inspect` reads a v1 or v2 envelope from stdin without requiring secret key
+  material and prints fixed metadata fields: version, algorithm, header length,
+  nonce, and the v2 key ID when present. It rejects malformed or truncated
+  frames before printing any metadata.
 
 ## Envelope layouts
 
@@ -160,5 +164,5 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 2. If v2 grows again, keep adding malformed-envelope tests before changing
    `open`; current tests cover truncated v2 headers, truncated bodies/tags,
    authenticated key ID tampering, nonce tampering, and tag tampering.
-3. Consider an `inspect` command that prints envelope version, algorithm, and
-   key ID without attempting decryption.
+3. Consider an `inspect-file <path>` convenience command only if stdin-based
+   inspection proves awkward for artifact workflows.
