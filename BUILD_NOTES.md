@@ -160,8 +160,10 @@ Fixes made while executing this checkpoint:
   `src/sha256.s`, linked as `build/sha256.o` beside the main and X25519
   objects. The Makefile now uses assembly source lists for native linking and
   generates Zig-compatible transformed sources for every assembly file. Native
-  `make test` passes after the split; `make build-linux` reached the Zig link
-  step but could not complete on this host because `zig` was not installed.
+  `make test` passes after the split. With Zig 0.16.0 installed,
+  `make -B build-linux` also emits a static x86_64 Linux ELF, and that
+  cross-built artifact passes both `selftest` and the Python CLI test suite
+  when selected through `WUCI_JI_BIN`.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
