@@ -126,6 +126,9 @@ Fixes made while executing this checkpoint:
   envelope, `seal-file-v2` does the same with authenticated key ID metadata, and
   `open-file` authenticates the complete artifact before creating the plaintext
   output. All three commands refuse to overwrite existing output paths.
+- Fixed-form commands now enforce exact argument counts. Extra positional
+  arguments are rejected with usage instead of being silently ignored, including
+  stdin-streaming, file-path, metadata, key-file, and help commands.
 
 ## Envelope layouts
 

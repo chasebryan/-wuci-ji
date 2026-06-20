@@ -545,6 +545,73 @@ def assert_file_seal_open_workflow(
         assert not missing_out_path.exists()
 
 
+def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        key_path = tmp / "wuci.key"
+        plain_path = tmp / "plain.bin"
+        artifact_path = tmp / "sealed.wj"
+        key_path.write_text(key.hex() + "\n", encoding="ascii")
+        plain_path.write_bytes(b"extra-arg-plain")
+        artifact_path.write_bytes(sealed)
+
+        seal_file_out = tmp / "extra-seal.wj"
+        seal_file_v2_out = tmp / "extra-seal-v2.wj"
+        open_file_out = tmp / "extra-open.bin"
+
+        cases = [
+            (["--help", "extra"], b"", None),
+            (["sha256", "extra"], b"abc", None),
+            (["keygen", "extra"], b"", None),
+            (["selftest", "extra"], b"", None),
+            (["hmac-sha256", key.hex(), "extra"], b"abc", None),
+            (["seal", key.hex(), "extra"], b"abc", None),
+            (
+                ["seal-file", key.hex(), str(plain_path), str(seal_file_out), "extra"],
+                b"",
+                seal_file_out,
+            ),
+            (
+                [
+                    "seal-file-v2",
+                    key.hex(),
+                    key_id.hex(),
+                    str(plain_path),
+                    str(seal_file_v2_out),
+                    "extra",
+                ],
+                b"",
+                seal_file_v2_out,
+            ),
+            (["open", key.hex(), "extra"], sealed, None),
+            (
+                [
+                    "open-file",
+                    key.hex(),
+                    str(artifact_path),
+                    str(open_file_out),
+                    "extra",
+                ],
+                b"",
+                open_file_out,
+            ),
+            (["inspect", "extra"], sealed, None),
+            (["inspect-file", str(artifact_path), "extra"], b"", None),
+            (["manifest", "extra"], sealed, None),
+            (["manifest-file", str(artifact_path), "extra"], b"", None),
+            (["seal-keyfile", str(key_path), "extra"], b"abc", None),
+            (["open-keyfile", str(key_path), "extra"], sealed, None),
+            (["aead-seal", key.hex(), "00" * 12, "extra"], b"abc", None),
+        ]
+
+        for args, data, output_path in cases:
+            rejected = run(args, data)
+            assert rejected.returncode != 0, args
+            assert rejected.stdout == b"", args
+            if output_path is not None:
+                assert not output_path.exists(), args
+
+
 def main() -> None:
     selftest = run(["selftest"])
     assert selftest.returncode == 0, selftest.stderr.decode("utf-8", "replace")
@@ -632,6 +699,7 @@ def main() -> None:
     assert_manifest_v1(sealed)
     assert_manifest_v2(v2_sealed, v2_key_id)
     assert_artifact_file_commands(sealed, v2_sealed)
+    assert_rejects_extra_args(rfc_key, v2_key_id, sealed)
     assert_rejects_inspect(b"")
     assert_rejects_inspect(sealed[: ENVELOPE_HEADER_LEN - 1])
     assert_rejects_inspect(b"BADSEAL\x01" + sealed[len(ENVELOPE_PREFIX) :])

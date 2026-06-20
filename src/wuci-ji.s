@@ -195,6 +195,9 @@ usage_exit:
     jmp exit_process
 
 help_exit:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
     mov rdi, STDOUT
     lea rsi, [rip + usage_msg]
     mov edx, OFFSET FLAT:usage_msg_len
@@ -203,6 +206,9 @@ help_exit:
     jmp exit_process
 
 run_sha256:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
     lea rdi, [rip + sha_ctx]
     call sha256_init
 
@@ -362,6 +368,9 @@ envelope_error:
     jmp exit_process
 
 run_keygen:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
     lea rdi, [rip + chacha_key]
     mov esi, 32
     call fill_random
@@ -384,7 +393,7 @@ run_keygen:
 
 run_hmac_sha256:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + hmac_key]
@@ -455,7 +464,7 @@ run_hmac_sha256:
 
 run_hkdf_sha256:
     cmp qword ptr [rsp], 4
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + hkdf_salt]
@@ -569,7 +578,7 @@ run_hkdf_sha256:
 
 run_poly1305:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + poly_key]
@@ -615,7 +624,7 @@ run_poly1305:
 
 run_chacha20:
     cmp qword ptr [rsp], 5
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -661,7 +670,7 @@ run_chacha20:
 
 run_seal:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -673,7 +682,7 @@ run_seal:
 
 run_seal_v2:
     cmp qword ptr [rsp], 4
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -691,7 +700,7 @@ run_seal_v2:
 
 run_seal_file:
     cmp qword ptr [rsp], 5
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -730,7 +739,7 @@ run_seal_file:
 
 run_seal_file_v2:
     cmp qword ptr [rsp], 6
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -775,7 +784,7 @@ run_seal_file_v2:
 
 run_seal_keyfile:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -787,7 +796,7 @@ run_seal_keyfile:
 
 run_seal_keyfile_v2:
     cmp qword ptr [rsp], 4
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -919,7 +928,7 @@ seal_output_write_error:
 
 run_open:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -931,7 +940,7 @@ run_open:
 
 run_open_file:
     cmp qword ptr [rsp], 5
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -952,7 +961,7 @@ run_open_file:
 
 run_open_keyfile:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -1107,6 +1116,9 @@ open_parse_loaded_envelope:
     jmp exit_process
 
 run_inspect:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
     mov qword ptr [rip + aead_text_len], 0
 
 .Linspect_read_loop:
@@ -1135,7 +1147,7 @@ run_inspect:
 
 run_inspect_file:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     call read_artifact_file
@@ -1229,6 +1241,9 @@ inspect_parse_loaded_envelope:
     jmp exit_process
 
 run_manifest:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
     mov qword ptr [rip + aead_text_len], 0
 
 .Lmanifest_read_loop:
@@ -1257,7 +1272,7 @@ run_manifest:
 
 run_manifest_file:
     cmp qword ptr [rsp], 3
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     call read_artifact_file
@@ -1404,7 +1419,7 @@ manifest_parse_loaded_envelope:
 
 run_aead_seal:
     cmp qword ptr [rsp], 4
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -1463,7 +1478,7 @@ run_aead_seal:
 
 run_aead_open:
     cmp qword ptr [rsp], 5
-    jb usage_exit
+    jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -1539,6 +1554,9 @@ run_aead_open:
     jmp exit_process
 
 run_selftest:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
     lea rdi, [rip + sha_ctx]
     call sha256_init
     lea rdi, [rip + sha_ctx]
