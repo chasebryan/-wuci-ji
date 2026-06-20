@@ -1,6 +1,8 @@
 AS ?= as
 LD ?= ld
 PYTHON ?= python3
+NM ?= nm
+OBJDUMP ?= objdump
 ZIG ?= zig
 QEMU_X86_64 ?= qemu-x86_64
 
@@ -16,7 +18,7 @@ ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
 ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 
-.PHONY: all build-linux check-native check-qemu-user clean test test-linux selftest selftest-linux
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean test test-linux selftest selftest-linux
 
 all: check-native $(TARGET)
 
@@ -57,7 +59,10 @@ build-linux: $(CROSS_SOURCE)
 selftest: check-native $(TARGET)
 	$(TARGET) selftest
 
-test: check-native $(TARGET)
+check-asm-immediates: check-native $(OBJECT)
+	NM=$(NM) OBJDUMP=$(OBJDUMP) $(PYTHON) tests/check_asm_immediates.py $(OBJECT)
+
+test: check-native $(TARGET) check-asm-immediates
 	$(PYTHON) tests/test_wuci_ji.py
 
 selftest-linux: check-qemu-user build-linux

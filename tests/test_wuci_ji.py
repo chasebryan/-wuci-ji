@@ -6,6 +6,7 @@ import hmac
 import os
 import shlex
 import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -211,6 +212,45 @@ def assert_rejects_envelope(key: bytes, sealed: bytes) -> None:
     assert rejected.stdout == b""
 
 
+def assert_keyfile_workflow(plaintext: bytes) -> None:
+    keygen = run(["keygen"])
+    assert keygen.returncode == 0, keygen.stderr.decode("utf-8", "replace")
+    assert len(keygen.stdout) == 65
+    assert keygen.stdout.endswith(b"\n")
+
+    key_hex = keygen.stdout.strip()
+    key = bytes.fromhex(key_hex.decode("ascii"))
+    assert len(key) == 32
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        key_path = Path(tmp_dir) / "wuci.key"
+        key_path.write_bytes(keygen.stdout)
+
+        sealed = run(["seal-keyfile", str(key_path)], plaintext)
+        assert sealed.returncode == 0, sealed.stderr.decode("utf-8", "replace")
+        assert sealed.stdout.startswith(ENVELOPE_PREFIX)
+
+        nonce = sealed.stdout[len(ENVELOPE_PREFIX) : ENVELOPE_HEADER_LEN]
+        body = sealed.stdout[ENVELOPE_HEADER_LEN:]
+        assert body == aead_seal_ref(key, nonce, plaintext)
+
+        opened = run(["open-keyfile", str(key_path)], sealed.stdout)
+        assert opened.returncode == 0, opened.stderr.decode("utf-8", "replace")
+        assert opened.stdout == plaintext
+
+        raw_key_path = Path(tmp_dir) / "wuci-raw.key"
+        raw_key_path.write_bytes(key_hex)
+        raw_opened = run(["open-keyfile", str(raw_key_path)], sealed.stdout)
+        assert raw_opened.returncode == 0, raw_opened.stderr.decode("utf-8", "replace")
+        assert raw_opened.stdout == plaintext
+
+        bad_key_path = Path(tmp_dir) / "bad.key"
+        bad_key_path.write_bytes(key_hex + b"\nextra")
+        rejected = run(["seal-keyfile", str(bad_key_path)], plaintext)
+        assert rejected.returncode != 0
+        assert rejected.stdout == b""
+
+
 def main() -> None:
     selftest = run(["selftest"])
     assert selftest.returncode == 0, selftest.stderr.decode("utf-8", "replace")
@@ -299,6 +339,8 @@ def main() -> None:
         rfc_key,
         sealed[:-1] + bytes([sealed[-1] ^ 1]),
     )
+
+    assert_keyfile_workflow((b"keyfile-artifact\0" * 257) + b"end")
 
 
 if __name__ == "__main__":

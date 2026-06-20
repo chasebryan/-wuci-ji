@@ -2,12 +2,16 @@
 
 .equ SYS_READ, 0
 .equ SYS_WRITE, 1
+.equ SYS_CLOSE, 3
 .equ SYS_EXIT, 60
+.equ SYS_OPENAT, 257
 .equ SYS_GETRANDOM, 318
 
 .equ STDIN, 0
 .equ STDOUT, 1
 .equ STDERR, 2
+.equ AT_FDCWD, -100
+.equ O_RDONLY, 0
 
 .equ SHA256_STATE, 0
 .equ SHA256_BYTES, 32
@@ -20,6 +24,7 @@
 .equ ENVELOPE_TAG_LEN, 16
 .equ ENVELOPE_HEADER_LEN, ENVELOPE_PREFIX_LEN + ENVELOPE_NONCE_LEN
 .equ ENVELOPE_MIN_LEN, ENVELOPE_HEADER_LEN + ENVELOPE_TAG_LEN
+.equ KEYFILE_READ_MAX, 66
 
 .section .text
 .global _start
@@ -40,6 +45,12 @@ _start:
     call streq
     cmp eax, 1
     je run_selftest
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_keygen]
+    call streq
+    cmp eax, 1
+    je run_keygen
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_hmac_sha256]
@@ -72,10 +83,22 @@ _start:
     je run_seal
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_keyfile]
+    call streq
+    cmp eax, 1
+    je run_seal_keyfile
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_open]
     call streq
     cmp eax, 1
     je run_open
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_open_keyfile]
+    call streq
+    cmp eax, 1
+    je run_open_keyfile
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_aead_seal]
@@ -172,6 +195,14 @@ key_error:
     mov edi, 2
     jmp exit_process
 
+keyfile_error:
+    mov rdi, STDERR
+    lea rsi, [rip + keyfile_error_msg]
+    mov edx, OFFSET FLAT:keyfile_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
 chacha_arg_error:
     mov rdi, STDERR
     lea rsi, [rip + chacha_arg_error_msg]
@@ -234,6 +265,27 @@ envelope_error:
     mov edx, OFFSET FLAT:envelope_error_msg_len
     call write_all
     mov edi, 1
+    jmp exit_process
+
+run_keygen:
+    lea rdi, [rip + chacha_key]
+    mov esi, 32
+    call fill_random
+    cmp eax, 1
+    jne random_error
+
+    lea rdi, [rip + chacha_key]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    xor edi, edi
     jmp exit_process
 
 run_hmac_sha256:
@@ -523,6 +575,19 @@ run_seal:
     cmp eax, 1
     jne aead_arg_error
 
+    jmp seal_with_loaded_key
+
+run_seal_keyfile:
+    cmp qword ptr [rsp], 3
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne keyfile_error
+
+seal_with_loaded_key:
     lea rdi, [rip + chacha_nonce]
     mov esi, ENVELOPE_NONCE_LEN
     call fill_random
@@ -592,6 +657,19 @@ run_open:
     cmp eax, 1
     jne aead_arg_error
 
+    jmp open_with_loaded_key
+
+run_open_keyfile:
+    cmp qword ptr [rsp], 3
+    jb usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne keyfile_error
+
+open_with_loaded_key:
     mov qword ptr [rip + aead_text_len], 0
 
 .Lopen_read_loop:
@@ -1168,6 +1246,63 @@ fill_random:
 .Lfill_random_fail:
     xor eax, eax
 .Lfill_random_done:
+    pop r12
+    pop rbx
+    ret
+
+read_key_file:
+    push rbx
+    push r12
+    push r13
+    mov rbx, rdi
+    mov r12, rsi
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, rbx
+    mov edx, O_RDONLY
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js .Lread_key_file_fail
+
+    mov r13, rax
+    mov eax, SYS_READ
+    mov rdi, r13
+    lea rsi, [rip + hex_buf]
+    mov edx, KEYFILE_READ_MAX
+    syscall
+    mov rbx, rax
+
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+
+    test rbx, rbx
+    js .Lread_key_file_fail
+    cmp rbx, 64
+    jb .Lread_key_file_fail
+    cmp rbx, 64
+    je .Lread_key_file_decode
+    cmp rbx, 65
+    jne .Lread_key_file_fail
+    cmp byte ptr [rip + hex_buf + 64], 10
+    jne .Lread_key_file_fail
+
+.Lread_key_file_decode:
+    mov byte ptr [rip + hex_buf + 64], 0
+    lea rdi, [rip + hex_buf]
+    mov rsi, r12
+    call hex32_decode
+    cmp eax, 1
+    jne .Lread_key_file_fail
+    mov eax, 1
+    jmp .Lread_key_file_done
+
+.Lread_key_file_fail:
+    xor eax, eax
+.Lread_key_file_done:
+    pop r13
     pop r12
     pop rbx
     ret
@@ -2329,6 +2464,8 @@ cmd_sha256:
     .asciz "sha256"
 cmd_selftest:
     .asciz "selftest"
+cmd_keygen:
+    .asciz "keygen"
 cmd_hmac_sha256:
     .asciz "hmac-sha256"
 cmd_hkdf_sha256:
@@ -2339,8 +2476,12 @@ cmd_chacha20:
     .asciz "chacha20"
 cmd_seal:
     .asciz "seal"
+cmd_seal_keyfile:
+    .asciz "seal-keyfile"
 cmd_open:
     .asciz "open"
+cmd_open_keyfile:
+    .asciz "open-keyfile"
 cmd_aead_seal:
     .asciz "aead-seal"
 cmd_aead_open:
@@ -2351,14 +2492,17 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|seal|open|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|open|seal-keyfile|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
     .ascii "  poly1305 <key>                 authenticate stdin with a 32-byte one-time hex key\n"
     .ascii "  chacha20 <key> <nonce> <ctr>   xor stdin with ChaCha20; key=64 hex, nonce=24 hex, ctr=8 hex\n"
+    .ascii "  keygen                         write a random 32-byte key as 64 hex plus newline\n"
     .ascii "  seal <key>                     write framed ChaCha20-Poly1305 envelope with random nonce\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
+    .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
+    .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
     .ascii "  aead-seal <key> <nonce>        write ChaCha20-Poly1305 ciphertext || raw tag\n"
     .ascii "  aead-open <key> <nonce> <tag>  verify raw ciphertext, then write plaintext; tag=32 hex\n"
     .ascii "  selftest                       run built-in known-answer tests\n"
@@ -2371,6 +2515,10 @@ read_error_msg:
 key_error_msg:
     .ascii "wuci-ji: hmac-sha256 requires exactly 64 hex key characters\n"
 .set key_error_msg_len, . - key_error_msg
+
+keyfile_error_msg:
+    .ascii "wuci-ji: key file must contain 64 hex characters plus optional newline\n"
+.set keyfile_error_msg_len, . - keyfile_error_msg
 
 chacha_arg_error_msg:
     .ascii "wuci-ji: chacha20 requires key=64 hex, nonce=24 hex, counter=8 hex\n"
@@ -2633,7 +2781,7 @@ aead_open_buf:
     .skip AEAD_OPEN_MAX
 .align 16
 hex_buf:
-    .skip 65
+    .skip 128
 .align 16
 bss_sensitive_end:
 .set bss_sensitive_len, bss_sensitive_end - bss_sensitive_start

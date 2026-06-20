@@ -66,12 +66,14 @@ Leave `WUCI_JI_RUNNER` unset when running a native Linux binary directly.
 Observed host on 2026-06-20:
 
 - Linux x86_64
-- GNU `as` and `ld` are available.
+- GNU `as`, `ld`, `nm`, and `objdump` are available.
 - Python 3 is available.
 
 Verified on this host:
 
 - `make clean && make test` succeeds.
+- `make test` now includes the native-object disassembly regression guard in
+  `tests/check_asm_immediates.py`.
 - `./build/wuci-ji selftest` succeeds as part of the Python test harness.
 - `.github/workflows/ci.yml` now runs the same native Linux x86_64 suite on
   Ubuntu with `make clean && make test`.
@@ -91,6 +93,14 @@ Fixes made while executing this checkpoint:
   use and after deriving AEAD Poly1305 one-time keys.
 - Malformed-envelope coverage includes empty input, truncated header,
   truncated tag/body, bad magic, bad version, and bad tag rejection.
+- The native test path disassembles `build/wuci-ji.o` and fails if known
+  absolute `*_len` assembly constants are encoded as absolute memory reads
+  instead of immediate loads.
+- The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
+  32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
+  and `open-keyfile <path>` load 64 hex key files with an optional trailing
+  newline. The Python harness covers generated key files, raw 64-byte key
+  files, malformed key-file rejection, and sealed/opened artifact round trips.
 
 The native build artifact is:
 
@@ -113,6 +123,6 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    each push when practical.
 2. If the envelope format grows beyond the current prefix, nonce, ciphertext,
    and tag layout, add malformed-envelope tests before changing `open`.
-3. Consider a small assembler-level regression check that disassembles the
-   native object and fails if known `.set` length constants are encoded as
-   absolute memory reads.
+3. If this becomes a long-lived artifact format, consider explicit key IDs or
+   associated-data metadata in a versioned envelope extension before adding
+   more command variants.
