@@ -198,6 +198,14 @@ Fixes made while executing this checkpoint:
   `src/wuci-ji.s` so the existing process-global zeroization range still
   covers them while point, scalar, and FROST code import the shared field
   helpers.
+- The eighth assembly modularization checkpoint split the secp256k1 point,
+  Jacobian, and group backend into `src/secp256k1_point.s`: affine point CLI
+  handlers, SEC1 encode/decode helpers, point output formatting,
+  compressed-point load/encode, affine add/double/mul, Jacobian
+  to-affine/double/mixed-add, projective basepoint multiplication, and the
+  FROST commitment point adapter. Point and Jacobian scratch buffers remain
+  owned by `src/wuci-ji.s` so existing zeroization still covers them while the
+  remaining FROST transcript code imports the point helpers.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -226,8 +234,8 @@ Fixes made while executing this checkpoint:
 - The projective secp256k1 basepoint scalar loop now computes the double and
   add candidates on every bit and mask-selects the next Jacobian accumulator
   instead of branching directly on scalar bits or accumulator-infinity state.
-  `tests/check_asm_immediates.py` also disassembles the native object and fails
-  if a branch appears before the fixed loop back-edge in
+  `tests/check_asm_immediates.py` also disassembles the native objects and
+  fails if a branch appears before the fixed loop back-edge in
   `secp256k1_projective_basepoint_mul_limbs`. This narrows the scalar-loop
   leakage shape, but it is still not a production signing backend: the current
   mixed-add and doubling formulas still contain exceptional-case branches that
@@ -389,10 +397,12 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    constant-time group-operation audit.
 4. Continue the assembly split before adding much more FROST signing code.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
-   `src/secp256k1_field.s`, `src/secp256k1_scalar.s`, `src/sha256.s`, and
-   `src/sys.s` are already separate; next split candidates are `frost.s` for
-   transcript/round helpers or `secp256k1_point.s` for point/Jacobian/group
-   operations. Keep the native and Zig source lists together.
+   `src/secp256k1_field.s`, `src/secp256k1_point.s`,
+   `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
+   separate; the next split candidate is `frost.s` for transcript and round
+   helpers. After that, audit and remediate the remaining exceptional-case
+   branches in point/Jacobian operations before expanding any secret-bearing
+   FROST workflow. Keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

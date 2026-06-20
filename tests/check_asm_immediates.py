@@ -39,7 +39,7 @@ def watched_lengths(nm_output: str) -> dict[int, list[str]]:
     return watched
 
 
-def function_lines(disassembly: str, name: str) -> list[str]:
+def find_function_lines(disassembly: str, name: str) -> list[str] | None:
     lines: list[str] = []
     in_function = False
     for line in disassembly.splitlines():
@@ -53,9 +53,7 @@ def function_lines(disassembly: str, name: str) -> list[str]:
             continue
         if in_function:
             lines.append(line)
-    if not lines:
-        raise SystemExit(f"{name} not found in object disassembly")
-    return lines
+    return lines or None
 
 
 def branch_target(rest: str) -> int | None:
@@ -63,8 +61,10 @@ def branch_target(rest: str) -> int | None:
     return None if match is None else int(match.group(1), 16)
 
 
-def check_projective_scalar_loop(disassembly: str) -> None:
-    body = function_lines(disassembly, "secp256k1_projective_basepoint_mul_limbs")
+def check_projective_scalar_loop(disassembly: str) -> bool:
+    body = find_function_lines(disassembly, "secp256k1_projective_basepoint_mul_limbs")
+    if body is None:
+        return False
     saw_back_edge = False
     loop_back_edges = 0
     offenders: list[str] = []
@@ -99,37 +99,54 @@ def check_projective_scalar_loop(disassembly: str) -> None:
         for offender in offenders:
             print(f"  {offender}", file=sys.stderr)
         raise SystemExit(1)
+    return True
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: check_asm_immediates.py <object>")
+    if len(sys.argv) < 2:
+        raise SystemExit("usage: check_asm_immediates.py <object> [<object> ...]")
 
-    obj = Path(sys.argv[1])
     nm = os.environ.get("NM", "nm")
     objdump = os.environ.get("OBJDUMP", "objdump")
-    lengths = watched_lengths(run_tool([nm, "-a", str(obj)]))
-    if not lengths:
+    disassemblies: list[tuple[Path, str]] = []
+    saw_lengths = False
+
+    for arg in sys.argv[1:]:
+        obj = Path(arg)
+        lengths = watched_lengths(run_tool([nm, "-a", str(obj)]))
+        saw_lengths = saw_lengths or bool(lengths)
+        disassembly = run_tool([objdump, "-dr", str(obj)])
+        disassemblies.append((obj, disassembly))
+
+        offenders: list[str] = []
+        for line in disassembly.splitlines():
+            match = ABS_LOAD_RE.search(line)
+            if not match:
+                continue
+            value = int(match.group(1), 16)
+            if value in lengths:
+                names = ", ".join(sorted(lengths[value]))
+                offenders.append(f"{obj}: {line.strip()}  ; {names}")
+
+        if offenders:
+            print(
+                "absolute memory reads found for assembly length constants:",
+                file=sys.stderr,
+            )
+            for offender in offenders:
+                print(f"  {offender}", file=sys.stderr)
+            raise SystemExit(1)
+
+    if not saw_lengths:
         raise SystemExit("no absolute *_len symbols found to check")
 
-    disassembly = run_tool([objdump, "-dr", str(obj)])
-    offenders: list[str] = []
-    for line in disassembly.splitlines():
-        match = ABS_LOAD_RE.search(line)
-        if not match:
-            continue
-        value = int(match.group(1), 16)
-        if value in lengths:
-            names = ", ".join(sorted(lengths[value]))
-            offenders.append(f"{line.strip()}  ; {names}")
-
-    if offenders:
-        print("absolute memory reads found for assembly length constants:", file=sys.stderr)
-        for offender in offenders:
-            print(f"  {offender}", file=sys.stderr)
-        raise SystemExit(1)
-
-    check_projective_scalar_loop(disassembly)
+    for _obj, disassembly in disassemblies:
+        if check_projective_scalar_loop(disassembly):
+            break
+    else:
+        raise SystemExit(
+            "secp256k1_projective_basepoint_mul_limbs not found in object disassembly"
+        )
 
 
 if __name__ == "__main__":
