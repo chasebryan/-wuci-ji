@@ -62,9 +62,12 @@ def branch_target(rest: str) -> int | None:
 
 
 def relocation_call_targets(lines: list[str]) -> set[str]:
-    return set(
-        re.findall(r"R_X86_64_[A-Z0-9_]+\s+([A-Za-z0-9_]+)-", "\n".join(lines))
+    text = "\n".join(lines)
+    relocation_targets = set(
+        re.findall(r"R_X86_64_[A-Z0-9_]+\s+([A-Za-z0-9_]+)-", text)
     )
+    resolved_targets = set(re.findall(r"<([A-Za-z0-9_]+)>", text))
+    return relocation_targets | resolved_targets
 
 
 def local_branch_lines(lines: list[str]) -> list[str]:
@@ -268,6 +271,75 @@ def check_scalar_inversion_boundary(disassemblies: list[tuple[Path, str]]) -> No
         raise SystemExit(1)
 
 
+def check_public_affine_mul_boundary(disassemblies: list[tuple[Path, str]]) -> None:
+    public_wrapper = "secp256k1_public_point_mul_limbs"
+    affine_mul = "secp256k1_point_mul_limbs"
+    public_callers = {
+        "run_secp256k1_basepoint_mul",
+        "run_frost_secp256k1_group_commitment",
+        "run_frost_secp256k1_verify",
+    }
+    secret_bearing_callers = {
+        "frost_secp256k1_commit_scalar",
+        "run_frost_secp256k1_commit",
+        "run_frost_secp256k1_signing_share",
+        "run_frost_secp256k1_aggregate",
+    }
+    found_public_wrapper = False
+    found_public_callers: set[str] = set()
+    found_secret_bearing_callers: set[str] = set()
+    offenders: list[str] = []
+
+    for _obj, disassembly in disassemblies:
+        wrapper_body = find_function_lines(disassembly, public_wrapper)
+        if wrapper_body is not None:
+            found_public_wrapper = True
+            wrapper_targets = relocation_call_targets(wrapper_body)
+            if affine_mul not in wrapper_targets:
+                offenders.append(f"{public_wrapper} must jump to {affine_mul}")
+
+        for caller in public_callers:
+            body = find_function_lines(disassembly, caller)
+            if body is None:
+                continue
+            found_public_callers.add(caller)
+            call_targets = relocation_call_targets(body)
+            if public_wrapper not in call_targets:
+                offenders.append(f"{caller} must call {public_wrapper}")
+            if affine_mul in call_targets:
+                offenders.append(f"{caller} must not call {affine_mul} directly")
+
+        for caller in secret_bearing_callers:
+            body = find_function_lines(disassembly, caller)
+            if body is None:
+                continue
+            found_secret_bearing_callers.add(caller)
+            call_targets = relocation_call_targets(body)
+            for forbidden in (public_wrapper, affine_mul):
+                if forbidden in call_targets:
+                    offenders.append(f"{caller} must not call {forbidden}")
+
+    missing_public = sorted(public_callers - found_public_callers)
+    missing_secret = sorted(secret_bearing_callers - found_secret_bearing_callers)
+    if not found_public_wrapper:
+        raise SystemExit(f"{public_wrapper} not found in object disassembly")
+    if missing_public:
+        raise SystemExit(
+            "public affine-mul callers not found in object disassembly: "
+            + ", ".join(missing_public)
+        )
+    if missing_secret:
+        raise SystemExit(
+            "secret-bearing FROST callers not found in object disassembly: "
+            + ", ".join(missing_secret)
+        )
+    if offenders:
+        print("public affine-mul boundary audit failed:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  {offender}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def check_finite_affine_boundary(disassemblies: list[tuple[Path, str]]) -> None:
     finite_helper = "secp256k1_jacobian_to_affine_finite_limbs"
     generic_helper = "secp256k1_jacobian_to_affine_limbs"
@@ -364,6 +436,7 @@ def main() -> None:
     check_finite_affine_boundary(disassemblies)
     check_field_inversion_boundary(disassemblies)
     check_scalar_inversion_boundary(disassemblies)
+    check_public_affine_mul_boundary(disassemblies)
 
 
 if __name__ == "__main__":

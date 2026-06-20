@@ -50,7 +50,7 @@
 .extern encode_secp256k1_compressed_point
 .extern frost_secp256k1_commit_scalar
 .extern secp256k1_point_add_limbs
-.extern secp256k1_point_mul_limbs
+.extern secp256k1_public_point_mul_limbs
 .extern secp256k1_projective_basepoint_mul_limbs
 .extern secp256k1_jacobian_to_affine_finite_limbs
 .extern secp256k1_field_equal_limbs
@@ -556,7 +556,7 @@ run_frost_secp256k1_group_commitment:
     lea rdx, [rip + secp256k1_point_y2]
     lea rcx, [rip + frost_group_binding_x]
     lea r8, [rip + frost_group_binding_y]
-    call secp256k1_point_mul_limbs
+    call secp256k1_public_point_mul_limbs
     cmp eax, 1
     jne frost_commitment_arg_error
     lea rdi, [rip + secp256k1_point_x1]
@@ -876,7 +876,7 @@ run_frost_secp256k1_verify:
     lea rdx, [rip + secp256k1_point_y2]
     lea rcx, [rip + frost_verify_scaled_x]
     lea r8, [rip + frost_verify_scaled_y]
-    call secp256k1_point_mul_limbs
+    call secp256k1_public_point_mul_limbs
     cmp eax, 1
     jne .Lrun_frost_verify_right_is_r
 

@@ -26,6 +26,7 @@
 .global secp256k1_point_validate_limbs
 .global secp256k1_point_double_limbs
 .global secp256k1_point_add_limbs
+.global secp256k1_public_point_mul_limbs
 .global secp256k1_point_mul_limbs
 .global secp256k1_jacobian_to_affine_limbs
 .global secp256k1_jacobian_to_affine_finite_limbs
@@ -211,7 +212,7 @@ run_secp256k1_basepoint_mul:
     lea rdx, [rip + secp256k1_basepoint_y]
     lea rcx, [rip + secp256k1_point_rx]
     lea r8, [rip + secp256k1_point_ry]
-    call secp256k1_point_mul_limbs
+    call secp256k1_public_point_mul_limbs
     cmp eax, 1
     jne write_secp256k1_point_infinity
     jmp write_secp256k1_point_out
@@ -1067,6 +1068,9 @@ secp256k1_point_add_limbs:
     pop r12
     pop rbx
     ret
+
+secp256k1_public_point_mul_limbs:
+    jmp secp256k1_point_mul_limbs
 
 secp256k1_point_mul_limbs:
     push rbx

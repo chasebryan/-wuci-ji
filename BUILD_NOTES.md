@@ -297,6 +297,15 @@ Fixes made while executing this checkpoint:
   the mask-select helper in both exponentiation routines. Decode still has
   public input-validation and parity-selection branches, so keep it treated as a
   public parsing surface rather than a secret-bearing scalar path.
+- The sixth constant-time group hardening checkpoint added an explicit
+  `secp256k1_public_point_mul_limbs` wrapper for the remaining affine
+  double-and-add point multiplier. Public CLI basepoint multiplication,
+  `frost-secp256k1-group-commitment`, and `frost-secp256k1-verify` now call the
+  wrapper, while secret-bearing FROST commitment/signing/aggregation paths are
+  guarded from calling either the wrapper or `secp256k1_point_mul_limbs`
+  directly. This keeps public decode/error-handling branches and the branchy
+  affine verifier multiplier labeled as public-only plumbing while the
+  secret-bearing commitment path stays on the projective basepoint backend.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -455,11 +464,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, keep public decode/error-handling branches isolated from
-   secret-bearing FROST paths, then audit whether the remaining affine
-   `secp256k1_point_mul_limbs` verifier path needs a projective or fixed-window
-   replacement before expanding any signing workflow. Keep the native and Zig
-   source lists together.
+   separate. Next, decide whether the public verifier-only affine multiplier
+   should stay isolated behind `secp256k1_public_point_mul_limbs` or be replaced
+   with a projective arbitrary-point or fixed-window verifier backend before
+   expanding any signing workflow. Keep the native and Zig source lists
+   together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
