@@ -306,6 +306,16 @@ Fixes made while executing this checkpoint:
   directly. This keeps public decode/error-handling branches and the branchy
   affine verifier multiplier labeled as public-only plumbing while the
   secret-bearing commitment path stays on the projective basepoint backend.
+- The seventh constant-time group hardening checkpoint made the public-affine
+  multiplier decision executable in the disassembly audit. The guard now
+  enumerates every object function that reaches `secp256k1_public_point_mul_limbs`
+  or raw `secp256k1_point_mul_limbs`, fails on unclassified callers, and requires
+  `frost_secp256k1_commit_scalar` to call the projective basepoint helper. The
+  secret scalar FROST command surfaces are also checked against compressed-point
+  decode and public affine-multiplier helpers. For now the branchy affine
+  multiplier remains isolated as verifier/public aggregation plumbing because
+  those inputs are public; do not reuse it for nonce commitments or signing
+  shares.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -464,10 +474,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, decide whether the public verifier-only affine multiplier
-   should stay isolated behind `secp256k1_public_point_mul_limbs` or be replaced
-   with a projective arbitrary-point or fixed-window verifier backend before
-   expanding any signing workflow. Keep the native and Zig source lists
+   separate. Next, start wrapping the existing guarded FROST primitives into a
+   safer end-to-end workflow, keeping private nonce and signing-share paths on
+   projective basepoint helpers and leaving public verifier aggregation behind
+   `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
    together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
