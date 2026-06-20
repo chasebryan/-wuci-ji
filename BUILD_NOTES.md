@@ -136,6 +136,8 @@ Fixes made while executing this checkpoint:
 - Fixed-form commands now enforce exact argument counts. Extra positional
   arguments are rejected with usage instead of being silently ignored, including
   stdin-streaming, file-path, metadata, key-file, and help commands.
+- The Python harness now asserts the built-in help surface for the current
+  file workflow commands and manifest ciphertext SHA-256 wording.
 
 ## Envelope layouts
 

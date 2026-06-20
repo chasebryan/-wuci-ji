@@ -766,10 +766,30 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 assert not output_path.exists(), args
 
 
+def assert_help_output() -> None:
+    help_proc = run(["--help"])
+    assert help_proc.returncode == 0, help_proc.stderr.decode("utf-8", "replace")
+    help_text = help_proc.stdout.decode("ascii")
+
+    for snippet in (
+        "seal-file <key> <in> <out>",
+        "seal-file-v2 <key> <key-id> <in> <out>",
+        "seal-file-keyfile <path> <in> <out>",
+        "seal-file-keyfile-v2 <path> <key-id> <in> <out>",
+        "open-file <key> <in> <out>",
+        "open-file-keyfile <path> <in> <out>",
+        "manifest                       print metadata, ciphertext SHA-256, and tag",
+        "manifest-file <path>           print file metadata, ciphertext SHA-256, and tag",
+        "selftest                       run built-in known-answer tests",
+    ):
+        assert snippet in help_text, snippet
+
+
 def main() -> None:
     selftest = run(["selftest"])
     assert selftest.returncode == 0, selftest.stderr.decode("utf-8", "replace")
     assert selftest.stdout == b"wuci-ji selftest: PASS\n"
+    assert_help_output()
 
     assert_sha256(b"")
     assert_sha256(b"abc")
