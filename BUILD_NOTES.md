@@ -34,8 +34,8 @@ make build-linux
 file build/wuci-ji-linux-x86_64
 ```
 
-`make build-linux` keeps `src/wuci-ji.s` in GNU `as` form and writes a generated
-Zig/LLVM-compatible assembly copy to `build/wuci-ji.zig.s`.
+`make build-linux` keeps `src/*.s` in GNU `as` form and writes generated
+Zig/LLVM-compatible assembly copies to `build/*.zig.s`.
 
 On a Linux host with user-mode QEMU for x86_64:
 
@@ -72,7 +72,7 @@ Observed host on 2026-06-20:
 Verified on this host:
 
 - `make clean && make test` succeeds.
-- The native build path assembles `src/wuci-ji.s` and `src/x25519.s`; it no
+- The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in
   `tests/check_asm_immediates.py`.
@@ -164,6 +164,11 @@ Fixes made while executing this checkpoint:
   `make -B build-linux` also emits a static x86_64 Linux ELF, and that
   cross-built artifact passes both `selftest` and the Python CLI test suite
   when selected through `WUCI_JI_BIN`.
+- The second assembly modularization checkpoint split low-level syscall and
+  file helpers into `src/sys.s`: `write_all`, `fill_random`, key/artifact file
+  readers, seal/open file descriptor helpers, output file creation, and
+  plaintext output routing. Shared constants now live in `include/wuci.inc`,
+  and the Makefile native/Zig source lists include `src/sys.s`.
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
@@ -354,10 +359,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    into a safer end-to-end workflow only after the remaining assembly split and
    constant-time group-operation audit.
 4. Continue the assembly split before adding much more FROST signing code.
-   `src/sha256.s` is already separate; next split candidates are `main.s` for
-   `_start`/dispatch, `sys.s` for syscall/file helpers, `hmac_hkdf.s` for
-   hash/KDF command glue, and `secp256k1.s`/`frost.s` for curve and FROST
-   primitives. Keep the native and Zig source lists together.
+   `src/sha256.s` and `src/sys.s` are already separate; next split candidates
+   are `main.s` for `_start`/dispatch, `hmac_hkdf.s` for hash/KDF command
+   glue, and `secp256k1.s`/`frost.s` for curve and FROST primitives. Keep the
+   native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

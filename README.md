@@ -4,8 +4,8 @@
 
 ## Build and test
 
-`src/wuci-ji.s` is an x86_64 Linux assembly program. Native `make`, `make selftest`,
-and `make test` require a Linux x86_64 host with GNU `as`/`ld`.
+The `src/*.s` sources build an x86_64 Linux assembly program. Native `make`,
+`make selftest`, and `make test` require a Linux x86_64 host with GNU `as`/`ld`.
 
 On macOS or other non-Linux hosts with Zig installed, build the Linux ELF with:
 
