@@ -316,6 +316,15 @@ Fixes made while executing this checkpoint:
   multiplier remains isolated as verifier/public aggregation plumbing because
   those inputs are public; do not reuse it for nonce commitments or signing
   shares.
+- The first FROST workflow checkpoint promoted the deterministic
+  FROST(secp256k1,SHA-256) 2-of-2 CLI integration path into
+  `tests/frost_secp256k1_workflow.py` and the `make frost-workflow` target.
+  The harness composes nonce commitments, commitment hashing, binding factors,
+  group commitment aggregation, challenge generation, Lagrange coefficients,
+  signing shares, aggregation, and verification through the existing guarded CLI
+  primitives, then returns the public signature fields. `make test` now runs
+  this workflow target as a first-class regression before the broader Python
+  suite, while still avoiding a new broad signing API surface.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -474,11 +483,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, start wrapping the existing guarded FROST primitives into a
-   safer end-to-end workflow, keeping private nonce and signing-share paths on
-   projective basepoint helpers and leaving public verifier aggregation behind
-   `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
-   together.
+   separate. Next, decide the user-facing shape for a FROST workflow command or
+   scripted helper, using `make frost-workflow` as the regression lane. Keep
+   private nonce and signing-share paths on projective basepoint helpers and
+   leave public verifier aggregation behind `secp256k1_public_point_mul_limbs`.
+   Keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

@@ -600,7 +600,7 @@ def output_labels(stdout: bytes) -> dict[str, str]:
     return labels
 
 
-def assert_frost_end_to_end_cli_flow() -> None:
+def assert_frost_end_to_end_cli_flow() -> dict[str, str]:
     message = b"wuci-ji frost integration"
     group_public_key = secp256k1_compressed_ref(
         secp256k1_point_mul_ref(5, SECP256K1_G)
@@ -718,6 +718,13 @@ def assert_frost_end_to_end_cli_flow() -> None:
     )
     assert verify_proc.returncode == 0, verify_proc.stderr.decode("utf-8", "replace")
     assert verify_proc.stdout == b"valid\n"
+    return {
+        "group_public_key": group_public_key,
+        "group_commitment": group_commitment,
+        "signature_commitment": signature["signature_commitment"],
+        "signature_scalar": signature["signature_scalar"],
+        "challenge": scalar_hex(challenge),
+    }
 
 
 def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:

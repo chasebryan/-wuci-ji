@@ -18,7 +18,7 @@ ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
 ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean test test-linux selftest selftest-linux
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-workflow test test-linux selftest selftest-linux
 
 all: check-native $(TARGET)
 
@@ -62,7 +62,10 @@ selftest: check-native $(TARGET)
 check-asm-immediates: check-native $(OBJECTS)
 	NM=$(NM) OBJDUMP=$(OBJDUMP) $(PYTHON) tests/check_asm_immediates.py $(OBJECTS)
 
-test: check-native $(TARGET) check-asm-immediates
+frost-workflow: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/frost_secp256k1_workflow.py --quiet
+
+test: check-native $(TARGET) check-asm-immediates frost-workflow
 	$(PYTHON) tests/test_wuci_ji.py
 
 selftest-linux: check-qemu-user build-linux
