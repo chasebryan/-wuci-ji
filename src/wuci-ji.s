@@ -45,8 +45,6 @@
 .global run_secp256k1_point_decode
 .global run_keygen
 .global run_keypair
-.global run_hmac_sha256
-.global run_hkdf_sha256
 .global run_poly1305
 .global run_chacha20
 .global run_seal
@@ -72,6 +70,9 @@
 .global run_aead_seal
 .global run_aead_open
 .global run_selftest
+.global read_error
+.global key_error
+.global hkdf_arg_error
 .global streq
 .global exit_process
 .global sha_ctx
@@ -84,10 +85,18 @@
 .global seal_file_mode
 .global aead_open_buf
 .global hex_buf
+.global hmac_key
+.global hmac_ipad
+.global hmac_opad
+.global hmac_inner
+.global hkdf_salt
+.global hkdf_info
+.global hkdf_prk
 .global base64_quad_len
 .global base64_quad_pad
 .global base64_seen_padding
 .global base64_quad
+.global hkdf_counter_one
 .extern write_all
 .extern fill_random
 .extern read_key_file
@@ -107,6 +116,7 @@
 .extern hex_u32_decode
 .extern write_u64_decimal_stdout
 .extern write_manifest_labeled_sha256
+.extern hmac_prepare_sha256_key32
 .extern base64_emit_quad
 .extern base64_decode_char
 .extern base64_alphabet
@@ -2534,191 +2544,6 @@ run_keypair:
     lea rsi, [rip + hex_buf]
     mov edx, 32
     call hex_encode
-    mov byte ptr [rip + hex_buf + 64], 10
-    mov rdi, STDOUT
-    lea rsi, [rip + hex_buf]
-    mov edx, 65
-    call write_all
-
-    xor edi, edi
-    jmp exit_process
-
-run_hmac_sha256:
-    cmp qword ptr [rsp], 3
-    jne usage_exit
-
-    mov rdi, qword ptr [rsp + 24]
-    lea rsi, [rip + hmac_key]
-    call hex32_decode
-    cmp eax, 1
-    jne key_error
-
-    lea rdi, [rip + hmac_key]
-    lea rsi, [rip + hmac_ipad]
-    lea rdx, [rip + hmac_opad]
-    call hmac_prepare_sha256_key32
-
-    lea rdi, [rip + sha_ctx]
-    call sha256_init
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_ipad]
-    mov edx, 64
-    call sha256_update
-
-.Lhmac_read_loop:
-    mov eax, SYS_READ
-    mov edi, STDIN
-    lea rsi, [rip + io_buf]
-    mov edx, 4096
-    syscall
-    test rax, rax
-    js read_error
-    jz .Lhmac_eof
-
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + io_buf]
-    mov rdx, rax
-    call sha256_update
-    jmp .Lhmac_read_loop
-
-.Lhmac_eof:
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_inner]
-    call sha256_final
-
-    lea rdi, [rip + sha_ctx]
-    call sha256_init
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_opad]
-    mov edx, 64
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_inner]
-    mov edx, 32
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + digest_buf]
-    call sha256_final
-
-    lea rdi, [rip + digest_buf]
-    lea rsi, [rip + hex_buf]
-    mov edx, 32
-    call hex_encode
-
-    mov byte ptr [rip + hex_buf + 64], 10
-    mov rdi, STDOUT
-    lea rsi, [rip + hex_buf]
-    mov edx, 65
-    call write_all
-
-    xor edi, edi
-    jmp exit_process
-
-run_hkdf_sha256:
-    cmp qword ptr [rsp], 4
-    jne usage_exit
-
-    mov rdi, qword ptr [rsp + 24]
-    lea rsi, [rip + hkdf_salt]
-    call hex32_decode
-    cmp eax, 1
-    jne hkdf_arg_error
-
-    mov rdi, qword ptr [rsp + 32]
-    lea rsi, [rip + hkdf_info]
-    call hex32_decode
-    cmp eax, 1
-    jne hkdf_arg_error
-
-    lea rdi, [rip + hkdf_salt]
-    lea rsi, [rip + hmac_ipad]
-    lea rdx, [rip + hmac_opad]
-    call hmac_prepare_sha256_key32
-
-    lea rdi, [rip + sha_ctx]
-    call sha256_init
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_ipad]
-    mov edx, 64
-    call sha256_update
-
-.Lhkdf_read_loop:
-    mov eax, SYS_READ
-    mov edi, STDIN
-    lea rsi, [rip + io_buf]
-    mov edx, 4096
-    syscall
-    test rax, rax
-    js read_error
-    jz .Lhkdf_eof
-
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + io_buf]
-    mov rdx, rax
-    call sha256_update
-    jmp .Lhkdf_read_loop
-
-.Lhkdf_eof:
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_inner]
-    call sha256_final
-
-    lea rdi, [rip + sha_ctx]
-    call sha256_init
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_opad]
-    mov edx, 64
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_inner]
-    mov edx, 32
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hkdf_prk]
-    call sha256_final
-
-    lea rdi, [rip + hkdf_prk]
-    lea rsi, [rip + hmac_ipad]
-    lea rdx, [rip + hmac_opad]
-    call hmac_prepare_sha256_key32
-
-    lea rdi, [rip + sha_ctx]
-    call sha256_init
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_ipad]
-    mov edx, 64
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hkdf_info]
-    mov edx, 32
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hkdf_counter_one]
-    mov edx, 1
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_inner]
-    call sha256_final
-
-    lea rdi, [rip + sha_ctx]
-    call sha256_init
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_opad]
-    mov edx, 64
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + hmac_inner]
-    mov edx, 32
-    call sha256_update
-    lea rdi, [rip + sha_ctx]
-    lea rsi, [rip + digest_buf]
-    call sha256_final
-
-    lea rdi, [rip + digest_buf]
-    lea rsi, [rip + hex_buf]
-    mov edx, 32
-    call hex_encode
-
     mov byte ptr [rip + hex_buf + 64], 10
     mov rdi, STDOUT
     lea rsi, [rip + hex_buf]
@@ -6837,30 +6662,6 @@ frost_hash_mem:
     pop r13
     pop r12
     pop rbx
-    ret
-
-hmac_prepare_sha256_key32:
-    xor rcx, rcx
-.Lhmac_key_loop:
-    cmp rcx, 32
-    je .Lhmac_pad_loop
-    mov al, byte ptr [rdi + rcx]
-    mov r8b, al
-    xor al, 0x36
-    mov byte ptr [rsi + rcx], al
-    mov al, r8b
-    xor al, 0x5c
-    mov byte ptr [rdx + rcx], al
-    inc rcx
-    jmp .Lhmac_key_loop
-.Lhmac_pad_loop:
-    cmp rcx, 64
-    je .Lhmac_prepare_done
-    mov byte ptr [rsi + rcx], 0x36
-    mov byte ptr [rdx + rcx], 0x5c
-    inc rcx
-    jmp .Lhmac_pad_loop
-.Lhmac_prepare_done:
     ret
 
 aead_poly1305_init:
