@@ -1,5 +1,4 @@
-<img width="1183" height="584" alt="wsj-banner" src="https://github.com/user-attachments/assets/da26f0cd-02aa-4937-928e-595fcbfe0669" />
-
+<img width="2172" height="724" alt="wsj-banner-github" src="https://github.com/user-attachments/assets/3e20bf66-1376-46b0-9f25-0ec619bf7224" />
 # -wuci-ji
 无此机(Wuci-ji)是一个专为 x86_64 架构机器设计的汇编语言项目，旨在探索机器码、底层执行、系统边界以及精确控制。
 
