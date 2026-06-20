@@ -109,6 +109,18 @@ _start:
     je run_seal_file_v2
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_file_keyfile]
+    call streq
+    cmp eax, 1
+    je run_seal_file_keyfile
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_file_keyfile_v2]
+    call streq
+    cmp eax, 1
+    je run_seal_file_keyfile_v2
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_seal_keyfile]
     call streq
     cmp eax, 1
@@ -131,6 +143,12 @@ _start:
     call streq
     cmp eax, 1
     je run_open_file
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_open_file_keyfile]
+    call streq
+    cmp eax, 1
+    je run_open_file_keyfile
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_open_keyfile]
@@ -708,34 +726,17 @@ run_seal_file:
     cmp eax, 1
     jne aead_arg_error
 
-    mov eax, SYS_OPENAT
-    mov rdi, AT_FDCWD
-    mov rsi, qword ptr [rsp + 32]
-    mov edx, O_RDONLY
-    xor r10d, r10d
-    syscall
-    test rax, rax
-    js input_file_error
-    mov qword ptr [rip + seal_input_fd], rax
-
-    mov eax, SYS_OPENAT
-    mov rdi, AT_FDCWD
+    mov rdi, qword ptr [rsp + 32]
     mov rsi, qword ptr [rsp + 40]
-    mov edx, FILE_CREATE_FLAGS
-    mov r10d, FILE_CREATE_MODE
-    syscall
-    test rax, rax
-    js .Lseal_file_output_fail
-    mov qword ptr [rip + seal_output_fd], rax
-    mov qword ptr [rip + seal_file_mode], 1
+    call open_seal_file_paths
+    cmp eax, 1
+    je .Lseal_file_paths_open
+    cmp eax, 2
+    je output_file_error
+    jmp input_file_error
 
+.Lseal_file_paths_open:
     jmp seal_with_loaded_key
-
-.Lseal_file_output_fail:
-    mov eax, SYS_CLOSE
-    mov rdi, qword ptr [rip + seal_input_fd]
-    syscall
-    jmp output_file_error
 
 run_seal_file_v2:
     cmp qword ptr [rsp], 6
@@ -753,34 +754,67 @@ run_seal_file_v2:
     cmp eax, 1
     jne keyid_arg_error
 
-    mov eax, SYS_OPENAT
-    mov rdi, AT_FDCWD
-    mov rsi, qword ptr [rsp + 40]
-    mov edx, O_RDONLY
-    xor r10d, r10d
-    syscall
-    test rax, rax
-    js input_file_error
-    mov qword ptr [rip + seal_input_fd], rax
-
-    mov eax, SYS_OPENAT
-    mov rdi, AT_FDCWD
+    mov rdi, qword ptr [rsp + 40]
     mov rsi, qword ptr [rsp + 48]
-    mov edx, FILE_CREATE_FLAGS
-    mov r10d, FILE_CREATE_MODE
-    syscall
-    test rax, rax
-    js .Lseal_file_v2_output_fail
-    mov qword ptr [rip + seal_output_fd], rax
-    mov qword ptr [rip + seal_file_mode], 1
+    call open_seal_file_paths
+    cmp eax, 1
+    je .Lseal_file_v2_paths_open
+    cmp eax, 2
+    je output_file_error
+    jmp input_file_error
 
+.Lseal_file_v2_paths_open:
     jmp seal_v2_with_loaded_key
 
-.Lseal_file_v2_output_fail:
-    mov eax, SYS_CLOSE
-    mov rdi, qword ptr [rip + seal_input_fd]
-    syscall
-    jmp output_file_error
+run_seal_file_keyfile:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne keyfile_error
+
+    mov rdi, qword ptr [rsp + 32]
+    mov rsi, qword ptr [rsp + 40]
+    call open_seal_file_paths
+    cmp eax, 1
+    je .Lseal_file_keyfile_paths_open
+    cmp eax, 2
+    je output_file_error
+    jmp input_file_error
+
+.Lseal_file_keyfile_paths_open:
+    jmp seal_with_loaded_key
+
+run_seal_file_keyfile_v2:
+    cmp qword ptr [rsp], 6
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne keyfile_error
+
+    mov rdi, qword ptr [rsp + 32]
+    lea rsi, [rip + envelope_key_id]
+    call hex16_decode
+    cmp eax, 1
+    jne keyid_arg_error
+
+    mov rdi, qword ptr [rsp + 40]
+    mov rsi, qword ptr [rsp + 48]
+    call open_seal_file_paths
+    cmp eax, 1
+    je .Lseal_file_keyfile_v2_paths_open
+    cmp eax, 2
+    je output_file_error
+    jmp input_file_error
+
+.Lseal_file_keyfile_v2_paths_open:
+    jmp seal_v2_with_loaded_key
 
 run_seal_keyfile:
     cmp qword ptr [rsp], 3
@@ -947,6 +981,27 @@ run_open_file:
     call hex32_decode
     cmp eax, 1
     jne aead_arg_error
+
+    mov rax, qword ptr [rsp + 40]
+    mov qword ptr [rip + aead_output_path], rax
+
+    mov rdi, qword ptr [rsp + 32]
+    call read_artifact_file
+    cmp eax, 1
+    je open_parse_loaded_envelope
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
+run_open_file_keyfile:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne keyfile_error
 
     mov rax, qword ptr [rsp + 40]
     mov qword ptr [rip + aead_output_path], rax
@@ -2041,6 +2096,50 @@ read_artifact_file:
     xor eax, eax
 .Lread_artifact_file_done:
     pop r13
+    pop r12
+    pop rbx
+    ret
+
+open_seal_file_paths:
+    push rbx
+    push r12
+    mov rbx, rdi
+    mov r12, rsi
+    mov qword ptr [rip + seal_file_mode], 0
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, rbx
+    mov edx, O_RDONLY
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js .Lopen_seal_file_input_fail
+    mov qword ptr [rip + seal_input_fd], rax
+
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, r12
+    mov edx, FILE_CREATE_FLAGS
+    mov r10d, FILE_CREATE_MODE
+    syscall
+    test rax, rax
+    js .Lopen_seal_file_output_fail
+    mov qword ptr [rip + seal_output_fd], rax
+    mov qword ptr [rip + seal_file_mode], 1
+    mov eax, 1
+    jmp .Lopen_seal_file_done
+
+.Lopen_seal_file_output_fail:
+    mov eax, SYS_CLOSE
+    mov rdi, qword ptr [rip + seal_input_fd]
+    syscall
+    mov eax, 2
+    jmp .Lopen_seal_file_done
+
+.Lopen_seal_file_input_fail:
+    xor eax, eax
+.Lopen_seal_file_done:
     pop r12
     pop rbx
     ret
@@ -3365,6 +3464,10 @@ cmd_seal_file:
     .asciz "seal-file"
 cmd_seal_file_v2:
     .asciz "seal-file-v2"
+cmd_seal_file_keyfile:
+    .asciz "seal-file-keyfile"
+cmd_seal_file_keyfile_v2:
+    .asciz "seal-file-keyfile-v2"
 cmd_seal_keyfile:
     .asciz "seal-keyfile"
 cmd_seal_keyfile_v2:
@@ -3373,6 +3476,8 @@ cmd_open:
     .asciz "open"
 cmd_open_file:
     .asciz "open-file"
+cmd_open_file_keyfile:
+    .asciz "open-file-keyfile"
 cmd_open_keyfile:
     .asciz "open-keyfile"
 cmd_inspect:
@@ -3393,7 +3498,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|seal-file|seal-file-v2|open|open-file|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
@@ -3404,8 +3509,11 @@ usage_msg:
     .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
     .ascii "  seal-file <key> <in> <out>     seal file to a new output path; refuses overwrite\n"
     .ascii "  seal-file-v2 <key> <key-id> <in> <out> seal v2 file; refuses overwrite\n"
+    .ascii "  seal-file-keyfile <path> <in> <out> seal file with key file; refuses overwrite\n"
+    .ascii "  seal-file-keyfile-v2 <path> <key-id> <in> <out> seal v2 file with key file\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
     .ascii "  open-file <key> <in> <out>     open file to a new output path; refuses overwrite\n"
+    .ascii "  open-file-keyfile <path> <in> <out> open file with key file; refuses overwrite\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
     .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
     .ascii "  manifest                       print envelope metadata, ciphertext length, and tag\n"

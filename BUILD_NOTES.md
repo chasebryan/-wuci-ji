@@ -126,6 +126,11 @@ Fixes made while executing this checkpoint:
   envelope, `seal-file-v2` does the same with authenticated key ID metadata, and
   `open-file` authenticates the complete artifact before creating the plaintext
   output. All three commands refuse to overwrite existing output paths.
+- `seal-file-keyfile <path> <in> <out>`,
+  `seal-file-keyfile-v2 <path> <key-id> <in> <out>`, and
+  `open-file-keyfile <path> <in> <out>` provide the same no-overwrite file
+  workflows while loading the 32-byte key from a 64-hex key file with optional
+  trailing newline.
 - Fixed-form commands now enforce exact argument counts. Extra positional
   arguments are rejected with usage instead of being silently ignored, including
   stdin-streaming, file-path, metadata, key-file, and help commands.
@@ -182,6 +187,6 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 2. If v2 grows again, keep adding malformed-envelope tests before changing
    `open`; current tests cover truncated v2 headers, truncated bodies/tags,
    authenticated key ID tampering, nonce tampering, and tag tampering.
-3. Consider key-file-backed path variants only if stored artifact workflows need
-   them; current file commands intentionally keep the smallest no-overwrite
-   surface that covers direct hex-key use.
+3. The direct-key and key-file-backed no-overwrite file workflows are now both
+   covered. Next file-surface work should focus on reducing command-name length
+   or adding explicit docs/examples rather than adding more aliases.
