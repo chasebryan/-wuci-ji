@@ -32,10 +32,15 @@
 .equ ENVELOPE_KEY_ID_LEN, 16
 .equ ENVELOPE_V2_HEADER_LEN, ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN + ENVELOPE_NONCE_LEN
 .equ ENVELOPE_V2_MIN_LEN, ENVELOPE_V2_HEADER_LEN + ENVELOPE_TAG_LEN
+.equ ENVELOPE_X25519_PUBLIC_LEN, 32
+.equ ENVELOPE_V3_HEADER_LEN, ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN + ENVELOPE_NONCE_LEN
+.equ ENVELOPE_V3_MIN_LEN, ENVELOPE_V3_HEADER_LEN + ENVELOPE_TAG_LEN
 .equ KEYFILE_READ_MAX, 66
 
 .section .text
 .global _start
+.extern x25519_basepoint
+.extern x25519_scalar_mult
 
 _start:
     mov rax, qword ptr [rsp]
@@ -59,6 +64,12 @@ _start:
     call streq
     cmp eax, 1
     je run_keygen
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_keypair]
+    call streq
+    cmp eax, 1
+    je run_keypair
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_hmac_sha256]
@@ -121,6 +132,12 @@ _start:
     je run_seal_file_keyfile_v2
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_seal_to]
+    call streq
+    cmp eax, 1
+    je run_seal_to
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_seal_keyfile]
     call streq
     cmp eax, 1
@@ -149,6 +166,12 @@ _start:
     call streq
     cmp eax, 1
     je run_open_file_keyfile
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_open_to]
+    call streq
+    cmp eax, 1
+    je run_open_to
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_open_keyfile]
@@ -400,6 +423,53 @@ run_keygen:
     mov edx, 32
     call hex_encode
 
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+run_keypair:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+
+    lea rdi, [rip + x25519_private_key]
+    mov esi, 32
+    call fill_random
+    cmp eax, 1
+    jne random_error
+
+    lea rdi, [rip + x25519_public_key]
+    lea rsi, [rip + x25519_private_key]
+    call x25519_basepoint
+    cmp eax, 1
+    jne random_error
+
+    mov rdi, STDOUT
+    lea rsi, [rip + keypair_private_label]
+    mov edx, OFFSET FLAT:keypair_private_label_len
+    call write_all
+    lea rdi, [rip + x25519_private_key]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + keypair_public_label]
+    mov edx, OFFSET FLAT:keypair_public_label_len
+    call write_all
+    lea rdi, [rip + x25519_public_key]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
     mov byte ptr [rip + hex_buf + 64], 10
     mov rdi, STDOUT
     lea rsi, [rip + hex_buf]
@@ -816,6 +886,67 @@ run_seal_file_keyfile_v2:
 .Lseal_file_keyfile_v2_paths_open:
     jmp seal_v2_with_loaded_key
 
+run_seal_to:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + x25519_recipient_public]
+    call hex32_decode
+    cmp eax, 1
+    jne key_error
+
+    lea rdi, [rip + x25519_private_key]
+    mov esi, 32
+    call fill_random
+    cmp eax, 1
+    jne random_error
+
+    lea rdi, [rip + x25519_ephemeral_public]
+    lea rsi, [rip + x25519_private_key]
+    call x25519_basepoint
+    cmp eax, 1
+    jne envelope_error
+
+    lea rdi, [rip + x25519_shared_secret]
+    lea rsi, [rip + x25519_private_key]
+    lea rdx, [rip + x25519_recipient_public]
+    call x25519_scalar_mult
+    cmp eax, 1
+    jne envelope_error
+
+    lea rdi, [rip + chacha_nonce]
+    mov esi, ENVELOPE_NONCE_LEN
+    call fill_random
+    cmp eax, 1
+    jne random_error
+
+    call build_envelope_v3_header
+    call derive_v3_aead_key
+
+    mov rdi, qword ptr [rsp + 32]
+    mov rsi, qword ptr [rsp + 40]
+    call open_seal_file_paths
+    cmp eax, 1
+    je .Lseal_to_paths_open
+    cmp eax, 2
+    je output_file_error
+    jmp input_file_error
+
+.Lseal_to_paths_open:
+    mov rdi, qword ptr [rip + seal_output_fd]
+    lea rsi, [rip + envelope_v3_header_buf]
+    mov edx, ENVELOPE_V3_HEADER_LEN
+    call write_all
+    test eax, eax
+    jne seal_output_write_error
+
+    call aead_poly1305_init
+    lea rdi, [rip + envelope_v3_header_buf]
+    mov esi, ENVELOPE_V3_HEADER_LEN
+    call aead_poly1305_update_aad
+    jmp seal_stream_with_current_aad
+
 run_seal_keyfile:
     cmp qword ptr [rsp], 3
     jne usage_exit
@@ -1014,6 +1145,27 @@ run_open_file_keyfile:
     je aead_size_error
     jmp artifact_file_error
 
+run_open_to:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + x25519_private_key]
+    call hex32_decode
+    cmp eax, 1
+    jne key_error
+
+    mov rax, qword ptr [rsp + 40]
+    mov qword ptr [rip + aead_output_path], rax
+
+    mov rdi, qword ptr [rsp + 32]
+    call read_artifact_file
+    cmp eax, 1
+    je open_to_parse_loaded_envelope
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
 run_open_keyfile:
     cmp qword ptr [rsp], 3
     jne usage_exit
@@ -1170,6 +1322,98 @@ open_parse_loaded_envelope:
     xor edi, edi
     jmp exit_process
 
+open_to_parse_loaded_envelope:
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V3_MIN_LEN
+    jb envelope_error
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+
+    lea rdi, [rip + x25519_ephemeral_public]
+    lea rsi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    mov ecx, ENVELOPE_X25519_PUBLIC_LEN
+    rep movsb
+
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+
+    lea rdi, [rip + x25519_recipient_public]
+    lea rsi, [rip + x25519_private_key]
+    call x25519_basepoint
+    cmp eax, 1
+    jne envelope_error
+
+    call compute_recipient_key_id
+    lea rdi, [rip + envelope_key_id]
+    lea rsi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN]
+    mov edx, ENVELOPE_KEY_ID_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+
+    lea rdi, [rip + x25519_shared_secret]
+    lea rsi, [rip + x25519_private_key]
+    lea rdx, [rip + x25519_ephemeral_public]
+    call x25519_scalar_mult
+    cmp eax, 1
+    jne envelope_error
+
+    lea rdi, [rip + envelope_v3_header_buf]
+    lea rsi, [rip + aead_open_buf]
+    mov ecx, ENVELOPE_V3_HEADER_LEN
+    rep movsb
+    call derive_v3_aead_key
+
+    mov rax, qword ptr [rip + aead_text_len]
+    sub rax, ENVELOPE_V3_MIN_LEN
+    mov qword ptr [rip + aead_text_len], rax
+
+    lea rsi, [rip + aead_open_buf + ENVELOPE_V3_HEADER_LEN]
+    add rsi, rax
+    lea rdi, [rip + aead_expected_tag]
+    mov ecx, ENVELOPE_TAG_LEN
+    rep movsb
+
+    call aead_poly1305_init
+    lea rdi, [rip + aead_open_buf]
+    mov esi, ENVELOPE_V3_HEADER_LEN
+    call aead_poly1305_update_aad
+    lea rdi, [rip + aead_open_buf + ENVELOPE_V3_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call poly1305_update
+    mov rdi, qword ptr [rip + aead_text_len]
+    lea rsi, [rip + poly_tag]
+    call aead_poly1305_finish
+
+    lea rdi, [rip + poly_tag]
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+
+    mov dword ptr [rip + chacha_counter], 1
+    lea rdi, [rip + aead_open_buf + ENVELOPE_V3_HEADER_LEN]
+    mov rsi, qword ptr [rip + aead_text_len]
+    call chacha20_xor
+
+    lea rsi, [rip + aead_open_buf + ENVELOPE_V3_HEADER_LEN]
+    mov rdi, rsi
+    mov rsi, qword ptr [rip + aead_text_len]
+    call write_open_plaintext
+    cmp eax, 1
+    jne output_file_error
+
+    xor edi, edi
+    jmp exit_process
+
 run_inspect:
     cmp qword ptr [rsp], 2
     jne usage_exit
@@ -1232,8 +1476,18 @@ inspect_parse_loaded_envelope:
     mov edx, ENVELOPE_PREFIX_LEN
     call memeq
     cmp eax, 1
+    je .Linspect_v2
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
     jne envelope_error
-    jmp .Linspect_v2
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V3_MIN_LEN
+    jb envelope_error
+    jmp .Linspect_v3
 
 .Linspect_v1:
     mov rdi, STDOUT
@@ -1283,6 +1537,57 @@ inspect_parse_loaded_envelope:
     mov edx, OFFSET FLAT:inspect_nonce_label_len
     call write_all
     lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_NONCE_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 24], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 25
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+.Linspect_v3:
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_v3_msg]
+    mov edx, OFFSET FLAT:inspect_v3_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_ephemeral_public_label]
+    mov edx, OFFSET FLAT:inspect_ephemeral_public_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_X25519_PUBLIC_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_key_id_label]
+    mov edx, OFFSET FLAT:inspect_key_id_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_KEY_ID_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
     lea rsi, [rip + hex_buf]
     mov edx, ENVELOPE_NONCE_LEN
     call hex_encode
@@ -1357,8 +1662,18 @@ manifest_parse_loaded_envelope:
     mov edx, ENVELOPE_PREFIX_LEN
     call memeq
     cmp eax, 1
+    je .Lmanifest_v2
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
     jne envelope_error
-    jmp .Lmanifest_v2
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V3_MIN_LEN
+    jb envelope_error
+    jmp .Lmanifest_v3
 
 .Lmanifest_v1:
     mov rdi, STDOUT
@@ -1474,6 +1789,98 @@ manifest_parse_loaded_envelope:
     mov edx, OFFSET FLAT:inspect_nonce_label_len
     call write_all
     lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_NONCE_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 24], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 25
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_tag_label]
+    mov edx, OFFSET FLAT:manifest_tag_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf]
+    add rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_TAG_LEN
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_TAG_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    xor edi, edi
+    jmp exit_process
+
+.Lmanifest_v3:
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_v3_msg]
+    mov edx, OFFSET FLAT:manifest_v3_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_ephemeral_public_label]
+    mov edx, OFFSET FLAT:inspect_ephemeral_public_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_X25519_PUBLIC_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_key_id_label]
+    mov edx, OFFSET FLAT:inspect_key_id_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN]
+    lea rsi, [rip + hex_buf]
+    mov edx, ENVELOPE_KEY_ID_LEN
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 32], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call write_all
+
+    lea rdi, [rip + manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:manifest_artifact_sha256_label_len
+    lea rdx, [rip + aead_open_buf]
+    mov rcx, qword ptr [rip + aead_text_len]
+    call write_manifest_labeled_sha256
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_length_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
+    call write_all
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_V3_MIN_LEN
+    call write_u64_decimal_stdout
+    mov rdi, STDOUT
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+
+    lea rdi, [rip + manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    lea rdx, [rip + aead_open_buf + ENVELOPE_V3_HEADER_LEN]
+    mov rcx, qword ptr [rip + aead_text_len]
+    sub rcx, ENVELOPE_V3_MIN_LEN
+    call write_manifest_labeled_sha256
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + aead_open_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
     lea rsi, [rip + hex_buf]
     mov edx, ENVELOPE_NONCE_LEN
     call hex_encode
@@ -2261,6 +2668,122 @@ build_envelope_v2_header:
     lea rsi, [rip + chacha_nonce]
     mov ecx, ENVELOPE_NONCE_LEN
     rep movsb
+    ret
+
+compute_recipient_key_id:
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + x25519_recipient_public]
+    mov edx, ENVELOPE_X25519_PUBLIC_LEN
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + digest_buf]
+    call sha256_final
+    lea rdi, [rip + envelope_key_id]
+    lea rsi, [rip + digest_buf]
+    mov ecx, ENVELOPE_KEY_ID_LEN
+    rep movsb
+    ret
+
+build_envelope_v3_header:
+    call compute_recipient_key_id
+
+    lea rdi, [rip + envelope_v3_header_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov ecx, ENVELOPE_PREFIX_LEN
+    rep movsb
+    lea rsi, [rip + x25519_ephemeral_public]
+    mov ecx, ENVELOPE_X25519_PUBLIC_LEN
+    rep movsb
+    lea rsi, [rip + envelope_key_id]
+    mov ecx, ENVELOPE_KEY_ID_LEN
+    rep movsb
+    lea rsi, [rip + chacha_nonce]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    ret
+
+derive_v3_aead_key:
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + envelope_v3_header_buf]
+    mov edx, ENVELOPE_V3_HEADER_LEN
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hkdf_salt]
+    call sha256_final
+
+    lea rdi, [rip + hkdf_salt]
+    lea rsi, [rip + hmac_ipad]
+    lea rdx, [rip + hmac_opad]
+    call hmac_prepare_sha256_key32
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_ipad]
+    mov edx, 64
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + x25519_shared_secret]
+    mov edx, 32
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_inner]
+    call sha256_final
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_opad]
+    mov edx, 64
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_inner]
+    mov edx, 32
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hkdf_prk]
+    call sha256_final
+
+    lea rdi, [rip + hkdf_prk]
+    lea rsi, [rip + hmac_ipad]
+    lea rdx, [rip + hmac_opad]
+    call hmac_prepare_sha256_key32
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_ipad]
+    mov edx, 64
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + v3_hkdf_info]
+    mov edx, OFFSET FLAT:v3_hkdf_info_len
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hkdf_counter_one]
+    mov edx, 1
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_inner]
+    call sha256_final
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_opad]
+    mov edx, 64
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + hmac_inner]
+    mov edx, 32
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + chacha_key]
+    call sha256_final
     ret
 
 zero_sensitive_state:
@@ -3519,6 +4042,8 @@ cmd_selftest:
     .asciz "selftest"
 cmd_keygen:
     .asciz "keygen"
+cmd_keypair:
+    .asciz "keypair"
 cmd_hmac_sha256:
     .asciz "hmac-sha256"
 cmd_hkdf_sha256:
@@ -3539,6 +4064,8 @@ cmd_seal_file_keyfile:
     .asciz "seal-file-keyfile"
 cmd_seal_file_keyfile_v2:
     .asciz "seal-file-keyfile-v2"
+cmd_seal_to:
+    .asciz "seal-to"
 cmd_seal_keyfile:
     .asciz "seal-keyfile"
 cmd_seal_keyfile_v2:
@@ -3549,6 +4076,8 @@ cmd_open_file:
     .asciz "open-file"
 cmd_open_file_keyfile:
     .asciz "open-file-keyfile"
+cmd_open_to:
+    .asciz "open-to"
 cmd_open_keyfile:
     .asciz "open-keyfile"
 cmd_inspect:
@@ -3569,20 +4098,23 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|seal|seal-v2|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
     .ascii "  poly1305 <key>                 authenticate stdin with a 32-byte one-time hex key\n"
     .ascii "  chacha20 <key> <nonce> <ctr>   xor stdin with ChaCha20; key=64 hex, nonce=24 hex, ctr=8 hex\n"
     .ascii "  keygen                         write a random 32-byte key as 64 hex plus newline\n"
+    .ascii "  keypair                        write random X25519 private/public keys as hex\n"
     .ascii "  seal <key>                     write framed ChaCha20-Poly1305 envelope with random nonce\n"
     .ascii "  seal-v2 <key> <key-id>         write v2 envelope; key-id is 16 bytes / 32 hex\n"
+    .ascii "  seal-to <public> <in> <out>    seal v3 file to X25519 public key; no overwrite\n"
     .ascii "  seal-file <key> <in> <out>     seal file to a new path; no overwrite\n"
     .ascii "  seal-file-v2 <key> <key-id> <in> <out> seal v2 file; no overwrite\n"
     .ascii "  seal-file-keyfile <path> <in> <out> seal file with key file; no overwrite\n"
     .ascii "  seal-file-keyfile-v2 <path> <key-id> <in> <out> seal v2 with key file; no overwrite\n"
     .ascii "  open <key>                     verify framed envelope from stdin, then write plaintext\n"
+    .ascii "  open-to <private> <in> <out>   open v3 file with X25519 private key; no overwrite\n"
     .ascii "  open-file <key> <in> <out>     open file to a new path; no overwrite\n"
     .ascii "  open-file-keyfile <path> <in> <out> open file with key file; no overwrite\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
@@ -3604,6 +4136,14 @@ read_error_msg:
 key_error_msg:
     .ascii "wuci-ji: hmac-sha256 requires exactly 64 hex key characters\n"
 .set key_error_msg_len, . - key_error_msg
+
+keypair_private_label:
+    .ascii "private: "
+.set keypair_private_label_len, . - keypair_private_label
+
+keypair_public_label:
+    .ascii "public: "
+.set keypair_public_label_len, . - keypair_public_label
 
 keyfile_error_msg:
     .ascii "wuci-ji: key file must contain 64 hex characters plus optional newline\n"
@@ -3669,6 +4209,16 @@ inspect_v2_msg:
     .ascii "header-length: 36\n"
 .set inspect_v2_msg_len, . - inspect_v2_msg
 
+inspect_v3_msg:
+    .ascii "version: 3\n"
+    .ascii "algorithm: 1\n"
+    .ascii "header-length: 68\n"
+.set inspect_v3_msg_len, . - inspect_v3_msg
+
+inspect_ephemeral_public_label:
+    .ascii "ephemeral-public: "
+.set inspect_ephemeral_public_label_len, . - inspect_ephemeral_public_label
+
 inspect_key_id_label:
     .ascii "key-id: "
 .set inspect_key_id_label_len, . - inspect_key_id_label
@@ -3688,6 +4238,12 @@ manifest_v2_msg:
     .ascii "algorithm: 1\n"
     .ascii "header-length: 36\n"
 .set manifest_v2_msg_len, . - manifest_v2_msg
+
+manifest_v3_msg:
+    .ascii "version: 3\n"
+    .ascii "algorithm: 1\n"
+    .ascii "header-length: 68\n"
+.set manifest_v3_msg_len, . - manifest_v3_msg
 
 manifest_ciphertext_length_label:
     .ascii "ciphertext-length: "
@@ -3727,6 +4283,14 @@ envelope_prefix:
 envelope_v2_prefix:
     .ascii "WJSEAL"
     .byte 0x02, 0x01
+
+envelope_v3_prefix:
+    .ascii "WJSEAL"
+    .byte 0x03, 0x01
+
+v3_hkdf_info:
+    .ascii "wuci-ji v3 X25519 recipient AEAD key"
+.set v3_hkdf_info_len, . - v3_hkdf_info
 
 hkdf_counter_one:
     .byte 0x01
@@ -3958,6 +4522,24 @@ envelope_key_id:
 .align 16
 envelope_header_buf:
     .skip ENVELOPE_V2_HEADER_LEN
+.align 16
+envelope_v3_header_buf:
+    .skip ENVELOPE_V3_HEADER_LEN
+.align 16
+x25519_private_key:
+    .skip 32
+.align 16
+x25519_public_key:
+    .skip 32
+.align 16
+x25519_recipient_public:
+    .skip 32
+.align 16
+x25519_ephemeral_public:
+    .skip 32
+.align 16
+x25519_shared_secret:
+    .skip 32
 .align 16
 aead_open_buf:
     .skip AEAD_OPEN_MAX

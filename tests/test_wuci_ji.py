@@ -15,10 +15,16 @@ BIN = Path(os.environ.get("WUCI_JI_BIN", ROOT / "build" / "wuci-ji"))
 RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 ENVELOPE_PREFIX = b"WJSEAL\x01\x01"
 ENVELOPE_V2_PREFIX = b"WJSEAL\x02\x01"
+ENVELOPE_V3_PREFIX = b"WJSEAL\x03\x01"
 ENVELOPE_HEADER_LEN = len(ENVELOPE_PREFIX) + 12
 ENVELOPE_V2_KEY_ID_LEN = 16
 ENVELOPE_V2_HEADER_LEN = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN + 12
+ENVELOPE_V3_PUBLIC_LEN = 32
+ENVELOPE_V3_HEADER_LEN = (
+    len(ENVELOPE_V3_PREFIX) + ENVELOPE_V3_PUBLIC_LEN + ENVELOPE_V2_KEY_ID_LEN + 12
+)
 ENVELOPE_TAG_LEN = 16
+V3_HKDF_INFO = b"wuci-ji v3 X25519 recipient AEAD key"
 
 
 def run(args: list[str], data: bytes = b"") -> subprocess.CompletedProcess[bytes]:
@@ -50,6 +56,47 @@ def assert_hmac_sha256(key: bytes, payload: bytes) -> None:
 def hkdf_sha256_ref(salt: bytes, ikm: bytes, info: bytes) -> bytes:
     prk = hmac.new(salt, ikm, hashlib.sha256).digest()
     return hmac.new(prk, info + b"\x01", hashlib.sha256).digest()
+
+
+def x25519_ref(scalar: bytes, u_coordinate: int = 9) -> bytes:
+    p = (1 << 255) - 19
+    a24 = 121666
+    k = bytearray(scalar)
+    k[0] &= 248
+    k[31] &= 127
+    k[31] |= 64
+    scalar_int = int.from_bytes(k, "little")
+
+    x1 = u_coordinate
+    x2, z2 = 1, 0
+    x3, z3 = u_coordinate, 1
+    swap = 0
+    for bit in range(254, -1, -1):
+        bit_value = (scalar_int >> bit) & 1
+        swap ^= bit_value
+        if swap:
+            x2, x3 = x3, x2
+            z2, z3 = z3, z2
+        swap = bit_value
+
+        a = (x2 + z2) % p
+        aa = (a * a) % p
+        b = (x2 - z2) % p
+        bb = (b * b) % p
+        e = (aa - bb) % p
+        c = (x3 + z3) % p
+        d = (x3 - z3) % p
+        da = (d * a) % p
+        cb = (c * b) % p
+        x3 = ((da + cb) * (da + cb)) % p
+        z3 = (x1 * ((da - cb) * (da - cb))) % p
+        x2 = (aa * bb) % p
+        z2 = (e * (aa + a24 * e)) % p
+
+    if swap:
+        x2, x3 = x3, x2
+        z2, z3 = z3, z2
+    return ((x2 * pow(z2, p - 2, p)) % p).to_bytes(32, "little")
 
 
 def assert_hkdf_sha256(salt: bytes, info: bytes, ikm: bytes) -> None:
@@ -318,6 +365,211 @@ def assert_manifest_v2(sealed: bytes, key_id: bytes) -> None:
     )
 
 
+def generate_keypair() -> tuple[bytes, bytes]:
+    keypair = run(["keypair"])
+    assert keypair.returncode == 0, keypair.stderr.decode("utf-8", "replace")
+    lines = keypair.stdout.splitlines()
+    assert len(lines) == 2
+    assert lines[0].startswith(b"private: ")
+    assert lines[1].startswith(b"public: ")
+
+    private_key = bytes.fromhex(lines[0].split(b": ", 1)[1].decode("ascii"))
+    public_key = bytes.fromhex(lines[1].split(b": ", 1)[1].decode("ascii"))
+    assert len(private_key) == 32
+    assert len(public_key) == 32
+    assert public_key == x25519_ref(private_key)
+    return private_key, public_key
+
+
+def assert_inspect_v3(sealed: bytes, recipient_public: bytes) -> None:
+    key_id_start = len(ENVELOPE_V3_PREFIX) + ENVELOPE_V3_PUBLIC_LEN
+    nonce_start = key_id_start + ENVELOPE_V2_KEY_ID_LEN
+    ephemeral_public = sealed[len(ENVELOPE_V3_PREFIX) : key_id_start]
+    key_id = sealed[key_id_start:nonce_start]
+    nonce = sealed[nonce_start:ENVELOPE_V3_HEADER_LEN]
+    inspected = run(["inspect"], sealed)
+    assert inspected.returncode == 0, inspected.stderr.decode("utf-8", "replace")
+    assert key_id == hashlib.sha256(recipient_public).digest()[:16]
+    assert inspected.stdout == (
+        b"version: 3\n"
+        b"algorithm: 1\n"
+        b"header-length: 68\n"
+        + b"ephemeral-public: " + ephemeral_public.hex().encode("ascii") + b"\n"
+        + b"key-id: " + key_id.hex().encode("ascii") + b"\n"
+        + b"nonce: " + nonce.hex().encode("ascii") + b"\n"
+    )
+
+
+def assert_manifest_v3(sealed: bytes, recipient_public: bytes) -> None:
+    key_id_start = len(ENVELOPE_V3_PREFIX) + ENVELOPE_V3_PUBLIC_LEN
+    nonce_start = key_id_start + ENVELOPE_V2_KEY_ID_LEN
+    ephemeral_public = sealed[len(ENVELOPE_V3_PREFIX) : key_id_start]
+    key_id = sealed[key_id_start:nonce_start]
+    nonce = sealed[nonce_start:ENVELOPE_V3_HEADER_LEN]
+    ciphertext = sealed[ENVELOPE_V3_HEADER_LEN:-ENVELOPE_TAG_LEN]
+    ciphertext_len = len(sealed) - ENVELOPE_V3_HEADER_LEN - ENVELOPE_TAG_LEN
+    tag = sealed[-ENVELOPE_TAG_LEN:]
+    manifested = run(["manifest"], sealed)
+    assert manifested.returncode == 0, manifested.stderr.decode("utf-8", "replace")
+    assert key_id == hashlib.sha256(recipient_public).digest()[:16]
+    assert manifested.stdout == (
+        b"version: 3\n"
+        b"algorithm: 1\n"
+        b"header-length: 68\n"
+        + b"ephemeral-public: " + ephemeral_public.hex().encode("ascii") + b"\n"
+        + b"key-id: " + key_id.hex().encode("ascii") + b"\n"
+        + b"artifact-sha256: "
+        + hashlib.sha256(sealed).hexdigest().encode("ascii")
+        + b"\n"
+        + b"ciphertext-length: " + str(ciphertext_len).encode("ascii") + b"\n"
+        + b"ciphertext-sha256: "
+        + hashlib.sha256(ciphertext).hexdigest().encode("ascii")
+        + b"\n"
+        + b"nonce: " + nonce.hex().encode("ascii") + b"\n"
+        + b"tag: " + tag.hex().encode("ascii") + b"\n"
+    )
+
+
+def assert_open_to_rejects(private_key: bytes, sealed: bytes) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        sealed_path = tmp / "sealed.wj"
+        opened_path = tmp / "opened.bin"
+        sealed_path.write_bytes(sealed)
+
+        rejected = run(
+            ["open-to", private_key.hex(), str(sealed_path), str(opened_path)]
+        )
+        assert rejected.returncode != 0
+        assert rejected.stdout == b""
+        assert not opened_path.exists()
+
+
+def assert_recipient_workflow(plaintext: bytes) -> bytes:
+    private_key, public_key = generate_keypair()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        plain_path = tmp / "plain.bin"
+        sealed_path = tmp / "sealed-v3.wj"
+        opened_path = tmp / "opened.bin"
+        plain_path.write_bytes(plaintext)
+
+        sealed_proc = run(
+            ["seal-to", public_key.hex(), str(plain_path), str(sealed_path)]
+        )
+        assert sealed_proc.returncode == 0, sealed_proc.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert sealed_proc.stdout == b""
+
+        sealed = sealed_path.read_bytes()
+        assert sealed.startswith(ENVELOPE_V3_PREFIX)
+        assert len(sealed) == ENVELOPE_V3_HEADER_LEN + len(plaintext) + ENVELOPE_TAG_LEN
+
+        key_id_start = len(ENVELOPE_V3_PREFIX) + ENVELOPE_V3_PUBLIC_LEN
+        nonce_start = key_id_start + ENVELOPE_V2_KEY_ID_LEN
+        header = sealed[:ENVELOPE_V3_HEADER_LEN]
+        ephemeral_public = sealed[len(ENVELOPE_V3_PREFIX) : key_id_start]
+        key_id = sealed[key_id_start:nonce_start]
+        nonce = sealed[nonce_start:ENVELOPE_V3_HEADER_LEN]
+        body = sealed[ENVELOPE_V3_HEADER_LEN:]
+
+        assert ephemeral_public != b"\0" * ENVELOPE_V3_PUBLIC_LEN
+        assert key_id == hashlib.sha256(public_key).digest()[:16]
+        assert len(nonce) == 12
+        shared_secret = x25519_ref(
+            private_key,
+            int.from_bytes(ephemeral_public, "little"),
+        )
+        v3_key = hkdf_sha256_ref(hashlib.sha256(header).digest(), shared_secret, V3_HKDF_INFO)
+        assert body == aead_seal_ref(v3_key, nonce, plaintext, header)
+
+        assert_inspect_v3(sealed, public_key)
+        assert_manifest_v3(sealed, public_key)
+
+        opened = run(
+            ["open-to", private_key.hex(), str(sealed_path), str(opened_path)]
+        )
+        assert opened.returncode == 0, opened.stderr.decode("utf-8", "replace")
+        assert opened.stdout == b""
+        assert opened_path.read_bytes() == plaintext
+
+        wrong_private, _ = generate_keypair()
+        assert_open_to_rejects(wrong_private, sealed)
+
+        tamper_offsets = [
+            len(ENVELOPE_V3_PREFIX),
+            key_id_start,
+            nonce_start,
+            ENVELOPE_V3_HEADER_LEN,
+            len(sealed) - 1,
+        ]
+        for offset in tamper_offsets:
+            tampered = bytearray(sealed)
+            tampered[offset] ^= 1
+            assert_open_to_rejects(private_key, bytes(tampered))
+
+        existing_sealed_path = tmp / "existing-sealed.wj"
+        existing_sealed_path.write_bytes(b"do-not-touch")
+        rejected_seal = run(
+            [
+                "seal-to",
+                public_key.hex(),
+                str(plain_path),
+                str(existing_sealed_path),
+            ]
+        )
+        assert rejected_seal.returncode != 0
+        assert rejected_seal.stdout == b""
+        assert existing_sealed_path.read_bytes() == b"do-not-touch"
+
+        existing_open_path = tmp / "existing-open.bin"
+        existing_open_path.write_bytes(b"do-not-touch")
+        rejected_open = run(
+            ["open-to", private_key.hex(), str(sealed_path), str(existing_open_path)]
+        )
+        assert rejected_open.returncode != 0
+        assert rejected_open.stdout == b""
+        assert existing_open_path.read_bytes() == b"do-not-touch"
+
+        missing_out_path = tmp / "missing-seal.wj"
+        rejected_missing = run(
+            [
+                "seal-to",
+                public_key.hex(),
+                str(tmp / "missing.bin"),
+                str(missing_out_path),
+            ]
+        )
+        assert rejected_missing.returncode != 0
+        assert rejected_missing.stdout == b""
+        assert not missing_out_path.exists()
+
+        small_order_points = [
+            "00" * 32,
+            "01" + "00" * 31,
+            "e0eb7a7c3b41b8ae1656e3faf19fc46a"
+            "da098deb9c32b1fd866205165f49b800",
+            "5f9c95bca3508c24b1d0b1559c83ef5b"
+            "04445cc4581c8e86d8224eddd09f1157",
+            "ec" + "ff" * 30 + "7f",
+            "ed" + "ff" * 30 + "7f",
+            "ee" + "ff" * 30 + "7f",
+            "ee" + "ff" * 30 + "ff",
+        ]
+        for index, small_order_public in enumerate(small_order_points):
+            small_order_path = tmp / f"small-order-{index}.wj"
+            rejected_small_order = run(
+                ["seal-to", small_order_public, str(plain_path), str(small_order_path)]
+            )
+            assert rejected_small_order.returncode != 0
+            assert rejected_small_order.stdout == b""
+            assert not small_order_path.exists()
+
+        return sealed
+
+
 def assert_rejects_inspect(sealed: bytes) -> None:
     rejected = run(["inspect"], sealed)
     assert rejected.returncode != 0
@@ -333,19 +585,24 @@ def assert_rejects_manifest(sealed: bytes) -> None:
 def assert_artifact_file_commands(
     sealed_v1: bytes,
     sealed_v2: bytes,
+    sealed_v3: bytes,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
         v1_path = tmp / "artifact-v1.wj"
         v2_path = tmp / "artifact-v2.wj"
+        v3_path = tmp / "artifact-v3.wj"
         bad_path = tmp / "artifact-bad.wj"
         short_path = tmp / "artifact-short.wj"
+        short_v3_path = tmp / "artifact-short-v3.wj"
         missing_path = tmp / "missing.wj"
 
         v1_path.write_bytes(sealed_v1)
         v2_path.write_bytes(sealed_v2)
+        v3_path.write_bytes(sealed_v3)
         bad_path.write_bytes(b"BADSEAL\x01" + sealed_v1[len(ENVELOPE_PREFIX) :])
         short_path.write_bytes(sealed_v2[: ENVELOPE_V2_HEADER_LEN - 1])
+        short_v3_path.write_bytes(sealed_v3[: ENVELOPE_V3_HEADER_LEN - 1])
 
         for stdin_command, file_command in (
             ("inspect", "inspect-file"),
@@ -354,6 +611,7 @@ def assert_artifact_file_commands(
             for sealed, artifact_path in (
                 (sealed_v1, v1_path),
                 (sealed_v2, v2_path),
+                (sealed_v3, v3_path),
             ):
                 expected = run([stdin_command], sealed)
                 actual = run([file_command, str(artifact_path)])
@@ -365,7 +623,7 @@ def assert_artifact_file_commands(
                 )
                 assert actual.stdout == expected.stdout
 
-            for artifact_path in (missing_path, bad_path, short_path):
+            for artifact_path in (missing_path, bad_path, short_path, short_v3_path):
                 rejected = run([file_command, str(artifact_path)])
                 assert rejected.returncode != 0
                 assert rejected.stdout == b""
@@ -669,6 +927,8 @@ def assert_file_seal_open_workflow(
 
 
 def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
+    private_key, public_key = generate_keypair()
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp = Path(tmp_dir)
         key_path = tmp / "wuci.key"
@@ -682,13 +942,16 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
         seal_file_v2_out = tmp / "extra-seal-v2.wj"
         seal_file_keyfile_out = tmp / "extra-seal-keyfile.wj"
         seal_file_keyfile_v2_out = tmp / "extra-seal-keyfile-v2.wj"
+        seal_to_out = tmp / "extra-seal-to.wj"
         open_file_out = tmp / "extra-open.bin"
         open_file_keyfile_out = tmp / "extra-open-keyfile.bin"
+        open_to_out = tmp / "extra-open-to.bin"
 
         cases = [
             (["--help", "extra"], b"", None),
             (["sha256", "extra"], b"abc", None),
             (["keygen", "extra"], b"", None),
+            (["keypair", "extra"], b"", None),
             (["selftest", "extra"], b"", None),
             (["hmac-sha256", key.hex(), "extra"], b"abc", None),
             (["seal", key.hex(), "extra"], b"abc", None),
@@ -732,6 +995,17 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 b"",
                 seal_file_keyfile_v2_out,
             ),
+            (
+                [
+                    "seal-to",
+                    public_key.hex(),
+                    str(plain_path),
+                    str(seal_to_out),
+                    "extra",
+                ],
+                b"",
+                seal_to_out,
+            ),
             (["open", key.hex(), "extra"], sealed, None),
             (
                 [
@@ -754,6 +1028,17 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 ],
                 b"",
                 open_file_keyfile_out,
+            ),
+            (
+                [
+                    "open-to",
+                    private_key.hex(),
+                    str(artifact_path),
+                    str(open_to_out),
+                    "extra",
+                ],
+                b"",
+                open_to_out,
             ),
             (["inspect", "extra"], sealed, None),
             (["inspect-file", str(artifact_path), "extra"], b"", None),
@@ -778,10 +1063,13 @@ def assert_help_output() -> None:
     help_text = help_proc.stdout.decode("ascii")
 
     for snippet in (
+        "keypair                        write random X25519 private/public keys as hex",
+        "seal-to <public> <in> <out>    seal v3 file to X25519 public key; no overwrite",
         "seal-file <key> <in> <out>",
         "seal-file-v2 <key> <key-id> <in> <out>",
         "seal-file-keyfile <path> <in> <out>",
         "seal-file-keyfile-v2 <path> <key-id> <in> <out>",
+        "open-to <private> <in> <out>   open v3 file with X25519 private key; no overwrite",
         "open-file <key> <in> <out>",
         "open-file-keyfile <path> <in> <out>",
         "manifest                       print metadata, SHA-256 fingerprints, and tag",
@@ -870,6 +1158,7 @@ def main() -> None:
     v2_file_plaintext = b"file-v2-artifact"
     v2_file_sealed = assert_envelope_v2(rfc_key, v2_key_id, v2_file_plaintext)
     assert_envelope_v2(rfc_key, v2_key_id, (b"envelope-v2\0" * 4096) + b"end")
+    v3_sealed = assert_recipient_workflow((b"recipient-artifact\0" * 257) + b"end")
 
     sealed_proc = run(["seal", rfc_key.hex()], b"tamper-target")
     assert sealed_proc.returncode == 0, sealed_proc.stderr.decode("utf-8", "replace")
@@ -878,7 +1167,7 @@ def main() -> None:
     assert_inspect_v2(v2_sealed, v2_key_id)
     assert_manifest_v1(sealed)
     assert_manifest_v2(v2_sealed, v2_key_id)
-    assert_artifact_file_commands(sealed, v2_sealed)
+    assert_artifact_file_commands(sealed, v2_sealed, v3_sealed)
     assert_rejects_extra_args(rfc_key, v2_key_id, sealed)
     assert_rejects_inspect(b"")
     assert_rejects_inspect(sealed[: ENVELOPE_HEADER_LEN - 1])
@@ -886,12 +1175,16 @@ def main() -> None:
     assert_rejects_inspect(sealed[:6] + b"\x03" + sealed[7:])
     assert_rejects_inspect(v2_sealed[: len(ENVELOPE_V2_PREFIX) + 8])
     assert_rejects_inspect(v2_sealed[: ENVELOPE_V2_HEADER_LEN - 1])
+    assert_rejects_inspect(v3_sealed[: len(ENVELOPE_V3_PREFIX) + 16])
+    assert_rejects_inspect(v3_sealed[: ENVELOPE_V3_HEADER_LEN - 1])
     assert_rejects_manifest(b"")
     assert_rejects_manifest(sealed[: ENVELOPE_HEADER_LEN - 1])
     assert_rejects_manifest(b"BADSEAL\x01" + sealed[len(ENVELOPE_PREFIX) :])
     assert_rejects_manifest(sealed[:6] + b"\x03" + sealed[7:])
     assert_rejects_manifest(v2_sealed[: len(ENVELOPE_V2_PREFIX) + 8])
     assert_rejects_manifest(v2_sealed[: ENVELOPE_V2_HEADER_LEN - 1])
+    assert_rejects_manifest(v3_sealed[: len(ENVELOPE_V3_PREFIX) + 16])
+    assert_rejects_manifest(v3_sealed[: ENVELOPE_V3_HEADER_LEN - 1])
     assert_rejects_envelope(rfc_key, b"")
     assert_rejects_envelope(rfc_key, sealed[: ENVELOPE_HEADER_LEN - 1])
     assert_rejects_envelope(rfc_key, sealed[:-1])
@@ -918,6 +1211,7 @@ def main() -> None:
         rfc_key,
         v2_sealed[:-1] + bytes([v2_sealed[-1] ^ 1]),
     )
+    assert_rejects_envelope(rfc_key, v3_sealed)
     bad_key_id = run(["seal-v2", rfc_key.hex(), "00"], b"bad-key-id")
     assert bad_key_id.returncode != 0
     assert bad_key_id.stdout == b""

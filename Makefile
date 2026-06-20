@@ -1,4 +1,5 @@
 AS ?= as
+CC ?= cc
 LD ?= ld
 PYTHON ?= python3
 NM ?= nm
@@ -11,7 +12,9 @@ HOST_ARCH := $(shell uname -m)
 
 TARGET := build/wuci-ji
 OBJECT := build/wuci-ji.o
+X25519_OBJECT := build/x25519.o
 SOURCE := src/wuci-ji.s
+X25519_SOURCE := src/x25519.c
 CROSS_SOURCE := build/wuci-ji.zig.s
 CROSS_TARGET := build/wuci-ji-linux-x86_64
 ZIG_TARGET ?= x86_64-linux-musl
@@ -22,12 +25,16 @@ ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 
 all: check-native $(TARGET)
 
-$(TARGET): $(OBJECT)
-	$(LD) -o $@ $<
+$(TARGET): $(OBJECT) $(X25519_OBJECT)
+	$(LD) -o $@ $^
 
 $(OBJECT): check-native $(SOURCE)
 	mkdir -p build
 	$(AS) --64 -o $@ $(SOURCE)
+
+$(X25519_OBJECT): check-native $(X25519_SOURCE)
+	mkdir -p build
+	$(CC) -O2 -std=c99 -ffreestanding -fno-stack-protector -fno-builtin -mno-red-zone -c -o $@ $(X25519_SOURCE)
 
 check-native:
 	@if [ "$(HOST_OS)" != "Linux" ] || [ "$(HOST_ARCH)" != "x86_64" ]; then \
@@ -54,7 +61,7 @@ build-linux: $(CROSS_SOURCE)
 	mkdir -p build $(ZIG_GLOBAL_CACHE_DIR) $(ZIG_LOCAL_CACHE_DIR)
 	ZIG_GLOBAL_CACHE_DIR=$(abspath $(ZIG_GLOBAL_CACHE_DIR)) \
 	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
-	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(CROSS_SOURCE)
+	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -O2 -ffreestanding -fno-stack-protector -fno-builtin -mno-red-zone -o $(CROSS_TARGET) $(CROSS_SOURCE) $(X25519_SOURCE)
 
 selftest: check-native $(TARGET)
 	$(TARGET) selftest

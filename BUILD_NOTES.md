@@ -13,6 +13,8 @@ Native build and execution require:
 
 - x86_64 Linux
 - GNU-style `as` and `ld`
+- a C compiler with `unsigned __int128` support for the freestanding X25519
+  helper
 - Python 3 for the test harness
 
 Cross-building from macOS or other non-Linux hosts currently uses Zig.
@@ -66,7 +68,7 @@ Leave `WUCI_JI_RUNNER` unset when running a native Linux binary directly.
 Observed host on 2026-06-20:
 
 - Linux x86_64
-- GNU `as`, `ld`, `nm`, and `objdump` are available.
+- GNU `as`, `ld`, `nm`, `objdump`, and `cc` are available.
 - Python 3 is available.
 
 Verified on this host:
@@ -107,17 +109,31 @@ Fixes made while executing this checkpoint:
   v2 frames. The v2 header is fed to Poly1305 as associated data before any
   ciphertext bytes, so key ID, version, algorithm, and nonce tampering fail
   authentication.
-- `inspect` reads a v1 or v2 envelope from stdin without requiring secret key
-  material and prints fixed metadata fields: version, algorithm, header length,
-  nonce, and the v2 key ID when present. It rejects malformed or truncated
-  frames before printing any metadata.
+- The v3 recipient envelope adds X25519 file sealing. `keypair` emits random
+  private/public X25519 keys as hex, `seal-to <public> <in> <out>` writes a
+  no-overwrite v3 artifact with an ephemeral X25519 public key, and
+  `open-to <private> <in> <out>` verifies and opens that artifact with the
+  recipient private key. The v3 key ID is `SHA256(recipient-public)[:16]`.
+  The AEAD key is derived with HKDF-SHA256 from the X25519 shared secret using
+  `SHA256(v3-header)` as salt and `wuci-ji v3 X25519 recipient AEAD key` as
+  info. The complete v3 header is Poly1305 associated data, so version,
+  algorithm, ephemeral public key, recipient key ID, and nonce tampering fail
+  authentication or pre-authentication key-ID checks. Known low-order X25519
+  public encodings are rejected before scalar multiplication and before opening
+  the output path.
+- `inspect` reads a v1, v2, or v3 envelope from stdin without requiring secret
+  key material and prints fixed metadata fields: version, algorithm, header
+  length, nonce, v2/v3 key ID when present, and the v3 ephemeral public key
+  when present. It rejects malformed or truncated frames before printing any
+  metadata.
 - `manifest` is also keyless and emits the stable artifact metadata needed for
-  cataloging: version, algorithm, header length, v2 key ID when present,
-  artifact SHA-256, ciphertext length, ciphertext SHA-256, nonce, and the raw
-  trailing authentication tag. `artifact-sha256` covers the complete stored
-  envelope bytes, while `ciphertext-sha256` covers ciphertext bytes only,
-  excluding header metadata and the trailing tag. It uses the same
-  malformed/truncated frame rejection boundaries as `inspect`.
+  cataloging: version, algorithm, header length, v2/v3 key ID when present, v3
+  ephemeral public key when present, artifact SHA-256, ciphertext length,
+  ciphertext SHA-256, nonce, and the raw trailing authentication tag.
+  `artifact-sha256` covers the complete stored envelope bytes, while
+  `ciphertext-sha256` covers ciphertext bytes only, excluding header metadata
+  and the trailing tag. It uses the same malformed/truncated frame rejection
+  boundaries as `inspect`.
 - `inspect-file <path>` and `manifest-file <path>` provide file-path
   convenience variants for cataloging stored artifacts without shell
   redirection. They reuse the same parser/output paths as stdin `inspect` and
@@ -136,14 +152,15 @@ Fixes made while executing this checkpoint:
   trailing newline.
 - Fixed-form commands now enforce exact argument counts. Extra positional
   arguments are rejected with usage instead of being silently ignored, including
-  stdin-streaming, file-path, metadata, key-file, and help commands.
+  stdin-streaming, file-path, metadata, recipient, key-file, and help commands.
 - The Python harness now asserts the built-in help surface for the current
-  file workflow commands and manifest ciphertext SHA-256 wording.
+  file workflow commands, recipient workflow commands, and manifest ciphertext
+  SHA-256 wording.
 
 ## Envelope layouts
 
 All multi-byte metadata fields currently used by the envelope are byte strings;
-there are no integer length fields in either frame.
+there are no integer length fields in any frame.
 
 v1 frame:
 
@@ -170,6 +187,20 @@ offset  size  field
 36+N    16    Poly1305 tag over header-associated data and ciphertext
 ```
 
+v3 frame:
+
+```text
+offset  size  field
+0       6     ASCII "WJSEAL"
+6       1     version = 0x03
+7       1     algorithm = 0x01
+8       32    ephemeral X25519 public key
+40      16    recipient key ID = SHA256(recipient public key)[:16]
+56      12    random ChaCha20-Poly1305 nonce
+68      N     ciphertext
+68+N    16    Poly1305 tag over header-associated data and ciphertext
+```
+
 The native build artifact is:
 
 ```text
@@ -189,9 +220,13 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 1. From Linux, keep using `make clean && make test` as the runtime proof before
    each push when practical.
-2. If v2 grows again, keep adding malformed-envelope tests before changing
-   `open`; current tests cover truncated v2 headers, truncated bodies/tags,
-   authenticated key ID tampering, nonce tampering, and tag tampering.
+2. If v2 or v3 grows again, keep adding malformed-envelope tests before changing
+   `open`/`open-to`; current tests cover truncated headers, truncated
+   bodies/tags, authenticated key ID tampering, nonce tampering, and tag
+   tampering.
 3. The direct-key and key-file-backed no-overwrite file workflows are now both
    covered. Next file-surface work should focus on reducing command-name length
    or adding explicit docs/examples rather than adding more aliases.
+4. `src/x25519.c` is freestanding and linked without libc. A future stricter
+   all-assembly checkpoint can port that helper into `src/wuci-ji.s`, but keep
+   the Python X25519 reference tests as the compatibility guard.
