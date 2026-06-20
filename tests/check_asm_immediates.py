@@ -75,6 +75,10 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
         offenders.append(
             "projective scalar loop must not call secp256k1_jacobian_double_limbs"
         )
+    if "secp256k1_jacobian_mixed_add_limbs" in call_targets:
+        offenders.append(
+            "projective scalar loop must not call secp256k1_jacobian_mixed_add_limbs"
+        )
 
     for line in body:
         match = INSN_RE.match(line)
@@ -104,6 +108,24 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
         raise SystemExit(
             "secp256k1_projective_basepoint_mul_limbs must call "
             "secp256k1_jacobian_double_finite_limbs"
+        )
+    if "secp256k1_jacobian_mixed_add_masked_limbs" not in call_targets:
+        raise SystemExit(
+            "secp256k1_projective_basepoint_mul_limbs must call "
+            "secp256k1_jacobian_mixed_add_masked_limbs"
+        )
+    masked_add = find_function_lines(disassembly, "secp256k1_jacobian_mixed_add_masked_limbs")
+    if masked_add is None:
+        raise SystemExit("secp256k1_jacobian_mixed_add_masked_limbs not found")
+    masked_add_branches: list[str] = []
+    for line in masked_add:
+        match = INSN_RE.match(line)
+        if match and match.group(2).startswith("j"):
+            masked_add_branches.append(line.strip())
+    if masked_add_branches:
+        offenders.extend(
+            f"masked mixed-add helper contains branch: {line}"
+            for line in masked_add_branches
         )
     if offenders:
         print(

@@ -245,10 +245,7 @@ Fixes made while executing this checkpoint:
   `tests/check_asm_immediates.py` also disassembles the native objects and
   fails if a branch appears before the fixed loop back-edge in
   `secp256k1_projective_basepoint_mul_limbs`. This narrows the scalar-loop
-  leakage shape, but it is still not a production signing backend: the current
-  mixed-add and doubling formulas still contain exceptional-case branches that
-  should be replaced or isolated before any secret-bearing FROST operation is
-  exposed.
+  leakage shape, but it is still not a production signing backend.
 - The first constant-time group hardening checkpoint split a
   finite-assumption Jacobian double helper,
   `secp256k1_jacobian_double_finite_limbs`, and made the projective basepoint
@@ -259,6 +256,16 @@ Fixes made while executing this checkpoint:
   infinity/Y-zero branches from the scalar loop, but mixed-add exceptional-case
   branches and final affine conversion remain to be remediated before treating
   FROST commitment generation as constant-time.
+- The second constant-time group hardening checkpoint split
+  `secp256k1_jacobian_mixed_add_masked_limbs` for the projective basepoint
+  scalar loop. It computes distinct-add and duplicate-add candidates, selects
+  the affine basepoint for an infinity input, and masks the infinity result
+  without branching on the accumulator state, `H == 0`, or `R == 0`. The public
+  `secp256k1_jacobian_mixed_add_limbs` helper remains unchanged for CLI-visible
+  exceptional cases, while the disassembly guard now fails if the scalar loop
+  regresses to calling it directly or if the masked helper gains a branch. The
+  Python harness includes `n + 2` as a projective scalar case so the
+  duplicate-candidate path is selected, not just computed and discarded.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -417,10 +424,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, replace or isolate the remaining mixed-add exceptional-case
-   branches in `secp256k1_jacobian_mixed_add_limbs`, then audit final
-   Jacobian-to-affine conversion before expanding any secret-bearing FROST
-   workflow. Keep the native and Zig source lists together.
+   separate. Next, audit final Jacobian-to-affine conversion and keep the
+   generic public point/Jacobian helpers isolated from secret-bearing FROST
+   paths before expanding any signing workflow. Keep the native and Zig source
+   lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

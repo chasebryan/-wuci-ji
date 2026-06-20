@@ -927,6 +927,7 @@ def assert_secp256k1_point_helpers() -> None:
         SECP256K1_ORDER - 1,
         SECP256K1_ORDER,
         SECP256K1_ORDER + 1,
+        SECP256K1_ORDER + 2,
         (1 << 256) - 1,
     )
     for scalar in projective_scalars:
