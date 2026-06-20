@@ -1366,6 +1366,16 @@ manifest_parse_loaded_envelope:
     mov edx, OFFSET FLAT:manifest_v1_msg_len
     call write_all
 
+    lea rdi, [rip + manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:manifest_artifact_sha256_label_len
+    lea rdx, [rip + aead_open_buf]
+    mov rcx, qword ptr [rip + aead_text_len]
+    call write_manifest_labeled_sha256
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_length_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
+    call write_all
     mov rdi, qword ptr [rip + aead_text_len]
     sub rdi, ENVELOPE_MIN_LEN
     call write_u64_decimal_stdout
@@ -1374,10 +1384,12 @@ manifest_parse_loaded_envelope:
     mov edx, OFFSET FLAT:newline_msg_len
     call write_all
 
-    lea rdi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
-    mov rsi, qword ptr [rip + aead_text_len]
-    sub rsi, ENVELOPE_MIN_LEN
-    call write_manifest_ciphertext_sha256
+    lea rdi, [rip + manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    lea rdx, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
+    mov rcx, qword ptr [rip + aead_text_len]
+    sub rcx, ENVELOPE_MIN_LEN
+    call write_manifest_labeled_sha256
 
     mov rdi, STDOUT
     lea rsi, [rip + inspect_nonce_label]
@@ -1432,6 +1444,12 @@ manifest_parse_loaded_envelope:
     mov edx, 33
     call write_all
 
+    lea rdi, [rip + manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:manifest_artifact_sha256_label_len
+    lea rdx, [rip + aead_open_buf]
+    mov rcx, qword ptr [rip + aead_text_len]
+    call write_manifest_labeled_sha256
+
     mov rdi, STDOUT
     lea rsi, [rip + manifest_ciphertext_length_label]
     mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
@@ -1444,10 +1462,12 @@ manifest_parse_loaded_envelope:
     mov edx, OFFSET FLAT:newline_msg_len
     call write_all
 
-    lea rdi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
-    mov rsi, qword ptr [rip + aead_text_len]
-    sub rsi, ENVELOPE_V2_MIN_LEN
-    call write_manifest_ciphertext_sha256
+    lea rdi, [rip + manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    lea rdx, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
+    mov rcx, qword ptr [rip + aead_text_len]
+    sub rcx, ENVELOPE_V2_MIN_LEN
+    call write_manifest_labeled_sha256
 
     mov rdi, STDOUT
     lea rsi, [rip + inspect_nonce_label]
@@ -2315,22 +2335,26 @@ write_u64_decimal_stdout:
     pop rbx
     ret
 
-write_manifest_ciphertext_sha256:
+write_manifest_labeled_sha256:
     push rbx
     push r12
+    push r13
+    push r14
     mov rbx, rdi
     mov r12, rsi
+    mov r13, rdx
+    mov r14, rcx
 
     mov rdi, STDOUT
-    lea rsi, [rip + manifest_ciphertext_sha256_label]
-    mov edx, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    mov rsi, rbx
+    mov rdx, r12
     call write_all
 
     lea rdi, [rip + sha_ctx]
     call sha256_init
     lea rdi, [rip + sha_ctx]
-    mov rsi, rbx
-    mov rdx, r12
+    mov rsi, r13
+    mov rdx, r14
     call sha256_update
     lea rdi, [rip + sha_ctx]
     lea rsi, [rip + digest_buf]
@@ -2346,6 +2370,8 @@ write_manifest_ciphertext_sha256:
     mov edx, 65
     call write_all
 
+    pop r14
+    pop r13
     pop r12
     pop rbx
     ret
@@ -3561,8 +3587,8 @@ usage_msg:
     .ascii "  open-file-keyfile <path> <in> <out> open file with key file; no overwrite\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
     .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
-    .ascii "  manifest                       print metadata, ciphertext SHA-256, and tag\n"
-    .ascii "  manifest-file <path>           print file metadata, ciphertext SHA-256, and tag\n"
+    .ascii "  manifest                       print metadata, SHA-256 fingerprints, and tag\n"
+    .ascii "  manifest-file <path>           print file metadata, SHA-256 fingerprints, and tag\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
     .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
@@ -3655,7 +3681,6 @@ manifest_v1_msg:
     .ascii "version: 1\n"
     .ascii "algorithm: 1\n"
     .ascii "header-length: 20\n"
-    .ascii "ciphertext-length: "
 .set manifest_v1_msg_len, . - manifest_v1_msg
 
 manifest_v2_msg:
@@ -3667,6 +3692,10 @@ manifest_v2_msg:
 manifest_ciphertext_length_label:
     .ascii "ciphertext-length: "
 .set manifest_ciphertext_length_label_len, . - manifest_ciphertext_length_label
+
+manifest_artifact_sha256_label:
+    .ascii "artifact-sha256: "
+.set manifest_artifact_sha256_label_len, . - manifest_artifact_sha256_label
 
 manifest_ciphertext_sha256_label:
     .ascii "ciphertext-sha256: "

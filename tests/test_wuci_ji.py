@@ -244,7 +244,10 @@ def assert_manifest_v1(sealed: bytes) -> None:
         b"version: 1\n"
         b"algorithm: 1\n"
         b"header-length: 20\n"
-        b"ciphertext-length: " + str(ciphertext_len).encode("ascii") + b"\n"
+        + b"artifact-sha256: "
+        + hashlib.sha256(sealed).hexdigest().encode("ascii")
+        + b"\n"
+        + b"ciphertext-length: " + str(ciphertext_len).encode("ascii") + b"\n"
         + b"ciphertext-sha256: "
         + hashlib.sha256(ciphertext).hexdigest().encode("ascii")
         + b"\n"
@@ -303,6 +306,9 @@ def assert_manifest_v2(sealed: bytes, key_id: bytes) -> None:
         b"algorithm: 1\n"
         b"header-length: 36\n"
         + b"key-id: " + key_id.hex().encode("ascii") + b"\n"
+        + b"artifact-sha256: "
+        + hashlib.sha256(sealed).hexdigest().encode("ascii")
+        + b"\n"
         + b"ciphertext-length: " + str(ciphertext_len).encode("ascii") + b"\n"
         + b"ciphertext-sha256: "
         + hashlib.sha256(ciphertext).hexdigest().encode("ascii")
@@ -778,8 +784,8 @@ def assert_help_output() -> None:
         "seal-file-keyfile-v2 <path> <key-id> <in> <out>",
         "open-file <key> <in> <out>",
         "open-file-keyfile <path> <in> <out>",
-        "manifest                       print metadata, ciphertext SHA-256, and tag",
-        "manifest-file <path>           print file metadata, ciphertext SHA-256, and tag",
+        "manifest                       print metadata, SHA-256 fingerprints, and tag",
+        "manifest-file <path>           print file metadata, SHA-256 fingerprints, and tag",
         "selftest                       run built-in known-answer tests",
     ):
         assert snippet in help_text, snippet

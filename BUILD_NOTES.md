@@ -113,10 +113,11 @@ Fixes made while executing this checkpoint:
   frames before printing any metadata.
 - `manifest` is also keyless and emits the stable artifact metadata needed for
   cataloging: version, algorithm, header length, v2 key ID when present,
-  ciphertext length, ciphertext SHA-256, nonce, and the raw trailing
-  authentication tag. The fingerprint covers ciphertext bytes only, excluding
-  header metadata and the trailing tag. It uses the same malformed/truncated
-  frame rejection boundaries as `inspect`.
+  artifact SHA-256, ciphertext length, ciphertext SHA-256, nonce, and the raw
+  trailing authentication tag. `artifact-sha256` covers the complete stored
+  envelope bytes, while `ciphertext-sha256` covers ciphertext bytes only,
+  excluding header metadata and the trailing tag. It uses the same
+  malformed/truncated frame rejection boundaries as `inspect`.
 - `inspect-file <path>` and `manifest-file <path>` provide file-path
   convenience variants for cataloging stored artifacts without shell
   redirection. They reuse the same parser/output paths as stdin `inspect` and
