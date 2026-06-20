@@ -34,6 +34,20 @@ FROST_SHA256_HELPERS = {
     "frost-secp256k1-h4": b"FROST-secp256k1-SHA256-v1msg",
     "frost-secp256k1-h5": b"FROST-secp256k1-SHA256-v1com",
 }
+P256_ORDER = int(
+    "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551", 16
+)
+SECP256K1_ORDER = int(
+    "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16
+)
+FROST_HASH_TO_SCALAR_HELPERS = {
+    "frost-p256-h1": (b"FROST-P256-SHA256-v1rho", P256_ORDER),
+    "frost-p256-h2": (b"FROST-P256-SHA256-v1chal", P256_ORDER),
+    "frost-p256-h3": (b"FROST-P256-SHA256-v1nonce", P256_ORDER),
+    "frost-secp256k1-h1": (b"FROST-secp256k1-SHA256-v1rho", SECP256K1_ORDER),
+    "frost-secp256k1-h2": (b"FROST-secp256k1-SHA256-v1chal", SECP256K1_ORDER),
+    "frost-secp256k1-h3": (b"FROST-secp256k1-SHA256-v1nonce", SECP256K1_ORDER),
+}
 
 
 def run(args: list[str], data: bytes = b"") -> subprocess.CompletedProcess[bytes]:
@@ -58,6 +72,42 @@ def assert_frost_sha256_helpers(payload: bytes) -> None:
     for command, prefix in FROST_SHA256_HELPERS.items():
         proc = run([command], payload)
         expected = hashlib.sha256(prefix + payload).hexdigest() + "\n"
+        actual = proc.stdout.decode("ascii")
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert actual == expected, (command, payload[:32], actual, expected)
+
+
+def expand_message_xmd_sha256(message: bytes, dst: bytes, out_len: int) -> bytes:
+    block_len = hashlib.sha256().digest_size
+    ell = (out_len + block_len - 1) // block_len
+    assert 1 <= ell <= 255
+    assert len(dst) <= 255
+
+    dst_prime = dst + bytes([len(dst)])
+    b0 = hashlib.sha256(
+        (b"\x00" * 64)
+        + message
+        + out_len.to_bytes(2, "big")
+        + b"\x00"
+        + dst_prime
+    ).digest()
+    blocks = [hashlib.sha256(b0 + b"\x01" + dst_prime).digest()]
+    for counter in range(2, ell + 1):
+        xored = bytes(left ^ right for left, right in zip(b0, blocks[-1]))
+        blocks.append(hashlib.sha256(xored + bytes([counter]) + dst_prime).digest())
+    return b"".join(blocks)[:out_len]
+
+
+def frost_hash_to_scalar_ref(message: bytes, dst: bytes, order: int) -> bytes:
+    uniform = expand_message_xmd_sha256(message, dst, 48)
+    scalar = int.from_bytes(uniform, "big") % order
+    return scalar.to_bytes(32, "big")
+
+
+def assert_frost_hash_to_scalar_helpers(payload: bytes) -> None:
+    for command, (dst, order) in FROST_HASH_TO_SCALAR_HELPERS.items():
+        proc = run([command], payload)
+        expected = frost_hash_to_scalar_ref(payload, dst, order).hex() + "\n"
         actual = proc.stdout.decode("ascii")
         assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
         assert actual == expected, (command, payload[:32], actual, expected)
@@ -1053,8 +1103,14 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
         cases = [
             (["--help", "extra"], b"", None),
             (["sha256", "extra"], b"abc", None),
+            (["frost-p256-h1", "extra"], b"abc", None),
+            (["frost-p256-h2", "extra"], b"abc", None),
+            (["frost-p256-h3", "extra"], b"abc", None),
             (["frost-p256-h4", "extra"], b"abc", None),
             (["frost-p256-h5", "extra"], b"abc", None),
+            (["frost-secp256k1-h1", "extra"], b"abc", None),
+            (["frost-secp256k1-h2", "extra"], b"abc", None),
+            (["frost-secp256k1-h3", "extra"], b"abc", None),
             (["frost-secp256k1-h4", "extra"], b"abc", None),
             (["frost-secp256k1-h5", "extra"], b"abc", None),
             (["keygen", "extra"], b"", None),
@@ -1180,8 +1236,14 @@ def assert_help_output() -> None:
     help_text = help_proc.stdout.decode("ascii")
 
     for snippet in (
+        "frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin",
+        "frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin",
+        "frost-p256-h3                  RFC9591 FROST(P-256,SHA-256) H3(nonce) scalar over stdin",
         "frost-p256-h4                  RFC9591 FROST(P-256,SHA-256) H4(msg) over stdin",
         "frost-p256-h5                  RFC9591 FROST(P-256,SHA-256) H5(com) over stdin",
+        "frost-secp256k1-h1             RFC9591 FROST(secp256k1,SHA-256) H1(rho) scalar over stdin",
+        "frost-secp256k1-h2             RFC9591 FROST(secp256k1,SHA-256) H2(chal) scalar over stdin",
+        "frost-secp256k1-h3             RFC9591 FROST(secp256k1,SHA-256) H3(nonce) scalar over stdin",
         "frost-secp256k1-h4             RFC9591 FROST(secp256k1,SHA-256) H4(msg) over stdin",
         "frost-secp256k1-h5             RFC9591 FROST(secp256k1,SHA-256) H5(com) over stdin",
         "keypair                        write random X25519 private/public keys as hex",
@@ -1216,6 +1278,9 @@ def main() -> None:
     assert_sha256(b"a" * 64)
     assert_sha256(b"a" * 65)
     assert_sha256((b"wuci-ji\0" * 8192) + b"end")
+    assert_frost_hash_to_scalar_helpers(b"")
+    assert_frost_hash_to_scalar_helpers(b"abc")
+    assert_frost_hash_to_scalar_helpers((b"frost-transcript\0" * 4096) + b"end")
     assert_frost_sha256_helpers(b"")
     assert_frost_sha256_helpers(b"abc")
     assert_frost_sha256_helpers((b"frost-transcript\0" * 4096) + b"end")

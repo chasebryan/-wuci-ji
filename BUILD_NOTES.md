@@ -98,15 +98,15 @@ Fixes made while executing this checkpoint:
 - The native test path disassembles `build/wuci-ji.o` and fails if known
   absolute `*_len` assembly constants are encoded as absolute memory reads
   instead of immediate loads.
-- The first FROST RFC 9591 lane is intentionally narrow:
-  `frost-p256-h4`, `frost-p256-h5`, `frost-secp256k1-h4`, and
-  `frost-secp256k1-h5` compute the SHA-256 transcript hashes
-  `H(contextString || "msg" || stdin)` and
-  `H(contextString || "com" || stdin)` for the P-256 and secp256k1
-  ciphersuites. These are transcript primitives only; no threshold signing API
-  is exposed until the build has constant-time prime-order group operations,
-  scalar serialization/deserialization, hash-to-field for H1/H2/H3, and
-  participant share/commitment validation.
+- The first FROST RFC 9591 lane is intentionally narrow but now covers the
+  ciphersuite hash primitives for P-256 and secp256k1. `frost-*-h1`,
+  `frost-*-h2`, and `frost-*-h3` run SHA-256 `expand_message_xmd` with
+  RFC 9591 DSTs, reduce the 48-byte uniform output modulo the ciphersuite
+  group order, and print a 32-byte scalar. `frost-*-h4` and `frost-*-h5`
+  compute the transcript SHA-256 helpers `H(contextString || "msg" || stdin)`
+  and `H(contextString || "com" || stdin)`. These are primitives only; no
+  threshold signing API is exposed until the build has constant-time
+  prime-order group operations and participant share/commitment validation.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -251,8 +251,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `open`/`open-to`; current tests cover truncated headers, truncated
    bodies/tags, authenticated key ID tampering, nonce tampering, and tag
    tampering.
-3. The FROST lane currently stops at RFC 9591 H4/H5 transcript hashing. Next
-   FROST work should add a real prime-order Schnorr group backend before any
+3. The FROST lane currently exposes RFC 9591 H1/H2/H3 hash-to-scalar and
+   H4/H5 transcript primitives for P-256 and secp256k1. Next FROST work should
+   add a real constant-time prime-order Schnorr group backend before any
    key-share, nonce, signing-share, or aggregation commands are exposed.
 4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519

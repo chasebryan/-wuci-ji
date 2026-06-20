@@ -54,6 +54,24 @@ _start:
     je run_sha256
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_p256_h1]
+    call streq
+    cmp eax, 1
+    je run_frost_p256_h1
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_p256_h2]
+    call streq
+    cmp eax, 1
+    je run_frost_p256_h2
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_p256_h3]
+    call streq
+    cmp eax, 1
+    je run_frost_p256_h3
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_frost_p256_h4]
     call streq
     cmp eax, 1
@@ -64,6 +82,24 @@ _start:
     call streq
     cmp eax, 1
     je run_frost_p256_h5
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_h1]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_h1
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_h2]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_h2
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_h3]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_h3
 
     mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_frost_secp256k1_h4]
@@ -331,12 +367,60 @@ run_frost_p256_h4:
     mov esi, OFFSET FLAT:frost_p256_h4_prefix_len
     jmp frost_hash_stdin
 
+run_frost_p256_h1:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_p256_h1_dst_prime]
+    mov esi, OFFSET FLAT:frost_p256_h1_dst_prime_len
+    lea rdx, [rip + frost_p256_order_le]
+    jmp frost_hash_to_scalar_stdin
+
+run_frost_p256_h2:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_p256_h2_dst_prime]
+    mov esi, OFFSET FLAT:frost_p256_h2_dst_prime_len
+    lea rdx, [rip + frost_p256_order_le]
+    jmp frost_hash_to_scalar_stdin
+
+run_frost_p256_h3:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_p256_h3_dst_prime]
+    mov esi, OFFSET FLAT:frost_p256_h3_dst_prime_len
+    lea rdx, [rip + frost_p256_order_le]
+    jmp frost_hash_to_scalar_stdin
+
 run_frost_p256_h5:
     cmp qword ptr [rsp], 2
     jne usage_exit
     lea rdi, [rip + frost_p256_h5_prefix]
     mov esi, OFFSET FLAT:frost_p256_h5_prefix_len
     jmp frost_hash_stdin
+
+run_frost_secp256k1_h1:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_secp256k1_h1_dst_prime]
+    mov esi, OFFSET FLAT:frost_secp256k1_h1_dst_prime_len
+    lea rdx, [rip + frost_secp256k1_order_le]
+    jmp frost_hash_to_scalar_stdin
+
+run_frost_secp256k1_h2:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_secp256k1_h2_dst_prime]
+    mov esi, OFFSET FLAT:frost_secp256k1_h2_dst_prime_len
+    lea rdx, [rip + frost_secp256k1_order_le]
+    jmp frost_hash_to_scalar_stdin
+
+run_frost_secp256k1_h3:
+    cmp qword ptr [rsp], 2
+    jne usage_exit
+    lea rdi, [rip + frost_secp256k1_h3_dst_prime]
+    mov esi, OFFSET FLAT:frost_secp256k1_h3_dst_prime_len
+    lea rdx, [rip + frost_secp256k1_order_le]
+    jmp frost_hash_to_scalar_stdin
 
 run_frost_secp256k1_h4:
     cmp qword ptr [rsp], 2
@@ -397,6 +481,131 @@ frost_hash_stdin:
     mov edx, 65
     call write_all
 
+    pop r12
+    pop rbx
+    xor edi, edi
+    jmp exit_process
+
+frost_hash_to_scalar_stdin:
+    push rbx
+    push r12
+    push r13
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_zpad64]
+    mov edx, 64
+    call sha256_update
+
+.Lfrost_xmd_read_loop:
+    mov eax, SYS_READ
+    mov edi, STDIN
+    lea rsi, [rip + io_buf]
+    mov edx, 4096
+    syscall
+    test rax, rax
+    js read_error
+    jz .Lfrost_xmd_read_eof
+
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, rax
+    call sha256_update
+    jmp .Lfrost_xmd_read_loop
+
+.Lfrost_xmd_read_eof:
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_len48_zero]
+    mov edx, 3
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    mov rsi, rbx
+    mov rdx, r12
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_b0]
+    call sha256_final
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_b0]
+    mov edx, 32
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_counter_one]
+    mov edx, 1
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    mov rsi, rbx
+    mov rdx, r12
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_b1]
+    call sha256_final
+
+    lea rdi, [rip + frost_uniform_buf]
+    lea rsi, [rip + frost_b1]
+    mov ecx, 32
+    rep movsb
+
+    lea rdi, [rip + frost_xor_buf]
+    lea rsi, [rip + frost_b0]
+    lea rdx, [rip + frost_b1]
+    mov ecx, 32
+.Lfrost_xor_loop:
+    mov al, byte ptr [rsi]
+    xor al, byte ptr [rdx]
+    mov byte ptr [rdi], al
+    inc rdi
+    inc rsi
+    inc rdx
+    dec ecx
+    jne .Lfrost_xor_loop
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_xor_buf]
+    mov edx, 32
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_counter_two]
+    mov edx, 1
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    mov rsi, rbx
+    mov rdx, r12
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    lea rsi, [rip + frost_b2]
+    call sha256_final
+
+    lea rdi, [rip + frost_uniform_buf + 32]
+    lea rsi, [rip + frost_b2]
+    mov ecx, 16
+    rep movsb
+
+    lea rdi, [rip + frost_uniform_buf]
+    mov rsi, r13
+    lea rdx, [rip + frost_scalar_buf]
+    call frost_reduce_48_mod_order
+
+    lea rdi, [rip + frost_scalar_buf]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+
+    pop r13
     pop r12
     pop rbx
     xor edi, edi
@@ -3379,6 +3588,157 @@ base64_decode_char:
     mov eax, -1
     ret
 
+frost_reduce_48_mod_order:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+
+    mov qword ptr [rip + frost_rem0], 0
+    mov qword ptr [rip + frost_rem1], 0
+    mov qword ptr [rip + frost_rem2], 0
+    mov qword ptr [rip + frost_rem3], 0
+
+    xor r14d, r14d
+.Lfrost_reduce_bit_loop:
+    mov rax, qword ptr [rip + frost_rem0]
+    add rax, rax
+    mov qword ptr [rip + frost_rem0], rax
+    mov rax, qword ptr [rip + frost_rem1]
+    adc rax, rax
+    mov qword ptr [rip + frost_rem1], rax
+    mov rax, qword ptr [rip + frost_rem2]
+    adc rax, rax
+    mov qword ptr [rip + frost_rem2], rax
+    mov rax, qword ptr [rip + frost_rem3]
+    adc rax, rax
+    mov qword ptr [rip + frost_rem3], rax
+    setc r15b
+
+    mov eax, r14d
+    shr eax, 3
+    movzx ecx, byte ptr [rbx + rax]
+    mov eax, r14d
+    and eax, 7
+    mov edx, 7
+    sub edx, eax
+    mov eax, ecx
+    mov ecx, edx
+    shr eax, cl
+    and eax, 1
+    add qword ptr [rip + frost_rem0], rax
+    adc qword ptr [rip + frost_rem1], 0
+    adc qword ptr [rip + frost_rem2], 0
+    adc qword ptr [rip + frost_rem3], 0
+    setc al
+    or r15b, al
+
+    call frost_conditional_sub_order
+
+    inc r14d
+    cmp r14d, 384
+    jne .Lfrost_reduce_bit_loop
+
+    lea r15, [rip + frost_rem0]
+    mov rax, qword ptr [r15 + 24]
+    call store64_be_at_r13
+    mov rax, qword ptr [r15 + 16]
+    call store64_be_at_r13
+    mov rax, qword ptr [r15 + 8]
+    call store64_be_at_r13
+    mov rax, qword ptr [r15]
+    call store64_be_at_r13
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+frost_conditional_sub_order:
+    mov r8, qword ptr [rip + frost_rem0]
+    mov r9, qword ptr [rip + frost_rem1]
+    mov r10, qword ptr [rip + frost_rem2]
+    mov r11, qword ptr [rip + frost_rem3]
+
+    mov rax, r8
+    sub rax, qword ptr [r12]
+    mov qword ptr [rip + frost_tmp0], rax
+    mov rax, r9
+    sbb rax, qword ptr [r12 + 8]
+    mov qword ptr [rip + frost_tmp1], rax
+    mov rax, r10
+    sbb rax, qword ptr [r12 + 16]
+    mov qword ptr [rip + frost_tmp2], rax
+    mov rax, r11
+    sbb rax, qword ptr [r12 + 24]
+    mov qword ptr [rip + frost_tmp3], rax
+
+    sbb rax, rax
+    not rax
+    movzx rcx, r15b
+    neg rcx
+    or rax, rcx
+    mov rdx, rax
+    not rdx
+
+    mov rcx, qword ptr [rip + frost_tmp0]
+    and rcx, rax
+    and r8, rdx
+    or rcx, r8
+    mov qword ptr [rip + frost_rem0], rcx
+
+    mov rcx, qword ptr [rip + frost_tmp1]
+    and rcx, rax
+    and r9, rdx
+    or rcx, r9
+    mov qword ptr [rip + frost_rem1], rcx
+
+    mov rcx, qword ptr [rip + frost_tmp2]
+    and rcx, rax
+    and r10, rdx
+    or rcx, r10
+    mov qword ptr [rip + frost_rem2], rcx
+
+    mov rcx, qword ptr [rip + frost_tmp3]
+    and rcx, rax
+    and r11, rdx
+    or rcx, r11
+    mov qword ptr [rip + frost_rem3], rcx
+    ret
+
+store64_be_at_r13:
+    mov rdx, rax
+    mov rcx, rdx
+    shr rcx, 56
+    mov byte ptr [r13], cl
+    mov rcx, rdx
+    shr rcx, 48
+    mov byte ptr [r13 + 1], cl
+    mov rcx, rdx
+    shr rcx, 40
+    mov byte ptr [r13 + 2], cl
+    mov rcx, rdx
+    shr rcx, 32
+    mov byte ptr [r13 + 3], cl
+    mov rcx, rdx
+    shr rcx, 24
+    mov byte ptr [r13 + 4], cl
+    mov rcx, rdx
+    shr rcx, 16
+    mov byte ptr [r13 + 5], cl
+    mov rcx, rdx
+    shr rcx, 8
+    mov byte ptr [r13 + 6], cl
+    mov byte ptr [r13 + 7], dl
+    add r13, 8
+    ret
+
 zero_sensitive_state:
     lea rdi, [rip + bss_sensitive_start]
     mov esi, OFFSET FLAT:bss_sensitive_len
@@ -4631,10 +4991,22 @@ sha256_transform:
 .section .rodata
 cmd_sha256:
     .asciz "sha256"
+cmd_frost_p256_h1:
+    .asciz "frost-p256-h1"
+cmd_frost_p256_h2:
+    .asciz "frost-p256-h2"
+cmd_frost_p256_h3:
+    .asciz "frost-p256-h3"
 cmd_frost_p256_h4:
     .asciz "frost-p256-h4"
 cmd_frost_p256_h5:
     .asciz "frost-p256-h5"
+cmd_frost_secp256k1_h1:
+    .asciz "frost-secp256k1-h1"
+cmd_frost_secp256k1_h2:
+    .asciz "frost-secp256k1-h2"
+cmd_frost_secp256k1_h3:
+    .asciz "frost-secp256k1-h3"
 cmd_frost_secp256k1_h4:
     .asciz "frost-secp256k1-h4"
 cmd_frost_secp256k1_h5:
@@ -4703,10 +5075,16 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h4|frost-p256-h5|frost-secp256k1-h4|frost-secp256k1-h5|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
+    .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
+    .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
+    .ascii "  frost-p256-h3                  RFC9591 FROST(P-256,SHA-256) H3(nonce) scalar over stdin\n"
     .ascii "  frost-p256-h4                  RFC9591 FROST(P-256,SHA-256) H4(msg) over stdin\n"
     .ascii "  frost-p256-h5                  RFC9591 FROST(P-256,SHA-256) H5(com) over stdin\n"
+    .ascii "  frost-secp256k1-h1             RFC9591 FROST(secp256k1,SHA-256) H1(rho) scalar over stdin\n"
+    .ascii "  frost-secp256k1-h2             RFC9591 FROST(secp256k1,SHA-256) H2(chal) scalar over stdin\n"
+    .ascii "  frost-secp256k1-h3             RFC9591 FROST(secp256k1,SHA-256) H3(nonce) scalar over stdin\n"
     .ascii "  frost-secp256k1-h4             RFC9591 FROST(secp256k1,SHA-256) H4(msg) over stdin\n"
     .ascii "  frost-secp256k1-h5             RFC9591 FROST(secp256k1,SHA-256) H5(com) over stdin\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
@@ -4902,6 +5280,33 @@ armor_footer:
     .ascii "-----END WUCI-JI ARTIFACT-----"
 .set armor_footer_len, . - armor_footer
 
+frost_zpad64:
+    .zero 64
+
+frost_len48_zero:
+    .byte 0x00, 0x30, 0x00
+
+frost_counter_one:
+    .byte 0x01
+
+frost_counter_two:
+    .byte 0x02
+
+frost_p256_h1_dst_prime:
+    .ascii "FROST-P256-SHA256-v1rho"
+    .byte 0x17
+.set frost_p256_h1_dst_prime_len, . - frost_p256_h1_dst_prime
+
+frost_p256_h2_dst_prime:
+    .ascii "FROST-P256-SHA256-v1chal"
+    .byte 0x18
+.set frost_p256_h2_dst_prime_len, . - frost_p256_h2_dst_prime
+
+frost_p256_h3_dst_prime:
+    .ascii "FROST-P256-SHA256-v1nonce"
+    .byte 0x19
+.set frost_p256_h3_dst_prime_len, . - frost_p256_h3_dst_prime
+
 frost_p256_h4_prefix:
     .ascii "FROST-P256-SHA256-v1msg"
 .set frost_p256_h4_prefix_len, . - frost_p256_h4_prefix
@@ -4910,6 +5315,21 @@ frost_p256_h5_prefix:
     .ascii "FROST-P256-SHA256-v1com"
 .set frost_p256_h5_prefix_len, . - frost_p256_h5_prefix
 
+frost_secp256k1_h1_dst_prime:
+    .ascii "FROST-secp256k1-SHA256-v1rho"
+    .byte 0x1c
+.set frost_secp256k1_h1_dst_prime_len, . - frost_secp256k1_h1_dst_prime
+
+frost_secp256k1_h2_dst_prime:
+    .ascii "FROST-secp256k1-SHA256-v1chal"
+    .byte 0x1d
+.set frost_secp256k1_h2_dst_prime_len, . - frost_secp256k1_h2_dst_prime
+
+frost_secp256k1_h3_dst_prime:
+    .ascii "FROST-secp256k1-SHA256-v1nonce"
+    .byte 0x1e
+.set frost_secp256k1_h3_dst_prime_len, . - frost_secp256k1_h3_dst_prime
+
 frost_secp256k1_h4_prefix:
     .ascii "FROST-secp256k1-SHA256-v1msg"
 .set frost_secp256k1_h4_prefix_len, . - frost_secp256k1_h4_prefix
@@ -4917,6 +5337,20 @@ frost_secp256k1_h4_prefix:
 frost_secp256k1_h5_prefix:
     .ascii "FROST-secp256k1-SHA256-v1com"
 .set frost_secp256k1_h5_prefix_len, . - frost_secp256k1_h5_prefix
+
+.align 8
+frost_p256_order_le:
+    .quad 0xf3b9cac2fc632551
+    .quad 0xbce6faada7179e84
+    .quad 0xffffffffffffffff
+    .quad 0xffffffff00000000
+
+.align 8
+frost_secp256k1_order_le:
+    .quad 0xbfd25e8cd0364141
+    .quad 0xbaaedce6af48a03b
+    .quad 0xfffffffffffffffe
+    .quad 0xffffffffffffffff
 
 envelope_prefix:
     .ascii "WJSEAL"
@@ -5049,6 +5483,41 @@ io_buf:
 .align 16
 digest_buf:
     .skip 32
+.align 16
+frost_b0:
+    .skip 32
+.align 16
+frost_b1:
+    .skip 32
+.align 16
+frost_b2:
+    .skip 32
+.align 16
+frost_xor_buf:
+    .skip 32
+.align 16
+frost_uniform_buf:
+    .skip 48
+.align 16
+frost_scalar_buf:
+    .skip 32
+.align 8
+frost_rem0:
+    .skip 8
+frost_rem1:
+    .skip 8
+frost_rem2:
+    .skip 8
+frost_rem3:
+    .skip 8
+frost_tmp0:
+    .skip 8
+frost_tmp1:
+    .skip 8
+frost_tmp2:
+    .skip 8
+frost_tmp3:
+    .skip 8
 .align 16
 hmac_key:
     .skip 32
