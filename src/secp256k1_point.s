@@ -28,6 +28,7 @@
 .global secp256k1_point_add_limbs
 .global secp256k1_point_mul_limbs
 .global secp256k1_jacobian_to_affine_limbs
+.global secp256k1_jacobian_to_affine_finite_limbs
 .global secp256k1_jacobian_double_finite_limbs
 .global secp256k1_jacobian_double_limbs
 .global secp256k1_jacobian_mixed_add_masked_limbs
@@ -366,9 +367,7 @@ run_secp256k1_projective_basepoint_mul:
     lea rdx, [rip + secp256k1_jacobian_rz]
     lea rcx, [rip + secp256k1_point_rx]
     lea r8, [rip + secp256k1_point_ry]
-    call secp256k1_jacobian_to_affine_limbs
-    cmp eax, 1
-    jne write_secp256k1_point_infinity
+    call secp256k1_jacobian_to_affine_finite_limbs
     jmp write_secp256k1_point_out
 
 run_secp256k1_point_encode_compressed:
@@ -794,9 +793,7 @@ frost_secp256k1_commit_scalar:
     lea rdx, [rip + secp256k1_jacobian_rz]
     lea rcx, [rip + secp256k1_point_rx]
     lea r8, [rip + secp256k1_point_ry]
-    call secp256k1_jacobian_to_affine_limbs
-    cmp eax, 1
-    jne .Lfrost_commit_scalar_fail
+    call secp256k1_jacobian_to_affine_finite_limbs
     mov al, byte ptr [rip + secp256k1_point_ry]
     and al, 1
     add al, 2
@@ -1199,6 +1196,36 @@ secp256k1_jacobian_to_affine_limbs:
     call secp256k1_field_is_zero_limbs
     cmp eax, 1
     je .Lsecp256k1_jacobian_to_affine_infinity
+    mov rdi, rbx
+    mov rsi, r12
+    mov rdx, r13
+    mov rcx, r14
+    mov r8, r15
+    call secp256k1_jacobian_to_affine_finite_limbs
+    jmp .Lsecp256k1_jacobian_to_affine_done
+
+.Lsecp256k1_jacobian_to_affine_infinity:
+    xor eax, eax
+
+.Lsecp256k1_jacobian_to_affine_done:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+secp256k1_jacobian_to_affine_finite_limbs:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+    mov r14, rcx
+    mov r15, r8
 
     mov rdi, r13
     lea rsi, [rip + secp256k1_jacobian_t0]
@@ -1220,12 +1247,6 @@ secp256k1_jacobian_to_affine_limbs:
     mov rdx, r15
     call secp256k1_field_mul_limbs
     mov eax, 1
-    jmp .Lsecp256k1_jacobian_to_affine_done
-
-.Lsecp256k1_jacobian_to_affine_infinity:
-    xor eax, eax
-
-.Lsecp256k1_jacobian_to_affine_done:
     pop r15
     pop r14
     pop r13

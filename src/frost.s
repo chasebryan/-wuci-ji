@@ -52,7 +52,7 @@
 .extern secp256k1_point_add_limbs
 .extern secp256k1_point_mul_limbs
 .extern secp256k1_projective_basepoint_mul_limbs
-.extern secp256k1_jacobian_to_affine_limbs
+.extern secp256k1_jacobian_to_affine_finite_limbs
 .extern secp256k1_field_equal_limbs
 .extern write_secp256k1_point_valid
 .extern write_secp256k1_point_invalid
@@ -869,9 +869,7 @@ run_frost_secp256k1_verify:
     lea rdx, [rip + secp256k1_jacobian_rz]
     lea rcx, [rip + frost_verify_left_x]
     lea r8, [rip + frost_verify_left_y]
-    call secp256k1_jacobian_to_affine_limbs
-    cmp eax, 1
-    jne write_secp256k1_point_invalid
+    call secp256k1_jacobian_to_affine_finite_limbs
 
     lea rdi, [rip + secp256k1_scalar_b]
     lea rsi, [rip + secp256k1_point_x2]

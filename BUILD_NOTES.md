@@ -266,6 +266,17 @@ Fixes made while executing this checkpoint:
   regresses to calling it directly or if the masked helper gains a branch. The
   Python harness includes `n + 2` as a projective scalar case so the
   duplicate-candidate path is selected, not just computed and discarded.
+- The third constant-time group hardening checkpoint split
+  `secp256k1_jacobian_to_affine_finite_limbs` from the generic
+  `secp256k1_jacobian_to_affine_limbs` wrapper. The generic helper still owns
+  CLI-visible infinity handling, while the projective basepoint CLI adapter,
+  `frost_secp256k1_commit_scalar`, and `frost-secp256k1-verify` now call the
+  finite helper only after `secp256k1_projective_basepoint_mul_limbs` has
+  returned a non-infinity result. The disassembly guard fails if these adapters
+  call the generic affine converter directly or if the finite helper gains a
+  local branch. This narrows the final conversion boundary, but the broader
+  field inversion and FROST signing workflow still need review before treating
+  this as a production constant-time signing backend.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -424,10 +435,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, audit final Jacobian-to-affine conversion and keep the
-   generic public point/Jacobian helpers isolated from secret-bearing FROST
-   paths before expanding any signing workflow. Keep the native and Zig source
-   lists together.
+   separate. Next, audit the field inversion path used by the finite affine
+   converter and keep generic public point/Jacobian helpers isolated from
+   secret-bearing FROST paths before expanding any signing workflow. Keep the
+   native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

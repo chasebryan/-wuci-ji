@@ -61,12 +61,26 @@ def branch_target(rest: str) -> int | None:
     return None if match is None else int(match.group(1), 16)
 
 
+def relocation_call_targets(lines: list[str]) -> set[str]:
+    return set(
+        re.findall(r"R_X86_64_[A-Z0-9_]+\s+([A-Za-z0-9_]+)-", "\n".join(lines))
+    )
+
+
+def local_branch_lines(lines: list[str]) -> list[str]:
+    branches: list[str] = []
+    for line in lines:
+        match = INSN_RE.match(line)
+        if match and match.group(2).startswith("j"):
+            branches.append(line.strip())
+    return branches
+
+
 def check_projective_scalar_loop(disassembly: str) -> bool:
     body = find_function_lines(disassembly, "secp256k1_projective_basepoint_mul_limbs")
     if body is None:
         return False
-    body_text = "\n".join(body)
-    call_targets = set(re.findall(r"R_X86_64_[A-Z0-9_]+\s+([A-Za-z0-9_]+)-", body_text))
+    call_targets = relocation_call_targets(body)
     saw_back_edge = False
     loop_back_edges = 0
     offenders: list[str] = []
@@ -117,11 +131,7 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
     masked_add = find_function_lines(disassembly, "secp256k1_jacobian_mixed_add_masked_limbs")
     if masked_add is None:
         raise SystemExit("secp256k1_jacobian_mixed_add_masked_limbs not found")
-    masked_add_branches: list[str] = []
-    for line in masked_add:
-        match = INSN_RE.match(line)
-        if match and match.group(2).startswith("j"):
-            masked_add_branches.append(line.strip())
+    masked_add_branches = local_branch_lines(masked_add)
     if masked_add_branches:
         offenders.extend(
             f"masked mixed-add helper contains branch: {line}"
@@ -136,6 +146,53 @@ def check_projective_scalar_loop(disassembly: str) -> bool:
             print(f"  {offender}", file=sys.stderr)
         raise SystemExit(1)
     return True
+
+
+def check_finite_affine_boundary(disassemblies: list[tuple[Path, str]]) -> None:
+    finite_helper = "secp256k1_jacobian_to_affine_finite_limbs"
+    generic_helper = "secp256k1_jacobian_to_affine_limbs"
+    required_callers = {
+        "run_secp256k1_projective_basepoint_mul",
+        "frost_secp256k1_commit_scalar",
+        "run_frost_secp256k1_verify",
+    }
+    found_callers: set[str] = set()
+    saw_finite_helper = False
+    offenders: list[str] = []
+
+    for _obj, disassembly in disassemblies:
+        finite_body = find_function_lines(disassembly, finite_helper)
+        if finite_body is not None:
+            saw_finite_helper = True
+            offenders.extend(
+                f"{finite_helper} contains branch: {line}"
+                for line in local_branch_lines(finite_body)
+            )
+
+        for caller in required_callers:
+            body = find_function_lines(disassembly, caller)
+            if body is None:
+                continue
+            found_callers.add(caller)
+            call_targets = relocation_call_targets(body)
+            if generic_helper in call_targets:
+                offenders.append(f"{caller} must not call {generic_helper}")
+            if finite_helper not in call_targets:
+                offenders.append(f"{caller} must call {finite_helper}")
+
+    missing_callers = sorted(required_callers - found_callers)
+    if not saw_finite_helper:
+        raise SystemExit(f"{finite_helper} not found in object disassembly")
+    if missing_callers:
+        raise SystemExit(
+            "finite affine boundary callers not found in object disassembly: "
+            + ", ".join(missing_callers)
+        )
+    if offenders:
+        print("finite affine-conversion audit failed:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  {offender}", file=sys.stderr)
+        raise SystemExit(1)
 
 
 def main() -> None:
@@ -183,6 +240,8 @@ def main() -> None:
         raise SystemExit(
             "secp256k1_projective_basepoint_mul_limbs not found in object disassembly"
         )
+
+    check_finite_affine_boundary(disassemblies)
 
 
 if __name__ == "__main__":
