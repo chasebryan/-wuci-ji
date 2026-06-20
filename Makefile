@@ -10,7 +10,7 @@ HOST_OS := $(shell uname -s)
 HOST_ARCH := $(shell uname -m)
 
 TARGET := build/wuci-ji
-ASM_SOURCES := src/main.s src/wuci-ji.s src/sys.s src/sha256.s src/x25519.s
+ASM_SOURCES := src/main.s src/wuci-ji.s src/sys.s src/encoding.s src/sha256.s src/x25519.s
 OBJECTS := $(patsubst src/%.s,build/%.o,$(ASM_SOURCES))
 OBJECT := build/wuci-ji.o
 CROSS_SOURCES := $(patsubst src/%.s,build/%.zig.s,$(ASM_SOURCES))
