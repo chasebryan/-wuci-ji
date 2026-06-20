@@ -156,6 +156,24 @@ _start:
     je run_frost_secp256k1_commit
 
     mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_commitment_hash]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_commitment_hash
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_binding_factor]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_binding_factor
+
+    mov rdi, qword ptr [rsp + 16]
+    lea rsi, [rip + cmd_frost_secp256k1_group_commitment]
+    call streq
+    cmp eax, 1
+    je run_frost_secp256k1_group_commitment
+
+    mov rdi, qword ptr [rsp + 16]
     lea rsi, [rip + cmd_secp256k1_field_add]
     call streq
     cmp eax, 1
@@ -669,6 +687,358 @@ run_frost_secp256k1_commit:
     mov edx, 67
     call write_all
 
+    xor edi, edi
+    jmp exit_process
+
+run_frost_secp256k1_commitment_hash:
+    cmp qword ptr [rsp], 5
+    jb usage_exit
+    mov rax, qword ptr [rsp]
+    sub rax, 2
+    xor edx, edx
+    mov ecx, 3
+    div rcx
+    test rdx, rdx
+    jne usage_exit
+    cmp rax, 40
+    ja usage_exit
+
+    mov r10, rsp
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r15, r10
+    mov r14, qword ptr [r15]
+    mov r12, 2
+    xor ebx, ebx
+    xor r13d, r13d
+
+.Lrun_frost_commitment_hash_loop:
+    cmp r12, r14
+    jae .Lrun_frost_commitment_hash_done
+    mov rdi, qword ptr [r15 + r12 * 8 + 8]
+    lea rsi, [rip + secp256k1_scalar_a]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+    lea rdi, [rip + secp256k1_scalar_a]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je frost_commitment_arg_error
+    test r13d, r13d
+    jz .Lrun_frost_commitment_hash_store_id
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + secp256k1_scalar_lagrange_id]
+    call secp256k1_scalar_gt_limbs
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+.Lrun_frost_commitment_hash_store_id:
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + secp256k1_scalar_lagrange_id]
+    call copy_field4
+    mov r13d, 1
+
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + frost_commitment_list_buf]
+    add rsi, rbx
+    call store_le4_to_be32
+
+    mov rax, r12
+    inc rax
+    mov rdi, qword ptr [r15 + rax * 8 + 8]
+    lea rsi, [rip + frost_commitment_list_buf]
+    add rsi, rbx
+    add rsi, 32
+    lea rdx, [rip + secp256k1_point_x1]
+    lea rcx, [rip + secp256k1_point_y1]
+    call load_secp256k1_compressed_point_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    mov rax, r12
+    add rax, 2
+    mov rdi, qword ptr [r15 + rax * 8 + 8]
+    lea rsi, [rip + frost_commitment_list_buf]
+    add rsi, rbx
+    add rsi, 65
+    lea rdx, [rip + secp256k1_point_x2]
+    lea rcx, [rip + secp256k1_point_y2]
+    call load_secp256k1_compressed_point_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    add rbx, 98
+    add r12, 3
+    jmp .Lrun_frost_commitment_hash_loop
+
+.Lrun_frost_commitment_hash_done:
+    lea rdi, [rip + frost_secp256k1_h5_prefix]
+    mov esi, OFFSET FLAT:frost_secp256k1_h5_prefix_len
+    lea rdx, [rip + frost_commitment_list_buf]
+    mov rcx, rbx
+    lea r8, [rip + digest_buf]
+    call frost_hash_mem
+    lea rdi, [rip + digest_buf]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+    xor edi, edi
+    jmp exit_process
+
+run_frost_secp256k1_binding_factor:
+    cmp qword ptr [rsp], 6
+    jne usage_exit
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + frost_group_public_key]
+    lea rdx, [rip + secp256k1_point_x1]
+    lea rcx, [rip + secp256k1_point_y1]
+    call load_secp256k1_compressed_point_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    mov rdi, qword ptr [rsp + 32]
+    lea rsi, [rip + frost_msg_hash]
+    call hex32_decode
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    mov rdi, qword ptr [rsp + 40]
+    lea rsi, [rip + frost_commitment_hash]
+    call hex32_decode
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    mov rdi, qword ptr [rsp + 48]
+    lea rsi, [rip + secp256k1_scalar_a]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+    lea rdi, [rip + secp256k1_scalar_a]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je frost_commitment_arg_error
+
+    lea rdi, [rip + frost_binding_input]
+    lea rsi, [rip + frost_group_public_key]
+    mov ecx, 33
+    rep movsb
+    lea rdi, [rip + frost_binding_input + 33]
+    lea rsi, [rip + frost_msg_hash]
+    mov ecx, 32
+    rep movsb
+    lea rdi, [rip + frost_binding_input + 65]
+    lea rsi, [rip + frost_commitment_hash]
+    mov ecx, 32
+    rep movsb
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + frost_binding_input + 97]
+    call store_le4_to_be32
+
+    lea rdi, [rip + frost_secp256k1_h1_dst_prime]
+    mov esi, OFFSET FLAT:frost_secp256k1_h1_dst_prime_len
+    lea rdx, [rip + frost_secp256k1_order_le]
+    lea rcx, [rip + frost_binding_input]
+    mov r8d, 129
+    lea r9, [rip + frost_nonce_scalar_be]
+    call frost_hash_to_scalar_mem
+    lea rdi, [rip + frost_nonce_scalar_be]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+    xor edi, edi
+    jmp exit_process
+
+run_frost_secp256k1_group_commitment:
+    cmp qword ptr [rsp], 6
+    jb usage_exit
+    mov rax, qword ptr [rsp]
+    sub rax, 2
+    xor edx, edx
+    mov ecx, 4
+    div rcx
+    test rdx, rdx
+    jne usage_exit
+    cmp rax, 40
+    ja usage_exit
+
+    mov r10, rsp
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov r15, r10
+    mov r14, qword ptr [r15]
+    mov r12, 2
+    xor r13d, r13d
+    mov qword ptr [rip + frost_group_acc_infinity], 1
+
+.Lrun_frost_group_commitment_loop:
+    cmp r12, r14
+    jae .Lrun_frost_group_commitment_done
+    mov rdi, qword ptr [r15 + r12 * 8 + 8]
+    lea rsi, [rip + secp256k1_scalar_a]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+    lea rdi, [rip + secp256k1_scalar_a]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je frost_commitment_arg_error
+    test r13d, r13d
+    jz .Lrun_frost_group_commitment_store_id
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + secp256k1_scalar_lagrange_id]
+    call secp256k1_scalar_gt_limbs
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+.Lrun_frost_group_commitment_store_id:
+    lea rdi, [rip + secp256k1_scalar_a]
+    lea rsi, [rip + secp256k1_scalar_lagrange_id]
+    call copy_field4
+    mov r13d, 1
+
+    mov rax, r12
+    inc rax
+    mov rdi, qword ptr [r15 + rax * 8 + 8]
+    lea rsi, [rip + frost_hiding_commitment]
+    lea rdx, [rip + secp256k1_point_x1]
+    lea rcx, [rip + secp256k1_point_y1]
+    call load_secp256k1_compressed_point_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    mov rax, r12
+    add rax, 2
+    mov rdi, qword ptr [r15 + rax * 8 + 8]
+    lea rsi, [rip + frost_binding_commitment]
+    lea rdx, [rip + secp256k1_point_x2]
+    lea rcx, [rip + secp256k1_point_y2]
+    call load_secp256k1_compressed_point_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+
+    mov rax, r12
+    add rax, 3
+    mov rdi, qword ptr [r15 + rax * 8 + 8]
+    lea rsi, [rip + secp256k1_scalar_b]
+    call load_secp256k1_scalar_arg
+    cmp eax, 1
+    jne frost_commitment_arg_error
+    lea rdi, [rip + secp256k1_scalar_b]
+    call secp256k1_scalar_is_zero_limbs
+    cmp eax, 1
+    je .Lrun_frost_group_commitment_hiding_only
+
+    lea rdi, [rip + secp256k1_scalar_b]
+    lea rsi, [rip + secp256k1_point_x2]
+    lea rdx, [rip + secp256k1_point_y2]
+    lea rcx, [rip + frost_group_binding_x]
+    lea r8, [rip + frost_group_binding_y]
+    call secp256k1_point_mul_limbs
+    cmp eax, 1
+    jne frost_commitment_arg_error
+    lea rdi, [rip + secp256k1_point_x1]
+    lea rsi, [rip + secp256k1_point_y1]
+    lea rdx, [rip + frost_group_binding_x]
+    lea rcx, [rip + frost_group_binding_y]
+    lea r8, [rip + secp256k1_point_rx]
+    lea r9, [rip + secp256k1_point_ry]
+    call secp256k1_point_add_limbs
+    cmp eax, 1
+    jne .Lrun_frost_group_commitment_contribution_infinity
+    lea rdi, [rip + secp256k1_point_rx]
+    lea rsi, [rip + frost_group_contrib_x]
+    call copy_field4
+    lea rdi, [rip + secp256k1_point_ry]
+    lea rsi, [rip + frost_group_contrib_y]
+    call copy_field4
+    jmp .Lrun_frost_group_commitment_add_contribution
+
+.Lrun_frost_group_commitment_hiding_only:
+    lea rdi, [rip + secp256k1_point_x1]
+    lea rsi, [rip + frost_group_contrib_x]
+    call copy_field4
+    lea rdi, [rip + secp256k1_point_y1]
+    lea rsi, [rip + frost_group_contrib_y]
+    call copy_field4
+
+.Lrun_frost_group_commitment_add_contribution:
+    cmp qword ptr [rip + frost_group_acc_infinity], 1
+    jne .Lrun_frost_group_commitment_add_to_acc
+    lea rdi, [rip + frost_group_contrib_x]
+    lea rsi, [rip + frost_group_acc_x]
+    call copy_field4
+    lea rdi, [rip + frost_group_contrib_y]
+    lea rsi, [rip + frost_group_acc_y]
+    call copy_field4
+    mov qword ptr [rip + frost_group_acc_infinity], 0
+    jmp .Lrun_frost_group_commitment_next
+
+.Lrun_frost_group_commitment_add_to_acc:
+    lea rdi, [rip + frost_group_acc_x]
+    lea rsi, [rip + frost_group_acc_y]
+    lea rdx, [rip + frost_group_contrib_x]
+    lea rcx, [rip + frost_group_contrib_y]
+    lea r8, [rip + secp256k1_point_rx]
+    lea r9, [rip + secp256k1_point_ry]
+    call secp256k1_point_add_limbs
+    cmp eax, 1
+    jne .Lrun_frost_group_commitment_acc_infinity
+    lea rdi, [rip + secp256k1_point_rx]
+    lea rsi, [rip + frost_group_acc_x]
+    call copy_field4
+    lea rdi, [rip + secp256k1_point_ry]
+    lea rsi, [rip + frost_group_acc_y]
+    call copy_field4
+    mov qword ptr [rip + frost_group_acc_infinity], 0
+    jmp .Lrun_frost_group_commitment_next
+
+.Lrun_frost_group_commitment_acc_infinity:
+    mov qword ptr [rip + frost_group_acc_infinity], 1
+    jmp .Lrun_frost_group_commitment_next
+
+.Lrun_frost_group_commitment_contribution_infinity:
+    jmp .Lrun_frost_group_commitment_next
+
+.Lrun_frost_group_commitment_next:
+    add r12, 4
+    jmp .Lrun_frost_group_commitment_loop
+
+.Lrun_frost_group_commitment_done:
+    cmp qword ptr [rip + frost_group_acc_infinity], 1
+    je frost_commitment_arg_error
+    lea rdi, [rip + frost_group_acc_x]
+    lea rsi, [rip + frost_group_acc_y]
+    lea rdx, [rip + frost_group_commitment]
+    call encode_secp256k1_compressed_point
+    mov rdi, STDOUT
+    lea rsi, [rip + frost_group_commitment_label]
+    mov edx, OFFSET FLAT:frost_group_commitment_label_len
+    call write_all
+    lea rdi, [rip + frost_group_commitment]
+    lea rsi, [rip + hex_buf]
+    mov edx, 33
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 66], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 67
+    call write_all
     xor edi, edi
     jmp exit_process
 
@@ -1913,6 +2283,14 @@ frost_lagrange_arg_error:
     mov rdi, STDERR
     lea rsi, [rip + frost_lagrange_arg_error_msg]
     mov edx, OFFSET FLAT:frost_lagrange_arg_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+frost_commitment_arg_error:
+    mov rdi, STDERR
+    lea rsi, [rip + frost_commitment_arg_error_msg]
+    mov edx, OFFSET FLAT:frost_commitment_arg_error_msg_len
     call write_all
     mov edi, 2
     jmp exit_process
@@ -5296,6 +5674,106 @@ copy_field4:
     mov qword ptr [rsi + 24], rax
     ret
 
+load_secp256k1_compressed_point_arg:
+    push rbx
+    push r12
+    push r13
+    push r14
+    mov rbx, rsi
+    mov r12, rdx
+    mov r13, rcx
+    mov rsi, rbx
+    mov edx, 33
+    call hex_decode_fixed
+    cmp eax, 1
+    jne .Lload_compressed_point_fail
+    mov al, byte ptr [rbx]
+    cmp al, 2
+    je .Lload_compressed_point_prefix_ok
+    cmp al, 3
+    jne .Lload_compressed_point_fail
+
+.Lload_compressed_point_prefix_ok:
+    lea rdi, [rbx + 1]
+    mov rsi, r12
+    call load_be32_to_le4
+    mov rdi, r12
+    call secp256k1_field_is_canonical_limbs
+    cmp eax, 1
+    jne .Lload_compressed_point_fail
+    mov rdi, r12
+    mov rsi, r12
+    lea rdx, [rip + secp256k1_point_t0]
+    call secp256k1_field_mul_limbs
+    lea rdi, [rip + secp256k1_point_t0]
+    mov rsi, r12
+    lea rdx, [rip + secp256k1_point_t0]
+    call secp256k1_field_mul_limbs
+    mov qword ptr [rip + secp256k1_point_t1], 7
+    mov qword ptr [rip + secp256k1_point_t1 + 8], 0
+    mov qword ptr [rip + secp256k1_point_t1 + 16], 0
+    mov qword ptr [rip + secp256k1_point_t1 + 24], 0
+    lea rdi, [rip + secp256k1_point_t0]
+    lea rsi, [rip + secp256k1_point_t1]
+    lea rdx, [rip + secp256k1_point_t0]
+    call secp256k1_field_add_limbs
+    lea rdi, [rip + secp256k1_point_t0]
+    mov rsi, r13
+    call secp256k1_field_sqrt_limbs
+    mov rdi, r13
+    mov rsi, r13
+    lea rdx, [rip + secp256k1_point_t1]
+    call secp256k1_field_mul_limbs
+    lea rdi, [rip + secp256k1_point_t1]
+    lea rsi, [rip + secp256k1_point_t0]
+    call secp256k1_field_equal_limbs
+    cmp eax, 1
+    jne .Lload_compressed_point_fail
+    mov al, byte ptr [rbx]
+    and al, 1
+    mov dl, byte ptr [r13]
+    and dl, 1
+    cmp al, dl
+    je .Lload_compressed_point_success
+    mov qword ptr [rip + secp256k1_point_t2], 0
+    mov qword ptr [rip + secp256k1_point_t2 + 8], 0
+    mov qword ptr [rip + secp256k1_point_t2 + 16], 0
+    mov qword ptr [rip + secp256k1_point_t2 + 24], 0
+    lea rdi, [rip + secp256k1_point_t2]
+    mov rsi, r13
+    mov rdx, r13
+    call secp256k1_field_sub_limbs
+
+.Lload_compressed_point_success:
+    mov eax, 1
+    jmp .Lload_compressed_point_done
+
+.Lload_compressed_point_fail:
+    xor eax, eax
+
+.Lload_compressed_point_done:
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+encode_secp256k1_compressed_point:
+    push rbx
+    push r12
+    mov rbx, rdi
+    mov r12, rdx
+    mov al, byte ptr [rsi]
+    and al, 1
+    add al, 2
+    mov byte ptr [r12], al
+    mov rdi, rbx
+    lea rsi, [r12 + 1]
+    call store_le4_to_be32
+    pop r12
+    pop rbx
+    ret
+
 frost_secp256k1_commit_scalar:
     push rbx
     mov rbx, rsi
@@ -5325,6 +5803,29 @@ frost_secp256k1_commit_scalar:
 
 .Lfrost_commit_scalar_done:
     pop rbx
+    ret
+
+secp256k1_scalar_gt_limbs:
+    mov rax, qword ptr [rdi + 24]
+    cmp rax, qword ptr [rsi + 24]
+    ja .Lsecp256k1_scalar_gt_yes
+    jb .Lsecp256k1_scalar_gt_no
+    mov rax, qword ptr [rdi + 16]
+    cmp rax, qword ptr [rsi + 16]
+    ja .Lsecp256k1_scalar_gt_yes
+    jb .Lsecp256k1_scalar_gt_no
+    mov rax, qword ptr [rdi + 8]
+    cmp rax, qword ptr [rsi + 8]
+    ja .Lsecp256k1_scalar_gt_yes
+    jb .Lsecp256k1_scalar_gt_no
+    mov rax, qword ptr [rdi]
+    cmp rax, qword ptr [rsi]
+    ja .Lsecp256k1_scalar_gt_yes
+.Lsecp256k1_scalar_gt_no:
+    xor eax, eax
+    ret
+.Lsecp256k1_scalar_gt_yes:
+    mov eax, 1
     ret
 
 secp256k1_field_select_mask:
@@ -6776,6 +7277,39 @@ write_manifest_labeled_sha256:
     pop rbx
     ret
 
+frost_hash_mem:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+    mov r14, rcx
+    mov r15, r8
+
+    lea rdi, [rip + sha_ctx]
+    call sha256_init
+    lea rdi, [rip + sha_ctx]
+    mov rsi, rbx
+    mov rdx, r12
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    mov rsi, r13
+    mov rdx, r14
+    call sha256_update
+    lea rdi, [rip + sha_ctx]
+    mov rsi, r15
+    call sha256_final
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
 hex32_decode:
     mov edx, 32
     jmp hex_decode_fixed
@@ -7949,6 +8483,12 @@ cmd_frost_secp256k1_nonce_generate:
     .asciz "frost-secp256k1-nonce-generate"
 cmd_frost_secp256k1_commit:
     .asciz "frost-secp256k1-commit"
+cmd_frost_secp256k1_commitment_hash:
+    .asciz "frost-secp256k1-commitment-hash"
+cmd_frost_secp256k1_binding_factor:
+    .asciz "frost-secp256k1-binding-factor"
+cmd_frost_secp256k1_group_commitment:
+    .asciz "frost-secp256k1-group-commitment"
 cmd_secp256k1_field_add:
     .asciz "secp256k1-field-add"
 cmd_secp256k1_field_sub:
@@ -8043,7 +8583,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
     .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
@@ -8062,6 +8602,9 @@ usage_msg:
     .ascii "  frost-secp256k1-lagrange <i> <id...> derive RFC9591 interpolation scalar\n"
     .ascii "  frost-secp256k1-nonce-generate <secret> derive one RFC9591 nonce with fresh randomness\n"
     .ascii "  frost-secp256k1-commit <hiding> <binding> derive compressed round-one commitments\n"
+    .ascii "  frost-secp256k1-commitment-hash <id D E>... hash sorted commitment triples\n"
+    .ascii "  frost-secp256k1-binding-factor <PK> <H4> <H5> <id> derive one binding factor\n"
+    .ascii "  frost-secp256k1-group-commitment <id D E rho>... aggregate group commitment\n"
     .ascii "  secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p\n"
     .ascii "  secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p\n"
     .ascii "  secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p\n"
@@ -8128,6 +8671,10 @@ frost_lagrange_arg_error_msg:
     .ascii "wuci-ji: frost lagrange identifiers must be unique, nonzero, and include i\n"
 .set frost_lagrange_arg_error_msg_len, . - frost_lagrange_arg_error_msg
 
+frost_commitment_arg_error_msg:
+    .ascii "wuci-ji: frost commitments require sorted unique nonzero ids and valid compressed points\n"
+.set frost_commitment_arg_error_msg_len, . - frost_commitment_arg_error_msg
+
 frost_hiding_commitment_label:
     .ascii "hiding_nonce_commitment: "
 .set frost_hiding_commitment_label_len, . - frost_hiding_commitment_label
@@ -8135,6 +8682,10 @@ frost_hiding_commitment_label:
 frost_binding_commitment_label:
     .ascii "binding_nonce_commitment: "
 .set frost_binding_commitment_label_len, . - frost_binding_commitment_label
+
+frost_group_commitment_label:
+    .ascii "group_commitment: "
+.set frost_group_commitment_label_len, . - frost_group_commitment_label
 
 point_arg_error_msg:
     .ascii "wuci-ji: secp256k1 point is not a valid affine curve point\n"
@@ -8604,6 +9155,45 @@ frost_hiding_commitment:
 .align 16
 frost_binding_commitment:
     .skip 33
+.align 8
+frost_commitment_list_buf:
+    .skip 3920
+.align 16
+frost_group_public_key:
+    .skip 33
+.align 16
+frost_msg_hash:
+    .skip 32
+.align 16
+frost_commitment_hash:
+    .skip 32
+.align 16
+frost_binding_input:
+    .skip 129
+.align 16
+frost_group_acc_x:
+    .skip 32
+.align 16
+frost_group_acc_y:
+    .skip 32
+.align 16
+frost_group_contrib_x:
+    .skip 32
+.align 16
+frost_group_contrib_y:
+    .skip 32
+.align 16
+frost_group_binding_x:
+    .skip 32
+.align 16
+frost_group_binding_y:
+    .skip 32
+.align 16
+frost_group_commitment:
+    .skip 33
+.align 8
+frost_group_acc_infinity:
+    .skip 8
 .align 8
 frost_rem0:
     .skip 8
