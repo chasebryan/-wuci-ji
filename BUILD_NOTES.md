@@ -316,6 +316,15 @@ Fixes made while executing this checkpoint:
   multiplier remains isolated as verifier/public aggregation plumbing because
   those inputs are public; do not reuse it for nonce commitments or signing
   shares.
+- The eighth constant-time group hardening checkpoint added a focused
+  secret-bearing FROST path audit to `tests/check_asm_immediates.py`. The guard
+  requires nonce generation to stay on `fill_random` plus H3 hash-to-scalar,
+  requires `run_frost_secp256k1_commit` to enter the commitment helper instead
+  of point machinery directly, requires `frost_secp256k1_commit_scalar` to use
+  projective basepoint multiplication plus the finite affine converter, and
+  requires signing-share generation to stay scalar-only. It also classifies
+  every direct caller of `secp256k1_projective_basepoint_mul_limbs`, so new
+  secret or public point paths have to be explicitly reviewed.
 - The first FROST workflow checkpoint promoted the deterministic
   FROST(secp256k1,SHA-256) 2-of-2 CLI integration path into
   `tests/frost_secp256k1_workflow.py` and the `make frost-workflow` target.
@@ -513,10 +522,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
    separate. Next, continue the constant-time audit before accepting arbitrary
-   signer material, starting with a focused review of secret-bearing FROST
-   nonce and signing-share paths against the projective basepoint helper.
-   Keep private nonce and signing-share paths on projective basepoint helpers
-   and leave public verifier aggregation behind
+   signer material by reviewing the scalar add/mul kernels that feed
+   `frost-secp256k1-signing-share` and by deciding whether aggregate-signature
+   share summing needs its own public-vs-secret classification. Keep private
+   nonce and signing-share paths on projective basepoint helpers and leave
+   public verifier aggregation behind
    `secp256k1_public_point_mul_limbs`. Keep the native and Zig source lists
    together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can

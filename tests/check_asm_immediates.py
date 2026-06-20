@@ -389,6 +389,119 @@ def check_public_affine_mul_boundary(disassemblies: list[tuple[Path, str]]) -> N
         raise SystemExit(1)
 
 
+def check_secret_frost_path_boundary(disassemblies: list[tuple[Path, str]]) -> None:
+    projective_basepoint = "secp256k1_projective_basepoint_mul_limbs"
+    public_wrapper = "secp256k1_public_point_mul_limbs"
+    affine_mul = "secp256k1_point_mul_limbs"
+    finite_affine = "secp256k1_jacobian_to_affine_finite_limbs"
+    generic_affine = "secp256k1_jacobian_to_affine_limbs"
+    commit_helper = "frost_secp256k1_commit_scalar"
+
+    required_calls = {
+        "run_frost_secp256k1_nonce_generate": {
+            "fill_random",
+            "frost_hash_to_scalar_mem",
+            "store_le4_to_be32",
+        },
+        "run_frost_secp256k1_commit": {
+            commit_helper,
+        },
+        commit_helper: {
+            finite_affine,
+            projective_basepoint,
+            "store_le4_to_be32",
+        },
+        "run_frost_secp256k1_signing_share": {
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+    }
+    point_or_public_forbidden = {
+        "load_secp256k1_compressed_point_arg",
+        "secp256k1_point_add_limbs",
+        public_wrapper,
+        affine_mul,
+    }
+    forbidden_calls = {
+        "run_frost_secp256k1_nonce_generate": point_or_public_forbidden
+        | {
+            commit_helper,
+            finite_affine,
+            generic_affine,
+            projective_basepoint,
+            "encode_secp256k1_compressed_point",
+            "secp256k1_scalar_add_limbs",
+            "secp256k1_scalar_inverse_limbs",
+            "secp256k1_scalar_mul_limbs",
+        },
+        "run_frost_secp256k1_commit": point_or_public_forbidden
+        | {
+            finite_affine,
+            generic_affine,
+            projective_basepoint,
+            "encode_secp256k1_compressed_point",
+        },
+        commit_helper: point_or_public_forbidden
+        | {
+            generic_affine,
+        },
+        "run_frost_secp256k1_signing_share": point_or_public_forbidden
+        | {
+            commit_helper,
+            finite_affine,
+            generic_affine,
+            projective_basepoint,
+            "encode_secp256k1_compressed_point",
+            "secp256k1_scalar_inverse_limbs",
+        },
+    }
+    projective_allowed_callers = {
+        "run_secp256k1_projective_basepoint_mul",
+        commit_helper,
+        "run_frost_secp256k1_verify",
+    }
+    found_roots: set[str] = set()
+    observed_projective_callers: set[str] = set()
+    offenders: list[str] = []
+
+    for _obj, disassembly in disassemblies:
+        for function_name, body in iter_function_lines(disassembly):
+            call_targets = relocation_call_targets(body)
+            if projective_basepoint in call_targets:
+                observed_projective_callers.add(function_name)
+
+        for root, required in required_calls.items():
+            body = find_function_lines(disassembly, root)
+            if body is None:
+                continue
+            found_roots.add(root)
+            call_targets = relocation_call_targets(body)
+            for target in sorted(required - call_targets):
+                offenders.append(f"{root} must call {target}")
+            for target in sorted(forbidden_calls[root] & call_targets):
+                offenders.append(f"{root} must not call {target}")
+
+    missing_roots = sorted(set(required_calls) - found_roots)
+    unexpected_projective_callers = sorted(
+        observed_projective_callers - projective_allowed_callers
+    )
+    if missing_roots:
+        raise SystemExit(
+            "secret-bearing FROST audit roots not found in object disassembly: "
+            + ", ".join(missing_roots)
+        )
+    if unexpected_projective_callers:
+        offenders.append(
+            f"{projective_basepoint} has unclassified callers: "
+            + ", ".join(unexpected_projective_callers)
+        )
+    if offenders:
+        print("secret-bearing FROST path audit failed:", file=sys.stderr)
+        for offender in offenders:
+            print(f"  {offender}", file=sys.stderr)
+        raise SystemExit(1)
+
+
 def check_finite_affine_boundary(disassemblies: list[tuple[Path, str]]) -> None:
     finite_helper = "secp256k1_jacobian_to_affine_finite_limbs"
     generic_helper = "secp256k1_jacobian_to_affine_limbs"
@@ -486,6 +599,7 @@ def main() -> None:
     check_field_inversion_boundary(disassemblies)
     check_scalar_inversion_boundary(disassemblies)
     check_public_affine_mul_boundary(disassemblies)
+    check_secret_frost_path_boundary(disassemblies)
 
 
 if __name__ == "__main__":
