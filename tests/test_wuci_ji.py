@@ -40,6 +40,9 @@ P256_ORDER = int(
 SECP256K1_ORDER = int(
     "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16
 )
+SECP256K1_FIELD_PRIME = int(
+    "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 16
+)
 FROST_HASH_TO_SCALAR_HELPERS = {
     "frost-p256-h1": (b"FROST-P256-SHA256-v1rho", P256_ORDER),
     "frost-p256-h2": (b"FROST-P256-SHA256-v1chal", P256_ORDER),
@@ -111,6 +114,63 @@ def assert_frost_hash_to_scalar_helpers(payload: bytes) -> None:
         actual = proc.stdout.decode("ascii")
         assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
         assert actual == expected, (command, payload[:32], actual, expected)
+
+
+def field_hex(value: int) -> str:
+    return f"{value % (1 << 256):064x}"
+
+
+def assert_secp256k1_field_op(command: str, a: int, b: int | None, expected: int) -> None:
+    args = [command, field_hex(a)]
+    if b is not None:
+        args.append(field_hex(b))
+    proc = run(args)
+    actual = proc.stdout.decode("ascii")
+    assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+    assert actual == f"{expected % SECP256K1_FIELD_PRIME:064x}\n", (
+        command,
+        field_hex(a),
+        None if b is None else field_hex(b),
+        actual,
+        expected,
+    )
+
+
+def assert_secp256k1_field_helpers() -> None:
+    p = SECP256K1_FIELD_PRIME
+    values = [
+        0,
+        1,
+        2,
+        7,
+        p - 1,
+        p,
+        p + 1,
+        (1 << 256) - 1,
+        int("1234567890abcdef" * 4, 16),
+        int("fedcba0987654321" * 4, 16),
+    ]
+
+    for a in values:
+        assert_secp256k1_field_op("secp256k1-field-square", a, None, a * a)
+
+    for a in values:
+        for b in values:
+            assert_secp256k1_field_op("secp256k1-field-add", a, b, a + b)
+            assert_secp256k1_field_op("secp256k1-field-sub", a, b, a - b)
+            assert_secp256k1_field_op("secp256k1-field-mul", a, b, a * b)
+
+
+def assert_secp256k1_field_rejects_invalid() -> None:
+    cases = [
+        ["secp256k1-field-add", "00", "00" * 32],
+        ["secp256k1-field-add", "00" * 32, "zz" + ("00" * 31)],
+        ["secp256k1-field-square", "00" * 31],
+    ]
+    for args in cases:
+        proc = run(args)
+        assert proc.returncode != 0, args
+        assert proc.stdout == b"", args
 
 
 def assert_hmac_sha256(key: bytes, payload: bytes) -> None:
@@ -1113,6 +1173,10 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
             (["frost-secp256k1-h3", "extra"], b"abc", None),
             (["frost-secp256k1-h4", "extra"], b"abc", None),
             (["frost-secp256k1-h5", "extra"], b"abc", None),
+            (["secp256k1-field-add", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-field-square", key.hex(), "extra"], b"", None),
             (["keygen", "extra"], b"", None),
             (["keypair", "extra"], b"", None),
             (["selftest", "extra"], b"", None),
@@ -1246,6 +1310,10 @@ def assert_help_output() -> None:
         "frost-secp256k1-h3             RFC9591 FROST(secp256k1,SHA-256) H3(nonce) scalar over stdin",
         "frost-secp256k1-h4             RFC9591 FROST(secp256k1,SHA-256) H4(msg) over stdin",
         "frost-secp256k1-h5             RFC9591 FROST(secp256k1,SHA-256) H5(com) over stdin",
+        "secp256k1-field-add <a> <b>    add 32-byte hex field elements modulo p",
+        "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
+        "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
+        "secp256k1-field-square <a>     square a 32-byte hex field element modulo p",
         "keypair                        write random X25519 private/public keys as hex",
         "seal-to <public> <in> <out>    seal v3 file to X25519 public key; no overwrite",
         "seal-file <key> <in> <out>",
@@ -1284,6 +1352,8 @@ def main() -> None:
     assert_frost_sha256_helpers(b"")
     assert_frost_sha256_helpers(b"abc")
     assert_frost_sha256_helpers((b"frost-transcript\0" * 4096) + b"end")
+    assert_secp256k1_field_helpers()
+    assert_secp256k1_field_rejects_invalid()
 
     key = bytes(range(32))
     assert_hmac_sha256(key, b"")

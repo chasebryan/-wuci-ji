@@ -107,6 +107,12 @@ Fixes made while executing this checkpoint:
   and `H(contextString || "com" || stdin)`. These are primitives only; no
   threshold signing API is exposed until the build has constant-time
   prime-order group operations and participant share/commitment validation.
+- The secp256k1 group backend has started at the field layer. The CLI exposes
+  `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
+  `secp256k1-field-square` for 32-byte hex field elements modulo
+  `p = 2^256 - 2^32 - 977`. Multiplication currently uses a fixed 256-iteration
+  double-and-add path over normalized limbs, which keeps the test surface simple
+  while the group backend is still being built.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -252,9 +258,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    bodies/tags, authenticated key ID tampering, nonce tampering, and tag
    tampering.
 3. The FROST lane currently exposes RFC 9591 H1/H2/H3 hash-to-scalar and
-   H4/H5 transcript primitives for P-256 and secp256k1. Next FROST work should
-   add a real constant-time prime-order Schnorr group backend before any
-   key-share, nonce, signing-share, or aggregation commands are exposed.
+   H4/H5 transcript primitives for P-256 and secp256k1, plus secp256k1 field
+   add/sub/mul/square. Next FROST work should add secp256k1 point
+   representation, point validation, point addition/doubling, and basepoint
+   multiplication before any key-share, nonce, signing-share, or aggregation
+   commands are exposed.
 4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
