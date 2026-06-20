@@ -24,7 +24,7 @@ $(TARGET): $(OBJECT)
 
 $(OBJECT): check-native $(SOURCE)
 	mkdir -p build
-	$(AS) --64 -o $@ $<
+	$(AS) --64 -o $@ $(SOURCE)
 
 check-native:
 	@if [ "$(HOST_OS)" != "Linux" ] || [ "$(HOST_ARCH)" != "x86_64" ]; then \

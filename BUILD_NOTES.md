@@ -62,29 +62,40 @@ Leave `WUCI_JI_RUNNER` unset when running a native Linux binary directly.
 
 Observed host on 2026-06-20:
 
-- Darwin arm64
-- Zig is available and can cross-build the x86_64 Linux ELF.
-- Homebrew `qemu` provides `qemu-system-x86_64`, not Linux user-mode
-  `qemu-x86_64`, so it cannot run this user-space ELF directly on macOS.
+- Linux x86_64
+- GNU `as` and `ld` are available.
+- Python 3 is available.
 
 Verified on this host:
 
-- `make build-linux` succeeds.
-- `python3 -m py_compile tests/test_wuci_ji.py` succeeds.
-- `git diff --check` succeeds.
-- `make` fails intentionally with the native Linux x86_64 requirement.
-- `make test-linux` fails intentionally until Linux user-mode `qemu-x86_64` is
-  available.
+- `make clean && make test` succeeds.
+- `./build/wuci-ji selftest` succeeds as part of the Python test harness.
+- `.github/workflows/ci.yml` now runs the same native Linux x86_64 suite on
+  Ubuntu with `make clean && make test`.
 
-The produced cross-build artifact is:
+Fixes made while executing this checkpoint:
+
+- The native object rule now assembles `$(SOURCE)` explicitly instead of using
+  `$<`, because `check-native` is the first prerequisite.
+- GNU `as` Intel-syntax `.set` length constants are loaded with
+  `OFFSET FLAT:` so status and error writes use immediates rather than absolute
+  memory reads.
+
+The native build artifact is:
 
 ```text
-build/wuci-ji-linux-x86_64: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, with debug_info, not stripped
+build/wuci-ji: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, not stripped
 ```
+
+## Previous cross-build note
+
+A previous Darwin arm64 checkpoint found that Zig could cross-build the x86_64
+Linux ELF, but Homebrew `qemu` provided `qemu-system-x86_64` rather than Linux
+user-mode `qemu-x86_64`, so that host could not run the ELF test suite directly.
 
 ## Next pickup
 
-1. Run the full suite on an x86_64 Linux machine with `make clean && make test`.
-2. If that passes, add an Ubuntu x86_64 CI workflow that runs `make test`.
-3. After CI is green, continue with crypto behavior work rather than more host
-   setup.
+1. Push the CI workflow and confirm the GitHub Actions run is green.
+2. Add the product envelope: generated nonce, magic/version header, ciphertext,
+   and tag in one self-contained sealed artifact.
+3. Add key/material zeroization and malformed-envelope tests.
