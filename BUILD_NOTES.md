@@ -143,6 +143,10 @@ Fixes made while executing this checkpoint:
   computes `d_i + rho_i * e_i + lambda_i * s_i * c` modulo the secp256k1 group
   order. It rejects zero nonce scalars, interpolation factors, and secret
   shares, while allowing zero hash-derived `rho` or challenge scalars.
+- FROST(secp256k1,SHA-256) aggregate signatures now include
+  `frost-secp256k1-aggregate <R> <z...>`, which validates the compressed group
+  commitment, sums canonical signature-share scalars modulo the group order,
+  and emits `signature_commitment` plus `signature_scalar`.
 - The first assembly modularization checkpoint split the SHA-256 core into
   `src/sha256.s`, linked as `build/sha256.o` beside the main and X25519
   objects. The Makefile now uses assembly source lists for native linking and
@@ -333,10 +337,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    arithmetic, scalar arithmetic modulo the group order, Lagrange interpolation,
    nonce generation, nonce commitment, binding-factor derivation,
    group-commitment aggregation, challenge computation, signing-share scalar
-   generation, affine point validation/add/double, projective basepoint
-   multiplication, and controlled SEC1 point encoding/decoding. Next FROST work
-   should add signature-share aggregation and verification before presenting a
-   complete signing workflow.
+   generation, signature-share aggregation, affine point validation/add/double,
+   projective basepoint multiplication, and controlled SEC1 point
+   encoding/decoding. Next FROST work should add signature verification before
+   presenting a complete signing workflow.
 4. Continue the assembly split before adding much more FROST signing code.
    `src/sha256.s` is already separate; next split candidates are `main.s` for
    `_start`/dispatch, `sys.s` for syscall/file helpers, `hmac_hkdf.s` for
