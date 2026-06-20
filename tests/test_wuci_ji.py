@@ -415,6 +415,7 @@ def assert_keyfile_workflow(plaintext: bytes) -> None:
 
 def assert_file_seal_open_workflow(
     key: bytes,
+    key_id: bytes,
     plaintext: bytes,
     v2_sealed: bytes,
     v2_plaintext: bytes,
@@ -462,6 +463,38 @@ def assert_file_seal_open_workflow(
         assert v2_opened.stdout == b""
         assert v2_opened_path.read_bytes() == v2_plaintext
 
+        v2_created_path = tmp / "created-v2.wj"
+        v2_created_open_path = tmp / "created-v2-open.bin"
+        v2_created = run(
+            [
+                "seal-file-v2",
+                key.hex(),
+                key_id.hex(),
+                str(plain_path),
+                str(v2_created_path),
+            ]
+        )
+        assert v2_created.returncode == 0, v2_created.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert v2_created.stdout == b""
+        v2_created_bytes = v2_created_path.read_bytes()
+        key_id_end = len(ENVELOPE_V2_PREFIX) + ENVELOPE_V2_KEY_ID_LEN
+        assert v2_created_bytes.startswith(ENVELOPE_V2_PREFIX)
+        assert v2_created_bytes[len(ENVELOPE_V2_PREFIX) : key_id_end] == key_id
+        assert len(v2_created_bytes) == (
+            ENVELOPE_V2_HEADER_LEN + len(plaintext) + ENVELOPE_TAG_LEN
+        )
+
+        v2_created_opened = run(
+            ["open-file", key.hex(), str(v2_created_path), str(v2_created_open_path)]
+        )
+        assert v2_created_opened.returncode == 0, v2_created_opened.stderr.decode(
+            "utf-8", "replace"
+        )
+        assert v2_created_opened.stdout == b""
+        assert v2_created_open_path.read_bytes() == plaintext
+
         existing_sealed_path = tmp / "existing-sealed.wj"
         existing_sealed_path.write_bytes(b"do-not-touch")
         rejected_seal = run(
@@ -469,6 +502,19 @@ def assert_file_seal_open_workflow(
         )
         assert rejected_seal.returncode != 0
         assert rejected_seal.stdout == b""
+        assert existing_sealed_path.read_bytes() == b"do-not-touch"
+
+        rejected_seal_v2 = run(
+            [
+                "seal-file-v2",
+                key.hex(),
+                key_id.hex(),
+                str(plain_path),
+                str(existing_sealed_path),
+            ]
+        )
+        assert rejected_seal_v2.returncode != 0
+        assert rejected_seal_v2.stdout == b""
         assert existing_sealed_path.read_bytes() == b"do-not-touch"
 
         existing_open_path = tmp / "existing-open.bin"
@@ -631,6 +677,7 @@ def main() -> None:
     assert_keyfile_workflow((b"keyfile-artifact\0" * 257) + b"end")
     assert_file_seal_open_workflow(
         rfc_key,
+        v2_key_id,
         (b"file-artifact\0" * 257) + b"end",
         v2_file_sealed,
         v2_file_plaintext,
