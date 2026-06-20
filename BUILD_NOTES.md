@@ -110,9 +110,17 @@ Fixes made while executing this checkpoint:
 - The secp256k1 group backend has started at the field layer. The CLI exposes
   `secp256k1-field-add`, `secp256k1-field-sub`, `secp256k1-field-mul`, and
   `secp256k1-field-square` for 32-byte hex field elements modulo
-  `p = 2^256 - 2^32 - 977`. Multiplication currently uses a fixed 256-iteration
+  `p = 2^256 - 2^32 - 977`; `secp256k1-field-inv` uses fixed-exponent
+  inversion by `p - 2`. Multiplication currently uses a fixed 256-iteration
   double-and-add path over normalized limbs, which keeps the test surface simple
   while the group backend is still being built.
+- The secp256k1 point layer now has affine correctness scaffolding:
+  `secp256k1-point-validate`, `secp256k1-point-double`,
+  `secp256k1-point-add`, and `secp256k1-basepoint-mul`. These commands reject
+  noncanonical affine coordinates, print `infinity` for neutral results, and are
+  covered against Python reference formulas. This is not yet a signing surface;
+  the next cryptographic hardening step is a projective, constant-time scalar
+  multiplication path with controlled point encoding/decoding.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -259,10 +267,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    tampering.
 3. The FROST lane currently exposes RFC 9591 H1/H2/H3 hash-to-scalar and
    H4/H5 transcript primitives for P-256 and secp256k1, plus secp256k1 field
-   add/sub/mul/square. Next FROST work should add secp256k1 point
-   representation, point validation, point addition/doubling, and basepoint
-   multiplication before any key-share, nonce, signing-share, or aggregation
-   commands are exposed.
+   arithmetic, affine point validation/add/double, and basepoint multiplication.
+   Next FROST work should harden this into a projective constant-time group
+   backend with controlled point encoding/decoding before any key-share, nonce,
+   signing-share, or aggregation commands are exposed.
 4. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

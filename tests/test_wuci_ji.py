@@ -43,6 +43,10 @@ SECP256K1_ORDER = int(
 SECP256K1_FIELD_PRIME = int(
     "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 16
 )
+SECP256K1_G = (
+    int("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 16),
+    int("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8", 16),
+)
 FROST_HASH_TO_SCALAR_HELPERS = {
     "frost-p256-h1": (b"FROST-P256-SHA256-v1rho", P256_ORDER),
     "frost-p256-h2": (b"FROST-P256-SHA256-v1chal", P256_ORDER),
@@ -153,6 +157,8 @@ def assert_secp256k1_field_helpers() -> None:
 
     for a in values:
         assert_secp256k1_field_op("secp256k1-field-square", a, None, a * a)
+        if a % p != 0:
+            assert_secp256k1_field_op("secp256k1-field-inv", a, None, pow(a, p - 2, p))
 
     for a in values:
         for b in values:
@@ -166,6 +172,109 @@ def assert_secp256k1_field_rejects_invalid() -> None:
         ["secp256k1-field-add", "00", "00" * 32],
         ["secp256k1-field-add", "00" * 32, "zz" + ("00" * 31)],
         ["secp256k1-field-square", "00" * 31],
+    ]
+    for args in cases:
+        proc = run(args)
+        assert proc.returncode != 0, args
+        assert proc.stdout == b"", args
+
+
+def secp256k1_point_add_ref(
+    left: tuple[int, int] | None, right: tuple[int, int] | None
+) -> tuple[int, int] | None:
+    p = SECP256K1_FIELD_PRIME
+    if left is None:
+        return right
+    if right is None:
+        return left
+    x1, y1 = left
+    x2, y2 = right
+    if x1 == x2:
+        if (y1 + y2) % p == 0:
+            return None
+        slope = (3 * x1 * x1 * pow(2 * y1, p - 2, p)) % p
+    else:
+        slope = ((y2 - y1) * pow((x2 - x1) % p, p - 2, p)) % p
+    x3 = (slope * slope - x1 - x2) % p
+    y3 = (slope * (x1 - x3) - y1) % p
+    return x3, y3
+
+
+def secp256k1_point_mul_ref(scalar: int, point: tuple[int, int]) -> tuple[int, int] | None:
+    acc: tuple[int, int] | None = None
+    base: tuple[int, int] | None = point
+    while scalar:
+        if scalar & 1:
+            acc = secp256k1_point_add_ref(acc, base)
+        base = secp256k1_point_add_ref(base, base)
+        scalar >>= 1
+    return acc
+
+
+def point_hex(point: tuple[int, int]) -> tuple[str, str]:
+    return f"{point[0]:064x}", f"{point[1]:064x}"
+
+
+def parse_point_output(output: bytes) -> tuple[int, int] | None:
+    text = output.decode("ascii")
+    if text == "infinity\n":
+        return None
+    lines = text.splitlines()
+    assert len(lines) == 2, text
+    assert lines[0].startswith("x: "), text
+    assert lines[1].startswith("y: "), text
+    return int(lines[0][3:], 16), int(lines[1][3:], 16)
+
+
+def assert_secp256k1_point_helpers() -> None:
+    g = SECP256K1_G
+    gx, gy = point_hex(g)
+    neg_g = (g[0], (-g[1]) % SECP256K1_FIELD_PRIME)
+    neg_gx, neg_gy = point_hex(neg_g)
+    two_g = secp256k1_point_add_ref(g, g)
+    assert two_g is not None
+    two_gx, two_gy = point_hex(two_g)
+    three_g = secp256k1_point_add_ref(g, two_g)
+    assert three_g is not None
+
+    valid = run(["secp256k1-point-validate", gx, gy])
+    assert valid.returncode == 0, valid.stderr.decode("utf-8", "replace")
+    assert valid.stdout == b"valid\n"
+
+    invalid_y = f"{(g[1] + 1) % SECP256K1_FIELD_PRIME:064x}"
+    invalid = run(["secp256k1-point-validate", gx, invalid_y])
+    assert invalid.returncode != 0
+    assert invalid.stdout == b"invalid\n"
+
+    noncanonical = run(["secp256k1-point-validate", f"{SECP256K1_FIELD_PRIME:064x}", gy])
+    assert noncanonical.returncode != 0
+    assert noncanonical.stdout == b"invalid\n"
+
+    doubled = run(["secp256k1-point-double", gx, gy])
+    assert doubled.returncode == 0, doubled.stderr.decode("utf-8", "replace")
+    assert parse_point_output(doubled.stdout) == two_g
+
+    added = run(["secp256k1-point-add", gx, gy, two_gx, two_gy])
+    assert added.returncode == 0, added.stderr.decode("utf-8", "replace")
+    assert parse_point_output(added.stdout) == three_g
+
+    infinity = run(["secp256k1-point-add", gx, gy, neg_gx, neg_gy])
+    assert infinity.returncode == 0, infinity.stderr.decode("utf-8", "replace")
+    assert parse_point_output(infinity.stdout) is None
+
+    for scalar in (0, 1, 2, 3):
+        proc = run(["secp256k1-basepoint-mul", f"{scalar:064x}"])
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+        assert parse_point_output(proc.stdout) == secp256k1_point_mul_ref(scalar, g)
+
+
+def assert_secp256k1_point_rejects_invalid() -> None:
+    gx, gy = point_hex(SECP256K1_G)
+    bad_y = f"{(SECP256K1_G[1] + 1) % SECP256K1_FIELD_PRIME:064x}"
+    cases = [
+        ["secp256k1-point-double", gx, bad_y],
+        ["secp256k1-point-add", gx, gy, gx, bad_y],
+        ["secp256k1-basepoint-mul", "00"],
     ]
     for args in cases:
         proc = run(args)
@@ -1177,6 +1286,15 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
             (["secp256k1-field-sub", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-mul", key.hex(), key.hex(), "extra"], b"", None),
             (["secp256k1-field-square", key.hex(), "extra"], b"", None),
+            (["secp256k1-field-inv", key.hex(), "extra"], b"", None),
+            (["secp256k1-point-validate", key.hex(), key.hex(), "extra"], b"", None),
+            (["secp256k1-point-double", key.hex(), key.hex(), "extra"], b"", None),
+            (
+                ["secp256k1-point-add", key.hex(), key.hex(), key.hex(), key.hex(), "extra"],
+                b"",
+                None,
+            ),
+            (["secp256k1-basepoint-mul", key.hex(), "extra"], b"", None),
             (["keygen", "extra"], b"", None),
             (["keypair", "extra"], b"", None),
             (["selftest", "extra"], b"", None),
@@ -1314,6 +1432,11 @@ def assert_help_output() -> None:
         "secp256k1-field-sub <a> <b>    subtract 32-byte hex field elements modulo p",
         "secp256k1-field-mul <a> <b>    multiply 32-byte hex field elements modulo p",
         "secp256k1-field-square <a>     square a 32-byte hex field element modulo p",
+        "secp256k1-field-inv <a>        invert a 32-byte hex field element modulo p",
+        "secp256k1-point-validate <x> <y> validate affine point coordinates",
+        "secp256k1-point-double <x> <y> double an affine point; prints x/y or infinity",
+        "secp256k1-point-add <x1> <y1> <x2> <y2> add affine points; prints x/y or infinity",
+        "secp256k1-basepoint-mul <k>    multiply the secp256k1 basepoint by a 32-byte hex scalar",
         "keypair                        write random X25519 private/public keys as hex",
         "seal-to <public> <in> <out>    seal v3 file to X25519 public key; no overwrite",
         "seal-file <key> <in> <out>",
@@ -1354,6 +1477,8 @@ def main() -> None:
     assert_frost_sha256_helpers((b"frost-transcript\0" * 4096) + b"end")
     assert_secp256k1_field_helpers()
     assert_secp256k1_field_rejects_invalid()
+    assert_secp256k1_point_helpers()
+    assert_secp256k1_point_rejects_invalid()
 
     key = bytes(range(32))
     assert_hmac_sha256(key, b"")
