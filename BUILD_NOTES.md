@@ -286,6 +286,17 @@ Fixes made while executing this checkpoint:
   and that inversion calls `secp256k1_field_select_mask`. This hardens the
   finite affine conversion dependency, but remaining inversion-style helpers and
   the full FROST workflow still need review.
+- The fifth constant-time group hardening checkpoint mirrored the fixed-loop
+  exponentiation shape into `secp256k1_scalar_inverse_limbs` and
+  `secp256k1_field_sqrt_limbs`. Scalar inversion now computes every multiply
+  candidate and mask-selects it with the public `n - 2` exponent bit, while the
+  SEC1 compressed-point square-root path does the same with the public
+  `(p + 1) / 4` exponent. The disassembly guard now checks
+  `secp256k1_scalar_mul_limbs`, `secp256k1_scalar_inverse_limbs`, and
+  `secp256k1_field_sqrt_limbs` for exactly one fixed loop back-edge and requires
+  the mask-select helper in both exponentiation routines. Decode still has
+  public input-validation and parity-selection branches, so keep it treated as a
+  public parsing surface rather than a secret-bearing scalar path.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -444,11 +455,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, mirror the fixed-loop inversion audit into
-   `secp256k1_scalar_inverse_limbs` and review the field square-root/decode
-   path, while keeping generic public point/Jacobian helpers isolated from
-   secret-bearing FROST paths before expanding any signing workflow. Keep the
-   native and Zig source lists together.
+   separate. Next, keep public decode/error-handling branches isolated from
+   secret-bearing FROST paths, then audit whether the remaining affine
+   `secp256k1_point_mul_limbs` verifier path needs a projective or fixed-window
+   replacement before expanding any signing workflow. Keep the native and Zig
+   source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.

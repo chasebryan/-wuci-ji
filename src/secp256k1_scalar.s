@@ -29,6 +29,7 @@
 .extern load_be32_to_le4
 .extern store_le4_to_be32
 .extern copy_field4
+.extern secp256k1_field_select_mask
 .extern secp256k1_field_is_zero_limbs
 .extern secp256k1_field_equal_limbs
 .extern hex_buf
@@ -457,6 +458,7 @@ secp256k1_scalar_inverse_limbs:
     push rbx
     push r12
     push r13
+    push r14
     mov rbx, rsi
     lea rsi, [rip + secp256k1_scalar_inv_base]
     call copy_field4
@@ -475,17 +477,19 @@ secp256k1_scalar_inverse_limbs:
     mov ecx, r12d
     and ecx, 63
     shr rdx, cl
-    test dl, 1
-    jz .Lsecp256k1_scalar_inverse_skip_mul
+    and edx, 1
+    mov r14, rdx
+    neg r14
     lea rdi, [rip + secp256k1_scalar_inv_result]
     lea rsi, [rip + secp256k1_scalar_inv_base]
     lea rdx, [rip + secp256k1_scalar_inv_tmp]
     call secp256k1_scalar_mul_limbs
-    lea rdi, [rip + secp256k1_scalar_inv_tmp]
-    lea rsi, [rip + secp256k1_scalar_inv_result]
-    call copy_field4
+    mov rcx, r14
+    lea rdi, [rip + secp256k1_scalar_inv_result]
+    lea rsi, [rip + secp256k1_scalar_inv_tmp]
+    lea rdx, [rip + secp256k1_scalar_inv_result]
+    call secp256k1_field_select_mask
 
-.Lsecp256k1_scalar_inverse_skip_mul:
     lea rdi, [rip + secp256k1_scalar_inv_base]
     lea rsi, [rip + secp256k1_scalar_inv_base]
     lea rdx, [rip + secp256k1_scalar_inv_base]
@@ -498,6 +502,7 @@ secp256k1_scalar_inverse_limbs:
     mov rsi, rbx
     call copy_field4
 
+    pop r14
     pop r13
     pop r12
     pop rbx

@@ -633,6 +633,7 @@ secp256k1_field_sqrt_limbs:
     push rbx
     push r12
     push r13
+    push r14
     mov rbx, rsi
 
     mov rsi, rdi
@@ -654,17 +655,19 @@ secp256k1_field_sqrt_limbs:
     mov ecx, r12d
     and ecx, 63
     shr rdx, cl
-    test dl, 1
-    jz .Lsecp256k1_sqrt_skip_mul
+    and edx, 1
+    mov r14, rdx
+    neg r14
     lea rdi, [rip + secp256k1_inv_result]
     lea rsi, [rip + secp256k1_inv_base]
     lea rdx, [rip + secp256k1_inv_tmp]
     call secp256k1_field_mul_limbs
-    lea rdi, [rip + secp256k1_inv_tmp]
-    lea rsi, [rip + secp256k1_inv_result]
-    call copy_field4
+    mov rcx, r14
+    lea rdi, [rip + secp256k1_inv_result]
+    lea rsi, [rip + secp256k1_inv_tmp]
+    lea rdx, [rip + secp256k1_inv_result]
+    call secp256k1_field_select_mask
 
-.Lsecp256k1_sqrt_skip_mul:
     lea rdi, [rip + secp256k1_inv_base]
     lea rsi, [rip + secp256k1_inv_base]
     lea rdx, [rip + secp256k1_inv_base]
@@ -677,6 +680,7 @@ secp256k1_field_sqrt_limbs:
     mov rsi, rbx
     call copy_field4
 
+    pop r14
     pop r13
     pop r12
     pop rbx
