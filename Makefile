@@ -60,7 +60,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test install-audit install-key-check install-manifest install-proof install-test install-verify ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: aead-boundary-test all authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test install-audit install-key-check install-manifest install-proof install-test install-verify ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -197,6 +197,22 @@ gate-contract-zig: build-linux $(ZIG_GATE_CONTRACT)
 gate-contract-asm: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_contract_asm.py --quiet
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_rooted_contract_asm.py --quiet
+
+parser-adversarial-test: gate-contract-asm
+
+aead-boundary-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_aead_boundary.py --quiet
+
+secret-path-isolation-test:
+	$(PYTHON) tests/wuci_secret_path_isolation.py --quiet
+
+reproducible-build-metadata: check-native $(TARGET)
+	@printf 'uname: '; uname -a
+	@printf 'as: '; $(AS) --version | head -n 1
+	@printf 'ld: '; $(LD) --version | head -n 1
+	@printf 'python: '; $(PYTHON) --version
+	@if command -v $(ZIG) >/dev/null 2>&1; then printf 'zig: '; $(ZIG) version; else printf 'zig: unavailable\n'; fi
+	sha256sum $(TARGET)
 
 release-rooted-contract: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_rooted_contract_asm.py --quiet
@@ -713,7 +729,7 @@ pythonless-public-verify: $(ZIG_WITNESS) $(ZIG_LEDGER)
 	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
 	@printf 'WUCI Pythonless public verification complete\n'
 
-test: check-native $(TARGET) authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test self-release-attestation-test publish-attestation-test
+test: check-native $(TARGET) authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract parser-adversarial-test authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test secret-path-isolation-test aead-boundary-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy

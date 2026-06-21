@@ -889,9 +889,11 @@ def assert_secp256k1_point_helpers() -> None:
     assert parse_point_output(infinity.stdout) is None
 
     for scalar in (0, 1, 2, 3):
-        proc = run(["secp256k1-basepoint-mul", f"{scalar:064x}"])
+        proc = run(["secp256k1-basepoint-mul-variable-time-public-only", f"{scalar:064x}"])
         assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
         assert parse_point_output(proc.stdout) == secp256k1_point_mul_ref(scalar, g)
+    old_name = run(["secp256k1-basepoint-mul", f"{1:064x}"])
+    assert old_name.returncode != 0
 
     doubled_jacobian = run(["secp256k1-jacobian-double", gx, gy, f"{1:064x}"])
     assert doubled_jacobian.returncode == 0, doubled_jacobian.stderr.decode("utf-8", "replace")
@@ -974,7 +976,7 @@ def assert_secp256k1_point_rejects_invalid() -> None:
     cases = [
         ["secp256k1-point-double", gx, bad_y],
         ["secp256k1-point-add", gx, gy, gx, bad_y],
-        ["secp256k1-basepoint-mul", "00"],
+        ["secp256k1-basepoint-mul-variable-time-public-only", "00"],
         ["secp256k1-jacobian-double", gx, bad_y, f"{1:064x}"],
         ["secp256k1-jacobian-mixed-add", gx, gy, f"{1:064x}", gx, bad_y],
         ["secp256k1-projective-basepoint-mul", "00"],
@@ -2089,7 +2091,7 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
                 b"",
                 None,
             ),
-            (["secp256k1-basepoint-mul", key.hex(), "extra"], b"", None),
+            (["secp256k1-basepoint-mul-variable-time-public-only", key.hex(), "extra"], b"", None),
             (["secp256k1-jacobian-double", key.hex(), key.hex(), key.hex(), "extra"], b"", None),
             (
                 [
@@ -2272,7 +2274,7 @@ def assert_help_output() -> None:
         "secp256k1-point-validate <x> <y> validate affine point coordinates",
         "secp256k1-point-double <x> <y> double an affine point; prints x/y or infinity",
         "secp256k1-point-add <x1> <y1> <x2> <y2> add affine points; prints x/y or infinity",
-        "secp256k1-basepoint-mul <k>    multiply the secp256k1 basepoint by a 32-byte hex scalar",
+        "secp256k1-basepoint-mul-variable-time-public-only <k> multiply basepoint by public scalar only",
         "secp256k1-jacobian-double <x> <y> <z> double a Jacobian point; prints x/y/z or infinity",
         "secp256k1-jacobian-mixed-add <jx> <jy> <jz> <ax> <ay> add Jacobian and affine points",
         "secp256k1-projective-basepoint-mul <k> multiply the basepoint with Jacobian intermediates",
