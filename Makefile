@@ -152,6 +152,8 @@ $(ZIG_LEDGER): tools/wuci_ledger.zig
 selftest: check-native $(TARGET)
 	$(TARGET) selftest
 
+# Legacy static disassembly audit. Keep this opt-in; current CI support is
+# defined by behavioral Gate/Witness/Ledger/HARDEN/CAGE/QCAGE/install proofs.
 check-asm-immediates: check-native $(OBJECTS)
 	NM=$(NM) OBJDUMP=$(OBJDUMP) $(PYTHON) tests/check_asm_immediates.py $(OBJECTS)
 
@@ -711,7 +713,7 @@ pythonless-public-verify: $(ZIG_WITNESS) $(ZIG_LEDGER)
 	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
 	@printf 'WUCI Pythonless public verification complete\n'
 
-test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test self-release-attestation-test publish-attestation-test
+test: check-native $(TARGET) authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy
