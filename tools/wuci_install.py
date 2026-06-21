@@ -10,6 +10,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +39,25 @@ SIGNATURE_NAMESPACE = "wuci-install-v1"
 SIGNATURE_IDENTITY = "wuci-install"
 ZERO_SHA512 = "0" * 128
 PRODUCT_UTF8_SHA256 = hashlib.sha256("无此机".encode("utf-8")).hexdigest()
+TICKER_FRAMES = (
+    "[=-------]",
+    "[==------]",
+    "[===-----]",
+    "[====----]",
+    "[=====---]",
+    "[======--]",
+    "[=======-]",
+    "[========]",
+    "[-=======]",
+    "[--======]",
+    "[---=====]",
+    "[----====]",
+    "[-----===]",
+    "[------==]",
+    "[-------=]",
+    "[--------]",
+)
+TICKER_SIGNALS = ("AUTH", "SEAL", "GATE", "ROOT", "CAGE", "QBIT", "WITN", "LEDG")
 
 MANIFEST_FIELDS = (
     "schema",
@@ -347,11 +368,56 @@ def verify_manifest_signature(
     return manifest
 
 
-def run_checked(argv: list[str], context: str, *, cwd: Path | None = None) -> subprocess.CompletedProcess[bytes]:
+def start_ticker(label: str) -> tuple[threading.Event, threading.Thread] | None:
+    if not sys.stderr.isatty():
+        print(f"WUCI-INSTALL // START // {label}", file=sys.stderr, flush=True)
+        return None
+    stop = threading.Event()
+
+    def animate() -> None:
+        tick = 0
+        started = time.monotonic()
+        while not stop.is_set():
+            elapsed = time.monotonic() - started
+            frame = TICKER_FRAMES[tick % len(TICKER_FRAMES)]
+            signal = TICKER_SIGNALS[tick % len(TICKER_SIGNALS)]
+            sys.stderr.write(
+                f"\rWUCI-INSTALL // {frame} // SIG:{signal} // CYCLE:{tick:04d} // {label} // T+{elapsed:05.1f}s"
+            )
+            sys.stderr.flush()
+            tick += 1
+            stop.wait(0.12)
+
+    thread = threading.Thread(target=animate, daemon=True)
+    thread.start()
+    return stop, thread
+
+
+def stop_ticker(handle: tuple[threading.Event, threading.Thread] | None, label: str, *, ok: bool) -> None:
+    state = "PASS" if ok else "FAIL"
+    if handle is None:
+        print(f"WUCI-INSTALL // {state} // {label}", file=sys.stderr, flush=True)
+        return
+    stop, thread = handle
+    stop.set()
+    thread.join(timeout=1.0)
+    sys.stderr.write("\r" + (" " * 120) + "\r")
+    sys.stderr.write(f"WUCI-INSTALL // {state} // {label}\n")
+    sys.stderr.flush()
+
+
+def run_checked(
+    argv: list[str],
+    context: str,
+    *,
+    cwd: Path | None = None,
+    ticker_label: str | None = None,
+) -> subprocess.CompletedProcess[bytes]:
     if not isinstance(argv, list) or not argv:
         fail(f"{context} argv must be a non-empty list")
     for item in argv:
         reject_nul(item, context)
+    ticker = start_ticker(ticker_label) if ticker_label else None
     try:
         proc = subprocess.run(
             argv,
@@ -361,10 +427,16 @@ def run_checked(argv: list[str], context: str, *, cwd: Path | None = None) -> su
             check=False,
         )
     except OSError as exc:
+        if ticker_label:
+            stop_ticker(ticker, ticker_label, ok=False)
         raise InstallError(f"{context} failed to execute: {argv[0]}") from exc
     if proc.returncode != 0:
+        if ticker_label:
+            stop_ticker(ticker, ticker_label, ok=False)
         detail = (proc.stderr or proc.stdout).decode("utf-8", "replace").strip()
         fail(f"{context} failed: {detail}")
+    if ticker_label:
+        stop_ticker(ticker, ticker_label, ok=True)
     return proc
 
 
@@ -379,10 +451,6 @@ def verify_digest_vector(bin_path: Path, manifest: dict[str, str]) -> tuple[str,
     if sha512 != manifest["binary-sha512"]:
         fail("candidate binary SHA-512 does not match install manifest")
     return sha256, sha384, sha512
-
-
-def verify_selftest(bin_path: Path) -> None:
-    run_checked([str(bin_path), "selftest"], "wuci-ji selftest")
 
 
 def prefix_path(value: str, *, allow_prefix: bool = False) -> Path:
@@ -624,7 +692,7 @@ def run_install(args: argparse.Namespace) -> int:
     prefix = prefix_path(args.prefix, allow_prefix=args.allow_prefix)
     bin_path = DEFAULT_BIN
     if not bin_path.exists():
-        run_checked(["make", "all"], "make all", cwd=REPO_ROOT)
+        run_checked(["make", "all"], "make all", cwd=REPO_ROOT, ticker_label="build native verifier")
     install_key = Path(args.install_root_key).expanduser()
     key_sha256 = trust_key_check(install_key, quiet=True)
     manifest = verify_manifest_signature(
@@ -636,13 +704,23 @@ def run_install(args: argparse.Namespace) -> int:
     )
     binary_hashes = verify_digest_vector(bin_path, manifest)
     wuci_verifier_identity.require_trusted_verifier(bin_path, binary_hashes[0], "", strict=True)
-    verify_selftest(bin_path)
+    run_checked([str(bin_path), "selftest"], "wuci-ji selftest", ticker_label="selftest verifier core")
 
-    run_checked(["make", "harden-proof"], "harden proof", cwd=REPO_ROOT)
-    run_checked(["make", "cage-proof"], "cage proof", cwd=REPO_ROOT)
-    run_checked(["make", "qcage-proof"], "qcage proof", cwd=REPO_ROOT)
-    run_checked(["make", "self-release-witness-bundle"], "witness bundle proof", cwd=REPO_ROOT)
-    run_checked(["make", "self-release-ledger-bundle"], "ledger proof", cwd=REPO_ROOT)
+    run_checked(["make", "harden-proof"], "harden proof", cwd=REPO_ROOT, ticker_label="HARDEN perimeter proof")
+    run_checked(["make", "cage-proof"], "cage proof", cwd=REPO_ROOT, ticker_label="CAGE airlock proof")
+    run_checked(["make", "qcage-proof"], "qcage proof", cwd=REPO_ROOT, ticker_label="QCAGE digest-vector proof")
+    run_checked(
+        ["make", "self-release-witness-bundle"],
+        "witness bundle proof",
+        cwd=REPO_ROOT,
+        ticker_label="WITNESS public bundle proof",
+    )
+    run_checked(
+        ["make", "self-release-ledger-bundle"],
+        "ledger proof",
+        cwd=REPO_ROOT,
+        ticker_label="LEDGER append-only proof",
+    )
 
     install_files(
         prefix=prefix,

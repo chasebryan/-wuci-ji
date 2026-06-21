@@ -424,7 +424,8 @@ WUCI-INSTALL / 无此装 / No Such Install is the zero-prompt signed installer
 for Wuci-ji. It requires a local copied install root key before installation,
 then verifies the detached OpenSSH manifest signature, digest vector, selftest,
 HARDEN, CAGE, QCAGE, witness, and ledger proof gates before writing an atomic
-install receipt.
+install receipt. During the proof-gate wait, the installer displays a
+WUCI-INSTALL ticker with the active phase until completion.
 
 ```sh
 mkdir -p ~/.config/wuci-ji
