@@ -30,6 +30,9 @@ class GateCase:
     out_path: Path
     expected_stderr: bytes
     existing_output: bytes | None = None
+    existing_directory: bool = False
+    existing_dangling_symlink: bool = False
+    existing_parent_file: bytes | None = None
 
 
 def run_wuci(args: list[str]) -> subprocess.CompletedProcess[bytes]:
@@ -159,6 +162,14 @@ _DELETE = DeleteMarker()
 def assert_gate_case(case: GateCase) -> None:
     if case.existing_output is not None:
         case.out_path.write_bytes(case.existing_output)
+    if case.existing_directory:
+        case.out_path.mkdir()
+    if case.existing_dangling_symlink:
+        case.out_path.symlink_to(
+            case.out_path.with_name(f"{case.out_path.name}.missing-target")
+        )
+    if case.existing_parent_file is not None:
+        case.out_path.parent.write_bytes(case.existing_parent_file)
 
     proc = run_gate_open(case)
     assert proc.returncode != 0, case.name
@@ -168,7 +179,16 @@ def assert_gate_case(case: GateCase) -> None:
         proc.stderr.decode("utf-8", "replace"),
     )
     if case.existing_output is None:
-        assert not case.out_path.exists(), case.name
+        if case.existing_directory:
+            assert case.out_path.is_dir(), case.name
+        elif case.existing_dangling_symlink:
+            assert case.out_path.is_symlink(), case.name
+            assert not case.out_path.exists(), case.name
+        elif case.existing_parent_file is not None:
+            assert case.out_path.parent.read_bytes() == case.existing_parent_file
+            assert not case.out_path.exists(), case.name
+        else:
+            assert not case.out_path.exists(), case.name
     else:
         assert case.out_path.read_bytes() == case.existing_output, case.name
 
@@ -443,6 +463,49 @@ def main() -> None:
                 tmp / "output-exists.out",
                 b"refusing to overwrite",
                 existing_output=b"do-not-touch",
+            ),
+            GateCase(
+                "output_exists",
+                "output-existing-directory",
+                artifact_path,
+                "open",
+                open_receipt_path,
+                key_path,
+                tmp / "output-existing-directory.out",
+                b"refusing to overwrite",
+                existing_directory=True,
+            ),
+            GateCase(
+                "output_exists",
+                "output-dangling-symlink",
+                artifact_path,
+                "open",
+                open_receipt_path,
+                key_path,
+                tmp / "output-dangling-symlink.out",
+                b"refusing to overwrite",
+                existing_dangling_symlink=True,
+            ),
+            GateCase(
+                "output_parent_missing",
+                "output-parent-missing",
+                artifact_path,
+                "open",
+                open_receipt_path,
+                key_path,
+                tmp / "missing-output-parent" / "opened.out",
+                b"output parent directory does not exist",
+            ),
+            GateCase(
+                "output_parent_not_directory",
+                "output-parent-not-directory",
+                artifact_path,
+                "open",
+                open_receipt_path,
+                key_path,
+                tmp / "output-parent-file" / "opened.out",
+                b"output parent is not a directory",
+                existing_parent_file=b"not-a-directory",
             ),
             GateCase(
                 "private_material",

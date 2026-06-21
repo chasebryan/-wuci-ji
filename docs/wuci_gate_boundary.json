@@ -73,7 +73,9 @@
     "private_material",
     "wrong_open_action",
     "wrong_key_after_authorization",
-    "output_exists"
+    "output_exists",
+    "output_parent_missing",
+    "output_parent_not_directory"
   ],
   "non_goals": [
     "Do not add assembly open-authorized yet.",

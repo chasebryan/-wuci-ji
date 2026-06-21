@@ -356,6 +356,100 @@ def main() -> None:
         assert b"refusing to overwrite" in existing_open.stderr
         assert existing_out.read_bytes() == b"do-not-touch"
 
+        existing_dir_out = tmp / "existing-dir"
+        existing_dir_out.mkdir()
+        existing_dir_open = run_gate(
+            [
+                "open",
+                "--artifact",
+                str(artifact_path),
+                "--action",
+                "open",
+                "--receipt",
+                str(open_receipt_path),
+                "--keyfile",
+                str(key_path),
+                "--out",
+                str(existing_dir_out),
+            ]
+        )
+        assert existing_dir_open.returncode != 0
+        assert existing_dir_open.stdout == b""
+        assert b"refusing to overwrite" in existing_dir_open.stderr
+        assert existing_dir_out.is_dir()
+
+        dangling_target = tmp / "missing-symlink-target.txt"
+        dangling_out = tmp / "dangling-output.txt"
+        dangling_out.symlink_to(dangling_target)
+        dangling_open = run_gate(
+            [
+                "open",
+                "--artifact",
+                str(artifact_path),
+                "--action",
+                "open",
+                "--receipt",
+                str(open_receipt_path),
+                "--keyfile",
+                str(key_path),
+                "--out",
+                str(dangling_out),
+            ]
+        )
+        assert dangling_open.returncode != 0
+        assert dangling_open.stdout == b""
+        assert b"refusing to overwrite" in dangling_open.stderr
+        assert dangling_out.is_symlink()
+        assert not dangling_target.exists()
+
+        missing_parent_out = tmp / "missing-parent" / "opened.txt"
+        missing_parent_open = run_gate(
+            [
+                "open",
+                "--artifact",
+                str(artifact_path),
+                "--action",
+                "open",
+                "--receipt",
+                str(open_receipt_path),
+                "--keyfile",
+                str(key_path),
+                "--out",
+                str(missing_parent_out),
+            ]
+        )
+        assert_fails_without_plaintext(
+            missing_parent_open,
+            missing_parent_out,
+            b"output parent directory does not exist",
+        )
+        assert not missing_parent_out.parent.exists()
+
+        parent_file = tmp / "parent-file"
+        parent_file.write_bytes(b"not-a-directory")
+        parent_file_out = parent_file / "opened.txt"
+        parent_file_open = run_gate(
+            [
+                "open",
+                "--artifact",
+                str(artifact_path),
+                "--action",
+                "open",
+                "--receipt",
+                str(open_receipt_path),
+                "--keyfile",
+                str(key_path),
+                "--out",
+                str(parent_file_out),
+            ]
+        )
+        assert_fails_without_plaintext(
+            parent_file_open,
+            parent_file_out,
+            b"output parent is not a directory",
+        )
+        assert parent_file.read_bytes() == b"not-a-directory"
+
     if args.quiet:
         return
     print(check.stdout.decode("ascii"), end="")

@@ -152,6 +152,17 @@ def run_open_file_keyfile(
         raise GateError("open-file-keyfile produced unexpected stdout")
 
 
+def validate_output_path(out_path: Path) -> None:
+    if os.path.lexists(out_path):
+        raise GateError(f"refusing to overwrite existing output {out_path}")
+
+    parent = out_path.parent
+    if not parent.exists():
+        raise GateError(f"output parent directory does not exist {parent}")
+    if not parent.is_dir():
+        raise GateError(f"output parent is not a directory {parent}")
+
+
 def run_check(args: argparse.Namespace) -> int:
     decision = gate_decision(
         bin_path=Path(args.bin),
@@ -174,8 +185,7 @@ def run_open(args: argparse.Namespace) -> int:
         raise GateError("gate open requires an authorization receipt for action open")
 
     out_path = Path(args.out)
-    if out_path.exists():
-        raise GateError(f"refusing to overwrite existing output {out_path}")
+    validate_output_path(out_path)
 
     run_open_file_keyfile(
         bin_path=Path(args.bin),

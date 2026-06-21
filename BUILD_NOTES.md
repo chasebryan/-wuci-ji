@@ -439,6 +439,21 @@ Fixes made while executing this checkpoint:
   keys after authorization, and existing output paths all fail without creating
   or overwriting plaintext. Gate now scans raw receipt JSON for forbidden
   private-material markers before shape validation.
+- The tenth FROST workflow checkpoint hardened WUCI-GATE output path handling.
+  The preview wrapper now rejects existing filesystem entries with
+  `os.path.lexists`, so dangling symlinks are treated as occupied output paths,
+  and it rejects missing output parents or parents that are not directories
+  before invoking assembly `open-file-keyfile`. The workflow and policy matrix
+  cover existing files, directories, dangling symlinks, missing parents, and
+  non-directory parents without creating or overwriting plaintext.
+- The eleventh FROST workflow checkpoint added `make self-release-demo`, a
+  one-command preview release proof that seals the built `wuci-ji` binary as a
+  v2 artifact, writes its manifest and assembly warrant message, issues an
+  open WUCI-WARRANT receipt, verifies and opens it through the Python
+  WUCI-GATE preview wrapper, compares the opened copy byte-for-byte against
+  `build/wuci-ji`, and runs `--help` on the opened executable. This keeps the
+  strong demo path inside the current boundary: no assembly `open-authorized`
+  command, no assembly receipt JSON parsing, and no arbitrary signer material.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -599,8 +614,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
    separate. The first WUCI-GATE enforcement wrapper now lives in Python while
    canonical authorization bytes and envelope opening stay in assembly. Next,
-   add filesystem edge cases for Gate outputs and design an assembly-friendly
-   receipt contract before promoting any assembly `open-authorized` command.
+   design an assembly-friendly receipt contract before promoting any assembly
+   `open-authorized` command.
+   Use `make self-release-demo` as the current end-to-end release proof:
+   Wuci-ji sealed itself, warranted itself, passed its own gate, and opened to
+   a byte-identical executable copy.
    Keep private nonce and signing-share paths on projective basepoint helpers,
    leave public verifier aggregation behind `secp256k1_public_point_mul_limbs`,
    and keep the native and Zig source lists together.

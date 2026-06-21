@@ -113,6 +113,20 @@ GATE enforces authorization.
 ENVELOPE preserves secrecy.
 ```
 
+## Self-release demo
+
+Wuci-ji can seal its own Linux x86_64 binary, bind it to an assembly artifact
+manifest, issue a WUCI-WARRANT receipt, pass WUCI-GATE, and open to a
+byte-identical executable copy.
+
+```sh
+make self-release-demo
+```
+
+This is a preview release proof. WUCI-GATE enforcement is still Python preview
+glue; assembly remains the owner of manifests, warrant message bytes, FROST
+challenge/verification, and envelope opening.
+
 ## License
 
 NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).

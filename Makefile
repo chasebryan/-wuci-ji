@@ -19,8 +19,9 @@ ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
 ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 FROST_AUTHZ_DEMO_DIR ?= build/frost-authz-demo
 GATE_DEMO_DIR ?= build/wuci-gate-demo
+SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-workflow test test-linux selftest selftest-linux
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-workflow self-release-demo test test-linux selftest selftest-linux
 
 all: check-native $(TARGET)
 
@@ -106,6 +107,35 @@ gate-demo: check-native $(TARGET)
 	$(PYTHON) tools/wuci_gate.py check --bin $(abspath $(TARGET)) --artifact $(GATE_DEMO_DIR)/sealed.wj --action open --receipt $(GATE_DEMO_DIR)/auth-receipt.json
 	$(PYTHON) tools/wuci_gate.py open --bin $(abspath $(TARGET)) --artifact $(GATE_DEMO_DIR)/sealed.wj --action open --receipt $(GATE_DEMO_DIR)/auth-receipt.json --keyfile $(GATE_DEMO_DIR)/artifact.key --out $(GATE_DEMO_DIR)/opened.txt
 	@printf 'wrote WUCI-GATE demo files to %s\n' "$(GATE_DEMO_DIR)"
+
+self-release-demo: check-native $(TARGET)
+	mkdir -p $(SELF_RELEASE_DEMO_DIR)
+	rm -f \
+		$(SELF_RELEASE_DEMO_DIR)/artifact.key \
+		$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj \
+		$(SELF_RELEASE_DEMO_DIR)/manifest.txt \
+		$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt \
+		$(SELF_RELEASE_DEMO_DIR)/auth-transcript.json \
+		$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json \
+		$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	printf '1111111111111111111111111111111111111111111111111111111111111111\n' > $(SELF_RELEASE_DEMO_DIR)/artifact.key
+	$(TARGET) seal-file-keyfile-v2 $(SELF_RELEASE_DEMO_DIR)/artifact.key 2233445566778899aabbccddeeff0011 $(TARGET) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj
+	$(TARGET) manifest-file $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/manifest.txt
+	$(TARGET) warrant-message-file open $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/warrant-message.txt
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --print-transcript-manifest > $(SELF_RELEASE_DEMO_DIR)/auth-transcript.json
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --transcript-manifest $(SELF_RELEASE_DEMO_DIR)/auth-transcript.json --update-transcript-manifest --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json
+	$(PYTHON) tools/wuci_gate.py check --bin $(abspath $(TARGET)) --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json
+	$(PYTHON) tools/wuci_gate.py open --bin $(abspath $(TARGET)) --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json --keyfile $(SELF_RELEASE_DEMO_DIR)/artifact.key --out $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	cmp $(TARGET) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	chmod +x $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji --help >/dev/null
+	@printf 'WUCI self-release demo complete\n'
+	@printf 'sealed artifact: %s\n' "$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj"
+	@printf 'manifest: %s\n' "$(SELF_RELEASE_DEMO_DIR)/manifest.txt"
+	@printf 'warrant message: %s\n' "$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt"
+	@printf 'receipt: %s\n' "$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json"
+	@printf 'opened binary: %s\n' "$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji"
+	@printf 'verified: byte-identical and executable\n'
 
 test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix
 	$(PYTHON) tests/test_wuci_ji.py
