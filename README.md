@@ -121,7 +121,19 @@ byte-identical executable copy.
 
 ```sh
 make self-release-demo
+make self-release-bundle
+make verify-self-release-bundle
+make self-release-attestation-test
 ```
+
+`make self-release-bundle` adds `attestation.json` beside the sealed artifact,
+manifest, warrant message, receipt, and opened binary. The attestation records
+the relevant SHA-256 values, Gate decision fields, byte-identity check,
+executable check, and current boundary statement. `make
+verify-self-release-bundle` recomputes those checks from the bundle files.
+`make self-release-attestation-test` checks that tampered attestations,
+manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
+opened binaries fail verification.
 
 This is a preview release proof. WUCI-GATE enforcement is still Python preview
 glue; assembly remains the owner of manifests, warrant message bytes, FROST

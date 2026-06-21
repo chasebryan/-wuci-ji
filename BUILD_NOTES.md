@@ -454,6 +454,29 @@ Fixes made while executing this checkpoint:
   `build/wuci-ji`, and runs `--help` on the opened executable. This keeps the
   strong demo path inside the current boundary: no assembly `open-authorized`
   command, no assembly receipt JSON parsing, and no arbitrary signer material.
+- The twelfth FROST workflow checkpoint added `tools/wuci_self_release.py`,
+  `make self-release-bundle`, and `make verify-self-release-bundle`.
+  `self-release-bundle` runs the self-release demo, writes
+  `attestation.json`, and immediately verifies it. The attestation records
+  SHA-256 values for the original binary, artifact key, sealed artifact,
+  manifest, warrant message, receipt, and opened binary; the Gate decision
+  hashes; the byte-identical and executable checks; the reproduced Gate open;
+  and the current boundary statement. Verification recomputes manifest and
+  warrant bytes from assembly, rechecks the WUCI-WARRANT receipt through
+  WUCI-GATE, opens the artifact through Gate to a temporary copy, compares the
+  opened bytes, and runs the opened executable. This makes the self-release
+  proof independently auditable while staying in the Python preview wrapper
+  lane.
+- The thirteenth FROST workflow checkpoint added
+  `tests/wuci_self_release_attestation.py` and
+  `make self-release-attestation-test`, now included in `make test`. The test
+  builds a temporary self-release bundle, writes and verifies an attestation,
+  then proves verification fails after tampering with attestation fields,
+  boundary fields, Gate decision hashes, `manifest.txt`,
+  `warrant-message.txt`, `auth-receipt.json`, `wuci-ji.self.wj`,
+  `artifact.key`, and `opened-wuci-ji`. This turns the screenshot-grade proof
+  into a guarded regression lane before any assembly `open-authorized` design
+  work.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -616,9 +639,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    canonical authorization bytes and envelope opening stay in assembly. Next,
    design an assembly-friendly receipt contract before promoting any assembly
    `open-authorized` command.
-   Use `make self-release-demo` as the current end-to-end release proof:
-   Wuci-ji sealed itself, warranted itself, passed its own gate, and opened to
-   a byte-identical executable copy.
+   Use `make self-release-bundle` as the current end-to-end release proof, and
+   `make self-release-attestation-test` as the tamper-rejection guard. Wuci-ji
+   sealed itself, warranted itself, passed its own gate, opened to a
+   byte-identical executable copy, emitted a verifiable attestation, and rejects
+   tampered proof bundles.
    Keep private nonce and signing-share paths on projective basepoint helpers,
    leave public verifier aggregation behind `secp256k1_public_point_mul_limbs`,
    and keep the native and Zig source lists together.

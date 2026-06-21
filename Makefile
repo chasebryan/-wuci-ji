@@ -20,8 +20,9 @@ ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 FROST_AUTHZ_DEMO_DIR ?= build/frost-authz-demo
 GATE_DEMO_DIR ?= build/wuci-gate-demo
 SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
+SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-workflow self-release-demo test test-linux selftest selftest-linux
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux selftest selftest-linux verify-self-release-bundle
 
 all: check-native $(TARGET)
 
@@ -117,7 +118,8 @@ self-release-demo: check-native $(TARGET)
 		$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt \
 		$(SELF_RELEASE_DEMO_DIR)/auth-transcript.json \
 		$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json \
-		$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+		$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji \
+		$(SELF_RELEASE_ATTESTATION)
 	printf '1111111111111111111111111111111111111111111111111111111111111111\n' > $(SELF_RELEASE_DEMO_DIR)/artifact.key
 	$(TARGET) seal-file-keyfile-v2 $(SELF_RELEASE_DEMO_DIR)/artifact.key 2233445566778899aabbccddeeff0011 $(TARGET) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj
 	$(TARGET) manifest-file $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/manifest.txt
@@ -137,7 +139,18 @@ self-release-demo: check-native $(TARGET)
 	@printf 'opened binary: %s\n' "$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji"
 	@printf 'verified: byte-identical and executable\n'
 
-test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix
+self-release-bundle: self-release-demo
+	$(PYTHON) tools/wuci_self_release.py --bin $(abspath $(TARGET)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) attest
+	$(PYTHON) tools/wuci_self_release.py --bin $(abspath $(TARGET)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
+	@printf 'self-release attestation: %s\n' "$(SELF_RELEASE_ATTESTATION)"
+
+verify-self-release-bundle: check-native $(TARGET)
+	$(PYTHON) tools/wuci_self_release.py --bin $(abspath $(TARGET)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
+
+self-release-attestation-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_self_release_attestation.py --quiet
+
+test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix self-release-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 selftest-linux: check-qemu-user build-linux
