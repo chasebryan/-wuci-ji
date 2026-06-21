@@ -256,9 +256,7 @@ decoding the two child hashes from 64-hex arguments.
 
 ```sh
 make ledger-asm-test
-build/wuci-ji ledger-empty-root
-build/wuci-ji ledger-leaf-file build/wuci-witness-bundle/publish-index.txt
-build/wuci-ji ledger-node <left-64-hex> <right-64-hex>
+make ledger-asm-demo
 ```
 
 The fixed format boundary lives in `docs/wuci_ledger_format.json`. Python or

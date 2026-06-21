@@ -33,13 +33,14 @@ WITNESS_WORK_DIR ?= $(WITNESS_BUNDLE_DIR).work
 WITNESS_ARCHIVE ?= $(WITNESS_BUNDLE_DIR).tar
 WITNESS_ARCHIVE_SHA256 ?= $(WITNESS_ARCHIVE).sha256
 WITNESS_ARCHIVE_CHECK_DIR ?= $(WITNESS_BUNDLE_DIR).archive-check
+LEDGER_DEMO_DIR ?= build/wuci-ledger-demo
 AUTHORITY_ROOT ?= authority/wuci-root.fixture.txt
 AUTHORITY_ROOT_SHA256 ?= authority/wuci-root.fixture.sha256
 RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow ledger-asm-test publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow ledger-asm-demo ledger-asm-test publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -482,6 +483,23 @@ witness-archive-zig-test: $(ZIG_WITNESS)
 
 authority-anchor-test: check-native $(TARGET) authority-root-check
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_authority_anchor.py --quiet
+
+ledger-asm-demo: check-native $(TARGET)
+	@mkdir -p $(LEDGER_DEMO_DIR)
+	@printf 'schema: wuci-ledger-entry-v1\nsequence: 0\nartifact-sha256: 1111111111111111111111111111111111111111111111111111111111111111\nmanifest-sha256: 2222222222222222222222222222222222222222222222222222222222222222\nwarrant-message-sha256: 3333333333333333333333333333333333333333333333333333333333333333\nrelease-receipt-sha256: 4444444444444444444444444444444444444444444444444444444444444444\nreceipt-contract-sha256: 5555555555555555555555555555555555555555555555555555555555555555\nauthority-root-sha256: 6666666666666666666666666666666666666666666666666666666666666666\nrelease-decision-sha256: 7777777777777777777777777777777777777777777777777777777777777777\nattestation-sha256: 8888888888888888888888888888888888888888888888888888888888888888\nrelease-authority-group-public-key: $(FROST_FIXTURE_GROUP_PUBLIC_KEY)\n' > $(LEDGER_DEMO_DIR)/entry-a.txt
+	@printf 'schema: wuci-ledger-entry-v1\nsequence: 1\nartifact-sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest-sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\nwarrant-message-sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\nrelease-receipt-sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\nreceipt-contract-sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\nauthority-root-sha256: ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\nrelease-decision-sha256: 9999999999999999999999999999999999999999999999999999999999999999\nattestation-sha256: 0000000000000000000000000000000000000000000000000000000000000000\nrelease-authority-group-public-key: $(FROST_FIXTURE_GROUP_PUBLIC_KEY)\n' > $(LEDGER_DEMO_DIR)/entry-b.txt
+	@set -e; \
+	empty_root=$$($(TARGET) ledger-empty-root); \
+	leaf_a=$$($(TARGET) ledger-leaf-file $(LEDGER_DEMO_DIR)/entry-a.txt); \
+	leaf_b=$$($(TARGET) ledger-leaf-file $(LEDGER_DEMO_DIR)/entry-b.txt); \
+	node_root=$$($(TARGET) ledger-node $$leaf_a $$leaf_b); \
+	printf 'WUCI-LEDGER assembly demo\n'; \
+	printf 'empty-root: %s\n' "$$empty_root"; \
+	printf 'entry-a: %s\n' "$(LEDGER_DEMO_DIR)/entry-a.txt"; \
+	printf 'leaf-a: %s\n' "$$leaf_a"; \
+	printf 'entry-b: %s\n' "$(LEDGER_DEMO_DIR)/entry-b.txt"; \
+	printf 'leaf-b: %s\n' "$$leaf_b"; \
+	printf 'node-root: %s\n' "$$node_root"
 
 ledger-asm-test: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --quiet
