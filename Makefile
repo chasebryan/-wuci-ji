@@ -1,6 +1,7 @@
 AS ?= as
 LD ?= ld
 PYTHON ?= python3
+PYPY ?= .tools/bin/pypy3
 NM ?= nm
 OBJDUMP ?= objdump
 ZIG ?= zig
@@ -22,14 +23,14 @@ GATE_DEMO_DIR ?= build/wuci-gate-demo
 SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux selftest selftest-linux verify-self-release-bundle
+.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux test-pypy selftest selftest-linux verify-self-release-bundle
 
 all: check-native $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
 
-build/%.o: src/%.s check-native
+build/%.o: src/%.s | check-native
 	mkdir -p build
 	$(AS) --64 -o $@ $<
 
@@ -51,6 +52,13 @@ check-qemu-user:
 		echo "wuci-ji: test-linux requires Linux user-mode qemu-x86_64 on PATH."; \
 		echo "macOS Homebrew qemu ships qemu-system-x86_64, not the Linux user-mode runner."; \
 		echo "run tests on x86_64 Linux, or set QEMU_X86_64=/path/to/qemu-x86_64 on a Linux host."; \
+		exit 2; \
+	fi
+
+check-pypy:
+	@if ! command -v $(PYPY) >/dev/null 2>&1; then \
+		echo "wuci-ji: test-pypy requires PyPy at $(PYPY)."; \
+		echo "install PyPy or run 'make test PYTHON=/path/to/pypy3'."; \
 		exit 2; \
 	fi
 
@@ -155,6 +163,9 @@ self-release-attestation-test: check-native $(TARGET)
 
 test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract self-release-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
+
+test-pypy: check-pypy
+	$(MAKE) test PYTHON=$(PYPY)
 
 selftest-linux: check-qemu-user build-linux
 	$(QEMU_X86_64) $(CROSS_TARGET) selftest

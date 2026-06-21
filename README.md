@@ -19,6 +19,15 @@ To run the full test suite, use an x86_64 Linux environment and run:
 make test
 ```
 
+Repeated test runs reuse existing object files when assembly sources have not
+changed. A local or system PyPy interpreter can run the Python harness:
+
+```sh
+make test-pypy
+# or
+make test PYTHON=/path/to/pypy3
+```
+
 On a Linux host with user-mode QEMU for x86_64 installed, the same suite can run
 through:
 

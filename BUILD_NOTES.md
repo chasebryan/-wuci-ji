@@ -68,6 +68,8 @@ Observed host on 2026-06-20:
 - Linux x86_64
 - GNU `as`, `ld`, `nm`, and `objdump` are available.
 - Python 3 is available.
+- PyPy 3.11 is installed locally at `.tools/bin/pypy3` on this workstation for
+  opt-in harness runs; `.tools/` is intentionally ignored.
 
 Verified on this host:
 
@@ -82,8 +84,11 @@ Verified on this host:
 
 Fixes made while executing this checkpoint:
 
-- The native object rule now assembles `$(SOURCE)` explicitly instead of using
-  `$<`, because `check-native` is the first prerequisite.
+- The native object rule keeps `check-native` as an order-only prerequisite, so
+  the phony host check does not force object files to rebuild on every test
+  run.
+- `make test-pypy` runs the Python harness with PyPy when `.tools/bin/pypy3`
+  exists, while the default `make test` remains CPython for portable CI.
 - GNU `as` Intel-syntax `.set` length constants are loaded with
   `OFFSET FLAT:` so status and error writes use immediates rather than absolute
   memory reads.
