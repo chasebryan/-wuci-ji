@@ -405,6 +405,18 @@ Fixes made while executing this checkpoint:
   regression, including action mismatch, artifact tamper, receipt metadata
   tamper, signature-scalar tamper, spent-transcript rejection, and a public
   receipt check that excludes fixture secrets and nonce scalars.
+- The seventh FROST workflow checkpoint moved the canonical WUCI-WARRANT
+  authorization-message surface into assembly with
+  `warrant-message-file <action> <path>`. The command validates
+  `open`/`release`/`trust`/`publish`, validates the artifact before writing,
+  emits the warrant header, and then appends the existing assembly
+  `manifest-file` body. The Python receipt tool now consumes those assembly
+  bytes instead of owning canonical message serialization. The same checkpoint
+  added `docs/wuci_gate_boundary.json` and `make gate-boundary` to lock the
+  future `open-authorized` / `release-authorized` policy boundary as
+  design-only: policy inputs, display-only fields, rejection classes,
+  forbidden private material, and explicit non-goals are tested while the
+  enforcement commands remain absent.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -563,10 +575,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, design the enforcement boundary for `open`/`release`
-   without implementing it yet: define where an authorization receipt would be
-   supplied, how receipt verification errors should be reported, and which
-   receipt fields remain stable policy inputs. Keep private nonce and
+   separate. Next, review the WUCI-GATE boundary fixture against real receipt
+   examples and only then decide whether the first enforcement wrapper belongs
+   in assembly, a Python harness, or a two-stage path. Keep private nonce and
    signing-share paths on projective basepoint helpers, leave public verifier
    aggregation behind `secp256k1_public_point_mul_limbs`, and keep the native
    and Zig source lists together.

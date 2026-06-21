@@ -26,6 +26,7 @@
 .global run_inspect_file
 .global run_manifest
 .global run_manifest_file
+.global run_warrant_message_file
 .global run_armor_file
 .global run_dearmor_file
 .global run_aead_seal
@@ -1463,6 +1464,116 @@ run_manifest_file:
     cmp eax, 2
     je aead_size_error
     jmp artifact_file_error
+
+run_warrant_message_file:
+    cmp qword ptr [rsp], 4
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + warrant_action_open]
+    call streq
+    cmp eax, 1
+    je .Lwarrant_action_open
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + warrant_action_release]
+    call streq
+    cmp eax, 1
+    je .Lwarrant_action_release
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + warrant_action_trust]
+    call streq
+    cmp eax, 1
+    je .Lwarrant_action_trust
+
+    mov rdi, qword ptr [rsp + 24]
+    lea rsi, [rip + warrant_action_publish]
+    call streq
+    cmp eax, 1
+    je .Lwarrant_action_publish
+    jmp usage_exit
+
+.Lwarrant_action_open:
+    mov rax, qword ptr [rsp + 24]
+    mov qword ptr [rip + warrant_action_ptr], rax
+    mov qword ptr [rip + warrant_action_len], 4
+    jmp .Lwarrant_action_loaded
+
+.Lwarrant_action_release:
+    mov rax, qword ptr [rsp + 24]
+    mov qword ptr [rip + warrant_action_ptr], rax
+    mov qword ptr [rip + warrant_action_len], 7
+    jmp .Lwarrant_action_loaded
+
+.Lwarrant_action_trust:
+    mov rax, qword ptr [rsp + 24]
+    mov qword ptr [rip + warrant_action_ptr], rax
+    mov qword ptr [rip + warrant_action_len], 5
+    jmp .Lwarrant_action_loaded
+
+.Lwarrant_action_publish:
+    mov rax, qword ptr [rsp + 24]
+    mov qword ptr [rip + warrant_action_ptr], rax
+    mov qword ptr [rip + warrant_action_len], 7
+
+.Lwarrant_action_loaded:
+    mov rdi, qword ptr [rsp + 32]
+    call read_artifact_file
+    cmp eax, 1
+    je .Lwarrant_validate_loaded_envelope
+    cmp eax, 2
+    je aead_size_error
+    jmp artifact_file_error
+
+.Lwarrant_validate_loaded_envelope:
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_MIN_LEN
+    jb envelope_error
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lwarrant_write_message
+
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V2_MIN_LEN
+    jb envelope_error
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lwarrant_write_message
+
+    lea rdi, [rip + aead_open_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    jne envelope_error
+    mov rbx, qword ptr [rip + aead_text_len]
+    cmp rbx, ENVELOPE_V3_MIN_LEN
+    jb envelope_error
+
+.Lwarrant_write_message:
+    mov rdi, STDOUT
+    lea rsi, [rip + warrant_message_prefix]
+    mov edx, OFFSET FLAT:warrant_message_prefix_len
+    call write_all
+
+    mov rdi, STDOUT
+    mov rsi, qword ptr [rip + warrant_action_ptr]
+    mov rdx, qword ptr [rip + warrant_action_len]
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + warrant_message_manifest_prefix]
+    mov edx, OFFSET FLAT:warrant_message_manifest_prefix_len
+    call write_all
+    jmp manifest_parse_loaded_envelope
 
 manifest_parse_loaded_envelope:
     mov rbx, qword ptr [rip + aead_text_len]
@@ -3553,6 +3664,26 @@ manifest_tag_label:
     .ascii "tag: "
 .set manifest_tag_label_len, . - manifest_tag_label
 
+warrant_action_open:
+    .asciz "open"
+warrant_action_release:
+    .asciz "release"
+warrant_action_trust:
+    .asciz "trust"
+warrant_action_publish:
+    .asciz "publish"
+
+warrant_message_prefix:
+    .ascii "schema: wuci-frost-authorization-message-v1\n"
+    .ascii "suite: FROST-secp256k1-SHA256-v1\n"
+    .ascii "production: false\n"
+    .ascii "action: "
+.set warrant_message_prefix_len, . - warrant_message_prefix
+
+warrant_message_manifest_prefix:
+    .ascii "\nartifact-manifest:\n"
+.set warrant_message_manifest_prefix_len, . - warrant_message_manifest_prefix
+
 newline_msg:
     .ascii "\n"
 .set newline_msg_len, . - newline_msg
@@ -4114,6 +4245,12 @@ aead_aad_len:
     .skip 8
 .align 8
 aead_output_path:
+    .skip 8
+.align 8
+warrant_action_ptr:
+    .skip 8
+.align 8
+warrant_action_len:
     .skip 8
 .align 8
 seal_input_fd:

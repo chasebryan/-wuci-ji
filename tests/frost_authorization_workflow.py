@@ -48,6 +48,15 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def output_labels(stdout: bytes) -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for line in stdout.decode("ascii").splitlines():
+        if ": " in line:
+            label, value = line.split(": ", 1)
+            labels[label.replace("-", "_")] = value
+    return labels
+
+
 def nested_keys(value: Any) -> set[str]:
     if isinstance(value, dict):
         keys = set(value)
@@ -134,7 +143,6 @@ def main() -> None:
 
         manifest = run_wuci(["manifest-file", str(artifact_path)])
         assert manifest.returncode == 0, manifest.stderr.decode("utf-8", "replace")
-        manifest_sha256 = hashlib.sha256(manifest.stdout).hexdigest()
 
         auth_message_proc = run_tool(
             [
@@ -148,14 +156,21 @@ def main() -> None:
         assert auth_message_proc.returncode == 0, auth_message_proc.stderr.decode(
             "utf-8", "replace"
         )
-        auth_message = load_json(auth_message_proc.stdout)
-        assert auth_message["schema"] == MESSAGE_SCHEMA
-        assert auth_message["action"] == "open"
-        assert auth_message["production"] is False
-        assert auth_message["artifact_manifest_sha256"] == manifest_sha256
-        assert auth_message["artifact_manifest"]["key_id"] == key_id
-        assert auth_message["artifact_manifest"]["artifact_sha256"]
-        assert auth_message["artifact_manifest"]["ciphertext_sha256"]
+        header, manifest_body = auth_message_proc.stdout.split(
+            b"artifact-manifest:\n",
+            1,
+        )
+        assert header == (
+            b"schema: " + MESSAGE_SCHEMA.encode("ascii") + b"\n"
+            b"suite: FROST-secp256k1-SHA256-v1\n"
+            b"production: false\n"
+            b"action: open\n"
+        )
+        assert manifest_body == manifest.stdout
+        artifact_manifest = output_labels(manifest.stdout)
+        assert artifact_manifest["key_id"] == key_id
+        assert artifact_manifest["artifact_sha256"]
+        assert artifact_manifest["ciphertext_sha256"]
         assert auth_message_proc.stdout.endswith(b"\n")
 
         transcript_proc = run_tool(
@@ -196,8 +211,7 @@ def main() -> None:
         assert receipt["schema"] == RECEIPT_SCHEMA
         assert receipt["production"] is False
         assert receipt["action"] == "open"
-        assert receipt["artifact_manifest_sha256"] == manifest_sha256
-        assert receipt["artifact_manifest"] == auth_message["artifact_manifest"]
+        assert receipt["artifact_manifest"] == artifact_manifest
         assert receipt["authorization_message_sha256"] == hashlib.sha256(
             auth_message_proc.stdout
         ).hexdigest()

@@ -73,6 +73,7 @@
 .extern run_inspect_file
 .extern run_manifest
 .extern run_manifest_file
+.extern run_warrant_message_file
 .extern run_armor_file
 .extern run_dearmor_file
 .extern run_aead_seal
@@ -188,6 +189,7 @@ command_table:
     .quad cmd_inspect_file, run_inspect_file
     .quad cmd_manifest, run_manifest
     .quad cmd_manifest_file, run_manifest_file
+    .quad cmd_warrant_message_file, run_warrant_message_file
     .quad cmd_armor_file, run_armor_file
     .quad cmd_dearmor_file, run_dearmor_file
     .quad cmd_aead_seal, run_aead_seal
@@ -326,6 +328,8 @@ cmd_manifest:
     .asciz "manifest"
 cmd_manifest_file:
     .asciz "manifest-file"
+cmd_warrant_message_file:
+    .asciz "warrant-message-file"
 cmd_armor_file:
     .asciz "armor-file"
 cmd_dearmor_file:
@@ -340,7 +344,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|inspect|inspect-file|manifest|manifest-file|warrant-message-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
     .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
@@ -402,6 +406,7 @@ usage_msg:
     .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
     .ascii "  manifest                       print metadata, SHA-256 fingerprints, and tag\n"
     .ascii "  manifest-file <path>           print file metadata, SHA-256 fingerprints, and tag\n"
+    .ascii "  warrant-message-file <action> <path> print FROST warrant message bytes; action=open/release/trust/publish\n"
     .ascii "  armor-file <in> <out>          wrap an artifact in copy/paste ASCII armor; no overwrite\n"
     .ascii "  dearmor-file <in> <out>        decode copy/paste ASCII armor; no overwrite\n"
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"

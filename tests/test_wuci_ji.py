@@ -2210,6 +2210,7 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
             (["inspect-file", str(artifact_path), "extra"], b"", None),
             (["manifest", "extra"], sealed, None),
             (["manifest-file", str(artifact_path), "extra"], b"", None),
+            (["warrant-message-file", "open", str(artifact_path), "extra"], b"", None),
             (
                 ["armor-file", str(artifact_path), str(armor_out), "extra"],
                 b"",
@@ -2289,6 +2290,7 @@ def assert_help_output() -> None:
         "open-file-keyfile <path> <in> <out>",
         "manifest                       print metadata, SHA-256 fingerprints, and tag",
         "manifest-file <path>           print file metadata, SHA-256 fingerprints, and tag",
+        "warrant-message-file <action> <path> print FROST warrant message bytes",
         "armor-file <in> <out>          wrap an artifact in copy/paste ASCII armor; no overwrite",
         "dearmor-file <in> <out>        decode copy/paste ASCII armor; no overwrite",
         "selftest                       run built-in known-answer tests",

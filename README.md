@@ -72,14 +72,16 @@ authorization receipts; it does not open or release artifacts.
 
 ```sh
 make frost-authz
+build/wuci-ji warrant-message-file open sealed.wj
 python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --print-auth-message
 python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --print-transcript-manifest
 python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --transcript-manifest auth-transcript.json --update-transcript-manifest --receipt auth-receipt.json
 python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --verify-receipt auth-receipt.json
 ```
 
-Receipts are anchored to `manifest-file` output, a canonical authorization
-message SHA-256, and the public FROST verification equation.
+Receipts are anchored to the assembly `warrant-message-file` output, a
+canonical authorization-message SHA-256, and the public FROST verification
+equation.
 
 ## License
 

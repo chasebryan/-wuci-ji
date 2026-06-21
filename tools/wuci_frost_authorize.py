@@ -76,20 +76,21 @@ def artifact_manifest(bin_path: Path, artifact_path: Path) -> tuple[bytes, dict[
     return manifest_bytes, parsed
 
 
-def canonical_json_bytes(value: dict[str, Any]) -> bytes:
-    return (
-        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-        + "\n"
-    ).encode("utf-8")
-
-
-def authorization_message(
-    *,
+def build_authorization(
+    bin_path: Path,
+    artifact_path: Path,
     action: str,
-    manifest_bytes: bytes,
-    manifest: dict[str, str],
-) -> dict[str, Any]:
-    return {
+) -> tuple[dict[str, Any], bytes]:
+    manifest_bytes, manifest = artifact_manifest(bin_path, artifact_path)
+    auth_message_bytes = WuciJi(bin_path).run(
+        ["warrant-message-file", action, str(artifact_path)]
+    ).encode("ascii")
+    manifest_prefix = b"artifact-manifest:\n"
+    if not auth_message_bytes.endswith(manifest_prefix + manifest_bytes):
+        raise AuthorizationError(
+            "assembly warrant message does not match manifest-file output"
+        )
+    authorization = {
         "schema": AUTH_MESSAGE_SCHEMA,
         "suite": frost.SUITE,
         "production": False,
@@ -97,20 +98,7 @@ def authorization_message(
         "artifact_manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "artifact_manifest": manifest,
     }
-
-
-def build_authorization(
-    bin_path: Path,
-    artifact_path: Path,
-    action: str,
-) -> tuple[dict[str, Any], bytes]:
-    manifest_bytes, manifest = artifact_manifest(bin_path, artifact_path)
-    message = authorization_message(
-        action=action,
-        manifest_bytes=manifest_bytes,
-        manifest=manifest,
-    )
-    return message, canonical_json_bytes(message)
+    return authorization, auth_message_bytes
 
 
 def load_json_file(path: Path, context: str) -> Any:

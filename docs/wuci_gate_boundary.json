@@ -1,0 +1,77 @@
+{
+  "schema": "wuci-gate-boundary-v1",
+  "status": "design-only",
+  "enforcement_implemented": false,
+  "assembly_owned_surfaces": [
+    "manifest-file",
+    "warrant-message-file",
+    "frost-secp256k1-challenge",
+    "frost-secp256k1-verify"
+  ],
+  "python_workflow_surfaces": [
+    "tools/wuci_frost_authorize.py",
+    "tests/frost_authorization_workflow.py"
+  ],
+  "future_commands": [
+    {
+      "name": "open-authorized",
+      "shape": "open-authorized <key> <artifact> <receipt> <out>",
+      "required_action": "open",
+      "implemented": false
+    },
+    {
+      "name": "release-authorized",
+      "shape": "release-authorized <artifact> <receipt>",
+      "required_action": "release",
+      "implemented": false
+    }
+  ],
+  "receipt_policy_inputs": [
+    "schema",
+    "suite",
+    "production",
+    "action",
+    "authorization_message_schema",
+    "authorization_message_sha256",
+    "artifact_manifest_sha256",
+    "artifact_manifest",
+    "group_public_key",
+    "group_commitment",
+    "challenge",
+    "signature_commitment",
+    "signature_scalar",
+    "verification"
+  ],
+  "receipt_display_only_fields": [
+    "mode",
+    "warning"
+  ],
+  "receipt_private_material_forbidden": [
+    "group_secret",
+    "share",
+    "hiding",
+    "binding",
+    "hiding_nonce",
+    "binding_nonce",
+    "signature_share"
+  ],
+  "expected_rejection_classes": [
+    "malformed_receipt",
+    "unsupported_schema",
+    "unsupported_suite",
+    "production_receipt",
+    "wrong_action",
+    "artifact_manifest_digest_mismatch",
+    "artifact_manifest_field_mismatch",
+    "authorization_message_digest_mismatch",
+    "challenge_mismatch",
+    "invalid_signature"
+  ],
+  "non_goals": [
+    "Do not add open-authorized yet.",
+    "Do not add release-authorized yet.",
+    "Do not parse receipt JSON in assembly yet.",
+    "Do not accept arbitrary signer material yet.",
+    "Do not make Python the canonical authorization-message owner."
+  ]
+}
