@@ -434,6 +434,21 @@ def main() -> None:
                 b"invalid",
             ),
             GateCase(
+                "invalid_signature",
+                "signature-commitment-mismatch",
+                artifact_path,
+                "open",
+                mutated_receipt(
+                    tmp,
+                    open_receipt,
+                    "signature-commitment-mismatch",
+                    {"signature_commitment": open_receipt["group_public_key"]},
+                ),
+                key_path,
+                tmp / "signature-commitment-mismatch.out",
+                b"signature commitment does not match challenge commitment",
+            ),
+            GateCase(
                 "wrong_open_action",
                 "release-receipt-cannot-open",
                 artifact_path,

@@ -84,6 +84,8 @@ def validate_contract_fields(fields: dict[str, str]) -> None:
         require_hex(fields[label], 66, label)
         if fields[label][:2] not in {"02", "03"}:
             raise ContractError(f"{label} must be a compressed SEC1 point")
+    if fields["signature-commitment"] != fields["group-commitment"]:
+        raise ContractError("signature-commitment must match group-commitment")
     gate.reject_private_material(fields, "receipt contract")
 
 

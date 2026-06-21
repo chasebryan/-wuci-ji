@@ -42,7 +42,8 @@
     "No JSON.",
     "No unknown fields.",
     "No display-only receipt fields.",
-    "No private-material markers."
+    "No private-material markers.",
+    "signature-commitment must match group-commitment."
   ],
   "value_constraints": {
     "schema": "literal wuci-gate-receipt-contract-v1",
@@ -54,7 +55,7 @@
     "group-public-key": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters",
     "group-commitment": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters",
     "challenge": "64 lowercase hex characters",
-    "signature-commitment": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters",
+    "signature-commitment": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters; must match group-commitment",
     "signature-scalar": "64 lowercase hex characters"
   },
   "assembly_non_goals": [

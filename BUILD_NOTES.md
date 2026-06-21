@@ -493,6 +493,10 @@ Fixes made while executing this checkpoint:
   receipt markers, tampered signatures, and tampered artifacts while still
   avoiding assembly `open-authorized`, assembly receipt JSON parsing, and
   arbitrary signer material.
+- Receipt and contract verification now require `signature_commitment` /
+  `signature-commitment` to match the group commitment used for challenge
+  derivation. This keeps H2 challenge binding and the public Schnorr/FROST
+  verification equation on the same commitment before any Gate proof can pass.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing

@@ -394,6 +394,11 @@ def main() -> None:
                 (b"group-public-key must be a compressed SEC1 point",),
             ),
             FailureCase(
+                "signature-commitment-mismatch",
+                mutate_field("signature-commitment", "02" + ("01" * 32)),
+                (b"signature-commitment must match group-commitment",),
+            ),
+            FailureCase(
                 "bad-challenge",
                 mutate_field("challenge", "0" * 63),
                 (b"challenge must be 64 lowercase hex characters",),

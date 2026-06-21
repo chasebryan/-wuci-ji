@@ -427,6 +427,8 @@ def run_fixture_workflow(
             *(signer["z"] for signer in signers),
         ]
     )
+    if signature["signature_commitment"] != validated_transcript["group_commitment"]:
+        raise WorkflowError("signature commitment does not match group commitment")
 
     verification = cli.run(
         [

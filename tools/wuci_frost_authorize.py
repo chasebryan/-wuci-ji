@@ -200,6 +200,10 @@ def validate_receipt_shape(raw: Any) -> dict[str, Any]:
         raise AuthorizationError("authorization receipt has unsupported action")
     if raw["verification"] != "valid":
         raise AuthorizationError("authorization receipt is not marked valid")
+    if raw["signature_commitment"] != raw["group_commitment"]:
+        raise AuthorizationError(
+            "authorization receipt signature commitment does not match challenge commitment"
+        )
     if not isinstance(raw["artifact_manifest"], dict):
         raise AuthorizationError("authorization receipt artifact_manifest must be an object")
     return raw

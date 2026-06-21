@@ -270,6 +270,16 @@ def main() -> None:
         write_json(bad_receipt_path, bad_receipt)
         assert_verify_fails(artifact_path, bad_receipt_path, b"invalid")
 
+        bad_receipt = json.loads(json.dumps(receipt))
+        bad_receipt["signature_commitment"] = receipt["group_public_key"]
+        bad_receipt_path = tmp / "bad-signature-commitment.json"
+        write_json(bad_receipt_path, bad_receipt)
+        assert_verify_fails(
+            artifact_path,
+            bad_receipt_path,
+            b"signature commitment does not match challenge commitment",
+        )
+
         reused_receipt_path = tmp / "reused-receipt.json"
         reused = run_tool(
             [
