@@ -169,6 +169,7 @@ This is a preview release proof. WUCI-GATE enforcement is still Python preview
 glue; assembly remains the owner of manifests, warrant message bytes, FROST
 challenge/verification, and envelope opening.
 
+<img width="1672" height="941" alt="woo!" src="https://github.com/user-attachments/assets/96a60882-2308-4d00-bc86-3306a98d6a79" />
 ## License
 
 NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).
