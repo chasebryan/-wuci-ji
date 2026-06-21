@@ -6,6 +6,7 @@ import filecmp
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ import wuci_gate
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
 DEFAULT_BUNDLE_DIR = REPO_ROOT / "build" / "wuci-self-release-demo"
+RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 ATTESTATION_SCHEMA = "wuci-self-release-attestation-v1"
 ACTION = "open"
 
@@ -120,7 +122,7 @@ def display_path(path: Path) -> str:
 def run_opened_help(opened_binary: Path) -> None:
     try:
         proc = subprocess.run(
-            [str(opened_binary), "--help"],
+            [*RUNNER, str(opened_binary), "--help"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             check=False,

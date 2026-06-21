@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ import frost_secp256k1_workflow as frost
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
+RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 AUTH_MESSAGE_SCHEMA = "wuci-frost-authorization-message-v1"
 RECEIPT_SCHEMA = "wuci-frost-authorization-v1"
 ALLOWED_ACTIONS = ("open", "release", "trust", "publish")
@@ -35,7 +37,7 @@ class WuciJi:
             )
         try:
             proc = subprocess.run(
-                [str(self.bin_path), *args],
+                [*RUNNER, str(self.bin_path), *args],
                 input=stdin,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

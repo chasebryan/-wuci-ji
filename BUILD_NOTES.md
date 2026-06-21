@@ -1,6 +1,6 @@
 # Build Notes
 
-Updated: 2026-06-20
+Updated: 2026-06-21
 
 This file is the machine-handoff checkpoint for `-wuci-ji`.
 
@@ -497,6 +497,13 @@ Fixes made while executing this checkpoint:
   `signature-commitment` to match the group commitment used for challenge
   derivation. This keeps H2 challenge binding and the public Schnorr/FROST
   verification equation on the same commitment before any Gate proof can pass.
+- The first Zig release lane added `RELEASE_BIN`, `RELEASE_RUNNER`, and
+  `make zig-release-proof`. The self-release proof can now target either the
+  native `build/wuci-ji` binary or the Zig-built
+  `build/wuci-ji-linux-x86_64` binary while keeping the same
+  seal/warrant/Gate/open/attest/verify loop. The Python orchestration tools
+  honor `WUCI_JI_RUNNER`, so the same proof can run a cross-built Linux ELF
+  through user-mode QEMU when the host needs it.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -637,6 +644,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 1. From Linux, keep using `make clean && make test` as the runtime proof before
    each push when practical.
+   Use `make zig-release-proof` as the portable release proof for the
+   Zig-built Linux x86_64 ELF. On hosts that need user-mode QEMU, pass
+   `RELEASE_RUNNER=qemu-x86_64`.
 2. If v2 or v3 grows again, keep adding malformed-envelope tests before changing
    `open`/`open-to`; current tests cover truncated headers, truncated
    bodies/tags, authenticated key ID tampering, nonce tampering, and tag

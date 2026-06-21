@@ -13,6 +13,21 @@ On macOS or other non-Linux hosts with Zig installed, build the Linux ELF with:
 make build-linux
 ```
 
+To run the Zig-built self-release proof on a Linux x86_64 host:
+
+```sh
+make zig-release-proof
+```
+
+This builds `build/wuci-ji-linux-x86_64`, seals that binary with itself,
+warrants it, passes WUCI-GATE, opens a byte-identical executable copy, writes
+an attestation, and verifies the attestation. On a Linux host that needs
+user-mode QEMU to run the Zig-built ELF, pass:
+
+```sh
+make zig-release-proof RELEASE_RUNNER=qemu-x86_64
+```
+
 To run the full test suite, use an x86_64 Linux environment and run:
 
 ```sh
@@ -138,6 +153,7 @@ make self-release-demo
 make self-release-bundle
 make verify-self-release-bundle
 make self-release-attestation-test
+make zig-release-proof
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,

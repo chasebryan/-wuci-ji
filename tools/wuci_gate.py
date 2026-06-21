@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ import wuci_frost_authorize as warrant
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
+RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 PRIVATE_MARKERS = (
     "group_secret",
     "share",
@@ -131,6 +133,7 @@ def run_open_file_keyfile(
     try:
         proc = subprocess.run(
             [
+                *RUNNER,
                 str(bin_path),
                 "open-file-keyfile",
                 str(keyfile_path),

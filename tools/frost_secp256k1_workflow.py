@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
+RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 SUITE = "FROST-secp256k1-SHA256-v1"
 MODE = "deterministic-2of2-fixture"
 TRANSCRIPT_SCHEMA = "wuci-frost-transcript-v1"
@@ -250,7 +252,7 @@ class WuciJiCli:
             )
         try:
             proc = subprocess.run(
-                [str(self.bin_path), *args],
+                [*RUNNER, str(self.bin_path), *args],
                 input=stdin,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
