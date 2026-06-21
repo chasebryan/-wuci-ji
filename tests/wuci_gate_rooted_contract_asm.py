@@ -76,6 +76,11 @@ def replace_value(text: str, label: str, value: str) -> str:
     raise AssertionError(f"missing label {label}")
 
 
+def duplicate_first_field(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    return "".join([lines[0], *lines])
+
+
 def authority_id(group_public_key: str) -> str:
     return hashlib.sha256(bytes.fromhex(group_public_key)).hexdigest()
 
@@ -349,6 +354,15 @@ def main() -> None:
                 ),
             ),
             ("crlf", lambda text: text.replace("\n", "\r\n")),
+            ("missing-final-newline", lambda text: text.rstrip("\n")),
+            ("trailing-garbage", lambda text: text + "garbage"),
+            ("duplicate-field", duplicate_first_field),
+            (
+                "uppercase-authority-id",
+                lambda text: replace_value(
+                    text, "authority-id", read_value(text, "authority-id").upper()
+                ),
+            ),
             (
                 "unsupported-schema",
                 lambda text: replace_value(text, "schema", "wuci-authority-root-v0"),
@@ -380,6 +394,19 @@ def main() -> None:
                 contract_path=contract_path,
                 out_path=tmp / f"{name}.opened",
             )
+
+        unicode_authority = tmp / "unicode.authority.txt"
+        unicode_authority.write_bytes(
+            authority_text_base.replace(b"production: false\n", "production: falsé\n".encode("utf-8"))
+        )
+        assert_authority_fails(unicode_authority)
+        assert_rooted_open_fails_without_plaintext(
+            authority_path=unicode_authority,
+            key_path=key_path,
+            artifact_path=artifact_path,
+            contract_path=contract_path,
+            out_path=tmp / "unicode-authority.opened",
+        )
 
         open_denied_authority = tmp / "authority-open-denied.txt"
         open_denied_authority.write_text(

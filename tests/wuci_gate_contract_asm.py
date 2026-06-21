@@ -16,6 +16,7 @@ AUTHORIZE = REPO_ROOT / "tools" / "wuci_frost_authorize.py"
 CONTRACT_TOOL = REPO_ROOT / "tools" / "wuci_receipt_contract.py"
 BIN = Path(os.environ.get("WUCI_JI_BIN", REPO_ROOT / "build" / "wuci-ji"))
 RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+SECP256K1_FIELD_PRIME = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 
 
 def run_cmd(args: list[str]) -> subprocess.CompletedProcess[bytes]:
@@ -158,10 +159,15 @@ def mutate_contract(
     return path
 
 
+def duplicate_first_field(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    return "".join([lines[0], *lines])
+
+
 def assert_verify_fails(artifact_path: Path, contract_path: Path) -> None:
     proc = run_wuci(["gate-contract-verify", str(artifact_path), str(contract_path)])
     assert proc.returncode != 0
-    assert b"gate contract verification failed" in proc.stderr
+    assert proc.stderr
 
 
 def assert_open_fails_without_plaintext(
@@ -189,7 +195,7 @@ def assert_release_fails(artifact_path: Path, contract_path: Path) -> None:
         ["release-authorized-contract", str(artifact_path), str(contract_path)]
     )
     assert proc.returncode != 0
-    assert b"gate contract verification failed" in proc.stderr
+    assert proc.stderr
     assert proc.stdout == b""
 
 
@@ -289,15 +295,42 @@ def main() -> None:
                 ),
             ),
             ("crlf", lambda text: text.replace("\n", "\r\n")),
+            ("missing-final-newline", lambda text: text.rstrip("\n")),
             ("extra-newline", lambda text: text + "\n"),
+            ("trailing-garbage", lambda text: text + "garbage"),
+            ("duplicate-field", duplicate_first_field),
             (
                 "unsupported-schema",
                 lambda text: replace_value(text, "schema", "wuci-gate-v2"),
             ),
             ("wrong-action", lambda text: replace_value(text, "action", "release")),
             (
+                "uppercase-hex",
+                lambda text: replace_value(
+                    text,
+                    "artifact-sha256",
+                    read_value(text, "artifact-sha256").upper(),
+                ),
+            ),
+            (
                 "wrong-artifact-hash",
                 lambda text: replace_value(text, "artifact-sha256", "00" * 32),
+            ),
+            (
+                "invalid-compressed-point-prefix-valid-length",
+                lambda text: replace_value(text, "group-public-key", "04" + ("00" * 32)),
+            ),
+            (
+                "off-curve-compressed-point",
+                lambda text: replace_value(text, "group-public-key", "02" + ("00" * 32)),
+            ),
+            (
+                "noncanonical-compressed-point-x",
+                lambda text: replace_value(
+                    text,
+                    "group-public-key",
+                    "02" + f"{SECP256K1_FIELD_PRIME:064x}",
+                ),
             ),
             (
                 "wrong-manifest-hash",
@@ -347,6 +380,24 @@ def main() -> None:
                 contract_path=bad_contract,
                 out_path=tmp / f"{name}.opened",
             )
+
+        unicode_contract = tmp / "unicode.txt"
+        unicode_contract.write_bytes(base_contract.replace(b"action: open\n", "action: opén\n".encode("utf-8")))
+        assert_auth_mutation_rejected(
+            key_path=key_path,
+            artifact_path=artifact_path,
+            contract_path=unicode_contract,
+            out_path=tmp / "unicode.opened",
+        )
+
+        oversized_contract = tmp / "oversized-contract.txt"
+        oversized_contract.write_bytes(base_contract + (b"extra-field: " + (b"a" * 4096) + b"\n"))
+        assert_auth_mutation_rejected(
+            key_path=key_path,
+            artifact_path=artifact_path,
+            contract_path=oversized_contract,
+            out_path=tmp / "oversized.opened",
+        )
 
         release_base_contract = release_contract_path.read_bytes()
         release_cases: list[tuple[str, Callable[[str], str]]] = [

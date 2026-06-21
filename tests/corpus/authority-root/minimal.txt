@@ -1,0 +1,9 @@
+schema: wuci-authority-root-v1
+suite: FROST-secp256k1-SHA256-v1
+production: false
+authority-id: 0000000000000000000000000000000000000000000000000000000000000000
+group-public-key: 020000000000000000000000000000000000000000000000000000000000000000
+allow-open: true
+allow-release: false
+allow-trust: false
+allow-publish: false

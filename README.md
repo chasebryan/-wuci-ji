@@ -2,177 +2,44 @@
 # -wuci-ji
 无此机(Wuci-ji)是一个专为 x86_64 架构机器设计的汇编语言项目，旨在探索机器码、底层执行、系统边界以及精确控制。
 
-## Build and test
+**Research/proof artifact. Not production crypto. Not a runtime sandbox. Not
+post-quantum secure. Not independently audited.**
 
-The `src/*.s` sources build an x86_64 Linux assembly program. Native `make`,
-`make selftest`, and `make test` require a Linux x86_64 host with GNU `as`/`ld`.
+Wuci-ji explores a small x86_64 assembly artifact machine: seal artifacts,
+derive manifests and warrant messages, enforce flat Gate contracts, anchor
+release/open decisions to fixture roots, build public witness bundles, and
+commit those bundles into a Merkle ledger. The current FROST authority is
+deterministic fixture material for tests and proofs, not production signing
+authority.
 
-On macOS or other non-Linux hosts with Zig installed, build the Linux ELF with:
+## Current Maturity
+
+The strongest current claim is mechanical, not production trust: the repo can
+build a Linux x86_64 binary, seal it, warrant it, verify flat contracts through
+assembly and Zig lanes, produce public witness evidence, append ledger history,
+and audit a signed local install. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+and [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) for the exact split
+between assembly, Zig, Python, Makefile, CI, and fixture authority.
+
+## Minimal Build And Test
+
+Native `make`, `make selftest`, and `make test` require Linux x86_64 with GNU
+`as`/`ld`.
+
+```sh
+make test
+make install-test
+```
+
+On non-Linux hosts with Zig installed, cross-build the Linux ELF:
 
 ```sh
 make build-linux
 ```
 
-To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
-
-```sh
-make authority-root-check
-make gate-contract-asm
-make self-release-asm-contract-proof
-make self-release-anchored-proof
-make self-release-rooted-proof
-make self-release-publish-bundle
-make self-release-witness-bundle
-make self-release-witness-archive
-make ledger-asm-test
-make ledger-proof-test
-make self-release-ledger-bundle
-make harden0-policy-matrix
-make harden0-safeio-test
-make harden0-verifier-identity-test
-make harden0-witness-safeio-test
-make harden0-fixture-quarantine-test
-make harden0-action-policy-test
-make harden0-proof
-make cage-policy-matrix
-make cage-bundle-test
-make cage-proof
-make qcage-model-test
-make qcage-policy-matrix
-make qcage-crypto-inventory
-make qcage-build-graph
-make qcage-attestation-test
-make qcage-proof
-make harden-policy-matrix
-make harden-safeio-test
-make harden-verifier-identity-test
-make harden-witness-symlink-test
-make harden-fixture-quarantine-test
-make harden-action-policy-test
-make harden-ledger-mutation-test
-make harden-proof
-make install-test
-make witness-zig
-make witness-zig-test
-make witness-archive-test
-make gate-contract-zig
-make zig-release-proof
-make zig-release-contract-proof
-make zig-release-asm-contract-proof
-make zig-release-anchored-proof
-make zig-release-rooted-proof
-make zig-release-release-contract-proof
-make zig-release-publish-bundle
-make zig-release-witness-bundle
-make zig-release-witness-archive
-make zig-release-ledger-bundle
-```
-
-`make authority-root-check` regenerates the deterministic fixture authority
-roots under `build/`, compares them against the committed anchors in
-`authority/`, and verifies their SHA-256 sidecars.
-`make gate-contract-asm` checks the native assembly flat-contract Gate command:
-`gate-contract-verify <artifact> <contract>` and
-`open-authorized-contract <keyfile> <artifact> <contract> <out>`.
-`make self-release-asm-contract-proof` seals the native binary, warrants it,
-emits a flat receipt contract, verifies and opens through the assembly Gate
-command, compares the opened copy byte-for-byte, executes it, writes an
-attestation, and verifies that attestation. `make gate-contract-zig` builds
-`tools/wuci_gate_contract.zig` into
-`build/wuci-gate-contract`, then uses the Zig-built Linux ELF to verify and
-open through the fixed flat WUCI-GATE receipt contract. `make zig-release-proof`
-builds `build/wuci-ji-linux-x86_64`, seals that binary with itself, warrants
-it, passes WUCI-GATE, opens a byte-identical executable copy, writes an
-attestation, and verifies the attestation. `make zig-release-contract-proof`
-uses the same self-release loop but emits a flat receipt contract and opens the
-binary through the Zig contract verifier instead of Python Gate open.
-`make zig-release-asm-contract-proof` seals the Zig-built ELF and then verifies
-and opens it through that ELF's own assembly `open-authorized-contract` path,
-recording assembly contract checks in the attestation.
-`make self-release-anchored-proof` and `make zig-release-anchored-proof` use
-the pre-existing WUCI-ANCHOR file `authority/wuci-root.fixture.txt`, require the
-receipt contract to answer to that trusted quorum key, require the binary's assembly
-`authority-root-verify`, `gate-contract-verify-rooted`, and
-`open-authorized-rooted` paths, and bind the authority hash and trusted group
-key into the attestation. `make self-release-rooted-proof` and
-`make zig-release-rooted-proof` are compatibility aliases for the anchored lane.
-`make zig-release-release-contract-proof` seals the Zig-built ELF, derives a
-release warrant and flat contract, and requires that ELF's own assembly
-`release-authorized-contract` path to approve the release decision.
-`make self-release-publish-bundle` and `make zig-release-publish-bundle`
-promote that release decision into WUCI-PUBLISH using the pre-existing
-release-only anchor `authority/wuci-release-root.fixture.txt`: a rooted assembly
-`release-authorized-rooted` check, deterministic
-`release-decision.txt`, and `attestation.json` that binds the authority,
-contract, decision, receipt, warrant, manifest, and sealed artifact hashes.
-`make self-release-witness-bundle` and `make zig-release-witness-bundle`
-produce the public WUCI-WITNESS profile: no `artifact.key`, no opened binary,
-no transcript material, plus a fixed `publish-index.txt` and
-`attestation.json` that can be verified with:
-
-```sh
-make witness-zig
-build/wuci-witness index build/wuci-witness-bundle --bin build/wuci-ji
-build/wuci-witness attest build/wuci-witness-bundle --bin build/wuci-ji
-build/wuci-witness verify build/wuci-witness-bundle
-python3 tools/wuci_witness.py verify --bundle build/wuci-witness-bundle
-```
-
-`make self-release-witness-archive` and `make zig-release-witness-archive`
-pack that public profile into deterministic tar archives with SHA-256 sidecars,
-then verify by extracting the archive back to `wuci-publish-bundle-v1/`.
-`make ledger-asm-test` checks WUCI-LEDGER's assembly Merkle commitment
-primitives: `ledger-empty-root`, `ledger-leaf-file <entry>`, and
-`ledger-node <left> <right>`.
-`make ledger-proof-test`, `make self-release-ledger-bundle`, and
-`make zig-release-ledger-bundle` turn public witness bundles into append-only
-Merkle release history entries with ledger heads, inclusion proofs, and
-consistency proofs.
-`make cage-policy-matrix`, `make cage-bundle-test`, and `make cage-proof`
-exercise WUCI-CAGE v1, the defensive artifact airlock over WUCI witness and
-ledger evidence. `make qcage-proof` extends that lane with WUCI-QCAGE v1:
-digest-vector evidence, crypto inventory, build graph evidence, quantum
-migration debt scoring, and fail-closed post-quantum modes.
-
-On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
-
-```sh
-make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
-make zig-release-proof RELEASE_RUNNER=qemu-x86_64
-make zig-release-contract-proof RELEASE_RUNNER=qemu-x86_64
-make zig-release-asm-contract-proof RELEASE_RUNNER=qemu-x86_64
-make zig-release-rooted-proof RELEASE_RUNNER=qemu-x86_64
-make zig-release-release-contract-proof RELEASE_RUNNER=qemu-x86_64
-make zig-release-publish-bundle RELEASE_RUNNER=qemu-x86_64
-make zig-release-witness-bundle RELEASE_RUNNER=qemu-x86_64
-make zig-release-witness-archive RELEASE_RUNNER=qemu-x86_64
-make zig-release-ledger-bundle RELEASE_RUNNER=qemu-x86_64
-```
-
-To run the full test suite, use an x86_64 Linux environment and run:
-
-```sh
-make test
-```
-
-Repeated test runs reuse existing object files when assembly sources have not
-changed. A local or system PyPy interpreter can run the Python harness:
-
-```sh
-make test-pypy
-# or
-make test PYTHON=/path/to/pypy3
-```
-
-On a Linux host with user-mode QEMU for x86_64 installed, the same suite can run
-through:
-
-```sh
-make test-linux
-```
-
-Homebrew's macOS `qemu` formula provides `qemu-system-x86_64`, which boots whole
-machines and does not run this Linux user-space ELF directly.
+Detailed proof targets live in [docs/BUILD_TARGETS.md](docs/BUILD_TARGETS.md).
+Release requirements are in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md),
+and fuzzing/adversarial parser work is tracked in [docs/FUZZING.md](docs/FUZZING.md).
 
 For a machine handoff checkpoint, see [BUILD_NOTES.md](BUILD_NOTES.md).
 
