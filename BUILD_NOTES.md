@@ -477,6 +477,17 @@ Fixes made while executing this checkpoint:
   `artifact.key`, and `opened-wuci-ji`. This turns the screenshot-grade proof
   into a guarded regression lane before any assembly `open-authorized` design
   work.
+- The fourteenth FROST workflow checkpoint added
+  `docs/wuci_gate_receipt_contract.json`, `tools/wuci_receipt_contract.py`,
+  `tests/wuci_receipt_contract.py`, and `make gate-receipt-contract`, now
+  included in `make test`. The tool verifies an existing WUCI-WARRANT receipt
+  through WUCI-GATE, derives a fixed-order ASCII contract with only the fields
+  a future assembly parser should need, and verifies that contract back against
+  the receipt, artifact, and action. The regression lane rejects reordered or
+  malformed contract text, digest drift, bad SEC1 encodings, private-material
+  receipt markers, tampered signatures, and tampered artifacts while still
+  avoiding assembly `open-authorized`, assembly receipt JSON parsing, and
+  arbitrary signer material.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -636,9 +647,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
    separate. The first WUCI-GATE enforcement wrapper now lives in Python while
-   canonical authorization bytes and envelope opening stay in assembly. Next,
-   design an assembly-friendly receipt contract before promoting any assembly
-   `open-authorized` command.
+   canonical authorization bytes and envelope opening stay in assembly. The
+   assembly-friendly receipt contract is now documented and guarded by
+   `make gate-receipt-contract`; use it as the bridge before promoting any
+   assembly `open-authorized` command.
    Use `make self-release-bundle` as the current end-to-end release proof, and
    `make self-release-attestation-test` as the tamper-rejection guard. Wuci-ji
    sealed itself, warranted itself, passed its own gate, opened to a

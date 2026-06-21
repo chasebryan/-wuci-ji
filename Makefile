@@ -22,7 +22,7 @@ GATE_DEMO_DIR ?= build/wuci-gate-demo
 SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux selftest selftest-linux verify-self-release-bundle
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux selftest selftest-linux verify-self-release-bundle
 
 all: check-native $(TARGET)
 
@@ -97,6 +97,9 @@ gate-workflow: check-native $(TARGET)
 gate-policy-matrix: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_policy_matrix.py --quiet
 
+gate-receipt-contract: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_receipt_contract.py --quiet
+
 gate-demo: check-native $(TARGET)
 	mkdir -p $(GATE_DEMO_DIR)
 	rm -f $(GATE_DEMO_DIR)/artifact.key $(GATE_DEMO_DIR)/plain.txt $(GATE_DEMO_DIR)/sealed.wj $(GATE_DEMO_DIR)/auth-transcript.json $(GATE_DEMO_DIR)/auth-receipt.json $(GATE_DEMO_DIR)/opened.txt $(GATE_DEMO_DIR)/opened-copy.txt
@@ -150,7 +153,7 @@ verify-self-release-bundle: check-native $(TARGET)
 self-release-attestation-test: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_self_release_attestation.py --quiet
 
-test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix self-release-attestation-test
+test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract self-release-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 selftest-linux: check-qemu-user build-linux

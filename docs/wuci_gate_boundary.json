@@ -12,7 +12,9 @@
   "python_workflow_surfaces": [
     "tools/wuci_frost_authorize.py",
     "tools/wuci_gate.py",
+    "tools/wuci_receipt_contract.py",
     "tests/frost_authorization_workflow.py",
+    "tests/wuci_receipt_contract.py",
     "tests/wuci_gate_policy_matrix.py",
     "tests/wuci_gate_workflow.py"
   ],
