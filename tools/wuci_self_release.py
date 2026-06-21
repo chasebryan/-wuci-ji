@@ -15,11 +15,13 @@ from typing import Any
 
 import wuci_frost_authorize as warrant
 import wuci_gate
+import wuci_receipt_contract as receipt_contract
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
 DEFAULT_BUNDLE_DIR = REPO_ROOT / "build" / "wuci-self-release-demo"
+DEFAULT_CONTRACT_BIN = REPO_ROOT / "build" / "wuci-gate-contract"
 RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 ATTESTATION_SCHEMA = "wuci-self-release-attestation-v1"
 ACTION = "open"
@@ -38,6 +40,12 @@ BOUNDARY = {
         "Do not parse receipt JSON in assembly yet.",
         "Do not accept arbitrary signer material yet.",
     ],
+}
+CONTRACT_BOUNDARY = {
+    **BOUNDARY,
+    "gate_enforcement": "zig-flat-contract-preview",
+    "contract_schema": receipt_contract.CONTRACT_SCHEMA,
+    "contract_verifier": "tools/wuci_gate_contract.zig",
 }
 
 BUNDLE_FILES = {
@@ -190,6 +198,118 @@ def reproduce_gate_open(
         raise SelfReleaseError(str(exc)) from exc
 
 
+def assert_current_contract(
+    *,
+    bin_path: Path,
+    artifact_path: Path,
+    receipt_path: Path,
+    contract_path: Path,
+) -> None:
+    try:
+        actual_text = receipt_contract.read_ascii(contract_path, "receipt contract")
+        actual_fields = receipt_contract.parse_contract(actual_text)
+        expected_fields = receipt_contract.derive_contract(
+            bin_path=bin_path,
+            artifact_path=artifact_path,
+            action=ACTION,
+            receipt_path=receipt_path,
+        )
+        expected_text = receipt_contract.format_contract(expected_fields)
+    except receipt_contract.ContractError as exc:
+        raise SelfReleaseError(str(exc)) from exc
+    for label in receipt_contract.CONTRACT_FIELDS:
+        if actual_fields[label] != expected_fields[label]:
+            raise SelfReleaseError(
+                f"receipt contract field does not match derived value: {label}"
+            )
+    if actual_text != expected_text:
+        raise SelfReleaseError("receipt contract bytes are not canonical")
+
+
+def run_zig_contract(
+    *,
+    contract_bin_path: Path,
+    command: str,
+    bin_path: Path,
+    artifact_path: Path,
+    receipt_path: Path,
+    contract_path: Path,
+    keyfile_path: Path | None = None,
+    out_path: Path | None = None,
+) -> bytes:
+    args = [
+        str(contract_bin_path),
+        command,
+        "--bin",
+        str(bin_path),
+        "--artifact",
+        str(artifact_path),
+        "--receipt",
+        str(receipt_path),
+        "--contract",
+        str(contract_path),
+    ]
+    if command == "open":
+        if keyfile_path is None or out_path is None:
+            raise SelfReleaseError("zig contract open requires keyfile and output path")
+        args.extend(["--keyfile", str(keyfile_path), "--out", str(out_path)])
+    try:
+        proc = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as exc:
+        raise SelfReleaseError(
+            f"could not execute Zig gate contract verifier: {contract_bin_path}"
+        ) from exc
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", "replace").strip()
+        detail = stderr or f"exit status {proc.returncode}"
+        raise SelfReleaseError(f"zig gate contract {command} failed: {detail}")
+    if proc.stdout != b"valid\n":
+        raise SelfReleaseError(f"zig gate contract {command} did not report valid")
+    return proc.stdout
+
+
+def reproduce_zig_contract_open(
+    *,
+    contract_bin_path: Path,
+    bin_path: Path,
+    artifact_path: Path,
+    receipt_path: Path,
+    contract_path: Path,
+    keyfile_path: Path,
+    opened_binary: Path,
+) -> None:
+    require_file(contract_bin_path, "Zig gate contract verifier")
+    run_zig_contract(
+        contract_bin_path=contract_bin_path,
+        command="verify",
+        bin_path=bin_path,
+        artifact_path=artifact_path,
+        receipt_path=receipt_path,
+        contract_path=contract_path,
+    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        reproduced = Path(temp_dir) / "opened-wuci-ji"
+        run_zig_contract(
+            contract_bin_path=contract_bin_path,
+            command="open",
+            bin_path=bin_path,
+            artifact_path=artifact_path,
+            receipt_path=receipt_path,
+            contract_path=contract_path,
+            keyfile_path=keyfile_path,
+            out_path=reproduced,
+        )
+        if not filecmp.cmp(opened_binary, reproduced, shallow=False):
+            raise SelfReleaseError(
+                "zig-contract-opened reproduction does not match opened binary"
+            )
+
+
 def gate_decision(
     *,
     bin_path: Path,
@@ -211,8 +331,12 @@ def build_attestation(
     *,
     bin_path: Path,
     bundle_dir: Path,
+    contract_path: Path | None = None,
+    contract_bin_path: Path | None = None,
 ) -> dict[str, Any]:
     paths = bundle_paths(bundle_dir, bin_path)
+    if contract_path is not None:
+        paths["receipt_contract"] = contract_path
     for name, path in paths.items():
         require_file(path, name.replace("_", " "))
 
@@ -227,13 +351,33 @@ def build_attestation(
         artifact_path=paths["sealed_artifact"],
         receipt_path=paths["receipt"],
     )
-    reproduce_gate_open(
-        bin_path=bin_path,
-        artifact_path=paths["sealed_artifact"],
-        receipt_path=paths["receipt"],
-        keyfile_path=paths["artifact_key"],
-        opened_binary=paths["opened_binary"],
-    )
+    contract_enabled = contract_path is not None
+    if contract_enabled:
+        if contract_bin_path is None:
+            contract_bin_path = DEFAULT_CONTRACT_BIN
+        assert_current_contract(
+            bin_path=bin_path,
+            artifact_path=paths["sealed_artifact"],
+            receipt_path=paths["receipt"],
+            contract_path=paths["receipt_contract"],
+        )
+        reproduce_zig_contract_open(
+            contract_bin_path=contract_bin_path,
+            bin_path=bin_path,
+            artifact_path=paths["sealed_artifact"],
+            receipt_path=paths["receipt"],
+            contract_path=paths["receipt_contract"],
+            keyfile_path=paths["artifact_key"],
+            opened_binary=paths["opened_binary"],
+        )
+    else:
+        reproduce_gate_open(
+            bin_path=bin_path,
+            artifact_path=paths["sealed_artifact"],
+            receipt_path=paths["receipt"],
+            keyfile_path=paths["artifact_key"],
+            opened_binary=paths["opened_binary"],
+        )
 
     original_sha256 = sha256_file(paths["original_binary"])
     opened_sha256 = sha256_file(paths["opened_binary"])
@@ -250,6 +394,8 @@ def build_attestation(
         "original_binary": original_sha256,
         "opened_binary": opened_sha256,
     }
+    if contract_enabled:
+        hashes["receipt_contract"] = sha256_file(paths["receipt_contract"])
 
     receipt = load_json_file(paths["receipt"], "authorization receipt")
     if not isinstance(receipt, dict):
@@ -267,6 +413,24 @@ def build_attestation(
     if decision["receipt-sha256"] != hashes["receipt"]:
         raise SelfReleaseError("gate decision receipt hash does not match receipt")
 
+    checks = {
+        "manifest_matches_assembly": True,
+        "warrant_message_matches_assembly": True,
+        "gate_check": True,
+        "byte_identical": True,
+        "opened_executable": True,
+    }
+    if contract_enabled:
+        checks.update(
+            {
+                "receipt_contract_matches_receipt": True,
+                "zig_contract_check": True,
+                "zig_contract_open_reproduced": True,
+            }
+        )
+    else:
+        checks["gate_open_reproduced"] = True
+
     return {
         "schema": ATTESTATION_SCHEMA,
         "production": False,
@@ -278,15 +442,8 @@ def build_attestation(
         "paths": {name: display_path(path) for name, path in paths.items()},
         "sha256": hashes,
         "gate_decision": decision,
-        "checks": {
-            "manifest_matches_assembly": True,
-            "warrant_message_matches_assembly": True,
-            "gate_check": True,
-            "gate_open_reproduced": True,
-            "byte_identical": True,
-            "opened_executable": True,
-        },
-        "boundary": BOUNDARY,
+        "checks": checks,
+        "boundary": CONTRACT_BOUNDARY if contract_enabled else BOUNDARY,
     }
 
 
@@ -302,6 +459,8 @@ def run_attest(args: argparse.Namespace) -> int:
     attestation = build_attestation(
         bin_path=Path(args.bin),
         bundle_dir=Path(args.bundle_dir),
+        contract_path=Path(args.contract) if args.contract else None,
+        contract_bin_path=Path(args.contract_bin) if args.contract_bin else None,
     )
     write_json_new(attestation_path, attestation)
     print(f"wrote self-release attestation: {display_path(attestation_path)}")
@@ -313,6 +472,8 @@ def run_verify(args: argparse.Namespace) -> int:
     observed = build_attestation(
         bin_path=Path(args.bin),
         bundle_dir=Path(args.bundle_dir),
+        contract_path=Path(args.contract) if args.contract else None,
+        contract_bin_path=Path(args.contract_bin) if args.contract_bin else None,
     )
     expected = load_json_file(attestation_path, "self-release attestation")
     compare_attestations(expected, observed)
@@ -338,6 +499,15 @@ def main() -> int:
         "--attestation",
         default=str(DEFAULT_BUNDLE_DIR / "attestation.json"),
         help="self-release attestation JSON path",
+    )
+    parser.add_argument(
+        "--contract",
+        help="optional flat WUCI-GATE receipt contract path to bind into the attestation",
+    )
+    parser.add_argument(
+        "--contract-bin",
+        default=os.environ.get("WUCI_GATE_CONTRACT_BIN", str(DEFAULT_CONTRACT_BIN)),
+        help="Zig gate contract verifier; defaults to WUCI_GATE_CONTRACT_BIN or build/wuci-gate-contract",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("attest", help="write a new self-release attestation")

@@ -51,3 +51,4 @@ jobs:
           ./build/wuci-ji-linux-x86_64 selftest
           make gate-contract-zig
           make zig-release-proof
+          make zig-release-contract-proof

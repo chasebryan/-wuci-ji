@@ -512,6 +512,15 @@ Fixes made while executing this checkpoint:
   `open-file-keyfile`, and rejects tampered contracts, receipts, artifacts,
   commitments, challenges, and signatures. Python still emits the canonical
   contract, and assembly `open-authorized` remains intentionally absent.
+- The second Zig release lane added `make self-release-contract-bundle` and
+  `make zig-release-contract-proof`. The proof seals the Zig-built Linux ELF,
+  warrants it, emits `receipt-contract.txt`, verifies and opens through
+  `tools/wuci_gate_contract.zig`, compares the opened copy byte-for-byte,
+  executes it, and writes a self-release attestation that records the contract
+  hash and `zig-flat-contract-preview` boundary. This is now the strongest
+  self-release proof before any assembly `open-authorized` command exists:
+  Python still derives the flat contract, while Zig enforces the contract and
+  delegates manifest, warrant, FROST, and envelope operations to assembly.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -652,9 +661,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 1. From Linux, keep using `make clean && make test` as the runtime proof before
    each push when practical.
-   Use `make gate-contract-zig` and `make zig-release-proof` as the portable
-   Zig Gate/release proofs for the Zig-built Linux x86_64 ELF. On hosts that
-   need user-mode QEMU, pass `RELEASE_RUNNER=qemu-x86_64`.
+   Use `make gate-contract-zig`, `make zig-release-proof`, and
+   `make zig-release-contract-proof` as the portable Zig Gate/release proofs
+   for the Zig-built Linux x86_64 ELF. On hosts that need user-mode QEMU, pass
+   `RELEASE_RUNNER=qemu-x86_64`.
 2. If v2 or v3 grows again, keep adding malformed-envelope tests before changing
    `open`/`open-to`; current tests cover truncated headers, truncated
    bodies/tags, authenticated key ID tampering, nonce tampering, and tag
@@ -679,9 +689,10 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `make gate-receipt-contract` plus the Zig `make gate-contract-zig` bridge;
    use that contract bridge before promoting any assembly `open-authorized`
    command.
-   Use `make self-release-bundle` as the current end-to-end release proof, and
-   `make self-release-attestation-test` as the tamper-rejection guard. Wuci-ji
-   sealed itself, warranted itself, passed its own gate, opened to a
+   Use `make self-release-contract-bundle` as the current strongest
+   end-to-end release proof, and `make self-release-attestation-test` as the
+   tamper-rejection guard. Wuci-ji sealed itself, warranted itself, emitted a
+   flat receipt contract, passed the Zig contract verifier, opened to a
    byte-identical executable copy, emitted a verifiable attestation, and rejects
    tampered proof bundles.
    Keep private nonce and signing-share paths on projective basepoint helpers,

@@ -18,6 +18,7 @@ To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
 ```sh
 make gate-contract-zig
 make zig-release-proof
+make zig-release-contract-proof
 ```
 
 `make gate-contract-zig` builds `tools/wuci_gate_contract.zig` into
@@ -25,12 +26,15 @@ make zig-release-proof
 open through the fixed flat WUCI-GATE receipt contract. `make zig-release-proof`
 builds `build/wuci-ji-linux-x86_64`, seals that binary with itself, warrants
 it, passes WUCI-GATE, opens a byte-identical executable copy, writes an
-attestation, and verifies the attestation. On a Linux host that needs user-mode
-QEMU to run the Zig-built ELF, pass:
+attestation, and verifies the attestation. `make zig-release-contract-proof`
+uses the same self-release loop but emits a flat receipt contract and opens the
+binary through the Zig contract verifier instead of Python Gate open. On a
+Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
 ```sh
 make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
 make zig-release-proof RELEASE_RUNNER=qemu-x86_64
+make zig-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -119,7 +123,9 @@ verification equation.
 WUCI-GATE / 无此门 / No Such Gate verifies a WUCI-WARRANT receipt before
 allowing a controlled no-overwrite open path. This is a Python preview wrapper:
 assembly still owns artifact manifests, warrant message bytes, FROST challenge
-computation, FROST verification, and envelope opening.
+computation, FROST verification, and envelope opening. The Zig flat-contract
+bridge verifies the fixed receipt contract and calls those same assembly
+surfaces without parsing receipt JSON in assembly.
 
 ```sh
 make gate-workflow
@@ -159,9 +165,11 @@ byte-identical executable copy.
 ```sh
 make self-release-demo
 make self-release-bundle
+make self-release-contract-bundle
 make verify-self-release-bundle
 make self-release-attestation-test
 make zig-release-proof
+make zig-release-contract-proof
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
@@ -169,12 +177,16 @@ manifest, warrant message, receipt, and opened binary. The attestation records
 the relevant SHA-256 values, Gate decision fields, byte-identity check,
 executable check, and current boundary statement. `make
 verify-self-release-bundle` recomputes those checks from the bundle files.
+`make self-release-contract-bundle` also writes `receipt-contract.txt`, opens
+through the Zig flat-contract verifier, and records the contract hash plus Zig
+contract verification checks in the attestation.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification.
 
-This is a preview release proof. WUCI-GATE enforcement is still Python preview
-glue; assembly remains the owner of manifests, warrant message bytes, FROST
+This is a preview release proof. Python still derives the flat receipt
+contract, while Zig can now enforce that contract for the self-release open.
+Assembly remains the owner of manifests, warrant message bytes, FROST
 challenge/verification, and envelope opening.
 
 ## License
