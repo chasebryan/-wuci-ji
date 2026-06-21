@@ -18,8 +18,9 @@ ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
 ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
 FROST_AUTHZ_DEMO_DIR ?= build/frost-authz-demo
+GATE_DEMO_DIR ?= build/wuci-gate-demo
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary test test-linux selftest selftest-linux
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-workflow test test-linux selftest selftest-linux
 
 all: check-native $(TARGET)
 
@@ -88,7 +89,22 @@ frost-authz-demo: check-native $(TARGET)
 gate-boundary: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_boundary.py
 
-test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary
+gate-workflow: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_workflow.py --quiet
+
+gate-demo: check-native $(TARGET)
+	mkdir -p $(GATE_DEMO_DIR)
+	rm -f $(GATE_DEMO_DIR)/artifact.key $(GATE_DEMO_DIR)/plain.txt $(GATE_DEMO_DIR)/sealed.wj $(GATE_DEMO_DIR)/auth-transcript.json $(GATE_DEMO_DIR)/auth-receipt.json $(GATE_DEMO_DIR)/opened.txt $(GATE_DEMO_DIR)/opened-copy.txt
+	printf '1111111111111111111111111111111111111111111111111111111111111111\n' > $(GATE_DEMO_DIR)/artifact.key
+	printf 'wuci gate demo\n' > $(GATE_DEMO_DIR)/plain.txt
+	$(TARGET) seal-file-keyfile-v2 $(GATE_DEMO_DIR)/artifact.key 2233445566778899aabbccddeeff0011 $(GATE_DEMO_DIR)/plain.txt $(GATE_DEMO_DIR)/sealed.wj
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(GATE_DEMO_DIR)/sealed.wj --action open --print-transcript-manifest > $(GATE_DEMO_DIR)/auth-transcript.json
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(GATE_DEMO_DIR)/sealed.wj --action open --transcript-manifest $(GATE_DEMO_DIR)/auth-transcript.json --update-transcript-manifest --receipt $(GATE_DEMO_DIR)/auth-receipt.json
+	$(PYTHON) tools/wuci_gate.py check --bin $(abspath $(TARGET)) --artifact $(GATE_DEMO_DIR)/sealed.wj --action open --receipt $(GATE_DEMO_DIR)/auth-receipt.json
+	$(PYTHON) tools/wuci_gate.py open --bin $(abspath $(TARGET)) --artifact $(GATE_DEMO_DIR)/sealed.wj --action open --receipt $(GATE_DEMO_DIR)/auth-receipt.json --keyfile $(GATE_DEMO_DIR)/artifact.key --out $(GATE_DEMO_DIR)/opened.txt
+	@printf 'wrote WUCI-GATE demo files to %s\n' "$(GATE_DEMO_DIR)"
+
+test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow
 	$(PYTHON) tests/test_wuci_ji.py
 
 selftest-linux: check-qemu-user build-linux

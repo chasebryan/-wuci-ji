@@ -36,6 +36,7 @@ def main() -> None:
         "schema",
         "status",
         "enforcement_implemented",
+        "assembly_command_enforcement_implemented",
         "assembly_owned_surfaces",
         "python_workflow_surfaces",
         "future_commands",
@@ -47,13 +48,19 @@ def main() -> None:
     }
     assert set(boundary) == expected_keys
     assert boundary["schema"] == "wuci-gate-boundary-v1"
-    assert boundary["status"] == "design-only"
-    assert boundary["enforcement_implemented"] is False
+    assert boundary["status"] == "python-preview"
+    assert boundary["enforcement_implemented"] is True
+    assert boundary["assembly_command_enforcement_implemented"] is False
 
     assembly_surfaces = set(require_list(boundary, "assembly_owned_surfaces"))
     assert "manifest-file" in assembly_surfaces
     assert "warrant-message-file" in assembly_surfaces
     assert "frost-secp256k1-verify" in assembly_surfaces
+
+    python_surfaces = set(require_list(boundary, "python_workflow_surfaces"))
+    assert "tools/wuci_frost_authorize.py" in python_surfaces
+    assert "tools/wuci_gate.py" in python_surfaces
+    assert "tests/wuci_gate_workflow.py" in python_surfaces
 
     policy_inputs = set(require_list(boundary, "receipt_policy_inputs"))
     for field in (

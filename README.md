@@ -85,6 +85,31 @@ tracked workspace. Receipts are anchored to the assembly `warrant-message-file`
 output, a canonical authorization-message SHA-256, and the public FROST
 verification equation.
 
+## WUCI-GATE preview
+
+WUCI-GATE / 无此门 / No Such Gate verifies a WUCI-WARRANT receipt before
+allowing a controlled no-overwrite open path. This is a Python preview wrapper:
+assembly still owns artifact manifests, warrant message bytes, FROST challenge
+computation, FROST verification, and envelope opening.
+
+```sh
+make gate-workflow
+make gate-demo
+python3 tools/wuci_gate.py check --artifact build/wuci-gate-demo/sealed.wj --action open --receipt build/wuci-gate-demo/auth-receipt.json
+python3 tools/wuci_gate.py open --artifact build/wuci-gate-demo/sealed.wj --action open --receipt build/wuci-gate-demo/auth-receipt.json --keyfile build/wuci-gate-demo/artifact.key --out build/wuci-gate-demo/opened-copy.txt
+```
+
+`make gate-demo` creates a disposable artifact, open warrant, gate decision, and
+opened plaintext under `build/wuci-gate-demo/`. Invalid receipts, wrong actions,
+tampered artifacts, bad signatures, wrong keys, and existing output paths do not
+release plaintext.
+
+```text
+WARRANT proves authorization.
+GATE enforces authorization.
+ENVELOPE preserves secrecy.
+```
+
 ## License
 
 NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).
