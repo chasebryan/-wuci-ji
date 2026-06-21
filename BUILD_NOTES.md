@@ -121,6 +121,13 @@ Verified on this host:
 - `make zig-release-witness-bundle` succeeds: the Zig-built Linux x86_64 ELF
   produces and verifies the same public witness bundle profile through its own
   assembly rooted release path.
+- `make witness-zig` succeeds: `tools/wuci_witness.zig` builds to
+  `build/wuci-witness` and verifies an existing public witness bundle with the
+  same public profile, flat index, committed release anchor, and assembly
+  rooted release decision checks.
+- `make witness-zig-test` succeeds and checks that the Zig witness verifier
+  rejects private files plus tampered indexes, release decisions, and witness
+  attestations.
 - `make witness-attestation-test` succeeds and rejects private files in the
   public bundle plus tampered indexes, manifests, warrant messages, release
   decisions, authority roots, receipts, and contracts.

@@ -4,8 +4,14 @@
   "bundle_schema": "wuci-publish-bundle-v1",
   "index_schema": "wuci-publish-index-v1",
   "producer": "make self-release-witness-bundle and make zig-release-witness-bundle",
-  "verifier": "tools/wuci_witness.py",
-  "verification_target": "tests/wuci_witness.py",
+  "verifiers": [
+    "tools/wuci_witness.py",
+    "tools/wuci_witness.zig built as build/wuci-witness"
+  ],
+  "verification_targets": [
+    "tests/wuci_witness.py",
+    "tests/wuci_witness_zig.py"
+  ],
   "public_bundle_files": [
     "wuci-ji.self.wj",
     "manifest.txt",

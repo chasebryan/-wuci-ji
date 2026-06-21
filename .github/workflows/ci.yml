@@ -75,3 +75,5 @@ jobs:
           make zig-release-release-contract-proof
           make zig-release-publish-bundle
           make zig-release-witness-bundle
+          make witness-zig RELEASE_BIN=$(pwd)/build/wuci-ji-linux-x86_64 WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
+          make witness-zig-test RELEASE_BIN=$(pwd)/build/wuci-ji-linux-x86_64 WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle

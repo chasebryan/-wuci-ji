@@ -23,6 +23,8 @@ make self-release-anchored-proof
 make self-release-rooted-proof
 make self-release-publish-bundle
 make self-release-witness-bundle
+make witness-zig
+make witness-zig-test
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
@@ -78,6 +80,8 @@ no transcript material, plus a fixed `publish-index.txt` and
 
 ```sh
 python3 tools/wuci_witness.py verify --bundle build/wuci-witness-bundle
+make witness-zig
+build/wuci-witness verify build/wuci-witness-bundle
 ```
 
 On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
@@ -246,11 +250,13 @@ make self-release-rooted-proof
 make self-release-release-contract-proof
 make self-release-publish-bundle
 make self-release-witness-bundle
+make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test
 make authority-anchor-test
 make publish-attestation-test
 make witness-attestation-test
+make witness-zig-test
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
@@ -303,13 +309,19 @@ bundle containing only `wuci-ji.self.wj`, `manifest.txt`,
 and release warrant bytes, receipt contract, release anchor, rooted assembly
 release decision, and attestation; it rejects demo keys, opened binaries,
 transcripts, malformed indexes, and mismatched public evidence.
+`make witness-zig` builds `tools/wuci_witness.zig` into `build/wuci-witness`
+and verifies an existing public bundle through the same assembly
+`release-authorized-rooted` boundary without invoking the Python witness
+entrypoint.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification. `make publish-attestation-test` checks that
 tampered release decisions, release contracts, and authority roots fail
 publish-bundle verification. `make witness-attestation-test` checks the public
 witness profile, including forbidden private files and index, manifest, warrant,
-decision, authority, receipt, and contract tampering. `make
+decision, authority, receipt, and contract tampering. `make witness-zig-test`
+checks that the Zig verifier rejects private files plus index, decision, and
+attestation tampering. `make
 authority-anchor-test` checks that anchored mode accepts the committed fixture
 root, rejects self-derived authority paths, and rejects malformed or
 policy-invalid authority roots.
