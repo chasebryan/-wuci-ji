@@ -44,3 +44,16 @@ claim quantum safety from classical-only evidence.
 Prefer stdlib-only Python and deterministic tests. Reject symlinks and hardlinks
 in public evidence. Keep existing Gate, Witness, Ledger, CAGE, and QCAGE proof
 lanes passing.
+
+# WUCI-INSTALL Development Note
+
+WUCI-INSTALL must remain noninteractive. Do not use `shell=True`, `eval`, or
+remote-code shell pipelines.
+
+Do not accept unsigned install manifests. Do not install without a local copied
+install root key. Do not treat fixture authority as production install
+authority.
+
+Do not claim runtime sandboxing or quantum safety from the install lane. All
+install writes should be atomic where practical, and all proof reads should
+reject symlinks.

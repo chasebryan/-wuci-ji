@@ -51,6 +51,7 @@ make harden-fixture-quarantine-test
 make harden-action-policy-test
 make harden-ledger-mutation-test
 make harden-proof
+make install-test
 make witness-zig
 make witness-zig-test
 make witness-archive-test
@@ -416,6 +417,35 @@ make harden-action-policy-test
 make harden-ledger-mutation-test
 make harden-proof
 ```
+
+## WUCI-INSTALL
+
+WUCI-INSTALL / 无此装 / No Such Install is the zero-prompt signed installer
+for Wuci-ji. It requires a local copied install root key before installation,
+then verifies the detached OpenSSH manifest signature, digest vector, selftest,
+HARDEN, CAGE, QCAGE, witness, and ledger proof gates before writing an atomic
+install receipt.
+
+```sh
+mkdir -p ~/.config/wuci-ji
+cp install/wuci-install-root.v1.pub ~/.config/wuci-ji/install-root.pub
+make install-proof INSTALL_ROOT_KEY=$HOME/.config/wuci-ji/install-root.pub INSTALL_PREFIX=$HOME/.local
+~/.local/bin/wuci-ji-audit
+```
+
+The audit command starts with:
+
+```text
+无此机 / Wuci-ji systems nominal.
+Version 0.1 installed.
+Install status: nominal
+```
+
+WUCI-INSTALL does not use `curl | sh`, does not prompt interactively, does not
+accept unsigned manifests, and does not install without the copied local root
+key. It does not claim runtime sandboxing or quantum safety. For production
+use, confirm the install root key fingerprint out of band before copying it
+from a checkout.
 
 ## Self-release demo
 

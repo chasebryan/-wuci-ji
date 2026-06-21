@@ -1,0 +1,41 @@
+{
+  "schema": "wuci-install-policy-v1",
+  "version": "0.1",
+  "status": "zero-prompt-signed-install",
+  "product_name": "无此机 / Wuci-ji",
+  "install_root_key_required": true,
+  "signature_required": true,
+  "signature_namespace": "wuci-install-v1",
+  "signature_identity": "wuci-install",
+  "allowed_install_prefixes": [
+    "~/.local",
+    "/usr/local"
+  ],
+  "default_prefix": "~/.local",
+  "installed_binary": "bin/wuci-ji",
+  "installed_audit_command": "bin/wuci-ji-audit",
+  "receipt_path": "share/wuci-ji/install-receipt.json",
+  "proofs_required": [
+    "install-root-key-copied",
+    "install-root-key-sha256",
+    "install-manifest-signature",
+    "digest-vector",
+    "verifier-identity",
+    "selftest",
+    "harden-proof",
+    "cage-proof",
+    "qcage-compat-proof",
+    "witness-bundle",
+    "ledger-history"
+  ],
+  "runtime_sandbox_claimed": false,
+  "quantum_safe_claimed": false,
+  "non_goals": [
+    "Do not install from unsigned manifest.",
+    "Do not accept fixture authority as production install authority.",
+    "Do not use shell evaluation.",
+    "Do not prompt interactively.",
+    "Do not claim runtime sandboxing.",
+    "Do not claim quantum safety."
+  ]
+}

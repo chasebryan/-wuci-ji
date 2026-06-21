@@ -48,13 +48,19 @@ QCAGE_BUILD_GRAPH ?= build/wuci-qcage-build-graph.json
 QCAGE_ATTESTATION ?= build/wuci-qcage-attestation.json
 HARDEN_TRUSTED_BIN_SHA256 ?=
 HARDEN_STRICT ?= 1
+INSTALL_PREFIX ?= $(HOME)/.local
+INSTALL_ROOT_KEY ?= $(HOME)/.config/wuci-ji/install-root.pub
+INSTALL_MANIFEST ?= install/wuci-install-manifest.v1
+INSTALL_SIGNATURE ?= install/wuci-install-manifest.v1.sig
+INSTALL_ALLOW_PREFIX ?=
+WUCI_VERSION ?= 0.1
 AUTHORITY_ROOT ?= authority/wuci-root.fixture.txt
 AUTHORITY_ROOT_SHA256 ?= authority/wuci-root.fixture.sha256
 RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: all authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test install-audit install-key-check install-manifest install-proof install-test install-verify ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -622,6 +628,36 @@ harden-proof: harden-policy-matrix harden-safeio-test harden-verifier-identity-t
 
 harden0-proof: harden0-policy-matrix harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test harden0-fixture-quarantine-test harden0-action-policy-test
 	@printf 'WUCI-HARDEN-0 proof complete\n'
+
+install-key-check:
+	$(PYTHON) tools/wuci_install.py trust-key-check --install-root-key $(INSTALL_ROOT_KEY)
+
+install-manifest: check-native $(TARGET)
+	$(PYTHON) tools/wuci_install.py manifest --bin $(abspath $(TARGET)) --out $(INSTALL_MANIFEST)
+
+install-verify: install-key-check
+	$(PYTHON) tools/wuci_install.py verify-manifest \
+		--install-root-key $(INSTALL_ROOT_KEY) \
+		--manifest $(INSTALL_MANIFEST) \
+		--signature $(INSTALL_SIGNATURE)
+
+install-proof: check-native $(TARGET) install-verify
+	$(PYTHON) tools/wuci_install.py install \
+		--install-root-key $(INSTALL_ROOT_KEY) \
+		--prefix $(INSTALL_PREFIX) \
+		--version $(WUCI_VERSION) \
+		$(INSTALL_ALLOW_PREFIX)
+
+install-audit:
+	$(PYTHON) tools/wuci_install.py audit --prefix $(INSTALL_PREFIX)
+
+install-test: check-native $(TARGET)
+	$(PYTHON) tests/wuci_install_policy.py --quiet
+	$(PYTHON) tests/wuci_install_manifest.py --quiet
+	$(PYTHON) tests/wuci_install_key_copy.py --quiet
+	$(PYTHON) tests/wuci_install_no_shell.py --quiet
+	$(PYTHON) tests/wuci_install_audit.py --quiet
+	$(PYTHON) tests/wuci_install_atomic.py --quiet
 
 verify-self-release-bundle: $(RELEASE_BIN)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
