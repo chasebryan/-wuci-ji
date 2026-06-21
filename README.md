@@ -64,6 +64,23 @@ requires an exact unspent transcript manifest for the selected message and
 commitment set, and `--update-transcript-manifest` marks it spent after a
 successful verified run.
 
+## WUCI-WARRANT receipts
+
+WUCI-WARRANT / 无此令 / No Such Warrant binds a FROST quorum receipt to one
+artifact manifest and one requested action. It only generates and verifies
+authorization receipts; it does not open or release artifacts.
+
+```sh
+make frost-authz
+python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --print-auth-message
+python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --print-transcript-manifest
+python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --transcript-manifest auth-transcript.json --update-transcript-manifest --receipt auth-receipt.json
+python3 tools/wuci_frost_authorize.py --artifact sealed.wj --action open --verify-receipt auth-receipt.json
+```
+
+Receipts are anchored to `manifest-file` output, a canonical authorization
+message SHA-256, and the public FROST verification equation.
+
 ## License
 
 NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).

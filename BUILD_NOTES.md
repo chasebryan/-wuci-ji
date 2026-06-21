@@ -394,6 +394,17 @@ Fixes made while executing this checkpoint:
   and `--update-transcript-manifest` atomically marks it spent after a verified
   run. The workflow regression rejects mismatched messages, tampered commitment
   hashes, and already-spent manifests.
+- The sixth FROST workflow checkpoint added WUCI-WARRANT / 无此令 / No Such
+  Warrant receipt generation and verification in
+  `tools/wuci_frost_authorize.py`. The tool derives a canonical authorization
+  message from `manifest-file` output plus an action (`open`, `release`,
+  `trust`, or `publish`), requires an unspent FROST transcript manifest before
+  writing a receipt, and verifies receipts by recomputing the artifact
+  manifest, authorization-message SHA-256, H2 challenge, and public
+  `frost-secp256k1-verify` equation. `make frost-authz` runs the receipt-only
+  regression, including action mismatch, artifact tamper, receipt metadata
+  tamper, signature-scalar tamper, spent-transcript rejection, and a public
+  receipt check that excludes fixture secrets and nonce scalars.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -552,13 +563,13 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/main.s`, `src/encoding.s`, `src/hmac_hkdf.s`,
    `src/frost.s`, `src/secp256k1_field.s`, `src/secp256k1_point.s`,
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
-   separate. Next, start binding FROST authorization to Wuci-ji artifact
-   manifests: derive the message bytes from `manifest`/`manifest-file` output,
-   require an unspent transcript manifest, and verify the final quorum
-   signature before introducing any `open`/`release` gate. Keep private nonce
-   and signing-share paths on projective basepoint helpers, leave public
-   verifier aggregation behind `secp256k1_public_point_mul_limbs`, and keep
-   the native and Zig source lists together.
+   separate. Next, design the enforcement boundary for `open`/`release`
+   without implementing it yet: define where an authorization receipt would be
+   supplied, how receipt verification errors should be reported, and which
+   receipt fields remain stable policy inputs. Keep private nonce and
+   signing-share paths on projective basepoint helpers, leave public verifier
+   aggregation behind `secp256k1_public_point_mul_limbs`, and keep the native
+   and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
