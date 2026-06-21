@@ -172,6 +172,14 @@ pub fn main(init: std.process.Init) !void {
     };
     args.env_runner = init.environ_map.get("WUCI_JI_RUNNER");
 
+    if (std.mem.eql(u8, args.command, "index")) {
+        try runIndex(gpa, io, stdout, args);
+        return;
+    }
+    if (std.mem.eql(u8, args.command, "attest")) {
+        try runAttest(gpa, io, stdout, args);
+        return;
+    }
     if (std.mem.eql(u8, args.command, "verify")) {
         try runVerify(gpa, io, stdout, args);
         return;
@@ -211,14 +219,68 @@ fn parseArgs(gpa: Allocator, process_args: std.process.Args) !Args {
 
 fn usage() void {
     std.debug.print(
-        \\usage: wuci-witness verify <bundle> [--bin <wuci-ji>] [--runner <runner>]
+        \\usage: wuci-witness index <bundle> [--bin <wuci-ji>] [--runner <runner>]
+        \\       wuci-witness attest <bundle> [--bin <wuci-ji>] [--runner <runner>]
+        \\       wuci-witness verify <bundle> [--bin <wuci-ji>] [--runner <runner>]
+        \\       wuci-witness index --bundle <bundle> [--bin <wuci-ji>] [--runner <runner>]
+        \\       wuci-witness attest --bundle <bundle> [--bin <wuci-ji>] [--runner <runner>]
         \\       wuci-witness verify --bundle <bundle> [--bin <wuci-ji>] [--runner <runner>]
         \\
     , .{});
 }
 
+fn runIndex(gpa: Allocator, io: Io, stdout: *Io.Writer, args: Args) !void {
+    try assertPublicProfile(io, args.bundle, false, false);
+    const paths = try bundlePaths(gpa, args.bundle);
+    defer paths.deinit(gpa);
+
+    const index_text = try buildIndexText(gpa, io, args, paths);
+    defer gpa.free(index_text);
+    try writeNewFile(io, paths.publish_index, index_text);
+
+    try stdout.print("wrote publish index: {s}\n", .{paths.publish_index});
+    try stdout.flush();
+}
+
+fn runAttest(gpa: Allocator, io: Io, stdout: *Io.Writer, args: Args) !void {
+    try assertPublicProfile(io, args.bundle, true, false);
+    const paths = try bundlePaths(gpa, args.bundle);
+    defer paths.deinit(gpa);
+
+    const expected_index = try buildIndexText(gpa, io, args, paths);
+    defer gpa.free(expected_index);
+    const actual_index = try readFile(gpa, io, paths.publish_index);
+    defer gpa.free(actual_index);
+    try expectEqual(actual_index, expected_index, error.PublishIndexMismatch);
+    const index = try parseFlat(index_labels, actual_index);
+
+    const hashes = Hashes{
+        .artifact = try sha256File(gpa, io, paths.artifact),
+        .manifest = try sha256File(gpa, io, paths.manifest),
+        .warrant_message = try sha256File(gpa, io, paths.warrant_message),
+        .release_receipt = try sha256File(gpa, io, paths.release_receipt),
+        .receipt_contract = try sha256File(gpa, io, paths.receipt_contract),
+        .authority_root = try sha256File(gpa, io, paths.authority_root),
+        .release_decision = try sha256File(gpa, io, paths.release_decision),
+        .publish_index = try sha256File(gpa, io, paths.publish_index),
+    };
+
+    const decision_text = try readFile(gpa, io, paths.release_decision);
+    defer gpa.free(decision_text);
+    const decision = try parseFlat(decision_labels, decision_text);
+    try validateDecision(decision, hashes.artifact[0..]);
+
+    const verifier_hash = try sha256File(gpa, io, args.bin);
+    const attestation = try formatAttestationJson(gpa, hashes, index, decision, verifier_hash[0..]);
+    defer gpa.free(attestation);
+    try writeNewFile(io, paths.attestation, attestation);
+
+    try stdout.print("wrote witness attestation: {s}\n", .{paths.attestation});
+    try stdout.flush();
+}
+
 fn runVerify(gpa: Allocator, io: Io, stdout: *Io.Writer, args: Args) !void {
-    try assertPublicProfile(io, args.bundle);
+    try assertPublicProfile(io, args.bundle, true, true);
 
     const paths = try bundlePaths(gpa, args.bundle);
     defer paths.deinit(gpa);
@@ -310,7 +372,7 @@ fn readBundleData(gpa: Allocator, io: Io, paths: BundlePaths) !BundleData {
     };
 }
 
-fn assertPublicProfile(io: Io, bundle: []const u8) !void {
+fn assertPublicProfile(io: Io, bundle: []const u8, require_index: bool, require_attestation: bool) !void {
     var dir = try Io.Dir.cwd().openDir(io, bundle, .{ .iterate = true });
     defer dir.close(io);
 
@@ -320,11 +382,14 @@ fn assertPublicProfile(io: Io, bundle: []const u8) !void {
         if (entry.kind != .file) return error.PublicBundleEntryNotFile;
         if (indexOf(forbidden_files, entry.name) != null) return error.PrivateFilePresent;
         const index = indexOf(public_files, entry.name) orelse return error.UnexpectedPublicBundleFile;
+        if (index == 7 and !require_index) return error.UnexpectedPublicBundleFile;
+        if (index == 8 and !require_attestation) return error.UnexpectedPublicBundleFile;
         if (seen[index]) return error.DuplicatePublicBundleFile;
         seen[index] = true;
     }
-    for (seen) |found| {
-        if (!found) return error.MissingPublicBundleFile;
+    for (seen, 0..) |found, index| {
+        const required = index < 7 or (index == 7 and require_index) or (index == 8 and require_attestation);
+        if (required and !found) return error.MissingPublicBundleFile;
     }
 }
 
@@ -339,10 +404,271 @@ fn readFile(gpa: Allocator, io: Io, path: []const u8) ![]u8 {
     return try Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(max_file_size));
 }
 
+fn writeNewFile(io: Io, path: []const u8, data: []const u8) !void {
+    try Io.Dir.cwd().writeFile(io, .{
+        .sub_path = path,
+        .data = data,
+        .flags = .{
+            .exclusive = true,
+            .permissions = @enumFromInt(0o600),
+        },
+    });
+}
+
+fn sha256File(gpa: Allocator, io: Io, path: []const u8) ![64]u8 {
+    const data = try readFile(gpa, io, path);
+    defer gpa.free(data);
+    return sha256Hex(data);
+}
+
 fn sha256Hex(data: []const u8) [64]u8 {
     var digest: [Sha256.digest_length]u8 = undefined;
     Sha256.hash(data, &digest, .{});
     return std.fmt.bytesToHex(digest, .lower);
+}
+
+fn buildIndexText(gpa: Allocator, io: Io, args: Args, paths: BundlePaths) ![]u8 {
+    const data = try readCoreData(gpa, io, paths);
+    defer data.deinit(gpa);
+
+    var hashes: Hashes = undefined;
+    hashes.artifact = sha256Hex(data.artifact);
+    hashes.manifest = sha256Hex(data.manifest);
+    hashes.warrant_message = sha256Hex(data.warrant_message);
+    hashes.release_receipt = sha256Hex(data.release_receipt);
+    hashes.receipt_contract = sha256Hex(data.receipt_contract);
+    hashes.authority_root = sha256Hex(data.authority_root);
+    hashes.release_decision = sha256Hex(data.release_decision);
+
+    const authority = try parseFlat(authority_labels, data.authority_root);
+    const contract = try parseFlat(contract_labels, data.receipt_contract);
+    const decision = try parseFlat(decision_labels, data.release_decision);
+    try validateAuthority(authority, hashes.authority_root[0..]);
+    try validateContract(contract, hashes, authority[4]);
+    try validateDecision(decision, hashes.artifact[0..]);
+    try validateReceiptJson(data.release_receipt, hashes, contract);
+
+    try compareWuciOutput(gpa, io, args, &.{ "manifest-file", paths.artifact }, data.manifest, "manifest-file");
+    try compareWuciOutput(
+        gpa,
+        io,
+        args,
+        &.{ "warrant-message-file", release_action, paths.artifact },
+        data.warrant_message,
+        "warrant-message-file",
+    );
+    try compareWuciOutput(gpa, io, args, &.{ "authority-root-verify", paths.authority_root }, "valid\n", "authority-root-verify");
+    try compareWuciOutput(
+        gpa,
+        io,
+        args,
+        &.{ "release-authorized-rooted", paths.authority_root, paths.artifact, paths.receipt_contract },
+        data.release_decision,
+        "release-authorized-rooted",
+    );
+
+    return try formatFlat(gpa, index_labels, .{
+        index_schema,
+        hashes.artifact[0..],
+        hashes.manifest[0..],
+        hashes.warrant_message[0..],
+        hashes.release_receipt[0..],
+        hashes.receipt_contract[0..],
+        hashes.authority_root[0..],
+        hashes.release_decision[0..],
+        authority[4],
+    });
+}
+
+const CoreData = struct {
+    artifact: []u8,
+    manifest: []u8,
+    warrant_message: []u8,
+    release_receipt: []u8,
+    receipt_contract: []u8,
+    authority_root: []u8,
+    release_decision: []u8,
+
+    fn deinit(self: CoreData, gpa: Allocator) void {
+        gpa.free(self.artifact);
+        gpa.free(self.manifest);
+        gpa.free(self.warrant_message);
+        gpa.free(self.release_receipt);
+        gpa.free(self.receipt_contract);
+        gpa.free(self.authority_root);
+        gpa.free(self.release_decision);
+    }
+};
+
+fn readCoreData(gpa: Allocator, io: Io, paths: BundlePaths) !CoreData {
+    return .{
+        .artifact = try readFile(gpa, io, paths.artifact),
+        .manifest = try readFile(gpa, io, paths.manifest),
+        .warrant_message = try readFile(gpa, io, paths.warrant_message),
+        .release_receipt = try readFile(gpa, io, paths.release_receipt),
+        .receipt_contract = try readFile(gpa, io, paths.receipt_contract),
+        .authority_root = try readFile(gpa, io, paths.authority_root),
+        .release_decision = try readFile(gpa, io, paths.release_decision),
+    };
+}
+
+fn formatFlat(gpa: Allocator, comptime labels: anytype, fields: [labels.len][]const u8) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(gpa);
+    inline for (labels, 0..) |label, index| {
+        try out.appendSlice(gpa, label);
+        try out.appendSlice(gpa, ": ");
+        try out.appendSlice(gpa, fields[index]);
+        try out.append(gpa, '\n');
+    }
+    return try out.toOwnedSlice(gpa);
+}
+
+fn formatAttestationJson(
+    gpa: Allocator,
+    hashes: Hashes,
+    index: [index_labels.len][]const u8,
+    decision: [decision_labels.len][]const u8,
+    verifier_hash: []const u8,
+) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(gpa);
+
+    try appendFmt(gpa, &out,
+        \\{{
+        \\  "action": "release",
+        \\  "boundary": {{
+        \\    "assembly_owned_surfaces": [
+        \\      "manifest-file",
+        \\      "warrant-message-file",
+        \\      "authority-root-verify",
+        \\      "release-authorized-rooted"
+        \\    ],
+        \\    "authority_anchor": "authority/wuci-release-root.fixture.txt",
+        \\    "authority_anchor_sha256": "{s}",
+        \\    "authority_schema": "wuci-authority-root-v1",
+        \\    "bundle_schema": "wuci-publish-bundle-v1",
+        \\    "contract_schema": "wuci-gate-receipt-contract-v1",
+        \\    "gate_enforcement": "assembly-rooted-release-contract",
+        \\    "index_schema": "wuci-publish-index-v1",
+        \\    "non_goals": [
+        \\      "Do not require or accept a decryption key in the public witness bundle.",
+        \\      "Do not open the sealed artifact.",
+        \\      "Do not parse receipt JSON in assembly.",
+        \\      "Do not accept arbitrary signer material.",
+        \\      "Do not accept trust bits or reserved publish bits yet."
+        \\    ],
+        \\    "public_profile_excludes": [
+        \\      "artifact.key",
+        \\      "auth-transcript.json",
+        \\      "opened-wuci-ji",
+        \\      "release-transcript.json"
+        \\    ]
+        \\  }},
+        \\  "bundle_schema": "wuci-publish-bundle-v1",
+        \\  "checks": {{
+        \\    "forbidden_private_files_absent": true,
+        \\    "manifest_matches_assembly": true,
+        \\    "public_bundle_profile": true,
+        \\    "publish_index_matches_bundle": true,
+        \\    "release_authority_allows_release": true,
+        \\    "release_authority_is_committed_anchor": true,
+        \\    "release_authority_matches_contract": true,
+        \\    "release_decision_matches_assembly": true,
+        \\    "release_receipt_contract_matches_receipt": true,
+        \\    "release_warrant_message_matches_assembly": true,
+        \\    "rooted_release_check": true,
+        \\    "witness_bundle_complete": true
+        \\  }},
+        \\  "fixture_authority": true,
+        \\  "paths": {{
+        \\    "attestation": "attestation.json",
+        \\    "authority_root": "authority-root.txt",
+        \\    "manifest": "manifest.txt",
+        \\    "publish_index": "publish-index.txt",
+        \\    "receipt_contract": "receipt-contract.txt",
+        \\    "release_decision": "release-decision.txt",
+        \\    "release_receipt": "release-receipt.json",
+        \\    "sealed_artifact": "wuci-ji.self.wj",
+        \\    "warrant_message": "warrant-message.txt"
+        \\  }},
+        \\  "production": false,
+        \\  "publish_index": {{
+        \\    "artifact-sha256": "{s}",
+        \\    "authority-root-sha256": "{s}",
+        \\    "manifest-sha256": "{s}",
+        \\    "receipt-contract-sha256": "{s}",
+        \\    "release-authority-group-public-key": "{s}",
+        \\    "release-decision-sha256": "{s}",
+        \\    "release-receipt-sha256": "{s}",
+        \\    "schema": "{s}",
+        \\    "warrant-message-sha256": "{s}"
+        \\  }},
+        \\  "publish_index_matches_bundle": true,
+        \\  "quantum_safe": false,
+        \\  "release_authority_group_public_key": "{s}",
+        \\  "release_authority_root_sha256": "{s}",
+        \\  "release_contract_sha256": "{s}",
+        \\  "release_decision": {{
+        \\    "action": "{s}",
+        \\    "artifact-sha256": "{s}",
+        \\    "authorized": "{s}"
+        \\  }},
+        \\  "release_decision_sha256": "{s}",
+        \\  "rooted_release_check": true,
+        \\  "runtime_sandbox_enforced": false,
+        \\  "schema": "wuci-witness-attestation-v1",
+        \\  "sha256": {{
+        \\    "authority_root": "{s}",
+        \\    "manifest": "{s}",
+        \\    "publish_index": "{s}",
+        \\    "receipt_contract": "{s}",
+        \\    "release_decision": "{s}",
+        \\    "release_receipt": "{s}",
+        \\    "sealed_artifact": "{s}",
+        \\    "warrant_message": "{s}"
+        \\  }},
+        \\  "summary": "Wuci-ji release witness bundle was verified from the public files only: the release authority root is pinned, the assembly rooted release decision is reproducible, and no key or opened binary is present.",
+        \\  "trust_level": "test-only",
+        \\  "verifier_binary_sha256": "{s}",
+        \\  "witness_bundle_complete": true
+        \\}}
+        \\
+    , .{
+        release_anchor_sha256,
+        index[1],
+        index[6],
+        index[2],
+        index[5],
+        index[8],
+        index[7],
+        index[4],
+        index[0],
+        index[3],
+        index[8],
+        hashes.authority_root[0..],
+        hashes.receipt_contract[0..],
+        decision[1],
+        decision[2],
+        decision[0],
+        hashes.release_decision[0..],
+        hashes.authority_root[0..],
+        hashes.manifest[0..],
+        hashes.publish_index[0..],
+        hashes.receipt_contract[0..],
+        hashes.release_decision[0..],
+        hashes.release_receipt[0..],
+        hashes.artifact[0..],
+        hashes.warrant_message[0..],
+        verifier_hash,
+    });
+    return try out.toOwnedSlice(gpa);
+}
+
+fn appendFmt(gpa: Allocator, out: *std.ArrayList(u8), comptime fmt: []const u8, args: anytype) !void {
+    const text = try std.fmt.allocPrint(gpa, fmt, args);
+    defer gpa.free(text);
+    try out.appendSlice(gpa, text);
 }
 
 fn parseFlat(comptime labels: anytype, text: []const u8) ![labels.len][]const u8 {

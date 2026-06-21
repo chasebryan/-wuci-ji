@@ -110,9 +110,11 @@ no transcript material, plus a fixed `publish-index.txt` and
 `attestation.json` that can be verified with:
 
 ```sh
-python3 tools/wuci_witness.py verify --bundle build/wuci-witness-bundle
 make witness-zig
+build/wuci-witness index build/wuci-witness-bundle --bin build/wuci-ji
+build/wuci-witness attest build/wuci-witness-bundle --bin build/wuci-ji
 build/wuci-witness verify build/wuci-witness-bundle
+python3 tools/wuci_witness.py verify --bundle build/wuci-witness-bundle
 ```
 
 `make self-release-witness-archive` and `make zig-release-witness-archive`
@@ -289,8 +291,8 @@ publish history. Assembly owns the Merkle commitment core:
 `ledger-empty-root` prints `SHA256("")`, `ledger-leaf-file <entry>` prints
 `SHA256(0x00 || entry-bytes)`, and `ledger-node <left> <right>` prints
 `SHA256(0x01 || left || right)` after decoding the two child hashes from
-64-hex arguments. `tools/wuci_ledger.py` orchestrates the append-only log on
-top of those assembly primitives.
+64-hex arguments. `tools/wuci_ledger.zig` builds `build/wuci-ledger-tool`,
+which now owns the active append-only log lane on top of those primitives.
 
 ```sh
 make ledger-asm-test
@@ -298,18 +300,19 @@ make ledger-proof-test
 make ledger-asm-demo
 make self-release-ledger-bundle
 make zig-release-ledger-bundle
-python3 tools/wuci_ledger.py init --ledger build/wuci-ledger
-python3 tools/wuci_ledger.py append --ledger build/wuci-ledger --witness-bundle build/wuci-witness-bundle
-python3 tools/wuci_ledger.py prove-inclusion --ledger build/wuci-ledger --sequence 0 --out build/wuci-ledger/inclusion-proof.txt
-python3 tools/wuci_ledger.py verify-inclusion --entry build/wuci-ledger/ledger-entry.txt --proof build/wuci-ledger/inclusion-proof.txt --head build/wuci-ledger/ledger-head.txt
-python3 tools/wuci_ledger.py prove-consistency --ledger build/wuci-ledger --from-head build/wuci-ledger/previous-ledger-head.txt --to-head build/wuci-ledger/ledger-head.txt --out build/wuci-ledger/consistency-proof.txt
-python3 tools/wuci_ledger.py verify-consistency --proof build/wuci-ledger/consistency-proof.txt
+build/wuci-ledger-tool init --ledger build/wuci-ledger
+build/wuci-ledger-tool append --ledger build/wuci-ledger --witness-bundle build/wuci-witness-bundle
+build/wuci-ledger-tool prove-inclusion --ledger build/wuci-ledger --sequence 0 --out build/wuci-ledger/inclusion-proof.txt
+build/wuci-ledger-tool verify-inclusion --entry build/wuci-ledger/ledger-entry.txt --proof build/wuci-ledger/inclusion-proof.txt --head build/wuci-ledger/ledger-head.txt
+build/wuci-ledger-tool prove-consistency --ledger build/wuci-ledger --from-head build/wuci-ledger/previous-ledger-head.txt --to-head build/wuci-ledger/ledger-head.txt --out build/wuci-ledger/consistency-proof.txt
+build/wuci-ledger-tool verify-consistency --proof build/wuci-ledger/consistency-proof.txt
+build/wuci-ledger-tool verify-history --ledger build/wuci-ledger
 ```
 
-The fixed format boundary lives in `docs/wuci_ledger_format.json`. Python or
-Zig tooling can own append, inclusion proof, and consistency proof orchestration
-on top of these assembly hash primitives without adding new secret-bearing
-crypto or moving publish-attestation parsing into assembly.
+The fixed format boundary lives in `docs/wuci_ledger_format.json`. The Python
+ledger tool remains as a regression/reference harness, but the active
+self-release ledger proof uses Zig for init, append, inclusion proofs,
+consistency proofs, and full local history verification.
 
 ## WUCI-HARDEN-0
 
@@ -504,10 +507,11 @@ bundle containing only `wuci-ji.self.wj`, `manifest.txt`,
 and release warrant bytes, receipt contract, release anchor, rooted assembly
 release decision, and attestation; it rejects demo keys, opened binaries,
 transcripts, malformed indexes, and mismatched public evidence.
-`make witness-zig` builds `tools/wuci_witness.zig` into `build/wuci-witness`
-and verifies an existing public bundle through the same assembly
-`release-authorized-rooted` boundary without invoking the Python witness
-entrypoint.
+`make witness-zig` builds `tools/wuci_witness.zig` into `build/wuci-witness`.
+The active witness bundle lane uses that Zig tool to write `publish-index.txt`,
+write `attestation.json`, and verify the public bundle through the same
+assembly `release-authorized-rooted` boundary without invoking the Python
+witness entrypoint.
 `make self-release-witness-archive` writes `build/wuci-witness-bundle.tar` and
 `build/wuci-witness-bundle.tar.sha256` with fixed file order, root
 `wuci-publish-bundle-v1/`, mtime zero, uid/gid zero, and mode `0644`, then
@@ -529,11 +533,13 @@ authority-anchor-test` checks that anchored mode accepts the committed fixture
 root, rejects self-derived authority paths, and rejects malformed or
 policy-invalid authority roots.
 
-Python still derives the flat receipt contract from the JSON WUCI-WARRANT
-receipt. Normal rooted proofs use committed authority anchors instead of
-emitting authority from the just-created contract. Zig remains a portable
-verifier bridge, while assembly now enforces the `open`, rooted `open`,
-`release`, and rooted `release` contract paths itself.
+The active self-release witness/ledger lane now uses Zig tools for deterministic
+fixture warrant receipts, flat receipt-contract emission, public witness
+index/attestation, witness verification, and ledger append/proof/history
+operations. Python remains available for reference tests and older preview
+lanes. Normal rooted proofs use committed authority anchors instead of emitting
+authority from the just-created contract, while assembly enforces the `open`,
+rooted `open`, `release`, and rooted `release` contract paths itself.
 
 ## License
 

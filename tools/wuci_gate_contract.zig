@@ -42,6 +42,7 @@ const Args = struct {
     out: ?[]const u8 = null,
     runner: ?[]const u8 = null,
     env_runner: ?[]const u8 = null,
+    quiet: bool = false,
 };
 
 const Contract = struct {
@@ -110,6 +111,10 @@ pub fn main(init: std.process.Init) !void {
         try runVerify(gpa, io, stdout, args, false);
         return;
     }
+    if (std.mem.eql(u8, args.command, "emit")) {
+        try runEmit(gpa, io, stdout, args);
+        return;
+    }
     if (std.mem.eql(u8, args.command, "open")) {
         try runVerify(gpa, io, stdout, args, true);
         return;
@@ -142,6 +147,8 @@ fn parseArgs(gpa: Allocator, process_args: std.process.Args) !Args {
             parsed.out = argv.next() orelse return error.MissingValue;
         } else if (std.mem.eql(u8, arg, "--runner")) {
             parsed.runner = argv.next() orelse return error.MissingValue;
+        } else if (std.mem.eql(u8, arg, "--quiet")) {
+            parsed.quiet = true;
         } else {
             return error.UnknownArgument;
         }
@@ -158,9 +165,116 @@ fn parseArgs(gpa: Allocator, process_args: std.process.Args) !Args {
 
 fn usage() void {
     std.debug.print(
-        \\usage: wuci_gate_contract <verify|open> --bin <wuci-ji> --artifact <artifact> --receipt <receipt-json> --contract <flat-contract> [--runner <runner>] [--keyfile <key> --out <path>]
+        \\usage: wuci_gate_contract <emit|verify|open> --bin <wuci-ji> --artifact <artifact> --receipt <receipt-json> --contract <flat-contract> [--runner <runner>] [--keyfile <key> --out <path>]
         \\
     , .{});
+}
+
+fn runEmit(gpa: Allocator, io: Io, stdout: *Io.Writer, args: Args) !void {
+    const receipt_text = try readFile(gpa, io, args.receipt);
+    defer gpa.free(receipt_text);
+
+    try requireJsonString(receipt_text, "schema", "wuci-frost-authorization-v1");
+    try requireJsonString(receipt_text, "suite", "FROST-secp256k1-SHA256-v1");
+    try requireJsonString(receipt_text, "mode", "deterministic-2of2-fixture");
+    try requireJsonBool(receipt_text, "production", false);
+
+    const receipt_action = try jsonString(receipt_text, "action");
+    if (!isAllowedAction(receipt_action)) return error.UnsupportedAction;
+
+    const artifact_manifest_sha256 = try jsonString(receipt_text, "artifact_manifest_sha256");
+    const authorization_message_sha256 = try jsonString(receipt_text, "authorization_message_sha256");
+    const group_public_key = try jsonString(receipt_text, "group_public_key");
+    const group_commitment = try jsonString(receipt_text, "group_commitment");
+    const challenge_value = try jsonString(receipt_text, "challenge");
+    const signature_commitment = try jsonString(receipt_text, "signature_commitment");
+    const signature_scalar = try jsonString(receipt_text, "signature_scalar");
+    const verification = try jsonString(receipt_text, "verification");
+
+    try expectEqual(verification, "valid", error.ReceiptNotMarkedValid);
+    try expectEqual(group_commitment, signature_commitment, error.SignatureCommitmentMismatch);
+
+    const artifact_data = try readFile(gpa, io, args.artifact);
+    defer gpa.free(artifact_data);
+    const artifact_hash = sha256Hex(artifact_data);
+    const receipt_hash = sha256Hex(receipt_text);
+
+    const manifest = try runWuci(gpa, io, args, &.{ "manifest-file", args.artifact }, null);
+    defer freeProcessOutput(gpa, manifest);
+    const manifest_hash = sha256Hex(manifest.stdout);
+    try expectEqual(artifact_manifest_sha256, manifest_hash[0..], error.ManifestHashMismatch);
+
+    const warrant = try runWuci(gpa, io, args, &.{ "warrant-message-file", receipt_action, args.artifact }, null);
+    defer freeProcessOutput(gpa, warrant);
+    const warrant_hash = sha256Hex(warrant.stdout);
+    try expectEqual(authorization_message_sha256, warrant_hash[0..], error.AuthorizationMessageHashMismatch);
+
+    const challenge = try runWuci(
+        gpa,
+        io,
+        args,
+        &.{ "frost-secp256k1-challenge", group_commitment, group_public_key },
+        warrant.stdout,
+    );
+    defer freeProcessOutput(gpa, challenge);
+    const challenge_text = std.mem.trim(u8, challenge.stdout, " \n\r\t");
+    try expectEqual(challenge_value, challenge_text, error.ChallengeMismatch);
+
+    const verify = try runWuciRaw(
+        gpa,
+        io,
+        args,
+        &.{ "frost-secp256k1-verify", signature_commitment, group_public_key, signature_scalar, challenge_value },
+        null,
+    );
+    defer freeRunResult(gpa, verify);
+    const verify_exited_zero = switch (verify.term) {
+        .exited => |code| code == 0,
+        else => false,
+    };
+    if (!verify_exited_zero) return error.InvalidSignature;
+    const verify_text = std.mem.trim(u8, verify.stdout, " \n\r\t");
+    try expectEqual(verify_text, "valid", error.InvalidSignature);
+
+    const contract_text = try std.fmt.allocPrint(
+        gpa,
+        "schema: {s}\n" ++
+            "action: {s}\n" ++
+            "artifact-sha256: {s}\n" ++
+            "authorization-message-sha256: {s}\n" ++
+            "receipt-sha256: {s}\n" ++
+            "artifact-manifest-sha256: {s}\n" ++
+            "group-public-key: {s}\n" ++
+            "group-commitment: {s}\n" ++
+            "challenge: {s}\n" ++
+            "signature-commitment: {s}\n" ++
+            "signature-scalar: {s}\n",
+        .{
+            contract_schema,
+            receipt_action,
+            artifact_hash,
+            authorization_message_sha256,
+            receipt_hash,
+            artifact_manifest_sha256,
+            group_public_key,
+            group_commitment,
+            challenge_value,
+            signature_commitment,
+            signature_scalar,
+        },
+    );
+    defer gpa.free(contract_text);
+    _ = try parseContract(contract_text);
+
+    try writeNewFile(io, args.contract, contract_text);
+    if (!args.quiet) {
+        try stdout.print("contract: {s}\n", .{args.contract});
+        try stdout.print("action: {s}\n", .{receipt_action});
+        try stdout.print("artifact-sha256: {s}\n", .{artifact_hash});
+        try stdout.print("authorization-message-sha256: {s}\n", .{authorization_message_sha256});
+        try stdout.print("receipt-sha256: {s}\n", .{receipt_hash});
+        try stdout.flush();
+    }
 }
 
 fn runVerify(gpa: Allocator, io: Io, stdout: *Io.Writer, args: Args, do_open: bool) !void {
@@ -309,6 +423,40 @@ fn isLowerHex(value: []const u8, expected_len: usize) bool {
     return true;
 }
 
+fn sha256Hex(data: []const u8) [64]u8 {
+    var digest: [Sha256.digest_length]u8 = undefined;
+    Sha256.hash(data, &digest, .{});
+    return std.fmt.bytesToHex(digest, .lower);
+}
+
+fn jsonString(text: []const u8, key: []const u8) ![]const u8 {
+    const needle = try std.fmt.allocPrint(std.heap.smp_allocator, "\"{s}\": \"", .{key});
+    defer std.heap.smp_allocator.free(needle);
+    const start = std.mem.indexOf(u8, text, needle) orelse return error.JsonStringMissing;
+    const value_start = start + needle.len;
+    const value_rel_end = std.mem.indexOfScalar(u8, text[value_start..], '"') orelse return error.JsonStringUnterminated;
+    const value = text[value_start .. value_start + value_rel_end];
+    if (value.len == 0) return error.JsonStringEmpty;
+    return value;
+}
+
+fn requireJsonString(text: []const u8, key: []const u8, value: []const u8) !void {
+    try expectEqual(try jsonString(text, key), value, error.JsonBindingMismatch);
+}
+
+fn requireJsonBool(text: []const u8, key: []const u8, value: bool) !void {
+    const literal = if (value) "false" else "true";
+    const wanted = if (value) "true" else "false";
+    _ = literal;
+    const needle = try std.fmt.allocPrint(std.heap.smp_allocator, "\"{s}\": {s}", .{ key, wanted });
+    defer std.heap.smp_allocator.free(needle);
+    if (std.mem.indexOf(u8, text, needle) == null) return error.JsonBindingMismatch;
+}
+
+fn expectEqual(actual: []const u8, expected: []const u8, err: anyerror) !void {
+    if (!std.mem.eql(u8, actual, expected)) return err;
+}
+
 fn compareHash(gpa: Allocator, io: Io, path: []const u8, expected: []const u8, context: []const u8) !void {
     const data = try readFile(gpa, io, path);
     defer gpa.free(data);
@@ -327,6 +475,17 @@ fn compareHashBytes(data: []const u8, expected: []const u8, context: []const u8)
 
 fn readFile(gpa: Allocator, io: Io, path: []const u8) ![]u8 {
     return try Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(max_file_size));
+}
+
+fn writeNewFile(io: Io, path: []const u8, data: []const u8) !void {
+    try Io.Dir.cwd().writeFile(io, .{
+        .sub_path = path,
+        .data = data,
+        .flags = .{
+            .exclusive = true,
+            .permissions = @enumFromInt(0o600),
+        },
+    });
 }
 
 fn runWuci(

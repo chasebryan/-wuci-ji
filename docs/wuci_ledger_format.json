@@ -1,6 +1,6 @@
 {
   "schema": "wuci-ledger-format-boundary-v1",
-  "status": "python-orchestrated-transparency-log-with-assembly-merkle-primitives",
+  "status": "zig-orchestrated-transparency-log-with-assembly-merkle-primitives",
   "entry_schema": "wuci-ledger-entry-v1",
   "head_schema": "wuci-ledger-head-v1",
   "hash": "SHA-256",
@@ -30,37 +30,45 @@
       "meaning": "Domain-separated WUCI-LEDGER internal node hash"
     }
   ],
-  "python_commands": [
+  "zig_commands": [
     {
       "name": "init",
-      "shape": "python3 tools/wuci_ledger.py init --ledger <ledger>",
+      "shape": "build/wuci-ledger-tool init --ledger <ledger>",
       "meaning": "Initialize an empty append-only WUCI-LEDGER with tree-size 0"
     },
     {
       "name": "append",
-      "shape": "python3 tools/wuci_ledger.py append --ledger <ledger> --witness-bundle <bundle>",
+      "shape": "build/wuci-ledger-tool append --ledger <ledger> --witness-bundle <bundle>",
       "meaning": "Verify a public WUCI-WITNESS bundle, derive a canonical ledger entry, append it, and write the next ledger head"
     },
     {
       "name": "prove-inclusion",
-      "shape": "python3 tools/wuci_ledger.py prove-inclusion --ledger <ledger> --sequence <n> --out <proof>",
+      "shape": "build/wuci-ledger-tool prove-inclusion --ledger <ledger> --sequence <n> --out <proof>",
       "meaning": "Emit a Merkle inclusion proof for a sequence under the current ledger head"
     },
     {
       "name": "verify-inclusion",
-      "shape": "python3 tools/wuci_ledger.py verify-inclusion --entry <entry> --proof <proof> --head <head>",
+      "shape": "build/wuci-ledger-tool verify-inclusion --entry <entry> --proof <proof> --head <head>",
       "meaning": "Verify that a canonical ledger entry is included under a ledger head"
     },
     {
       "name": "prove-consistency",
-      "shape": "python3 tools/wuci_ledger.py prove-consistency --ledger <ledger> --from-head <old> --to-head <new> --out <proof>",
+      "shape": "build/wuci-ledger-tool prove-consistency --ledger <ledger> --from-head <old> --to-head <new> --out <proof>",
       "meaning": "Emit an append-only consistency proof between two ledger heads"
     },
     {
       "name": "verify-consistency",
-      "shape": "python3 tools/wuci_ledger.py verify-consistency --proof <proof>",
+      "shape": "build/wuci-ledger-tool verify-consistency --proof <proof>",
       "meaning": "Verify that a later ledger head extends an earlier ledger head"
+    },
+    {
+      "name": "verify-history",
+      "shape": "build/wuci-ledger-tool verify-history --ledger <ledger>",
+      "meaning": "Verify every entry, every numbered head, previous-head links, latest pointers, and local append-only history"
     }
+  ],
+  "python_reference_commands": [
+    "tools/wuci_ledger.py remains a regression/reference harness for the same fixed formats."
   ],
   "canonical_entry_field_order": [
     "schema",
@@ -106,10 +114,10 @@
     "Ledger entries are fixed-order label/value lines.",
     "Leaf hashing uses exact entry file bytes, including the final newline.",
     "Internal node inputs are decoded 32-byte hashes, not ASCII hex bytes.",
-    "Assembly owns only the hash commitment primitives at this stage.",
-    "Python owns append, inclusion proof, and consistency proof orchestration for the first full ledger step.",
+    "Assembly owns the hash commitment primitives.",
+    "Zig owns the active append, inclusion proof, consistency proof, and verify-history orchestration lane.",
     "Ledger append must verify the public WUCI-WITNESS bundle before deriving a leaf.",
-    "Inclusion and consistency proof hashing must use the assembly ledger primitives."
+    "Inclusion and consistency proof hashing must preserve the assembly ledger primitive domain separation."
   ],
   "non_goals": [
     "Do not parse publish attestations in assembly in this first ledger step.",
