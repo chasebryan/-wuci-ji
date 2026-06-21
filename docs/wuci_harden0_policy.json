@@ -1,0 +1,61 @@
+{
+  "assembly_enforced_actions_v1": [
+    "open",
+    "release"
+  ],
+  "fixture_authority": {
+    "mode": "deterministic-2of2-fixture",
+    "production_allowed": false,
+    "publish_allowed": false,
+    "suite": "FROST-secp256k1-SHA256-v1",
+    "trust_allowed": false,
+    "trust_level": "test-only"
+  },
+  "ledger": {
+    "append_only_claim_requires_verify_history": true,
+    "detect_head_forks": true,
+    "detect_missing_heads": true,
+    "detect_rewritten_entries": true,
+    "reject_unexpected_entry_files": true,
+    "reject_unexpected_head_files": true
+  },
+  "purpose": "Harden verifier identity, safe file I/O, fixture authority boundaries, reserved actions, witness public files, and local ledger mutation checks.",
+  "reserved_actions": [
+    "trust",
+    "publish"
+  ],
+  "safeio": {
+    "new_outputs_must_be_exclusive": true,
+    "prefer_o_cloexec": true,
+    "prefer_o_no_follow": true,
+    "python_writes_are_atomic_where_possible": true,
+    "reject_devices": true,
+    "reject_directories": true,
+    "reject_fifos": true,
+    "reject_sockets": true,
+    "reject_symlinks": true,
+    "require_regular_files": true
+  },
+  "schema": "wuci-harden0-policy-v1",
+  "status": "proof-chain-perimeter-hardening",
+  "strict_mode": {
+    "env": "WUCI_STRICT=1",
+    "rejects_fixture_publish_or_trust": true,
+    "rejects_hardlink_public_evidence": true,
+    "rejects_quantum_safe_claims": true,
+    "rejects_runtime_sandbox_claims": true,
+    "rejects_symlink_inputs": true,
+    "rejects_symlink_outputs": true,
+    "rejects_unapproved_runner": true,
+    "rejects_world_readable_keyfiles": true,
+    "requires_trusted_verifier_sha256": true
+  },
+  "verifier_identity": {
+    "allowed_runners": [
+      "",
+      "qemu-x86_64"
+    ],
+    "record_verifier_sha256": true,
+    "strict_mode_requires_trusted_sha256": true
+  }
+}

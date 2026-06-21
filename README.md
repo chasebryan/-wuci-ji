@@ -27,6 +27,13 @@ make self-release-witness-archive
 make ledger-asm-test
 make ledger-proof-test
 make self-release-ledger-bundle
+make harden0-policy-matrix
+make harden0-safeio-test
+make harden0-verifier-identity-test
+make harden0-witness-safeio-test
+make harden0-fixture-quarantine-test
+make harden0-action-policy-test
+make harden0-proof
 make cage-policy-matrix
 make cage-bundle-test
 make cage-proof
@@ -303,6 +310,28 @@ The fixed format boundary lives in `docs/wuci_ledger_format.json`. Python or
 Zig tooling can own append, inclusion proof, and consistency proof orchestration
 on top of these assembly hash primitives without adding new secret-bearing
 crypto or moving publish-attestation parsing into assembly.
+
+## WUCI-HARDEN-0
+
+WUCI-HARDEN-0 hardens the current proof chain before adding CAGE/QCAGE. It pins
+verifier identity in strict mode, adds safe file I/O, rejects symlink/hardlink
+public evidence, quarantines deterministic fixture authority as test-only,
+denies reserved trust/publish actions by default, and adds ledger history
+verification.
+
+```sh
+make harden0-policy-matrix
+make harden0-safeio-test
+make harden0-verifier-identity-test
+make harden0-witness-safeio-test
+make harden0-fixture-quarantine-test
+make harden0-action-policy-test
+make harden0-proof
+```
+
+Fixture FROST is test-only. Release is not publish or trust. HARDEN-0 does not
+claim runtime sandboxing or quantum safety. CAGE/QCAGE should sit above this
+perimeter-hardening layer.
 
 ## WUCI-CAGE
 

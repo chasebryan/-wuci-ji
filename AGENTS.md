@@ -26,6 +26,11 @@ SHA-256 compatibility for existing assembly surfaces.
 
 # WUCI-HARDEN Development Note
 
+For WUCI-HARDEN-0, keep the pass narrow: verifier identity, safe I/O, fixture
+quarantine, reserved-action denial, witness public-file hardening, and ledger
+history verification. Do not use HARDEN-0 as a reason to add CAGE/QCAGE,
+production authority, runtime sandboxing, or new cryptography.
+
 WUCI-HARDEN work must be defensive only. Do not add exploit payloads,
 vulnerability reproduction, offensive scanning, malware logic, or network attack
 logic.

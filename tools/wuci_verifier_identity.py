@@ -39,13 +39,18 @@ def runner_string(runner: str | None = None) -> str:
     return os.environ.get("WUCI_JI_RUNNER", "").strip()
 
 
-def validate_runner(runner: str | None, *, strict: bool = False) -> str:
+def validate_runner(
+    runner: str | None,
+    *,
+    strict: bool = False,
+    allowed_extra: tuple[str, ...] = (),
+) -> str:
     value = runner_string(runner)
     parts = shlex.split(value)
     normalized = " ".join(parts)
     if normalized == "":
         return ""
-    if normalized in ALLOWED_RUNNERS:
+    if normalized in ALLOWED_RUNNERS or normalized in allowed_extra:
         return normalized
     if strict:
         raise VerifierIdentityError(f"runner is not approved in strict mode: {normalized}")
@@ -116,7 +121,11 @@ def run_verify(args: argparse.Namespace) -> int:
 
 
 def run_check_runner(args: argparse.Namespace) -> int:
-    runner = validate_runner(args.runner, strict=True)
+    runner = validate_runner(
+        args.runner,
+        strict=True,
+        allowed_extra=tuple(args.allow_runner or ()),
+    )
     print(f"runner: {runner}")
     return 0
 
@@ -138,6 +147,11 @@ def main() -> int:
 
     check_runner = subparsers.add_parser("check-runner", help="validate proof runner")
     check_runner.add_argument("--runner", default=os.environ.get("WUCI_JI_RUNNER", ""))
+    check_runner.add_argument(
+        "--allow-runner",
+        action="append",
+        help="explicitly allow an additional runner string for this check",
+    )
     check_runner.set_defaults(func=run_check_runner)
 
     args = parser.parse_args()

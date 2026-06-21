@@ -43,6 +43,39 @@ def require_under_directory(path: Path, root: Path, context: str) -> Path:
     return resolved
 
 
+def file_stat(
+    path: Path,
+    context: str,
+    *,
+    reject_symlink: bool = True,
+) -> os.stat_result:
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise SafeIOError(f"could not stat {context}: {path}") from exc
+    if reject_symlink and stat.S_ISLNK(info.st_mode):
+        raise SafeIOError(f"{context} must not be a symlink: {path}")
+    return info
+
+
+def require_regular_file(
+    path: Path,
+    context: str,
+    *,
+    reject_symlink: bool = True,
+    reject_hardlink: bool = False,
+    max_bytes: int | None = None,
+) -> os.stat_result:
+    info = file_stat(path, context, reject_symlink=reject_symlink)
+    if not stat.S_ISREG(info.st_mode):
+        raise SafeIOError(f"{context} must be a regular file: {path}")
+    if reject_hardlink and info.st_nlink != 1:
+        raise SafeIOError(f"{context} must not be hardlinked: {path}")
+    if max_bytes is not None and info.st_size > max_bytes:
+        raise SafeIOError(f"{context} exceeds maximum size: {path}")
+    return info
+
+
 def lstat_regular_file(
     path: Path,
     context: str,
@@ -51,19 +84,13 @@ def lstat_regular_file(
     reject_hardlink: bool = False,
     max_bytes: int | None = None,
 ) -> os.stat_result:
-    try:
-        info = os.lstat(path)
-    except OSError as exc:
-        raise SafeIOError(f"could not stat {context}: {path}") from exc
-    if reject_symlink and stat.S_ISLNK(info.st_mode):
-        raise SafeIOError(f"{context} must not be a symlink: {path}")
-    if not stat.S_ISREG(info.st_mode):
-        raise SafeIOError(f"{context} must be a regular file: {path}")
-    if reject_hardlink and info.st_nlink != 1:
-        raise SafeIOError(f"{context} must not be hardlinked: {path}")
-    if max_bytes is not None and info.st_size > max_bytes:
-        raise SafeIOError(f"{context} exceeds maximum size: {path}")
-    return info
+    return require_regular_file(
+        path,
+        context,
+        reject_symlink=reject_symlink,
+        reject_hardlink=reject_hardlink,
+        max_bytes=max_bytes,
+    )
 
 
 def reject_group_world_readable(path: Path, context: str) -> None:
@@ -138,23 +165,23 @@ def read_regular_ascii(
         raise SafeIOError(f"{context} is not ASCII") from exc
 
 
-def _hash_file(path: Path, algorithm: str) -> str:
+def _hash_file(path: Path, algorithm: str, context: str) -> str:
     digest = hashlib.new(algorithm)
-    data = read_regular_bytes(path, path.name, reject_symlink=True)
+    data = read_regular_bytes(path, context, reject_symlink=True)
     digest.update(data)
     return digest.hexdigest()
 
 
-def sha256_file(path: Path) -> str:
-    return _hash_file(path, "sha256")
+def sha256_file(path: Path, context: str = "file") -> str:
+    return _hash_file(path, "sha256", context)
 
 
-def sha384_file(path: Path) -> str:
-    return _hash_file(path, "sha384")
+def sha384_file(path: Path, context: str = "file") -> str:
+    return _hash_file(path, "sha384", context)
 
 
-def sha512_file(path: Path) -> str:
-    return _hash_file(path, "sha512")
+def sha512_file(path: Path, context: str = "file") -> str:
+    return _hash_file(path, "sha512", context)
 
 
 def write_new_bytes(
@@ -259,3 +286,7 @@ def reject_private_markers_bytes(
     for marker in markers:
         if marker.encode("ascii") in data:
             raise SafeIOError(f"{context} contains private material marker: {marker}")
+
+
+def require_private_file_mode(path: Path, context: str) -> None:
+    reject_group_world_readable(path, context)
