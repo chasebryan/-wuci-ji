@@ -13,18 +13,23 @@ On macOS or other non-Linux hosts with Zig installed, build the Linux ELF with:
 make build-linux
 ```
 
-To run the Zig-built self-release proof on a Linux x86_64 host:
+To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
 
 ```sh
+make gate-contract-zig
 make zig-release-proof
 ```
 
-This builds `build/wuci-ji-linux-x86_64`, seals that binary with itself,
-warrants it, passes WUCI-GATE, opens a byte-identical executable copy, writes
-an attestation, and verifies the attestation. On a Linux host that needs
-user-mode QEMU to run the Zig-built ELF, pass:
+`make gate-contract-zig` builds `tools/wuci_gate_contract.zig` into
+`build/wuci-gate-contract`, then uses the Zig-built Linux ELF to verify and
+open through the fixed flat WUCI-GATE receipt contract. `make zig-release-proof`
+builds `build/wuci-ji-linux-x86_64`, seals that binary with itself, warrants
+it, passes WUCI-GATE, opens a byte-identical executable copy, writes an
+attestation, and verifies the attestation. On a Linux host that needs user-mode
+QEMU to run the Zig-built ELF, pass:
 
 ```sh
+make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
 make zig-release-proof RELEASE_RUNNER=qemu-x86_64
 ```
 
@@ -120,6 +125,7 @@ computation, FROST verification, and envelope opening.
 make gate-workflow
 make gate-policy-matrix
 make gate-receipt-contract
+make gate-contract-zig
 make gate-demo
 python3 tools/wuci_gate.py check --artifact build/wuci-gate-demo/sealed.wj --action open --receipt build/wuci-gate-demo/auth-receipt.json
 python3 tools/wuci_gate.py open --artifact build/wuci-gate-demo/sealed.wj --action open --receipt build/wuci-gate-demo/auth-receipt.json --keyfile build/wuci-gate-demo/artifact.key --out build/wuci-gate-demo/opened-copy.txt
@@ -129,9 +135,11 @@ python3 tools/wuci_gate.py open --artifact build/wuci-gate-demo/sealed.wj --acti
 `docs/wuci_gate_boundary.json`. `make gate-receipt-contract` checks the
 Python-derived flat receipt contract from
 `docs/wuci_gate_receipt_contract.json`; it is a parser contract for future
-assembly work, not an `open-authorized` command. `make gate-demo` creates a
-disposable artifact, open warrant, gate decision, and opened plaintext under
-`build/wuci-gate-demo/`.
+assembly work, not an `open-authorized` command. `make gate-contract-zig`
+checks the same contract with a Zig verifier that calls the assembly binary for
+manifest, warrant, FROST challenge/verification, and envelope open. `make gate-demo`
+creates a disposable artifact, open warrant, gate decision, and opened
+plaintext under `build/wuci-gate-demo/`.
 Invalid receipts, wrong actions, tampered artifacts, bad signatures, wrong
 keys, private-material markers, and existing output paths do not release
 plaintext.

@@ -504,6 +504,14 @@ Fixes made while executing this checkpoint:
   seal/warrant/Gate/open/attest/verify loop. The Python orchestration tools
   honor `WUCI_JI_RUNNER`, so the same proof can run a cross-built Linux ELF
   through user-mode QEMU when the host needs it.
+- The first Zig Gate bridge added `tools/wuci_gate_contract.zig`,
+  `tests/wuci_gate_contract_zig.py`, and `make gate-contract-zig`. The lane
+  builds a small Zig verifier for the fixed flat WUCI-GATE receipt contract,
+  checks canonical field shape and digest bindings, calls the assembly binary
+  for manifest, warrant-message, FROST challenge, FROST verification, and
+  `open-file-keyfile`, and rejects tampered contracts, receipts, artifacts,
+  commitments, challenges, and signatures. Python still emits the canonical
+  contract, and assembly `open-authorized` remains intentionally absent.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -644,9 +652,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
 
 1. From Linux, keep using `make clean && make test` as the runtime proof before
    each push when practical.
-   Use `make zig-release-proof` as the portable release proof for the
-   Zig-built Linux x86_64 ELF. On hosts that need user-mode QEMU, pass
-   `RELEASE_RUNNER=qemu-x86_64`.
+   Use `make gate-contract-zig` and `make zig-release-proof` as the portable
+   Zig Gate/release proofs for the Zig-built Linux x86_64 ELF. On hosts that
+   need user-mode QEMU, pass `RELEASE_RUNNER=qemu-x86_64`.
 2. If v2 or v3 grows again, keep adding malformed-envelope tests before changing
    `open`/`open-to`; current tests cover truncated headers, truncated
    bodies/tags, authenticated key ID tampering, nonce tampering, and tag
@@ -668,8 +676,9 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    separate. The first WUCI-GATE enforcement wrapper now lives in Python while
    canonical authorization bytes and envelope opening stay in assembly. The
    assembly-friendly receipt contract is now documented and guarded by
-   `make gate-receipt-contract`; use it as the bridge before promoting any
-   assembly `open-authorized` command.
+   `make gate-receipt-contract` plus the Zig `make gate-contract-zig` bridge;
+   use that contract bridge before promoting any assembly `open-authorized`
+   command.
    Use `make self-release-bundle` as the current end-to-end release proof, and
    `make self-release-attestation-test` as the tamper-rejection guard. Wuci-ji
    sealed itself, warranted itself, passed its own gate, opened to a

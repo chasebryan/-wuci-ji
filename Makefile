@@ -15,6 +15,7 @@ ASM_SOURCES := src/main.s src/wuci-ji.s src/sys.s src/encoding.s src/frost.s src
 OBJECTS := $(patsubst src/%.s,build/%.o,$(ASM_SOURCES))
 CROSS_SOURCES := $(patsubst src/%.s,build/%.zig.s,$(ASM_SOURCES))
 CROSS_TARGET := build/wuci-ji-linux-x86_64
+ZIG_GATE_CONTRACT := build/wuci-gate-contract
 ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
 ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
@@ -25,7 +26,7 @@ GATE_DEMO_DIR ?= build/wuci-gate-demo
 SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 
-.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-proof
+.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-attestation-test self-release-bundle self-release-demo test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-proof
 
 all: check-native $(TARGET)
 
@@ -72,6 +73,12 @@ $(CROSS_TARGET): $(CROSS_SOURCES)
 	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
 	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(CROSS_SOURCES)
 
+$(ZIG_GATE_CONTRACT): tools/wuci_gate_contract.zig
+	mkdir -p build $(ZIG_GLOBAL_CACHE_DIR) $(ZIG_LOCAL_CACHE_DIR)
+	ZIG_GLOBAL_CACHE_DIR=$(abspath $(ZIG_GLOBAL_CACHE_DIR)) \
+	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
+	$(ZIG) build-exe tools/wuci_gate_contract.zig -femit-bin=$(ZIG_GATE_CONTRACT)
+
 selftest: check-native $(TARGET)
 	$(TARGET) selftest
 
@@ -111,6 +118,9 @@ gate-policy-matrix: check-native $(TARGET)
 
 gate-receipt-contract: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_receipt_contract.py --quiet
+
+gate-contract-zig: build-linux $(ZIG_GATE_CONTRACT)
+	WUCI_JI_BIN=$(abspath $(CROSS_TARGET)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_BIN=$(abspath $(ZIG_GATE_CONTRACT)) $(PYTHON) tests/wuci_gate_contract_zig.py --quiet
 
 gate-demo: check-native $(TARGET)
 	mkdir -p $(GATE_DEMO_DIR)

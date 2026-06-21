@@ -43,10 +43,11 @@ jobs:
           file --version | head -n 1
           python3 --version
 
-      - name: Build Zig ELF and run release proof
+      - name: Build Zig ELF and run Gate/release proofs
         run: |
           make clean
           make build-linux
           file build/wuci-ji-linux-x86_64
           ./build/wuci-ji-linux-x86_64 selftest
+          make gate-contract-zig
           make zig-release-proof
