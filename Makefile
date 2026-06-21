@@ -27,8 +27,13 @@ SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 SELF_RELEASE_CONTRACT ?= $(SELF_RELEASE_DEMO_DIR)/receipt-contract.txt
 SELF_RELEASE_AUTHORITY ?= $(SELF_RELEASE_DEMO_DIR)/authority-root.txt
+AUTHORITY_ROOT ?= authority/wuci-root.fixture.txt
+AUTHORITY_ROOT_SHA256 ?= authority/wuci-root.fixture.sha256
+RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
+RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
+FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow publish-attestation-test release-rooted-contract rooted-proof-display self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof
+.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow publish-attestation-test release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof
 
 all: check-native $(TARGET)
 
@@ -66,6 +71,18 @@ check-pypy:
 		echo "install PyPy or run 'make test PYTHON=/path/to/pypy3'."; \
 		exit 2; \
 	fi
+
+authority-root-fixture:
+	mkdir -p build
+	rm -f build/wuci-root.fixture.generated.txt build/wuci-release-root.fixture.generated.txt
+	$(PYTHON) tools/wuci_authority_root.py emit --group-public-key $(FROST_FIXTURE_GROUP_PUBLIC_KEY) --authority build/wuci-root.fixture.generated.txt --quiet
+	cmp $(AUTHORITY_ROOT) build/wuci-root.fixture.generated.txt
+	$(PYTHON) tools/wuci_authority_root.py emit --group-public-key $(FROST_FIXTURE_GROUP_PUBLIC_KEY) --authority build/wuci-release-root.fixture.generated.txt --allow-open false --allow-release true --quiet
+	cmp $(RELEASE_AUTHORITY_ROOT) build/wuci-release-root.fixture.generated.txt
+
+authority-root-check: authority-root-fixture
+	$(PYTHON) tools/wuci_authority_anchor.py check --authority $(AUTHORITY_ROOT) --sha256 $(AUTHORITY_ROOT_SHA256) --action open --strict-fixture-path --quiet
+	$(PYTHON) tools/wuci_authority_anchor.py check --authority $(RELEASE_AUTHORITY_ROOT) --sha256 $(RELEASE_AUTHORITY_ROOT_SHA256) --action release --strict-fixture-path --quiet
 
 build-linux: $(CROSS_TARGET)
 
@@ -255,7 +272,7 @@ self-release-asm-contract-bundle: self-release-asm-contract-demo
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode asm verify
 	@printf 'self-release assembly contract attestation: %s\n' "$(SELF_RELEASE_ATTESTATION)"
 
-self-release-rooted-demo: $(RELEASE_BIN)
+self-release-rooted-demo: $(RELEASE_BIN) authority-root-check
 	mkdir -p $(SELF_RELEASE_DEMO_DIR)
 	rm -f \
 		$(SELF_RELEASE_DEMO_DIR)/artifact.key \
@@ -265,7 +282,6 @@ self-release-rooted-demo: $(RELEASE_BIN)
 		$(SELF_RELEASE_DEMO_DIR)/auth-transcript.json \
 		$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json \
 		$(SELF_RELEASE_CONTRACT) \
-		$(SELF_RELEASE_AUTHORITY) \
 		$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji \
 		$(SELF_RELEASE_ATTESTATION)
 	printf '1111111111111111111111111111111111111111111111111111111111111111\n' > $(SELF_RELEASE_DEMO_DIR)/artifact.key
@@ -275,27 +291,27 @@ self-release-rooted-demo: $(RELEASE_BIN)
 	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --print-transcript-manifest > $(SELF_RELEASE_DEMO_DIR)/auth-transcript.json
 	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --transcript-manifest $(SELF_RELEASE_DEMO_DIR)/auth-transcript.json --update-transcript-manifest --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json
 	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_receipt_contract.py emit --bin $(abspath $(RELEASE_BIN)) --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json --contract $(SELF_RELEASE_CONTRACT) --quiet
-	$(PYTHON) tools/wuci_authority_root.py emit --contract $(SELF_RELEASE_CONTRACT) --authority $(SELF_RELEASE_AUTHORITY) --quiet
-	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) authority-root-verify $(SELF_RELEASE_AUTHORITY)
-	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) gate-contract-verify-rooted $(SELF_RELEASE_AUTHORITY) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT)
-	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) open-authorized-rooted $(SELF_RELEASE_AUTHORITY) $(SELF_RELEASE_DEMO_DIR)/artifact.key $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	$(PYTHON) tools/wuci_authority_anchor.py check --authority $(AUTHORITY_ROOT) --sha256 $(AUTHORITY_ROOT_SHA256) --action open --contract $(SELF_RELEASE_CONTRACT) --strict-fixture-path --quiet
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) authority-root-verify $(AUTHORITY_ROOT)
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) gate-contract-verify-rooted $(AUTHORITY_ROOT) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT)
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) open-authorized-rooted $(AUTHORITY_ROOT) $(SELF_RELEASE_DEMO_DIR)/artifact.key $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
 	cmp $(abspath $(RELEASE_BIN)) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
 	chmod +x $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
 	$(RELEASE_RUNNER) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji --help >/dev/null
-	@printf 'WUCI self-release rooted contract demo complete\n'
+	@printf 'WUCI self-release anchored contract demo complete\n'
 	@printf 'sealed artifact: %s\n' "$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj"
 	@printf 'manifest: %s\n' "$(SELF_RELEASE_DEMO_DIR)/manifest.txt"
 	@printf 'warrant message: %s\n' "$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt"
 	@printf 'receipt: %s\n' "$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json"
 	@printf 'receipt contract: %s\n' "$(SELF_RELEASE_CONTRACT)"
-	@printf 'authority root: %s\n' "$(SELF_RELEASE_AUTHORITY)"
+	@printf 'authority root: %s\n' "$(AUTHORITY_ROOT)"
 	@printf 'opened binary: %s\n' "$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji"
-	@printf 'verified: assembly rooted Gate, byte-identical, and executable\n'
+	@printf 'verified: anchored assembly rooted Gate, byte-identical, and executable\n'
 
 self-release-rooted-bundle: self-release-rooted-demo
-	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=rooted-asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode rooted-asm --authority $(SELF_RELEASE_AUTHORITY) attest
-	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=rooted-asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode rooted-asm --authority $(SELF_RELEASE_AUTHORITY) verify
-	@printf 'self-release rooted assembly attestation: %s\n' "$(SELF_RELEASE_ATTESTATION)"
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=rooted-asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode rooted-asm --authority $(AUTHORITY_ROOT) attest
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=rooted-asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode rooted-asm --authority $(AUTHORITY_ROOT) verify
+	@printf 'self-release anchored assembly attestation: %s\n' "$(SELF_RELEASE_ATTESTATION)"
 
 self-release-release-contract-demo: $(RELEASE_BIN)
 	mkdir -p $(SELF_RELEASE_DEMO_DIR)
@@ -346,7 +362,9 @@ self-release-publish-bundle: $(RELEASE_BIN)
 	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action release --print-transcript-manifest > $(SELF_RELEASE_DEMO_DIR)/release-transcript.json
 	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action release --transcript-manifest $(SELF_RELEASE_DEMO_DIR)/release-transcript.json --update-transcript-manifest --receipt $(SELF_RELEASE_DEMO_DIR)/release-receipt.json
 	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_receipt_contract.py emit --bin $(abspath $(RELEASE_BIN)) --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action release --receipt $(SELF_RELEASE_DEMO_DIR)/release-receipt.json --contract $(SELF_RELEASE_CONTRACT) --quiet
-	$(PYTHON) tools/wuci_authority_root.py emit --contract $(SELF_RELEASE_CONTRACT) --authority $(SELF_RELEASE_AUTHORITY) --allow-open false --allow-release true --quiet
+	cp $(RELEASE_AUTHORITY_ROOT) $(SELF_RELEASE_AUTHORITY)
+	$(PYTHON) tools/wuci_authority_anchor.py check --authority $(RELEASE_AUTHORITY_ROOT) --sha256 $(RELEASE_AUTHORITY_ROOT_SHA256) --action release --contract $(SELF_RELEASE_CONTRACT) --strict-fixture-path --quiet
+	cmp $(RELEASE_AUTHORITY_ROOT) $(SELF_RELEASE_AUTHORITY)
 	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) authority-root-verify $(SELF_RELEASE_AUTHORITY)
 	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) release-authorized-rooted $(SELF_RELEASE_AUTHORITY) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT) > $(SELF_RELEASE_DEMO_DIR)/release-decision.txt
 	grep -q '^authorized: true$$' $(SELF_RELEASE_DEMO_DIR)/release-decision.txt
@@ -370,7 +388,10 @@ self-release-attestation-test: check-native $(TARGET)
 publish-attestation-test: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_publish_attestation.py --quiet
 
-test: check-native $(TARGET) check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm self-release-attestation-test publish-attestation-test
+authority-anchor-test: check-native $(TARGET) authority-root-check
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_authority_anchor.py --quiet
+
+test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy
@@ -392,9 +413,11 @@ zig-release-release-contract-proof: build-linux
 	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
 	$(MAKE) self-release-release-contract-demo RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-release-contract-proof
 
-zig-release-rooted-proof: build-linux
+zig-release-rooted-proof: zig-release-anchored-proof
+
+zig-release-anchored-proof: build-linux authority-root-check
 	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
-	$(MAKE) self-release-rooted-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-rooted-proof
+	$(MAKE) self-release-rooted-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-anchored-proof
 
 zig-release-publish-bundle: build-linux
 	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
@@ -404,15 +427,17 @@ self-release-asm-contract-proof: check-native $(TARGET)
 	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) selftest
 	$(MAKE) self-release-asm-contract-bundle RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-asm-contract-proof
 
-self-release-rooted-proof: check-native $(TARGET)
+self-release-rooted-proof: self-release-anchored-proof
+
+self-release-anchored-proof: check-native $(TARGET) authority-root-check
 	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) selftest
-	$(MAKE) self-release-rooted-bundle RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-rooted-proof
+	$(MAKE) self-release-rooted-bundle RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-anchored-proof
 
 rooted-proof-display: check-native $(TARGET)
 	@mkdir -p build
-	@printf 'forging WUCI-ROOT proof tape...\n'
+	@printf 'forging WUCI-ANCHOR proof tape...\n'
 	@$(MAKE) --no-print-directory -s self-release-rooted-bundle RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-rooted-proof > build/wuci-rooted-proof-display.log
-	@$(PYTHON) tools/wuci_root_attestation_display.py --bundle-dir build/wuci-rooted-proof
+	@$(PYTHON) tools/wuci_root_attestation_display.py --bundle-dir build/wuci-rooted-proof --authority $(AUTHORITY_ROOT)
 	@printf '\nproof log: %s\n' "build/wuci-rooted-proof-display.log"
 
 self-release-release-contract-proof: check-native $(TARGET)

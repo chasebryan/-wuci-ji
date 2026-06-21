@@ -1,6 +1,6 @@
 {
   "schema": "wuci-gate-boundary-v1",
-  "status": "python-preview-plus-assembly-rooted-contracts",
+  "status": "python-preview-plus-assembly-anchored-rooted-contracts",
   "enforcement_implemented": true,
   "assembly_command_enforcement_implemented": true,
   "assembly_owned_surfaces": [
@@ -22,8 +22,10 @@
     "tools/wuci_gate.py",
     "tools/wuci_receipt_contract.py",
     "tools/wuci_authority_root.py",
+    "tools/wuci_authority_anchor.py",
     "tests/frost_authorization_workflow.py",
     "tests/wuci_receipt_contract.py",
+    "tests/wuci_authority_anchor.py",
     "tests/wuci_gate_contract_asm.py",
     "tests/wuci_gate_rooted_contract_asm.py",
     "tests/wuci_gate_policy_matrix.py",
@@ -39,6 +41,28 @@
       "allow-release": "required true for release-authorized-rooted; may be false for open-only roots",
       "allow-trust": false,
       "allow-publish": false
+    }
+  },
+  "authority_anchor": {
+    "open": {
+      "path": "authority/wuci-root.fixture.txt",
+      "sha256_path": "authority/wuci-root.fixture.sha256",
+      "sha256": "64bbc230cc15f770b457b779e3c7002128fd27ae4bed0afbaa8375d62960d1d3",
+      "group_public_key": "022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4",
+      "allow_open": true,
+      "allow_release": false,
+      "allow_trust": false,
+      "allow_publish": false
+    },
+    "release": {
+      "path": "authority/wuci-release-root.fixture.txt",
+      "sha256_path": "authority/wuci-release-root.fixture.sha256",
+      "sha256": "d50c0be237fadddc4f22c69d912567b318cd235b2b4bd0aeff851b54d126ae1f",
+      "group_public_key": "022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4",
+      "allow_open": false,
+      "allow_release": true,
+      "allow_trust": false,
+      "allow_publish": false
     }
   },
   "assembly_contract_commands": [
@@ -144,6 +168,10 @@
     "authority_group_key_mismatch",
     "authority_open_disallowed",
     "authority_release_disallowed",
+    "authority_anchor_path_mismatch",
+    "authority_anchor_digest_mismatch",
+    "self_derived_authority_rejected",
+    "anchored_authority_policy_mismatch",
     "wrong_open_action",
     "wrong_release_action",
     "wrong_rooted_release_action",
@@ -157,6 +185,7 @@
     "Do not parse release receipt JSON in assembly.",
     "Do not parse receipt JSON in assembly.",
     "Do not accept arbitrary signer material.",
+    "Do not derive anchored proof authority roots from receipt contracts.",
     "Do not accept non-open actions through open-authorized-contract.",
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",

@@ -1,10 +1,37 @@
 {
   "schema": "wuci-authority-root-boundary-v1",
-  "status": "assembly-enforced-open-release-root",
+  "status": "assembly-enforced-open-release-root-with-committed-anchor",
   "authority_schema": "wuci-authority-root-v1",
-  "purpose": "Define the fixed flat WUCI-ROOT authority file used by rooted assembly Gate commands to pin a receipt contract group-public-key to the trusted quorum key.",
+  "purpose": "Define the fixed flat WUCI-ROOT authority file used by rooted assembly Gate commands, and the committed WUCI-ANCHOR fixtures that pin receipt contracts to trusted fixture quorum keys before the contracts are generated.",
   "producer": "tools/wuci_authority_root.py",
-  "verification_target": "tests/wuci_gate_rooted_contract_asm.py",
+  "anchor_verifier": "tools/wuci_authority_anchor.py",
+  "verification_target": "tests/wuci_gate_rooted_contract_asm.py and tests/wuci_authority_anchor.py",
+  "anchors": {
+    "open": {
+      "path": "authority/wuci-root.fixture.txt",
+      "sha256_path": "authority/wuci-root.fixture.sha256",
+      "sha256": "64bbc230cc15f770b457b779e3c7002128fd27ae4bed0afbaa8375d62960d1d3",
+      "group-public-key": "022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4",
+      "required_policy": {
+        "allow-open": true,
+        "allow-release": false,
+        "allow-trust": false,
+        "allow-publish": false
+      }
+    },
+    "release": {
+      "path": "authority/wuci-release-root.fixture.txt",
+      "sha256_path": "authority/wuci-release-root.fixture.sha256",
+      "sha256": "d50c0be237fadddc4f22c69d912567b318cd235b2b4bd0aeff851b54d126ae1f",
+      "group-public-key": "022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4",
+      "required_policy": {
+        "allow-open": false,
+        "allow-release": true,
+        "allow-trust": false,
+        "allow-publish": false
+      }
+    }
+  },
   "field_order": [
     "schema",
     "suite",
@@ -48,6 +75,7 @@
     "Do not parse authority JSON in assembly.",
     "Do not accept signer shares or arbitrary signer manifests.",
     "Do not accept production authority roots.",
+    "Do not derive anchored proof authority roots from receipt contracts.",
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-rooted.",
     "Do not accept trust or publish authority bits yet."

@@ -16,19 +16,25 @@ make build-linux
 To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
 
 ```sh
+make authority-root-check
 make gate-contract-asm
 make self-release-asm-contract-proof
+make self-release-anchored-proof
 make self-release-rooted-proof
 make self-release-publish-bundle
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
+make zig-release-anchored-proof
 make zig-release-rooted-proof
 make zig-release-release-contract-proof
 make zig-release-publish-bundle
 ```
 
+`make authority-root-check` regenerates the deterministic fixture authority
+roots under `build/`, compares them against the committed anchors in
+`authority/`, and verifies their SHA-256 sidecars.
 `make gate-contract-asm` checks the native assembly flat-contract Gate command:
 `gate-contract-verify <artifact> <contract>` and
 `open-authorized-contract <keyfile> <artifact> <contract> <out>`.
@@ -47,17 +53,20 @@ binary through the Zig contract verifier instead of Python Gate open.
 `make zig-release-asm-contract-proof` seals the Zig-built ELF and then verifies
 and opens it through that ELF's own assembly `open-authorized-contract` path,
 recording assembly contract checks in the attestation.
-`make self-release-rooted-proof` and `make zig-release-rooted-proof` add a
-flat WUCI-ROOT authority file, require the binary's assembly
+`make self-release-anchored-proof` and `make zig-release-anchored-proof` use
+the pre-existing WUCI-ANCHOR file `authority/wuci-root.fixture.txt`, require the
+receipt contract to answer to that trusted quorum key, require the binary's assembly
 `authority-root-verify`, `gate-contract-verify-rooted`, and
 `open-authorized-rooted` paths, and bind the authority hash and trusted group
-key into the attestation.
+key into the attestation. `make self-release-rooted-proof` and
+`make zig-release-rooted-proof` are compatibility aliases for the anchored lane.
 `make zig-release-release-contract-proof` seals the Zig-built ELF, derives a
 release warrant and flat contract, and requires that ELF's own assembly
 `release-authorized-contract` path to approve the release decision.
 `make self-release-publish-bundle` and `make zig-release-publish-bundle`
-promote that release decision into WUCI-PUBLISH: a release-only authority root,
-rooted assembly `release-authorized-rooted` check, deterministic
+promote that release decision into WUCI-PUBLISH using the pre-existing
+release-only anchor `authority/wuci-release-root.fixture.txt`: a rooted assembly
+`release-authorized-rooted` check, deterministic
 `release-decision.txt`, and `attestation.json` that binds the authority,
 contract, decision, receipt, warrant, manifest, and sealed artifact hashes. On
 a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
@@ -167,7 +176,11 @@ release decision. WUCI-ROOT adds a flat authority file that pins the contract
 `group-public-key` to a trusted quorum key; `open-authorized-rooted` requires
 that authority before opening, and `release-authorized-rooted` requires a
 release-enabled authority before approving release. Assembly does not parse
-receipt JSON or accept arbitrary signer material.
+receipt JSON or accept arbitrary signer material. WUCI-ANCHOR / 无此锚 / No
+Such Anchor pins the normal rooted proof to committed authority files in
+`authority/` before any receipt contract is produced; `emit --contract` remains
+available for test fixtures and negative cases, but the anchored proof does not
+derive its authority from the contract it is checking.
 
 ```sh
 make gate-workflow
@@ -211,19 +224,23 @@ manifest, issue a WUCI-WARRANT receipt, pass WUCI-GATE, and open to a
 byte-identical executable copy.
 
 ```sh
+make authority-root-check
 make self-release-demo
 make self-release-bundle
 make self-release-contract-bundle
 make self-release-asm-contract-proof
+make self-release-anchored-proof
 make self-release-rooted-proof
 make self-release-release-contract-proof
 make self-release-publish-bundle
 make verify-self-release-bundle
 make self-release-attestation-test
+make authority-anchor-test
 make publish-attestation-test
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
+make zig-release-anchored-proof
 make zig-release-rooted-proof
 make zig-release-release-contract-proof
 make zig-release-publish-bundle
@@ -243,18 +260,21 @@ and records assembly contract checks in the attestation.
 `make zig-release-asm-contract-proof` runs that same assembly-enforced contract
 lane against the Zig-built Linux ELF, proving the portable release artifact can
 open itself through its own assembly Gate.
-`make self-release-rooted-proof` and `make zig-release-rooted-proof` add
-`authority-root.txt`, require the trusted group key to match the receipt
-contract, open through `open-authorized-rooted`, and record
+`make self-release-anchored-proof` and `make zig-release-anchored-proof` use
+the committed open anchor `authority/wuci-root.fixture.txt`, require the trusted
+group key to match the receipt contract, open through `open-authorized-rooted`,
+and record
 `authority_root_sha256`, `authority_group_public_key`, `rooted_gate_check`, and
-`rooted_gate_open` in the attestation.
+`rooted_gate_open` in the attestation. The older rooted proof target names now
+route through that anchored path.
 `make self-release-release-contract-proof` and
 `make zig-release-release-contract-proof` prove the native and Zig-built
 binaries can verify their own release warrant through assembly
 `release-authorized-contract` and emit a deterministic release decision.
-`make self-release-publish-bundle` and `make zig-release-publish-bundle` add a
-release-enabled `authority-root.txt`, require assembly
-`release-authorized-rooted`, write `release-decision.txt`, and attest the
+`make self-release-publish-bundle` and `make zig-release-publish-bundle` copy
+the committed release anchor `authority/wuci-release-root.fixture.txt` into the
+bundle as `authority-root.txt`, require assembly `release-authorized-rooted`,
+write `release-decision.txt`, and attest the
 publish bundle with `release_authority_root_sha256`,
 `release_authority_group_public_key`, `release_contract_sha256`,
 `release_decision_sha256`, `rooted_release_check`, and
@@ -263,12 +283,15 @@ publish bundle with `release_authority_root_sha256`,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification. `make publish-attestation-test` checks that
 tampered release decisions, release contracts, and authority roots fail
-publish-bundle verification.
+publish-bundle verification. `make authority-anchor-test` checks that anchored
+mode accepts the committed fixture root, rejects self-derived authority paths,
+and rejects malformed or policy-invalid authority roots.
 
 Python still derives the flat receipt contract from the JSON WUCI-WARRANT
-receipt and emits the flat authority root from that contract's group key. Zig
-remains a portable verifier bridge, while assembly now enforces the `open`,
-rooted `open`, `release`, and rooted `release` contract paths itself.
+receipt. Normal rooted proofs use committed authority anchors instead of
+emitting authority from the just-created contract. Zig remains a portable
+verifier bridge, while assembly now enforces the `open`, rooted `open`,
+`release`, and rooted `release` contract paths itself.
 
 ## License
 

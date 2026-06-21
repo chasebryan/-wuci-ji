@@ -39,6 +39,7 @@ def main() -> None:
         "assembly_command_enforcement_implemented",
         "assembly_owned_surfaces",
         "authority_root",
+        "authority_anchor",
         "assembly_contract_commands",
         "python_workflow_surfaces",
         "future_commands",
@@ -50,7 +51,7 @@ def main() -> None:
     }
     assert set(boundary) == expected_keys
     assert boundary["schema"] == "wuci-gate-boundary-v1"
-    assert boundary["status"] == "python-preview-plus-assembly-rooted-contracts"
+    assert boundary["status"] == "python-preview-plus-assembly-anchored-rooted-contracts"
     assert boundary["enforcement_implemented"] is True
     assert boundary["assembly_command_enforcement_implemented"] is True
 
@@ -70,6 +71,8 @@ def main() -> None:
     assert "tools/wuci_frost_authorize.py" in python_surfaces
     assert "tools/wuci_gate.py" in python_surfaces
     assert "tools/wuci_authority_root.py" in python_surfaces
+    assert "tools/wuci_authority_anchor.py" in python_surfaces
+    assert "tests/wuci_authority_anchor.py" in python_surfaces
     assert "tests/wuci_gate_contract_asm.py" in python_surfaces
     assert "tests/wuci_gate_rooted_contract_asm.py" in python_surfaces
     assert "tests/wuci_gate_policy_matrix.py" in python_surfaces
@@ -86,6 +89,26 @@ def main() -> None:
     )
     assert required_policy["allow-trust"] is False
     assert required_policy["allow-publish"] is False
+
+    authority_anchor = boundary["authority_anchor"]
+    assert isinstance(authority_anchor, dict)
+    assert set(authority_anchor) == {"open", "release"}
+    open_anchor = authority_anchor["open"]
+    assert open_anchor["path"] == "authority/wuci-root.fixture.txt"
+    assert open_anchor["sha256_path"] == "authority/wuci-root.fixture.sha256"
+    assert open_anchor["group_public_key"].startswith("022f8bde4d1a0720")
+    assert open_anchor["allow_open"] is True
+    assert open_anchor["allow_release"] is False
+    assert open_anchor["allow_trust"] is False
+    assert open_anchor["allow_publish"] is False
+    release_anchor = authority_anchor["release"]
+    assert release_anchor["path"] == "authority/wuci-release-root.fixture.txt"
+    assert release_anchor["sha256_path"] == "authority/wuci-release-root.fixture.sha256"
+    assert release_anchor["group_public_key"] == open_anchor["group_public_key"]
+    assert release_anchor["allow_open"] is False
+    assert release_anchor["allow_release"] is True
+    assert release_anchor["allow_trust"] is False
+    assert release_anchor["allow_publish"] is False
 
     policy_inputs = set(require_list(boundary, "receipt_policy_inputs"))
     for field in (
@@ -112,6 +135,10 @@ def main() -> None:
     assert "authority_group_key_mismatch" in rejection_classes
     assert "authority_open_disallowed" in rejection_classes
     assert "authority_release_disallowed" in rejection_classes
+    assert "authority_anchor_path_mismatch" in rejection_classes
+    assert "authority_anchor_digest_mismatch" in rejection_classes
+    assert "self_derived_authority_rejected" in rejection_classes
+    assert "anchored_authority_policy_mismatch" in rejection_classes
     assert "wrong_release_action" in rejection_classes
     assert "wrong_rooted_release_action" in rejection_classes
     assert "publish_bundle_tamper" in rejection_classes

@@ -27,8 +27,8 @@ jobs:
       - name: Run assembly self-release contract proof
         run: make self-release-asm-contract-proof
 
-      - name: Run assembly rooted self-release proof
-        run: make self-release-rooted-proof
+      - name: Run anchored self-release proof
+        run: make self-release-anchored-proof
 
       - name: Run assembly release contract proof
         run: make self-release-release-contract-proof
@@ -65,6 +65,6 @@ jobs:
           make zig-release-proof
           make zig-release-contract-proof
           make zig-release-asm-contract-proof
-          make zig-release-rooted-proof
+          make zig-release-anchored-proof
           make zig-release-release-contract-proof
           make zig-release-publish-bundle

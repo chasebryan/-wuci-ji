@@ -49,7 +49,7 @@ class ContractError(RuntimeError):
 
 def read_ascii(path: Path, context: str) -> str:
     try:
-        return path.read_text(encoding="ascii")
+        return path.read_bytes().decode("ascii")
     except OSError as exc:
         raise ContractError(f"could not read {context} {path}") from exc
     except UnicodeDecodeError as exc:

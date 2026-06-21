@@ -74,6 +74,10 @@ Observed host on 2026-06-20:
 Verified on this host:
 
 - `make clean && make test` succeeds.
+- `make authority-root-check` succeeds: the committed open anchor
+  `authority/wuci-root.fixture.txt` and release anchor
+  `authority/wuci-release-root.fixture.txt` match the deterministic fixture
+  quorum key and their pinned SHA-256 sidecars.
 - `make gate-contract-asm` succeeds and exercises the native
   `gate-contract-verify` / `open-authorized-contract` flat-contract Gate
   commands plus the rooted `authority-root-verify`,
@@ -85,13 +89,14 @@ Verified on this host:
 - `make zig-release-asm-contract-proof` succeeds: the Zig-built Linux x86_64
   ELF seals itself and uses its own assembly `gate-contract-verify` /
   `open-authorized-contract` path for the flat-contract release open.
-- `make self-release-rooted-proof` succeeds: the native binary seals itself,
-  emits `authority-root.txt`, verifies the trusted group key in assembly, opens
-  through `open-authorized-rooted`, and records authority root fields in the
-  attestation.
-- `make zig-release-rooted-proof` succeeds: the Zig-built Linux x86_64 ELF
-  seals itself and uses its own assembly rooted Gate path for the trusted
-  authority self-release proof.
+- `make self-release-anchored-proof` succeeds: the native binary seals itself,
+  uses the pre-existing open anchor `authority/wuci-root.fixture.txt`, verifies
+  the trusted group key in assembly, opens through `open-authorized-rooted`, and
+  records authority root fields in the attestation.
+- `make zig-release-anchored-proof` succeeds: the Zig-built Linux x86_64 ELF
+  seals itself and uses its own assembly rooted Gate path while answering to the
+  committed open anchor. The older `self-release-rooted-proof` and
+  `zig-release-rooted-proof` targets route through these anchored proofs.
 - `make self-release-release-contract-proof` succeeds: the native binary seals
   itself, derives a release WUCI-WARRANT receipt contract, and accepts the
   release decision through assembly `release-authorized-contract`.
@@ -99,11 +104,12 @@ Verified on this host:
   x86_64 ELF proves the same release decision through its own assembly
   `release-authorized-contract` path.
 - `make self-release-publish-bundle` succeeds: the native binary seals itself,
-  derives a release WUCI-WARRANT receipt contract, emits a release-enabled
-  `authority-root.txt`, accepts the release through assembly
-  `release-authorized-rooted`, writes `release-decision.txt`, and verifies a
-  publish attestation that binds the authority, contract, decision, receipt,
-  warrant, manifest, and sealed artifact hashes.
+  derives a release WUCI-WARRANT receipt contract, copies the pre-existing
+  release anchor `authority/wuci-release-root.fixture.txt` into the bundle,
+  accepts the release through assembly `release-authorized-rooted`, writes
+  `release-decision.txt`, and verifies a publish attestation that binds the
+  authority, contract, decision, receipt, warrant, manifest, and sealed artifact
+  hashes.
 - `make zig-release-publish-bundle` succeeds: the Zig-built Linux x86_64 ELF
   produces the same rooted publish bundle through its own assembly rooted
   release path.

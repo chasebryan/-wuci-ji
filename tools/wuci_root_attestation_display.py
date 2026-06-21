@@ -138,23 +138,23 @@ def render_compact(attestation: dict[str, Any], authority: dict[str, str]) -> st
 
     lines: list[str] = []
     lines.append(border("="))
-    lines.append(row("NO SUCH ROOT // WUCI-ROOT"))
-    lines.append(row("ROOT: ACHIEVED"))
+    lines.append(row("NO SUCH ANCHOR // WUCI-ANCHOR"))
+    lines.append(row("ANCHOR: ACHIEVED"))
     lines.append(row("QUORUM: PINNED"))
     lines.append(row("OPEN: ASSEMBLY-ENFORCED"))
     lines.append(border("="))
-    lines.append(row("       .--[ROOT]--.      .--[GATE]--.      .--[COPY]--."))
+    lines.append(row("       .-[ANCHOR]-.      .--[GATE]--.      .--[COPY]--."))
     lines.append(row("       |  key     | ---> |  asm    | ---> |  ==    |"))
     lines.append(row("       '--[PIN]---'      '--[OK]---'      '--[EXE]--'"))
     lines.append(border("-"))
-    lines.append(row("ROOT"))
+    lines.append(row("ANCHOR"))
     lines.extend(rows("id", shorten(authority["authority-id"], 12)))
     lines.extend(rows("quorum key", shorten(authority_group_public_key, 12)))
     lines.extend(rows("suite", authority["suite"]))
     lines.append(row("policy            open=true; release/trust/publish=false"))
     lines.append(border("-"))
     lines.append(row("DIGEST BINDINGS"))
-    lines.append(row(compact_hash("root", authority_root_sha256)))
+    lines.append(row(compact_hash("anchor", authority_root_sha256)))
     lines.append(
         row(
             compact_hash(
@@ -181,7 +181,7 @@ def render_compact(attestation: dict[str, Any], authority: dict[str, str]) -> st
     )
     lines.append(border("-"))
     lines.append(row("CHECKS"))
-    lines.append(two_col("[OK] authority-root", "[OK] root==contract"))
+    lines.append(two_col("[OK] authority-root", "[OK] anchor==contract"))
     lines.append(two_col("[OK] rooted-gate", "[OK] rooted-open"))
     lines.append(two_col("[OK] byte-identical", "[OK] executable"))
     lines.append(border("-"))
@@ -197,7 +197,7 @@ def render_compact(attestation: dict[str, Any], authority: dict[str, str]) -> st
         )
     )
     lines.append(border("="))
-    lines.append(row("VERDICT: ROOT ACHIEVED. NO UNPINNED QUORUM."))
+    lines.append(row("VERDICT: ANCHOR ACHIEVED. NO UNPINNED QUORUM."))
     lines.append(border("="))
     return "\n".join(lines)
 
@@ -210,9 +210,9 @@ def render_full(attestation: dict[str, Any], authority: dict[str, str]) -> str:
 
     lines: list[str] = []
     lines.append(border("="))
-    lines.append(row("NO SUCH ROOT // WUCI-ROOT"))
-    lines.append(row("WUCI-ROOT / NO SUCH ROOT"))
-    lines.append(row("ROOT: ACHIEVED"))
+    lines.append(row("NO SUCH ANCHOR // WUCI-ANCHOR"))
+    lines.append(row("WUCI-ANCHOR / NO SUCH ANCHOR"))
+    lines.append(row("ANCHOR: ACHIEVED"))
     lines.append(row("QUORUM: PINNED"))
     lines.append(row("OPEN: ASSEMBLY-ENFORCED"))
     lines.append(border("="))
@@ -223,7 +223,7 @@ def render_full(attestation: dict[str, Any], authority: dict[str, str]) -> str:
     lines.append(row("     \\__ no json. no overwrite. _/"))
     lines.append(row())
     lines.append(border("-"))
-    lines.append(row(":: AUTHORITY ROOT"))
+    lines.append(row(":: AUTHORITY ANCHOR"))
     lines.append(row("-----------------"))
     for label in (
         "schema",
@@ -256,7 +256,7 @@ def render_full(attestation: dict[str, Any], authority: dict[str, str]) -> str:
     for key in ("authority_root", "receipt_contract", "sealed_artifact", "opened_binary"):
         lines.extend(rows(key.replace("_", "-"), require_string(paths.get(key), f"paths.{key}")))
     lines.append(border("="))
-    lines.append(row("VERDICT: ROOT ACHIEVED. THE MACHINE TRUSTS THIS QUORUM KEY."))
+    lines.append(row("VERDICT: ANCHOR ACHIEVED. THE MACHINE TRUSTS THIS QUORUM KEY."))
     lines.append(row("OPEN AUTHORITY WAS ASSEMBLY-ENFORCED AND BYTE-IDENTICAL."))
     lines.append(border("="))
     return "\n".join(lines)
@@ -264,7 +264,7 @@ def render_full(attestation: dict[str, Any], authority: dict[str, str]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Display a terminal ASCII WUCI-ROOT self-release attestation."
+        description="Display a terminal ASCII WUCI-ANCHOR self-release attestation."
     )
     parser.add_argument(
         "--bundle-dir",
