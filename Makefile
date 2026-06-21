@@ -17,8 +17,9 @@ CROSS_TARGET := build/wuci-ji-linux-x86_64
 ZIG_TARGET ?= x86_64-linux-musl
 ZIG_GLOBAL_CACHE_DIR ?= build/.zig-cache/global
 ZIG_LOCAL_CACHE_DIR ?= build/.zig-cache/local
+FROST_AUTHZ_DEMO_DIR ?= build/frost-authz-demo
 
-.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-demo frost-workflow gate-boundary test test-linux selftest selftest-linux
+.PHONY: all build-linux check-asm-immediates check-native check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary test test-linux selftest selftest-linux
 
 all: check-native $(TARGET)
 
@@ -70,6 +71,19 @@ frost-workflow: check-native $(TARGET)
 
 frost-authz: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/frost_authorization_workflow.py --quiet
+
+frost-authz-demo: check-native $(TARGET)
+	mkdir -p $(FROST_AUTHZ_DEMO_DIR)
+	rm -f $(FROST_AUTHZ_DEMO_DIR)/plain.txt $(FROST_AUTHZ_DEMO_DIR)/sealed.wj $(FROST_AUTHZ_DEMO_DIR)/auth-message.asm.txt $(FROST_AUTHZ_DEMO_DIR)/auth-message.tool.txt $(FROST_AUTHZ_DEMO_DIR)/auth-transcript.json $(FROST_AUTHZ_DEMO_DIR)/auth-receipt.json
+	printf 'wuci warrant demo\n' > $(FROST_AUTHZ_DEMO_DIR)/plain.txt
+	$(TARGET) seal-file-v2 1111111111111111111111111111111111111111111111111111111111111111 2233445566778899aabbccddeeff0011 $(FROST_AUTHZ_DEMO_DIR)/plain.txt $(FROST_AUTHZ_DEMO_DIR)/sealed.wj
+	$(TARGET) warrant-message-file open $(FROST_AUTHZ_DEMO_DIR)/sealed.wj > $(FROST_AUTHZ_DEMO_DIR)/auth-message.asm.txt
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(FROST_AUTHZ_DEMO_DIR)/sealed.wj --action open --print-auth-message > $(FROST_AUTHZ_DEMO_DIR)/auth-message.tool.txt
+	cmp $(FROST_AUTHZ_DEMO_DIR)/auth-message.asm.txt $(FROST_AUTHZ_DEMO_DIR)/auth-message.tool.txt
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(FROST_AUTHZ_DEMO_DIR)/sealed.wj --action open --print-transcript-manifest > $(FROST_AUTHZ_DEMO_DIR)/auth-transcript.json
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(FROST_AUTHZ_DEMO_DIR)/sealed.wj --action open --transcript-manifest $(FROST_AUTHZ_DEMO_DIR)/auth-transcript.json --update-transcript-manifest --receipt $(FROST_AUTHZ_DEMO_DIR)/auth-receipt.json
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_frost_authorize.py --artifact $(FROST_AUTHZ_DEMO_DIR)/sealed.wj --action open --verify-receipt $(FROST_AUTHZ_DEMO_DIR)/auth-receipt.json
+	@printf 'wrote WUCI-WARRANT demo files to %s\n' "$(FROST_AUTHZ_DEMO_DIR)"
 
 gate-boundary: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_boundary.py
