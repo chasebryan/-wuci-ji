@@ -27,6 +27,23 @@ make self-release-witness-archive
 make ledger-asm-test
 make ledger-proof-test
 make self-release-ledger-bundle
+make cage-policy-matrix
+make cage-bundle-test
+make cage-proof
+make qcage-model-test
+make qcage-policy-matrix
+make qcage-crypto-inventory
+make qcage-build-graph
+make qcage-attestation-test
+make qcage-proof
+make harden-policy-matrix
+make harden-safeio-test
+make harden-verifier-identity-test
+make harden-witness-symlink-test
+make harden-fixture-quarantine-test
+make harden-action-policy-test
+make harden-ledger-mutation-test
+make harden-proof
 make witness-zig
 make witness-zig-test
 make witness-archive-test
@@ -101,6 +118,11 @@ primitives: `ledger-empty-root`, `ledger-leaf-file <entry>`, and
 `make zig-release-ledger-bundle` turn public witness bundles into append-only
 Merkle release history entries with ledger heads, inclusion proofs, and
 consistency proofs.
+`make cage-policy-matrix`, `make cage-bundle-test`, and `make cage-proof`
+exercise WUCI-CAGE v1, the defensive artifact airlock over WUCI witness and
+ledger evidence. `make qcage-proof` extends that lane with WUCI-QCAGE v1:
+digest-vector evidence, crypto inventory, build graph evidence, quantum
+migration debt scoring, and fail-closed post-quantum modes.
 
 On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
@@ -282,6 +304,87 @@ Zig tooling can own append, inclusion proof, and consistency proof orchestration
 on top of these assembly hash primitives without adding new secret-bearing
 crypto or moving publish-attestation parsing into assembly.
 
+## WUCI-CAGE
+
+WUCI-CAGE / 无此笼 / No Such Cage is the artifact airlock: it verifies sealed,
+warranted, rooted, witnessed, and ledger-ready evidence before trust. CAGE v1
+does not claim OS runtime sandboxing. It denies general run requests until
+runtime sandbox enforcement exists.
+
+```sh
+make cage-policy-matrix
+make cage-bundle-test
+make cage-proof
+python3 tools/wuci_cage.py attest --bundle build/wuci-witness-bundle --out build/wuci-cage-attestation.json
+python3 tools/wuci_cage.py verify --bundle build/wuci-witness-bundle --attestation build/wuci-cage-attestation.json
+python3 tools/wuci_cage.py deny-run --artifact build/wuci-witness-bundle/wuci-ji.self.wj --out build/wuci-cage-run-denied.txt
+```
+
+CAGE v1 is not an exploit tool, fuzzer, scanner, jailbreak harness, malware
+sandbox, or OS containment layer. It validates public witness bundles, rejects
+private/demo files and private material markers, writes deterministic CAGE
+attestations, emits ledger-ready CAGE entries, and refuses runtime execution
+claims that Wuci-ji does not yet enforce.
+
+## WUCI-QCAGE
+
+WUCI-QCAGE / 无此量笼 / No Such Quantum Cage adds quantum-aware evidence checks
+to WUCI-CAGE.
+
+QCAGE v1 does not claim post-quantum security by default. It keeps current
+WUCI-FROST/secp256k1 evidence as compatibility evidence, marks it
+quantum-vulnerable under a CRQC threat model, adds SHA-384/SHA-512 public
+evidence digests, emits a cryptographic inventory, records build graph
+evidence, computes quantum migration debt, and rejects false quantum-safe
+claims.
+
+```sh
+make qcage-model-test
+make qcage-policy-matrix
+make qcage-crypto-inventory
+make qcage-build-graph
+make qcage-attestation-test
+make qcage-proof
+python3 tools/wuci_qcage.py risk --T-migrate 3 --T-trust 10 --T-CRQC 10
+```
+
+Modes:
+
+```text
+compat:
+  Current WUCI-CAGE evidence can pass with quantum_safe=false.
+
+hybrid-required:
+  Requires existing WUCI evidence and real PQ signature verification.
+  In v1 this fails closed unless a real verifier is implemented.
+
+pq-required:
+  Requires real PQ signature verification.
+  Classical-only authority is insufficient.
+```
+
+## WUCI-HARDEN
+
+WUCI-HARDEN / 无此固 / No Such Soft Spot hardens the proof chain around
+WUCI-GATE, WUCI-WARRANT, WUCI-WITNESS, and WUCI-LEDGER.
+
+It does not add offensive tooling. It prevents fixture authority from being
+mistaken for production trust, pins verifier identity in strict mode, rejects
+reserved trust/publish actions by default, rejects symlink and hardlink
+surprises in public evidence, strengthens local ledger mutation detection, and
+prevents runtime or quantum-safety overclaims.
+
+```sh
+make harden-policy-matrix
+make harden-safeio-test
+make harden-verifier-identity-test
+make harden-witness-symlink-test
+make harden-fixture-quarantine-test
+make harden-action-policy-test
+make harden-ledger-mutation-test
+make harden-proof
+```
+
 ## Self-release demo
 
 Wuci-ji can seal its own Linux x86_64 binary, bind it to an assembly artifact
@@ -303,6 +406,13 @@ make self-release-witness-archive
 make ledger-asm-test
 make ledger-proof-test
 make self-release-ledger-bundle
+make cage-policy-matrix
+make cage-bundle-test
+make cage-proof
+make qcage-model-test
+make qcage-policy-matrix
+make qcage-proof
+make harden-proof
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test

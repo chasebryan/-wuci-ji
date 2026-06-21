@@ -8,6 +8,7 @@ from pathlib import Path
 
 import wuci_authority_root as authority_root
 import wuci_receipt_contract as receipt_contract
+import wuci_safeio
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -34,17 +35,10 @@ def display_path(path: Path) -> str:
 
 
 def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-    except OSError as exc:
-        raise AuthorityAnchorError(f"could not read authority root {path}") from exc
-    return digest.hexdigest()
+        return wuci_safeio.sha256_file(path)
+    except wuci_safeio.SafeIOError as exc:
+        raise AuthorityAnchorError(str(exc)) from exc
 
 
 def anchor_paths(action: str) -> tuple[Path, Path, str]:
@@ -79,11 +73,13 @@ def verify_sha256_sidecar(
     expected_digest: str,
 ) -> str:
     try:
-        sidecar = sha256_path.read_text(encoding="ascii")
-    except OSError as exc:
-        raise AuthorityAnchorError(f"could not read authority root SHA-256 {sha256_path}") from exc
-    except UnicodeDecodeError as exc:
-        raise AuthorityAnchorError("authority root SHA-256 file is not ASCII") from exc
+        sidecar = wuci_safeio.read_regular_ascii(
+            sha256_path,
+            "authority root SHA-256",
+            reject_symlink=True,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise AuthorityAnchorError(str(exc)) from exc
     actual_digest = sha256_file(authority_path)
     if actual_digest != expected_digest:
         raise AuthorityAnchorError("authority root bytes do not match the fixture digest")

@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 import frost_secp256k1_workflow as frost
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -20,10 +22,16 @@ RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
 AUTH_MESSAGE_SCHEMA = "wuci-frost-authorization-message-v1"
 RECEIPT_SCHEMA = "wuci-frost-authorization-v1"
 ALLOWED_ACTIONS = ("open", "release", "trust", "publish")
+RESERVED_ACTIONS = ("trust", "publish")
 
 
 class AuthorizationError(RuntimeError):
     pass
+
+
+def require_action_allowed(action: str, *, allow_reserved: bool, strict: bool) -> None:
+    if action in RESERVED_ACTIONS and (strict or not allow_reserved):
+        raise AuthorizationError(f"action is reserved in v1: {action}")
 
 
 class WuciJi:
@@ -105,10 +113,12 @@ def build_authorization(
 
 def load_json_file(path: Path, context: str) -> Any:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except OSError as exc:
-        raise AuthorizationError(f"could not read {context} {path}") from exc
+        data = wuci_safeio.read_regular_bytes(path, context, reject_symlink=True)
+        return json.loads(data.decode("utf-8"))
+    except wuci_safeio.SafeIOError as exc:
+        raise AuthorizationError(str(exc)) from exc
+    except UnicodeDecodeError as exc:
+        raise AuthorizationError(f"{context} is not UTF-8") from exc
     except json.JSONDecodeError as exc:
         raise AuthorizationError(f"{context} is not valid JSON: {exc.msg}") from exc
 
@@ -325,6 +335,17 @@ def main() -> int:
     parser.add_argument("--artifact", required=True, help="sealed artifact path")
     parser.add_argument("--action", required=True, choices=ALLOWED_ACTIONS)
     parser.add_argument(
+        "--allow-reserved-action",
+        action="store_true",
+        help="allow reserved trust/publish message compatibility outside strict mode",
+    )
+    parser.add_argument(
+        "--fixture-test-proof",
+        action="store_true",
+        help="acknowledge deterministic fixture evidence is test-only in strict mode",
+    )
+    wuci_verifier_identity.add_strict_args(parser)
+    parser.add_argument(
         "--fixture-manifest",
         help="load the exact non-production FROST fixture manifest",
     )
@@ -356,6 +377,17 @@ def main() -> int:
         parser.error("--update-transcript-manifest requires --receipt")
 
     try:
+        strict = wuci_verifier_identity.is_strict(args.strict_proof)
+        wuci_verifier_identity.enforce_args(args, Path(args.bin))
+        require_action_allowed(
+            args.action,
+            allow_reserved=args.allow_reserved_action,
+            strict=strict,
+        )
+        if strict and args.action in {"open", "release"} and not args.fixture_test_proof:
+            raise AuthorizationError(
+                "strict fixture open/release proofs require --fixture-test-proof"
+            )
         auth_message, auth_message_bytes = build_authorization(
             Path(args.bin),
             Path(args.artifact),
@@ -391,7 +423,7 @@ def main() -> int:
             return 0
 
         run_signing_flow(args)
-    except AuthorizationError as exc:
+    except (AuthorizationError, wuci_verifier_identity.VerifierIdentityError) as exc:
         print(f"wuci warrant: {exc}", file=sys.stderr)
         return 1
 

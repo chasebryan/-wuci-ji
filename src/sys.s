@@ -90,7 +90,7 @@ read_key_file:
     mov eax, SYS_OPENAT
     mov rdi, AT_FDCWD
     mov rsi, rbx
-    mov edx, O_RDONLY
+    mov edx, FILE_READ_FLAGS
     xor r10d, r10d
     syscall
     test rax, rax
@@ -147,7 +147,7 @@ read_artifact_file:
     mov eax, SYS_OPENAT
     mov rdi, AT_FDCWD
     mov rsi, rbx
-    mov edx, O_RDONLY
+    mov edx, FILE_READ_FLAGS
     xor r10d, r10d
     syscall
     test rax, rax
@@ -216,7 +216,7 @@ open_seal_file_paths:
     mov eax, SYS_OPENAT
     mov rdi, AT_FDCWD
     mov rsi, rbx
-    mov edx, O_RDONLY
+    mov edx, FILE_READ_FLAGS
     xor r10d, r10d
     syscall
     test rax, rax

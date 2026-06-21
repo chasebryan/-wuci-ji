@@ -102,8 +102,10 @@ def authority_text(
 def make_receipt(tmp: Path, artifact_path: Path, action: str) -> Path:
     transcript_path = tmp / f"{action}-transcript.json"
     receipt_path = tmp / f"{action}-receipt.json"
+    reserved_args = ["--allow-reserved-action"] if action in {"trust", "publish"} else []
     transcript = run_authorize(
         [
+            *reserved_args,
             "--artifact",
             str(artifact_path),
             "--action",
@@ -116,6 +118,7 @@ def make_receipt(tmp: Path, artifact_path: Path, action: str) -> Path:
 
     receipt = run_authorize(
         [
+            *reserved_args,
             "--artifact",
             str(artifact_path),
             "--action",
@@ -159,9 +162,11 @@ def emit_contract(
     contract_path: Path,
     action: str,
 ) -> None:
+    reserved_args = ["--allow-reserved-action"] if action in {"trust", "publish"} else []
     emitted = run_contract(
         "emit",
         [
+            *reserved_args,
             "--artifact",
             str(artifact_path),
             "--action",

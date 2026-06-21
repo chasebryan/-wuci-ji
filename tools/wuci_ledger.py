@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 import wuci_witness
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -91,38 +93,58 @@ def ledger_paths(ledger_dir: Path) -> dict[str, Path]:
         "latest_entry": ledger_dir / "ledger-entry.txt",
         "latest_head": ledger_dir / "ledger-head.txt",
         "previous_head": ledger_dir / "previous-ledger-head.txt",
+        "lock": ledger_dir / ".wuci-ledger.lock",
     }
 
 
 def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-    except OSError as exc:
-        raise LedgerError(f"could not read {path}") from exc
-    return digest.hexdigest()
+        return wuci_safeio.sha256_file(path)
+    except wuci_safeio.SafeIOError as exc:
+        raise LedgerError(str(exc)) from exc
 
 
 def read_ascii(path: Path, context: str) -> str:
     try:
-        return path.read_bytes().decode("ascii")
-    except OSError as exc:
-        raise LedgerError(f"could not read {context}: {path}") from exc
-    except UnicodeDecodeError as exc:
-        raise LedgerError(f"{context} is not ASCII") from exc
+        return wuci_safeio.read_regular_ascii(path, context, reject_symlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise LedgerError(str(exc)) from exc
 
 
 def write_ascii(path: Path, value: str) -> None:
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="ascii")
-    except OSError as exc:
-        raise LedgerError(f"could not write {path}") from exc
+        wuci_safeio.write_new_text(path, value, str(path))
+    except wuci_safeio.SafeIOError as exc:
+        raise LedgerError(str(exc)) from exc
+
+
+def atomic_replace_ascii(path: Path, value: str) -> None:
+    try:
+        wuci_safeio.atomic_replace_text(path, value, str(path))
+    except wuci_safeio.SafeIOError as exc:
+        raise LedgerError(str(exc)) from exc
+
+
+class LedgerLock:
+    def __init__(self, ledger_dir: Path) -> None:
+        self.path = ledger_paths(ledger_dir)["lock"]
+
+    def __enter__(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_CLOEXEC", 0)
+        try:
+            fd = os.open(self.path, flags, 0o600)
+        except FileExistsError as exc:
+            raise LedgerError(f"ledger lock exists: {self.path}") from exc
+        except OSError as exc:
+            raise LedgerError(f"could not create ledger lock: {self.path}") from exc
+        os.close(fd)
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        try:
+            self.path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def require_hex(value: str, chars: int, context: str) -> None:
@@ -412,7 +434,7 @@ def load_entries_for_size(ledger_dir: Path, size: int) -> list[Path]:
     if not entries_dir.is_dir():
         raise LedgerError(f"ledger entries directory is missing: {entries_dir}")
     expected = {seq_name(index) for index in range(size)}
-    observed = {path.name for path in entries_dir.glob("*.txt")}
+    observed = {path.name for path in entries_dir.iterdir()}
     if observed != expected:
         raise LedgerError("ledger entries do not match ledger tree size")
     entry_paths: list[Path] = []
@@ -469,37 +491,38 @@ def run_append(args: argparse.Namespace) -> int:
     ledger_dir = Path(args.ledger)
     bin_path = Path(args.bin)
     paths = ledger_paths(ledger_dir)
-    old_head_text = read_ascii(paths["latest_head"], "ledger head")
-    old_head = parse_head(old_head_text)
-    old_size = parse_decimal(old_head["tree-size"], "tree-size")
-    load_entries_for_size(ledger_dir, old_size)
+    with LedgerLock(ledger_dir):
+        old_head_text = read_ascii(paths["latest_head"], "ledger head")
+        old_head = parse_head(old_head_text)
+        old_size = parse_decimal(old_head["tree-size"], "tree-size")
+        load_entries_for_size(ledger_dir, old_size)
 
-    entry_text = derive_entry_from_bundle(
-        bin_path=bin_path,
-        bundle_dir=Path(args.witness_bundle),
-        sequence=old_size,
-    )
-    entry_path = paths["entries"] / seq_name(old_size)
-    if entry_path.exists():
-        raise LedgerError(f"ledger entry already exists: {entry_path}")
-    write_ascii(entry_path, entry_text)
-    write_ascii(paths["latest_entry"], entry_text)
+        entry_text = derive_entry_from_bundle(
+            bin_path=bin_path,
+            bundle_dir=Path(args.witness_bundle),
+            sequence=old_size,
+        )
+        entry_path = paths["entries"] / seq_name(old_size)
+        if entry_path.exists():
+            raise LedgerError(f"ledger entry already exists: {entry_path}")
+        write_ascii(entry_path, entry_text)
+        atomic_replace_ascii(paths["latest_entry"], entry_text)
 
-    entry_paths = load_entries_for_size(ledger_dir, old_size + 1)
-    new_root = root_for_entries(bin_path, entry_paths)
-    new_head_text = format_head(
-        {
-            "schema": HEAD_SCHEMA,
-            "tree-size": str(old_size + 1),
-            "root-hash": new_root,
-            "previous-tree-size": str(old_size),
-            "previous-root-hash": old_head["root-hash"],
-            "entry-hash": hashlib.sha256(entry_text.encode("ascii")).hexdigest(),
-        }
-    )
-    write_ascii(paths["previous_head"], old_head_text)
-    write_ascii(paths["latest_head"], new_head_text)
-    write_ascii(paths["heads"] / head_name(old_size + 1), new_head_text)
+        entry_paths = load_entries_for_size(ledger_dir, old_size + 1)
+        new_root = root_for_entries(bin_path, entry_paths)
+        new_head_text = format_head(
+            {
+                "schema": HEAD_SCHEMA,
+                "tree-size": str(old_size + 1),
+                "root-hash": new_root,
+                "previous-tree-size": str(old_size),
+                "previous-root-hash": old_head["root-hash"],
+                "entry-hash": hashlib.sha256(entry_text.encode("ascii")).hexdigest(),
+            }
+        )
+        atomic_replace_ascii(paths["previous_head"], old_head_text)
+        atomic_replace_ascii(paths["latest_head"], new_head_text)
+        write_ascii(paths["heads"] / head_name(old_size + 1), new_head_text)
     print(f"appended WUCI-LEDGER entry: {old_size}")
     print(f"ledger entry: {display_path(paths['latest_entry'])}")
     print(f"ledger head: {display_path(paths['latest_head'])}")
@@ -728,12 +751,81 @@ def run_verify_consistency(args: argparse.Namespace) -> int:
     return 0
 
 
+def load_heads_for_size(ledger_dir: Path, size: int) -> list[tuple[Path, dict[str, str], str]]:
+    paths = ledger_paths(ledger_dir)
+    heads_dir = paths["heads"]
+    if not heads_dir.is_dir():
+        raise LedgerError(f"ledger heads directory is missing: {heads_dir}")
+    expected = {head_name(index) for index in range(size + 1)}
+    observed = {path.name for path in heads_dir.iterdir()}
+    if observed != expected:
+        raise LedgerError("ledger heads do not match ledger history size")
+    heads: list[tuple[Path, dict[str, str], str]] = []
+    for index in range(size + 1):
+        path = heads_dir / head_name(index)
+        text = read_ascii(path, "ledger head")
+        fields = parse_head(text)
+        if parse_decimal(fields["tree-size"], "tree-size") != index:
+            raise LedgerError("ledger head tree-size does not match its filename")
+        if text != format_head(fields):
+            raise LedgerError("ledger head bytes are not canonical")
+        heads.append((path, fields, text))
+    return heads
+
+
+def run_verify_history(args: argparse.Namespace) -> int:
+    ledger_dir = Path(args.ledger)
+    bin_path = Path(args.bin)
+    paths = ledger_paths(ledger_dir)
+    latest_text = read_ascii(paths["latest_head"], "latest ledger head")
+    latest = parse_head(latest_text)
+    size = parse_decimal(latest["tree-size"], "tree-size")
+    entry_paths = load_entries_for_size(ledger_dir, size)
+    heads = load_heads_for_size(ledger_dir, size)
+    leaf_hashes = leaf_hashes_for_entries(bin_path, entry_paths)
+
+    for index, (_path, head, head_text) in enumerate(heads):
+        root = merkle_root(bin_path, leaf_hashes[:index])
+        if head["root-hash"] != root:
+            raise LedgerError("ledger history head root does not match entries")
+        if index == 0:
+            if head["previous-tree-size"] != "0":
+                raise LedgerError("empty head previous-tree-size must be zero")
+            if head["previous-root-hash"] != ZERO64:
+                raise LedgerError("empty head previous-root-hash must be zero")
+            if head["entry-hash"] != ZERO64:
+                raise LedgerError("empty head entry-hash must be zero")
+        else:
+            previous = heads[index - 1][1]
+            if head["previous-tree-size"] != str(index - 1):
+                raise LedgerError("ledger head previous-tree-size is not append-only")
+            if head["previous-root-hash"] != previous["root-hash"]:
+                raise LedgerError("ledger head previous-root-hash does not match prior head")
+            entry_text = read_ascii(entry_paths[index - 1], "ledger entry")
+            entry_hash = hashlib.sha256(entry_text.encode("ascii")).hexdigest()
+            if head["entry-hash"] != entry_hash:
+                raise LedgerError("ledger head entry-hash does not match entry bytes")
+        if index == size and head_text != latest_text:
+            raise LedgerError("latest ledger head does not match numbered history head")
+
+    if size > 0:
+        previous_text = read_ascii(paths["previous_head"], "previous ledger head")
+        if previous_text != heads[size - 1][2]:
+            raise LedgerError("previous ledger head does not match history")
+        latest_entry = read_ascii(paths["latest_entry"], "latest ledger entry")
+        if latest_entry != read_ascii(entry_paths[-1], "ledger entry"):
+            raise LedgerError("latest ledger entry does not match history")
+    print(f"valid ledger history: {display_path(ledger_dir)}")
+    return 0
+
+
 def add_bin_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--bin",
         default=os.environ.get("WUCI_JI_BIN", str(DEFAULT_BIN)),
         help="path to wuci-ji; defaults to WUCI_JI_BIN or build/wuci-ji",
     )
+    wuci_verifier_identity.add_strict_args(parser)
 
 
 def main() -> int:
@@ -793,10 +885,20 @@ def main() -> int:
     verify_consistency_parser.add_argument("--proof", required=True)
     verify_consistency_parser.set_defaults(func=run_verify_consistency)
 
+    verify_history_parser = subparsers.add_parser(
+        "verify-history",
+        help="verify the complete append-only local ledger history",
+    )
+    add_bin_arg(verify_history_parser)
+    verify_history_parser.add_argument("--ledger", default=str(DEFAULT_LEDGER_DIR))
+    verify_history_parser.set_defaults(func=run_verify_history)
+
     args = parser.parse_args()
     try:
+        if hasattr(args, "bin"):
+            wuci_verifier_identity.enforce_args(args, Path(args.bin))
         return args.func(args)
-    except LedgerError as exc:
+    except (LedgerError, wuci_verifier_identity.VerifierIdentityError) as exc:
         print(f"wuci ledger: {exc}", file=sys.stderr)
         return 1
 

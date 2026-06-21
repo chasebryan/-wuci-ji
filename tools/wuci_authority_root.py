@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import sys
 from pathlib import Path
 
 import frost_secp256k1_workflow as frost
 import wuci_receipt_contract as receipt_contract
+import wuci_safeio
 
 
 ROOT_SCHEMA = "wuci-authority-root-v1"
@@ -32,21 +34,18 @@ class AuthorityRootError(RuntimeError):
 
 def read_ascii(path: Path, context: str) -> str:
     try:
-        return path.read_bytes().decode("ascii")
-    except OSError as exc:
-        raise AuthorityRootError(f"could not read {context} {path}") from exc
-    except UnicodeDecodeError as exc:
-        raise AuthorityRootError(f"{context} is not ASCII") from exc
+        return wuci_safeio.read_regular_ascii(path, context, reject_symlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise AuthorityRootError(str(exc)) from exc
 
 
 def write_new_ascii(path: Path, value: str) -> None:
-    if path.exists():
+    if os.path.lexists(path):
         raise AuthorityRootError(f"refusing to overwrite existing authority root {path}")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="ascii")
-    except OSError as exc:
-        raise AuthorityRootError(f"could not write authority root {path}") from exc
+        wuci_safeio.write_new_text(path, value, "authority root")
+    except wuci_safeio.SafeIOError as exc:
+        raise AuthorityRootError(str(exc)) from exc
 
 
 def require_hex(value: str, chars: int, context: str) -> None:

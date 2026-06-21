@@ -1,0 +1,35 @@
+{
+  "schema": "wuci-cage-attestation-schema-v1",
+  "attestation_schema": "wuci-cage-attestation-v1",
+  "profile": "WUCI-CAGE-v1",
+  "description": "Deterministic WUCI-CAGE v1 attestation fields. This document defines required fields and does not contain live artifact hashes.",
+  "required_fields": {
+    "schema": "literal wuci-cage-attestation-v1",
+    "profile": "literal WUCI-CAGE-v1",
+    "artifact_sha256": "SHA-256 of wuci-ji.self.wj",
+    "manifest_sha256": "SHA-256 of manifest.txt",
+    "warrant_message_sha256": "SHA-256 of warrant-message.txt",
+    "receipt_sha256": "SHA-256 of release-receipt.json",
+    "contract_sha256": "SHA-256 of receipt-contract.txt",
+    "authority_root_sha256": "SHA-256 of authority-root.txt",
+    "release_decision_sha256": "SHA-256 of release-decision.txt",
+    "publish_index_sha256": "SHA-256 of publish-index.txt",
+    "witness_bundle_sha256": "Optional SHA-256 of deterministic witness archive when present",
+    "ledger_entry_sha256": "Optional SHA-256 of CAGE ledger entry when present",
+    "cage_decision": "allow-publish or deny",
+    "runtime_sandbox_enforced": false,
+    "runtime_execution_allowed": "false except existing self-release fixture tests",
+    "public_witness_secret_free": true,
+    "checked_at": "Use deterministic-fixture in tests",
+    "boundary_statement": "WUCI-CAGE v1 verifies artifact legitimacy; it does not claim OS sandbox enforcement."
+  },
+  "allowed_cage_decisions": [
+    "allow-publish",
+    "deny"
+  ],
+  "v1_runtime_boundary": {
+    "runtime_sandbox_enforced": false,
+    "runtime_execution_allowed": false,
+    "general_run_requests": "deny"
+  }
+}

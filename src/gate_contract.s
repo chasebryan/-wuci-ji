@@ -410,7 +410,7 @@ gate_read_contract_file:
     mov eax, SYS_OPENAT
     mov rdi, AT_FDCWD
     mov rsi, rbx
-    mov edx, O_RDONLY
+    mov edx, FILE_READ_FLAGS
     xor r10d, r10d
     syscall
     test rax, rax

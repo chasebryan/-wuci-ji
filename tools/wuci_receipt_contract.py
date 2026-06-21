@@ -9,6 +9,8 @@ from pathlib import Path
 
 import wuci_frost_authorize as warrant
 import wuci_gate as gate
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -49,21 +51,18 @@ class ContractError(RuntimeError):
 
 def read_ascii(path: Path, context: str) -> str:
     try:
-        return path.read_bytes().decode("ascii")
-    except OSError as exc:
-        raise ContractError(f"could not read {context} {path}") from exc
-    except UnicodeDecodeError as exc:
-        raise ContractError(f"{context} is not ASCII") from exc
+        return wuci_safeio.read_regular_ascii(path, context, reject_symlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise ContractError(str(exc)) from exc
 
 
 def write_new_ascii(path: Path, value: str) -> None:
-    if path.exists():
+    if os.path.lexists(path):
         raise ContractError(f"refusing to overwrite existing contract {path}")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="ascii")
-    except OSError as exc:
-        raise ContractError(f"could not write contract {path}") from exc
+        wuci_safeio.write_new_text(path, value, "receipt contract")
+    except wuci_safeio.SafeIOError as exc:
+        raise ContractError(str(exc)) from exc
 
 
 def require_hex(value: str, chars: int, context: str) -> None:
@@ -213,9 +212,15 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--artifact", required=True, help="sealed artifact path")
     parser.add_argument("--action", required=True, choices=warrant.ALLOWED_ACTIONS)
+    parser.add_argument(
+        "--allow-reserved-action",
+        action="store_true",
+        help="allow reserved trust/publish compatibility outside strict mode",
+    )
     parser.add_argument("--receipt", required=True, help="authorization receipt JSON")
     parser.add_argument("--contract", required=True, help="flat receipt contract path")
     parser.add_argument("--quiet", action="store_true", help="suppress success output")
+    wuci_verifier_identity.add_strict_args(parser)
 
 
 def main() -> int:
@@ -243,8 +248,19 @@ def main() -> int:
 
     args = parser.parse_args()
     try:
+        strict = wuci_verifier_identity.is_strict(args.strict_proof)
+        wuci_verifier_identity.enforce_args(args, Path(args.bin))
+        warrant.require_action_allowed(
+            args.action,
+            allow_reserved=args.allow_reserved_action,
+            strict=strict,
+        )
         return args.func(args)
-    except ContractError as exc:
+    except (
+        ContractError,
+        warrant.AuthorizationError,
+        wuci_verifier_identity.VerifierIdentityError,
+    ) as exc:
         print(f"wuci receipt contract: {exc}", file=sys.stderr)
         return 1
 

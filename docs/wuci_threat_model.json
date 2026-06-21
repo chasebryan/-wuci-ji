@@ -1,0 +1,39 @@
+{
+  "accepted_v1_limits": [
+    "assembly Gate remains SHA-256 compatible",
+    "fixture FROST remains test-only",
+    "ledger remains local filesystem-backed",
+    "runtime execution remains denied by CAGE/HARDEN policy"
+  ],
+  "attacker_capabilities": [
+    "can provide malicious artifact files",
+    "can provide malformed contracts and receipts",
+    "can control paths in build directories",
+    "can create symlinks and hardlinks in attacker-writable directories",
+    "can set WUCI_JI_BIN or WUCI_JI_RUNNER in non-strict environments",
+    "can replace local mutable ledger files if filesystem permissions allow",
+    "can socially relabel release evidence as publish or trust evidence"
+  ],
+  "must_prevent": [
+    "fixture authority treated as production trust",
+    "fake verifier binary manufacturing proof outputs",
+    "trust or publish action accepted without assembly-enforced trust/publish Gate",
+    "public witness bundle containing private material",
+    "public witness bundle reading through symlink or hardlink surprises",
+    "ledger rewrite or fork accepted as append-only history",
+    "runtime sandbox claims without real sandbox enforcement",
+    "quantum-safe claims without real PQ evidence"
+  ],
+  "protected_assets": [
+    "sealed artifacts",
+    "artifact keys",
+    "authority roots",
+    "receipt contracts",
+    "witness bundles",
+    "ledger entries and heads",
+    "verifier binary identity",
+    "release/trust/publish semantics"
+  ],
+  "schema": "wuci-threat-model-v1",
+  "status": "defensive-hardening-baseline"
+}

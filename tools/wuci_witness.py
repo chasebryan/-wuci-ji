@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -16,6 +15,8 @@ import wuci_authority_anchor as authority_anchor
 import wuci_authority_root as authority_root
 import wuci_frost_authorize as warrant
 import wuci_receipt_contract as receipt_contract
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +54,24 @@ FORBIDDEN_PUBLIC_FILES = {
     "auth-transcript.json",
     "release-transcript.json",
 }
+FILE_SIZE_CAPS = {
+    "sealed_artifact": 2 * 1024 * 1024,
+    "manifest": 2048,
+    "warrant_message": 4096,
+    "release_receipt": 65536,
+    "receipt_contract": 4096,
+    "authority_root": 2048,
+    "release_decision": 1024,
+    "publish_index": 2048,
+    "attestation": 256 * 1024,
+}
+TEXT_PUBLIC_FILES = tuple(name for name in PUBLIC_FILES if name != "sealed_artifact")
+PRIVATE_MARKERS = (
+    "group_secret",
+    "hiding_nonce",
+    "binding_nonce",
+    "signature_share",
+)
 INDEX_FIELDS = (
     "schema",
     "artifact-sha256",
@@ -95,7 +114,7 @@ BOUNDARY = {
         "Do not open the sealed artifact.",
         "Do not parse receipt JSON in assembly.",
         "Do not accept arbitrary signer material.",
-        "Do not accept trust or publish authority bits yet.",
+        "Do not accept trust bits or reserved publish bits yet.",
     ],
 }
 
@@ -105,69 +124,50 @@ class WitnessError(RuntimeError):
 
 
 def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-    except OSError as exc:
-        raise WitnessError(f"could not read {path}") from exc
-    return digest.hexdigest()
+        return wuci_safeio.sha256_file(path)
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
 
 
 def read_bytes(path: Path, context: str) -> bytes:
     try:
-        return path.read_bytes()
-    except OSError as exc:
-        raise WitnessError(f"could not read {context} {path}") from exc
+        return wuci_safeio.read_regular_bytes(path, context, reject_symlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
 
 
 def read_ascii(path: Path, context: str) -> str:
     try:
-        return path.read_bytes().decode("ascii")
-    except OSError as exc:
-        raise WitnessError(f"could not read {context} {path}") from exc
-    except UnicodeDecodeError as exc:
-        raise WitnessError(f"{context} is not ASCII") from exc
+        return wuci_safeio.read_regular_ascii(path, context, reject_symlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
 
 
 def load_json_file(path: Path, context: str) -> Any:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except OSError as exc:
-        raise WitnessError(f"could not read {context} {path}") from exc
+        data = wuci_safeio.read_regular_bytes(path, context, reject_symlink=True)
+        return json.loads(data.decode("utf-8"))
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
+    except UnicodeDecodeError as exc:
+        raise WitnessError(f"{context} is not UTF-8") from exc
     except json.JSONDecodeError as exc:
         raise WitnessError(f"{context} is not valid JSON: {exc.msg}") from exc
 
 
 def write_new_ascii(path: Path, value: str, context: str) -> None:
-    if path.exists():
-        raise WitnessError(f"refusing to overwrite existing {context} {path}")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="ascii")
-    except OSError as exc:
-        raise WitnessError(f"could not write {context} {path}") from exc
+        wuci_safeio.write_new_text(path, value, context)
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
 
 
 def write_json_new(path: Path, value: dict[str, Any]) -> None:
-    if path.exists():
-        raise WitnessError(f"refusing to overwrite existing witness attestation {path}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f".{path.name}.tmp")
     try:
-        tmp_path.write_text(
-            json.dumps(value, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(tmp_path, path)
-    finally:
-        if tmp_path.exists():
-            tmp_path.unlink()
+        wuci_safeio.write_json_new(path, value, "witness attestation")
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
 
 
 def display_path(path: Path) -> str:
@@ -181,9 +181,42 @@ def bundle_paths(bundle_dir: Path) -> dict[str, Path]:
     return {name: bundle_dir / rel for name, rel in PUBLIC_FILES.items()}
 
 
-def require_file(path: Path, context: str) -> None:
-    if not path.is_file():
-        raise WitnessError(f"missing {context}: {path}")
+def require_file(path: Path, context: str, *, strict_proof: bool = False) -> None:
+    try:
+        wuci_safeio.lstat_regular_file(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=strict_proof,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
+
+
+def enforce_public_file_shape(path: Path, name: str, *, strict_proof: bool) -> None:
+    try:
+        wuci_safeio.lstat_regular_file(
+            path,
+            name.replace("_", " "),
+            reject_symlink=True,
+            reject_hardlink=strict_proof,
+            max_bytes=FILE_SIZE_CAPS[name],
+        )
+        if name in TEXT_PUBLIC_FILES:
+            data = wuci_safeio.read_regular_bytes(
+                path,
+                name.replace("_", " "),
+                reject_symlink=True,
+                reject_hardlink=strict_proof,
+                max_bytes=FILE_SIZE_CAPS[name],
+            )
+            wuci_safeio.reject_private_markers_bytes(
+                data,
+                name.replace("_", " "),
+                PRIVATE_MARKERS,
+            )
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessError(str(exc)) from exc
 
 
 def assert_public_profile(
@@ -192,6 +225,7 @@ def assert_public_profile(
     paths: dict[str, Path],
     require_index: bool,
     require_attestation: bool,
+    strict_proof: bool = False,
 ) -> None:
     if not bundle_dir.is_dir():
         raise WitnessError(f"missing public witness bundle directory: {bundle_dir}")
@@ -202,8 +236,10 @@ def assert_public_profile(
             raise WitnessError(f"private file must not be present: {child.name}")
         if child.name not in allowed_names:
             raise WitnessError(f"unexpected file in public witness bundle: {child.name}")
-        if child.is_dir():
-            raise WitnessError(f"public witness bundle entry must be a file: {child.name}")
+        for logical_name, filename in PUBLIC_FILES.items():
+            if child.name == filename:
+                enforce_public_file_shape(child, logical_name, strict_proof=strict_proof)
+                break
 
     required = list(CORE_FILES)
     if require_index:
@@ -211,7 +247,8 @@ def assert_public_profile(
     if require_attestation:
         required.append("attestation")
     for name in required:
-        require_file(paths[name], name.replace("_", " "))
+        require_file(paths[name], name.replace("_", " "), strict_proof=strict_proof)
+        enforce_public_file_shape(paths[name], name, strict_proof=strict_proof)
 
 
 def require_hex(value: str, chars: int, context: str) -> None:
@@ -458,6 +495,7 @@ def build_witness_attestation(
     bundle_dir: Path,
     require_index: bool,
     require_attestation: bool,
+    strict_proof: bool = False,
 ) -> tuple[dict[str, Any], str]:
     paths = bundle_paths(bundle_dir)
     assert_public_profile(
@@ -465,6 +503,7 @@ def build_witness_attestation(
         paths=paths,
         require_index=require_index,
         require_attestation=require_attestation,
+        strict_proof=strict_proof,
     )
 
     assert_current_manifest_and_warrant(
@@ -551,9 +590,14 @@ def build_witness_attestation(
         "schema": ATTESTATION_SCHEMA,
         "bundle_schema": BUNDLE_SCHEMA,
         "production": False,
+        "fixture_authority": True,
+        "trust_level": "test-only",
+        "quantum_safe": False,
+        "runtime_sandbox_enforced": False,
+        "verifier_binary_sha256": sha256_file(bin_path),
         "action": ACTION,
         "summary": (
-            "Wuci-ji publish bundle was verified from the public files only: "
+            "Wuci-ji release witness bundle was verified from the public files only: "
             "the release authority root is pinned, the assembly rooted release "
             "decision is reproducible, and no key or opened binary is present."
         ),
@@ -583,12 +627,15 @@ def compare_attestations(expected: Any, observed: dict[str, Any]) -> None:
 
 def run_index(args: argparse.Namespace) -> int:
     bundle_dir = Path(args.bundle)
+    strict_proof = wuci_verifier_identity.is_strict(args.strict_proof)
+    wuci_verifier_identity.enforce_args(args, Path(args.bin))
     paths = bundle_paths(bundle_dir)
     _, index_text = build_witness_attestation(
         bin_path=Path(args.bin),
         bundle_dir=bundle_dir,
         require_index=False,
         require_attestation=False,
+        strict_proof=strict_proof,
     )
     write_new_ascii(paths["publish_index"], index_text, "publish index")
     print(f"wrote publish index: {display_path(paths['publish_index'])}")
@@ -597,12 +644,15 @@ def run_index(args: argparse.Namespace) -> int:
 
 def run_attest(args: argparse.Namespace) -> int:
     bundle_dir = Path(args.bundle)
+    strict_proof = wuci_verifier_identity.is_strict(args.strict_proof)
+    wuci_verifier_identity.enforce_args(args, Path(args.bin))
     paths = bundle_paths(bundle_dir)
     attestation, _ = build_witness_attestation(
         bin_path=Path(args.bin),
         bundle_dir=bundle_dir,
         require_index=True,
         require_attestation=False,
+        strict_proof=strict_proof,
     )
     write_json_new(paths["attestation"], attestation)
     print(f"wrote witness attestation: {display_path(paths['attestation'])}")
@@ -611,12 +661,15 @@ def run_attest(args: argparse.Namespace) -> int:
 
 def run_verify(args: argparse.Namespace) -> int:
     bundle_dir = Path(args.bundle)
+    strict_proof = wuci_verifier_identity.is_strict(args.strict_proof)
+    wuci_verifier_identity.enforce_args(args, Path(args.bin))
     paths = bundle_paths(bundle_dir)
     observed, _ = build_witness_attestation(
         bin_path=Path(args.bin),
         bundle_dir=bundle_dir,
         require_index=True,
         require_attestation=True,
+        strict_proof=strict_proof,
     )
     expected = load_json_file(paths["attestation"], "witness attestation")
     compare_attestations(expected, observed)
@@ -635,6 +688,7 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         default=str(DEFAULT_BUNDLE_DIR),
         help="public witness bundle directory",
     )
+    wuci_verifier_identity.add_strict_args(parser)
 
 
 def main() -> int:
@@ -658,7 +712,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         return args.func(args)
-    except WitnessError as exc:
+    except (WitnessError, wuci_verifier_identity.VerifierIdentityError) as exc:
         print(f"wuci witness: {exc}", file=sys.stderr)
         return 1
 

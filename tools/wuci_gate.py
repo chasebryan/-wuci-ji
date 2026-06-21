@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 import wuci_frost_authorize as warrant
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -34,9 +36,9 @@ class GateError(RuntimeError):
 
 def read_file_bytes(path: Path, context: str) -> bytes:
     try:
-        return path.read_bytes()
-    except OSError as exc:
-        raise GateError(f"could not read {context} {path}") from exc
+        return wuci_safeio.read_regular_bytes(path, context, reject_symlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise GateError(str(exc)) from exc
 
 
 def nested_keys(value: Any) -> set[str]:
@@ -209,7 +211,13 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--artifact", required=True, help="sealed artifact path")
     parser.add_argument("--action", required=True, choices=warrant.ALLOWED_ACTIONS)
+    parser.add_argument(
+        "--allow-reserved-action",
+        action="store_true",
+        help="allow reserved trust/publish compatibility outside strict mode",
+    )
     parser.add_argument("--receipt", required=True, help="authorization receipt JSON")
+    wuci_verifier_identity.add_strict_args(parser)
 
 
 def main() -> int:
@@ -239,8 +247,19 @@ def main() -> int:
 
     args = parser.parse_args()
     try:
+        strict = wuci_verifier_identity.is_strict(args.strict_proof)
+        wuci_verifier_identity.enforce_args(args, Path(args.bin))
+        warrant.require_action_allowed(
+            args.action,
+            allow_reserved=args.allow_reserved_action,
+            strict=strict,
+        )
         return args.func(args)
-    except GateError as exc:
+    except (
+        GateError,
+        warrant.AuthorizationError,
+        wuci_verifier_identity.VerifierIdentityError,
+    ) as exc:
         print(f"wuci gate: {exc}", file=sys.stderr)
         return 1
 

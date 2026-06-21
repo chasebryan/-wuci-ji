@@ -37,13 +37,22 @@ LEDGER_DEMO_DIR ?= build/wuci-ledger-demo
 LEDGER_DIR ?= build/wuci-ledger
 LEDGER_INCLUSION_PROOF ?= $(LEDGER_DIR)/inclusion-proof.txt
 LEDGER_CONSISTENCY_PROOF ?= $(LEDGER_DIR)/consistency-proof.txt
+CAGE_ATTESTATION ?= build/wuci-cage-attestation.json
+CAGE_LEDGER_ENTRY ?= build/wuci-cage-ledger-entry.txt
+CAGE_LEDGER_LEAF ?= build/wuci-cage-ledger-leaf.txt
+CAGE_RUN_DENIAL ?= build/wuci-cage-run-denied.txt
+QCAGE_CRYPTO_INVENTORY ?= build/wuci-qcage-crypto-inventory.json
+QCAGE_BUILD_GRAPH ?= build/wuci-qcage-build-graph.json
+QCAGE_ATTESTATION ?= build/wuci-qcage-attestation.json
+HARDEN_TRUSTED_BIN_SHA256 ?=
+HARDEN_STRICT ?= 1
 AUTHORITY_ROOT ?= authority/wuci-root.fixture.txt
 AUTHORITY_ROOT_SHA256 ?= authority/wuci-root.fixture.sha256
 RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow ledger-asm-demo ledger-asm-test ledger-proof-test publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test ledger-asm-demo ledger-asm-test ledger-proof-test publish-attestation-test publish-index publish-witness qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -474,6 +483,7 @@ self-release-ledger-bundle: $(RELEASE_BIN) self-release-witness-bundle
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py verify-inclusion --bin $(abspath $(RELEASE_BIN)) --entry $(LEDGER_DIR)/ledger-entry.txt --proof $(LEDGER_INCLUSION_PROOF) --head $(LEDGER_DIR)/ledger-head.txt
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py prove-consistency --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --from-head $(LEDGER_DIR)/previous-ledger-head.txt --to-head $(LEDGER_DIR)/ledger-head.txt --out $(LEDGER_CONSISTENCY_PROOF)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py verify-consistency --bin $(abspath $(RELEASE_BIN)) --proof $(LEDGER_CONSISTENCY_PROOF)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py verify-history --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_witness.py verify --bin $(abspath $(RELEASE_BIN)) --bundle $(WITNESS_BUNDLE_DIR)
 	@printf 'WUCI self-release ledger bundle complete\n'
 	@printf 'ledger: %s\n' "$(LEDGER_DIR)"
@@ -481,6 +491,96 @@ self-release-ledger-bundle: $(RELEASE_BIN) self-release-witness-bundle
 	@printf 'ledger head: %s\n' "$(LEDGER_DIR)/ledger-head.txt"
 	@printf 'inclusion proof: %s\n' "$(LEDGER_INCLUSION_PROOF)"
 	@printf 'consistency proof: %s\n' "$(LEDGER_CONSISTENCY_PROOF)"
+
+cage-policy-matrix: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_cage_policy_matrix.py --quiet
+
+cage-bundle-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_cage_bundle.py --quiet
+
+cage-attestation-test: cage-bundle-test
+
+cage-ledger-entry: check-native $(TARGET) self-release-witness-bundle cage-policy-matrix
+	rm -f $(CAGE_ATTESTATION) $(CAGE_LEDGER_ENTRY) $(CAGE_LEDGER_LEAF)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_cage.py attest --bin $(abspath $(TARGET)) --bundle $(WITNESS_BUNDLE_DIR) --out $(CAGE_ATTESTATION)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_cage.py verify --bin $(abspath $(TARGET)) --bundle $(WITNESS_BUNDLE_DIR) --attestation $(CAGE_ATTESTATION)
+	$(PYTHON) tools/wuci_cage.py ledger-entry --attestation $(CAGE_ATTESTATION) --out $(CAGE_LEDGER_ENTRY)
+	$(TARGET) ledger-leaf-file $(CAGE_LEDGER_ENTRY) > $(CAGE_LEDGER_LEAF)
+	@printf 'CAGE attestation: %s\n' "$(CAGE_ATTESTATION)"
+	@printf 'CAGE ledger entry: %s\n' "$(CAGE_LEDGER_ENTRY)"
+	@printf 'CAGE ledger leaf: %s\n' "$(CAGE_LEDGER_LEAF)"
+
+cage-proof: cage-ledger-entry
+	rm -f $(CAGE_RUN_DENIAL)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_cage.py verify --bin $(abspath $(TARGET)) --bundle $(WITNESS_BUNDLE_DIR) --attestation $(CAGE_ATTESTATION)
+	$(PYTHON) tools/wuci_cage.py deny-run --artifact $(WITNESS_BUNDLE_DIR)/wuci-ji.self.wj --out $(CAGE_RUN_DENIAL)
+	@printf 'CAGE run denial: %s\n' "$(CAGE_RUN_DENIAL)"
+
+qcage-model-test:
+	$(PYTHON) tests/wuci_qcage_model.py --quiet
+
+qcage-policy-matrix:
+	$(PYTHON) tests/wuci_qcage_policy_matrix.py --quiet
+
+qcage-crypto-inventory:
+	mkdir -p build
+	$(PYTHON) tools/wuci_qcage.py crypto-inventory --repo . --out $(QCAGE_CRYPTO_INVENTORY)
+
+qcage-build-graph:
+	mkdir -p build
+	$(PYTHON) tools/wuci_qcage.py build-graph --repo . --out $(QCAGE_BUILD_GRAPH)
+
+qcage-attestation-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_qcage_attestation.py --quiet
+
+qcage-risk:
+	$(PYTHON) tools/wuci_qcage.py risk --T-migrate 3 --T-trust 10 --T-CRQC 10
+
+qcage-proof: self-release-witness-bundle cage-proof qcage-model-test qcage-policy-matrix qcage-crypto-inventory qcage-build-graph
+	rm -f $(QCAGE_ATTESTATION)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_qcage.py attest \
+		--bin $(abspath $(TARGET)) \
+		--cage-attestation $(CAGE_ATTESTATION) \
+		--witness-bundle $(WITNESS_BUNDLE_DIR) \
+		--crypto-inventory $(QCAGE_CRYPTO_INVENTORY) \
+		--build-graph $(QCAGE_BUILD_GRAPH) \
+		--mode compat \
+		--T-migrate 3 \
+		--T-trust 10 \
+		--T-CRQC 10 \
+		--out $(QCAGE_ATTESTATION)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tools/wuci_qcage.py verify \
+		--bin $(abspath $(TARGET)) \
+		--attestation $(QCAGE_ATTESTATION) \
+		--cage-attestation $(CAGE_ATTESTATION) \
+		--witness-bundle $(WITNESS_BUNDLE_DIR) \
+		--crypto-inventory $(QCAGE_CRYPTO_INVENTORY) \
+		--build-graph $(QCAGE_BUILD_GRAPH)
+	@printf 'QCAGE attestation: %s\n' "$(QCAGE_ATTESTATION)"
+
+harden-policy-matrix:
+	$(PYTHON) tests/wuci_hardening_policy_matrix.py --quiet
+
+harden-safeio-test:
+	$(PYTHON) tests/wuci_safeio.py --quiet
+
+harden-verifier-identity-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_verifier_identity.py --quiet
+
+harden-witness-symlink-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_witness_symlink_hardening.py --quiet
+
+harden-fixture-quarantine-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_fixture_quarantine.py --quiet
+
+harden-action-policy-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_action_policy.py --quiet
+
+harden-ledger-mutation-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger_mutation_hardening.py --quiet
+
+harden-proof: harden-policy-matrix harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden-fixture-quarantine-test harden-action-policy-test harden-ledger-mutation-test
+	@printf 'WUCI-HARDEN proof complete\n'
 
 verify-self-release-bundle: $(RELEASE_BIN)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
@@ -526,7 +626,7 @@ ledger-asm-test: check-native $(TARGET)
 ledger-proof-test: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --ledger-only --quiet
 
-test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test ledger-proof-test self-release-attestation-test publish-attestation-test
+test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy
@@ -610,6 +710,9 @@ ci-native:
 	$(MAKE) self-release-publish-bundle
 	$(MAKE) self-release-witness-bundle
 	$(MAKE) self-release-ledger-bundle
+	$(MAKE) cage-proof
+	$(MAKE) qcage-proof
+	$(MAKE) harden-proof
 	$(MAKE) witness-attestation-test
 	$(MAKE) self-release-witness-archive
 	$(MAKE) witness-archive-test

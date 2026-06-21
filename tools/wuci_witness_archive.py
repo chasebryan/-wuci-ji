@@ -13,6 +13,8 @@ import tarfile
 from pathlib import Path
 
 import wuci_witness
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -49,30 +51,17 @@ def display_path(path: Path) -> str:
 
 
 def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-    except OSError as exc:
-        raise WitnessArchiveError(f"could not read {path}") from exc
-    return digest.hexdigest()
+        return wuci_safeio.sha256_file(path)
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessArchiveError(str(exc)) from exc
 
 
 def write_new_bytes(path: Path, value: bytes, context: str) -> None:
-    if path.exists():
-        raise WitnessArchiveError(f"refusing to overwrite existing {context}: {path}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f".{path.name}.tmp")
     try:
-        tmp_path.write_bytes(value)
-        os.replace(tmp_path, path)
-    finally:
-        if tmp_path.exists():
-            tmp_path.unlink()
+        wuci_safeio.write_new_bytes(path, value, context, mode=0o600)
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessArchiveError(str(exc)) from exc
 
 
 def write_new_text(path: Path, value: str, context: str) -> None:
@@ -90,6 +79,7 @@ def assert_bundle_verified(bin_path: Path, bundle_dir: Path) -> None:
             bundle_dir=bundle_dir,
             require_index=True,
             require_attestation=True,
+            strict_proof=True,
         )
         expected = wuci_witness.load_json_file(
             bundle_dir / "attestation.json",
@@ -105,9 +95,15 @@ def build_archive_bytes(bundle_dir: Path) -> bytes:
     with tarfile.open(fileobj=out, mode="w", format=tarfile.GNU_FORMAT) as archive:
         for filename in PUBLIC_FILES:
             path = bundle_dir / filename
-            if not path.is_file():
-                raise WitnessArchiveError(f"missing public bundle file: {path}")
-            data = path.read_bytes()
+            try:
+                data = wuci_safeio.read_regular_bytes(
+                    path,
+                    f"archive source {filename}",
+                    reject_symlink=True,
+                    reject_hardlink=True,
+                )
+            except wuci_safeio.SafeIOError as exc:
+                raise WitnessArchiveError(str(exc)) from exc
             info = tarfile.TarInfo(expected_member_name(filename))
             info.size = len(data)
             info.mode = ARCHIVE_MODE
@@ -248,6 +244,7 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         default=str(DEFAULT_SHA256),
         help="witness archive SHA-256 sidecar path",
     )
+    wuci_verifier_identity.add_strict_args(parser)
 
 
 def main() -> int:
@@ -280,8 +277,13 @@ def main() -> int:
 
     args = parser.parse_args()
     try:
+        if hasattr(args, "bin"):
+            wuci_verifier_identity.enforce_args(args, Path(args.bin))
         return args.func(args)
-    except WitnessArchiveError as exc:
+    except (
+        WitnessArchiveError,
+        wuci_verifier_identity.VerifierIdentityError,
+    ) as exc:
         print(f"wuci witness archive: {exc}", file=sys.stderr)
         return 1
 

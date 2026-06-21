@@ -1,0 +1,98 @@
+{
+  "schema": "wuci-cage-policy-v1",
+  "status": "defensive-artifact-airlock-v1",
+  "purpose": "Bind AI-era artifacts to WUCI seal, warrant, gate, witness, and ledger evidence before trust.",
+  "canonical_actions": {
+    "stage": {
+      "wuci_action": "open",
+      "status": "supported-through-existing-gate-open-surfaces"
+    },
+    "publish": {
+      "wuci_action": "release",
+      "status": "supported-through-existing-rooted-release-and-witness-surfaces"
+    },
+    "run": {
+      "wuci_action": null,
+      "status": "unsupported-in-v1"
+    },
+    "trust": {
+      "wuci_action": null,
+      "status": "reserved"
+    }
+  },
+  "required_existing_surfaces": [
+    "manifest-file",
+    "warrant-message-file",
+    "gate-contract-verify",
+    "gate-contract-verify-rooted",
+    "open-authorized-contract",
+    "open-authorized-rooted",
+    "release-authorized-contract",
+    "release-authorized-rooted",
+    "ledger-empty-root",
+    "ledger-leaf-file",
+    "ledger-node"
+  ],
+  "required_public_witness_files": [
+    "wuci-ji.self.wj",
+    "manifest.txt",
+    "warrant-message.txt",
+    "release-receipt.json",
+    "receipt-contract.txt",
+    "authority-root.txt",
+    "release-decision.txt",
+    "publish-index.txt",
+    "attestation.json"
+  ],
+  "forbidden_public_witness_files": [
+    "artifact.key",
+    "opened-wuci-ji",
+    "auth-transcript.json",
+    "release-transcript.json",
+    "any file containing private material markers"
+  ],
+  "private_material_markers": [
+    "group_secret",
+    "share",
+    "hiding",
+    "binding",
+    "hiding_nonce",
+    "binding_nonce",
+    "signature_share"
+  ],
+  "runtime_claims": {
+    "no_network_default": "desired_future_property",
+    "no_network_enforced_v1": false,
+    "no_overwrite_enforced_v1": "true via existing Gate paths",
+    "public_witness_secret_free_v1": true,
+    "ledger_hash_only_v1": true
+  },
+  "rejection_classes": [
+    "unsealed_artifact",
+    "missing_manifest",
+    "manifest_digest_mismatch",
+    "missing_warrant_message",
+    "missing_receipt",
+    "missing_contract",
+    "wrong_action",
+    "missing_authority_root",
+    "authority_policy_mismatch",
+    "release_decision_missing",
+    "release_decision_denied",
+    "missing_attestation",
+    "attestation_digest_mismatch",
+    "private_material_in_public_bundle",
+    "opened_binary_in_public_bundle",
+    "transcript_in_public_bundle",
+    "ledger_entry_missing",
+    "ledger_proof_mismatch",
+    "runtime_sandbox_claim_without_enforcement"
+  ],
+  "non_goals": [
+    "Do not implement exploit generation.",
+    "Do not implement vulnerability reproduction.",
+    "Do not implement offensive scanning.",
+    "Do not implement network attack logic.",
+    "Do not claim OS runtime sandboxing in v1."
+  ]
+}

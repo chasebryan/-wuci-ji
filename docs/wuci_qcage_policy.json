@@ -1,0 +1,89 @@
+{
+  "algorithm_inventory": {
+    "classical_vulnerable_public_key": [
+      "RSA",
+      "DH",
+      "ECDH",
+      "ECDSA",
+      "secp256k1",
+      "x25519"
+    ],
+    "current_wuci_classic_authority": [
+      "FROST-secp256k1-SHA256-v1"
+    ],
+    "hash_minimum_public_evidence": [
+      "SHA-384",
+      "SHA-512"
+    ],
+    "post_quantum_kem_targets": [
+      "ML-KEM",
+      "HQC"
+    ],
+    "post_quantum_signature_targets": [
+      "ML-DSA",
+      "SLH-DSA",
+      "LMS",
+      "XMSS"
+    ],
+    "symmetric_minimum": [
+      "256-bit symmetric keys"
+    ]
+  },
+  "digest_policy": {
+    "compat_digest": "sha256",
+    "minimum_quantum_collision_digest": "sha384",
+    "preferred_public_evidence_digest": "sha512",
+    "require_digest_vector": [
+      "sha256",
+      "sha384",
+      "sha512"
+    ]
+  },
+  "downgrade_rejections": [
+    "quantum_safe_true_without_pq_verification",
+    "hybrid_required_without_pq_signature",
+    "pq_required_with_classic_only_signature",
+    "sha256_only_public_evidence",
+    "missing_crypto_inventory",
+    "unknown_algorithm_role",
+    "algorithm_marked_quantum_safe_without_policy",
+    "pq_stub_marked_as_real",
+    "external_pq_verifier_unpinned",
+    "digest_vector_mismatch"
+  ],
+  "modes": {
+    "compat": {
+      "allow_quantum_safe_claim": false,
+      "description": "Current WUCI evidence may pass, but quantum_safe must be false.",
+      "require_classic_wuci_gate": true,
+      "require_pq_signature": false
+    },
+    "hybrid-required": {
+      "allow_quantum_safe_claim": true,
+      "description": "Require both existing WUCI classical evidence and real PQ signature verification.",
+      "require_classic_wuci_gate": true,
+      "require_pq_signature": true
+    },
+    "pq-required": {
+      "allow_quantum_safe_claim": true,
+      "description": "Require real PQ signature verification; classical-only authority is insufficient.",
+      "require_classic_wuci_gate": false,
+      "require_pq_signature": true
+    }
+  },
+  "purpose": "Add quantum-agility, downgrade resistance, digest-vector evidence, and cryptographic inventory checks to WUCI-CAGE.",
+  "runtime_claims": {
+    "network_sandbox_enforced_v1": false,
+    "quantum_safe_default_v1": false,
+    "runtime_sandbox_enforced_v1": false
+  },
+  "schema": "wuci-qcage-policy-v1",
+  "status": "quantum-aware-artifact-airlock-v1",
+  "toolchain_rejections": [
+    "missing_build_graph",
+    "missing_source_digest_set",
+    "missing_toolchain_manifest",
+    "toolchain_manifest_digest_mismatch",
+    "builder_quorum_claim_without_builder_evidence"
+  ]
+}

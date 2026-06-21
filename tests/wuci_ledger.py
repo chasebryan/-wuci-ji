@@ -596,8 +596,8 @@ def check_full_ledger() -> None:
         attestation_path = bad_attestation_bundle / "attestation.json"
         attestation_path.write_text(
             attestation_path.read_text(encoding="utf-8").replace(
-                "Wuci-ji publish bundle",
-                "tampered Wuci-ji publish bundle",
+                '"witness_bundle_complete": true',
+                '"witness_bundle_complete": false',
                 1,
             ),
             encoding="utf-8",

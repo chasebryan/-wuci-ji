@@ -1,0 +1,59 @@
+{
+  "assembly_enforced_actions_v1": [
+    "open",
+    "release"
+  ],
+  "digest_policy": {
+    "quantum_safe_default": false,
+    "sha256_required_for_existing_assembly_compatibility": true,
+    "sha384_sha512_required_for_long_lived_public_evidence": true
+  },
+  "fixture_policy": {
+    "fixture_authority_trust_level": "test-only",
+    "fixture_receipts_allowed_for_production": false,
+    "fixture_receipts_allowed_for_tests": true
+  },
+  "ledger_policy": {
+    "append_only_claim_requires_history_verification": true,
+    "ledger_append_requires_lock": true,
+    "ledger_writes_must_be_atomic": true,
+    "verify_history_required": true
+  },
+  "reserved_actions": [
+    "trust",
+    "publish"
+  ],
+  "safeio_policy": {
+    "atomic_writes_required_for_python_outputs": true,
+    "new_outputs_must_be_exclusive": true,
+    "prefer_o_cloexec": true,
+    "prefer_o_no_follow": true,
+    "reject_devices": true,
+    "reject_directories": true,
+    "reject_fifos": true,
+    "reject_symlinks": true,
+    "require_regular_files": true
+  },
+  "schema": "wuci-hardening-policy-v1",
+  "status": "proof-chain-hardening-v1",
+  "strict_mode": {
+    "env": "WUCI_STRICT=1",
+    "reject_fixture_authority_for_publish_or_trust": true,
+    "reject_hardlink_public_files": true,
+    "reject_reserved_actions_by_default": true,
+    "reject_runtime_sandbox_claims": true,
+    "reject_symlink_public_files": true,
+    "reject_unapproved_runner": true,
+    "reject_unpinned_verifier": true,
+    "reject_world_readable_keyfiles": true
+  },
+  "verifier_identity_policy": {
+    "allowed_runners": [
+      "",
+      "qemu-x86_64"
+    ],
+    "strict_mode_records_verifier_binary_sha256": true,
+    "strict_mode_rejects_unknown_runner": true,
+    "strict_mode_requires_trusted_bin_sha256": true
+  }
+}
