@@ -36,6 +36,12 @@ jobs:
       - name: Run rooted publish bundle proof
         run: make self-release-publish-bundle
 
+      - name: Run public witness bundle proof
+        run: make self-release-witness-bundle
+
+      - name: Run witness regression
+        run: make witness-attestation-test
+
   zig-linux-x86_64:
     runs-on: ubuntu-latest
 
@@ -68,3 +74,4 @@ jobs:
           make zig-release-anchored-proof
           make zig-release-release-contract-proof
           make zig-release-publish-bundle
+          make zig-release-witness-bundle

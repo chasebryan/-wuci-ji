@@ -202,7 +202,7 @@ def main() -> None:
 
     boundary = load_json(BOUNDARY)
     expected_classes = set(boundary["expected_rejection_classes"])
-    assembly_only_classes = {
+    non_python_gate_open_classes = {
         "malformed_authority_root",
         "unsupported_authority_schema",
         "unsupported_authority_suite",
@@ -217,8 +217,12 @@ def main() -> None:
         "wrong_release_action",
         "wrong_rooted_release_action",
         "publish_bundle_tamper",
+        "witness_private_file_present",
+        "witness_publish_index_missing",
+        "witness_publish_index_mismatch",
+        "witness_public_bundle_tamper",
     }
-    expected_classes -= assembly_only_classes
+    expected_classes -= non_python_gate_open_classes
     assert "private_material" in expected_classes
 
     with tempfile.TemporaryDirectory() as temp_dir:

@@ -1,0 +1,84 @@
+{
+  "schema": "wuci-publish-witness-boundary-v1",
+  "status": "public-keyless-rooted-release-witness",
+  "bundle_schema": "wuci-publish-bundle-v1",
+  "index_schema": "wuci-publish-index-v1",
+  "producer": "make self-release-witness-bundle and make zig-release-witness-bundle",
+  "verifier": "tools/wuci_witness.py",
+  "verification_target": "tests/wuci_witness.py",
+  "public_bundle_files": [
+    "wuci-ji.self.wj",
+    "manifest.txt",
+    "warrant-message.txt",
+    "release-receipt.json",
+    "receipt-contract.txt",
+    "authority-root.txt",
+    "release-decision.txt",
+    "publish-index.txt",
+    "attestation.json"
+  ],
+  "forbidden_public_bundle_files": [
+    "artifact.key",
+    "opened-wuci-ji",
+    "auth-transcript.json",
+    "release-transcript.json"
+  ],
+  "publish_index_field_order": [
+    "schema",
+    "artifact-sha256",
+    "manifest-sha256",
+    "warrant-message-sha256",
+    "release-receipt-sha256",
+    "receipt-contract-sha256",
+    "authority-root-sha256",
+    "release-decision-sha256",
+    "release-authority-group-public-key"
+  ],
+  "format_constraints": [
+    "ASCII only.",
+    "Exactly one 'label: value' field per line.",
+    "Labels must appear in publish_index_field_order exactly.",
+    "The publish index ends with exactly one trailing newline.",
+    "No CRLF.",
+    "No JSON in publish-index.txt.",
+    "No unknown files in the public witness bundle."
+  ],
+  "value_constraints": {
+    "schema": "literal wuci-publish-index-v1",
+    "artifact-sha256": "SHA-256 of wuci-ji.self.wj",
+    "manifest-sha256": "SHA-256 of manifest.txt",
+    "warrant-message-sha256": "SHA-256 of warrant-message.txt",
+    "release-receipt-sha256": "SHA-256 of release-receipt.json",
+    "receipt-contract-sha256": "SHA-256 of receipt-contract.txt",
+    "authority-root-sha256": "SHA-256 of authority-root.txt; must equal the committed release anchor digest",
+    "release-decision-sha256": "SHA-256 of release-decision.txt",
+    "release-authority-group-public-key": "33-byte compressed SEC1 release quorum key encoded as 66 lowercase hex characters"
+  },
+  "required_checks": [
+    "public bundle has exactly the public profile files",
+    "forbidden private/demo files are absent",
+    "manifest.txt equals assembly manifest-file output for wuci-ji.self.wj",
+    "warrant-message.txt equals assembly warrant-message-file release output for wuci-ji.self.wj",
+    "receipt-contract.txt is canonical and matches release-receipt.json",
+    "authority-root.txt is canonical and matches the committed release anchor digest",
+    "authority-root.txt allows release and does not allow open, trust, or publish",
+    "authority group-public-key equals receipt contract group-public-key",
+    "release-decision.txt equals assembly release-authorized-rooted output",
+    "publish-index.txt hashes match the public bundle files",
+    "attestation.json matches the observed bundle state"
+  ],
+  "assembly_owned_surfaces": [
+    "manifest-file",
+    "warrant-message-file",
+    "authority-root-verify",
+    "release-authorized-rooted"
+  ],
+  "non_goals": [
+    "Do not include artifact.key in the public witness bundle.",
+    "Do not include an opened binary in the public witness bundle.",
+    "Do not include transcript material in the public witness bundle.",
+    "Do not open the artifact during witness verification.",
+    "Do not accept arbitrary signer material.",
+    "Do not accept trust or publish authority bits yet."
+  ]
+}

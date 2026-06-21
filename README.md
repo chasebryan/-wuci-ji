@@ -22,6 +22,7 @@ make self-release-asm-contract-proof
 make self-release-anchored-proof
 make self-release-rooted-proof
 make self-release-publish-bundle
+make self-release-witness-bundle
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
@@ -30,6 +31,7 @@ make zig-release-anchored-proof
 make zig-release-rooted-proof
 make zig-release-release-contract-proof
 make zig-release-publish-bundle
+make zig-release-witness-bundle
 ```
 
 `make authority-root-check` regenerates the deterministic fixture authority
@@ -69,7 +71,16 @@ release-only anchor `authority/wuci-release-root.fixture.txt`: a rooted assembly
 `release-authorized-rooted` check, deterministic
 `release-decision.txt`, and `attestation.json` that binds the authority,
 contract, decision, receipt, warrant, manifest, and sealed artifact hashes. On
-a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
+`make self-release-witness-bundle` and `make zig-release-witness-bundle`
+produce the public WUCI-WITNESS profile: no `artifact.key`, no opened binary,
+no transcript material, plus a fixed `publish-index.txt` and
+`attestation.json` that can be verified with:
+
+```sh
+python3 tools/wuci_witness.py verify --bundle build/wuci-witness-bundle
+```
+
+On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
 ```sh
 make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
@@ -79,6 +90,7 @@ make zig-release-asm-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-rooted-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-publish-bundle RELEASE_RUNNER=qemu-x86_64
+make zig-release-witness-bundle RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -233,10 +245,12 @@ make self-release-anchored-proof
 make self-release-rooted-proof
 make self-release-release-contract-proof
 make self-release-publish-bundle
+make self-release-witness-bundle
 make verify-self-release-bundle
 make self-release-attestation-test
 make authority-anchor-test
 make publish-attestation-test
+make witness-attestation-test
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
@@ -244,6 +258,7 @@ make zig-release-anchored-proof
 make zig-release-rooted-proof
 make zig-release-release-contract-proof
 make zig-release-publish-bundle
+make zig-release-witness-bundle
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
@@ -279,13 +294,25 @@ publish bundle with `release_authority_root_sha256`,
 `release_authority_group_public_key`, `release_contract_sha256`,
 `release_decision_sha256`, `rooted_release_check`, and
 `publish_bundle_complete`.
+`make self-release-witness-bundle` and `make zig-release-witness-bundle` turn
+that publish proof into WUCI-WITNESS / 无此证 / No Such Witness: a keyless public
+bundle containing only `wuci-ji.self.wj`, `manifest.txt`,
+`warrant-message.txt`, `release-receipt.json`, `receipt-contract.txt`,
+`authority-root.txt`, `release-decision.txt`, `publish-index.txt`, and
+`attestation.json`. The witness verifier recomputes the artifact hash, manifest
+and release warrant bytes, receipt contract, release anchor, rooted assembly
+release decision, and attestation; it rejects demo keys, opened binaries,
+transcripts, malformed indexes, and mismatched public evidence.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification. `make publish-attestation-test` checks that
 tampered release decisions, release contracts, and authority roots fail
-publish-bundle verification. `make authority-anchor-test` checks that anchored
-mode accepts the committed fixture root, rejects self-derived authority paths,
-and rejects malformed or policy-invalid authority roots.
+publish-bundle verification. `make witness-attestation-test` checks the public
+witness profile, including forbidden private files and index, manifest, warrant,
+decision, authority, receipt, and contract tampering. `make
+authority-anchor-test` checks that anchored mode accepts the committed fixture
+root, rejects self-derived authority paths, and rejects malformed or
+policy-invalid authority roots.
 
 Python still derives the flat receipt contract from the JSON WUCI-WARRANT
 receipt. Normal rooted proofs use committed authority anchors instead of

@@ -113,13 +113,25 @@ Verified on this host:
 - `make zig-release-publish-bundle` succeeds: the Zig-built Linux x86_64 ELF
   produces the same rooted publish bundle through its own assembly rooted
   release path.
+- `make self-release-witness-bundle` succeeds: the native binary produces the
+  public WUCI-WITNESS bundle profile with no key, no opened binary, no
+  transcript material, a deterministic `publish-index.txt`, and an
+  `attestation.json` verified from public bundle files plus the assembly
+  `release-authorized-rooted` decision.
+- `make zig-release-witness-bundle` succeeds: the Zig-built Linux x86_64 ELF
+  produces and verifies the same public witness bundle profile through its own
+  assembly rooted release path.
+- `make witness-attestation-test` succeeds and rejects private files in the
+  public bundle plus tampered indexes, manifests, warrant messages, release
+  decisions, authority roots, receipts, and contracts.
 - The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in
   `tests/check_asm_immediates.py`.
 - `./build/wuci-ji selftest` succeeds as part of the Python test harness.
 - `.github/workflows/ci.yml` now runs the same native Linux x86_64 suite on
-  Ubuntu with `make clean && make test`.
+  Ubuntu with `make clean && make test`, then runs the native publish and
+  witness proof lanes plus the Zig publish and witness proof lanes.
 
 Fixes made while executing this checkpoint:
 

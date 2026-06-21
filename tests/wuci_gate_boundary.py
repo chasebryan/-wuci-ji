@@ -72,11 +72,13 @@ def main() -> None:
     assert "tools/wuci_gate.py" in python_surfaces
     assert "tools/wuci_authority_root.py" in python_surfaces
     assert "tools/wuci_authority_anchor.py" in python_surfaces
+    assert "tools/wuci_witness.py" in python_surfaces
     assert "tests/wuci_authority_anchor.py" in python_surfaces
     assert "tests/wuci_gate_contract_asm.py" in python_surfaces
     assert "tests/wuci_gate_rooted_contract_asm.py" in python_surfaces
     assert "tests/wuci_gate_policy_matrix.py" in python_surfaces
     assert "tests/wuci_gate_workflow.py" in python_surfaces
+    assert "tests/wuci_witness.py" in python_surfaces
 
     authority_root = boundary["authority_root"]
     assert isinstance(authority_root, dict)
@@ -142,6 +144,10 @@ def main() -> None:
     assert "wrong_release_action" in rejection_classes
     assert "wrong_rooted_release_action" in rejection_classes
     assert "publish_bundle_tamper" in rejection_classes
+    assert "witness_private_file_present" in rejection_classes
+    assert "witness_publish_index_missing" in rejection_classes
+    assert "witness_publish_index_mismatch" in rejection_classes
+    assert "witness_public_bundle_tamper" in rejection_classes
     assert "output_exists" in rejection_classes
 
     assembly_commands = require_list(boundary, "assembly_contract_commands")

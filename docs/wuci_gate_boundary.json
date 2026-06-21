@@ -23,13 +23,15 @@
     "tools/wuci_receipt_contract.py",
     "tools/wuci_authority_root.py",
     "tools/wuci_authority_anchor.py",
+    "tools/wuci_witness.py",
     "tests/frost_authorization_workflow.py",
     "tests/wuci_receipt_contract.py",
     "tests/wuci_authority_anchor.py",
     "tests/wuci_gate_contract_asm.py",
     "tests/wuci_gate_rooted_contract_asm.py",
     "tests/wuci_gate_policy_matrix.py",
-    "tests/wuci_gate_workflow.py"
+    "tests/wuci_gate_workflow.py",
+    "tests/wuci_witness.py"
   ],
   "authority_root": {
     "schema": "wuci-authority-root-v1",
@@ -176,6 +178,10 @@
     "wrong_release_action",
     "wrong_rooted_release_action",
     "publish_bundle_tamper",
+    "witness_private_file_present",
+    "witness_publish_index_missing",
+    "witness_publish_index_mismatch",
+    "witness_public_bundle_tamper",
     "wrong_key_after_authorization",
     "output_exists",
     "output_parent_missing",
