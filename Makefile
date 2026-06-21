@@ -34,13 +34,16 @@ WITNESS_ARCHIVE ?= $(WITNESS_BUNDLE_DIR).tar
 WITNESS_ARCHIVE_SHA256 ?= $(WITNESS_ARCHIVE).sha256
 WITNESS_ARCHIVE_CHECK_DIR ?= $(WITNESS_BUNDLE_DIR).archive-check
 LEDGER_DEMO_DIR ?= build/wuci-ledger-demo
+LEDGER_DIR ?= build/wuci-ledger
+LEDGER_INCLUSION_PROOF ?= $(LEDGER_DIR)/inclusion-proof.txt
+LEDGER_CONSISTENCY_PROOF ?= $(LEDGER_DIR)/consistency-proof.txt
 AUTHORITY_ROOT ?= authority/wuci-root.fixture.txt
 AUTHORITY_ROOT_SHA256 ?= authority/wuci-root.fixture.sha256
 RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow ledger-asm-demo ledger-asm-test publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow ledger-asm-demo ledger-asm-test ledger-proof-test publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -463,6 +466,22 @@ self-release-witness-archive: self-release-witness-bundle
 	$(MAKE) witness-archive RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" WITNESS_BUNDLE_DIR=$(WITNESS_BUNDLE_DIR) WITNESS_ARCHIVE=$(WITNESS_ARCHIVE) WITNESS_ARCHIVE_SHA256=$(WITNESS_ARCHIVE_SHA256)
 	$(MAKE) witness-archive-verify RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" WITNESS_ARCHIVE=$(WITNESS_ARCHIVE) WITNESS_ARCHIVE_SHA256=$(WITNESS_ARCHIVE_SHA256) WITNESS_ARCHIVE_CHECK_DIR=$(WITNESS_ARCHIVE_CHECK_DIR)
 
+self-release-ledger-bundle: $(RELEASE_BIN) self-release-witness-bundle
+	rm -rf $(LEDGER_DIR)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py init --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py append --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --witness-bundle $(WITNESS_BUNDLE_DIR)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py prove-inclusion --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --sequence 0 --out $(LEDGER_INCLUSION_PROOF)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py verify-inclusion --bin $(abspath $(RELEASE_BIN)) --entry $(LEDGER_DIR)/ledger-entry.txt --proof $(LEDGER_INCLUSION_PROOF) --head $(LEDGER_DIR)/ledger-head.txt
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py prove-consistency --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --from-head $(LEDGER_DIR)/previous-ledger-head.txt --to-head $(LEDGER_DIR)/ledger-head.txt --out $(LEDGER_CONSISTENCY_PROOF)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_ledger.py verify-consistency --bin $(abspath $(RELEASE_BIN)) --proof $(LEDGER_CONSISTENCY_PROOF)
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_witness.py verify --bin $(abspath $(RELEASE_BIN)) --bundle $(WITNESS_BUNDLE_DIR)
+	@printf 'WUCI self-release ledger bundle complete\n'
+	@printf 'ledger: %s\n' "$(LEDGER_DIR)"
+	@printf 'ledger entry: %s\n' "$(LEDGER_DIR)/ledger-entry.txt"
+	@printf 'ledger head: %s\n' "$(LEDGER_DIR)/ledger-head.txt"
+	@printf 'inclusion proof: %s\n' "$(LEDGER_INCLUSION_PROOF)"
+	@printf 'consistency proof: %s\n' "$(LEDGER_CONSISTENCY_PROOF)"
+
 verify-self-release-bundle: $(RELEASE_BIN)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
 
@@ -502,9 +521,12 @@ ledger-asm-demo: check-native $(TARGET)
 	printf 'node-root: %s\n' "$$node_root"
 
 ledger-asm-test: check-native $(TARGET)
-	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --quiet
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --primitives-only --quiet
 
-test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test self-release-attestation-test publish-attestation-test
+ledger-proof-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --ledger-only --quiet
+
+test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test ledger-proof-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy
@@ -539,6 +561,10 @@ zig-release-publish-bundle: build-linux
 zig-release-witness-bundle: build-linux authority-root-check
 	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
 	$(MAKE) self-release-witness-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
+
+zig-release-ledger-bundle: build-linux authority-root-check
+	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
+	$(MAKE) self-release-ledger-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle WITNESS_WORK_DIR=build/wuci-zig-release-witness-bundle.work LEDGER_DIR=build/wuci-zig-ledger
 
 zig-release-witness-archive: zig-release-witness-bundle $(ZIG_WITNESS)
 	$(MAKE) witness-archive RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle WITNESS_ARCHIVE=build/wuci-zig-release-witness-bundle.tar WITNESS_ARCHIVE_SHA256=build/wuci-zig-release-witness-bundle.tar.sha256
@@ -583,6 +609,7 @@ ci-native:
 	$(MAKE) self-release-release-contract-proof
 	$(MAKE) self-release-publish-bundle
 	$(MAKE) self-release-witness-bundle
+	$(MAKE) self-release-ledger-bundle
 	$(MAKE) witness-attestation-test
 	$(MAKE) self-release-witness-archive
 	$(MAKE) witness-archive-test
@@ -600,6 +627,7 @@ ci-zig:
 	$(MAKE) zig-release-release-contract-proof
 	$(MAKE) zig-release-publish-bundle
 	$(MAKE) zig-release-witness-bundle
+	$(MAKE) zig-release-ledger-bundle
 	$(MAKE) witness-zig RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
 	$(MAKE) witness-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
 	$(MAKE) zig-release-witness-archive

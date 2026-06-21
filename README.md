@@ -25,6 +25,8 @@ make self-release-publish-bundle
 make self-release-witness-bundle
 make self-release-witness-archive
 make ledger-asm-test
+make ledger-proof-test
+make self-release-ledger-bundle
 make witness-zig
 make witness-zig-test
 make witness-archive-test
@@ -38,6 +40,7 @@ make zig-release-release-contract-proof
 make zig-release-publish-bundle
 make zig-release-witness-bundle
 make zig-release-witness-archive
+make zig-release-ledger-bundle
 ```
 
 `make authority-root-check` regenerates the deterministic fixture authority
@@ -94,6 +97,10 @@ then verify by extracting the archive back to `wuci-publish-bundle-v1/`.
 `make ledger-asm-test` checks WUCI-LEDGER's assembly Merkle commitment
 primitives: `ledger-empty-root`, `ledger-leaf-file <entry>`, and
 `ledger-node <left> <right>`.
+`make ledger-proof-test`, `make self-release-ledger-bundle`, and
+`make zig-release-ledger-bundle` turn public witness bundles into append-only
+Merkle release history entries with ledger heads, inclusion proofs, and
+consistency proofs.
 
 On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
@@ -107,6 +114,7 @@ make zig-release-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-publish-bundle RELEASE_RUNNER=qemu-x86_64
 make zig-release-witness-bundle RELEASE_RUNNER=qemu-x86_64
 make zig-release-witness-archive RELEASE_RUNNER=qemu-x86_64
+make zig-release-ledger-bundle RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -248,15 +256,25 @@ ENVELOPE preserves secrecy.
 ## WUCI-LEDGER
 
 WUCI-LEDGER / 无此录 / No Such Ledger is the hash-only transparency layer for
-publish history. The first assembly-owned surface is the Merkle commitment
-core, not a full log database parser: `ledger-empty-root` prints `SHA256("")`,
-`ledger-leaf-file <entry>` prints `SHA256(0x00 || entry-bytes)`, and
-`ledger-node <left> <right>` prints `SHA256(0x01 || left || right)` after
-decoding the two child hashes from 64-hex arguments.
+publish history. Assembly owns the Merkle commitment core:
+`ledger-empty-root` prints `SHA256("")`, `ledger-leaf-file <entry>` prints
+`SHA256(0x00 || entry-bytes)`, and `ledger-node <left> <right>` prints
+`SHA256(0x01 || left || right)` after decoding the two child hashes from
+64-hex arguments. `tools/wuci_ledger.py` orchestrates the append-only log on
+top of those assembly primitives.
 
 ```sh
 make ledger-asm-test
+make ledger-proof-test
 make ledger-asm-demo
+make self-release-ledger-bundle
+make zig-release-ledger-bundle
+python3 tools/wuci_ledger.py init --ledger build/wuci-ledger
+python3 tools/wuci_ledger.py append --ledger build/wuci-ledger --witness-bundle build/wuci-witness-bundle
+python3 tools/wuci_ledger.py prove-inclusion --ledger build/wuci-ledger --sequence 0 --out build/wuci-ledger/inclusion-proof.txt
+python3 tools/wuci_ledger.py verify-inclusion --entry build/wuci-ledger/ledger-entry.txt --proof build/wuci-ledger/inclusion-proof.txt --head build/wuci-ledger/ledger-head.txt
+python3 tools/wuci_ledger.py prove-consistency --ledger build/wuci-ledger --from-head build/wuci-ledger/previous-ledger-head.txt --to-head build/wuci-ledger/ledger-head.txt --out build/wuci-ledger/consistency-proof.txt
+python3 tools/wuci_ledger.py verify-consistency --proof build/wuci-ledger/consistency-proof.txt
 ```
 
 The fixed format boundary lives in `docs/wuci_ledger_format.json`. Python or
@@ -283,6 +301,8 @@ make self-release-publish-bundle
 make self-release-witness-bundle
 make self-release-witness-archive
 make ledger-asm-test
+make ledger-proof-test
+make self-release-ledger-bundle
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test
@@ -300,6 +320,7 @@ make zig-release-release-contract-proof
 make zig-release-publish-bundle
 make zig-release-witness-bundle
 make zig-release-witness-archive
+make zig-release-ledger-bundle
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
