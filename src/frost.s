@@ -25,6 +25,9 @@
 .global frost_lagrange_arg_error
 .global frost_secp256k1_order_le
 .global frost_secp256k1_order_minus_2_le
+.global frost_hash_to_scalar_mem
+.global frost_secp256k1_h2_dst_prime
+.global frost_secp256k1_h2_dst_prime_len
 .extern usage_exit
 .extern read_error
 .extern scalar_arg_error

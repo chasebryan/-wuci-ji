@@ -1,10 +1,10 @@
 {
   "schema": "wuci-gate-receipt-contract-boundary-v1",
-  "status": "python-derived-assembly-candidate",
+  "status": "python-derived-assembly-enforced-open-contract",
   "contract_schema": "wuci-gate-receipt-contract-v1",
-  "purpose": "Define the fixed flat receipt contract that Python may derive from a verified WUCI-WARRANT JSON receipt before any assembly open-authorized command exists.",
+  "purpose": "Define the fixed flat receipt contract that Python may derive from a verified WUCI-WARRANT JSON receipt and assembly can enforce through gate-contract-verify and open-authorized-contract.",
   "producer": "tools/wuci_receipt_contract.py",
-  "verification_target": "tests/wuci_receipt_contract.py",
+  "verification_target": "tests/wuci_receipt_contract.py and tests/wuci_gate_contract_asm.py",
   "field_order": [
     "schema",
     "action",
@@ -47,7 +47,7 @@
   ],
   "value_constraints": {
     "schema": "literal wuci-gate-receipt-contract-v1",
-    "action": "one of open, release, trust, publish",
+    "action": "one of open, release, trust, publish; assembly open-authorized-contract accepts only open",
     "artifact-sha256": "64 lowercase hex characters",
     "authorization-message-sha256": "64 lowercase hex characters",
     "receipt-sha256": "64 lowercase hex characters",
@@ -59,10 +59,10 @@
     "signature-scalar": "64 lowercase hex characters"
   },
   "assembly_non_goals": [
-    "Do not add assembly open-authorized yet.",
-    "Do not add assembly release-authorized yet.",
-    "Do not parse receipt JSON in assembly yet.",
-    "Do not accept arbitrary signer material yet.",
+    "Do not add assembly release-authorized-contract yet.",
+    "Do not parse receipt JSON in assembly.",
+    "Do not accept arbitrary signer material.",
+    "Do not accept non-open actions through open-authorized-contract.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

@@ -20,6 +20,7 @@
 .global run_open
 .global run_open_file
 .global run_open_file_keyfile
+.global open_parse_loaded_envelope
 .global run_open_to
 .global run_open_keyfile
 .global run_inspect
@@ -41,12 +42,14 @@
 .global point_encoding_arg_error
 .global random_error
 .global streq
+.global memeq
 .global exit_process
 .global sha_ctx
 .global digest_buf
 .global io_buf
 .global aead_text_len
 .global aead_output_path
+.global chacha_key
 .global seal_input_fd
 .global seal_output_fd
 .global seal_file_mode

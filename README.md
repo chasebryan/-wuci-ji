@@ -16,12 +16,21 @@ make build-linux
 To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
 
 ```sh
+make gate-contract-asm
+make self-release-asm-contract-proof
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
 ```
 
-`make gate-contract-zig` builds `tools/wuci_gate_contract.zig` into
+`make gate-contract-asm` checks the native assembly flat-contract Gate command:
+`gate-contract-verify <artifact> <contract>` and
+`open-authorized-contract <keyfile> <artifact> <contract> <out>`.
+`make self-release-asm-contract-proof` seals the native binary, warrants it,
+emits a flat receipt contract, verifies and opens through the assembly Gate
+command, compares the opened copy byte-for-byte, executes it, writes an
+attestation, and verifies that attestation. `make gate-contract-zig` builds
+`tools/wuci_gate_contract.zig` into
 `build/wuci-gate-contract`, then uses the Zig-built Linux ELF to verify and
 open through the fixed flat WUCI-GATE receipt contract. `make zig-release-proof`
 builds `build/wuci-ji-linux-x86_64`, seals that binary with itself, warrants
@@ -118,21 +127,26 @@ tracked workspace. Receipts are anchored to the assembly `warrant-message-file`
 output, a canonical authorization-message SHA-256, and the public FROST
 verification equation.
 
-## WUCI-GATE preview
+## WUCI-GATE
 
 WUCI-GATE / 无此门 / No Such Gate verifies a WUCI-WARRANT receipt before
-allowing a controlled no-overwrite open path. This is a Python preview wrapper:
-assembly still owns artifact manifests, warrant message bytes, FROST challenge
-computation, FROST verification, and envelope opening. The Zig flat-contract
-bridge verifies the fixed receipt contract and calls those same assembly
-surfaces without parsing receipt JSON in assembly.
+allowing a controlled no-overwrite open path. Python still derives and verifies
+the full WUCI-WARRANT JSON receipt. The fixed flat receipt contract is the
+assembly boundary: `gate-contract-verify` parses and verifies it natively, and
+`open-authorized-contract` refuses to create plaintext unless the contract,
+artifact hash, manifest hash, warrant-message hash, FROST challenge, FROST
+signature, key, and output path all pass. Assembly does not parse receipt JSON
+or accept arbitrary signer material.
 
 ```sh
 make gate-workflow
 make gate-policy-matrix
 make gate-receipt-contract
+make gate-contract-asm
 make gate-contract-zig
 make gate-demo
+build/wuci-ji gate-contract-verify build/wuci-gate-demo/sealed.wj build/wuci-gate-demo/receipt-contract.txt
+build/wuci-ji open-authorized-contract build/wuci-gate-demo/artifact.key build/wuci-gate-demo/sealed.wj build/wuci-gate-demo/receipt-contract.txt build/wuci-gate-demo/opened-asm.txt
 python3 tools/wuci_gate.py check --artifact build/wuci-gate-demo/sealed.wj --action open --receipt build/wuci-gate-demo/auth-receipt.json
 python3 tools/wuci_gate.py open --artifact build/wuci-gate-demo/sealed.wj --action open --receipt build/wuci-gate-demo/auth-receipt.json --keyfile build/wuci-gate-demo/artifact.key --out build/wuci-gate-demo/opened-copy.txt
 ```
@@ -140,12 +154,14 @@ python3 tools/wuci_gate.py open --artifact build/wuci-gate-demo/sealed.wj --acti
 `make gate-policy-matrix` checks the boundary rejection contract from
 `docs/wuci_gate_boundary.json`. `make gate-receipt-contract` checks the
 Python-derived flat receipt contract from
-`docs/wuci_gate_receipt_contract.json`; it is a parser contract for future
-assembly work, not an `open-authorized` command. `make gate-contract-zig`
-checks the same contract with a Zig verifier that calls the assembly binary for
-manifest, warrant, FROST challenge/verification, and envelope open. `make gate-demo`
-creates a disposable artifact, open warrant, gate decision, and opened
-plaintext under `build/wuci-gate-demo/`.
+`docs/wuci_gate_receipt_contract.json`. `make gate-contract-asm` checks the
+assembly flat-contract verifier/open command, including malformed contracts,
+tampered hashes, bad challenge/signature fields, wrong keys, and output path
+failures with no plaintext release. `make gate-contract-zig` keeps the Zig
+bridge covered by calling the assembly binary for manifest, warrant, FROST
+challenge/verification, and envelope open. `make gate-demo` creates a
+disposable artifact, open warrant, gate decision, and opened plaintext under
+`build/wuci-gate-demo/`.
 Invalid receipts, wrong actions, tampered artifacts, bad signatures, wrong
 keys, private-material markers, and existing output paths do not release
 plaintext.
@@ -166,6 +182,7 @@ byte-identical executable copy.
 make self-release-demo
 make self-release-bundle
 make self-release-contract-bundle
+make self-release-asm-contract-proof
 make verify-self-release-bundle
 make self-release-attestation-test
 make zig-release-proof
@@ -180,14 +197,16 @@ verify-self-release-bundle` recomputes those checks from the bundle files.
 `make self-release-contract-bundle` also writes `receipt-contract.txt`, opens
 through the Zig flat-contract verifier, and records the contract hash plus Zig
 contract verification checks in the attestation.
+`make self-release-asm-contract-proof` runs the stronger native contract lane:
+it verifies and opens the self-sealed binary through `open-authorized-contract`
+and records assembly contract checks in the attestation.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification.
 
-This is a preview release proof. Python still derives the flat receipt
-contract, while Zig can now enforce that contract for the self-release open.
-Assembly remains the owner of manifests, warrant message bytes, FROST
-challenge/verification, and envelope opening.
+Python still derives the flat receipt contract from the JSON WUCI-WARRANT
+receipt. Zig remains a portable verifier bridge, while assembly now enforces
+the `open` contract path itself.
 
 ## License
 

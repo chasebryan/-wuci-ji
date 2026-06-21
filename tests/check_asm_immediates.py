@@ -420,6 +420,7 @@ def check_public_affine_mul_boundary(disassemblies: list[tuple[Path, str]]) -> N
         "run_secp256k1_basepoint_mul",
         "run_frost_secp256k1_group_commitment",
         "run_frost_secp256k1_verify",
+        "gate_verify_signature",
     }
     secret_scalar_callers = {
         commit_helper,
@@ -576,6 +577,7 @@ def check_secret_frost_path_boundary(disassemblies: list[tuple[Path, str]]) -> N
         "run_secp256k1_projective_basepoint_mul",
         commit_helper,
         "run_frost_secp256k1_verify",
+        "gate_verify_signature",
     }
     found_roots: set[str] = set()
     observed_projective_callers: set[str] = set()
@@ -732,6 +734,7 @@ def check_frost_hash_scalar_loading_boundary(
         "run_frost_secp256k1_lagrange",
         nonce_generate,
         signing_share,
+        "gate_verify_signature",
         "run_frost_secp256k1_verify",
         "run_secp256k1_basepoint_mul",
         "run_secp256k1_is_zero",
@@ -742,6 +745,7 @@ def check_frost_hash_scalar_loading_boundary(
     }
     hash_mem_allowed_callers = {
         binding_factor,
+        "gate_compute_challenge",
         nonce_generate,
         hash_stdin,
         hash_prefixed_stdin,
@@ -842,6 +846,7 @@ def check_finite_affine_boundary(disassemblies: list[tuple[Path, str]]) -> None:
     required_callers = {
         "run_secp256k1_projective_basepoint_mul",
         "frost_secp256k1_commit_scalar",
+        "gate_verify_signature",
         "run_frost_secp256k1_verify",
     }
     found_callers: set[str] = set()

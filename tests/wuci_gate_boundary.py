@@ -38,6 +38,7 @@ def main() -> None:
         "enforcement_implemented",
         "assembly_command_enforcement_implemented",
         "assembly_owned_surfaces",
+        "assembly_contract_commands",
         "python_workflow_surfaces",
         "future_commands",
         "receipt_policy_inputs",
@@ -48,18 +49,21 @@ def main() -> None:
     }
     assert set(boundary) == expected_keys
     assert boundary["schema"] == "wuci-gate-boundary-v1"
-    assert boundary["status"] == "python-preview"
+    assert boundary["status"] == "python-preview-plus-assembly-flat-contract"
     assert boundary["enforcement_implemented"] is True
-    assert boundary["assembly_command_enforcement_implemented"] is False
+    assert boundary["assembly_command_enforcement_implemented"] is True
 
     assembly_surfaces = set(require_list(boundary, "assembly_owned_surfaces"))
     assert "manifest-file" in assembly_surfaces
     assert "warrant-message-file" in assembly_surfaces
     assert "frost-secp256k1-verify" in assembly_surfaces
+    assert "gate-contract-verify" in assembly_surfaces
+    assert "open-authorized-contract" in assembly_surfaces
 
     python_surfaces = set(require_list(boundary, "python_workflow_surfaces"))
     assert "tools/wuci_frost_authorize.py" in python_surfaces
     assert "tools/wuci_gate.py" in python_surfaces
+    assert "tests/wuci_gate_contract_asm.py" in python_surfaces
     assert "tests/wuci_gate_policy_matrix.py" in python_surfaces
     assert "tests/wuci_gate_workflow.py" in python_surfaces
 
@@ -86,17 +90,31 @@ def main() -> None:
     assert "private_material" in rejection_classes
     assert "output_exists" in rejection_classes
 
+    assembly_commands = require_list(boundary, "assembly_contract_commands")
+    assembly_names = {command["name"] for command in assembly_commands}
+    assert assembly_names == {"gate-contract-verify", "open-authorized-contract"}
+    for command in assembly_commands:
+        assert command["implemented"] is True
+        assert command["required_action"] == "open"
+        assert command["contract_schema"] == "wuci-gate-receipt-contract-v1"
+
     future_commands = require_list(boundary, "future_commands")
     future_names = {command["name"] for command in future_commands}
-    assert future_names == {"open-authorized", "release-authorized"}
+    assert future_names == {"release-authorized-contract", "release-authorized"}
     for command in future_commands:
         assert command["implemented"] is False
-        assert command["required_action"] in {"open", "release"}
+        assert command["required_action"] == "release"
 
     help_proc = run_wuci(["--help"])
     assert help_proc.returncode == 0, help_proc.stderr.decode("utf-8", "replace")
     help_text = help_proc.stdout.decode("ascii")
     assert "warrant-message-file <action> <path>" in help_text
+    assert "gate-contract-verify <artifact> <contract>" in help_text
+    assert "open-authorized-contract <keyfile> <artifact> <contract> <out>" in help_text
+    for command in assembly_names:
+        rejected = run_wuci([command])
+        assert rejected.returncode != 0
+        assert rejected.stdout == b""
     for command in future_names:
         assert command not in help_text
         rejected = run_wuci([command])

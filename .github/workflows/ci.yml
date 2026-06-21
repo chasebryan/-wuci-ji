@@ -24,6 +24,9 @@ jobs:
       - name: Build and test
         run: make clean && make test
 
+      - name: Run assembly self-release contract proof
+        run: make self-release-asm-contract-proof
+
   zig-linux-x86_64:
     runs-on: ubuntu-latest
 

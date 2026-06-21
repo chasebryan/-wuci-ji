@@ -47,6 +47,22 @@ CONTRACT_BOUNDARY = {
     "contract_schema": receipt_contract.CONTRACT_SCHEMA,
     "contract_verifier": "tools/wuci_gate_contract.zig",
 }
+ASM_CONTRACT_BOUNDARY = {
+    **BOUNDARY,
+    "gate_enforcement": "assembly-flat-contract",
+    "assembly_owned_surfaces": [
+        *BOUNDARY["assembly_owned_surfaces"],
+        "gate-contract-verify",
+        "open-authorized-contract",
+    ],
+    "contract_schema": receipt_contract.CONTRACT_SCHEMA,
+    "contract_verifier": "gate-contract-verify + open-authorized-contract",
+    "non_goals": [
+        "Do not parse receipt JSON in assembly.",
+        "Do not accept arbitrary signer material.",
+        "Do not accept non-open actions through open-authorized-contract.",
+    ],
+}
 
 BUNDLE_FILES = {
     "artifact_key": "artifact.key",
@@ -310,6 +326,90 @@ def reproduce_zig_contract_open(
             )
 
 
+def run_asm_contract(
+    *,
+    command: str,
+    bin_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+    keyfile_path: Path | None = None,
+    out_path: Path | None = None,
+) -> bytes:
+    if command == "verify":
+        args = [
+            *RUNNER,
+            str(bin_path),
+            "gate-contract-verify",
+            str(artifact_path),
+            str(contract_path),
+        ]
+    elif command == "open":
+        if keyfile_path is None or out_path is None:
+            raise SelfReleaseError(
+                "assembly contract open requires keyfile and output path"
+            )
+        args = [
+            *RUNNER,
+            str(bin_path),
+            "open-authorized-contract",
+            str(keyfile_path),
+            str(artifact_path),
+            str(contract_path),
+            str(out_path),
+        ]
+    else:
+        raise SelfReleaseError(f"unsupported assembly contract command: {command}")
+
+    try:
+        proc = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as exc:
+        raise SelfReleaseError(f"could not execute assembly gate command: {bin_path}") from exc
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", "replace").strip()
+        detail = stderr or f"exit status {proc.returncode}"
+        raise SelfReleaseError(f"assembly gate contract {command} failed: {detail}")
+    if command == "verify" and proc.stdout != b"valid\n":
+        raise SelfReleaseError("assembly gate contract verify did not report valid")
+    if command == "open" and proc.stdout != b"":
+        raise SelfReleaseError("assembly gate contract open wrote unexpected stdout")
+    return proc.stdout
+
+
+def reproduce_asm_contract_open(
+    *,
+    bin_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+    keyfile_path: Path,
+    opened_binary: Path,
+) -> None:
+    run_asm_contract(
+        command="verify",
+        bin_path=bin_path,
+        artifact_path=artifact_path,
+        contract_path=contract_path,
+    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        reproduced = Path(temp_dir) / "opened-wuci-ji"
+        run_asm_contract(
+            command="open",
+            bin_path=bin_path,
+            artifact_path=artifact_path,
+            contract_path=contract_path,
+            keyfile_path=keyfile_path,
+            out_path=reproduced,
+        )
+        if not filecmp.cmp(opened_binary, reproduced, shallow=False):
+            raise SelfReleaseError(
+                "assembly-contract-opened reproduction does not match opened binary"
+            )
+
+
 def gate_decision(
     *,
     bin_path: Path,
@@ -333,6 +433,7 @@ def build_attestation(
     bundle_dir: Path,
     contract_path: Path | None = None,
     contract_bin_path: Path | None = None,
+    contract_mode: str = "zig",
 ) -> dict[str, Any]:
     paths = bundle_paths(bundle_dir, bin_path)
     if contract_path is not None:
@@ -353,23 +454,34 @@ def build_attestation(
     )
     contract_enabled = contract_path is not None
     if contract_enabled:
-        if contract_bin_path is None:
-            contract_bin_path = DEFAULT_CONTRACT_BIN
         assert_current_contract(
             bin_path=bin_path,
             artifact_path=paths["sealed_artifact"],
             receipt_path=paths["receipt"],
             contract_path=paths["receipt_contract"],
         )
-        reproduce_zig_contract_open(
-            contract_bin_path=contract_bin_path,
-            bin_path=bin_path,
-            artifact_path=paths["sealed_artifact"],
-            receipt_path=paths["receipt"],
-            contract_path=paths["receipt_contract"],
-            keyfile_path=paths["artifact_key"],
-            opened_binary=paths["opened_binary"],
-        )
+        if contract_mode == "zig":
+            if contract_bin_path is None:
+                contract_bin_path = DEFAULT_CONTRACT_BIN
+            reproduce_zig_contract_open(
+                contract_bin_path=contract_bin_path,
+                bin_path=bin_path,
+                artifact_path=paths["sealed_artifact"],
+                receipt_path=paths["receipt"],
+                contract_path=paths["receipt_contract"],
+                keyfile_path=paths["artifact_key"],
+                opened_binary=paths["opened_binary"],
+            )
+        elif contract_mode == "asm":
+            reproduce_asm_contract_open(
+                bin_path=bin_path,
+                artifact_path=paths["sealed_artifact"],
+                contract_path=paths["receipt_contract"],
+                keyfile_path=paths["artifact_key"],
+                opened_binary=paths["opened_binary"],
+            )
+        else:
+            raise SelfReleaseError(f"unsupported contract mode: {contract_mode}")
     else:
         reproduce_gate_open(
             bin_path=bin_path,
@@ -421,15 +533,19 @@ def build_attestation(
         "opened_executable": True,
     }
     if contract_enabled:
-        checks.update(
-            {
-                "receipt_contract_matches_receipt": True,
-                "zig_contract_check": True,
-                "zig_contract_open_reproduced": True,
-            }
-        )
+        checks["receipt_contract_matches_receipt"] = True
+        if contract_mode == "zig":
+            checks["zig_contract_check"] = True
+            checks["zig_contract_open_reproduced"] = True
+        else:
+            checks["assembly_contract_check"] = True
+            checks["assembly_contract_open_reproduced"] = True
     else:
         checks["gate_open_reproduced"] = True
+
+    boundary = BOUNDARY
+    if contract_enabled:
+        boundary = ASM_CONTRACT_BOUNDARY if contract_mode == "asm" else CONTRACT_BOUNDARY
 
     return {
         "schema": ATTESTATION_SCHEMA,
@@ -443,7 +559,7 @@ def build_attestation(
         "sha256": hashes,
         "gate_decision": decision,
         "checks": checks,
-        "boundary": CONTRACT_BOUNDARY if contract_enabled else BOUNDARY,
+        "boundary": boundary,
     }
 
 
@@ -461,6 +577,7 @@ def run_attest(args: argparse.Namespace) -> int:
         bundle_dir=Path(args.bundle_dir),
         contract_path=Path(args.contract) if args.contract else None,
         contract_bin_path=Path(args.contract_bin) if args.contract_bin else None,
+        contract_mode=args.contract_mode,
     )
     write_json_new(attestation_path, attestation)
     print(f"wrote self-release attestation: {display_path(attestation_path)}")
@@ -474,6 +591,7 @@ def run_verify(args: argparse.Namespace) -> int:
         bundle_dir=Path(args.bundle_dir),
         contract_path=Path(args.contract) if args.contract else None,
         contract_bin_path=Path(args.contract_bin) if args.contract_bin else None,
+        contract_mode=args.contract_mode,
     )
     expected = load_json_file(attestation_path, "self-release attestation")
     compare_attestations(expected, observed)
@@ -508,6 +626,12 @@ def main() -> int:
         "--contract-bin",
         default=os.environ.get("WUCI_GATE_CONTRACT_BIN", str(DEFAULT_CONTRACT_BIN)),
         help="Zig gate contract verifier; defaults to WUCI_GATE_CONTRACT_BIN or build/wuci-gate-contract",
+    )
+    parser.add_argument(
+        "--contract-mode",
+        choices=("zig", "asm"),
+        default=os.environ.get("WUCI_GATE_CONTRACT_MODE", "zig"),
+        help="contract enforcement reproduction mode; defaults to zig",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("attest", help="write a new self-release attestation")

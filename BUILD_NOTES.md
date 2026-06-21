@@ -74,6 +74,13 @@ Observed host on 2026-06-20:
 Verified on this host:
 
 - `make clean && make test` succeeds.
+- `make gate-contract-asm` succeeds and exercises the native
+  `gate-contract-verify` / `open-authorized-contract` flat-contract Gate
+  commands.
+- `make self-release-asm-contract-proof` succeeds: the native binary seals
+  itself, emits `receipt-contract.txt`, verifies and opens through assembly
+  Gate enforcement, compares the opened copy byte-for-byte, executes it, writes
+  `attestation.json`, and verifies that attestation in assembly contract mode.
 - The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in
