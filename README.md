@@ -24,6 +24,7 @@ make self-release-rooted-proof
 make self-release-publish-bundle
 make self-release-witness-bundle
 make self-release-witness-archive
+make ledger-asm-test
 make witness-zig
 make witness-zig-test
 make witness-archive-test
@@ -90,6 +91,9 @@ build/wuci-witness verify build/wuci-witness-bundle
 `make self-release-witness-archive` and `make zig-release-witness-archive`
 pack that public profile into deterministic tar archives with SHA-256 sidecars,
 then verify by extracting the archive back to `wuci-publish-bundle-v1/`.
+`make ledger-asm-test` checks WUCI-LEDGER's assembly Merkle commitment
+primitives: `ledger-empty-root`, `ledger-leaf-file <entry>`, and
+`ledger-node <left> <right>`.
 
 On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
@@ -241,6 +245,27 @@ GATE enforces authorization.
 ENVELOPE preserves secrecy.
 ```
 
+## WUCI-LEDGER
+
+WUCI-LEDGER / 无此录 / No Such Ledger is the hash-only transparency layer for
+publish history. The first assembly-owned surface is the Merkle commitment
+core, not a full log database parser: `ledger-empty-root` prints `SHA256("")`,
+`ledger-leaf-file <entry>` prints `SHA256(0x00 || entry-bytes)`, and
+`ledger-node <left> <right>` prints `SHA256(0x01 || left || right)` after
+decoding the two child hashes from 64-hex arguments.
+
+```sh
+make ledger-asm-test
+build/wuci-ji ledger-empty-root
+build/wuci-ji ledger-leaf-file build/wuci-witness-bundle/publish-index.txt
+build/wuci-ji ledger-node <left-64-hex> <right-64-hex>
+```
+
+The fixed format boundary lives in `docs/wuci_ledger_format.json`. Python or
+Zig tooling can own append, inclusion proof, and consistency proof orchestration
+on top of these assembly hash primitives without adding new secret-bearing
+crypto or moving publish-attestation parsing into assembly.
+
 ## Self-release demo
 
 Wuci-ji can seal its own Linux x86_64 binary, bind it to an assembly artifact
@@ -259,6 +284,7 @@ make self-release-release-contract-proof
 make self-release-publish-bundle
 make self-release-witness-bundle
 make self-release-witness-archive
+make ledger-asm-test
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test

@@ -1,0 +1,60 @@
+{
+  "schema": "wuci-ledger-format-boundary-v1",
+  "status": "assembly-owned-merkle-hash-primitives",
+  "entry_schema": "wuci-ledger-entry-v1",
+  "head_schema": "wuci-ledger-head-v1",
+  "hash": "SHA-256",
+  "domain_separation": {
+    "empty_tree_root": "SHA256(empty byte string)",
+    "leaf": "SHA256(0x00 || canonical ledger entry bytes)",
+    "node": "SHA256(0x01 || left_hash || right_hash)"
+  },
+  "assembly_commands": [
+    {
+      "name": "ledger-empty-root",
+      "shape": "ledger-empty-root",
+      "output": "64 lowercase hex characters plus newline",
+      "meaning": "Merkle Tree Hash for an empty WUCI-LEDGER"
+    },
+    {
+      "name": "ledger-leaf-file",
+      "shape": "ledger-leaf-file <entry>",
+      "output": "64 lowercase hex characters plus newline",
+      "meaning": "Domain-separated WUCI-LEDGER leaf hash for exact entry file bytes"
+    },
+    {
+      "name": "ledger-node",
+      "shape": "ledger-node <left> <right>",
+      "input": "left and right are 64-hex SHA-256 child commitments",
+      "output": "64 lowercase hex characters plus newline",
+      "meaning": "Domain-separated WUCI-LEDGER internal node hash"
+    }
+  ],
+  "canonical_entry_field_order": [
+    "schema",
+    "sequence",
+    "artifact-sha256",
+    "manifest-sha256",
+    "warrant-message-sha256",
+    "release-receipt-sha256",
+    "receipt-contract-sha256",
+    "authority-root-sha256",
+    "release-decision-sha256",
+    "attestation-sha256",
+    "release-authority-group-public-key"
+  ],
+  "format_constraints": [
+    "Ledger entries are ASCII only.",
+    "Ledger entries are fixed-order label/value lines.",
+    "Leaf hashing uses exact entry file bytes, including the final newline.",
+    "Internal node inputs are decoded 32-byte hashes, not ASCII hex bytes.",
+    "Assembly owns only the hash commitment primitives at this stage.",
+    "Python/Zig tooling may orchestrate append, inclusion, and consistency proofs using these primitives."
+  ],
+  "non_goals": [
+    "Do not parse publish attestations in assembly in this first ledger step.",
+    "Do not accept arbitrary signer material.",
+    "Do not replace WUCI-PUBLISH or WUCI-WITNESS verification.",
+    "Do not add new secret-bearing crypto."
+  ]
+}

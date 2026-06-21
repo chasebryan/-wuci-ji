@@ -11,7 +11,7 @@ HOST_OS := $(shell uname -s)
 HOST_ARCH := $(shell uname -m)
 
 TARGET := build/wuci-ji
-ASM_SOURCES := src/main.s src/wuci-ji.s src/gate_contract.s src/sys.s src/encoding.s src/frost.s src/hmac_hkdf.s src/secp256k1_field.s src/secp256k1_point.s src/secp256k1_scalar.s src/sha256.s src/x25519.s
+ASM_SOURCES := src/main.s src/wuci-ji.s src/gate_contract.s src/ledger.s src/sys.s src/encoding.s src/frost.s src/hmac_hkdf.s src/secp256k1_field.s src/secp256k1_point.s src/secp256k1_scalar.s src/sha256.s src/x25519.s
 OBJECTS := $(patsubst src/%.s,build/%.o,$(ASM_SOURCES))
 CROSS_SOURCES := $(patsubst src/%.s,build/%.zig.s,$(ASM_SOURCES))
 CROSS_TARGET := build/wuci-ji-linux-x86_64
@@ -39,7 +39,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: all authority-anchor-test authority-root-check authority-root-fixture build-linux check-asm-immediates check-native check-pypy check-qemu-user ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow ledger-asm-test publish-attestation-test publish-index publish-witness release-rooted-contract rooted-proof-display self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -483,7 +483,10 @@ witness-archive-zig-test: $(ZIG_WITNESS)
 authority-anchor-test: check-native $(TARGET) authority-root-check
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_authority_anchor.py --quiet
 
-test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test self-release-attestation-test publish-attestation-test
+ledger-asm-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --quiet
+
+test: check-native $(TARGET) authority-root-check check-asm-immediates frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract gate-contract-asm authority-anchor-test ledger-asm-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy
@@ -549,6 +552,40 @@ selftest-linux: check-qemu-user build-linux
 
 test-linux: check-qemu-user build-linux
 	WUCI_JI_BIN=$(abspath $(CROSS_TARGET)) WUCI_JI_RUNNER=$(QEMU_X86_64) $(PYTHON) tests/test_wuci_ji.py
+
+ci:
+	$(MAKE) ci-native
+	$(MAKE) ci-zig
+
+ci-native:
+	$(MAKE) clean
+	$(MAKE) test
+	$(MAKE) self-release-asm-contract-proof
+	$(MAKE) self-release-anchored-proof
+	$(MAKE) self-release-release-contract-proof
+	$(MAKE) self-release-publish-bundle
+	$(MAKE) self-release-witness-bundle
+	$(MAKE) witness-attestation-test
+	$(MAKE) self-release-witness-archive
+	$(MAKE) witness-archive-test
+
+ci-zig:
+	$(MAKE) clean
+	$(MAKE) build-linux
+	file $(CROSS_TARGET)
+	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
+	$(MAKE) gate-contract-zig
+	$(MAKE) zig-release-proof
+	$(MAKE) zig-release-contract-proof
+	$(MAKE) zig-release-asm-contract-proof
+	$(MAKE) zig-release-anchored-proof
+	$(MAKE) zig-release-release-contract-proof
+	$(MAKE) zig-release-publish-bundle
+	$(MAKE) zig-release-witness-bundle
+	$(MAKE) witness-zig RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
+	$(MAKE) witness-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
+	$(MAKE) zig-release-witness-archive
+	$(MAKE) witness-archive-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
 
 clean:
 	rm -rf build
