@@ -63,11 +63,9 @@ def reject_private_material(value: Any, context: str) -> None:
 
 
 def load_receipt(path: Path) -> dict[str, Any]:
-    receipt = warrant.validate_receipt_shape(
-        warrant.load_json_file(path, "authorization receipt")
-    )
-    reject_private_material(receipt, "authorization receipt")
-    return receipt
+    raw_receipt = warrant.load_json_file(path, "authorization receipt")
+    reject_private_material(raw_receipt, "authorization receipt")
+    return warrant.validate_receipt_shape(raw_receipt)
 
 
 def gate_decision(
@@ -78,6 +76,7 @@ def gate_decision(
     receipt_path: Path,
 ) -> dict[str, str]:
     try:
+        receipt = load_receipt(receipt_path)
         warrant.verify_receipt(
             bin_path=bin_path,
             artifact_path=artifact_path,
@@ -89,7 +88,6 @@ def gate_decision(
             artifact_path,
             action,
         )
-        receipt = load_receipt(receipt_path)
     except warrant.AuthorizationError as exc:
         raise GateError(str(exc)) from exc
 

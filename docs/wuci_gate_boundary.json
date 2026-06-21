@@ -13,6 +13,7 @@
     "tools/wuci_frost_authorize.py",
     "tools/wuci_gate.py",
     "tests/frost_authorization_workflow.py",
+    "tests/wuci_gate_policy_matrix.py",
     "tests/wuci_gate_workflow.py"
   ],
   "future_commands": [
@@ -69,6 +70,7 @@
     "authorization_message_digest_mismatch",
     "challenge_mismatch",
     "invalid_signature",
+    "private_material",
     "wrong_open_action",
     "wrong_key_after_authorization",
     "output_exists"

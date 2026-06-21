@@ -60,6 +60,7 @@ def main() -> None:
     python_surfaces = set(require_list(boundary, "python_workflow_surfaces"))
     assert "tools/wuci_frost_authorize.py" in python_surfaces
     assert "tools/wuci_gate.py" in python_surfaces
+    assert "tests/wuci_gate_policy_matrix.py" in python_surfaces
     assert "tests/wuci_gate_workflow.py" in python_surfaces
 
     policy_inputs = set(require_list(boundary, "receipt_policy_inputs"))
@@ -79,6 +80,11 @@ def main() -> None:
 
     forbidden_private = set(require_list(boundary, "receipt_private_material_forbidden"))
     assert {"group_secret", "hiding_nonce", "binding_nonce", "signature_share"} <= forbidden_private
+
+    rejection_classes = set(require_list(boundary, "expected_rejection_classes"))
+    assert "malformed_receipt" in rejection_classes
+    assert "private_material" in rejection_classes
+    assert "output_exists" in rejection_classes
 
     future_commands = require_list(boundary, "future_commands")
     future_names = {command["name"] for command in future_commands}

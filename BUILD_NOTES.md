@@ -429,6 +429,16 @@ Fixes made while executing this checkpoint:
   material in decisions, and byte equality between assembly warrant messages
   and the Python warrant tool's consumed bytes. `make gate-demo` writes a
   disposable end-to-end demo under `build/wuci-gate-demo/`.
+- The ninth FROST workflow checkpoint added the Gate policy matrix in
+  `tests/wuci_gate_policy_matrix.py` and `make gate-policy-matrix`. The matrix
+  is driven by `docs/wuci_gate_boundary.json` rejection classes and proves that
+  malformed receipts, unsupported schema or suite values, production receipts,
+  wrong actions, artifact-manifest digest and field mismatches,
+  authorization-message digest mismatches, challenge mismatches, invalid
+  signatures, private-material markers, release receipts used for open, wrong
+  keys after authorization, and existing output paths all fail without creating
+  or overwriting plaintext. Gate now scans raw receipt JSON for forbidden
+  private-material markers before shape validation.
 - The sealed-artifact CLI now has a key-file workflow: `keygen` emits a random
   32-byte key as 64 hex characters plus newline, while `seal-keyfile <path>`
   and `open-keyfile <path>` load 64 hex key files with an optional trailing
@@ -589,12 +599,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `src/secp256k1_scalar.s`, `src/sha256.s`, and `src/sys.s` are already
    separate. The first WUCI-GATE enforcement wrapper now lives in Python while
    canonical authorization bytes and envelope opening stay in assembly. Next,
-   harden the gate receipt policy and decision logs with more malformed JSON
-   and filesystem edge cases before promoting any assembly `open-authorized`
-   command. Keep private nonce and signing-share paths on projective basepoint
-   helpers, leave public verifier aggregation behind
-   `secp256k1_public_point_mul_limbs`, and keep the native and Zig source
-   lists together.
+   add filesystem edge cases for Gate outputs and design an assembly-friendly
+   receipt contract before promoting any assembly `open-authorized` command.
+   Keep private nonce and signing-share paths on projective basepoint helpers,
+   leave public verifier aggregation behind `secp256k1_public_point_mul_limbs`,
+   and keep the native and Zig source lists together.
 5. `src/x25519.s` is the current assembly X25519 helper. A future cleanup can
    hand-tune or merge it into `src/wuci-ji.s`, but keep the Python X25519
    reference tests as the compatibility guard.
