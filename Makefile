@@ -27,7 +27,7 @@ SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 SELF_RELEASE_CONTRACT ?= $(SELF_RELEASE_DEMO_DIR)/receipt-contract.txt
 
-.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-contract-proof zig-release-proof
+.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof
 
 all: check-native $(TARGET)
 
@@ -269,6 +269,10 @@ zig-release-proof: build-linux
 zig-release-contract-proof: build-linux $(ZIG_GATE_CONTRACT)
 	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
 	$(MAKE) self-release-contract-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-contract-proof
+
+zig-release-asm-contract-proof: build-linux
+	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
+	$(MAKE) self-release-asm-contract-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-asm-contract-proof
 
 self-release-asm-contract-proof: check-native $(TARGET)
 	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) selftest

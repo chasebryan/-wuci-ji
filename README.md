@@ -21,6 +21,7 @@ make self-release-asm-contract-proof
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
+make zig-release-asm-contract-proof
 ```
 
 `make gate-contract-asm` checks the native assembly flat-contract Gate command:
@@ -37,13 +38,17 @@ builds `build/wuci-ji-linux-x86_64`, seals that binary with itself, warrants
 it, passes WUCI-GATE, opens a byte-identical executable copy, writes an
 attestation, and verifies the attestation. `make zig-release-contract-proof`
 uses the same self-release loop but emits a flat receipt contract and opens the
-binary through the Zig contract verifier instead of Python Gate open. On a
+binary through the Zig contract verifier instead of Python Gate open.
+`make zig-release-asm-contract-proof` seals the Zig-built ELF and then verifies
+and opens it through that ELF's own assembly `open-authorized-contract` path,
+recording assembly contract checks in the attestation. On a
 Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
 ```sh
 make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
 make zig-release-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-contract-proof RELEASE_RUNNER=qemu-x86_64
+make zig-release-asm-contract-proof RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -187,6 +192,7 @@ make verify-self-release-bundle
 make self-release-attestation-test
 make zig-release-proof
 make zig-release-contract-proof
+make zig-release-asm-contract-proof
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
@@ -200,6 +206,9 @@ contract verification checks in the attestation.
 `make self-release-asm-contract-proof` runs the stronger native contract lane:
 it verifies and opens the self-sealed binary through `open-authorized-contract`
 and records assembly contract checks in the attestation.
+`make zig-release-asm-contract-proof` runs that same assembly-enforced contract
+lane against the Zig-built Linux ELF, proving the portable release artifact can
+open itself through its own assembly Gate.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification.

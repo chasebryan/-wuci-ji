@@ -81,6 +81,9 @@ Verified on this host:
   itself, emits `receipt-contract.txt`, verifies and opens through assembly
   Gate enforcement, compares the opened copy byte-for-byte, executes it, writes
   `attestation.json`, and verifies that attestation in assembly contract mode.
+- `make zig-release-asm-contract-proof` succeeds: the Zig-built Linux x86_64
+  ELF seals itself and uses its own assembly `gate-contract-verify` /
+  `open-authorized-contract` path for the flat-contract release open.
 - The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in
