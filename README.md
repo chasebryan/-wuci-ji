@@ -19,12 +19,14 @@ To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
 make gate-contract-asm
 make self-release-asm-contract-proof
 make self-release-rooted-proof
+make self-release-publish-bundle
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
 make zig-release-rooted-proof
 make zig-release-release-contract-proof
+make zig-release-publish-bundle
 ```
 
 `make gate-contract-asm` checks the native assembly flat-contract Gate command:
@@ -52,8 +54,13 @@ flat WUCI-ROOT authority file, require the binary's assembly
 key into the attestation.
 `make zig-release-release-contract-proof` seals the Zig-built ELF, derives a
 release warrant and flat contract, and requires that ELF's own assembly
-`release-authorized-contract` path to approve the release decision. On a
-Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
+`release-authorized-contract` path to approve the release decision.
+`make self-release-publish-bundle` and `make zig-release-publish-bundle`
+promote that release decision into WUCI-PUBLISH: a release-only authority root,
+rooted assembly `release-authorized-rooted` check, deterministic
+`release-decision.txt`, and `attestation.json` that binds the authority,
+contract, decision, receipt, warrant, manifest, and sealed artifact hashes. On
+a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
 ```sh
 make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
@@ -62,6 +69,7 @@ make zig-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-asm-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-rooted-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-release-contract-proof RELEASE_RUNNER=qemu-x86_64
+make zig-release-publish-bundle RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -157,8 +165,9 @@ FROST signature, key, and output path all pass, and
 `release-authorized-contract` verifies a release contract before printing a
 release decision. WUCI-ROOT adds a flat authority file that pins the contract
 `group-public-key` to a trusted quorum key; `open-authorized-rooted` requires
-that authority before opening. Assembly does not parse receipt JSON or accept
-arbitrary signer material.
+that authority before opening, and `release-authorized-rooted` requires a
+release-enabled authority before approving release. Assembly does not parse
+receipt JSON or accept arbitrary signer material.
 
 ```sh
 make gate-workflow
@@ -208,13 +217,16 @@ make self-release-contract-bundle
 make self-release-asm-contract-proof
 make self-release-rooted-proof
 make self-release-release-contract-proof
+make self-release-publish-bundle
 make verify-self-release-bundle
 make self-release-attestation-test
+make publish-attestation-test
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
 make zig-release-rooted-proof
 make zig-release-release-contract-proof
+make zig-release-publish-bundle
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
@@ -240,14 +252,23 @@ contract, open through `open-authorized-rooted`, and record
 `make zig-release-release-contract-proof` prove the native and Zig-built
 binaries can verify their own release warrant through assembly
 `release-authorized-contract` and emit a deterministic release decision.
+`make self-release-publish-bundle` and `make zig-release-publish-bundle` add a
+release-enabled `authority-root.txt`, require assembly
+`release-authorized-rooted`, write `release-decision.txt`, and attest the
+publish bundle with `release_authority_root_sha256`,
+`release_authority_group_public_key`, `release_contract_sha256`,
+`release_decision_sha256`, `rooted_release_check`, and
+`publish_bundle_complete`.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
-opened binaries fail verification.
+opened binaries fail verification. `make publish-attestation-test` checks that
+tampered release decisions, release contracts, and authority roots fail
+publish-bundle verification.
 
 Python still derives the flat receipt contract from the JSON WUCI-WARRANT
 receipt and emits the flat authority root from that contract's group key. Zig
 remains a portable verifier bridge, while assembly now enforces the `open`,
-rooted `open`, and `release` contract paths itself.
+rooted `open`, `release`, and rooted `release` contract paths itself.
 
 ## License
 

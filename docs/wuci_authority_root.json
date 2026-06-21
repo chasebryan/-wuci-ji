@@ -1,6 +1,6 @@
 {
   "schema": "wuci-authority-root-boundary-v1",
-  "status": "assembly-enforced-open-root",
+  "status": "assembly-enforced-open-release-root",
   "authority_schema": "wuci-authority-root-v1",
   "purpose": "Define the fixed flat WUCI-ROOT authority file used by rooted assembly Gate commands to pin a receipt contract group-public-key to the trusted quorum key.",
   "producer": "tools/wuci_authority_root.py",
@@ -33,20 +33,23 @@
     "production": "literal false",
     "authority-id": "SHA-256 of the decoded 33-byte group-public-key, encoded as 64 lowercase hex characters",
     "group-public-key": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters",
-    "allow-open": "literal true",
-    "allow-release": "literal false",
+    "allow-open": "literal true or false; rooted open commands require true",
+    "allow-release": "literal true or false; release-authorized-rooted requires true",
     "allow-trust": "literal false",
     "allow-publish": "literal false"
   },
   "assembly_commands": [
     "authority-root-verify <authority>",
     "gate-contract-verify-rooted <authority> <artifact> <contract>",
-    "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>"
+    "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>",
+    "release-authorized-rooted <authority> <artifact> <contract>"
   ],
   "assembly_non_goals": [
     "Do not parse authority JSON in assembly.",
     "Do not accept signer shares or arbitrary signer manifests.",
     "Do not accept production authority roots.",
-    "Do not accept non-open actions through open-authorized-rooted."
+    "Do not accept non-open actions through open-authorized-rooted.",
+    "Do not accept non-release actions through release-authorized-rooted.",
+    "Do not accept trust or publish authority bits yet."
   ]
 }

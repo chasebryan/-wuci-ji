@@ -9,6 +9,7 @@
 .global run_open_authorized_contract
 .global run_open_authorized_rooted
 .global run_release_authorized_contract
+.global run_release_authorized_rooted
 
 .extern write_all
 .extern exit_process
@@ -129,6 +130,9 @@ run_gate_contract_verify_rooted:
     call gate_parse_authority_root
     cmp eax, 1
     jne gate_authority_error
+    call gate_require_authority_open
+    cmp eax, 1
+    jne gate_authority_error
 
     mov rdi, qword ptr [rsp + 32]
     call read_artifact_file
@@ -206,6 +210,9 @@ run_open_authorized_rooted:
     call gate_parse_authority_root
     cmp eax, 1
     jne gate_authority_error
+    call gate_require_authority_open
+    cmp eax, 1
+    jne gate_authority_error
 
     mov rdi, qword ptr [rsp + 32]
     lea rsi, [rip + chacha_key]
@@ -257,6 +264,46 @@ run_release_authorized_contract:
     jne gate_contract_file_error
 
     call gate_verify_loaded_contract
+    cmp eax, 1
+    jne gate_contract_error
+
+    call gate_write_release_decision
+    xor edi, edi
+    jmp exit_process
+
+run_release_authorized_rooted:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    call gate_setup_release_action
+
+    mov rdi, qword ptr [rsp + 24]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_authority_file_error
+
+    call gate_parse_authority_root
+    cmp eax, 1
+    jne gate_authority_error
+    call gate_require_authority_release
+    cmp eax, 1
+    jne gate_authority_error
+
+    mov rdi, qword ptr [rsp + 32]
+    call read_artifact_file
+    cmp eax, 1
+    je .Lrelease_rooted_read_contract
+    cmp eax, 2
+    je gate_contract_file_error
+    jmp gate_artifact_file_error
+
+.Lrelease_rooted_read_contract:
+    mov rdi, qword ptr [rsp + 40]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_contract_file_error
+
+    call gate_verify_loaded_rooted_contract
     cmp eax, 1
     jne gate_contract_error
 
@@ -337,6 +384,20 @@ gate_verify_authority_binding:
     lea rsi, [rip + gate_group_public_key]
     mov edx, 33
     call memeq
+    ret
+
+gate_require_authority_open:
+    movzx eax, byte ptr [rip + gate_authority_allow_open]
+    cmp eax, 1
+    sete al
+    movzx eax, al
+    ret
+
+gate_require_authority_release:
+    movzx eax, byte ptr [rip + gate_authority_allow_release]
+    cmp eax, 1
+    sete al
+    movzx eax, al
     ret
 
 gate_read_contract_file:
@@ -484,15 +545,17 @@ gate_parse_authority_root:
     cmp eax, 1
     jne .Lgate_authority_parse_fail
 
-    lea rdi, [rip + gate_authority_allow_open_true_line]
-    mov esi, OFFSET FLAT:gate_authority_allow_open_true_line_len
-    call gate_consume_literal
+    lea rdi, [rip + gate_authority_allow_open_label]
+    mov esi, OFFSET FLAT:gate_authority_allow_open_label_len
+    lea rdx, [rip + gate_authority_allow_open]
+    call gate_consume_bool_line
     cmp eax, 1
     jne .Lgate_authority_parse_fail
 
-    lea rdi, [rip + gate_authority_allow_release_false_line]
-    mov esi, OFFSET FLAT:gate_authority_allow_release_false_line_len
-    call gate_consume_literal
+    lea rdi, [rip + gate_authority_allow_release_label]
+    mov esi, OFFSET FLAT:gate_authority_allow_release_label_len
+    lea rdx, [rip + gate_authority_allow_release]
+    call gate_consume_bool_line
     cmp eax, 1
     jne .Lgate_authority_parse_fail
 
@@ -736,6 +799,57 @@ gate_consume_literal:
 
 .Lgate_consume_literal_done:
     pop r13
+    pop r12
+    pop rbx
+    ret
+
+gate_consume_bool_line:
+    push rbx
+    push r12
+    mov r12, rdx
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_consume_bool_fail
+
+    mov rbx, qword ptr [rip + gate_parse_ptr]
+    mov rax, qword ptr [rip + gate_parse_end]
+    sub rax, rbx
+    cmp rax, OFFSET FLAT:gate_bool_true_line_len
+    jb .Lgate_consume_bool_try_false
+    mov rdi, rbx
+    lea rsi, [rip + gate_bool_true_line]
+    mov edx, OFFSET FLAT:gate_bool_true_line_len
+    call memeq
+    cmp eax, 1
+    jne .Lgate_consume_bool_try_false
+    mov byte ptr [r12], 1
+    add rbx, OFFSET FLAT:gate_bool_true_line_len
+    mov qword ptr [rip + gate_parse_ptr], rbx
+    mov eax, 1
+    jmp .Lgate_consume_bool_done
+
+.Lgate_consume_bool_try_false:
+    mov rbx, qword ptr [rip + gate_parse_ptr]
+    mov rax, qword ptr [rip + gate_parse_end]
+    sub rax, rbx
+    cmp rax, OFFSET FLAT:gate_bool_false_line_len
+    jb .Lgate_consume_bool_fail
+    mov rdi, rbx
+    lea rsi, [rip + gate_bool_false_line]
+    mov edx, OFFSET FLAT:gate_bool_false_line_len
+    call memeq
+    cmp eax, 1
+    jne .Lgate_consume_bool_fail
+    mov byte ptr [r12], 0
+    add rbx, OFFSET FLAT:gate_bool_false_line_len
+    mov qword ptr [rip + gate_parse_ptr], rbx
+    mov eax, 1
+    jmp .Lgate_consume_bool_done
+
+.Lgate_consume_bool_fail:
+    xor eax, eax
+
+.Lgate_consume_bool_done:
     pop r12
     pop rbx
     ret
@@ -1578,13 +1692,21 @@ gate_authority_id_label:
     .ascii "authority-id: "
 .set gate_authority_id_label_len, . - gate_authority_id_label
 
-gate_authority_allow_open_true_line:
-    .ascii "allow-open: true\n"
-.set gate_authority_allow_open_true_line_len, . - gate_authority_allow_open_true_line
+gate_authority_allow_open_label:
+    .ascii "allow-open: "
+.set gate_authority_allow_open_label_len, . - gate_authority_allow_open_label
 
-gate_authority_allow_release_false_line:
-    .ascii "allow-release: false\n"
-.set gate_authority_allow_release_false_line_len, . - gate_authority_allow_release_false_line
+gate_authority_allow_release_label:
+    .ascii "allow-release: "
+.set gate_authority_allow_release_label_len, . - gate_authority_allow_release_label
+
+gate_bool_true_line:
+    .ascii "true\n"
+.set gate_bool_true_line_len, . - gate_bool_true_line
+
+gate_bool_false_line:
+    .ascii "false\n"
+.set gate_bool_false_line_len, . - gate_bool_false_line
 
 gate_authority_allow_trust_false_line:
     .ascii "allow-trust: false\n"
@@ -1756,6 +1878,12 @@ gate_authority_id:
 .align 16
 gate_authority_group_public_key:
     .skip 33
+.align 1
+gate_authority_allow_open:
+    .skip 1
+.align 1
+gate_authority_allow_release:
+    .skip 1
 .align 16
 gate_manifest_buf:
     .skip GATE_MANIFEST_MAX

@@ -98,6 +98,15 @@ Verified on this host:
 - `make zig-release-release-contract-proof` succeeds: the Zig-built Linux
   x86_64 ELF proves the same release decision through its own assembly
   `release-authorized-contract` path.
+- `make self-release-publish-bundle` succeeds: the native binary seals itself,
+  derives a release WUCI-WARRANT receipt contract, emits a release-enabled
+  `authority-root.txt`, accepts the release through assembly
+  `release-authorized-rooted`, writes `release-decision.txt`, and verifies a
+  publish attestation that binds the authority, contract, decision, receipt,
+  warrant, manifest, and sealed artifact hashes.
+- `make zig-release-publish-bundle` succeeds: the Zig-built Linux x86_64 ELF
+  produces the same rooted publish bundle through its own assembly rooted
+  release path.
 - The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in

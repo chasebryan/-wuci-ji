@@ -64,6 +64,7 @@ def main() -> None:
     assert "open-authorized-contract" in assembly_surfaces
     assert "open-authorized-rooted" in assembly_surfaces
     assert "release-authorized-contract" in assembly_surfaces
+    assert "release-authorized-rooted" in assembly_surfaces
 
     python_surfaces = set(require_list(boundary, "python_workflow_surfaces"))
     assert "tools/wuci_frost_authorize.py" in python_surfaces
@@ -79,12 +80,12 @@ def main() -> None:
     assert authority_root["schema"] == "wuci-authority-root-v1"
     assert authority_root["authority_id"] == "sha256(decoded group-public-key)"
     required_policy = authority_root["required_policy"]
-    assert required_policy == {
-        "allow-open": True,
-        "allow-release": False,
-        "allow-trust": False,
-        "allow-publish": False,
-    }
+    assert required_policy["allow-open"].startswith("required true for rooted open")
+    assert required_policy["allow-release"].startswith(
+        "required true for release-authorized-rooted"
+    )
+    assert required_policy["allow-trust"] is False
+    assert required_policy["allow-publish"] is False
 
     policy_inputs = set(require_list(boundary, "receipt_policy_inputs"))
     for field in (
@@ -110,7 +111,10 @@ def main() -> None:
     assert "malformed_authority_root" in rejection_classes
     assert "authority_group_key_mismatch" in rejection_classes
     assert "authority_open_disallowed" in rejection_classes
+    assert "authority_release_disallowed" in rejection_classes
     assert "wrong_release_action" in rejection_classes
+    assert "wrong_rooted_release_action" in rejection_classes
+    assert "publish_bundle_tamper" in rejection_classes
     assert "output_exists" in rejection_classes
 
     assembly_commands = require_list(boundary, "assembly_contract_commands")
@@ -121,6 +125,7 @@ def main() -> None:
         "open-authorized-contract",
         "open-authorized-rooted",
         "release-authorized-contract",
+        "release-authorized-rooted",
     }
     expected_actions = {
         "gate-contract-verify": "open",
@@ -128,6 +133,7 @@ def main() -> None:
         "open-authorized-contract": "open",
         "open-authorized-rooted": "open",
         "release-authorized-contract": "release",
+        "release-authorized-rooted": "release",
     }
     for command in assembly_commands:
         assert command["implemented"] is True
@@ -153,6 +159,7 @@ def main() -> None:
     assert "open-authorized-contract <keyfile> <artifact> <contract> <out>" in help_text
     assert "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>" in help_text
     assert "release-authorized-contract <artifact> <contract>" in help_text
+    assert "release-authorized-rooted <authority> <artifact> <contract>" in help_text
     for command in assembly_names:
         rejected = run_wuci([command])
         assert rejected.returncode != 0

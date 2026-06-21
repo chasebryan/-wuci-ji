@@ -14,7 +14,8 @@
     "gate-contract-verify-rooted",
     "open-authorized-contract",
     "open-authorized-rooted",
-    "release-authorized-contract"
+    "release-authorized-contract",
+    "release-authorized-rooted"
   ],
   "python_workflow_surfaces": [
     "tools/wuci_frost_authorize.py",
@@ -34,8 +35,8 @@
     "production": false,
     "authority_id": "sha256(decoded group-public-key)",
     "required_policy": {
-      "allow-open": true,
-      "allow-release": false,
+      "allow-open": "required true for rooted open commands; may be false for release-only roots",
+      "allow-release": "required true for release-authorized-rooted; may be false for open-only roots",
       "allow-trust": false,
       "allow-publish": false
     }
@@ -76,6 +77,14 @@
       "shape": "release-authorized-contract <artifact> <contract>",
       "required_action": "release",
       "contract_schema": "wuci-gate-receipt-contract-v1",
+      "implemented": true
+    },
+    {
+      "name": "release-authorized-rooted",
+      "shape": "release-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "release",
+      "contract_schema": "wuci-gate-receipt-contract-v1",
+      "authority_schema": "wuci-authority-root-v1",
       "implemented": true
     }
   ],
@@ -134,8 +143,11 @@
     "authority_id_mismatch",
     "authority_group_key_mismatch",
     "authority_open_disallowed",
+    "authority_release_disallowed",
     "wrong_open_action",
     "wrong_release_action",
+    "wrong_rooted_release_action",
+    "publish_bundle_tamper",
     "wrong_key_after_authorization",
     "output_exists",
     "output_parent_missing",
@@ -148,6 +160,7 @@
     "Do not accept non-open actions through open-authorized-contract.",
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",
+    "Do not accept non-release actions through release-authorized-rooted.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

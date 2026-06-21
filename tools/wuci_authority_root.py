@@ -76,22 +76,28 @@ def validate_fields(fields: dict[str, str]) -> None:
         raise AuthorityRootError("group-public-key must be a compressed SEC1 point")
     if fields["authority-id"] != authority_id(fields["group-public-key"]):
         raise AuthorityRootError("authority-id does not match group-public-key")
-    if fields["allow-open"] != "true":
-        raise AuthorityRootError("authority root must allow open")
-    for label in ("allow-release", "allow-trust", "allow-publish"):
+    for label in ("allow-open", "allow-release"):
+        if fields[label] not in {"true", "false"}:
+            raise AuthorityRootError(f"authority root must set {label} to true or false")
+    for label in ("allow-trust", "allow-publish"):
         if fields[label] != "false":
             raise AuthorityRootError(f"authority root must set {label} to false")
 
 
-def format_root(group_public_key: str) -> str:
+def format_root(
+    group_public_key: str,
+    *,
+    allow_open: str = "true",
+    allow_release: str = "false",
+) -> str:
     fields = {
         "schema": ROOT_SCHEMA,
         "suite": frost.SUITE,
         "production": "false",
         "authority-id": authority_id(group_public_key),
         "group-public-key": group_public_key,
-        "allow-open": "true",
-        "allow-release": "false",
+        "allow-open": allow_open,
+        "allow-release": allow_release,
         "allow-trust": "false",
         "allow-publish": "false",
     }
@@ -146,13 +152,19 @@ def run_emit(args: argparse.Namespace) -> int:
         group_public_key = group_key_from_contract(Path(args.contract))
     if group_public_key is None:
         raise AuthorityRootError("emit requires --contract or --group-public-key")
-    root_text = format_root(group_public_key)
+    root_text = format_root(
+        group_public_key,
+        allow_open=args.allow_open,
+        allow_release=args.allow_release,
+    )
     authority_path = Path(args.authority)
     write_new_ascii(authority_path, root_text)
     if not args.quiet:
         print(f"authority root: {authority_path}")
         print(f"authority-id: {authority_id(group_public_key)}")
         print(f"group-public-key: {group_public_key}")
+        print(f"allow-open: {args.allow_open}")
+        print(f"allow-release: {args.allow_release}")
     return 0
 
 
@@ -174,6 +186,18 @@ def main() -> int:
     source.add_argument("--contract", help="flat receipt contract to trust")
     source.add_argument("--group-public-key", help="compressed SEC1 quorum key hex")
     emit.add_argument("--authority", required=True, help="authority root path")
+    emit.add_argument(
+        "--allow-open",
+        choices=("true", "false"),
+        default="true",
+        help="open authority bit; defaults to true",
+    )
+    emit.add_argument(
+        "--allow-release",
+        choices=("true", "false"),
+        default="false",
+        help="release authority bit; defaults to false",
+    )
     emit.add_argument("--quiet", action="store_true", help="suppress success output")
 
     verify = subparsers.add_parser("verify", help="verify an authority root")

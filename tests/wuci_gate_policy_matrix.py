@@ -209,7 +209,10 @@ def main() -> None:
         "authority_id_mismatch",
         "authority_group_key_mismatch",
         "authority_open_disallowed",
+        "authority_release_disallowed",
         "wrong_release_action",
+        "wrong_rooted_release_action",
+        "publish_bundle_tamper",
     }
     expected_classes -= assembly_only_classes
     assert "private_material" in expected_classes

@@ -47,7 +47,7 @@
   ],
   "value_constraints": {
     "schema": "literal wuci-gate-receipt-contract-v1",
-    "action": "one of open, release, trust, publish; assembly open-authorized-contract and open-authorized-rooted accept only open, and release-authorized-contract accepts only release",
+    "action": "one of open, release, trust, publish; assembly open-authorized-contract and open-authorized-rooted accept only open, and release-authorized-contract and release-authorized-rooted accept only release",
     "artifact-sha256": "64 lowercase hex characters",
     "authorization-message-sha256": "64 lowercase hex characters",
     "receipt-sha256": "64 lowercase hex characters",
@@ -65,6 +65,7 @@
     "Do not accept non-open actions through open-authorized-contract.",
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",
+    "Do not accept non-release actions through release-authorized-rooted.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

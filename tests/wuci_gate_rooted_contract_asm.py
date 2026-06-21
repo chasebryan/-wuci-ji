@@ -80,15 +80,20 @@ def authority_id(group_public_key: str) -> str:
     return hashlib.sha256(bytes.fromhex(group_public_key)).hexdigest()
 
 
-def authority_text(group_public_key: str) -> str:
+def authority_text(
+    group_public_key: str,
+    *,
+    allow_open: str = "true",
+    allow_release: str = "false",
+) -> str:
     return (
         "schema: wuci-authority-root-v1\n"
         "suite: FROST-secp256k1-SHA256-v1\n"
         "production: false\n"
         f"authority-id: {authority_id(group_public_key)}\n"
         f"group-public-key: {group_public_key}\n"
-        "allow-open: true\n"
-        "allow-release: false\n"
+        f"allow-open: {allow_open}\n"
+        f"allow-release: {allow_release}\n"
         "allow-trust: false\n"
         "allow-publish: false\n"
     )
@@ -171,7 +176,13 @@ def emit_contract(
     assert_ok(emitted, f"emit {action} flat contract")
 
 
-def emit_authority(contract_path: Path, authority_path: Path) -> None:
+def emit_authority(
+    contract_path: Path,
+    authority_path: Path,
+    *,
+    allow_open: str = "true",
+    allow_release: str = "false",
+) -> None:
     emitted = run_authority(
         "emit",
         [
@@ -179,6 +190,10 @@ def emit_authority(contract_path: Path, authority_path: Path) -> None:
             str(contract_path),
             "--authority",
             str(authority_path),
+            "--allow-open",
+            allow_open,
+            "--allow-release",
+            allow_release,
             "--quiet",
         ],
     )
@@ -201,6 +216,23 @@ def assert_rooted_verify_fails(authority_path: Path, artifact_path: Path, contra
     proc = run_wuci(
         [
             "gate-contract-verify-rooted",
+            str(authority_path),
+            str(artifact_path),
+            str(contract_path),
+        ]
+    )
+    assert proc.returncode != 0
+    assert proc.stdout == b""
+
+
+def assert_rooted_release_fails(
+    authority_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+) -> None:
+    proc = run_wuci(
+        [
+            "release-authorized-rooted",
             str(authority_path),
             str(artifact_path),
             str(contract_path),
@@ -320,7 +352,6 @@ def main() -> None:
                 "unsupported-suite",
                 lambda text: replace_value(text, "suite", "FROST-test-v0"),
             ),
-            ("allow-open-false", lambda text: replace_value(text, "allow-open", "false")),
             (
                 "wrong-authority-id",
                 lambda text: replace_value(text, "authority-id", "00" * 32),
@@ -345,10 +376,54 @@ def main() -> None:
                 out_path=tmp / f"{name}.opened",
             )
 
+        open_denied_authority = tmp / "authority-open-denied.txt"
+        open_denied_authority.write_text(
+            authority_text(group_public_key, allow_open="false"),
+            encoding="ascii",
+        )
+        open_denied = run_wuci(["authority-root-verify", str(open_denied_authority)])
+        assert_ok(open_denied, "authority with open denied still parses")
+        assert_rooted_verify_fails(open_denied_authority, artifact_path, contract_path)
+        assert_rooted_open_fails_without_plaintext(
+            authority_path=open_denied_authority,
+            key_path=key_path,
+            artifact_path=artifact_path,
+            contract_path=contract_path,
+            out_path=tmp / "open-denied.opened",
+        )
+
         release_receipt_path = make_receipt(tmp, artifact_path, "release")
         release_contract_path = tmp / "release-contract.txt"
         emit_contract(artifact_path, release_receipt_path, release_contract_path, "release")
+        release_authority_path = tmp / "release-authority-root.txt"
+        emit_authority(
+            release_contract_path,
+            release_authority_path,
+            allow_open="false",
+            allow_release="true",
+        )
+        release_authority = run_wuci(
+            ["authority-root-verify", str(release_authority_path)]
+        )
+        assert_ok(release_authority, "assembly release authority root verify")
+        release_rooted = run_wuci(
+            [
+                "release-authorized-rooted",
+                str(release_authority_path),
+                str(artifact_path),
+                str(release_contract_path),
+            ]
+        )
+        assert_ok(release_rooted, "assembly rooted release")
+        release_text = release_rooted.stdout.decode("ascii")
+        assert release_text.startswith("authorized: true\naction: release\n")
+        assert (
+            f"artifact-sha256: {read_value(release_contract_path.read_text(encoding='ascii'), 'artifact-sha256')}\n"
+            in release_text
+        )
+
         assert_rooted_verify_fails(authority_path, artifact_path, release_contract_path)
+        assert_rooted_release_fails(authority_path, artifact_path, release_contract_path)
         assert_rooted_open_fails_without_plaintext(
             authority_path=authority_path,
             key_path=key_path,
@@ -356,6 +431,60 @@ def main() -> None:
             contract_path=release_contract_path,
             out_path=tmp / "release-contract.opened",
         )
+        assert_rooted_open_fails_without_plaintext(
+            authority_path=release_authority_path,
+            key_path=key_path,
+            artifact_path=artifact_path,
+            contract_path=contract_path,
+            out_path=tmp / "release-authority-opened",
+        )
+        assert_rooted_release_fails(release_authority_path, artifact_path, contract_path)
+
+        release_mismatch_authority = tmp / "release-authority-mismatched-group.txt"
+        release_mismatch_authority.write_text(
+            authority_text(
+                group_commitment,
+                allow_open="false",
+                allow_release="true",
+            ),
+            encoding="ascii",
+        )
+        assert_rooted_release_fails(
+            release_mismatch_authority,
+            artifact_path,
+            release_contract_path,
+        )
+
+        for action in ("trust", "publish"):
+            action_receipt_path = make_receipt(tmp, artifact_path, action)
+            action_contract_path = tmp / f"{action}-contract.txt"
+            emit_contract(artifact_path, action_receipt_path, action_contract_path, action)
+            assert_rooted_release_fails(
+                release_authority_path,
+                artifact_path,
+                action_contract_path,
+            )
+
+        for name, mutator in (
+            (
+                "release-wrong-challenge",
+                lambda text: replace_value(text, "challenge", "00" * 32),
+            ),
+            (
+                "release-tampered-signature-scalar",
+                lambda text: replace_value(text, "signature-scalar", "00" * 32),
+            ),
+        ):
+            bad_release_contract = mutate_text(
+                release_contract_path.read_bytes(),
+                tmp / f"{name}.txt",
+                mutator,
+            )
+            assert_rooted_release_fails(
+                release_authority_path,
+                artifact_path,
+                bad_release_contract,
+            )
 
         signature_tamper = mutate_text(
             contract_base,
