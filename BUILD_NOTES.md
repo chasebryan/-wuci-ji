@@ -121,6 +121,13 @@ Verified on this host:
 - `make zig-release-witness-bundle` succeeds: the Zig-built Linux x86_64 ELF
   produces and verifies the same public witness bundle profile through its own
   assembly rooted release path.
+- `make self-release-witness-archive` succeeds: the native public witness
+  bundle is packed into a deterministic tar archive plus SHA-256 sidecar,
+  extracted to `wuci-publish-bundle-v1/`, and verified again from the extracted
+  public files.
+- `make zig-release-witness-archive` succeeds: the Zig-built Linux x86_64
+  witness bundle is packed and verified through the same archive profile, with
+  the extracted bundle checked by both Python WITNESS and `build/wuci-witness`.
 - `make witness-zig` succeeds: `tools/wuci_witness.zig` builds to
   `build/wuci-witness` and verifies an existing public witness bundle with the
   same public profile, flat index, committed release anchor, and assembly
@@ -131,6 +138,9 @@ Verified on this host:
 - `make witness-attestation-test` succeeds and rejects private files in the
   public bundle plus tampered indexes, manifests, warrant messages, release
   decisions, authority roots, receipts, and contracts.
+- `make witness-archive-test` succeeds and checks deterministic witness archive
+  bytes, SHA-256 sidecar mismatches, missing public files, forbidden private
+  files, nonzero archive mtimes, and tampered archived release decisions.
 - The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in

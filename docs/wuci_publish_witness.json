@@ -3,14 +3,18 @@
   "status": "public-keyless-rooted-release-witness",
   "bundle_schema": "wuci-publish-bundle-v1",
   "index_schema": "wuci-publish-index-v1",
-  "producer": "make self-release-witness-bundle and make zig-release-witness-bundle",
+  "archive_root": "wuci-publish-bundle-v1",
+  "archive_sidecar": "<archive>.sha256",
+  "producer": "make self-release-witness-bundle, make zig-release-witness-bundle, make self-release-witness-archive, and make zig-release-witness-archive",
   "verifiers": [
     "tools/wuci_witness.py",
-    "tools/wuci_witness.zig built as build/wuci-witness"
+    "tools/wuci_witness.zig built as build/wuci-witness",
+    "tools/wuci_witness_archive.py"
   ],
   "verification_targets": [
     "tests/wuci_witness.py",
-    "tests/wuci_witness_zig.py"
+    "tests/wuci_witness_zig.py",
+    "tests/wuci_witness_archive.py"
   ],
   "public_bundle_files": [
     "wuci-ji.self.wj",
@@ -47,7 +51,11 @@
     "The publish index ends with exactly one trailing newline.",
     "No CRLF.",
     "No JSON in publish-index.txt.",
-    "No unknown files in the public witness bundle."
+    "No unknown files in the public witness bundle.",
+    "The witness archive is a tar archive with exactly the public_bundle_files under archive_root.",
+    "Archive member order follows public_bundle_files exactly.",
+    "Archive members are regular files only; no links, directories, devices, or unknown members.",
+    "Archive members use mtime 0, uid 0, gid 0, and mode 0644."
   ],
   "value_constraints": {
     "schema": "literal wuci-publish-index-v1",
@@ -71,7 +79,10 @@
     "authority group-public-key equals receipt contract group-public-key",
     "release-decision.txt equals assembly release-authorized-rooted output",
     "publish-index.txt hashes match the public bundle files",
-    "attestation.json matches the observed bundle state"
+    "attestation.json matches the observed bundle state",
+    "archive SHA-256 sidecar matches the archive bytes",
+    "archive extraction recreates the same public witness bundle profile",
+    "extracted archive bundle verifies through Python WITNESS and, in the Zig lane, build/wuci-witness"
   ],
   "assembly_owned_surfaces": [
     "manifest-file",
@@ -83,6 +94,7 @@
     "Do not include artifact.key in the public witness bundle.",
     "Do not include an opened binary in the public witness bundle.",
     "Do not include transcript material in the public witness bundle.",
+    "Do not include private/demo files in the public witness archive.",
     "Do not open the artifact during witness verification.",
     "Do not accept arbitrary signer material.",
     "Do not accept trust or publish authority bits yet."

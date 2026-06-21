@@ -42,6 +42,12 @@ jobs:
       - name: Run witness regression
         run: make witness-attestation-test
 
+      - name: Run witness archive proof
+        run: make self-release-witness-archive
+
+      - name: Run witness archive regression
+        run: make witness-archive-test
+
   zig-linux-x86_64:
     runs-on: ubuntu-latest
 
@@ -77,3 +83,5 @@ jobs:
           make zig-release-witness-bundle
           make witness-zig RELEASE_BIN=$(pwd)/build/wuci-ji-linux-x86_64 WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
           make witness-zig-test RELEASE_BIN=$(pwd)/build/wuci-ji-linux-x86_64 WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
+          make zig-release-witness-archive
+          make witness-archive-zig-test RELEASE_BIN=$(pwd)/build/wuci-ji-linux-x86_64 WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle

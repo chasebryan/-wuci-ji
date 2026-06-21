@@ -23,8 +23,10 @@ make self-release-anchored-proof
 make self-release-rooted-proof
 make self-release-publish-bundle
 make self-release-witness-bundle
+make self-release-witness-archive
 make witness-zig
 make witness-zig-test
+make witness-archive-test
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
@@ -34,6 +36,7 @@ make zig-release-rooted-proof
 make zig-release-release-contract-proof
 make zig-release-publish-bundle
 make zig-release-witness-bundle
+make zig-release-witness-archive
 ```
 
 `make authority-root-check` regenerates the deterministic fixture authority
@@ -72,7 +75,7 @@ promote that release decision into WUCI-PUBLISH using the pre-existing
 release-only anchor `authority/wuci-release-root.fixture.txt`: a rooted assembly
 `release-authorized-rooted` check, deterministic
 `release-decision.txt`, and `attestation.json` that binds the authority,
-contract, decision, receipt, warrant, manifest, and sealed artifact hashes. On
+contract, decision, receipt, warrant, manifest, and sealed artifact hashes.
 `make self-release-witness-bundle` and `make zig-release-witness-bundle`
 produce the public WUCI-WITNESS profile: no `artifact.key`, no opened binary,
 no transcript material, plus a fixed `publish-index.txt` and
@@ -83,6 +86,10 @@ python3 tools/wuci_witness.py verify --bundle build/wuci-witness-bundle
 make witness-zig
 build/wuci-witness verify build/wuci-witness-bundle
 ```
+
+`make self-release-witness-archive` and `make zig-release-witness-archive`
+pack that public profile into deterministic tar archives with SHA-256 sidecars,
+then verify by extracting the archive back to `wuci-publish-bundle-v1/`.
 
 On a Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
@@ -95,6 +102,7 @@ make zig-release-rooted-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-publish-bundle RELEASE_RUNNER=qemu-x86_64
 make zig-release-witness-bundle RELEASE_RUNNER=qemu-x86_64
+make zig-release-witness-archive RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -250,6 +258,7 @@ make self-release-rooted-proof
 make self-release-release-contract-proof
 make self-release-publish-bundle
 make self-release-witness-bundle
+make self-release-witness-archive
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test
@@ -257,6 +266,7 @@ make authority-anchor-test
 make publish-attestation-test
 make witness-attestation-test
 make witness-zig-test
+make witness-archive-test
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
@@ -265,6 +275,7 @@ make zig-release-rooted-proof
 make zig-release-release-contract-proof
 make zig-release-publish-bundle
 make zig-release-witness-bundle
+make zig-release-witness-archive
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
@@ -313,6 +324,12 @@ transcripts, malformed indexes, and mismatched public evidence.
 and verifies an existing public bundle through the same assembly
 `release-authorized-rooted` boundary without invoking the Python witness
 entrypoint.
+`make self-release-witness-archive` writes `build/wuci-witness-bundle.tar` and
+`build/wuci-witness-bundle.tar.sha256` with fixed file order, root
+`wuci-publish-bundle-v1/`, mtime zero, uid/gid zero, and mode `0644`, then
+extracts and verifies the public bundle. `make zig-release-witness-archive`
+does the same for the Zig-built ELF and also verifies the extracted bundle
+through `build/wuci-witness`.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification. `make publish-attestation-test` checks that
@@ -321,7 +338,9 @@ publish-bundle verification. `make witness-attestation-test` checks the public
 witness profile, including forbidden private files and index, manifest, warrant,
 decision, authority, receipt, and contract tampering. `make witness-zig-test`
 checks that the Zig verifier rejects private files plus index, decision, and
-attestation tampering. `make
+attestation tampering. `make witness-archive-test` checks deterministic archive
+bytes, sidecar mismatches, missing files, forbidden files, nonzero mtimes, and
+tampered archived decisions. `make
 authority-anchor-test` checks that anchored mode accepts the committed fixture
 root, rejects self-derived authority paths, and rejects malformed or
 policy-invalid authority roots.
