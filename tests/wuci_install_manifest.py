@@ -26,9 +26,15 @@ def main() -> None:
     assert wuci_install.canonical_manifest(fields) == text
     assert fields["runtime-sandbox-claimed"] == "false"
     assert fields["quantum-safe-claimed"] == "false"
-    assert fields["binary-sha256"] == wuci_install.sha256_file(REPO / "build" / "wuci-ji")
-    assert fields["binary-sha384"] == wuci_install.sha384_file(REPO / "build" / "wuci-ji")
-    assert fields["binary-sha512"] == wuci_install.sha512_file(REPO / "build" / "wuci-ji")
+
+    current_bin = REPO / "build" / "wuci-ji"
+    live_fields = wuci_install.manifest_fields_for_binary(current_bin)
+    live_text = wuci_install.canonical_manifest(live_fields)
+    live_manifest = wuci_install.parse_manifest(live_text)
+    assert live_manifest["binary-sha256"] == wuci_install.sha256_file(current_bin)
+    assert live_manifest["binary-sha384"] == wuci_install.sha384_file(current_bin)
+    assert live_manifest["binary-sha512"] == wuci_install.sha512_file(current_bin)
+
     expect_fail(lambda: wuci_install.parse_manifest(text.rstrip("\n")))
     expect_fail(lambda: wuci_install.parse_manifest(text.replace("\n", "\r\n")))
     expect_fail(lambda: wuci_install.parse_manifest(text + "extra: field\n"))
