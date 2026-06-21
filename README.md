@@ -18,10 +18,13 @@ To run the Zig-built Gate and self-release proofs on a Linux x86_64 host:
 ```sh
 make gate-contract-asm
 make self-release-asm-contract-proof
+make self-release-rooted-proof
 make gate-contract-zig
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
+make zig-release-rooted-proof
+make zig-release-release-contract-proof
 ```
 
 `make gate-contract-asm` checks the native assembly flat-contract Gate command:
@@ -41,7 +44,15 @@ uses the same self-release loop but emits a flat receipt contract and opens the
 binary through the Zig contract verifier instead of Python Gate open.
 `make zig-release-asm-contract-proof` seals the Zig-built ELF and then verifies
 and opens it through that ELF's own assembly `open-authorized-contract` path,
-recording assembly contract checks in the attestation. On a
+recording assembly contract checks in the attestation.
+`make self-release-rooted-proof` and `make zig-release-rooted-proof` add a
+flat WUCI-ROOT authority file, require the binary's assembly
+`authority-root-verify`, `gate-contract-verify-rooted`, and
+`open-authorized-rooted` paths, and bind the authority hash and trusted group
+key into the attestation.
+`make zig-release-release-contract-proof` seals the Zig-built ELF, derives a
+release warrant and flat contract, and requires that ELF's own assembly
+`release-authorized-contract` path to approve the release decision. On a
 Linux host that needs user-mode QEMU to run the Zig-built ELF, pass:
 
 ```sh
@@ -49,6 +60,8 @@ make gate-contract-zig RELEASE_RUNNER=qemu-x86_64
 make zig-release-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 make zig-release-asm-contract-proof RELEASE_RUNNER=qemu-x86_64
+make zig-release-rooted-proof RELEASE_RUNNER=qemu-x86_64
+make zig-release-release-contract-proof RELEASE_RUNNER=qemu-x86_64
 ```
 
 To run the full test suite, use an x86_64 Linux environment and run:
@@ -137,11 +150,15 @@ verification equation.
 WUCI-GATE / 无此门 / No Such Gate verifies a WUCI-WARRANT receipt before
 allowing a controlled no-overwrite open path. Python still derives and verifies
 the full WUCI-WARRANT JSON receipt. The fixed flat receipt contract is the
-assembly boundary: `gate-contract-verify` parses and verifies it natively, and
-`open-authorized-contract` refuses to create plaintext unless the contract,
-artifact hash, manifest hash, warrant-message hash, FROST challenge, FROST
-signature, key, and output path all pass. Assembly does not parse receipt JSON
-or accept arbitrary signer material.
+assembly boundary: `gate-contract-verify` parses and verifies the open contract
+natively, `open-authorized-contract` refuses to create plaintext unless the
+contract, artifact hash, manifest hash, warrant-message hash, FROST challenge,
+FROST signature, key, and output path all pass, and
+`release-authorized-contract` verifies a release contract before printing a
+release decision. WUCI-ROOT adds a flat authority file that pins the contract
+`group-public-key` to a trusted quorum key; `open-authorized-rooted` requires
+that authority before opening. Assembly does not parse receipt JSON or accept
+arbitrary signer material.
 
 ```sh
 make gate-workflow
@@ -160,9 +177,10 @@ python3 tools/wuci_gate.py open --artifact build/wuci-gate-demo/sealed.wj --acti
 `docs/wuci_gate_boundary.json`. `make gate-receipt-contract` checks the
 Python-derived flat receipt contract from
 `docs/wuci_gate_receipt_contract.json`. `make gate-contract-asm` checks the
-assembly flat-contract verifier/open command, including malformed contracts,
-tampered hashes, bad challenge/signature fields, wrong keys, and output path
-failures with no plaintext release. `make gate-contract-zig` keeps the Zig
+assembly flat-contract verifier/open command and the rooted authority lane,
+including malformed contracts, malformed authority roots, authority group-key
+mismatches, tampered hashes, bad challenge/signature fields, wrong keys, and
+output path failures with no plaintext release. `make gate-contract-zig` keeps the Zig
 bridge covered by calling the assembly binary for manifest, warrant, FROST
 challenge/verification, and envelope open. `make gate-demo` creates a
 disposable artifact, open warrant, gate decision, and opened plaintext under
@@ -188,11 +206,15 @@ make self-release-demo
 make self-release-bundle
 make self-release-contract-bundle
 make self-release-asm-contract-proof
+make self-release-rooted-proof
+make self-release-release-contract-proof
 make verify-self-release-bundle
 make self-release-attestation-test
 make zig-release-proof
 make zig-release-contract-proof
 make zig-release-asm-contract-proof
+make zig-release-rooted-proof
+make zig-release-release-contract-proof
 ```
 
 `make self-release-bundle` adds `attestation.json` beside the sealed artifact,
@@ -209,13 +231,23 @@ and records assembly contract checks in the attestation.
 `make zig-release-asm-contract-proof` runs that same assembly-enforced contract
 lane against the Zig-built Linux ELF, proving the portable release artifact can
 open itself through its own assembly Gate.
+`make self-release-rooted-proof` and `make zig-release-rooted-proof` add
+`authority-root.txt`, require the trusted group key to match the receipt
+contract, open through `open-authorized-rooted`, and record
+`authority_root_sha256`, `authority_group_public_key`, `rooted_gate_check`, and
+`rooted_gate_open` in the attestation.
+`make self-release-release-contract-proof` and
+`make zig-release-release-contract-proof` prove the native and Zig-built
+binaries can verify their own release warrant through assembly
+`release-authorized-contract` and emit a deterministic release decision.
 `make self-release-attestation-test` checks that tampered attestations,
 manifests, warrant messages, receipts, sealed artifacts, artifact keys, and
 opened binaries fail verification.
 
 Python still derives the flat receipt contract from the JSON WUCI-WARRANT
-receipt. Zig remains a portable verifier bridge, while assembly now enforces
-the `open` contract path itself.
+receipt and emits the flat authority root from that contract's group key. Zig
+remains a portable verifier bridge, while assembly now enforces the `open`,
+rooted `open`, and `release` contract paths itself.
 
 ## License
 

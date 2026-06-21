@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import wuci_frost_authorize as warrant
+import wuci_authority_root as authority_root
 import wuci_gate
 import wuci_receipt_contract as receipt_contract
 
@@ -36,9 +37,9 @@ BOUNDARY = {
         "open-file-keyfile",
     ],
     "non_goals": [
-        "Do not add assembly open-authorized yet.",
-        "Do not parse receipt JSON in assembly yet.",
-        "Do not accept arbitrary signer material yet.",
+        "Do not parse receipt JSON in assembly.",
+        "Do not accept arbitrary signer material.",
+        "Do not make Python the canonical authorization-message owner.",
     ],
 }
 CONTRACT_BOUNDARY = {
@@ -61,6 +62,24 @@ ASM_CONTRACT_BOUNDARY = {
         "Do not parse receipt JSON in assembly.",
         "Do not accept arbitrary signer material.",
         "Do not accept non-open actions through open-authorized-contract.",
+    ],
+}
+ROOTED_ASM_CONTRACT_BOUNDARY = {
+    **BOUNDARY,
+    "gate_enforcement": "assembly-rooted-flat-contract",
+    "authority_schema": authority_root.ROOT_SCHEMA,
+    "contract_schema": receipt_contract.CONTRACT_SCHEMA,
+    "assembly_owned_surfaces": [
+        *BOUNDARY["assembly_owned_surfaces"],
+        "authority-root-verify",
+        "gate-contract-verify-rooted",
+        "open-authorized-rooted",
+    ],
+    "contract_verifier": "authority-root-verify + gate-contract-verify-rooted + open-authorized-rooted",
+    "non_goals": [
+        "Do not parse receipt JSON in assembly.",
+        "Do not accept arbitrary signer material.",
+        "Do not accept non-open actions through open-authorized-rooted.",
     ],
 }
 
@@ -242,6 +261,27 @@ def assert_current_contract(
         raise SelfReleaseError("receipt contract bytes are not canonical")
 
 
+def assert_current_authority(
+    *,
+    authority_path: Path,
+    contract_path: Path,
+) -> dict[str, str]:
+    try:
+        authority_fields = authority_root.parse_root(
+            authority_root.read_ascii(authority_path, "authority root")
+        )
+        contract_fields = receipt_contract.parse_contract(
+            receipt_contract.read_ascii(contract_path, "receipt contract")
+        )
+    except authority_root.AuthorityRootError as exc:
+        raise SelfReleaseError(str(exc)) from exc
+    except receipt_contract.ContractError as exc:
+        raise SelfReleaseError(str(exc)) from exc
+    if authority_fields["group-public-key"] != contract_fields["group-public-key"]:
+        raise SelfReleaseError("authority root group key does not match receipt contract")
+    return authority_fields
+
+
 def run_zig_contract(
     *,
     contract_bin_path: Path,
@@ -410,6 +450,110 @@ def reproduce_asm_contract_open(
             )
 
 
+def run_rooted_asm_contract(
+    *,
+    command: str,
+    bin_path: Path,
+    authority_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+    keyfile_path: Path | None = None,
+    out_path: Path | None = None,
+) -> bytes:
+    if command == "verify":
+        args = [
+            *RUNNER,
+            str(bin_path),
+            "gate-contract-verify-rooted",
+            str(authority_path),
+            str(artifact_path),
+            str(contract_path),
+        ]
+    elif command == "open":
+        if keyfile_path is None or out_path is None:
+            raise SelfReleaseError(
+                "rooted assembly contract open requires keyfile and output path"
+            )
+        args = [
+            *RUNNER,
+            str(bin_path),
+            "open-authorized-rooted",
+            str(authority_path),
+            str(keyfile_path),
+            str(artifact_path),
+            str(contract_path),
+            str(out_path),
+        ]
+    elif command == "authority":
+        args = [
+            *RUNNER,
+            str(bin_path),
+            "authority-root-verify",
+            str(authority_path),
+        ]
+    else:
+        raise SelfReleaseError(f"unsupported rooted assembly command: {command}")
+
+    try:
+        proc = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as exc:
+        raise SelfReleaseError(f"could not execute rooted assembly gate command: {bin_path}") from exc
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", "replace").strip()
+        detail = stderr or f"exit status {proc.returncode}"
+        raise SelfReleaseError(f"rooted assembly gate contract {command} failed: {detail}")
+    if command in {"verify", "authority"} and proc.stdout != b"valid\n":
+        raise SelfReleaseError(f"rooted assembly gate contract {command} did not report valid")
+    if command == "open" and proc.stdout != b"":
+        raise SelfReleaseError("rooted assembly gate contract open wrote unexpected stdout")
+    return proc.stdout
+
+
+def reproduce_rooted_asm_contract_open(
+    *,
+    bin_path: Path,
+    authority_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+    keyfile_path: Path,
+    opened_binary: Path,
+) -> None:
+    run_rooted_asm_contract(
+        command="authority",
+        bin_path=bin_path,
+        authority_path=authority_path,
+        artifact_path=artifact_path,
+        contract_path=contract_path,
+    )
+    run_rooted_asm_contract(
+        command="verify",
+        bin_path=bin_path,
+        authority_path=authority_path,
+        artifact_path=artifact_path,
+        contract_path=contract_path,
+    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        reproduced = Path(temp_dir) / "opened-wuci-ji"
+        run_rooted_asm_contract(
+            command="open",
+            bin_path=bin_path,
+            authority_path=authority_path,
+            artifact_path=artifact_path,
+            contract_path=contract_path,
+            keyfile_path=keyfile_path,
+            out_path=reproduced,
+        )
+        if not filecmp.cmp(opened_binary, reproduced, shallow=False):
+            raise SelfReleaseError(
+                "rooted-assembly-contract-opened reproduction does not match opened binary"
+            )
+
+
 def gate_decision(
     *,
     bin_path: Path,
@@ -434,10 +578,13 @@ def build_attestation(
     contract_path: Path | None = None,
     contract_bin_path: Path | None = None,
     contract_mode: str = "zig",
+    authority_path: Path | None = None,
 ) -> dict[str, Any]:
     paths = bundle_paths(bundle_dir, bin_path)
     if contract_path is not None:
         paths["receipt_contract"] = contract_path
+    if authority_path is not None:
+        paths["authority_root"] = authority_path
     for name, path in paths.items():
         require_file(path, name.replace("_", " "))
 
@@ -453,6 +600,7 @@ def build_attestation(
         receipt_path=paths["receipt"],
     )
     contract_enabled = contract_path is not None
+    authority_fields: dict[str, str] | None = None
     if contract_enabled:
         assert_current_contract(
             bin_path=bin_path,
@@ -480,8 +628,25 @@ def build_attestation(
                 keyfile_path=paths["artifact_key"],
                 opened_binary=paths["opened_binary"],
             )
+        elif contract_mode == "rooted-asm":
+            if authority_path is None:
+                raise SelfReleaseError("rooted assembly contract mode requires --authority")
+            authority_fields = assert_current_authority(
+                authority_path=paths["authority_root"],
+                contract_path=paths["receipt_contract"],
+            )
+            reproduce_rooted_asm_contract_open(
+                bin_path=bin_path,
+                authority_path=paths["authority_root"],
+                artifact_path=paths["sealed_artifact"],
+                contract_path=paths["receipt_contract"],
+                keyfile_path=paths["artifact_key"],
+                opened_binary=paths["opened_binary"],
+            )
         else:
             raise SelfReleaseError(f"unsupported contract mode: {contract_mode}")
+    elif authority_path is not None:
+        raise SelfReleaseError("--authority requires --contract")
     else:
         reproduce_gate_open(
             bin_path=bin_path,
@@ -508,6 +673,8 @@ def build_attestation(
     }
     if contract_enabled:
         hashes["receipt_contract"] = sha256_file(paths["receipt_contract"])
+    if authority_path is not None:
+        hashes["authority_root"] = sha256_file(paths["authority_root"])
 
     receipt = load_json_file(paths["receipt"], "authorization receipt")
     if not isinstance(receipt, dict):
@@ -540,14 +707,26 @@ def build_attestation(
         else:
             checks["assembly_contract_check"] = True
             checks["assembly_contract_open_reproduced"] = True
+        if contract_mode == "rooted-asm":
+            checks.pop("assembly_contract_check", None)
+            checks.pop("assembly_contract_open_reproduced", None)
+            checks["authority_root_check"] = True
+            checks["authority_root_matches_contract"] = True
+            checks["rooted_gate_check"] = True
+            checks["rooted_gate_open"] = True
     else:
         checks["gate_open_reproduced"] = True
 
     boundary = BOUNDARY
     if contract_enabled:
-        boundary = ASM_CONTRACT_BOUNDARY if contract_mode == "asm" else CONTRACT_BOUNDARY
+        if contract_mode == "asm":
+            boundary = ASM_CONTRACT_BOUNDARY
+        elif contract_mode == "rooted-asm":
+            boundary = ROOTED_ASM_CONTRACT_BOUNDARY
+        else:
+            boundary = CONTRACT_BOUNDARY
 
-    return {
+    attestation = {
         "schema": ATTESTATION_SCHEMA,
         "production": False,
         "action": ACTION,
@@ -561,6 +740,10 @@ def build_attestation(
         "checks": checks,
         "boundary": boundary,
     }
+    if authority_fields is not None:
+        attestation["authority_root_sha256"] = hashes["authority_root"]
+        attestation["authority_group_public_key"] = authority_fields["group-public-key"]
+    return attestation
 
 
 def compare_attestations(expected: Any, observed: dict[str, Any]) -> None:
@@ -578,6 +761,7 @@ def run_attest(args: argparse.Namespace) -> int:
         contract_path=Path(args.contract) if args.contract else None,
         contract_bin_path=Path(args.contract_bin) if args.contract_bin else None,
         contract_mode=args.contract_mode,
+        authority_path=Path(args.authority) if args.authority else None,
     )
     write_json_new(attestation_path, attestation)
     print(f"wrote self-release attestation: {display_path(attestation_path)}")
@@ -592,6 +776,7 @@ def run_verify(args: argparse.Namespace) -> int:
         contract_path=Path(args.contract) if args.contract else None,
         contract_bin_path=Path(args.contract_bin) if args.contract_bin else None,
         contract_mode=args.contract_mode,
+        authority_path=Path(args.authority) if args.authority else None,
     )
     expected = load_json_file(attestation_path, "self-release attestation")
     compare_attestations(expected, observed)
@@ -629,9 +814,13 @@ def main() -> int:
     )
     parser.add_argument(
         "--contract-mode",
-        choices=("zig", "asm"),
+        choices=("zig", "asm", "rooted-asm"),
         default=os.environ.get("WUCI_GATE_CONTRACT_MODE", "zig"),
         help="contract enforcement reproduction mode; defaults to zig",
+    )
+    parser.add_argument(
+        "--authority",
+        help="optional flat WUCI-ROOT authority file for rooted assembly mode",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("attest", help="write a new self-release attestation")

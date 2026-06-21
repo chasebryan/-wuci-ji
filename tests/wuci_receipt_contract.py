@@ -302,10 +302,14 @@ def assert_contract_shape(contract_path: Path) -> None:
     spec = load_json(CONTRACT_SPEC)
     assert spec["contract_schema"] == "wuci-gate-receipt-contract-v1"
     assert tuple(spec["field_order"]) == CONTRACT_FIELDS
-    assert "Do not add assembly release-authorized-contract yet." in spec["assembly_non_goals"]
+    assert "Do not parse release receipt JSON in assembly." in spec["assembly_non_goals"]
     assert "Do not parse receipt JSON in assembly." in spec["assembly_non_goals"]
     assert (
         "Do not accept non-open actions through open-authorized-contract."
+        in spec["assembly_non_goals"]
+    )
+    assert (
+        "Do not accept non-release actions through release-authorized-contract."
         in spec["assembly_non_goals"]
     )
 

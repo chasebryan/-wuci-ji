@@ -1,6 +1,6 @@
 {
   "schema": "wuci-gate-boundary-v1",
-  "status": "python-preview-plus-assembly-flat-contract",
+  "status": "python-preview-plus-assembly-rooted-contracts",
   "enforcement_implemented": true,
   "assembly_command_enforcement_implemented": true,
   "assembly_owned_surfaces": [
@@ -9,19 +9,37 @@
     "frost-secp256k1-challenge",
     "frost-secp256k1-verify",
     "open-file-keyfile",
+    "authority-root-verify",
     "gate-contract-verify",
-    "open-authorized-contract"
+    "gate-contract-verify-rooted",
+    "open-authorized-contract",
+    "open-authorized-rooted",
+    "release-authorized-contract"
   ],
   "python_workflow_surfaces": [
     "tools/wuci_frost_authorize.py",
     "tools/wuci_gate.py",
     "tools/wuci_receipt_contract.py",
+    "tools/wuci_authority_root.py",
     "tests/frost_authorization_workflow.py",
     "tests/wuci_receipt_contract.py",
     "tests/wuci_gate_contract_asm.py",
+    "tests/wuci_gate_rooted_contract_asm.py",
     "tests/wuci_gate_policy_matrix.py",
     "tests/wuci_gate_workflow.py"
   ],
+  "authority_root": {
+    "schema": "wuci-authority-root-v1",
+    "suite": "FROST-secp256k1-SHA256-v1",
+    "production": false,
+    "authority_id": "sha256(decoded group-public-key)",
+    "required_policy": {
+      "allow-open": true,
+      "allow-release": false,
+      "allow-trust": false,
+      "allow-publish": false
+    }
+  },
   "assembly_contract_commands": [
     {
       "name": "gate-contract-verify",
@@ -31,20 +49,37 @@
       "implemented": true
     },
     {
+      "name": "gate-contract-verify-rooted",
+      "shape": "gate-contract-verify-rooted <authority> <artifact> <contract>",
+      "required_action": "open",
+      "contract_schema": "wuci-gate-receipt-contract-v1",
+      "authority_schema": "wuci-authority-root-v1",
+      "implemented": true
+    },
+    {
       "name": "open-authorized-contract",
       "shape": "open-authorized-contract <keyfile> <artifact> <contract> <out>",
       "required_action": "open",
       "contract_schema": "wuci-gate-receipt-contract-v1",
       "implemented": true
-    }
-  ],
-  "future_commands": [
+    },
+    {
+      "name": "open-authorized-rooted",
+      "shape": "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>",
+      "required_action": "open",
+      "contract_schema": "wuci-gate-receipt-contract-v1",
+      "authority_schema": "wuci-authority-root-v1",
+      "implemented": true
+    },
     {
       "name": "release-authorized-contract",
       "shape": "release-authorized-contract <artifact> <contract>",
       "required_action": "release",
-      "implemented": false
-    },
+      "contract_schema": "wuci-gate-receipt-contract-v1",
+      "implemented": true
+    }
+  ],
+  "future_commands": [
     {
       "name": "release-authorized",
       "shape": "release-authorized <artifact> <receipt>",
@@ -93,17 +128,26 @@
     "challenge_mismatch",
     "invalid_signature",
     "private_material",
+    "malformed_authority_root",
+    "unsupported_authority_schema",
+    "unsupported_authority_suite",
+    "authority_id_mismatch",
+    "authority_group_key_mismatch",
+    "authority_open_disallowed",
     "wrong_open_action",
+    "wrong_release_action",
     "wrong_key_after_authorization",
     "output_exists",
     "output_parent_missing",
     "output_parent_not_directory"
   ],
   "non_goals": [
-    "Do not add assembly release-authorized-contract yet.",
+    "Do not parse release receipt JSON in assembly.",
     "Do not parse receipt JSON in assembly.",
     "Do not accept arbitrary signer material.",
     "Do not accept non-open actions through open-authorized-contract.",
+    "Do not accept non-open actions through open-authorized-rooted.",
+    "Do not accept non-release actions through release-authorized-contract.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

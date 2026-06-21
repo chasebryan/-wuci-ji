@@ -3,8 +3,12 @@
 .include "include/wuci.inc"
 
 .section .text
+.global run_authority_root_verify
 .global run_gate_contract_verify
+.global run_gate_contract_verify_rooted
 .global run_open_authorized_contract
+.global run_open_authorized_rooted
+.global run_release_authorized_contract
 
 .extern write_all
 .extern exit_process
@@ -58,9 +62,31 @@
 .extern secp256k1_field_equal_limbs
 .extern copy_field4
 
+run_authority_root_verify:
+    cmp qword ptr [rsp], 3
+    jne usage_exit
+
+    mov rdi, qword ptr [rsp + 24]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_authority_file_error
+
+    call gate_parse_authority_root
+    cmp eax, 1
+    jne gate_authority_error
+
+    mov rdi, STDOUT
+    lea rsi, [rip + gate_valid_msg]
+    mov edx, OFFSET FLAT:gate_valid_msg_len
+    call write_all
+    xor edi, edi
+    jmp exit_process
+
 run_gate_contract_verify:
     cmp qword ptr [rsp], 4
     jne usage_exit
+
+    call gate_setup_open_action
 
     mov rdi, qword ptr [rsp + 24]
     call read_artifact_file
@@ -89,9 +115,53 @@ run_gate_contract_verify:
     xor edi, edi
     jmp exit_process
 
+run_gate_contract_verify_rooted:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    call gate_setup_open_action
+
+    mov rdi, qword ptr [rsp + 24]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_authority_file_error
+
+    call gate_parse_authority_root
+    cmp eax, 1
+    jne gate_authority_error
+
+    mov rdi, qword ptr [rsp + 32]
+    call read_artifact_file
+    cmp eax, 1
+    je .Lgate_rooted_verify_read_contract
+    cmp eax, 2
+    je gate_contract_file_error
+    jmp gate_artifact_file_error
+
+.Lgate_rooted_verify_read_contract:
+    mov rdi, qword ptr [rsp + 40]
+    call gate_read_contract_file
+    cmp eax, 1
+    je .Lgate_rooted_verify_loaded
+    jmp gate_contract_file_error
+
+.Lgate_rooted_verify_loaded:
+    call gate_verify_loaded_rooted_contract
+    cmp eax, 1
+    jne gate_contract_error
+
+    mov rdi, STDOUT
+    lea rsi, [rip + gate_valid_msg]
+    mov edx, OFFSET FLAT:gate_valid_msg_len
+    call write_all
+    xor edi, edi
+    jmp exit_process
+
 run_open_authorized_contract:
     cmp qword ptr [rsp], 6
     jne usage_exit
+
+    call gate_setup_open_action
 
     mov rdi, qword ptr [rsp + 24]
     lea rsi, [rip + chacha_key]
@@ -122,11 +192,112 @@ run_open_authorized_contract:
 
     jmp open_parse_loaded_envelope
 
+run_open_authorized_rooted:
+    cmp qword ptr [rsp], 7
+    jne usage_exit
+
+    call gate_setup_open_action
+
+    mov rdi, qword ptr [rsp + 24]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_authority_file_error
+
+    call gate_parse_authority_root
+    cmp eax, 1
+    jne gate_authority_error
+
+    mov rdi, qword ptr [rsp + 32]
+    lea rsi, [rip + chacha_key]
+    call read_key_file
+    cmp eax, 1
+    jne gate_keyfile_error
+
+    mov rax, qword ptr [rsp + 56]
+    mov qword ptr [rip + aead_output_path], rax
+
+    mov rdi, qword ptr [rsp + 40]
+    call read_artifact_file
+    cmp eax, 1
+    je .Lopen_rooted_read_contract
+    cmp eax, 2
+    je gate_contract_file_error
+    jmp gate_artifact_file_error
+
+.Lopen_rooted_read_contract:
+    mov rdi, qword ptr [rsp + 48]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_contract_file_error
+
+    call gate_verify_loaded_rooted_contract
+    cmp eax, 1
+    jne gate_contract_error
+
+    jmp open_parse_loaded_envelope
+
+run_release_authorized_contract:
+    cmp qword ptr [rsp], 4
+    jne usage_exit
+
+    call gate_setup_release_action
+
+    mov rdi, qword ptr [rsp + 24]
+    call read_artifact_file
+    cmp eax, 1
+    je .Lrelease_authorized_read_contract
+    cmp eax, 2
+    je gate_contract_file_error
+    jmp gate_artifact_file_error
+
+.Lrelease_authorized_read_contract:
+    mov rdi, qword ptr [rsp + 32]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_contract_file_error
+
+    call gate_verify_loaded_contract
+    cmp eax, 1
+    jne gate_contract_error
+
+    call gate_write_release_decision
+    xor edi, edi
+    jmp exit_process
+
+gate_setup_open_action:
+    lea rax, [rip + gate_action_open_line]
+    mov qword ptr [rip + gate_expected_action_line_ptr], rax
+    mov qword ptr [rip + gate_expected_action_line_len], OFFSET FLAT:gate_action_open_line_len
+    lea rax, [rip + gate_action_open_value]
+    mov qword ptr [rip + gate_expected_action_ptr], rax
+    mov qword ptr [rip + gate_expected_action_len], OFFSET FLAT:gate_action_open_value_len
+    ret
+
+gate_setup_release_action:
+    lea rax, [rip + gate_action_release_line]
+    mov qword ptr [rip + gate_expected_action_line_ptr], rax
+    mov qword ptr [rip + gate_expected_action_line_len], OFFSET FLAT:gate_action_release_line_len
+    lea rax, [rip + gate_action_release_value]
+    mov qword ptr [rip + gate_expected_action_ptr], rax
+    mov qword ptr [rip + gate_expected_action_len], OFFSET FLAT:gate_action_release_value_len
+    ret
+
 gate_verify_loaded_contract:
     call gate_parse_contract
     cmp eax, 1
     jne .Lgate_verify_fail
+    jmp gate_verify_loaded_contract_after_parse
 
+gate_verify_loaded_rooted_contract:
+    call gate_parse_contract
+    cmp eax, 1
+    jne .Lgate_verify_fail
+
+    call gate_verify_authority_binding
+    cmp eax, 1
+    jne .Lgate_verify_fail
+
+gate_verify_loaded_contract_after_parse:
     call gate_build_manifest
     cmp eax, 1
     jne .Lgate_verify_fail
@@ -159,6 +330,13 @@ gate_verify_loaded_contract:
 
 .Lgate_verify_fail:
     xor eax, eax
+    ret
+
+gate_verify_authority_binding:
+    lea rdi, [rip + gate_authority_group_public_key]
+    lea rsi, [rip + gate_group_public_key]
+    mov edx, 33
+    call memeq
     ret
 
 gate_read_contract_file:
@@ -234,6 +412,135 @@ gate_read_contract_file:
     pop rbx
     ret
 
+gate_parse_authority_root:
+    push rbx
+    push r12
+    push r13
+    push r14
+
+    mov r12, qword ptr [rip + gate_contract_len]
+    test r12, r12
+    jz .Lgate_authority_parse_fail
+
+    lea rbx, [rip + gate_contract_buf]
+    mov r13, rbx
+    mov r14, r12
+
+.Lgate_authority_ascii_loop:
+    mov al, byte ptr [r13]
+    cmp al, 0x7f
+    ja .Lgate_authority_parse_fail
+    cmp al, 13
+    je .Lgate_authority_parse_fail
+    inc r13
+    dec r14
+    jne .Lgate_authority_ascii_loop
+
+    lea r13, [rbx + r12 - 1]
+    cmp byte ptr [r13], 10
+    jne .Lgate_authority_parse_fail
+    cmp r12, 2
+    jb .Lgate_authority_parse_fail
+    cmp byte ptr [r13 - 1], 10
+    je .Lgate_authority_parse_fail
+
+    mov qword ptr [rip + gate_parse_ptr], rbx
+    lea rax, [rbx + r12]
+    mov qword ptr [rip + gate_parse_end], rax
+
+    lea rdi, [rip + gate_authority_schema_line]
+    mov esi, OFFSET FLAT:gate_authority_schema_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_suite_line]
+    mov esi, OFFSET FLAT:gate_authority_suite_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_production_line]
+    mov esi, OFFSET FLAT:gate_authority_production_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_id_label]
+    mov esi, OFFSET FLAT:gate_authority_id_label_len
+    mov edx, 32
+    lea rcx, [rip + gate_authority_id]
+    xor r8d, r8d
+    call gate_consume_hex_line
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_group_public_key_label]
+    mov esi, OFFSET FLAT:gate_group_public_key_label_len
+    mov edx, 33
+    lea rcx, [rip + gate_authority_group_public_key]
+    xor r8d, r8d
+    call gate_consume_hex_line
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_allow_open_true_line]
+    mov esi, OFFSET FLAT:gate_authority_allow_open_true_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_allow_release_false_line]
+    mov esi, OFFSET FLAT:gate_authority_allow_release_false_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_allow_trust_false_line]
+    mov esi, OFFSET FLAT:gate_authority_allow_trust_false_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_allow_publish_false_line]
+    mov esi, OFFSET FLAT:gate_authority_allow_publish_false_line_len
+    call gate_consume_literal
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    mov rax, qword ptr [rip + gate_parse_ptr]
+    cmp rax, qword ptr [rip + gate_parse_end]
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_group_public_key]
+    call gate_check_compressed_point
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    lea rdi, [rip + gate_authority_group_public_key]
+    mov esi, 33
+    lea rdx, [rip + digest_buf]
+    call gate_sha256_to_digest
+    lea rdi, [rip + digest_buf]
+    lea rsi, [rip + gate_authority_id]
+    mov edx, 32
+    call memeq
+    cmp eax, 1
+    jne .Lgate_authority_parse_fail
+
+    mov eax, 1
+    jmp .Lgate_authority_parse_done
+
+.Lgate_authority_parse_fail:
+    xor eax, eax
+
+.Lgate_authority_parse_done:
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
 gate_parse_contract:
     push rbx
     push r12
@@ -277,8 +584,8 @@ gate_parse_contract:
     cmp eax, 1
     jne .Lgate_parse_fail
 
-    lea rdi, [rip + gate_action_open_line]
-    mov esi, OFFSET FLAT:gate_action_open_line_len
+    mov rdi, qword ptr [rip + gate_expected_action_line_ptr]
+    mov rsi, qword ptr [rip + gate_expected_action_line_len]
     call gate_consume_literal
     cmp eax, 1
     jne .Lgate_parse_fail
@@ -834,8 +1141,8 @@ gate_build_warrant:
     cmp eax, 1
     jne .Lgate_warrant_fail
 
-    lea rdi, [rip + gate_action_open_value]
-    mov esi, OFFSET FLAT:gate_action_open_value_len
+    mov rdi, qword ptr [rip + gate_expected_action_ptr]
+    mov rsi, qword ptr [rip + gate_expected_action_len]
     call gate_append_bytes
     cmp eax, 1
     jne .Lgate_warrant_fail
@@ -1159,6 +1466,22 @@ gate_append_bytes:
     pop rbx
     ret
 
+gate_write_release_decision:
+    mov rdi, STDOUT
+    lea rsi, [rip + gate_release_decision_prefix]
+    mov edx, OFFSET FLAT:gate_release_decision_prefix_len
+    call write_all
+    lea rdi, [rip + gate_artifact_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+    ret
+
 gate_artifact_file_error:
     mov rdi, STDERR
     lea rsi, [rip + gate_artifact_file_error_msg]
@@ -1181,6 +1504,22 @@ gate_keyfile_error:
     mov edx, OFFSET FLAT:gate_keyfile_error_msg_len
     call write_all
     mov edi, 2
+    jmp exit_process
+
+gate_authority_file_error:
+    mov rdi, STDERR
+    lea rsi, [rip + gate_authority_file_error_msg]
+    mov edx, OFFSET FLAT:gate_authority_file_error_msg_len
+    call write_all
+    mov edi, 2
+    jmp exit_process
+
+gate_authority_error:
+    mov rdi, STDERR
+    lea rsi, [rip + gate_authority_error_msg]
+    mov edx, OFFSET FLAT:gate_authority_error_msg_len
+    call write_all
+    mov edi, 1
     jmp exit_process
 
 gate_contract_error:
@@ -1208,12 +1547,52 @@ gate_keyfile_error_msg:
     .ascii "wuci-ji: keyfile could not be read\n"
 .set gate_keyfile_error_msg_len, . - gate_keyfile_error_msg
 
+gate_authority_file_error_msg:
+    .ascii "wuci-ji: authority root file could not be read\n"
+.set gate_authority_file_error_msg_len, . - gate_authority_file_error_msg
+
+gate_authority_error_msg:
+    .ascii "wuci-ji: authority root verification failed\n"
+.set gate_authority_error_msg_len, . - gate_authority_error_msg
+
 gate_contract_error_msg:
     .ascii "wuci-ji: gate contract verification failed\n"
 .set gate_contract_error_msg_len, . - gate_contract_error_msg
 
 gate_newline:
     .ascii "\n"
+
+gate_authority_schema_line:
+    .ascii "schema: wuci-authority-root-v1\n"
+.set gate_authority_schema_line_len, . - gate_authority_schema_line
+
+gate_authority_suite_line:
+    .ascii "suite: FROST-secp256k1-SHA256-v1\n"
+.set gate_authority_suite_line_len, . - gate_authority_suite_line
+
+gate_authority_production_line:
+    .ascii "production: false\n"
+.set gate_authority_production_line_len, . - gate_authority_production_line
+
+gate_authority_id_label:
+    .ascii "authority-id: "
+.set gate_authority_id_label_len, . - gate_authority_id_label
+
+gate_authority_allow_open_true_line:
+    .ascii "allow-open: true\n"
+.set gate_authority_allow_open_true_line_len, . - gate_authority_allow_open_true_line
+
+gate_authority_allow_release_false_line:
+    .ascii "allow-release: false\n"
+.set gate_authority_allow_release_false_line_len, . - gate_authority_allow_release_false_line
+
+gate_authority_allow_trust_false_line:
+    .ascii "allow-trust: false\n"
+.set gate_authority_allow_trust_false_line_len, . - gate_authority_allow_trust_false_line
+
+gate_authority_allow_publish_false_line:
+    .ascii "allow-publish: false\n"
+.set gate_authority_allow_publish_false_line_len, . - gate_authority_allow_publish_false_line
 
 gate_schema_line:
     .ascii "schema: wuci-gate-receipt-contract-v1\n"
@@ -1223,9 +1602,23 @@ gate_action_open_line:
     .ascii "action: open\n"
 .set gate_action_open_line_len, . - gate_action_open_line
 
+gate_action_release_line:
+    .ascii "action: release\n"
+.set gate_action_release_line_len, . - gate_action_release_line
+
 gate_action_open_value:
     .ascii "open"
 .set gate_action_open_value_len, . - gate_action_open_value
+
+gate_action_release_value:
+    .ascii "release"
+.set gate_action_release_value_len, . - gate_action_release_value
+
+gate_release_decision_prefix:
+    .ascii "authorized: true\n"
+    .ascii "action: release\n"
+    .ascii "artifact-sha256: "
+.set gate_release_decision_prefix_len, . - gate_release_decision_prefix
 
 gate_artifact_sha256_label:
     .ascii "artifact-sha256: "
@@ -1345,6 +1738,24 @@ gate_parse_ptr:
 .align 8
 gate_parse_end:
     .skip 8
+.align 8
+gate_expected_action_line_ptr:
+    .skip 8
+.align 8
+gate_expected_action_line_len:
+    .skip 8
+.align 8
+gate_expected_action_ptr:
+    .skip 8
+.align 8
+gate_expected_action_len:
+    .skip 8
+.align 16
+gate_authority_id:
+    .skip 32
+.align 16
+gate_authority_group_public_key:
+    .skip 33
 .align 16
 gate_manifest_buf:
     .skip GATE_MANIFEST_MAX

@@ -54,15 +54,15 @@ def assert_ok(proc: subprocess.CompletedProcess[bytes], context: str) -> None:
     )
 
 
-def make_receipt(tmp: Path, artifact_path: Path) -> Path:
-    transcript_path = tmp / "open-transcript.json"
-    receipt_path = tmp / "open-receipt.json"
+def make_receipt(tmp: Path, artifact_path: Path, action: str) -> Path:
+    transcript_path = tmp / f"{action}-transcript.json"
+    receipt_path = tmp / f"{action}-receipt.json"
     transcript = run_authorize(
         [
             "--artifact",
             str(artifact_path),
             "--action",
-            "open",
+            action,
             "--print-transcript-manifest",
         ]
     )
@@ -74,7 +74,7 @@ def make_receipt(tmp: Path, artifact_path: Path) -> Path:
             "--artifact",
             str(artifact_path),
             "--action",
-            "open",
+            action,
             "--transcript-manifest",
             str(transcript_path),
             "--update-transcript-manifest",
@@ -108,14 +108,19 @@ def write_artifact(tmp: Path) -> tuple[Path, Path, Path, bytes]:
     return key_path, plain_path, artifact_path, plain
 
 
-def emit_contract(artifact_path: Path, receipt_path: Path, contract_path: Path) -> None:
+def emit_contract(
+    artifact_path: Path,
+    receipt_path: Path,
+    contract_path: Path,
+    action: str,
+) -> None:
     emitted = run_python_contract(
         "emit",
         [
             "--artifact",
             str(artifact_path),
             "--action",
-            "open",
+            action,
             "--receipt",
             str(receipt_path),
             "--contract",
@@ -179,6 +184,15 @@ def assert_open_fails_without_plaintext(
     assert not out_path.exists(), f"unexpected plaintext output: {out_path}"
 
 
+def assert_release_fails(artifact_path: Path, contract_path: Path) -> None:
+    proc = run_wuci(
+        ["release-authorized-contract", str(artifact_path), str(contract_path)]
+    )
+    assert proc.returncode != 0
+    assert b"gate contract verification failed" in proc.stderr
+    assert proc.stdout == b""
+
+
 def assert_auth_mutation_rejected(
     *,
     key_path: Path,
@@ -205,9 +219,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         tmp = Path(temp_dir)
         key_path, plain_path, artifact_path, plain = write_artifact(tmp)
-        receipt_path = make_receipt(tmp, artifact_path)
+        receipt_path = make_receipt(tmp, artifact_path, "open")
         contract_path = tmp / "receipt-contract.txt"
-        emit_contract(artifact_path, receipt_path, contract_path)
+        emit_contract(artifact_path, receipt_path, contract_path, "open")
 
         valid = run_wuci(
             ["gate-contract-verify", str(artifact_path), str(contract_path)]
@@ -228,6 +242,34 @@ def main() -> None:
         assert_ok(opened, "assembly contract open")
         assert opened.stdout == b""
         assert opened_path.read_bytes() == plain
+
+        release_receipt_path = make_receipt(tmp, artifact_path, "release")
+        release_contract_path = tmp / "release-contract.txt"
+        emit_contract(
+            artifact_path,
+            release_receipt_path,
+            release_contract_path,
+            "release",
+        )
+        release = run_wuci(
+            [
+                "release-authorized-contract",
+                str(artifact_path),
+                str(release_contract_path),
+            ]
+        )
+        assert_ok(release, "assembly release contract")
+        release_text = release.stdout.decode("ascii")
+        assert release_text.startswith("authorized: true\naction: release\n")
+        assert f"artifact-sha256: {read_value(release_contract_path.read_text(encoding='ascii'), 'artifact-sha256')}\n" in release_text
+
+        assert_release_fails(artifact_path, contract_path)
+        assert_open_fails_without_plaintext(
+            key_path=key_path,
+            artifact_path=artifact_path,
+            contract_path=release_contract_path,
+            out_path=tmp / "release-contract-opened",
+        )
 
         base_contract = contract_path.read_bytes()
         base_text = base_contract.decode("ascii")
@@ -305,6 +347,42 @@ def main() -> None:
                 contract_path=bad_contract,
                 out_path=tmp / f"{name}.opened",
             )
+
+        release_base_contract = release_contract_path.read_bytes()
+        release_cases: list[tuple[str, Callable[[str], str]]] = [
+            ("wrong-action", lambda text: replace_value(text, "action", "open")),
+            (
+                "wrong-artifact-hash",
+                lambda text: replace_value(text, "artifact-sha256", "00" * 32),
+            ),
+            (
+                "wrong-manifest-hash",
+                lambda text: replace_value(
+                    text, "artifact-manifest-sha256", "00" * 32
+                ),
+            ),
+            (
+                "wrong-authorization-message-hash",
+                lambda text: replace_value(
+                    text, "authorization-message-sha256", "00" * 32
+                ),
+            ),
+            (
+                "wrong-challenge",
+                lambda text: replace_value(text, "challenge", "00" * 32),
+            ),
+            (
+                "tampered-signature-scalar",
+                lambda text: replace_value(text, "signature-scalar", "00" * 32),
+            ),
+        ]
+        for name, mutator in release_cases:
+            bad_contract = mutate_contract(
+                release_base_contract,
+                tmp / f"release-{name}.txt",
+                mutator,
+            )
+            assert_release_fails(artifact_path, bad_contract)
 
         wrong_key = tmp / "wrong.key"
         wrong_key.write_text(("22" * 32) + "\n", encoding="ascii")

@@ -1,0 +1,52 @@
+{
+  "schema": "wuci-authority-root-boundary-v1",
+  "status": "assembly-enforced-open-root",
+  "authority_schema": "wuci-authority-root-v1",
+  "purpose": "Define the fixed flat WUCI-ROOT authority file used by rooted assembly Gate commands to pin a receipt contract group-public-key to the trusted quorum key.",
+  "producer": "tools/wuci_authority_root.py",
+  "verification_target": "tests/wuci_gate_rooted_contract_asm.py",
+  "field_order": [
+    "schema",
+    "suite",
+    "production",
+    "authority-id",
+    "group-public-key",
+    "allow-open",
+    "allow-release",
+    "allow-trust",
+    "allow-publish"
+  ],
+  "format_constraints": [
+    "ASCII only.",
+    "Exactly one 'label: value' field per line.",
+    "Labels must appear in field_order exactly.",
+    "Labels are lowercase and use hyphen separators.",
+    "The file ends with exactly one trailing newline.",
+    "No CRLF.",
+    "No JSON.",
+    "No unknown fields.",
+    "No private signer material."
+  ],
+  "value_constraints": {
+    "schema": "literal wuci-authority-root-v1",
+    "suite": "literal FROST-secp256k1-SHA256-v1",
+    "production": "literal false",
+    "authority-id": "SHA-256 of the decoded 33-byte group-public-key, encoded as 64 lowercase hex characters",
+    "group-public-key": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters",
+    "allow-open": "literal true",
+    "allow-release": "literal false",
+    "allow-trust": "literal false",
+    "allow-publish": "literal false"
+  },
+  "assembly_commands": [
+    "authority-root-verify <authority>",
+    "gate-contract-verify-rooted <authority> <artifact> <contract>",
+    "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>"
+  ],
+  "assembly_non_goals": [
+    "Do not parse authority JSON in assembly.",
+    "Do not accept signer shares or arbitrary signer manifests.",
+    "Do not accept production authority roots.",
+    "Do not accept non-open actions through open-authorized-rooted."
+  ]
+}

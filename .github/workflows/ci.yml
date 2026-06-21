@@ -27,6 +27,12 @@ jobs:
       - name: Run assembly self-release contract proof
         run: make self-release-asm-contract-proof
 
+      - name: Run assembly rooted self-release proof
+        run: make self-release-rooted-proof
+
+      - name: Run assembly release contract proof
+        run: make self-release-release-contract-proof
+
   zig-linux-x86_64:
     runs-on: ubuntu-latest
 
@@ -56,3 +62,5 @@ jobs:
           make zig-release-proof
           make zig-release-contract-proof
           make zig-release-asm-contract-proof
+          make zig-release-rooted-proof
+          make zig-release-release-contract-proof

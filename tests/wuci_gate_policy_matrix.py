@@ -202,6 +202,16 @@ def main() -> None:
 
     boundary = load_json(BOUNDARY)
     expected_classes = set(boundary["expected_rejection_classes"])
+    assembly_only_classes = {
+        "malformed_authority_root",
+        "unsupported_authority_schema",
+        "unsupported_authority_suite",
+        "authority_id_mismatch",
+        "authority_group_key_mismatch",
+        "authority_open_disallowed",
+        "wrong_release_action",
+    }
+    expected_classes -= assembly_only_classes
     assert "private_material" in expected_classes
 
     with tempfile.TemporaryDirectory() as temp_dir:

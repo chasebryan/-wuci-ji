@@ -1,10 +1,10 @@
 {
   "schema": "wuci-gate-receipt-contract-boundary-v1",
-  "status": "python-derived-assembly-enforced-open-contract",
+  "status": "python-derived-assembly-enforced-rooted-open-release-contracts",
   "contract_schema": "wuci-gate-receipt-contract-v1",
-  "purpose": "Define the fixed flat receipt contract that Python may derive from a verified WUCI-WARRANT JSON receipt and assembly can enforce through gate-contract-verify and open-authorized-contract.",
+  "purpose": "Define the fixed flat receipt contract that Python may derive from a verified WUCI-WARRANT JSON receipt and assembly can enforce through gate-contract-verify, open-authorized-contract, release-authorized-contract, and rooted Gate commands that pin group-public-key to a WUCI-ROOT authority file.",
   "producer": "tools/wuci_receipt_contract.py",
-  "verification_target": "tests/wuci_receipt_contract.py and tests/wuci_gate_contract_asm.py",
+  "verification_target": "tests/wuci_receipt_contract.py, tests/wuci_gate_contract_asm.py, and tests/wuci_gate_rooted_contract_asm.py",
   "field_order": [
     "schema",
     "action",
@@ -47,7 +47,7 @@
   ],
   "value_constraints": {
     "schema": "literal wuci-gate-receipt-contract-v1",
-    "action": "one of open, release, trust, publish; assembly open-authorized-contract accepts only open",
+    "action": "one of open, release, trust, publish; assembly open-authorized-contract and open-authorized-rooted accept only open, and release-authorized-contract accepts only release",
     "artifact-sha256": "64 lowercase hex characters",
     "authorization-message-sha256": "64 lowercase hex characters",
     "receipt-sha256": "64 lowercase hex characters",
@@ -59,10 +59,12 @@
     "signature-scalar": "64 lowercase hex characters"
   },
   "assembly_non_goals": [
-    "Do not add assembly release-authorized-contract yet.",
+    "Do not parse release receipt JSON in assembly.",
     "Do not parse receipt JSON in assembly.",
     "Do not accept arbitrary signer material.",
     "Do not accept non-open actions through open-authorized-contract.",
+    "Do not accept non-open actions through open-authorized-rooted.",
+    "Do not accept non-release actions through release-authorized-contract.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

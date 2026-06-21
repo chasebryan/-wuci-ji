@@ -76,7 +76,8 @@ Verified on this host:
 - `make clean && make test` succeeds.
 - `make gate-contract-asm` succeeds and exercises the native
   `gate-contract-verify` / `open-authorized-contract` flat-contract Gate
-  commands.
+  commands plus the rooted `authority-root-verify`,
+  `gate-contract-verify-rooted`, and `open-authorized-rooted` commands.
 - `make self-release-asm-contract-proof` succeeds: the native binary seals
   itself, emits `receipt-contract.txt`, verifies and opens through assembly
   Gate enforcement, compares the opened copy byte-for-byte, executes it, writes
@@ -84,6 +85,19 @@ Verified on this host:
 - `make zig-release-asm-contract-proof` succeeds: the Zig-built Linux x86_64
   ELF seals itself and uses its own assembly `gate-contract-verify` /
   `open-authorized-contract` path for the flat-contract release open.
+- `make self-release-rooted-proof` succeeds: the native binary seals itself,
+  emits `authority-root.txt`, verifies the trusted group key in assembly, opens
+  through `open-authorized-rooted`, and records authority root fields in the
+  attestation.
+- `make zig-release-rooted-proof` succeeds: the Zig-built Linux x86_64 ELF
+  seals itself and uses its own assembly rooted Gate path for the trusted
+  authority self-release proof.
+- `make self-release-release-contract-proof` succeeds: the native binary seals
+  itself, derives a release WUCI-WARRANT receipt contract, and accepts the
+  release decision through assembly `release-authorized-contract`.
+- `make zig-release-release-contract-proof` succeeds: the Zig-built Linux
+  x86_64 ELF proves the same release decision through its own assembly
+  `release-authorized-contract` path.
 - The native build path assembles the files listed in `ASM_SOURCES`; it no
   longer compiles or links a C helper.
 - `make test` now includes the native-object disassembly regression guard in

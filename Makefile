@@ -26,8 +26,9 @@ GATE_DEMO_DIR ?= build/wuci-gate-demo
 SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 SELF_RELEASE_CONTRACT ?= $(SELF_RELEASE_DEMO_DIR)/receipt-contract.txt
+SELF_RELEASE_AUTHORITY ?= $(SELF_RELEASE_DEMO_DIR)/authority-root.txt
 
-.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof
+.PHONY: all build-linux check-asm-immediates check-native check-pypy check-qemu-user clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof test test-linux test-pypy selftest selftest-linux verify-self-release-bundle zig-release-asm-contract-proof zig-release-contract-proof zig-release-proof zig-release-release-contract-proof zig-release-rooted-proof
 
 all: check-native $(TARGET)
 
@@ -125,6 +126,7 @@ gate-contract-zig: build-linux $(ZIG_GATE_CONTRACT)
 
 gate-contract-asm: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_contract_asm.py --quiet
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_gate_rooted_contract_asm.py --quiet
 
 gate-demo: check-native $(TARGET)
 	mkdir -p $(GATE_DEMO_DIR)
@@ -250,6 +252,77 @@ self-release-asm-contract-bundle: self-release-asm-contract-demo
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode asm verify
 	@printf 'self-release assembly contract attestation: %s\n' "$(SELF_RELEASE_ATTESTATION)"
 
+self-release-rooted-demo: $(RELEASE_BIN)
+	mkdir -p $(SELF_RELEASE_DEMO_DIR)
+	rm -f \
+		$(SELF_RELEASE_DEMO_DIR)/artifact.key \
+		$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj \
+		$(SELF_RELEASE_DEMO_DIR)/manifest.txt \
+		$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt \
+		$(SELF_RELEASE_DEMO_DIR)/auth-transcript.json \
+		$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json \
+		$(SELF_RELEASE_CONTRACT) \
+		$(SELF_RELEASE_AUTHORITY) \
+		$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji \
+		$(SELF_RELEASE_ATTESTATION)
+	printf '1111111111111111111111111111111111111111111111111111111111111111\n' > $(SELF_RELEASE_DEMO_DIR)/artifact.key
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) seal-file-keyfile-v2 $(SELF_RELEASE_DEMO_DIR)/artifact.key 2233445566778899aabbccddeeff0011 $(abspath $(RELEASE_BIN)) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) manifest-file $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/manifest.txt
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) warrant-message-file open $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/warrant-message.txt
+	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --print-transcript-manifest > $(SELF_RELEASE_DEMO_DIR)/auth-transcript.json
+	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --transcript-manifest $(SELF_RELEASE_DEMO_DIR)/auth-transcript.json --update-transcript-manifest --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json
+	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_receipt_contract.py emit --bin $(abspath $(RELEASE_BIN)) --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action open --receipt $(SELF_RELEASE_DEMO_DIR)/auth-receipt.json --contract $(SELF_RELEASE_CONTRACT) --quiet
+	$(PYTHON) tools/wuci_authority_root.py emit --contract $(SELF_RELEASE_CONTRACT) --authority $(SELF_RELEASE_AUTHORITY) --quiet
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) authority-root-verify $(SELF_RELEASE_AUTHORITY)
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) gate-contract-verify-rooted $(SELF_RELEASE_AUTHORITY) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT)
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) open-authorized-rooted $(SELF_RELEASE_AUTHORITY) $(SELF_RELEASE_DEMO_DIR)/artifact.key $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	cmp $(abspath $(RELEASE_BIN)) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	chmod +x $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji
+	$(RELEASE_RUNNER) $(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji --help >/dev/null
+	@printf 'WUCI self-release rooted contract demo complete\n'
+	@printf 'sealed artifact: %s\n' "$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj"
+	@printf 'manifest: %s\n' "$(SELF_RELEASE_DEMO_DIR)/manifest.txt"
+	@printf 'warrant message: %s\n' "$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt"
+	@printf 'receipt: %s\n' "$(SELF_RELEASE_DEMO_DIR)/auth-receipt.json"
+	@printf 'receipt contract: %s\n' "$(SELF_RELEASE_CONTRACT)"
+	@printf 'authority root: %s\n' "$(SELF_RELEASE_AUTHORITY)"
+	@printf 'opened binary: %s\n' "$(SELF_RELEASE_DEMO_DIR)/opened-wuci-ji"
+	@printf 'verified: assembly rooted Gate, byte-identical, and executable\n'
+
+self-release-rooted-bundle: self-release-rooted-demo
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=rooted-asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode rooted-asm --authority $(SELF_RELEASE_AUTHORITY) attest
+	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" WUCI_GATE_CONTRACT_MODE=rooted-asm $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) --contract $(SELF_RELEASE_CONTRACT) --contract-mode rooted-asm --authority $(SELF_RELEASE_AUTHORITY) verify
+	@printf 'self-release rooted assembly attestation: %s\n' "$(SELF_RELEASE_ATTESTATION)"
+
+self-release-release-contract-demo: $(RELEASE_BIN)
+	mkdir -p $(SELF_RELEASE_DEMO_DIR)
+	rm -f \
+		$(SELF_RELEASE_DEMO_DIR)/artifact.key \
+		$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj \
+		$(SELF_RELEASE_DEMO_DIR)/manifest.txt \
+		$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt \
+		$(SELF_RELEASE_DEMO_DIR)/release-transcript.json \
+		$(SELF_RELEASE_DEMO_DIR)/release-receipt.json \
+		$(SELF_RELEASE_CONTRACT) \
+		$(SELF_RELEASE_DEMO_DIR)/release-decision.txt
+	printf '1111111111111111111111111111111111111111111111111111111111111111\n' > $(SELF_RELEASE_DEMO_DIR)/artifact.key
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) seal-file-keyfile-v2 $(SELF_RELEASE_DEMO_DIR)/artifact.key 2233445566778899aabbccddeeff0011 $(abspath $(RELEASE_BIN)) $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) manifest-file $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/manifest.txt
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) warrant-message-file release $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj > $(SELF_RELEASE_DEMO_DIR)/warrant-message.txt
+	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action release --print-transcript-manifest > $(SELF_RELEASE_DEMO_DIR)/release-transcript.json
+	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_frost_authorize.py --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action release --transcript-manifest $(SELF_RELEASE_DEMO_DIR)/release-transcript.json --update-transcript-manifest --receipt $(SELF_RELEASE_DEMO_DIR)/release-receipt.json
+	WUCI_JI_BIN=$(abspath $(RELEASE_BIN)) WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_receipt_contract.py emit --bin $(abspath $(RELEASE_BIN)) --artifact $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj --action release --receipt $(SELF_RELEASE_DEMO_DIR)/release-receipt.json --contract $(SELF_RELEASE_CONTRACT) --quiet
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) release-authorized-contract $(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj $(SELF_RELEASE_CONTRACT) > $(SELF_RELEASE_DEMO_DIR)/release-decision.txt
+	grep -q '^authorized: true$$' $(SELF_RELEASE_DEMO_DIR)/release-decision.txt
+	grep -q '^action: release$$' $(SELF_RELEASE_DEMO_DIR)/release-decision.txt
+	@printf 'WUCI self-release release-contract proof complete\n'
+	@printf 'sealed artifact: %s\n' "$(SELF_RELEASE_DEMO_DIR)/wuci-ji.self.wj"
+	@printf 'manifest: %s\n' "$(SELF_RELEASE_DEMO_DIR)/manifest.txt"
+	@printf 'warrant message: %s\n' "$(SELF_RELEASE_DEMO_DIR)/warrant-message.txt"
+	@printf 'receipt: %s\n' "$(SELF_RELEASE_DEMO_DIR)/release-receipt.json"
+	@printf 'receipt contract: %s\n' "$(SELF_RELEASE_CONTRACT)"
+	@printf 'release decision: %s\n' "$(SELF_RELEASE_DEMO_DIR)/release-decision.txt"
+
 verify-self-release-bundle: $(RELEASE_BIN)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
 
@@ -274,9 +347,25 @@ zig-release-asm-contract-proof: build-linux
 	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
 	$(MAKE) self-release-asm-contract-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-asm-contract-proof
 
+zig-release-release-contract-proof: build-linux
+	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
+	$(MAKE) self-release-release-contract-demo RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-release-contract-proof
+
+zig-release-rooted-proof: build-linux
+	$(RELEASE_RUNNER) $(abspath $(CROSS_TARGET)) selftest
+	$(MAKE) self-release-rooted-bundle RELEASE_BIN=$(abspath $(CROSS_TARGET)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-zig-release-rooted-proof
+
 self-release-asm-contract-proof: check-native $(TARGET)
 	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) selftest
 	$(MAKE) self-release-asm-contract-bundle RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-asm-contract-proof
+
+self-release-rooted-proof: check-native $(TARGET)
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) selftest
+	$(MAKE) self-release-rooted-bundle RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-rooted-proof
+
+self-release-release-contract-proof: check-native $(TARGET)
+	$(RELEASE_RUNNER) $(abspath $(RELEASE_BIN)) selftest
+	$(MAKE) self-release-release-contract-demo RELEASE_BIN=$(abspath $(RELEASE_BIN)) RELEASE_RUNNER="$(RELEASE_RUNNER)" SELF_RELEASE_DEMO_DIR=build/wuci-release-contract-proof
 
 selftest-linux: check-qemu-user build-linux
 	$(QEMU_X86_64) $(CROSS_TARGET) selftest
