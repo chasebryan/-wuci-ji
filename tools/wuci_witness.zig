@@ -376,7 +376,7 @@ fn assertPublicProfile(io: Io, bundle: []const u8, require_index: bool, require_
     var dir = try Io.Dir.cwd().openDir(io, bundle, .{ .iterate = true });
     defer dir.close(io);
 
-    var seen = [_]bool{false} ** public_files.len;
+    var seen: [public_files.len]bool = @splat(false);
     var iter = dir.iterate();
     while (try iter.next(io)) |entry| {
         if (entry.kind != .file) return error.PublicBundleEntryNotFile;

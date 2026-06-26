@@ -712,7 +712,7 @@ fn assertWitnessProfile(io: Io, bundle: []const u8) !void {
     var dir = try Io.Dir.cwd().openDir(io, bundle, .{ .iterate = true });
     defer dir.close(io);
 
-    var seen = [_]bool{false} ** witness_public_files.len;
+    var seen: [witness_public_files.len]bool = @splat(false);
     var iter = dir.iterate();
     while (try iter.next(io)) |entry| {
         if (entry.kind != .file) return error.WitnessBundleEntryNotFile;

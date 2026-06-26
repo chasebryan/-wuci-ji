@@ -11,6 +11,9 @@
 .global close_seal_files
 .global open_output_file
 .global write_open_plaintext
+.global create_open_temp
+.global unlink_path
+.global rename_noreplace_path
 .extern hex32_decode
 .extern io_buf
 .extern aead_text_len
@@ -20,6 +23,8 @@
 .extern seal_file_mode
 .extern aead_open_buf
 .extern hex_buf
+.extern open_temp_path
+.extern open_temp_fd
 
 write_all:
     push rbx
@@ -295,16 +300,13 @@ write_open_plaintext:
     test rax, rax
     jz .Lwrite_open_plaintext_write
 
-    mov eax, SYS_OPENAT
-    mov rdi, AT_FDCWD
-    mov rsi, qword ptr [rip + aead_output_path]
-    mov edx, FILE_CREATE_FLAGS
-    mov r10d, FILE_CREATE_MODE
-    syscall
-    test rax, rax
-    js .Lwrite_open_plaintext_fail
-    mov r13, rax
-    mov r14d, 1
+    # Create temp in the destination directory; final install happens later.
+    mov rdi, qword ptr [rip + aead_output_path]
+    call create_open_temp
+    test eax, eax
+    jz .Lwrite_open_plaintext_fail
+    mov r13, qword ptr [rip + open_temp_fd]
+    mov r14d, 2   # special flag for temp+rename install
 
 .Lwrite_open_plaintext_write:
     mov rdi, r13
@@ -314,6 +316,7 @@ write_open_plaintext:
     test eax, eax
     jne .Lwrite_open_plaintext_fail_close
 
+    # close handling
     test r14, r14
     jz .Lwrite_open_plaintext_ok
     mov eax, SYS_CLOSE
@@ -321,6 +324,23 @@ write_open_plaintext:
     syscall
     test rax, rax
     js .Lwrite_open_plaintext_fail
+
+    cmp r14, 2
+    jne .Lwrite_open_plaintext_ok
+    # install temp at final path without overwriting an existing output
+    lea rdi, [rip + open_temp_path]
+    mov rsi, qword ptr [rip + aead_output_path]
+    call rename_noreplace_path
+    test eax, eax
+    jz .Lwrite_rename_fail
+    jmp .Lwrite_open_plaintext_ok
+
+.Lwrite_rename_fail:
+    # cleanup temp
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+    xor eax, eax
+    jmp .Lwrite_open_plaintext_done
 
 .Lwrite_open_plaintext_ok:
     mov eax, 1
@@ -332,10 +352,109 @@ write_open_plaintext:
     mov eax, SYS_CLOSE
     mov rdi, r13
     syscall
+    cmp r14, 2
+    jne .Lwrite_open_plaintext_fail
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
 
 .Lwrite_open_plaintext_fail:
     xor eax, eax
 .Lwrite_open_plaintext_done:
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+unlink_path:
+    mov eax, SYS_UNLINK
+    # rdi = path
+    syscall
+    test rax, rax
+    js .Lunlink_fail
+    mov eax, 1
+    ret
+.Lunlink_fail:
+    xor eax, eax
+    ret
+
+rename_noreplace_path:
+    mov eax, SYS_RENAMEAT2
+    # rdi = oldpath, rsi = newpath
+    mov rdx, AT_FDCWD
+    mov r10, rsi
+    mov rsi, rdi
+    mov rdi, AT_FDCWD
+    mov r8d, RENAME_NOREPLACE
+    syscall
+    test rax, rax
+    js .Lrename_noreplace_fail
+    mov eax, 1
+    ret
+.Lrename_noreplace_fail:
+    xor eax, eax
+    ret
+
+create_open_temp:
+    push rbx
+    push r12
+    push r13
+    push r14
+    mov rbx, rdi                 # final path
+    lea r12, [rip + open_temp_path]
+    xor r13d, r13d               # len
+.copy_path:
+    mov al, byte ptr [rbx + r13]
+    mov byte ptr [r12 + r13], al
+    test al, al
+    jz .append_suffix
+    inc r13
+    cmp r13, 4000
+    jb .copy_path
+    jmp .create_fail
+.append_suffix:
+    # append ".tmp."
+    mov byte ptr [r12 + r13], '.'
+    inc r13
+    mov byte ptr [r12 + r13], 't'
+    inc r13
+    mov byte ptr [r12 + r13], 'm'
+    inc r13
+    mov byte ptr [r12 + r13], 'p'
+    inc r13
+    mov byte ptr [r12 + r13], '.'
+    inc r13
+    # now 8 random bytes -> 16 hex
+    sub rsp, 16
+    mov rdi, rsp
+    mov rsi, 8
+    call fill_random
+    cmp eax, 1
+    jne .create_fail_pop
+    mov rdi, rsp                 # src random
+    lea rsi, [r12 + r13]         # dst in temp path
+    mov edx, 8
+    call hex_encode
+    add r13, 16
+    mov byte ptr [r12 + r13], 0
+    add rsp, 16
+    # now open exclusively
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    lea rsi, [rip + open_temp_path]
+    mov edx, FILE_CREATE_FLAGS
+    mov r10d, FILE_CREATE_MODE
+    syscall
+    test rax, rax
+    js .create_fail
+    mov qword ptr [rip + open_temp_fd], rax
+    mov eax, 1
+    jmp .create_done
+.create_fail_pop:
+    add rsp, 16
+.create_fail:
+    xor eax, eax
+.create_done:
     pop r14
     pop r13
     pop r12

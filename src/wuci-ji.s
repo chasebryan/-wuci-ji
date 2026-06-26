@@ -187,6 +187,9 @@
 .extern close_seal_files
 .extern open_output_file
 .extern write_open_plaintext
+.extern create_open_temp
+.extern unlink_path
+.extern rename_noreplace_path
 .extern x25519_basepoint
 .extern x25519_scalar_mult
 .extern usage_exit
@@ -4248,6 +4251,14 @@ aead_aad_len:
     .skip 8
 .align 8
 aead_output_path:
+    .skip 8
+.align 8
+.global open_temp_path
+.global open_temp_fd
+open_temp_path:
+    .skip 4096
+.align 8
+open_temp_fd:
     .skip 8
 .align 8
 warrant_action_ptr:
