@@ -25,6 +25,21 @@ make test
 If the host lacks BMI2 or AVX, use the qemu lane instead of full native
 `make test`.
 
+## Parallel Proof Runs
+
+The Makefile detects host logical CPUs through `HOST_LOGICAL_CPUS`:
+
+```sh
+make host-capacity
+make -j$(nproc) high-attestation-proof
+```
+
+Independent build and proof targets can use all available cores. Targets that
+write shared witness, ledger, CAGE, QCAGE, or release-bundle paths are
+serialized by their dependencies, so the project is usable on hosts larger than
+dual-core systems without requiring every evidence path to be race-free under
+arbitrary parallel execution.
+
 ## Linux With QEMU
 
 ```sh

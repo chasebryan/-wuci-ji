@@ -67,6 +67,9 @@ make pq-verifier-test
 make production-readiness-gates
 make crypto-self-audit
 make crypto-self-audit-test
+make parser-corpus-replay
+make verify-release-bundle
+make host-capacity
 ```
 
 `high-attestation-profile` checks the machine-readable defensive baseline in
@@ -79,8 +82,24 @@ safety, production authority, or absence of vulnerabilities.
 smoke, assembly smoke/regression audit, HARDEN policy, CAGE/QCAGE policy and
 bundle checks, SBOM/provenance evidence, CARROT kernel no-network proof,
 compiled Rust sandbox wrapper evidence, real-PQ verifier detection, crypto
-self-audit evidence, production-readiness gates, Gate contract assembly checks,
-and the full qemu Linux CLI test.
+self-audit evidence, deterministic local parser corpus replay, release bundle
+verification, production-readiness gates, Gate contract assembly checks, and
+the full qemu Linux CLI test.
+
+`parser-corpus-replay` replays committed parser corpora plus deterministic
+mutations through assembly parser/verifier surfaces. It is local fail-closed
+replay evidence, not offensive fuzzing or a coverage-guided CI fuzzer.
+
+`verify-release-bundle` writes `build/wuci-release-bundle-verification.json`.
+It verifies SBOM/provenance, CARROT, PQ detector, crypto self-audit, parser
+replay, production authority policy, witness bundle, ledger history, install
+manifest signature, binary hashes, and Rust no-network wrapper evidence. The
+output remains an evidence candidate and records blockers instead of claiming
+production readiness.
+
+`host-capacity` prints the detected logical CPU count. Independent proof lanes
+can be run with `make -jN`; targets that share witness, ledger, CAGE, QCAGE, or
+release evidence paths are serialized through their Make dependencies.
 
 `kernel-sandbox-proof` is local kernel evidence: it requires Linux support for
 seccomp filters plus unprivileged user and network namespaces and passes only

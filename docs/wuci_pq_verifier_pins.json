@@ -1,0 +1,9 @@
+{
+  "schema": "wuci-pq-verifier-pins-v1",
+  "status": "no-reviewed-pq-verifier-pins-yet",
+  "allowed_verifiers": [],
+  "non_claims": [
+    "empty pins mean no external PQ verifier evidence may pass as real",
+    "adding a pin requires reviewed implementation evidence and KAT transcript evidence"
+  ]
+}

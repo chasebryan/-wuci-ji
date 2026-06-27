@@ -193,6 +193,30 @@ def main() -> None:
         assert len(labels["receipt-sha256"]) == 64
         assert_no_private_material(check.stdout)
 
+        check_json = run_gate(
+            [
+                "check",
+                "--artifact",
+                str(artifact_path),
+                "--action",
+                "open",
+                "--receipt",
+                str(open_receipt_path),
+                "--json",
+            ]
+        )
+        assert check_json.returncode == 0, check_json.stderr.decode("utf-8", "replace")
+        check_data = json.loads(check_json.stdout.decode("utf-8"))
+        assert check_data["schema"] == "wuci-gate-check-v1"
+        assert check_data["authorized"] is True
+        assert check_data["action"] == "open"
+        assert check_data["artifact_sha256"] == labels["artifact-sha256"]
+        assert check_data["authorization_message_sha256"] == labels[
+            "authorization-message-sha256"
+        ]
+        assert check_data["receipt_sha256"] == labels["receipt-sha256"]
+        assert_no_private_material(check_json.stdout)
+
         opened = run_gate(
             [
                 "open",
@@ -211,6 +235,31 @@ def main() -> None:
         assert opened.returncode == 0, opened.stderr.decode("utf-8", "replace")
         assert opened_path.read_bytes() == plain
         assert_no_private_material(opened.stdout)
+
+        opened_json_path = tmp / "opened-json.txt"
+        opened_json = run_gate(
+            [
+                "open",
+                "--artifact",
+                str(artifact_path),
+                "--action",
+                "open",
+                "--receipt",
+                str(open_receipt_path),
+                "--keyfile",
+                str(key_path),
+                "--out",
+                str(opened_json_path),
+                "--json",
+            ]
+        )
+        assert opened_json.returncode == 0, opened_json.stderr.decode("utf-8", "replace")
+        assert opened_json_path.read_bytes() == plain
+        opened_data = json.loads(opened_json.stdout.decode("utf-8"))
+        assert opened_data["schema"] == "wuci-gate-open-v1"
+        assert opened_data["authorized"] is True
+        assert opened_data["opened_path"] == str(opened_json_path)
+        assert_no_private_material(opened_json.stdout)
 
         release_out = tmp / "release-opened.txt"
         release_open = run_gate(

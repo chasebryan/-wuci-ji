@@ -125,6 +125,24 @@ def print_decision(decision: dict[str, str]) -> None:
         print(f"{key}: {decision[key]}")
 
 
+def json_decision(*, schema: str, decision: dict[str, str], **extra: str) -> dict[str, Any]:
+    value: dict[str, Any] = {
+        "schema": schema,
+        "authorized": decision["authorized"] == "true",
+        "action": decision["action"],
+        "artifact_sha256": decision["artifact-sha256"],
+        "authorization_message_sha256": decision["authorization-message-sha256"],
+        "receipt_sha256": decision["receipt-sha256"],
+    }
+    value.update(extra)
+    reject_private_material(value, "gate JSON decision")
+    return value
+
+
+def print_json(value: dict[str, Any]) -> None:
+    print(json.dumps(value, sort_keys=True))
+
+
 def run_open_file_keyfile(
     *,
     bin_path: Path,
@@ -175,7 +193,10 @@ def run_check(args: argparse.Namespace) -> int:
         action=args.action,
         receipt_path=Path(args.receipt),
     )
-    print_decision(decision)
+    if args.json:
+        print_json(json_decision(schema="wuci-gate-check-v1", decision=decision))
+    else:
+        print_decision(decision)
     return 0
 
 
@@ -198,8 +219,17 @@ def run_open(args: argparse.Namespace) -> int:
         artifact_path=Path(args.artifact),
         out_path=out_path,
     )
-    print_decision(decision)
-    print(f"opened: {out_path}")
+    if args.json:
+        print_json(
+            json_decision(
+                schema="wuci-gate-open-v1",
+                decision=decision,
+                opened_path=str(out_path),
+            )
+        )
+    else:
+        print_decision(decision)
+        print(f"opened: {out_path}")
     return 0
 
 
@@ -217,6 +247,7 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
         help="allow reserved trust/publish compatibility outside strict mode",
     )
     parser.add_argument("--receipt", required=True, help="authorization receipt JSON")
+    parser.add_argument("--json", action="store_true", help="emit deterministic JSON")
     wuci_verifier_identity.add_strict_args(parser)
 
 

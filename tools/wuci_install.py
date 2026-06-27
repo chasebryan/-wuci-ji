@@ -519,6 +519,10 @@ def write_json_atomic(path: Path, value: dict[str, Any], *, mode: int = 0o600) -
     )
 
 
+def print_json(value: dict[str, Any]) -> None:
+    print(json.dumps(value, sort_keys=True, ensure_ascii=False))
+
+
 def proof_hashes() -> dict[str, str]:
     return {
         "witness_bundle_sha512": hash_tree_sha512(REPO_ROOT / "build" / "wuci-witness-bundle", "witness bundle"),
@@ -659,11 +663,21 @@ def print_audit(receipt: dict[str, Any]) -> None:
 
 
 def run_trust_key_check(args: argparse.Namespace) -> int:
-    trust_key_check(Path(args.install_root_key).expanduser())
+    emit_json = getattr(args, "json", False)
+    key_hash = trust_key_check(Path(args.install_root_key).expanduser(), quiet=emit_json)
+    if emit_json:
+        print_json(
+            {
+                "schema": "wuci-install-trust-key-check-v1",
+                "install_root_key_copied": True,
+                "install_root_key_sha256": key_hash,
+            }
+        )
     return 0
 
 
 def run_manifest(args: argparse.Namespace) -> int:
+    emit_json = getattr(args, "json", False)
     bin_path = Path(args.bin)
     fields = manifest_fields_for_binary(bin_path)
     text = canonical_manifest(fields)
@@ -672,17 +686,40 @@ def run_manifest(args: argparse.Namespace) -> int:
         wuci_safeio.atomic_replace_text(out, text, "install manifest", mode=0o644)
     except wuci_safeio.SafeIOError as exc:
         raise InstallError(str(exc)) from exc
-    print(f"wrote install manifest: {out}")
+    if emit_json:
+        print_json(
+            {
+                "schema": "wuci-install-manifest-output-v1",
+                "out": str(out),
+                "manifest": fields,
+            }
+        )
+    else:
+        print(f"wrote install manifest: {out}")
     return 0
 
 
 def run_verify_manifest(args: argparse.Namespace) -> int:
-    verify_manifest_signature(
+    emit_json = getattr(args, "json", False)
+    manifest = verify_manifest_signature(
         install_root_key=Path(args.install_root_key).expanduser(),
         manifest_path=Path(args.manifest),
         signature_path=Path(args.signature),
         ssh_keygen=args.ssh_keygen,
+        quiet=emit_json,
     )
+    if emit_json:
+        print_json(
+            {
+                "schema": "wuci-install-manifest-verify-v1",
+                "manifest_path": str(args.manifest),
+                "signature_path": str(args.signature),
+                "signature_verified": True,
+                "binary_sha256": manifest["binary-sha256"],
+                "binary_sha384": manifest["binary-sha384"],
+                "binary_sha512": manifest["binary-sha512"],
+            }
+        )
     return 0
 
 
@@ -732,7 +769,19 @@ def run_install(args: argparse.Namespace) -> int:
         key_sha256=key_sha256,
         binary_hashes=binary_hashes,
     )
-    print("无此机 / Wuci-ji systems nominal. Version 0.1 installed.")
+    if getattr(args, "json", False):
+        print_json(
+            {
+                "schema": "wuci-install-install-v1",
+                "installed": True,
+                "prefix": str(prefix),
+                "binary_sha256": binary_hashes[0],
+                "binary_sha384": binary_hashes[1],
+                "binary_sha512": binary_hashes[2],
+            }
+        )
+    else:
+        print("无此机 / Wuci-ji systems nominal. Version 0.1 installed.")
     return 0
 
 
@@ -759,7 +808,16 @@ def run_audit(args: argparse.Namespace) -> int:
         quiet=True,
     )
     run_checked([str(binary), "selftest"], "installed selftest")
-    print_audit(receipt)
+    if getattr(args, "json", False):
+        print_json(
+            {
+                "schema": "wuci-install-audit-v1",
+                "audit_passed": True,
+                "receipt": receipt,
+            }
+        )
+    else:
+        print_audit(receipt)
     return 0
 
 
@@ -769,11 +827,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     trust = subparsers.add_parser("trust-key-check")
     trust.add_argument("--install-root-key", required=True)
+    trust.add_argument("--json", action="store_true")
     trust.set_defaults(func=run_trust_key_check)
 
     manifest = subparsers.add_parser("manifest")
     manifest.add_argument("--bin", default=str(DEFAULT_BIN))
     manifest.add_argument("--out", default=str(DEFAULT_MANIFEST))
+    manifest.add_argument("--json", action="store_true")
     manifest.set_defaults(func=run_manifest)
 
     verify = subparsers.add_parser("verify-manifest")
@@ -781,6 +841,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     verify.add_argument("--signature", default=str(DEFAULT_SIGNATURE))
     verify.add_argument("--ssh-keygen")
+    verify.add_argument("--json", action="store_true")
     verify.set_defaults(func=run_verify_manifest)
 
     install = subparsers.add_parser("install")
@@ -791,11 +852,13 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--signature", default=str(DEFAULT_SIGNATURE))
     install.add_argument("--ssh-keygen")
     install.add_argument("--allow-prefix", action="store_true")
+    install.add_argument("--json", action="store_true")
     install.set_defaults(func=run_install)
 
     audit = subparsers.add_parser("audit")
     audit.add_argument("--prefix", default=str(DEFAULT_PREFIX))
     audit.add_argument("--ssh-keygen")
+    audit.add_argument("--json", action="store_true")
     audit.set_defaults(func=run_audit)
 
     return parser

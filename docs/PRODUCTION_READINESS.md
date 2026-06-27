@@ -19,6 +19,7 @@ Run:
 ```sh
 make high-attestation-proof
 make sbom-provenance
+make verify-release-bundle
 ```
 
 These targets produce or verify:
@@ -34,6 +35,14 @@ These targets produce or verify:
 - Real-PQ verifier detection that fails closed for quantum-safe claims when no
   pinned verifier is available.
 - Internal crypto self-audit evidence that is explicitly not an external audit.
+- Deterministic local parser corpus replay through assembly parser/verifier
+  surfaces.
+- Release bundle verification evidence in
+  `build/wuci-release-bundle-verification.json`.
+- Production authority policy evidence that rejects fixture authority and
+  requires a real ceremony plus assembly Gate publish/trust enforcement before
+  any production authority claim.
+- Machine-readable JSON outputs for Gate and install verifier tooling.
 - `build/wuci-sbom.json`.
 - `build/wuci-provenance.json`.
 
@@ -52,7 +61,11 @@ These targets produce or verify:
   network-syscall deny lane on kernels that allow seccomp filters and
   unprivileged user+net namespaces.
 - Real pinned PQ verifier evidence is not available unless
-  `tools/wuci_pq_verifier.py verify --require-real` passes.
+  `tools/wuci_pq_verifier.py verify-real` passes against reviewed pins.
+- Release bundle verification currently records blockers instead of a
+  production-ready claim when the install manifest is not signed for the
+  current build, no real pinned PQ verifier evidence exists, or no non-fixture
+  production authority ceremony is supplied.
 - KEV/CVE review is represented as policy discipline, not a live vulnerability
   attestation.
 

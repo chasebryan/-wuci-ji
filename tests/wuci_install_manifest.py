@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
+import json
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -34,6 +38,22 @@ def main() -> None:
     assert live_manifest["binary-sha256"] == wuci_install.sha256_file(current_bin)
     assert live_manifest["binary-sha384"] == wuci_install.sha384_file(current_bin)
     assert live_manifest["binary-sha512"] == wuci_install.sha512_file(current_bin)
+
+    with tempfile.TemporaryDirectory(prefix="wuci-install-json-") as tmp_name:
+        out = Path(tmp_name) / "install-manifest.v1"
+        capture = io.StringIO()
+        with contextlib.redirect_stdout(capture):
+            assert (
+                wuci_install.run_manifest(
+                    argparse.Namespace(bin=str(current_bin), out=str(out), json=True)
+                )
+                == 0
+            )
+        data = json.loads(capture.getvalue())
+        assert data["schema"] == "wuci-install-manifest-output-v1"
+        assert data["out"] == str(out)
+        assert data["manifest"]["binary-sha256"] == live_manifest["binary-sha256"]
+        assert wuci_install.parse_manifest(out.read_text(encoding="ascii")) == data["manifest"]
 
     expect_fail(lambda: wuci_install.parse_manifest(text.rstrip("\n")))
     expect_fail(lambda: wuci_install.parse_manifest(text.replace("\n", "\r\n")))

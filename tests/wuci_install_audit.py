@@ -89,6 +89,18 @@ def main() -> None:
             "quantum-safe-claimed: false",
         ):
             assert line in output
+        json_capture = io.StringIO()
+        with contextlib.redirect_stdout(json_capture):
+            assert (
+                wuci_install.run_audit(
+                    argparse.Namespace(prefix=str(prefix), ssh_keygen=None, json=True)
+                )
+                == 0
+            )
+        data = json.loads(json_capture.getvalue())
+        assert data["schema"] == "wuci-install-audit-v1"
+        assert data["audit_passed"] is True
+        assert data["receipt"]["binary_sha256"] == wuci_install.sha256_file(prefix / "bin" / "wuci-ji")
         (prefix / "bin" / "wuci-ji").write_bytes(b"tampered")
         expect_fail(lambda: wuci_install.run_audit(argparse.Namespace(prefix=str(prefix), ssh_keygen=None)))
 

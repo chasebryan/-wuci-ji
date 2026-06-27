@@ -243,6 +243,7 @@ def build_provenance(repo: Path, sbom_path: Path, profile_path: Path) -> dict[st
         "host": {
             "uname": command_output(["uname", "-a"], repo),
             "python": sys.version.split()[0],
+            "logical_cpus": os.cpu_count(),
         },
         "qemu": {
             "cpu": os.environ.get("QEMU_CPU", "Haswell-v4"),

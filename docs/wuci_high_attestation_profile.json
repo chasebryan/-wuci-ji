@@ -82,7 +82,12 @@
     "public_evidence_rejects_symlink_and_hardlink_surprises": true,
     "ledger_history_verification_required": true,
     "atomic_writes_required_where_practical": true,
-    "unsigned_install_manifest_rejected": true
+    "unsigned_install_manifest_rejected": true,
+    "machine_readable_cli_outputs": true,
+    "deterministic_parser_corpus_replay": true,
+    "release_bundle_verifier": true,
+    "real_pq_verifier_pins_fail_closed": true,
+    "multi_core_proof_execution_supported": true
   },
   "digest_policy": {
     "sha256_required_for_existing_assembly_compatibility": true,
@@ -120,6 +125,9 @@
     "production-readiness-gates",
     "crypto-self-audit",
     "crypto-self-audit-test",
+    "parser-corpus-replay",
+    "verify-release-bundle",
+    "host-capacity",
     "asm-smoke",
     "check-asm-immediates",
     "harden-policy-matrix",

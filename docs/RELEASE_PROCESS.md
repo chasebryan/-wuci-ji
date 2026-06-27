@@ -33,7 +33,17 @@ make qcage-proof
 make harden-proof
 make high-attestation-proof
 make sbom-provenance
+make verify-release-bundle
 ```
+
+`make verify-release-bundle` writes
+`build/wuci-release-bundle-verification.json`. The verifier recomputes binary
+digests, checks SBOM/provenance, CARROT, PQ detector, crypto self-audit, parser
+replay, witness, ledger, install signature, and Rust wrapper evidence. A
+successful verifier run is release evidence only; it records production
+authority policy and blockers but does not create production authority,
+external crypto audit assurance, runtime sandbox completeness, or quantum-safe
+status.
 
 Do not publish a release that relies on fixture authority while describing it
 as production trust.

@@ -71,6 +71,11 @@ def main() -> None:
     assert controls["unapproved_runner_rejected_in_strict_mode"] is strict["reject_unapproved_runner"]
     assert controls["ledger_history_verification_required"] is harden["ledger_policy"]["verify_history_required"]
     assert controls["unsigned_install_manifest_rejected"] is True
+    assert controls["machine_readable_cli_outputs"] is True
+    assert controls["deterministic_parser_corpus_replay"] is True
+    assert controls["release_bundle_verifier"] is True
+    assert controls["real_pq_verifier_pins_fail_closed"] is True
+    assert controls["multi_core_proof_execution_supported"] is True
 
     digest = profile["digest_policy"]
     assert digest["sha256_required_for_existing_assembly_compatibility"] is True
