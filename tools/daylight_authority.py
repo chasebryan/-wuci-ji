@@ -34,6 +34,7 @@ PRODUCTION_AUTHORITY_KEYS = {
     "authority",
     "ceremony",
     "ceremony_root_key",
+    "ceremony_root_key_sha256",
     "ceremony_signature",
 }
 MISSING_PROOF_KEYS = {"status", "reason"}
@@ -249,20 +250,33 @@ def verify_daylight_authority(
     unexpected_production_keys = sorted(set(production).difference(PRODUCTION_AUTHORITY_KEYS))
     if unexpected_production_keys:
         fail("unexpected production_authority fields: " + ", ".join(unexpected_production_keys))
+    authority_path = resolve_manifest_path(base, production.get("authority"), "production authority root")
+    ceremony_path = resolve_manifest_path(base, production.get("ceremony"), "production authority ceremony")
+    ceremony_root_key = resolve_manifest_path(
+        base,
+        production.get("ceremony_root_key"),
+        "production authority ceremony root key",
+    )
+    ceremony_signature = resolve_manifest_path(
+        base,
+        production.get("ceremony_signature"),
+        "production authority ceremony signature",
+    )
+    expected_ceremony_root_key_sha256 = production.get("ceremony_root_key_sha256")
+    if (
+        not isinstance(expected_ceremony_root_key_sha256, str)
+        or HEX64_RE.fullmatch(expected_ceremony_root_key_sha256) is None
+    ):
+        fail("production authority ceremony_root_key_sha256 must be lowercase SHA-256")
+    actual_ceremony_root_key_sha256 = sha256_file(ceremony_root_key, "production authority ceremony root key")
+    if actual_ceremony_root_key_sha256 != expected_ceremony_root_key_sha256:
+        fail("Daylight authority ceremony root key SHA-256 mismatch")
     try:
         authority = wuci_production_authority.verify_authority(
-            authority_path=resolve_manifest_path(base, production.get("authority"), "production authority root"),
-            ceremony_path=resolve_manifest_path(base, production.get("ceremony"), "production authority ceremony"),
-            ceremony_root_key=resolve_manifest_path(
-                base,
-                production.get("ceremony_root_key"),
-                "production authority ceremony root key",
-            ),
-            ceremony_signature=resolve_manifest_path(
-                base,
-                production.get("ceremony_signature"),
-                "production authority ceremony signature",
-            ),
+            authority_path=authority_path,
+            ceremony_path=ceremony_path,
+            ceremony_root_key=ceremony_root_key,
+            ceremony_signature=ceremony_signature,
             policy_path=repo / "docs" / "wuci_production_authority_policy.json",
             ssh_keygen=ssh_keygen,
             allow_unsigned_ceremony=False,
@@ -286,7 +300,9 @@ def verify_daylight_authority(
         remaining_blockers.append("signed production authority must support publish authority")
     if require_integrated and not integrated_public_authority:
         missing = [name for name, ok in predicates.items() if not ok]
-        missing.extend([f"{name}-proof" for name, ok in predicate_proofs_bound.items() if predicates[name] and not ok])
+        missing.extend(
+            f"{name}-proof" for name, ok in predicate_proofs_bound.items() if predicates[name] and not ok
+        )
         if not authority["allow_trust"]:
             missing.append("trust-authority")
         if not authority["allow_publish"]:
@@ -298,6 +314,7 @@ def verify_daylight_authority(
         "subject": "Daylight_v0.6",
         "authority_sha256": authority["authority_sha256"],
         "ceremony_sha256": authority["ceremony_sha256"],
+        "ceremony_root_key_sha256": actual_ceremony_root_key_sha256,
         "reviewed_commit": evidence["reviewed_commit"],
         "signed_wuci_authority_verified": True,
         "public_authority_predicates": predicates,
@@ -343,6 +360,10 @@ def run_emit_candidate(args: argparse.Namespace) -> int:
             "authority": args.authority,
             "ceremony": args.ceremony,
             "ceremony_root_key": args.ceremony_root_key,
+            "ceremony_root_key_sha256": sha256_file(
+                Path(args.ceremony_root_key),
+                "production authority ceremony root key",
+            ),
             "ceremony_signature": args.ceremony_signature,
         },
         "public_authority_predicates": {

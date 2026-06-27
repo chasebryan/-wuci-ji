@@ -179,6 +179,7 @@ def main() -> None:
         summary = json.loads(verified.stdout.decode("utf-8"))
         assert summary["schema"] == "daylight-v06-authority-verification-v1"
         assert summary["signed_wuci_authority_verified"] is True
+        assert summary["ceremony_root_key_sha256"] == hashlib.sha256(ceremony_root_key.read_bytes()).hexdigest()
         assert summary["integrated_predicates"] is False
         assert summary["public_authority_proofs"]["certificate"]["status"] == "missing"
         assert summary["predicate_proofs_bound"]["certificate"] is False
@@ -188,6 +189,21 @@ def main() -> None:
         assert "public authority predicate proof missing: certificate" in summary["remaining_blockers"]
         assert "signed production authority must support trust authority" in summary["remaining_blockers"]
         assert "signed production authority must support publish authority" in summary["remaining_blockers"]
+
+        value = json.loads(evidence.read_text(encoding="utf-8"))
+        value["production_authority"]["ceremony_root_key_sha256"] = "0" * 64
+        root_key_mismatch = tmp / "daylight-authority-root-key-mismatch.json"
+        root_key_mismatch.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        root_key_mismatch_result = run_daylight(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--evidence",
+            str(root_key_mismatch),
+            "--quiet",
+        )
+        assert root_key_mismatch_result.returncode != 0
+        assert b"Daylight authority ceremony root key SHA-256 mismatch" in root_key_mismatch_result.stderr
 
         proof = tmp / "certificate-proof.txt"
         proof.write_text("deterministic certificate proof placeholder\n", encoding="ascii")

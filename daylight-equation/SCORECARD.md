@@ -139,9 +139,10 @@ If any item is missing, the valid score is below 1000.
   root-key-bound review evidence and assembling two independent reviews later;
   no signed review set is currently tracked.
 - A Daylight authority verifier is tracked for signed non-fixture authority
-  candidates with proof-bound public-authority predicates, but the current
-  WUCI authority lane still does not support publish/trust authority and no
-  integrated Daylight authority evidence is tracked.
+  candidates with proof-bound public-authority predicates and ceremony root-key
+  digest binding, but the current WUCI authority lane still does not support
+  publish/trust authority and no integrated Daylight authority evidence is
+  tracked.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
 - A Daylight 1000 preflight gate is tracked and intentionally remains blocked

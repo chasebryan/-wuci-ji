@@ -166,8 +166,9 @@ non-fixture WUCI open/release authority verification and proves the candidate
 does not satisfy integrated Daylight public authority until publish/trust
 authority support and all predicate integrations exist. It also requires
 true public-authority predicates to be proof-bound by digest-checked local
-evidence and rejects self-claiming extra fields in authority evidence. It is
-not production authority and does not raise the score.
+evidence, binds the ceremony root key SHA-256, and rejects self-claiming extra
+fields in authority evidence. It is not production authority and does not raise
+the score.
 
 `daylight-v06-external-review-packet-test` checks the Daylight v0.6 external
 review packet in
