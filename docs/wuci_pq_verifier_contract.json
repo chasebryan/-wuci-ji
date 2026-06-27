@@ -12,13 +12,19 @@
     "HQC"
   ],
   "required_verifier_evidence": {
+    "schema": "wuci-real-pq-verifier-evidence-v2",
     "binary_sha256": true,
     "implementation_name": true,
     "implementation_version": true,
     "algorithm": true,
+    "verifier_protocol": "wuci-pq-external-verify-v1",
     "known_answer_test": true,
+    "kat_public_key_sha256": true,
+    "kat_message_sha256": true,
+    "kat_signature_sha256": true,
     "no_stub_mode": true,
-    "offline_verification": true
+    "offline_verification": true,
+    "network_required": false
   },
   "rejections": [
     "pq_stub_marked_as_real",

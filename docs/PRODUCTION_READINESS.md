@@ -33,15 +33,16 @@ These targets produce or verify:
 - Compiled Rust wrapper evidence through `make rust-sandbox-test`.
 - Fixture-authority production rejection gates.
 - Real-PQ verifier detection that fails closed for quantum-safe claims when no
-  pinned verifier is available.
+  pinned verifier is available. A separate real-verifier adapter can attest an
+  external verifier through a KAT run, but empty pins still fail closed.
 - Internal crypto self-audit evidence that is explicitly not an external audit.
 - Deterministic local parser corpus replay through assembly parser/verifier
   surfaces.
 - Release bundle verification evidence in
   `build/wuci-release-bundle-verification.json`.
 - Production authority policy evidence that rejects fixture authority and
-  requires a real ceremony plus assembly Gate publish/trust enforcement before
-  any production authority claim.
+  requires a signed non-fixture ceremony plus assembly Gate publish/trust
+  enforcement before any publish/trust production authority claim.
 - Machine-readable JSON outputs for Gate and install verifier tooling.
 - `build/wuci-sbom.json`.
 - `build/wuci-provenance.json`.
@@ -61,11 +62,16 @@ These targets produce or verify:
   network-syscall deny lane on kernels that allow seccomp filters and
   unprivileged user+net namespaces.
 - Real pinned PQ verifier evidence is not available unless
-  `tools/wuci_pq_verifier.py verify-real` passes against reviewed pins.
+  `tools/wuci_pq_verifier.py verify-real` passes against reviewed pins. To
+  generate candidate evidence, provide a real external verifier implementing
+  `wuci-pq-external-verify-v1` and run `make pq-verifier-real-attest` with
+  `PQ_VERIFIER_BIN`, KAT public key/message/signature paths, implementation
+  metadata, and `REAL_PQ_VERIFIER_EVIDENCE`.
 - Release bundle verification currently records blockers instead of a
   production-ready claim when the install manifest is not signed for the
-  current build, no real pinned PQ verifier evidence exists, or no non-fixture
-  production authority ceremony is supplied.
+  current build, no real pinned PQ verifier evidence exists, no signed
+  non-fixture production authority ceremony is supplied, or only internal
+  self-audit evidence exists.
 - The current-build install manifest blocker can only be cleared by the install
   root key holder through `make install-sign-current
   INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key`; private keys must
@@ -78,6 +84,11 @@ These targets produce or verify:
 A future production-ready claim requires all of the following:
 
 - Non-fixture production authority roots and documented key ceremony.
+  `tools/wuci_production_authority.py emit-root`, `ceremony`,
+  `sign-ceremony`, and `verify` provide the local workflow. Production
+  verification requires an external OpenSSH Ed25519 ceremony root signature;
+  unsigned ceremony verification is test-only and must use
+  `--allow-unsigned-ceremony`.
 - Release SBOM and provenance artifacts generated from a clean tree.
 - Repeatable release build with SHA-256/SHA-384/SHA-512 public evidence.
 - Independent security review or audit record covering the production surface.

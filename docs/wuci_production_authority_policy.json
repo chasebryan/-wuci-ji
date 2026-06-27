@@ -16,7 +16,11 @@
   "required_for_production": {
     "production": true,
     "fixture_path_rejected": true,
+    "known_fixture_or_demo_group_key_rejected": true,
     "key_ceremony_document_required": true,
+    "key_ceremony_signature_required": true,
+    "key_ceremony_signature_namespace": "wuci-production-authority-v1",
+    "ceremony_threshold_minimum": 2,
     "root_sha256_record_required": true,
     "publish_or_trust_requires_assembly_gate": true
   },

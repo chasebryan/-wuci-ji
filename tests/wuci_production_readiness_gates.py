@@ -37,7 +37,11 @@ def main() -> None:
     required = authority["required_for_production"]
     assert required["production"] is True
     assert required["fixture_path_rejected"] is True
+    assert required["known_fixture_or_demo_group_key_rejected"] is True
     assert required["key_ceremony_document_required"] is True
+    assert required["key_ceremony_signature_required"] is True
+    assert required["key_ceremony_signature_namespace"] == "wuci-production-authority-v1"
+    assert required["ceremony_threshold_minimum"] == 2
     assert required["publish_or_trust_requires_assembly_gate"] is True
     assert "production: false" in fixture
     fixture_check = subprocess.run(
@@ -67,8 +71,14 @@ def main() -> None:
     assert "ML-DSA" in pq["accepted_signature_algorithms"]
     assert "SLH-DSA" in pq["accepted_signature_algorithms"]
     assert pq["required_verifier_evidence"]["binary_sha256"] is True
+    assert pq["required_verifier_evidence"]["schema"] == "wuci-real-pq-verifier-evidence-v2"
+    assert pq["required_verifier_evidence"]["verifier_protocol"] == "wuci-pq-external-verify-v1"
     assert pq["required_verifier_evidence"]["known_answer_test"] is True
+    assert pq["required_verifier_evidence"]["kat_public_key_sha256"] is True
+    assert pq["required_verifier_evidence"]["kat_message_sha256"] is True
+    assert pq["required_verifier_evidence"]["kat_signature_sha256"] is True
     assert pq["required_verifier_evidence"]["no_stub_mode"] is True
+    assert pq["required_verifier_evidence"]["network_required"] is False
     assert "pq_stub_marked_as_real" in pq["rejections"]
 
     for blocker in (

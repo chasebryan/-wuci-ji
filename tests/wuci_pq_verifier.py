@@ -90,17 +90,37 @@ def main() -> None:
 
         fake_binary = Path(tmp_name) / "fake-pq-verifier"
         fake_binary.write_bytes(b"not a pq verifier\n")
+        kat_public_key = Path(tmp_name) / "kat-pub.bin"
+        kat_message = Path(tmp_name) / "kat-msg.bin"
+        kat_signature = Path(tmp_name) / "kat-sig.bin"
+        kat_public_key.write_bytes(b"not a real pq public key\n")
+        kat_message.write_bytes(b"wuci pq kat message\n")
+        kat_signature.write_bytes(b"not a real pq signature\n")
         fake_evidence = Path(tmp_name) / "fake-real-pq-evidence.json"
         fake_evidence.write_text(
             json.dumps(
                 {
-                    "schema": "wuci-real-pq-verifier-evidence-v1",
+                    "schema": "wuci-real-pq-verifier-evidence-v2",
                     "algorithm": "ML-DSA",
+                    "implementation_name": "fake-test-verifier",
+                    "implementation_version": "0",
+                    "verifier_protocol": "wuci-pq-external-verify-v1",
+                    "standard_reference": "NIST FIPS 204",
                     "known_answer_test": True,
                     "no_stub_mode": True,
                     "offline_verification": True,
+                    "network_required": False,
                     "binary_path": str(fake_binary),
                     "binary_sha256": sha256_bytes(fake_binary.read_bytes()),
+                    "kat": {
+                        "public_key_path": str(kat_public_key),
+                        "public_key_sha256": sha256_bytes(kat_public_key.read_bytes()),
+                        "message_path": str(kat_message),
+                        "message_sha256": sha256_bytes(kat_message.read_bytes()),
+                        "signature_path": str(kat_signature),
+                        "signature_sha256": sha256_bytes(kat_signature.read_bytes()),
+                        "verified": True,
+                    },
                 },
                 indent=2,
                 sort_keys=True,
@@ -125,6 +145,36 @@ def main() -> None:
         )
         assert real.returncode != 0
         assert b"not pinned as reviewed" in real.stderr
+
+        failing_verifier = Path(tmp_name) / "failing-pq-verifier"
+        failing_verifier.write_text("#!/bin/sh\nexit 7\n", encoding="ascii")
+        failing_verifier.chmod(0o755)
+        attest = run_cmd(
+            [
+                sys.executable,
+                str(TOOL),
+                "attest-real",
+                "--verifier",
+                str(failing_verifier),
+                "--algorithm",
+                "ML-DSA",
+                "--public-key",
+                str(kat_public_key),
+                "--message",
+                str(kat_message),
+                "--signature",
+                str(kat_signature),
+                "--implementation-name",
+                "failing-test-verifier",
+                "--implementation-version",
+                "0",
+                "--out",
+                str(Path(tmp_name) / "should-not-write.json"),
+                "--quiet",
+            ]
+        )
+        assert attest.returncode != 0
+        assert b"external PQ verifier KAT failed" in attest.stderr
 
     if not args.quiet:
         print("wuci pq verifier: PASS")

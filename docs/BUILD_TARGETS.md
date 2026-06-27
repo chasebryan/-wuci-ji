@@ -64,7 +64,10 @@ make kernel-sandbox-proof
 make rust-sandbox-build
 make rust-sandbox-test
 make pq-verifier-detect
+make pq-verifier-real-attest
+make pq-verifier-real
 make pq-verifier-test
+make production-authority-verify
 make production-readiness-gates
 make crypto-self-audit
 make crypto-self-audit-test
@@ -82,21 +85,33 @@ safety, production authority, or absence of vulnerabilities.
 `high-attestation-proof` composes the profile check, pinned qemu X25519 CPU
 smoke, assembly smoke/regression audit, HARDEN policy, CAGE/QCAGE policy and
 bundle checks, SBOM/provenance evidence, CARROT kernel no-network proof,
-compiled Rust sandbox wrapper evidence, real-PQ verifier detection, crypto
-self-audit evidence, deterministic local parser corpus replay, release bundle
-verification, production-readiness gates, Gate contract assembly checks, and
-the full qemu Linux CLI test.
+compiled Rust sandbox wrapper evidence, real-PQ verifier detection, optional
+pinned real-PQ verifier evidence, crypto self-audit evidence, deterministic
+local parser corpus replay, release bundle verification, production-readiness
+gates, Gate contract assembly checks, and the full qemu Linux CLI test.
 
 `parser-corpus-replay` replays committed parser corpora plus deterministic
 mutations through assembly parser/verifier surfaces. It is local fail-closed
 replay evidence, not offensive fuzzing or a coverage-guided CI fuzzer.
 
 `verify-release-bundle` writes `build/wuci-release-bundle-verification.json`.
-It verifies SBOM/provenance, CARROT, PQ detector, crypto self-audit, parser
-replay, production authority policy, witness bundle, ledger history, install
-manifest signature, binary hashes, and Rust no-network wrapper evidence. The
-output remains an evidence candidate and records blockers instead of claiming
-production readiness.
+It verifies SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
+evidence, crypto self-audit, parser replay, production authority policy,
+optional signed non-fixture production authority evidence, witness bundle,
+ledger history, install manifest signature, binary hashes, and Rust no-network
+wrapper evidence. The output remains an evidence candidate and records blockers
+instead of claiming production readiness.
+
+`pq-verifier-real-attest` and `pq-verifier-real` are explicit
+external-evidence lanes. They require caller-supplied `PQ_VERIFIER_BIN`, KAT
+paths, implementation metadata, `REAL_PQ_VERIFIER_EVIDENCE`, and reviewed pins
+before any real-PQ evidence can clear a release blocker.
+
+`production-authority-verify` is also explicit. It requires
+`PRODUCTION_AUTHORITY_ROOT`, `PRODUCTION_AUTHORITY_CEREMONY`,
+`PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY`, and
+`PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE`; fixture roots and unsigned
+ceremonies fail closed.
 
 `host-capacity` prints the detected logical CPU count. Independent proof lanes
 can be run with `make -jN`; targets that share witness, ledger, CAGE, QCAGE, or

@@ -56,6 +56,15 @@ WUCI_PROVENANCE ?= build/wuci-provenance.json
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
+REAL_PQ_VERIFIER_EVIDENCE ?=
+PQ_VERIFIER_PINS ?= docs/wuci_pq_verifier_pins.json
+PQ_VERIFIER_BIN ?=
+PQ_VERIFIER_ALGORITHM ?= ML-DSA
+PQ_VERIFIER_IMPLEMENTATION ?=
+PQ_VERIFIER_VERSION ?=
+PQ_KAT_PUBLIC_KEY ?=
+PQ_KAT_MESSAGE ?=
+PQ_KAT_SIGNATURE ?=
 CRYPTO_SELF_AUDIT ?= build/wuci-crypto-self-audit.json
 PARSER_CORPUS_REPLAY ?= build/wuci-parser-corpus-replay.json
 RELEASE_BUNDLE_VERIFICATION ?= build/wuci-release-bundle-verification.json
@@ -67,6 +76,10 @@ INSTALL_MANIFEST ?= install/wuci-install-manifest.v1
 INSTALL_SIGNATURE ?= install/wuci-install-manifest.v1.sig
 INSTALL_ALLOW_PREFIX ?=
 INSTALL_SIGNING_KEY ?=
+PRODUCTION_AUTHORITY_ROOT ?=
+PRODUCTION_AUTHORITY_CEREMONY ?=
+PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY ?=
+PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE ?=
 WUCI_VERSION ?= 0.1
 AUTHORITY_ROOT ?= authority/wuci-root.fixture.txt
 AUTHORITY_ROOT_SHA256 ?= authority/wuci-root.fixture.sha256
@@ -74,7 +87,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof host-capacity install-audit install-key-check install-manifest install-proof install-sign-current install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test parser-corpus-replay pq-verifier-detect pq-verifier-test production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build rust-sandbox-test sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-release-bundle verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof host-capacity install-audit install-key-check install-manifest install-proof install-sign-current install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test parser-corpus-replay pq-verifier-detect pq-verifier-real pq-verifier-real-attest pq-verifier-test production-authority-verify production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build rust-sandbox-test sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-release-bundle verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -728,11 +741,51 @@ pq-verifier-detect:
 	$(PYTHON) tools/wuci_pq_verifier.py verify --evidence $(PQ_VERIFIER_EVIDENCE) --quiet
 	@printf 'WUCI PQ verifier evidence: %s\n' "$(PQ_VERIFIER_EVIDENCE)"
 
+pq-verifier-real-attest:
+	@if [ -z "$(PQ_VERIFIER_BIN)" ] || [ -z "$(PQ_VERIFIER_IMPLEMENTATION)" ] || [ -z "$(PQ_VERIFIER_VERSION)" ] || [ -z "$(PQ_KAT_PUBLIC_KEY)" ] || [ -z "$(PQ_KAT_MESSAGE)" ] || [ -z "$(PQ_KAT_SIGNATURE)" ] || [ -z "$(REAL_PQ_VERIFIER_EVIDENCE)" ]; then \
+		echo "wuci-ji: pq-verifier-real-attest requires PQ_VERIFIER_BIN, PQ_VERIFIER_IMPLEMENTATION, PQ_VERIFIER_VERSION, PQ_KAT_PUBLIC_KEY, PQ_KAT_MESSAGE, PQ_KAT_SIGNATURE, and REAL_PQ_VERIFIER_EVIDENCE"; \
+		exit 2; \
+	fi
+	$(PYTHON) tools/wuci_pq_verifier.py attest-real \
+		--verifier $(PQ_VERIFIER_BIN) \
+		--algorithm $(PQ_VERIFIER_ALGORITHM) \
+		--public-key $(PQ_KAT_PUBLIC_KEY) \
+		--message $(PQ_KAT_MESSAGE) \
+		--signature $(PQ_KAT_SIGNATURE) \
+		--implementation-name "$(PQ_VERIFIER_IMPLEMENTATION)" \
+		--implementation-version "$(PQ_VERIFIER_VERSION)" \
+		--out $(REAL_PQ_VERIFIER_EVIDENCE) \
+		--pins $(PQ_VERIFIER_PINS) \
+		--quiet
+	@printf 'WUCI real PQ verifier evidence candidate: %s\n' "$(REAL_PQ_VERIFIER_EVIDENCE)"
+
+pq-verifier-real:
+	@if [ -z "$(REAL_PQ_VERIFIER_EVIDENCE)" ]; then \
+		echo "wuci-ji: pq-verifier-real requires REAL_PQ_VERIFIER_EVIDENCE=/path/to/evidence.json"; \
+		exit 2; \
+	fi
+	$(PYTHON) tools/wuci_pq_verifier.py verify-real --evidence $(REAL_PQ_VERIFIER_EVIDENCE) --pins $(PQ_VERIFIER_PINS) --quiet
+	@printf 'WUCI real PQ verifier evidence verified: %s\n' "$(REAL_PQ_VERIFIER_EVIDENCE)"
+
 pq-verifier-test:
 	$(PYTHON) tests/wuci_pq_verifier.py --quiet
 
+production-authority-verify:
+	@if [ -z "$(PRODUCTION_AUTHORITY_ROOT)" ] || [ -z "$(PRODUCTION_AUTHORITY_CEREMONY)" ] || [ -z "$(PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY)" ] || [ -z "$(PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE)" ]; then \
+		echo "wuci-ji: production-authority-verify requires PRODUCTION_AUTHORITY_ROOT, PRODUCTION_AUTHORITY_CEREMONY, PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY, and PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE"; \
+		exit 2; \
+	fi
+	$(PYTHON) tools/wuci_production_authority.py verify \
+		--authority $(PRODUCTION_AUTHORITY_ROOT) \
+		--ceremony $(PRODUCTION_AUTHORITY_CEREMONY) \
+		--ceremony-root-key $(PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY) \
+		--ceremony-signature $(PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE) \
+		--quiet
+	@printf 'WUCI production authority verified: %s\n' "$(PRODUCTION_AUTHORITY_ROOT)"
+
 production-readiness-gates:
 	$(PYTHON) tests/wuci_production_readiness_gates.py --quiet
+	$(PYTHON) tests/wuci_production_authority.py --quiet
 
 crypto-self-audit:
 	$(PYTHON) tools/wuci_crypto_audit.py emit --repo . --out $(CRYPTO_SELF_AUDIT) --quiet
@@ -750,9 +803,15 @@ verify-release-bundle: check-native $(TARGET) sbom-provenance carrot-policy rust
 		--provenance $(WUCI_PROVENANCE) \
 		--carrot $(CARROT_ATTESTATION) \
 		--pq $(PQ_VERIFIER_EVIDENCE) \
+		$(if $(REAL_PQ_VERIFIER_EVIDENCE),--real-pq-evidence $(REAL_PQ_VERIFIER_EVIDENCE),) \
+		--pq-pins $(PQ_VERIFIER_PINS) \
 		--crypto-audit $(CRYPTO_SELF_AUDIT) \
 		--parser-replay $(PARSER_CORPUS_REPLAY) \
 		--production-authority-policy docs/wuci_production_authority_policy.json \
+		$(if $(PRODUCTION_AUTHORITY_ROOT),--production-authority $(PRODUCTION_AUTHORITY_ROOT),) \
+		$(if $(PRODUCTION_AUTHORITY_CEREMONY),--production-authority-ceremony $(PRODUCTION_AUTHORITY_CEREMONY),) \
+		$(if $(PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY),--production-authority-ceremony-root-key $(PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY),) \
+		$(if $(PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE),--production-authority-ceremony-signature $(PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE),) \
 		--witness-bundle $(WITNESS_BUNDLE_DIR) \
 		--ledger $(LEDGER_DIR) \
 		--install-manifest $(INSTALL_MANIFEST) \

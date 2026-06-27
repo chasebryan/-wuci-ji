@@ -2,8 +2,16 @@
   "schema": "wuci-pq-verifier-pins-v1",
   "status": "no-reviewed-pq-verifier-pins-yet",
   "allowed_verifiers": [],
+  "pin_fields": [
+    "algorithm",
+    "binary_sha256",
+    "implementation_name",
+    "implementation_version",
+    "verifier_protocol"
+  ],
   "non_claims": [
     "empty pins mean no external PQ verifier evidence may pass as real",
-    "adding a pin requires reviewed implementation evidence and KAT transcript evidence"
+    "adding a pin requires reviewed implementation evidence and KAT transcript evidence",
+    "pinning a verifier does not make the whole WUCI system quantum-safe"
   ]
 }

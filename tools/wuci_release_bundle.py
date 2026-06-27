@@ -14,6 +14,8 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 import wuci_install  # noqa: E402
+import wuci_pq_verifier  # noqa: E402
+import wuci_production_authority  # noqa: E402
 
 
 class ReleaseBundleError(RuntimeError):
@@ -135,6 +137,8 @@ def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
         "carrot_attestation_sha256": sha_file(Path(args.carrot), "sha256"),
         "pq_verifier_evidence_sha256": sha_file(Path(args.pq), "sha256"),
         "crypto_self_audit_sha256": sha_file(Path(args.crypto_audit), "sha256"),
+        "crypto_external_audit": crypto_audit.get("external_audit") is True,
+        "crypto_production_sufficient": crypto_audit.get("production_sufficient") is True,
         "parser_corpus_replay_sha256": sha_file(Path(args.parser_replay), "sha256"),
         "parser_corpus_replay_cases": parser_replay.get("cases"),
         "production_authority_policy_sha256": sha_file(
@@ -145,6 +149,74 @@ def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "pq_real_signature_verifier_available": pq.get("real_pq_signature_verifier_available")
         is True,
+    }
+
+
+def verify_real_pq(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.real_pq_evidence:
+        return {
+            "provided": False,
+            "verified": False,
+            "reason": "no real PQ verifier evidence supplied",
+        }
+    evidence_path = Path(args.real_pq_evidence)
+    pins_path = Path(args.pq_pins)
+    try:
+        summary = wuci_pq_verifier.verify_real_evidence(
+            evidence_path=evidence_path,
+            pins_path=pins_path,
+            rerun=args.real_pq_rerun,
+        )
+    except wuci_pq_verifier.PQVerifierError as exc:
+        raise ReleaseBundleError(f"real PQ verifier evidence failed: {exc}") from exc
+    return {
+        "provided": True,
+        "verified": True,
+        "evidence_sha256": sha_file(evidence_path, "sha256"),
+        "pins_sha256": sha_file(pins_path, "sha256"),
+        **summary,
+    }
+
+
+def verify_production_authority(args: argparse.Namespace) -> dict[str, Any]:
+    values = (
+        args.production_authority,
+        args.production_authority_ceremony,
+        args.production_authority_ceremony_root_key,
+        args.production_authority_ceremony_signature,
+    )
+    if not any(values):
+        return {
+            "provided": False,
+            "verified": False,
+            "reason": "no signed non-fixture production authority ceremony supplied",
+        }
+    if not all(values):
+        raise ReleaseBundleError(
+            "production authority release evidence requires authority, ceremony, root key, and signature"
+        )
+    try:
+        summary = wuci_production_authority.verify_authority(
+            authority_path=Path(args.production_authority),
+            ceremony_path=Path(args.production_authority_ceremony),
+            ceremony_root_key=Path(args.production_authority_ceremony_root_key),
+            ceremony_signature=Path(args.production_authority_ceremony_signature),
+            policy_path=Path(args.production_authority_policy),
+            ssh_keygen=args.ssh_keygen,
+            allow_unsigned_ceremony=False,
+        )
+    except wuci_production_authority.ProductionAuthorityError as exc:
+        raise ReleaseBundleError(f"production authority evidence failed: {exc}") from exc
+    return {
+        "provided": True,
+        "verified": True,
+        "ceremony_root_key_sha256": sha_file(
+            Path(args.production_authority_ceremony_root_key), "sha256"
+        ),
+        "ceremony_signature_sha256": sha_file(
+            Path(args.production_authority_ceremony_signature), "sha256"
+        ),
+        **summary,
     }
 
 
@@ -266,22 +338,32 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             "release verifier does not create production authority",
             "fixture authority remains test-only",
             "internal crypto self-audit is not external cryptographic assurance",
-            "PQ detector does not claim quantum safety without pinned real verifier evidence",
+            "PQ detector does not claim quantum safety without separate pinned real verifier evidence",
         ],
         "binary": {
             "path": str(bin_path),
             **binary_hashes,
         },
         "json_evidence": verify_json_evidence(args),
+        "real_pq_evidence": verify_real_pq(args),
+        "production_authority": verify_production_authority(args),
         "install": verify_install_manifest(args, binary_hashes),
         "public_evidence": verify_witness_and_ledger(args, repo),
         "runtime_evidence": verify_runtime(args, repo),
     }
+    blockers: list[str] = []
     if result["install"]["install_manifest_matches_current_binary"] is not True:
-        result.setdefault("blockers", []).append("install manifest signature is valid but not for current binary")
-    if result["json_evidence"]["pq_real_signature_verifier_available"] is not True:
-        result.setdefault("blockers", []).append("no real pinned PQ signature verifier available")
-    result.setdefault("blockers", []).append("no non-fixture production authority ceremony supplied")
+        blockers.append("install manifest signature is valid but not for current binary")
+    if result["real_pq_evidence"]["verified"] is not True:
+        blockers.append("no real pinned PQ signature verifier evidence supplied")
+    if result["production_authority"]["verified"] is not True:
+        blockers.append("no signed non-fixture production authority ceremony supplied")
+    if result["json_evidence"]["crypto_external_audit"] is not True:
+        blockers.append("no independent external crypto/security audit evidence supplied")
+    if result["json_evidence"]["crypto_production_sufficient"] is not True:
+        blockers.append("internal crypto self-audit is not production sufficient")
+    if blockers:
+        result["blockers"] = blockers
     return result
 
 
@@ -301,12 +383,19 @@ def main() -> int:
     parser.add_argument("--provenance", default="build/wuci-provenance.json")
     parser.add_argument("--carrot", default="build/wuci-carrot-attestation.json")
     parser.add_argument("--pq", default="build/wuci-pq-verifier.json")
+    parser.add_argument("--real-pq-evidence")
+    parser.add_argument("--pq-pins", default="docs/wuci_pq_verifier_pins.json")
+    parser.add_argument("--real-pq-rerun", action="store_true")
     parser.add_argument("--crypto-audit", default="build/wuci-crypto-self-audit.json")
     parser.add_argument("--parser-replay", default="build/wuci-parser-corpus-replay.json")
     parser.add_argument(
         "--production-authority-policy",
         default="docs/wuci_production_authority_policy.json",
     )
+    parser.add_argument("--production-authority")
+    parser.add_argument("--production-authority-ceremony")
+    parser.add_argument("--production-authority-ceremony-root-key")
+    parser.add_argument("--production-authority-ceremony-signature")
     parser.add_argument("--witness-bundle", default="build/wuci-witness-bundle")
     parser.add_argument("--ledger", default="build/wuci-ledger")
     parser.add_argument("--install-manifest", default="install/wuci-install-manifest.v1")

@@ -361,7 +361,10 @@ make sbom-provenance-test
 make carrot-policy
 make kernel-sandbox-proof
 make pq-verifier-detect
+make pq-verifier-real-attest
+make pq-verifier-real
 make pq-verifier-test
+make production-authority-verify
 make production-readiness-gates
 make crypto-self-audit
 make crypto-self-audit-test
@@ -397,13 +400,13 @@ verify-self-release-bundle` recomputes those checks from the bundle files.
 `docs/wuci_high_attestation_profile.json`; `make high-attestation-proof`
 composes that baseline with the pinned qemu X25519 lane, assembly checks,
 HARDEN, CAGE/QCAGE, CARROT seccomp/namespace no-network proof, PQ verifier
-detection, crypto self-audit, deterministic parser corpus replay, release
-bundle verification, production-readiness gates, Gate contract, and full Linux
-CLI harness. `make host-capacity` reports detected logical CPUs; independent
-proof targets can run with `make -jN` while shared evidence paths remain
-serialized by dependencies. This is a local evidence-strengthening lane, not a
-claim of general runtime sandboxing, quantum safety, production authority, or
-vulnerability absence.
+detection, optional pinned real-PQ verifier evidence, crypto self-audit,
+deterministic parser corpus replay, release bundle verification,
+production-readiness gates, Gate contract, and full Linux CLI harness. `make
+host-capacity` reports detected logical CPUs; independent proof targets can run
+with `make -jN` while shared evidence paths remain serialized by dependencies.
+This is a local evidence-strengthening lane, not a claim of general runtime
+sandboxing, quantum safety, production authority, or vulnerability absence.
 `make self-release-contract-bundle` also writes `receipt-contract.txt`, opens
 through the Zig flat-contract verifier, and records the contract hash plus Zig
 contract verification checks in the attestation.

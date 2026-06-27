@@ -49,14 +49,75 @@ manifest for the current binary, creates an OpenSSH detached signature in the
 `wuci-install-v1` namespace, and verifies that signature against the install
 root public key before writing `$(INSTALL_SIGNATURE)`.
 
+Optional real-PQ verifier evidence is external and pinned. The verifier command
+must implement:
+
+```text
+<verifier> verify --algorithm ML-DSA --public-key <kat-pub> --message <kat-msg> --signature <kat-sig>
+```
+
+Generate candidate evidence with:
+
+```sh
+make pq-verifier-real-attest \
+  PQ_VERIFIER_BIN=/absolute/path/to/reviewed-pq-verifier \
+  PQ_VERIFIER_IMPLEMENTATION='implementation-name' \
+  PQ_VERIFIER_VERSION='implementation-version' \
+  PQ_KAT_PUBLIC_KEY=/absolute/path/to/kat.pub \
+  PQ_KAT_MESSAGE=/absolute/path/to/kat.msg \
+  PQ_KAT_SIGNATURE=/absolute/path/to/kat.sig \
+  REAL_PQ_VERIFIER_EVIDENCE=/absolute/path/to/wuci-real-pq.json
+```
+
+The candidate still fails production release verification until
+`docs/wuci_pq_verifier_pins.json` contains a reviewed pin for the verifier
+binary digest, implementation metadata, algorithm, and
+`wuci-pq-external-verify-v1` protocol.
+
+Optional non-fixture production authority evidence is also external. Emit and
+ceremonially sign it outside fixture paths:
+
+```sh
+python3 tools/wuci_production_authority.py emit-root \
+  --group-public-key <compressed-secp256k1-frost-group-key> \
+  --allow-open \
+  --allow-release \
+  --out /absolute/path/to/wuci-production-authority.txt
+
+python3 tools/wuci_production_authority.py ceremony \
+  --authority /absolute/path/to/wuci-production-authority.txt \
+  --operator 'release operator identity' \
+  --ceremony-id prod-authority-YYYYMMDD \
+  --threshold 2 \
+  --signer-count 3 \
+  --out /absolute/path/to/wuci-production-authority-ceremony.json
+
+python3 tools/wuci_production_authority.py sign-ceremony \
+  --ceremony /absolute/path/to/wuci-production-authority-ceremony.json \
+  --signing-key /absolute/path/to/ceremony-root-signing-key \
+  --ceremony-root-key /absolute/path/to/ceremony-root.pub \
+  --signature /absolute/path/to/wuci-production-authority-ceremony.sig
+```
+
+Then pass the external evidence into release verification:
+
+```sh
+make verify-release-bundle \
+  REAL_PQ_VERIFIER_EVIDENCE=/absolute/path/to/wuci-real-pq.json \
+  PRODUCTION_AUTHORITY_ROOT=/absolute/path/to/wuci-production-authority.txt \
+  PRODUCTION_AUTHORITY_CEREMONY=/absolute/path/to/wuci-production-authority-ceremony.json \
+  PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY=/absolute/path/to/ceremony-root.pub \
+  PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE=/absolute/path/to/wuci-production-authority-ceremony.sig
+```
+
 `make verify-release-bundle` writes
 `build/wuci-release-bundle-verification.json`. The verifier recomputes binary
-digests, checks SBOM/provenance, CARROT, PQ detector, crypto self-audit, parser
-replay, witness, ledger, install signature, and Rust wrapper evidence. A
-successful verifier run is release evidence only; it records production
-authority policy and blockers but does not create production authority,
-external crypto audit assurance, runtime sandbox completeness, or quantum-safe
-status.
+digests, checks SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
+evidence, crypto self-audit, parser replay, optional signed production
+authority evidence, witness, ledger, install signature, and Rust wrapper
+evidence. A successful verifier run is release evidence only; it does not
+create external crypto audit assurance, runtime sandbox completeness, or
+quantum-safe system status.
 
 Do not publish a release that relies on fixture authority while describing it
 as production trust.
