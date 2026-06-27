@@ -20,9 +20,21 @@
     "key_ceremony_document_required": true,
     "key_ceremony_signature_required": true,
     "key_ceremony_signature_namespace": "wuci-production-authority-v1",
-    "ceremony_threshold_minimum": 2,
+    "ceremony_threshold_minimum": 4,
+    "ceremony_signer_count_minimum": 5,
     "root_sha256_record_required": true,
     "publish_or_trust_requires_assembly_gate": true
+  },
+  "golden_lock": {
+    "schema": "wuci-golden-lock-v1",
+    "normal_open_release_threshold": {
+      "n": 5,
+      "t": 3
+    },
+    "root_authority_audit_ceremony_threshold": {
+      "n": 5,
+      "t": 4
+    }
   },
   "non_claims": [
     "fixture FROST is never production authority",

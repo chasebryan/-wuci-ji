@@ -72,6 +72,8 @@ make production-readiness-gates
 make crypto-self-audit
 make crypto-self-audit-test
 make parser-corpus-replay
+make wjgold-model-test
+make golden-lock-policy-matrix
 make verify-release-bundle
 make host-capacity
 ```
@@ -103,8 +105,9 @@ high-attestation lane.
 
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
-AEAD/FROST/Gate/Merkle/witness open predicate and the 2-of-3 threshold
-probability calculation. It is a model-consistency gate, not a production
+AEAD/FROST/Gate/Merkle/witness open predicate, Golden Lock v1 transcript, the
+3-of-5 normal open/release threshold, and the 4-of-5 root/authority/audit
+ceremony threshold. It is a model-consistency gate, not a production
 cryptography claim.
 
 `wjnext-model-test` checks the WJ-next canonical transcript model in
@@ -113,6 +116,23 @@ cryptography claim.
 acceptance predicate, and the PQ modes where `compat` is allowed,
 `hybrid-evidence` requires ML-DSA verification plus pins/KATs, and `pq-secure`
 stays false until earned.
+
+`wjgold-model-test` checks `docs/wuci_golden_lock_model.json`,
+`docs/wuci_golden_lock_model.md`, and
+`tools/wuci_golden_lock_model.py`. It validates the WJ-GOLD acceptance model:
+allowed actions, pressure-to-threshold/PQ-mode consistency, participant count,
+custody-domain diversity, `pq-secure` fail-closed behavior, hybrid-evidence
+flags, public witness/ledger/provenance/install evidence, private-material
+absence, no-downgrade rules, and claim discipline. It is an evidence-model gate,
+not production cryptography, host security, runtime sandboxing, or a
+post-quantum system security claim.
+
+`golden-lock-policy-matrix` checks `docs/wuci_golden_lock_policy.json` and the
+deterministic transcript fixture in `docs/wuci_golden_lock_transcript_fixture.json`.
+It validates pressure-to-threshold/PQ-mode mapping, `DomainQuorum_3/5`,
+`NoDowngrade`, `ClaimOK`, the "No plaintext before Gate" rule, and pinned
+`C14N_G` / `m_G` fixture evidence. It is a policy/transcript proof lane, not a
+production 5-party FROST implementation.
 
 `verify-release-bundle` writes `build/wuci-release-bundle-verification.json`.
 It verifies SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ

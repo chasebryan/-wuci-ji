@@ -11,6 +11,8 @@ runtime sandbox, not post-quantum secure, and not independently audited.
 - Authority roots and their pinned group public keys.
 - Witness bundles, deterministic witness archives, ledger entries, and ledger
   heads.
+- WJ-GOLD model inputs that bind sealed artifacts, manifests, Gate contracts,
+  quorum receipts, public evidence, and claim mode.
 - Verifier binary identity and build provenance.
 - The difference between release, publish, trust, and run semantics.
 
@@ -18,9 +20,10 @@ runtime sandbox, not post-quantum secure, and not independently audited.
 
 An attacker may provide malformed artifacts, contracts, receipts, witness
 bundles, authority roots, ledger entries, archive files, and filesystem paths.
-An attacker may also set non-strict environment variables, replace local mutable
-files where permissions allow, or try to relabel fixture evidence as production
-trust.
+An attacker may provide malformed WJ-GOLD evidence inputs or try to relabel
+bounded internal evidence levels as stronger security claims. An attacker may
+also set non-strict environment variables, replace local mutable files where
+permissions allow, or try to relabel fixture evidence as production trust.
 
 The model does not assume the current deterministic fixture FROST material is
 secret. Fixture authority is test-only.
@@ -38,6 +41,11 @@ secret. Fixture authority is test-only.
 - CARROT validates runtime policy intent and the local proof lane checks a
   seccomp network-syscall deny filter plus Linux user+network namespace entry
   with assembly probes.
+- WJ-GOLD validates a repo-native acceptance model for open/release artifact
+  authorization evidence. It checks allowed actions, pressure/PQ-mode
+  discipline, threshold and custody-domain rules, public evidence presence,
+  private-material absence, and overclaim rejection. It is a model gate, not a
+  cryptographic verifier.
 
 ## Not Enforced Today
 
@@ -46,6 +54,8 @@ secret. Fixture authority is test-only.
   deny filter, VM containment, or no-network claims outside the CARROT proof
   lane.
 - Post-quantum signature verification or quantum-safe status.
+- WJ-GOLD does not implement production FROST or ML-DSA verification, and
+  `pq-secure` remains fail-closed.
 - Independent audit, formal verification, broad fuzzing, or constant-time
   certification.
 - Runtime and display paths that still intentionally use the bounded

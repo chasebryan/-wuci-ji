@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from decimal import Decimal
 import json
+from math import comb
 from pathlib import Path
 
 
@@ -15,8 +16,11 @@ BUILD_TARGETS = REPO_ROOT / "docs" / "BUILD_TARGETS.md"
 MAKEFILE = REPO_ROOT / "Makefile"
 
 
-def threshold_probability(x: Decimal) -> Decimal:
-    return Decimal(3) * x * x - Decimal(2) * x * x * x
+def threshold_probability(n: int, t: int, x: Decimal) -> Decimal:
+    total = Decimal(0)
+    for k in range(t, n + 1):
+        total += Decimal(comb(n, k)) * (x**k) * ((Decimal(1) - x) ** (n - k))
+    return total
 
 
 def main() -> None:
@@ -32,41 +36,104 @@ def main() -> None:
 
     assert model["schema"] == "wuci-wjstar-model-v1"
     assert model["status"] == "formal-target-composition-not-production-claim"
-    assert model["composition"] == "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R"
+    assert model["composition"] == "WJ* = GoldenLock_v1(AEAD + FROST_(3/5,4/5) + H-Merkle + G + R)"
     assert model["components"]["AEAD"]["role"] == "secrecy"
-    assert model["components"]["FROST_2_of_3"]["role"] == "authority"
-    assert model["components"]["FROST_2_of_3"]["n"] == 3
-    assert model["components"]["FROST_2_of_3"]["t"] == 2
+    assert model["components"]["FROST_Golden_Lock"]["role"] == "authority"
+    assert model["components"]["FROST_Golden_Lock"]["normal_open_release"]["n"] == 5
+    assert model["components"]["FROST_Golden_Lock"]["normal_open_release"]["t"] == 3
+    assert model["components"]["FROST_Golden_Lock"]["ceremony_authority_audit"]["n"] == 5
+    assert model["components"]["FROST_Golden_Lock"]["ceremony_authority_audit"]["t"] == 4
     assert model["components"]["H_Merkle"]["role"] == "evidence"
     assert model["components"]["G"]["role"] == "policy"
     assert model["components"]["R"]["role"] == "witness"
+    assert model["components"]["PQ"]["role"] == "fail-closed post-quantum evidence"
+
+    golden = model["golden_lock"]
+    assert golden["schema"] == "wuci-golden-lock-v1"
+    assert golden["digest_vector"] == ["SHA256", "SHA384", "SHA512"]
+    assert golden["transcript"]["domain"] == "wuci/golden-lock/v1"
+    assert golden["transcript"]["canonicalization"] == "C14N_G"
+    assert golden["transcript"]["hash"] == 'm_G = H_DST("wuci/golden-lock/v1" || T_G)'
+    for field in (
+        "action = a",
+        "artifact = Hvec(C)",
+        "gate_contract = Hvec(Gamma)",
+        "authority = Hvec(alpha)",
+        "participants = P",
+        "pq_mode = mu",
+        "pressure = lambda",
+    ):
+        assert field in golden["transcript"]["fields"]
+    assert golden["domain_quorum"]["name"] == "DomainQuorum_3/5(P,d)"
+    assert golden["golden_rule"] == "No plaintext before Gate."
+    thresholds = {entry["pressure"]: entry for entry in golden["dynamic_thresholds"]}
+    assert thresholds[0]["n"] == 3 and thresholds[0]["t"] == 2
+    assert thresholds[0]["pq_mode"] == "compat"
+    assert thresholds[1]["n"] == 5 and thresholds[1]["t"] == 3
+    assert thresholds[1]["pq_mode"] == "compat"
+    assert thresholds[2]["n"] == 5 and thresholds[2]["t"] == 3
+    assert thresholds[2]["pq_mode"] == "hybrid-evidence"
+    assert thresholds[3]["n"] == 5 and thresholds[3]["t"] == 4
+    assert thresholds[3]["pq_mode"] == "hybrid-evidence"
+
+    accept_predicate = model["accept_predicate"]
+    for required in (
+        "a in {open, release}",
+        "Parse_G(Omega_G)",
+        "DomainQuorum_3/5(P,d)",
+        "FROSTVerify_3/5(PK_F, m_G, sigma_F)",
+        "GateOK(Gamma, a, M, alpha, m_G)",
+        "RatchetOK(E, L, B, m_G)",
+        "NoDowngrade(mu, lambda, T_G)",
+        "PQModeOK_mu(epsilon_Q, m_G)",
+        "ClaimOK_lambda(Omega_G)",
+    ):
+        assert required in accept_predicate
 
     open_predicate = model["open_predicate"]
-    assert "AEAD.Dec_K(C; M || G) = A" in open_predicate
-    assert "V_F(sigma_F, H(W), PK_F) = 1" in open_predicate
-    assert "G(M) = 1" in open_predicate
-    assert "MerkleVerify(H(W), R, path) = 1" in open_predicate
+    assert "GoldenLock_{lambda,mu}(a, Omega_G) = 1" in open_predicate
+    assert "No plaintext before Gate" in open_predicate
 
-    p_auth = threshold_probability(Decimal("0.95"))
-    p_break = threshold_probability(Decimal("0.01"))
-    assert p_auth == Decimal(model["threshold_probability"]["p_auth_at_0_95"])
-    assert p_break == Decimal(model["threshold_probability"]["p_break_at_0_01"])
-    assert model["threshold_probability"]["selected_threshold"]["n"] == 3
-    assert model["threshold_probability"]["selected_threshold"]["t"] == 2
-    assert model["threshold_probability"]["one_of_one_break"] == "c"
-    assert "3c^2" in model["threshold_probability"]["two_of_three_break_small_c"]
+    pq_modes = model["pq_modes"]
+    assert pq_modes["compat"]["accepted"] is True
+    assert pq_modes["hybrid-evidence"]["requires"] == [
+        "MLDSA_Verify(PK_Q, m_G, sigma_Q)",
+        "PinOK(verifier_Q)",
+        "KAT_OK(verifier_Q)",
+    ]
+    assert pq_modes["pq-secure"]["accepted"] is False
+    assert "false until signed production authority" in pq_modes["pq-secure"]["reason"]
+
+    normal_auth = threshold_probability(5, 3, Decimal("0.95"))
+    normal_break = threshold_probability(5, 3, Decimal("0.01"))
+    ceremony_auth = threshold_probability(5, 4, Decimal("0.95"))
+    ceremony_break = threshold_probability(5, 4, Decimal("0.01"))
+    threshold = model["threshold_probability"]
+    assert normal_auth == Decimal(threshold["normal_p_auth_at_0_95"])
+    assert normal_break == Decimal(threshold["normal_p_break_at_0_01"])
+    assert ceremony_auth == Decimal(threshold["ceremony_p_auth_at_0_95"])
+    assert ceremony_break == Decimal(threshold["ceremony_p_break_at_0_01"])
+    assert threshold["selected_thresholds"]["normal_open_release"]["n"] == 5
+    assert threshold["selected_thresholds"]["normal_open_release"]["t"] == 3
+    assert threshold["selected_thresholds"]["root_authority_audit_ceremony"]["n"] == 5
+    assert threshold["selected_thresholds"]["root_authority_audit_ceremony"]["t"] == 4
+    assert "10c^3" in threshold["normal_small_c_break"]
+    assert "5c^4" in threshold["ceremony_small_c_break"]
 
     for phrase in (
-        "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R",
-        "P_auth(p; 3, 2)",
-        "P_break(c; 3, 2)",
-        "(n, t) = (3, 2)",
+        "WJ* = GoldenLock_v1(AEAD + FROST_(3/5,4/5) + H-Merkle + G + R)",
+        "m_G = H_DST(\"wuci/golden-lock/v1\" || T_G)",
+        "DomainQuorum_3/5(P,d)",
+        "(n, t) = (5, 3)",
+        "(n, t) = (5, 4)",
+        "No plaintext before Gate.",
         "fixture FROST material remains test-only",
     ):
         assert phrase in doc
 
     for non_claim in (
         "this model does not make fixture FROST production authority",
+        "this model does not implement production 5-party FROST authority",
         "this model does not claim post-quantum security",
         "this model does not claim runtime sandboxing",
         "this model does not replace independent cryptographic audit",

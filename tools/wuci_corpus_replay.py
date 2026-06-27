@@ -184,8 +184,28 @@ def internal_parse(surface: str, payload: bytes) -> dict[str, Any]:
                 raise CorpusReplayError("WJ* model corpus must be a JSON object")
             if value.get("schema") != "wuci-wjstar-model-v1":
                 raise CorpusReplayError("WJ* model corpus schema mismatch")
-            if value.get("composition") != "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R":
+            if (
+                value.get("composition")
+                != "WJ* = GoldenLock_v1(AEAD + FROST_(3/5,4/5) + H-Merkle + G + R)"
+            ):
                 raise CorpusReplayError("WJ* model composition mismatch")
+            golden_lock = value.get("golden_lock")
+            if (
+                not isinstance(golden_lock, dict)
+                or golden_lock.get("schema") != "wuci-golden-lock-v1"
+            ):
+                raise CorpusReplayError("WJ* Golden Lock schema mismatch")
+            transcript = golden_lock.get("transcript")
+            if (
+                not isinstance(transcript, dict)
+                or transcript.get("domain") != "wuci/golden-lock/v1"
+                or transcript.get("canonicalization") != "C14N_G"
+            ):
+                raise CorpusReplayError("WJ* Golden Lock transcript mismatch")
+            if golden_lock.get("golden_rule") != "No plaintext before Gate.":
+                raise CorpusReplayError("WJ* Golden Lock rule mismatch")
+            if not isinstance(value.get("accept_predicate"), list):
+                raise CorpusReplayError("WJ* model accept_predicate must be a list")
             if not isinstance(value.get("open_predicate"), list):
                 raise CorpusReplayError("WJ* model open_predicate must be a list")
         elif surface == "wjnext-model":
@@ -308,15 +328,54 @@ def main() -> int:
             for path in files:
                 all_results.extend(replay_one(bin_path, gate_artifact, path, work))
         surfaces: dict[str, int] = {}
+        surface_outcomes: dict[str, dict[str, Any]] = {}
         for result in all_results:
-            surfaces[result["surface"]] = surfaces.get(result["surface"], 0) + 1
+            surface = result["surface"]
+            surfaces[surface] = surfaces.get(surface, 0) + 1
+            outcome = surface_outcomes.setdefault(
+                surface,
+                {
+                    "cases": 0,
+                    "accepted": 0,
+                    "rejected": 0,
+                    "seed_cases": 0,
+                    "seed_accepted": 0,
+                    "seed_rejected": 0,
+                    "parsers": [],
+                },
+            )
+            outcome["cases"] += 1
+            if result["accepted"]:
+                outcome["accepted"] += 1
+            else:
+                outcome["rejected"] += 1
+            if result["mutation"] == "seed":
+                outcome["seed_cases"] += 1
+                if result["accepted"]:
+                    outcome["seed_accepted"] += 1
+                else:
+                    outcome["seed_rejected"] += 1
+            if result["parser"] not in outcome["parsers"]:
+                outcome["parsers"].append(result["parser"])
+        for outcome in surface_outcomes.values():
+            outcome["parsers"].sort()
         signals = sum(1 for result in all_results if result["signal"] is not None)
         timeouts = sum(1 for result in all_results if result["timeout"] is True)
+        accepted_cases = sum(1 for result in all_results if result["accepted"] is True)
+        rejected_cases = len(all_results) - accepted_cases
+        seed_cases = sum(1 for result in all_results if result["mutation"] == "seed")
+        seed_accepted = sum(
+            1
+            for result in all_results
+            if result["mutation"] == "seed" and result["accepted"] is True
+        )
+        seed_rejected = seed_cases - seed_accepted
         missing_surfaces = sorted(set(REQUIRED_SURFACES).difference(surfaces))
         if missing_surfaces:
             raise CorpusReplayError(f"missing required parser corpus surfaces: {', '.join(missing_surfaces)}")
         report = {
             "schema": "wuci-parser-corpus-replay-v2",
+            "accepted_cases": accepted_cases,
             "corpus": str(corpus),
             "deterministic_mutation_mode": True,
             "fail_closed": signals == 0 and timeouts == 0,
@@ -326,8 +385,13 @@ def main() -> int:
             "required_surfaces": list(REQUIRED_SURFACES),
             "offensive_fuzzing": False,
             "network_required": False,
+            "rejected_cases": rejected_cases,
             "runtime_sandbox_claim": False,
+            "seed_accepted": seed_accepted,
+            "seed_cases": seed_cases,
+            "seed_rejected": seed_rejected,
             "signals": signals,
+            "surface_outcomes": surface_outcomes,
             "surfaces": surfaces,
             "timeouts": timeouts,
             "wjstar_model_covered": surfaces.get("wjstar-model", 0) > 0,

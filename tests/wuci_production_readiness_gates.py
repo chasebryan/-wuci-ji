@@ -41,8 +41,12 @@ def main() -> None:
     assert required["key_ceremony_document_required"] is True
     assert required["key_ceremony_signature_required"] is True
     assert required["key_ceremony_signature_namespace"] == "wuci-production-authority-v1"
-    assert required["ceremony_threshold_minimum"] == 2
+    assert required["ceremony_threshold_minimum"] == 4
+    assert required["ceremony_signer_count_minimum"] == 5
     assert required["publish_or_trust_requires_assembly_gate"] is True
+    assert authority["golden_lock"]["schema"] == "wuci-golden-lock-v1"
+    assert authority["golden_lock"]["normal_open_release_threshold"] == {"n": 5, "t": 3}
+    assert authority["golden_lock"]["root_authority_audit_ceremony_threshold"] == {"n": 5, "t": 4}
     assert "production: false" in fixture
     fixture_check = subprocess.run(
         [

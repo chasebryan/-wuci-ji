@@ -33,8 +33,21 @@ These targets produce or verify:
 - Compiled Rust wrapper evidence through `make rust-sandbox-test`.
 - Fixture-authority production rejection gates.
 - Formal WJ* composition model checks through `make wjstar-model-test`, covering
-  AEAD secrecy, 2-of-3 FROST authority, Gate policy, H-Merkle evidence, and
+  AEAD secrecy, Golden Lock v1 3-of-5 open/release authority, 4-of-5
+  root/authority/audit ceremony authority, Gate policy, H-Merkle evidence, and
   witness root mapping. This is a target model, not a production claim.
+- Golden Lock policy and transcript fixture checks through
+  `make golden-lock-policy-matrix`, covering pressure thresholds, domain quorum,
+  downgrade rejection, claim discipline, and deterministic `C14N_G` / `m_G`
+  evidence. This is not a production 5-party FROST implementation.
+- WJ-GOLD model validation through `make wjgold-model-test`, covering the
+  repo-native artifact authorization and release-evidence predicate, allowed
+  open/release actions, pressure-to-threshold/PQ-mode consistency, participant
+  and custody-domain diversity, missing public evidence blockers, fail-closed
+  `pq-secure`, hybrid-evidence flags, private-material rejection, and explicit
+  non-claims. This is a model validator, not production cryptography, host
+  security, runtime sandboxing, post-quantum system security, production
+  authority, or independent audit evidence.
 - WJ-next canonical transcript model checks through `make wjnext-model-test`,
   covering `C14N_v2`, the `wuci/transcript/v2` authorization hash, typed
   verifier predicates, and PQ modes where `pq-secure` remains false until

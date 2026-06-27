@@ -17,11 +17,14 @@ the current repository has code and tests for that behavior.
 | QCAGE boundary | Digest vectors, crypto inventory, build graph evidence, quantum migration debt, no false PQ claim | Python policy/tooling | Quantum-aware metadata; not PQ security |
 | CARROT runtime policy boundary | Policy says no network, FROST/Gate may attest policy only, seccomp denies network syscalls, user+network namespace entry is checked | Python policy plus assembly seccomp probe and Rust wrapper source | Local no-network syscall proof lane on supporting kernels; not general sandboxing or VM containment |
 | INSTALL boundary | Copied local install root key, OpenSSH signed manifest, digest vector, proof gates, atomic install, audit receipt | Python installer plus existing proof lanes | Signed zero-prompt install lane; no runtime/PQ claim |
-| WJ* composition boundary | AEAD secrecy, FROST threshold authority, Gate policy, Merkle evidence, witness root mapping | Formal model plus existing proof lanes | Target composition model; fixture FROST remains test-only |
+| WJ* composition boundary | Golden Lock v1 transcript, 3-of-5 normal authority target, 4-of-5 ceremony target, Gate policy, Merkle evidence, witness root mapping | Formal model, Golden Lock policy matrix, plus existing proof lanes | Target composition model; fixture FROST remains test-only |
+| WJ-GOLD acceptance boundary | Canonical transcript target, one golden authorization hash, pressure/PQ modes, threshold and custody-domain checks, public evidence presence, fail-closed claims | JSON model plus Python model validator | Falsifiable model gate; not production cryptography, host security, runtime sandboxing, production authority, or PQ system security |
 | WJ-next transcript boundary | Canonical transcript, digest vector, one authorization hash, typed verifier predicate, PQ mode discipline | Formal model plus parser hardening replay | Target transcript model; pq-secure remains false until earned |
 
 See `docs/wuci_wjstar_model.md` for the formal target composition:
-`WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R`.
+`WJ* = GoldenLock_v1(AEAD + FROST_(3/5,4/5) + H-Merkle + G + R)`.
+See `docs/wuci_golden_lock_model.md` for WJ-GOLD:
+`canonical transcript -> one golden authorization hash -> typed verifier predicate`.
 See `docs/wuci_wjnext_model.md` for the canonical transcript target:
 `canonical transcript -> one authorization hash -> typed verifier predicate`.
 

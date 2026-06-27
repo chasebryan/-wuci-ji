@@ -1,0 +1,113 @@
+{
+  "schema": "wuci-golden-lock-transcript-fixture-v1",
+  "status": "deterministic-fixture-not-production-authority",
+  "action": "release",
+  "pressure": 2,
+  "pq_mode": "hybrid-evidence",
+  "declared_threshold": {
+    "n": 5,
+    "t": 3
+  },
+  "plaintext_before_gate": false,
+  "claims": [
+    "defense-grade-evidence-candidate"
+  ],
+  "inputs": {
+    "artifact": "WUCI Golden Lock fixture sealed artifact C\n",
+    "manifest": "WUCI Golden Lock fixture manifest M\n",
+    "gate_contract": "WUCI Golden Lock fixture Gate contract Gamma\n",
+    "authority": "WUCI Golden Lock fixture authority alpha\n",
+    "witness": "WUCI Golden Lock fixture public witness bundle B\n",
+    "provenance": "WUCI Golden Lock fixture provenance rho\n",
+    "install": "WUCI Golden Lock fixture install evidence iota\n"
+  },
+  "ledger_head": {
+    "tree_size": 1,
+    "root_sha256": "bc4d77cfc42b46ee78237d6f873f7d2eb8bd974039ab3ad81bddcdddb8e4adcf",
+    "entry_sha256": "d39195b1c60653bc91a027a854f3c138151557aadbdf0cf69af010af09ab05d1"
+  },
+  "epoch": {
+    "number": 1,
+    "previous_m_g_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "participants": [
+    {
+      "id": "p01",
+      "domain": "build",
+      "role": "release"
+    },
+    {
+      "id": "p02",
+      "domain": "security",
+      "role": "release"
+    },
+    {
+      "id": "p03",
+      "domain": "operations",
+      "role": "release"
+    },
+    {
+      "id": "p04",
+      "domain": "build",
+      "role": "backup"
+    },
+    {
+      "id": "p05",
+      "domain": "audit",
+      "role": "observer"
+    }
+  ],
+  "expected": {
+    "canonical_transcript_lines": [
+      "schema=wuci-golden-lock-transcript-v1",
+      "domain=wuci/golden-lock/v1",
+      "action=release",
+      "artifact.sha256=02e9ae521e7f919a9d837f7e74061df9fa7510609e5e4c626ed80a47a91a2a5d",
+      "artifact.sha384=6926e982bb29e41df60dba1b76b17d6fe2628a03506a762ca75ea77992287da043750d1589bd99300daff8d1f356c44a",
+      "artifact.sha512=86a8b5027b682ac5a490cfac2062fa6949cf715d0c285516bf5f0d3d381294c8452ca0f00cb8675d7f3ceba1772343bc5e16be806ea3aa7ff10b9c23b8737186",
+      "manifest.sha256=ab0e69fe2c0c792a9168c2988a7e9f42e4d851da548393155114acdd45c7199f",
+      "manifest.sha384=50b0f3e3540c484552edf14e64bbd211c14409989eeb4930d5ccf88b4ec4fd4c2b789a027899f0f09d42f1cc7e791f03",
+      "manifest.sha512=7c68e07fa65b6485beec1282f268119fdf719fd780ce6c547b8eacd08f8f2afb09550148606ea8b4cbbe81420ed44e2595e47ce75ecab090998fa3bc7ffa173e",
+      "gate_contract.sha256=0d3efbce73f61f548cef230c268ebe597f7bce9f48757cae1994dc204f9e9241",
+      "gate_contract.sha384=e8e89adabc1cd04e07ba9cc18a086782e6e71e7826626d160574e9616237f576319114c42a334bc947fb663552c39797",
+      "gate_contract.sha512=5035c876735ec0027650a2e3f6d218c94b2e2b95c043cf9a22f46c6b41015b05a3dd3755bdd86e04780720ecd76884012f7ea4292b5a1b77390d9ce72a2b6939",
+      "authority.sha256=201cd88487d20440ae3b3c6b6f1e422dfb24ee4bc9e384099a829adca5860d30",
+      "authority.sha384=23307df63f1a954ae01c6dccb79f093a63d99d40a8f94e68b22f4353a462bd2ee81a9d749d2cf0d1988b39f3591e5697",
+      "authority.sha512=506f348c5a06a7979e104ffeaa29487f44b40b4126f70cef29acd459431c6665b6c7c04dca6a90e8b40301ff54710d7cd5799c75627e2848e089fe42307bbd77",
+      "witness.sha256=cf022565f72bdf777cd065e63043e3019121c330c620a69ae11ff8c3c3a3b1bd",
+      "witness.sha384=1c6c50e05bc23a6e56b4e70d1bdf9111e6713f9fba61a68c57f94661bcb70a14827be586dce0490426bc8db2f5a6521d",
+      "witness.sha512=17cba3b81349efc158cf23ae77afda858cb5707edb15e73abaee35657a057f24a4163f904a7ab38f1693ce452c6fc56b9c854a5b63db3ba2d163ab65d2e781d0",
+      "provenance.sha256=726dc3d431c0bdd8ad2c18b70ff5b40f406411c50ac3d403110413d5283953da",
+      "provenance.sha384=d2c32e5a5ab323f2c6ecacc3e38b01769ae09e218136e33a1c81ee6c5f2eb1e9db2ba67908715c36979d5aeaf8483c17",
+      "provenance.sha512=feb7b3518bc5919ca9296816e960070c19c3c1897a866e57f3f6ac21dc05c7359dd20c536ccc7d6ce33d6f92d5362bf0bf6a674a2bae8d770b40291b77e61a5d",
+      "install.sha256=343fe83f500874b8f4e7035925c4066448400bea7e0565416f83f8fe4c926411",
+      "install.sha384=e12fa77f1b28923a0b24eb9f575d282b85ec18aa63054464191e2ece9facde763ad7751e9b14c698b902a7636ec8af0b",
+      "install.sha512=2573317e036c8bab1d137a6ff80728f20ad35637371098c6efa816fc9f313036aeb6ed48c1de179c1850a2b049fc0bc1af97eecb4bb0d3f8766b6fe0612d8934",
+      "ledger_head.tree_size=1",
+      "ledger_head.root_sha256=bc4d77cfc42b46ee78237d6f873f7d2eb8bd974039ab3ad81bddcdddb8e4adcf",
+      "ledger_head.entry_sha256=d39195b1c60653bc91a027a854f3c138151557aadbdf0cf69af010af09ab05d1",
+      "epoch.number=1",
+      "epoch.previous_m_g_sha256=0000000000000000000000000000000000000000000000000000000000000000",
+      "participants.count=5",
+      "participants.0.id=p01",
+      "participants.0.domain=build",
+      "participants.0.role=release",
+      "participants.1.id=p02",
+      "participants.1.domain=security",
+      "participants.1.role=release",
+      "participants.2.id=p03",
+      "participants.2.domain=operations",
+      "participants.2.role=release",
+      "participants.3.id=p04",
+      "participants.3.domain=build",
+      "participants.3.role=backup",
+      "participants.4.id=p05",
+      "participants.4.domain=audit",
+      "participants.4.role=observer",
+      "pq_mode=hybrid-evidence",
+      "pressure=2"
+    ],
+    "canonical_transcript_sha256": "d6d0a3b9e5dc183caf4aac1bf14d420e63778faf6411d5ddb9b1b1c6682bb3aa",
+    "m_g_sha256": "5a96e220c1d4a0fa756b0b103470c6817e72e38a631efd2c2de27a3f13c61cf7"
+  }
+}

@@ -106,6 +106,27 @@ def main() -> None:
         assert trust_emit.returncode != 0
         assert b"trust/publish authority requires assembly Gate" in trust_emit.stderr
 
+        weak_ceremony = run_tool(
+            "ceremony",
+            "--authority",
+            str(authority),
+            "--operator",
+            "external authority operator",
+            "--ceremony-id",
+            "prod-auth-weak-v1",
+            "--threshold",
+            "3",
+            "--signer-count",
+            "5",
+            "--created-utc",
+            "2026-06-27T00:00:00Z",
+            "--out",
+            str(tmp / "weak-ceremony.json"),
+            "--quiet",
+        )
+        assert weak_ceremony.returncode != 0
+        assert b"Golden Lock v1 threshold 4 of 5" in weak_ceremony.stderr
+
         assert_ok(
             run_tool(
                 "ceremony",
@@ -116,9 +137,9 @@ def main() -> None:
                 "--ceremony-id",
                 "prod-auth-test-v1",
                 "--threshold",
-                "2",
+                "4",
                 "--signer-count",
-                "3",
+                "5",
                 "--created-utc",
                 "2026-06-27T00:00:00Z",
                 "--out",

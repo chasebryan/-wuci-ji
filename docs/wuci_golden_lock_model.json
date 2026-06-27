@@ -1,0 +1,214 @@
+{
+  "version": "wuci-golden-lock/v1",
+  "schema": "wuci-golden-lock-model-v1",
+  "status": "falsifiable-model-not-production-claim",
+  "name": "WJ-GOLD",
+  "formula": "WJ_gold = G_{lambda,mu}(a, Omega_G)",
+  "omega_g": [
+    "C",
+    "M",
+    "Gamma",
+    "alpha",
+    "B",
+    "L",
+    "rho",
+    "iota",
+    "sigma_F",
+    "epsilon_Q",
+    "E",
+    "P"
+  ],
+  "allowed_actions": [
+    "open",
+    "release"
+  ],
+  "digest_vector": [
+    "SHA256",
+    "SHA384",
+    "SHA512"
+  ],
+  "transcript_dst": "wuci/golden-lock/v1",
+  "canonical_transcript": {
+    "name": "T_G",
+    "canonicalization": "C14N_G",
+    "fields": [
+      "action",
+      "artifact",
+      "manifest",
+      "gate_contract",
+      "authority",
+      "witness",
+      "ledger_head",
+      "provenance",
+      "install",
+      "epoch",
+      "participants",
+      "pq_mode",
+      "pressure"
+    ],
+    "authorization_message": "m_G = H_DST(\"wuci/golden-lock/v1\" || T_G)"
+  },
+  "pq_modes": {
+    "compat": {
+      "accepted": true,
+      "requires": []
+    },
+    "hybrid-evidence": {
+      "accepted": true,
+      "requires": [
+        "MLDSA_Verify",
+        "PinOK",
+        "KAT_OK"
+      ]
+    },
+    "pq-secure": {
+      "accepted": false,
+      "reason": "fail closed until signed production authority, pinned reviewed PQ verifier, parser evidence, external audit evidence, and release-grade proof gates exist"
+    }
+  },
+  "pressure_levels": [
+    {
+      "lambda": 0,
+      "name": "research/proof",
+      "threshold": {
+        "n": 3,
+        "t": 2
+      },
+      "mu": "compat",
+      "allowed_state": "research/proof"
+    },
+    {
+      "lambda": 1,
+      "name": "release-candidate",
+      "threshold": {
+        "n": 5,
+        "t": 3
+      },
+      "mu": "compat",
+      "allowed_state": "release-candidate"
+    },
+    {
+      "lambda": 2,
+      "name": "defense-evidence",
+      "threshold": {
+        "n": 5,
+        "t": 3
+      },
+      "mu": "hybrid-evidence",
+      "allowed_state": "defense-evidence profile"
+    },
+    {
+      "lambda": 3,
+      "name": "authority-root-ceremony",
+      "threshold": {
+        "n": 5,
+        "t": 4
+      },
+      "mu": "hybrid-evidence",
+      "allowed_state": "authority-root ceremony profile"
+    }
+  ],
+  "threshold_policy": {
+    "0": {
+      "n": 3,
+      "t": 2,
+      "mu": "compat"
+    },
+    "1": {
+      "n": 5,
+      "t": 3,
+      "mu": "compat"
+    },
+    "2": {
+      "n": 5,
+      "t": 3,
+      "mu": "hybrid-evidence"
+    },
+    "3": {
+      "n": 5,
+      "t": 4,
+      "mu": "hybrid-evidence"
+    }
+  },
+  "domain_quorum": {
+    "name": "DomainQuorum_3_5",
+    "min_participants": 3,
+    "min_distinct_domains": 3
+  },
+  "required_predicates": [
+    "Parse_G",
+    "EnvOK",
+    "RootOK",
+    "DomainQuorum_3_5",
+    "FROSTVerify_3_5",
+    "GateOK",
+    "WitnessOK",
+    "PrivateMaterial",
+    "LedgerOK",
+    "RatchetOK",
+    "ProvenanceOK",
+    "InstallOK",
+    "NoDowngrade",
+    "PQModeOK",
+    "ClaimOK"
+  ],
+  "claim_policy": {
+    "allowed_internal_states": [
+      "research/proof",
+      "release-candidate",
+      "defense-evidence profile",
+      "authority-root ceremony profile"
+    ],
+    "rejected_claims": [
+      "production_crypto_claim",
+      "host_security_claim",
+      "runtime_sandbox_claim",
+      "pq_secure_system_claim",
+      "independent_audit_claim",
+      "production_authority_claim",
+      "defense_grade_achieved_claim"
+    ]
+  },
+  "gate_output_invariant": {
+    "name": "No plaintext before Gate",
+    "future_invariant": true,
+    "rules": [
+      "GateOK = 0 implies no plaintext file exists",
+      "AEAD tag fail implies no plaintext file exists",
+      "final output exists iff GateOK and AEADOK and NoOverwrite"
+    ],
+    "stages": [
+      "Stage A verifies transcript, Gate, root, witness, ledger, and claim mode",
+      "Stage B decrypts only after authorization succeeds",
+      "Stage C commits output only after AEAD tag succeeds"
+    ]
+  },
+  "probability_notes": {
+    "threshold_3_of_5": {
+      "p_auth_formula": "sum i=3..5 C(5,i)p^i(1-p)^(5-i)",
+      "p_break_formula": "sum i=3..5 C(5,i)c^i(1-c)^(5-i)",
+      "p_auth_at_0_95": "0.998841875",
+      "p_break_at_0_01": "0.0000098506"
+    },
+    "threshold_2_of_3_comparison": {
+      "p_auth_at_0_95": "0.99275",
+      "p_break_at_0_01": "0.000298"
+    },
+    "conclusion": "(3/5) is preferred over (2/3) only if custody domains are distinct"
+  },
+  "purpose": [
+    "canonical transcript",
+    "one golden authorization hash",
+    "typed verifier predicate",
+    "public evidence",
+    "fail-closed claims"
+  ],
+  "non_claims": [
+    "not production cryptography",
+    "not host security",
+    "not runtime sandboxing",
+    "not post-quantum system security",
+    "not independently audited",
+    "not production authority"
+  ]
+}

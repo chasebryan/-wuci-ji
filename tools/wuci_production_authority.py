@@ -275,10 +275,8 @@ def validate_ceremony(
         fail("production ceremony must require root signature")
     threshold = positive_int(value.get("threshold"), "threshold")
     signer_count = positive_int(value.get("signer_count"), "signer_count")
-    if threshold < 2:
-        fail("production authority threshold must be at least 2")
-    if signer_count < threshold:
-        fail("signer_count must be greater than or equal to threshold")
+    if threshold != 4 or signer_count != 5:
+        fail("production authority ceremony requires Golden Lock v1 4-of-5 threshold")
     reviewed_policy_sha256 = sha256_file(policy_path, "production authority policy")
     if value.get("reviewed_policy_sha256") != reviewed_policy_sha256:
         fail("ceremony reviewed policy digest mismatch")
@@ -498,8 +496,8 @@ def run_ceremony(args: argparse.Namespace) -> int:
         fail("production authority must set production: true")
     threshold = int(args.threshold)
     signer_count = int(args.signer_count)
-    if threshold < 2 or signer_count < threshold:
-        fail("ceremony requires signer_count >= threshold >= 2")
+    if threshold != 4 or signer_count != 5:
+        fail("ceremony requires Golden Lock v1 threshold 4 of 5")
     created_utc = args.created_utc
     if created_utc is None:
         created_utc = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")

@@ -1,0 +1,122 @@
+{
+  "schema": "wuci-golden-lock-policy-v1",
+  "status": "target-policy-not-production-claim",
+  "actions": [
+    "open",
+    "release"
+  ],
+  "transcript": {
+    "domain": "wuci/golden-lock/v1",
+    "canonicalization": "C14N_G",
+    "fixture_hash_algorithm": "sha256(domain || T_G)",
+    "fields": [
+      "action",
+      "artifact",
+      "manifest",
+      "gate_contract",
+      "authority",
+      "witness",
+      "ledger_head",
+      "provenance",
+      "install",
+      "epoch",
+      "participants",
+      "pq_mode",
+      "pressure"
+    ]
+  },
+  "digest_vector": [
+    "sha256",
+    "sha384",
+    "sha512"
+  ],
+  "domain_quorum": {
+    "name": "DomainQuorum_3/5(P,d)",
+    "min_participants": 3,
+    "min_domains": 3
+  },
+  "pressure_levels": [
+    {
+      "pressure": 0,
+      "label": "research/proof",
+      "threshold": {
+        "n": 3,
+        "t": 2
+      },
+      "pq_mode": "compat",
+      "allowed_claims": [
+        "research-proof-fixture"
+      ]
+    },
+    {
+      "pressure": 1,
+      "label": "release candidate",
+      "threshold": {
+        "n": 5,
+        "t": 3
+      },
+      "pq_mode": "compat",
+      "allowed_claims": [
+        "release-candidate-evidence"
+      ]
+    },
+    {
+      "pressure": 2,
+      "label": "defense-grade evidence",
+      "threshold": {
+        "n": 5,
+        "t": 3
+      },
+      "pq_mode": "hybrid-evidence",
+      "allowed_claims": [
+        "defense-grade-evidence-candidate"
+      ]
+    },
+    {
+      "pressure": 3,
+      "label": "authority/root/audit ceremony",
+      "threshold": {
+        "n": 5,
+        "t": 4
+      },
+      "pq_mode": "hybrid-evidence",
+      "allowed_claims": [
+        "authority-root-audit-ceremony-evidence"
+      ]
+    }
+  ],
+  "pq_modes": {
+    "compat": {
+      "accepted": true,
+      "requires": []
+    },
+    "hybrid-evidence": {
+      "accepted": true,
+      "requires": [
+        "MLDSA_Verify(PK_Q, m_G, sigma_Q)",
+        "PinOK(verifier_Q)",
+        "KAT_OK(verifier_Q)"
+      ]
+    },
+    "pq-secure": {
+      "accepted": false,
+      "reason": "false until signed production authority, pinned reviewed PQ verifier, parser evidence, external audit, and release-grade proof gates exist"
+    }
+  },
+  "golden_rule": "No plaintext before Gate.",
+  "plaintext_before_gate_allowed": false,
+  "forbidden_claims": [
+    "production-ready",
+    "production-authority-active",
+    "quantum-safe",
+    "runtime-sandbox-enforced",
+    "publish-authority-active",
+    "trust-authority-active"
+  ],
+  "non_claims": [
+    "Golden Lock v1 policy is not production authority",
+    "Golden Lock v1 policy does not implement 5-party FROST",
+    "Golden Lock v1 policy does not claim quantum safety",
+    "Golden Lock v1 policy does not claim runtime sandboxing"
+  ]
+}

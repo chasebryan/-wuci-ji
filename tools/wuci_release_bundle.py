@@ -160,8 +160,19 @@ def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
     required_authority = production_authority.get("required_for_production", {})
     if required_authority.get("key_ceremony_document_required") is not True:
         raise ReleaseBundleError("production authority must require ceremony evidence")
+    if required_authority.get("ceremony_threshold_minimum") != 4:
+        raise ReleaseBundleError("production authority must require Golden Lock ceremony threshold")
+    if required_authority.get("ceremony_signer_count_minimum") != 5:
+        raise ReleaseBundleError("production authority must require Golden Lock signer count")
     if required_authority.get("publish_or_trust_requires_assembly_gate") is not True:
         raise ReleaseBundleError("production authority must require assembly Gate publish/trust")
+    golden_lock = production_authority.get("golden_lock", {})
+    if golden_lock.get("schema") != "wuci-golden-lock-v1":
+        raise ReleaseBundleError("production authority policy must name Golden Lock v1")
+    if golden_lock.get("normal_open_release_threshold") != {"n": 5, "t": 3}:
+        raise ReleaseBundleError("production authority policy must require 3-of-5 open/release")
+    if golden_lock.get("root_authority_audit_ceremony_threshold") != {"n": 5, "t": 4}:
+        raise ReleaseBundleError("production authority policy must require 4-of-5 ceremonies")
 
     return {
         "sbom_sha256": sha_file(Path(args.sbom), "sha256"),

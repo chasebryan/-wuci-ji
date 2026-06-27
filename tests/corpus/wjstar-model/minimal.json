@@ -1,10 +1,23 @@
 {
   "schema": "wuci-wjstar-model-v1",
-  "composition": "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R",
+  "composition": "WJ* = GoldenLock_v1(AEAD + FROST_(3/5,4/5) + H-Merkle + G + R)",
+  "golden_lock": {
+    "schema": "wuci-golden-lock-v1",
+    "transcript": {
+      "domain": "wuci/golden-lock/v1",
+      "canonicalization": "C14N_G",
+      "hash": "m_G = H_DST(\"wuci/golden-lock/v1\" || T_G)"
+    },
+    "golden_rule": "No plaintext before Gate."
+  },
+  "accept_predicate": [
+    "DomainQuorum_3/5(P,d)",
+    "FROSTVerify_3/5(PK_F, m_G, sigma_F)",
+    "GateOK(Gamma, a, M, alpha, m_G)",
+    "PQModeOK_mu(epsilon_Q, m_G)"
+  ],
   "open_predicate": [
-    "AEAD.Dec_K(C; M || G) = A",
-    "V_F(sigma_F, H(W), PK_F) = 1",
-    "G(M) = 1",
-    "MerkleVerify(H(W), R, path) = 1"
+    "GoldenLock_{lambda,mu}(a, Omega_G) = 1",
+    "No plaintext before Gate"
   ]
 }

@@ -39,8 +39,11 @@ behavior with no plaintext output on open failure.
 
 The lane is deterministic, offline, stdlib-only Python plus the local assembly
 binary, and defensive only. It records mutation families, surface coverage,
-timeouts, signal exits, and per-case payload digests. It is not offensive
-fuzzing and does not claim coverage-guided fuzzing.
+timeouts, signal exits, per-case payload digests, accepted/rejected case
+counts, and seed acceptance by surface. The corpus intentionally includes both
+valid parser seeds and malformed negative seeds, so seed acceptance is evidence
+accounting rather than a global "all seeds must pass" rule. It is not
+offensive fuzzing and does not claim coverage-guided fuzzing.
 
 ## Future Native Fuzz Lane
 

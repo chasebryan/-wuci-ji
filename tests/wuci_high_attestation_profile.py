@@ -74,6 +74,9 @@ def main() -> None:
     assert controls["machine_readable_cli_outputs"] is True
     assert controls["wjstar_formal_composition_model"] is True
     assert controls["wjnext_canonical_transcript_model"] is True
+    assert controls["wjgold_falsifiable_acceptance_model"] is True
+    assert controls["golden_lock_policy_matrix"] is True
+    assert controls["golden_lock_transcript_fixture"] is True
     assert controls["deterministic_parser_corpus_replay"] is True
     assert controls["parser_hardening_proof"] is True
     assert controls["release_bundle_verifier"] is True

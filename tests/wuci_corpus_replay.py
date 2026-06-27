@@ -53,14 +53,35 @@ def check_report(path: Path) -> None:
     assert data["fail_closed"] is True
     assert data["timeouts"] == 0
     assert data["signals"] == 0
+    assert data["accepted_cases"] > 0
+    assert data["rejected_cases"] > 0
+    assert data["accepted_cases"] + data["rejected_cases"] == data["cases"]
+    assert data["seed_cases"] == data["files"]
+    assert data["seed_accepted"] > 0
+    assert data["seed_rejected"] > 0
+    assert data["seed_accepted"] + data["seed_rejected"] == data["seed_cases"]
     assert data["wjstar_model_covered"] is True
     assert data["wjnext_model_covered"] is True
     assert REQUIRED_SURFACES.issubset(data["surfaces"])
     assert set(data["required_surfaces"]) == REQUIRED_SURFACES
+    assert set(data["surface_outcomes"]) == REQUIRED_SURFACES
     assert {"seed", "empty", "truncate-half", "append-nul"}.issubset(
         data["mutation_families"]
     )
     assert data["cases"] == len(data["results"])
+    for surface, outcome in data["surface_outcomes"].items():
+        assert surface in REQUIRED_SURFACES
+        assert outcome["cases"] == data["surfaces"][surface]
+        assert outcome["accepted"] + outcome["rejected"] == outcome["cases"]
+        assert outcome["seed_accepted"] + outcome["seed_rejected"] == outcome["seed_cases"]
+        assert outcome["seed_cases"] >= 1
+        assert outcome["parsers"]
+    assert data["surface_outcomes"]["wjnext-model"]["seed_accepted"] == 1
+    assert data["surface_outcomes"]["wjstar-model"]["seed_accepted"] == 1
+    assert data["surface_outcomes"]["ledger-entry"]["seed_accepted"] == 1
+    assert data["surface_outcomes"]["ledger-head"]["seed_accepted"] == 1
+    assert data["surface_outcomes"]["ledger-proof"]["seed_accepted"] == 2
+    assert data["surface_outcomes"]["envelope"]["seed_rejected"] == 3
     for result in data["results"]:
         assert result["surface"] in REQUIRED_SURFACES
         assert result["parser"] in {"assembly-cli", "python-internal"}

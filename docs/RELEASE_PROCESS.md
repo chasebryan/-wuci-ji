@@ -14,6 +14,8 @@ Each real release must contain:
   and `sha256sum`.
 - WUCI witness bundle.
 - WUCI ledger entry, head, inclusion proof, and consistency proof.
+- WJ-GOLD model validation result for the intended open/release evidence
+  profile.
 - Install manifest and detached OpenSSH signature.
 - Install root key fingerprint.
 - README excerpt warning that Wuci-ji is research-only, not production crypto,
@@ -31,10 +33,19 @@ make self-release-ledger-bundle
 make cage-proof
 make qcage-proof
 make harden-proof
+make wjgold-model-test
 make high-attestation-proof
 make sbom-provenance
 make verify-release-bundle
 ```
+
+`make wjgold-model-test` validates the repo-native Golden Lock acceptance
+model for artifact authorization and release evidence. It checks structured
+fixture evidence, pressure levels, threshold/PQ-mode rules, custody-domain
+diversity, public witness/ledger/provenance/install evidence, and overclaim
+rejection. Passing this target is release evidence only; it does not establish
+production cryptography, host security, runtime sandbox completeness,
+post-quantum system security, independent audit, or production authority.
 
 When the install root key holder is ready to bind the current build, sign the
 current manifest noninteractively:
@@ -107,8 +118,8 @@ python3 tools/wuci_production_authority.py ceremony \
   --authority /absolute/path/to/wuci-production-authority.txt \
   --operator 'release operator identity' \
   --ceremony-id prod-authority-YYYYMMDD \
-  --threshold 2 \
-  --signer-count 3 \
+  --threshold 4 \
+  --signer-count 5 \
   --out /absolute/path/to/wuci-production-authority-ceremony.json
 
 python3 tools/wuci_production_authority.py sign-ceremony \

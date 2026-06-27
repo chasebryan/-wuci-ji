@@ -406,7 +406,7 @@ HARDEN, CAGE/QCAGE, CARROT seccomp/namespace no-network proof, PQ verifier
 detection, optional pinned real-PQ verifier evidence, the local Rust FIPS 204
 ML-DSA verifier proof lane, crypto self-audit, signed external-audit verifier
 tests, WJ*/WJ-next model checks, deterministic parser hardening replay,
-release bundle verification,
+Golden Lock policy/transcript fixture checks, release bundle verification,
 production-readiness gates, Gate contract, and full Linux CLI harness. `make
 host-capacity` reports detected logical CPUs; independent proof targets can run
 with `make -jN` while shared evidence paths remain serialized by dependencies.
