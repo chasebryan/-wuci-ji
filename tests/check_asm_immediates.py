@@ -300,12 +300,14 @@ def check_scalar_arithmetic_boundary(disassemblies: list[tuple[Path, str]]) -> N
     aggregate = "run_frost_secp256k1_aggregate"
     scalar_add = "secp256k1_scalar_add_limbs"
     scalar_mul_allowed_callers = {
+        "regression_crypto_kats",
         "run_secp256k1_scalar_mul",
         "run_frost_secp256k1_lagrange",
         signing_share,
         "secp256k1_scalar_inverse_limbs",
     }
     scalar_add_allowed_callers = {
+        "regression_crypto_kats",
         "run_secp256k1_scalar_add",
         signing_share,
         aggregate,

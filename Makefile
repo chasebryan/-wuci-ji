@@ -747,7 +747,7 @@ pythonless-public-verify: $(ZIG_WITNESS) $(ZIG_LEDGER)
 	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
 	@printf 'WUCI Pythonless public verification complete\n'
 
-test: check-native-x25519 $(TARGET) authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract parser-adversarial-test authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test secret-path-isolation-test aead-boundary-test self-release-attestation-test publish-attestation-test
+test: check-native-x25519 $(TARGET) asm-smoke authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract parser-adversarial-test authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test secret-path-isolation-test aead-boundary-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy
