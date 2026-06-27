@@ -4,7 +4,10 @@ Native build and most targeted tests require Linux x86_64 with GNU `as`/`ld`.
 The full native `make test` target also requires BMI2 and AVX because the
 current assembly X25519 helper uses those instructions. On Linux hosts without
 those CPU features, use `make test-linux` for the cross-built ELF's Python
-harness and run targeted non-X25519 proof lanes natively.
+harness. The qemu lane defaults to `QEMU_CPU=Haswell-v4`, which supplies the
+BMI2/AVX instruction surface required by the current X25519 helper under user
+mode QEMU. Override `QEMU_CPU` only when the selected model is known to expose
+those instructions, and run targeted non-X25519 proof lanes natively.
 
 The long-term test direction is assembly-first: fast assembly-owned regression
 lanes for stable crypto, parser, Gate, manifest, and ledger invariants, with
@@ -65,7 +68,7 @@ make zig-release-ledger-bundle
 ```
 
 On a Linux host that needs user-mode QEMU for the Zig-built ELF, pass
-`RELEASE_RUNNER=qemu-x86_64`.
+`RELEASE_RUNNER="qemu-x86_64 -cpu Haswell-v4"`.
 
 ## CI Mirrors
 
