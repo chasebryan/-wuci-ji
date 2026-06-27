@@ -28,6 +28,7 @@ See `SOURCE.md` for commit, blob, and digest provenance.
 
 ```text
 SCORECARD.md              Current evidence score, 1000/1000 gate, and blockers.
+SCORECARD.v1.json         Machine-readable copy of the score and hard gates.
 specs/
   daylight-minimal-core-v0.4.md
                            Active minimal core math and implementation target.

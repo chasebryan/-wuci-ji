@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[1]
 SCORECARD = REPO / "daylight-equation" / "SCORECARD.md"
+SCORECARD_JSON = REPO / "daylight-equation" / "SCORECARD.v1.json"
 
 
 def require(pattern: str, text: str, label: str) -> re.Match[str]:
@@ -23,6 +25,7 @@ def main() -> None:
     args = parser.parse_args()
 
     text = SCORECARD.read_text(encoding="utf-8")
+    machine = json.loads(SCORECARD_JSON.read_text(encoding="utf-8"))
     score = int(
         require(
             r"^Daylight_v0\.6_research_score\s*=\s*(\d+)\s*/\s*1000$",
@@ -30,6 +33,14 @@ def main() -> None:
             "Daylight_v0.6_research_score",
         ).group(1)
     )
+    if machine["score"]["name"] != "Daylight_v0.6_research_score":
+        raise AssertionError("machine scorecard has wrong score name")
+    if machine["score"]["value"] != score or machine["score"]["maximum"] != 1000:
+        raise AssertionError("machine scorecard score does not match Markdown")
+    if sum(component["value"] for component in machine["components"]) != score:
+        raise AssertionError("machine scorecard component sum does not match score")
+    if sum(component["maximum"] for component in machine["components"]) != 1000:
+        raise AssertionError("machine scorecard component maximums do not sum to 1000")
 
     for claim_name in (
         "ProductionAllowed",
@@ -38,6 +49,26 @@ def main() -> None:
         "ExternalReviewClaim",
     ):
         require(rf"^{claim_name}\s*=\s*0$", text, claim_name)
+
+    for claim_key in (
+        "production_allowed",
+        "runtime_containment_claim",
+        "whole_system_post_quantum_safety_claim",
+        "external_review_claim",
+    ):
+        if machine["score"][claim_key] is not False:
+            raise AssertionError(f"machine scorecard claim must remain false: {claim_key}")
+
+    open_gates = [gate["name"] for gate in machine["hard_gates"] if gate["satisfied"] is not True]
+    for required_gate in (
+        "real_crypto_provider",
+        "full_private_open_implementation",
+        "formal_model",
+        "external_review",
+        "production_authority",
+    ):
+        if required_gate not in open_gates:
+            raise AssertionError(f"machine scorecard dropped open hard gate: {required_gate}")
 
     hard_blockers = (
         "RealCryptoProvider = 0",

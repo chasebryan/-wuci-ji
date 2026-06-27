@@ -112,5 +112,6 @@ If any item is missing, the valid score is below 1000.
 - [v0.5.1/2 hardening note](specs/daylight-envelope-hardening-v0.5.1-2.md)
 - [daylight-crypto README](rust/daylight-crypto/README.md)
 - [standards baseline](research/standards-baseline.md)
+- [machine-readable scorecard](SCORECARD.v1.json)
 - [scorecard guard](../tests/daylight_scorecard_gate.py)
 - [independent static vector checker](../tests/daylight_v06_m1_static_vectors.py)

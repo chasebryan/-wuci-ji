@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "subject": "Daylight_v0.6",
+  "as_of": "2026-06-27",
+  "score": {
+    "name": "Daylight_v0.6_research_score",
+    "value": 870,
+    "maximum": 1000,
+    "production_allowed": false,
+    "runtime_containment_claim": false,
+    "whole_system_post_quantum_safety_claim": false,
+    "external_review_claim": false
+  },
+  "components": [
+    {
+      "name": "byte_level_schema_and_transcript_clarity",
+      "value": 190,
+      "maximum": 200
+    },
+    {
+      "name": "deterministic_valid_and_negative_fixture_corpus",
+      "value": 160,
+      "maximum": 175
+    },
+    {
+      "name": "fail_closed_public_before_private_ordering",
+      "value": 125,
+      "maximum": 125
+    },
+    {
+      "name": "pinned_rust_primitive_experiments",
+      "value": 135,
+      "maximum": 150
+    },
+    {
+      "name": "daylight_v4_v6_parser_and_rejection_behavior",
+      "value": 120,
+      "maximum": 125
+    },
+    {
+      "name": "documentation_claim_discipline_provenance",
+      "value": 100,
+      "maximum": 100
+    },
+    {
+      "name": "independent_parser_and_vector_reproduction",
+      "value": 40,
+      "maximum": 75
+    },
+    {
+      "name": "formal_model",
+      "value": 0,
+      "maximum": 25
+    },
+    {
+      "name": "external_review",
+      "value": 0,
+      "maximum": 25
+    }
+  ],
+  "evidence": [
+    "daylight-equation/fixtures/daylight-v06-m1/README.md",
+    "daylight-equation/fixtures/daylight-v06-m1/spec/M1_FIXTURE_PROFILE.md",
+    "daylight-equation/references/dlv0.5/v0.6M1-HARDENING.md",
+    "daylight-equation/specs/daylight-envelope-hardening-v0.5.1-2.md",
+    "daylight-equation/rust/daylight-crypto/README.md",
+    "daylight-equation/research/standards-baseline.md",
+    "tests/daylight_scorecard_gate.py",
+    "tests/daylight_v06_m1_static_vectors.py"
+  ],
+  "hard_gates": [
+    {
+      "name": "real_crypto_provider",
+      "satisfied": false,
+      "reason": "The v0.6 M1 artifact profile declares RealCryptoProvider = 0."
+    },
+    {
+      "name": "full_private_open_implementation",
+      "satisfied": false,
+      "reason": "The independent checker reproduces public-precheck behavior but not private Open behavior."
+    },
+    {
+      "name": "formal_model",
+      "satisfied": false,
+      "reason": "No formal model is tracked."
+    },
+    {
+      "name": "external_review",
+      "satisfied": false,
+      "reason": "No external reviews are tracked."
+    },
+    {
+      "name": "production_authority",
+      "satisfied": false,
+      "reason": "No production authority, publish authority, trust authority, or runtime containment gate exists for Daylight."
+    }
+  ]
+}
