@@ -3,6 +3,7 @@
   "status": "defensive-high-attestation-baseline-v1",
   "updated_utc": "2026-06-27",
   "scope": "local deterministic WUCI proof evidence for build, verifier, witness, ledger, CAGE, QCAGE, HARDEN, and install lanes",
+  "adoption_license": "Apache-2.0",
   "government_baseline": [
     {
       "authority": "NIST",
@@ -102,6 +103,8 @@
   },
   "required_make_targets": [
     "check-qemu-x25519-cpu",
+    "sbom-provenance",
+    "sbom-provenance-test",
     "asm-smoke",
     "check-asm-immediates",
     "harden-policy-matrix",
