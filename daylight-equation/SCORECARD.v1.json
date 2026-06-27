@@ -98,7 +98,9 @@
     "tests/daylight_authority.py",
     "daylight-equation/research/daylight-v06-1000-preflight.md",
     "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
-    "tests/daylight_v06_1000_preflight.py"
+    "tests/daylight_v06_1000_preflight.py",
+    "tools/daylight_1000_gate.py",
+    "tests/daylight_1000_gate.py"
   ],
   "hard_gates": [
     {
@@ -165,6 +167,11 @@
       "name": "daylight_1000_preflight",
       "satisfied": true,
       "reason": "The repo checks a fail-closed Daylight 1000 preflight that refuses a 1000 checkpoint until integrated public authority, external reviews, and signed non-fixture production authority evidence exist."
+    },
+    {
+      "name": "daylight_1000_claim_gate",
+      "satisfied": true,
+      "reason": "The repo checks a composed Daylight 1000 claim gate that exits nonzero until scorecard, external review set, and integrated authority evidence all prove the checkpoint."
     },
     {
       "name": "daylight_authority_verifier",

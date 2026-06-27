@@ -49,7 +49,8 @@
     "compatible_wuci_production_authority_schema": "wuci-production-authority-ceremony-v1",
     "compatible_wuci_production_authority_signature_namespace": "wuci-production-authority-v1",
     "compatible_daylight_authority_schema": "daylight-v06-authority-evidence-v1",
-    "compatible_daylight_authority_verification_schema": "daylight-v06-authority-verification-v1"
+    "compatible_daylight_authority_verification_schema": "daylight-v06-authority-verification-v1",
+    "compatible_daylight_1000_claim_gate_schema": "daylight-v06-1000-claim-gate-v1"
   },
   "required_open_scorecard_gates": [
     "integrated_public_authority",

@@ -141,6 +141,9 @@ If any item is missing, the valid score is below 1000.
 - A Daylight 1000 preflight gate is tracked and intentionally remains blocked
   until integrated public authority, two independent external reviews, and
   signed non-fixture production authority evidence exist.
+- A composed Daylight 1000 claim gate is tracked and intentionally exits
+  nonzero until the scorecard, signed external-review set, and integrated
+  Daylight authority evidence all prove the 1000 checkpoint.
 
 ## Next Score-Raising Work
 
@@ -204,6 +207,9 @@ If any item is missing, the valid score is below 1000.
 - [1000 preflight JSON](research/daylight-v06-1000-preflight.v1.json)
 - [1000 preflight verifier](../tests/daylight_v06_1000_preflight.py)
 - `make daylight-v06-1000-preflight-test`
+- [1000 claim gate](../tools/daylight_1000_gate.py)
+- [1000 claim gate test](../tests/daylight_1000_gate.py)
+- `make daylight-v06-1000-claim-gate-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)

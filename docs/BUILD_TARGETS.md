@@ -147,6 +147,13 @@ authority, at least two independent external reviews, and signed non-fixture
 production authority evidence are all tracked. It is a fail-closed readiness
 gate, not score evidence.
 
+`daylight-v06-1000-claim-gate-test` checks `tools/daylight_1000_gate.py`, the
+composed Daylight v0.6 1000 claim gate. It reads the scorecard, machine
+scorecard, preflight, optional signed external review set, and optional signed
+Daylight authority evidence, then exits nonzero until every 1000 checkpoint
+condition is proved. It is not external review, not production authority, and
+does not raise the score.
+
 `daylight-v06-authority-verifier-test` checks `tools/daylight_authority.py`,
 the Daylight v0.6 public-authority candidate verifier. It exercises signed
 non-fixture WUCI open/release authority verification and proves the candidate

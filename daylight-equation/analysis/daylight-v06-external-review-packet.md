@@ -16,6 +16,7 @@ make daylight-scorecard-test
 make daylight-v06-m4-z3-proof-test
 make daylight-v06-m4-symbolic-model-test
 make daylight-v06-1000-preflight-test
+make daylight-v06-1000-claim-gate-test
 make daylight-v06-external-review-verifier-test
 make daylight-v06-authority-verifier-test
 make daylight-v6-provider-vector-agreement-test
