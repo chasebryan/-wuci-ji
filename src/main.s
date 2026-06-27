@@ -90,6 +90,8 @@
 .extern run_aead_open
 .extern run_selftest
 .extern run_asm_regression
+.extern run_sandbox_net_deny_probe
+.extern run_sandbox_seccomp_net_deny_selftest
 
 _start:
     mov rax, qword ptr [rsp]
@@ -216,6 +218,8 @@ command_table:
     .quad cmd_aead_seal, run_aead_seal
     .quad cmd_aead_open, run_aead_open
     .quad cmd_asm_regression, run_asm_regression
+    .quad cmd_sandbox_net_deny_probe, run_sandbox_net_deny_probe
+    .quad cmd_sandbox_seccomp_net_deny_selftest, run_sandbox_seccomp_net_deny_selftest
     .quad cmd_help, help_exit
     .quad cmd_help_long, help_exit
     .quad 0, 0
@@ -304,6 +308,10 @@ cmd_selftest:
     .asciz "selftest"
 cmd_asm_regression:
     .asciz "asm-regression"
+cmd_sandbox_net_deny_probe:
+    .asciz "sandbox-net-deny-probe"
+cmd_sandbox_seccomp_net_deny_selftest:
+    .asciz "sandbox-seccomp-net-deny-selftest"
 cmd_keygen:
     .asciz "keygen"
 cmd_keypair:
@@ -388,7 +396,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul-variable-time-public-only|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|authority-root-verify|gate-contract-verify|gate-contract-verify-rooted|open-authorized-contract|open-authorized-rooted|release-authorized-contract|release-authorized-rooted|ledger-empty-root|ledger-leaf-file|ledger-node|inspect|inspect-file|manifest|manifest-file|warrant-message-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest|asm-regression> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul-variable-time-public-only|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|authority-root-verify|gate-contract-verify|gate-contract-verify-rooted|open-authorized-contract|open-authorized-rooted|release-authorized-contract|release-authorized-rooted|ledger-empty-root|ledger-leaf-file|ledger-node|inspect|inspect-file|manifest|manifest-file|warrant-message-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest|asm-regression|sandbox-net-deny-probe|sandbox-seccomp-net-deny-selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
     .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
@@ -470,6 +478,8 @@ usage_msg:
     .ascii "  aead-open <key> <nonce> <tag>  verify raw ciphertext, then write plaintext; tag=32 hex\n"
     .ascii "  selftest                       run built-in known-answer tests\n"
     .ascii "  asm-regression                 run assembly-owned regression vectors\n"
+    .ascii "  sandbox-net-deny-probe         pass only when AF_INET socket creation is denied\n"
+    .ascii "  sandbox-seccomp-net-deny-selftest install seccomp network syscall deny filter and verify socket EPERM\n"
 .set usage_msg_len, . - usage_msg
 
 .section .note.GNU-stack,"",@progbits

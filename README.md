@@ -45,6 +45,9 @@ make build-linux
 ```
 
 Detailed proof targets live in [docs/BUILD_TARGETS.md](docs/BUILD_TARGETS.md).
+Contributor setup details live in
+[docs/CONTRIBUTOR_BOOTSTRAP.md](docs/CONTRIBUTOR_BOOTSTRAP.md), and CI scope is
+documented in [docs/CI_SCOPE.md](docs/CI_SCOPE.md).
 Release requirements are in [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md),
 and fuzzing/adversarial parser work is tracked in [docs/FUZZING.md](docs/FUZZING.md).
 
@@ -354,6 +357,13 @@ make high-attestation-profile
 make high-attestation-proof
 make sbom-provenance
 make sbom-provenance-test
+make carrot-policy
+make kernel-sandbox-proof
+make pq-verifier-detect
+make pq-verifier-test
+make production-readiness-gates
+make crypto-self-audit
+make crypto-self-audit-test
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test
@@ -382,9 +392,11 @@ verify-self-release-bundle` recomputes those checks from the bundle files.
 `make high-attestation-profile` validates the local defensive baseline in
 `docs/wuci_high_attestation_profile.json`; `make high-attestation-proof`
 composes that baseline with the pinned qemu X25519 lane, assembly checks,
-HARDEN, CAGE/QCAGE, Gate contract, and full Linux CLI harness. This is a local
-evidence-strengthening lane, not a claim of runtime sandboxing, quantum safety,
-production authority, or vulnerability absence.
+HARDEN, CAGE/QCAGE, CARROT seccomp/namespace no-network proof, PQ verifier
+detection, crypto self-audit, production-readiness gates, Gate contract, and
+full Linux CLI harness. This is a local evidence-strengthening lane, not a
+claim of general runtime sandboxing, quantum safety, production authority, or
+vulnerability absence.
 `make self-release-contract-bundle` also writes `receipt-contract.txt`, opens
 through the Zig flat-contract verifier, and records the contract hash plus Zig
 contract verification checks in the attestation.

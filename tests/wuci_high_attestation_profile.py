@@ -37,7 +37,7 @@ def main() -> None:
     non_claims = set(profile["explicit_non_claims"])
     for claim in (
         "runtime sandbox enforcement",
-        "network sandbox enforcement",
+        "network sandbox enforcement outside the CARROT kernel proof lane",
         "post-quantum security from classical-only evidence",
         "production trust from fixture authority",
         "absence of exploitable vulnerabilities",
@@ -60,6 +60,11 @@ def main() -> None:
     assert controls["offline_deterministic_proofs"] is True
     assert controls["stdlib_only_policy_tests"] is True
     assert controls["pinned_qemu_cpu_for_x25519"] == "Haswell-v4"
+    assert controls["kernel_no_network_sandbox_proof"] is True
+    assert controls["assembly_no_network_probe"] is True
+    assert controls["seccomp_network_syscall_deny_filter"] is True
+    assert controls["rust_sandbox_wrapper_source"] is True
+    assert controls["rust_sandbox_wrapper_build_gate"] is True
     assert controls["fixture_authority_test_only"] is True
     assert controls["reserved_actions_denied_by_default"] == harden["reserved_actions"]
     assert controls["unapproved_runner_rejected_in_strict_mode"] is strict["reject_unapproved_runner"]

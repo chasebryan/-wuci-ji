@@ -2,6 +2,8 @@
 .equ SYS_WRITE, 1
 .equ SYS_CLOSE, 3
 .equ SYS_LSEEK, 8
+.equ SYS_SOCKET, 41
+.equ SYS_PRCTL, 157
 .equ SYS_EXIT, 60
 .equ SYS_UNLINK, 87
 .equ SYS_RENAME, 82
@@ -16,6 +18,11 @@
 .equ STDOUT, 1
 .equ STDERR, 2
 .equ AT_FDCWD, -100
+.equ AF_INET, 2
+.equ SOCK_STREAM, 1
+.equ PR_SET_SECCOMP, 22
+.equ PR_SET_NO_NEW_PRIVS, 38
+.equ SECCOMP_MODE_FILTER, 2
 .equ O_RDONLY, 0
 .equ O_WRONLY, 1
 .equ O_CREAT, 64

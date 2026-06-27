@@ -1,0 +1,30 @@
+{
+  "schema": "wuci-pq-verifier-contract-v1",
+  "status": "real-pinned-pq-verifier-required-before-quantum-safe-claim-v1",
+  "accepted_signature_algorithms": [
+    "ML-DSA",
+    "SLH-DSA",
+    "LMS",
+    "XMSS"
+  ],
+  "accepted_kem_algorithms": [
+    "ML-KEM",
+    "HQC"
+  ],
+  "required_verifier_evidence": {
+    "binary_sha256": true,
+    "implementation_name": true,
+    "implementation_version": true,
+    "algorithm": true,
+    "known_answer_test": true,
+    "no_stub_mode": true,
+    "offline_verification": true
+  },
+  "rejections": [
+    "pq_stub_marked_as_real",
+    "unpinned_external_verifier",
+    "classical_signature_marked_quantum_safe",
+    "network_required_for_verification",
+    "missing_known_answer_test"
+  ]
+}

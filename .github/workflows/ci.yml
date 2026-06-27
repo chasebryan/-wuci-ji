@@ -42,6 +42,13 @@ jobs:
       - name: Run install regression
         run: make install-test
 
+      - name: Run high-attestation metadata gates
+        run: |
+          make high-attestation-profile
+          make pq-verifier-test
+          make production-readiness-gates
+          make crypto-self-audit-test
+
       - name: Run assembly self-release contract proof
         run: make self-release-asm-contract-proof
 

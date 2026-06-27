@@ -35,11 +35,16 @@ secret. Fixture authority is test-only.
   policy, CAGE/QCAGE attestations, and regression tests.
 - Makefile targets compose the proof lanes. They are orchestration, not a
   cryptographic primitive.
+- CARROT validates runtime policy intent and the local proof lane checks a
+  seccomp network-syscall deny filter plus Linux user+network namespace entry
+  with assembly probes.
 
 ## Not Enforced Today
 
 - Production FROST authority or arbitrary signer material.
-- Runtime sandboxing, network isolation, seccomp, namespaces, or VM containment.
+- General runtime sandboxing, seccomp policy beyond the CARROT network-syscall
+  deny filter, VM containment, or no-network claims outside the CARROT proof
+  lane.
 - Post-quantum signature verification or quantum-safe status.
 - Independent audit, formal verification, broad fuzzing, or constant-time
   certification.

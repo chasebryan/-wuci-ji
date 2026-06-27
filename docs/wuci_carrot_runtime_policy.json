@@ -1,0 +1,53 @@
+{
+  "schema": "wuci-carrot-runtime-policy-v1",
+  "status": "kernel-enforced-no-network-baseline-v1",
+  "purpose": "Attest runtime containment intent separately from cryptographic authority.",
+  "allow_network": false,
+  "probabilistic_enforcement": false,
+  "fallback_to_host_network": false,
+  "kernel_enforcement": {
+    "required_namespaces": [
+      "user",
+      "net"
+    ],
+    "required_prctl": [
+      "PR_SET_NO_NEW_PRIVS",
+      "PR_SET_SECCOMP"
+    ],
+    "required_seccomp_deny_network_syscalls": [
+      "socket",
+      "connect",
+      "accept",
+      "accept4",
+      "bind",
+      "listen",
+      "sendto",
+      "recvfrom",
+      "sendmsg",
+      "recvmsg",
+      "socketpair",
+      "setsockopt",
+      "getsockopt"
+    ],
+    "optional_namespaces": [
+      "ipc",
+      "uts"
+    ],
+    "forbidden_modes": [
+      "share-net",
+      "host-network",
+      "best-effort-network-denial"
+    ]
+  },
+  "attestation_role": {
+    "frost_or_gate_may_attest_policy": true,
+    "frost_or_gate_enforces_kernel_boundary": false,
+    "enforcement_requires_kernel_namespace_or_equivalent": true
+  },
+  "non_claims": [
+    "cryptography alone cannot block sockets",
+    "no network sandbox claim is valid without a passing kernel enforcement proof",
+    "raw network namespaces alone are not treated as socket denial",
+    "no probabilistic network enforcement is accepted"
+  ]
+}

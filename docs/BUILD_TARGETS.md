@@ -58,18 +58,32 @@ make high-attestation-profile
 make high-attestation-proof
 make sbom-provenance
 make sbom-provenance-test
+make carrot-policy
+make kernel-sandbox-proof
+make pq-verifier-detect
+make pq-verifier-test
+make production-readiness-gates
+make crypto-self-audit
+make crypto-self-audit-test
 ```
 
 `high-attestation-profile` checks the machine-readable defensive baseline in
 `docs/wuci_high_attestation_profile.json`. The baseline maps current U.S.
 government defensive guidance into local WUCI controls without claiming runtime
-sandboxing, no-network containment, quantum safety, production authority, or
-absence of vulnerabilities.
+sandboxing, no-network containment outside the CARROT proof lane, quantum
+safety, production authority, or absence of vulnerabilities.
 
 `high-attestation-proof` composes the profile check, pinned qemu X25519 CPU
 smoke, assembly smoke/regression audit, HARDEN policy, CAGE/QCAGE policy and
-bundle checks, SBOM/provenance evidence, Gate contract assembly checks, and the
-full qemu Linux CLI test.
+bundle checks, SBOM/provenance evidence, CARROT kernel no-network proof,
+real-PQ verifier detection, crypto self-audit evidence, production-readiness
+gates, Gate contract assembly checks, and the full qemu Linux CLI test.
+
+`kernel-sandbox-proof` is local kernel evidence: it requires Linux support for
+seccomp filters plus unprivileged user and network namespaces and passes only
+when `wuci-ji sandbox-seccomp-net-deny-selftest` installs a network-syscall deny
+filter and observes AF_INET socket creation denied with `EPERM`. It is not a
+general runtime sandbox or VM boundary.
 
 `sbom-provenance` emits and verifies `build/wuci-sbom.json` and
 `build/wuci-provenance.json` without network access. The generated provenance
