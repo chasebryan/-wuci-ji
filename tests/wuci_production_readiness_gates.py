@@ -44,6 +44,10 @@ def main() -> None:
     assert required["ceremony_threshold_minimum"] == 4
     assert required["ceremony_signer_count_minimum"] == 5
     assert required["publish_or_trust_requires_assembly_gate"] is True
+    assert required["required_publish_trust_assembly_commands"] == [
+        "publish-authorized-rooted",
+        "trust-authorized-rooted",
+    ]
     assert authority["golden_lock"]["schema"] == "wuci-golden-lock-v1"
     assert authority["golden_lock"]["normal_open_release_threshold"] == {"n": 5, "t": 3}
     assert authority["golden_lock"]["root_authority_audit_ceremony_threshold"] == {"n": 5, "t": 4}
@@ -98,6 +102,8 @@ def main() -> None:
     for blocker in (
         "Fixture authority is still test-only",
         "Custom assembly crypto has not been independently audited",
+        "`publish-authorized-rooted`",
+        "`trust-authorized-rooted`",
         "General runtime sandboxing, independent wrapper/seccomp review",
         "If claiming quantum safety, a real pinned PQ verifier lane",
         "Internal crypto self-audit evidence",

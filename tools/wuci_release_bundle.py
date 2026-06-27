@@ -166,6 +166,11 @@ def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
         raise ReleaseBundleError("production authority must require Golden Lock signer count")
     if required_authority.get("publish_or_trust_requires_assembly_gate") is not True:
         raise ReleaseBundleError("production authority must require assembly Gate publish/trust")
+    if required_authority.get("required_publish_trust_assembly_commands") != [
+        "publish-authorized-rooted",
+        "trust-authorized-rooted",
+    ]:
+        raise ReleaseBundleError("production authority must name publish/trust assembly Gate commands")
     golden_lock = production_authority.get("golden_lock", {})
     if golden_lock.get("schema") != "wuci-golden-lock-v1":
         raise ReleaseBundleError("production authority policy must name Golden Lock v1")

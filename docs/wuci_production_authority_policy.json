@@ -23,7 +23,11 @@
     "ceremony_threshold_minimum": 4,
     "ceremony_signer_count_minimum": 5,
     "root_sha256_record_required": true,
-    "publish_or_trust_requires_assembly_gate": true
+    "publish_or_trust_requires_assembly_gate": true,
+    "required_publish_trust_assembly_commands": [
+      "publish-authorized-rooted",
+      "trust-authorized-rooted"
+    ]
   },
   "golden_lock": {
     "schema": "wuci-golden-lock-v1",

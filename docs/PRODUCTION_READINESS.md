@@ -85,7 +85,9 @@ These targets produce or verify:
 - Custom assembly crypto has not been independently audited or formally
   verified.
 - Production publish/trust Gate commands do not exist as assembly-enforced
-  authority paths.
+  authority paths. The blocked command names are `publish-authorized-rooted`
+  and `trust-authorized-rooted`; until they exist and pass boundary tests,
+  production authority roots must keep `allow-publish` and `allow-trust` false.
 - General runtime sandboxing, independent wrapper/seccomp review, and VM-grade
   containment are not complete. CARROT currently proves a narrow
   network-syscall deny lane on kernels that allow seccomp filters and

@@ -120,6 +120,22 @@
       "shape": "release-authorized <artifact> <receipt>",
       "required_action": "release",
       "implemented": false
+    },
+    {
+      "name": "trust-authorized-rooted",
+      "shape": "trust-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "trust",
+      "authority_schema": "wuci-authority-root-v1",
+      "implemented": false,
+      "blocker": "publish/trust authority requires assembly Gate enforcement before production authority may allow trust"
+    },
+    {
+      "name": "publish-authorized-rooted",
+      "shape": "publish-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "publish",
+      "authority_schema": "wuci-authority-root-v1",
+      "implemented": false,
+      "blocker": "publish/trust authority requires assembly Gate enforcement before production authority may allow publish"
     }
   ],
   "receipt_policy_inputs": [
@@ -196,6 +212,7 @@
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",
     "Do not accept non-release actions through release-authorized-rooted.",
+    "Do not accept trust or publish authority until dedicated assembly commands exist.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

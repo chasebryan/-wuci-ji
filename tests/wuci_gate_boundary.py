@@ -176,11 +176,18 @@ def main() -> None:
             assert command["authority_schema"] == "wuci-authority-root-v1"
 
     future_commands = require_list(boundary, "future_commands")
-    future_names = {command["name"] for command in future_commands}
-    assert future_names == {"release-authorized"}
+    future_by_name = {command["name"]: command for command in future_commands}
+    future_names = set(future_by_name)
+    assert future_names == {"release-authorized", "publish-authorized-rooted", "trust-authorized-rooted"}
     for command in future_commands:
         assert command["implemented"] is False
-        assert command["required_action"] == "release"
+    assert future_by_name["release-authorized"]["required_action"] == "release"
+    assert future_by_name["publish-authorized-rooted"]["required_action"] == "publish"
+    assert future_by_name["publish-authorized-rooted"]["authority_schema"] == "wuci-authority-root-v1"
+    assert "assembly Gate enforcement" in future_by_name["publish-authorized-rooted"]["blocker"]
+    assert future_by_name["trust-authorized-rooted"]["required_action"] == "trust"
+    assert future_by_name["trust-authorized-rooted"]["authority_schema"] == "wuci-authority-root-v1"
+    assert "assembly Gate enforcement" in future_by_name["trust-authorized-rooted"]["blocker"]
 
     help_proc = run_wuci(["--help"])
     assert help_proc.returncode == 0, help_proc.stderr.decode("utf-8", "replace")
