@@ -44,6 +44,8 @@ def main() -> None:
         "daylight-equation/research/daylight-v06-m4-z3-proof.smt2",
         "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
         "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
+        "daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json",
+        "tests/daylight_v6_kat_reproduction_bundle.py",
         "tools/daylight_external_review.py",
         "tests/daylight_external_review.py",
         "tools/daylight_authority.py",
@@ -102,6 +104,8 @@ def main() -> None:
     assert "tests/daylight_1000_gate.py" in evidence
     assert "tools/daylight_1000_checkpoint.py" in evidence
     assert "tests/daylight_1000_checkpoint.py" in evidence
+    assert "daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json" in evidence
+    assert "tests/daylight_v6_kat_reproduction_bundle.py" in evidence
     hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
     assert hard_gates.get("external_review_packet") is True
     assert hard_gates.get("external_review_verifier") is True

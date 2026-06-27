@@ -44,6 +44,9 @@ negative-corpus vectors against the same artifact and non-production
 public-boundary claims. Checked schema-freeze evidence now pins the v6 schema
 surface names, transcript labels, KDF labels, rejection stages, schema vector,
 and reference negative-corpus hooks against the Rust lane and reference docs.
+The provider-backed v6 KAT/reproduction bundle now pins those vector artifacts,
+the vector-agreement evidence, and the local reproduction commands for external
+review handoff.
 An expanded M4 symbolic model now exhaustively checks the 20-predicate
 public/private `Open` truth table for confidentiality assumptions,
 authorization requirements, downgrade requirements, and fail-closed release
@@ -120,7 +123,9 @@ If any item is missing, the valid score is below 1000.
 - The provider-backed reference negative corpus covers the current C1
   non-production lane only; it is not a full provider-backed valid/negative
   corpus and does not replace a second independent implementation.
-- No public fuzz corpus or independent reproduction bundle is tracked.
+- A public KAT/reproduction bundle is tracked for the current provider-backed
+  evidence, but no public fuzz corpus or second independent implementation is
+  tracked.
 - A partial fail-closed formal model is tracked for `Open = bottom` ordering,
   and an expanded M4 symbolic model covers confidentiality, authorization,
   downgrade resistance, and fail-closed release behavior over the current
@@ -156,8 +161,8 @@ If any item is missing, the valid score is below 1000.
 2. Replace externally supplied public precheck evidence with integrated
    certificate, revocation, transparency-log, install, witness, publish, and
    trust-authority verification gates.
-3. Publish a clean KAT bundle with valid, negative, and parser-only vectors
-   plus reproduction commands.
+3. Expand the KAT bundle with a second independent implementation and parser
+   corpus reproduction commands.
 4. Prepare an external review packet around the M4 proof, provider-backed
    vectors, and remaining production-authority blockers.
 
@@ -179,6 +184,9 @@ If any item is missing, the valid score is below 1000.
 - [provider-backed v6 vector-agreement evidence](evidence/daylight-v6-provider-vector-agreement.v1.json)
 - [provider-backed v6 vector-agreement verifier](../tests/daylight_v6_provider_vector_agreement.py)
 - `make daylight-v6-provider-vector-agreement-test`
+- [provider-backed v6 KAT reproduction bundle](evidence/daylight-v6-kat-reproduction-bundle.v1.json)
+- [provider-backed v6 KAT reproduction bundle verifier](../tests/daylight_v6_kat_reproduction_bundle.py)
+- `make daylight-v6-kat-reproduction-bundle-test`
 - [partial fail-closed formal model](research/daylight-v06-fail-closed-model.md)
 - [partial fail-closed formal model JSON](research/daylight-v06-fail-closed-model.v1.json)
 - [partial fail-closed formal model verifier](../tests/daylight_v06_fail_closed_model.py)

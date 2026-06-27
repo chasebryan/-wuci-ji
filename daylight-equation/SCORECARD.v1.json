@@ -76,6 +76,8 @@
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
     "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
     "tests/daylight_v6_provider_vector_agreement.py",
+    "daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json",
+    "tests/daylight_v6_kat_reproduction_bundle.py",
     "daylight-equation/research/daylight-v06-fail-closed-model.md",
     "daylight-equation/research/daylight-v06-fail-closed-model.v1.json",
     "tests/daylight_v06_fail_closed_model.py",
@@ -134,6 +136,11 @@
       "name": "provider_backed_vector_agreement",
       "satisfied": true,
       "reason": "The repo verifies agreement across provider-backed KEM/key-schedule, private-roundtrip, reference Seal/Open, and reference negative-corpus vectors for artifact identity and non-production public-boundary claims."
+    },
+    {
+      "name": "daylight_v6_kat_reproduction_bundle",
+      "satisfied": true,
+      "reason": "The repo pins a provider-backed v6 KAT/reproduction bundle for the current vector artifacts, vector-agreement evidence, and local reproduction commands."
     },
     {
       "name": "provider_backed_reference_negative_corpus",

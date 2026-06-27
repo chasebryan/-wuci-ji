@@ -39,6 +39,14 @@
       "purpose": "provider-backed vector agreement evidence"
     },
     {
+      "path": "daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json",
+      "purpose": "provider-backed KAT reproduction bundle"
+    },
+    {
+      "path": "tests/daylight_v6_kat_reproduction_bundle.py",
+      "purpose": "provider-backed KAT reproduction bundle verifier"
+    },
+    {
       "path": "tools/daylight_external_review.py",
       "purpose": "signed external-review evidence and review-set manifest acceptance verifier"
     },
@@ -93,6 +101,7 @@
     "make daylight-v06-external-review-verifier-test",
     "make daylight-v06-authority-verifier-test",
     "make daylight-v6-provider-vector-agreement-test",
+    "make daylight-v6-kat-reproduction-bundle-test",
     "make daylight-v06-schema-freeze-test",
     "make daylight-v6-reference-negative-corpus-test"
   ],

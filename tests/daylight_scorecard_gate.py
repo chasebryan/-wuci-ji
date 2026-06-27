@@ -129,6 +129,8 @@ def main() -> None:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without reference negative corpus")
         if "Provider-backed v6 vector-agreement evidence" not in text:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without provider vector-agreement evidence")
+        if "KAT/reproduction bundle" not in text:
+            raise AssertionError("scorecard exceeds private-roundtrip evidence without KAT reproduction bundle evidence")
         evidence = set(machine["evidence"])
         if "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt" not in evidence:
             raise AssertionError("machine scorecard missing reference Seal/Open evidence vector")
@@ -138,12 +140,18 @@ def main() -> None:
             raise AssertionError("machine scorecard missing provider vector-agreement evidence")
         if "tests/daylight_v6_provider_vector_agreement.py" not in evidence:
             raise AssertionError("machine scorecard missing provider vector-agreement verifier")
+        if "daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json" not in evidence:
+            raise AssertionError("machine scorecard missing KAT reproduction bundle evidence")
+        if "tests/daylight_v6_kat_reproduction_bundle.py" not in evidence:
+            raise AssertionError("machine scorecard missing KAT reproduction bundle verifier")
         if "daylight-v6-reference-seal-open-test" not in text:
             raise AssertionError("scorecard missing reference Seal/Open test target")
         if "daylight-v6-reference-negative-corpus-test" not in text:
             raise AssertionError("scorecard missing reference negative corpus test target")
         if "daylight-v6-provider-vector-agreement-test" not in text:
             raise AssertionError("scorecard missing provider vector-agreement test target")
+        if "daylight-v6-kat-reproduction-bundle-test" not in text:
+            raise AssertionError("scorecard missing KAT reproduction bundle test target")
         hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
         if hard_gates.get("provider_backed_reference_seal_open") is not True:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying reference Seal/Open gate")
@@ -151,6 +159,8 @@ def main() -> None:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying provider vector-agreement gate")
         if hard_gates.get("provider_backed_reference_negative_corpus") is not True:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying reference negative corpus gate")
+        if hard_gates.get("daylight_v6_kat_reproduction_bundle") is not True:
+            raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying KAT reproduction bundle gate")
     if score > 945:
         if "schema-freeze evidence" not in text:
             raise AssertionError("scorecard exceeds reference corpus without schema-freeze evidence")

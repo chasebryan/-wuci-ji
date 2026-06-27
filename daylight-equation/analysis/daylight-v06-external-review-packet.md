@@ -21,6 +21,7 @@ make daylight-v06-1000-checkpoint-test
 make daylight-v06-external-review-verifier-test
 make daylight-v06-authority-verifier-test
 make daylight-v6-provider-vector-agreement-test
+make daylight-v6-kat-reproduction-bundle-test
 make daylight-v06-schema-freeze-test
 make daylight-v6-reference-negative-corpus-test
 ```

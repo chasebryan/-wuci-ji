@@ -200,6 +200,14 @@ verifies that the KEM/key-schedule, private-roundtrip, and reference
 production-disallowed state, and non-production reference-lane boundaries. It
 is not independent external review or production authority.
 
+`daylight-v6-kat-reproduction-bundle-test` checks
+`daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json`. It
+pins the current provider-backed v6 KEM, private-roundtrip, reference
+`Seal`/`Open`, reference negative-corpus, and vector-agreement artifacts by
+SHA3-512 and verifies their local reproduction commands. It is not a second
+implementation, independent external review, production authority, or score
+increase.
+
 `daylight-v6-reference-seal-open-test` checks the Rust Daylight v6 reference
 `Seal`/`Open` evidence vector. It covers provider-backed ML-KEM-1024,
 DHKEM(P-384,HKDF-SHA384), AEAD seal/open, typed private payload decoding,
