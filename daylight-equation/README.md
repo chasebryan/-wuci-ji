@@ -46,6 +46,9 @@ analysis/
   review-dissemination-plan.md
 design/
   rust-implementation-plan.md
+evidence/
+  README.md                Machine-readable evidence derived from Daylight
+                           research fixtures and tests.
 fixtures/
   README.md                Boundary notes for executable fixture artifacts.
   daylight-v06-m1/         Extracted v0.6 M1 fixture artifact with Python
@@ -163,6 +166,7 @@ cargo run --offline -- v6-schema-vector
 Run the imported v0.6 M1 fixture corpus explicitly:
 
 ```sh
+make daylight-v06-m1-cross-agreement-test
 make daylight-v06-m1-fixture-test
 make daylight-v06-m1-independent-open-test
 make daylight-v06-m1-static-test

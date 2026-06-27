@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 890,
+    "value": 900,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -34,7 +34,7 @@
     },
     {
       "name": "daylight_v4_v6_parser_and_rejection_behavior",
-      "value": 120,
+      "value": 125,
       "maximum": 125
     },
     {
@@ -44,7 +44,7 @@
     },
     {
       "name": "independent_parser_and_vector_reproduction",
-      "value": 60,
+      "value": 65,
       "maximum": 75
     },
     {
@@ -67,7 +67,9 @@
     "daylight-equation/research/standards-baseline.md",
     "tests/daylight_scorecard_gate.py",
     "tests/daylight_v06_m1_static_vectors.py",
-    "tests/daylight_v06_m1_independent_open.py"
+    "tests/daylight_v06_m1_independent_open.py",
+    "tests/daylight_v06_m1_cross_agreement.py",
+    "daylight-equation/evidence/daylight-v06-m1-cross-agreement.v1.json"
   ],
   "hard_gates": [
     {

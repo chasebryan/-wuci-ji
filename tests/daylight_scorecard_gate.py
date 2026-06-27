@@ -93,7 +93,13 @@ def main() -> None:
         if "tests/daylight_v06_m1_independent_open.py" not in evidence:
             raise AssertionError("machine scorecard missing independent private Open evidence")
     if score > 890:
-        raise AssertionError("scorecard exceeds current fixture-profile private Open evidence")
+        if "cross-agreement evidence" not in text:
+            raise AssertionError("scorecard exceeds private Open evidence without cross-agreement evidence")
+        evidence = set(machine["evidence"])
+        if "daylight-equation/evidence/daylight-v06-m1-cross-agreement.v1.json" not in evidence:
+            raise AssertionError("machine scorecard missing cross-agreement evidence")
+    if score > 900:
+        raise AssertionError("scorecard exceeds current cross-agreement evidence")
 
     if not args.quiet:
         print(f"Daylight scorecard gate OK: {score}/1000")

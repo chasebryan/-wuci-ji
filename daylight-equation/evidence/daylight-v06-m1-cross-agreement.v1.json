@@ -1,0 +1,373 @@
+{
+  "as_of": "2026-06-27",
+  "fixture": "daylight-equation/fixtures/daylight-v06-m1",
+  "implementations": [
+    "fixture_runner_recorded_results",
+    "independent_static_public_precheck",
+    "independent_fixture_profile_private_open"
+  ],
+  "schema_version": 1,
+  "subject": "Daylight_v0.6_M1_fixture_cross_agreement",
+  "summary": {
+    "aead_called_vectors": 12,
+    "all_agree": true,
+    "private_kem_called_vectors": 12,
+    "private_or_valid_vectors": 12,
+    "public_rejection_vectors": 20,
+    "total_vectors": 32
+  },
+  "vectors": [
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUX_HASH",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUX_HASH",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUX_HASH",
+      "vector_id": "N10_bad_policy_hash"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUX_HASH",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUX_HASH",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUX_HASH",
+      "vector_id": "N11_bad_keyset_hash"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUX_HASH",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUX_HASH",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUX_HASH",
+      "vector_id": "N12_bad_claims_hash"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_KEM_BLOCK",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_KEM_BLOCK",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_KEM_BLOCK",
+      "vector_id": "N13_bad_kem_key_id"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUTH_BLOCK",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUTH_BLOCK",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUTH_BLOCK",
+      "vector_id": "N14_bad_auth_block_shape"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUTH_SIGNATURE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUTH_SIGNATURE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUTH_SIGNATURE",
+      "vector_id": "N15_bad_ml_dsa_signature"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUTH_SIGNATURE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUTH_SIGNATURE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUTH_SIGNATURE",
+      "vector_id": "N16_insufficient_q_threshold"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_AUTH_SIGNATURE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AUTH_SIGNATURE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_AUTH_SIGNATURE",
+      "vector_id": "N17_insufficient_domain_count"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_REVIEW",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_REVIEW",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_REVIEW",
+      "vector_id": "N18_bad_review_receipt"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_DOWNGRADE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_DOWNGRADE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_DOWNGRADE",
+      "vector_id": "N19_bad_downgrade"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_PARSE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_PARSE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_PARSE",
+      "vector_id": "N1_noncanonical_cbor"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_LOG",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_LOG",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_LOG",
+      "vector_id": "N20_missing_required_log"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_AEAD",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AEAD",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N21_bad_mlkem_ciphertext"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_AEAD",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AEAD",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N22_bad_dhkem_encapsulation"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_AEAD",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_AEAD",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N23_bad_aead_tag"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_PAYLOAD",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_PAYLOAD",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N24_bad_private_payload_encoding"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_COMMIT",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_COMMIT",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N25_bad_artifact_commitment"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_LEAK",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_LEAK",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N26_bad_leak_value"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": "REJECT_LEAK",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_LEAK",
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "N27_bad_review_blind"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_PARSE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_PARSE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_PARSE",
+      "vector_id": "N2_duplicate_map_key"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_SCHEMA",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_SCHEMA",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_SCHEMA",
+      "vector_id": "N3_unknown_envelope_key"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_SCHEMA",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_SCHEMA",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_SCHEMA",
+      "vector_id": "N4_unknown_header_key"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_SCHEMA",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_SCHEMA",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_SCHEMA",
+      "vector_id": "N5_wrong_field_type"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_SUITE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_SUITE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_SUITE",
+      "vector_id": "N6_wrong_enum_value"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_POLICY",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_POLICY",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_POLICY",
+      "vector_id": "N7_unsorted_roster"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_POLICY",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_POLICY",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_POLICY",
+      "vector_id": "N8_unsorted_policy_array"
+    },
+    {
+      "aead_dec_called": false,
+      "expected_rejection_stage": "REJECT_SUITE",
+      "expected_result": "bottom",
+      "fixture_runner_ok": true,
+      "independent_open_ok": false,
+      "independent_open_stage": "REJECT_SUITE",
+      "private_kem_called": false,
+      "public_precheck_stage": "REJECT_SUITE",
+      "vector_id": "N9_bad_suite_id"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "fixture_runner_ok": true,
+      "independent_open_ok": true,
+      "independent_open_stage": null,
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "V1_metadata_only_open"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "fixture_runner_ok": true,
+      "independent_open_ok": true,
+      "independent_open_stage": null,
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "V2_public_commitment_open"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "fixture_runner_ok": true,
+      "independent_open_ok": true,
+      "independent_open_stage": null,
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "V3_reviewed_content_open"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "fixture_runner_ok": true,
+      "independent_open_ok": true,
+      "independent_open_stage": null,
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "V4_pq_strict_open"
+    },
+    {
+      "aead_dec_called": true,
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "fixture_runner_ok": true,
+      "independent_open_ok": true,
+      "independent_open_stage": null,
+      "private_kem_called": true,
+      "public_precheck_stage": null,
+      "vector_id": "V5_chacha20_open"
+    }
+  ]
+}
