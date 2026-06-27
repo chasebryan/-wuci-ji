@@ -81,6 +81,10 @@ python3 tools/daylight_external_review.py emit-set \
 python3 tools/daylight_external_review.py verify-set --repo . --manifest reviews.json
 ```
 
+All review-set paths are portable relative paths under the manifest directory.
+Absolute paths and `..` traversal are rejected before a review set can count
+toward the score.
+
 ## Boundary
 
 Non-claims:

@@ -76,8 +76,10 @@ def main() -> None:
         "two-review manifest is emitted by tools/daylight_external_review.py emit-set and passes verify-set"
         in criteria
     )
+    assert "two-review manifest uses only portable relative paths under the manifest directory" in criteria
     assert "tools/daylight_external_review.py emit-set" in doc
     assert "tools/daylight_external_review.py verify-set" in doc
+    assert "Absolute paths and `..` traversal are rejected" in doc
 
     for non_claim in packet["non_claims"]:
         assert non_claim in doc

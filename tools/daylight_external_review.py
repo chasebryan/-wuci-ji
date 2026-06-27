@@ -323,9 +323,12 @@ def resolve_manifest_path(base: Path, value: Any, context: str) -> Path:
     if not isinstance(value, str) or not value:
         fail(f"{context} must be a non-empty path")
     path = Path(value)
-    if not path.is_absolute():
-        path = base / path
-    return path
+    if path.is_absolute() or ".." in path.parts:
+        fail(f"{context} must be a portable relative path under the review set manifest")
+    try:
+        return wuci_safeio.require_under_directory(base / path, base, context)
+    except wuci_safeio.SafeIOError as exc:
+        raise DaylightReviewError(str(exc)) from exc
 
 
 def verify_review_set(*, manifest_path: Path, repo: Path, ssh_keygen: str | None = None) -> dict[str, Any]:
@@ -465,6 +468,8 @@ def review_set_entry(args: argparse.Namespace, prefix: str) -> dict[str, str]:
     for name, value in entry.items():
         if not isinstance(value, str) or not value or "\0" in value:
             fail(f"{prefix.replace('_', '-')} {name} must be a non-empty path")
+        if Path(value).is_absolute() or ".." in Path(value).parts:
+            fail(f"{prefix.replace('_', '-')} {name} must be a portable relative path")
     return entry
 
 

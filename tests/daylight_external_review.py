@@ -193,6 +193,32 @@ def main() -> None:
         overwrite = emit_set_manifest(manifest, [review_a, review_b])
         assert overwrite.returncode != 0
         assert b"could not create new Daylight external review set" in overwrite.stderr
+        absolute_manifest = tmp / "absolute-reviews.json"
+        absolute_emit = run_tool(
+            "emit-set",
+            "--review-a-evidence",
+            str(review_a["evidence"]),
+            "--review-a-report",
+            review_a["report"].name,
+            "--review-a-root-key",
+            review_a["root_key"].name,
+            "--review-a-signature",
+            review_a["signature"].name,
+            "--review-b-evidence",
+            review_b["evidence"].name,
+            "--review-b-report",
+            review_b["report"].name,
+            "--review-b-root-key",
+            review_b["root_key"].name,
+            "--review-b-signature",
+            review_b["signature"].name,
+            "--out",
+            str(absolute_manifest),
+            "--quiet",
+        )
+        assert absolute_emit.returncode != 0
+        assert b"portable relative path" in absolute_emit.stderr
+        assert not absolute_manifest.exists()
         review_set = run_tool("verify-set", "--repo", str(REPO), "--manifest", str(manifest), "--json")
         assert_ok(review_set, "verify signed review set")
         summary = json.loads(review_set.stdout.decode("utf-8"))
@@ -209,6 +235,17 @@ def main() -> None:
         duplicate = run_tool("verify-set", "--repo", str(REPO), "--manifest", str(duplicate_manifest), "--quiet")
         assert duplicate.returncode != 0
         assert b"two distinct review ids" in duplicate.stderr
+
+        escaping_manifest = tmp / "escaping-reviews.json"
+        escaping_value = json.loads(manifest.read_text(encoding="utf-8"))
+        escaping_value["reviews"][0]["evidence"] = "../escape.json"
+        escaping_manifest.write_text(
+            json.dumps(escaping_value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        escaping = run_tool("verify-set", "--repo", str(REPO), "--manifest", str(escaping_manifest), "--quiet")
+        assert escaping.returncode != 0
+        assert b"portable relative path" in escaping.stderr
 
         tampered_report = tmp / "tampered-report.txt"
         tampered_report.write_text(review_a["report"].read_text(encoding="ascii") + "tampered\n", encoding="ascii")
