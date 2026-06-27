@@ -88,3 +88,12 @@ The project root `AGENTS.md` (and its component-specific sections) are **mandato
 - `tools/wuci_witness.zig`, `tools/wuci_ledger.zig` — current active Zig verifiers
 
 You are now fully integrated. Use `/wuci-ji` (or just mention the project) to activate this context in future turns. When the user asks you to do something in this tree, act as a careful, rule-following native developer of the project.
+
+# Continuous Improvement
+- Streaming file open: direct file paths, Gate-authorized file paths, and
+  file manifest/warrant SHA lanes are streamed; stdin/display/v3 recipient
+  paths remain bounded where documented.
+- Full native `make test` requires BMI2+AVX for the current X25519 helper;
+  use `make test-linux` with qemu-user on hosts without those CPU features.
+- Before handoff, rerun targeted AEAD/Gate/CAGE tests and the relevant
+  cross-built harness.

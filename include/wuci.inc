@@ -9,6 +9,9 @@
 .equ SYS_OPENAT, 257
 .equ SYS_GETRANDOM, 318
 
+.equ SEEK_SET, 0
+.equ SEEK_END, 2
+
 .equ STDIN, 0
 .equ STDOUT, 1
 .equ STDERR, 2

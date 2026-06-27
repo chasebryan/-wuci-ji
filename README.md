@@ -23,8 +23,11 @@ between assembly, Zig, Python, Makefile, CI, and fixture authority.
 
 ## Minimal Build And Test
 
-Native `make`, `make selftest`, and `make test` require Linux x86_64 with GNU
-`as`/`ld`.
+Native `make` and `make selftest` require Linux x86_64 with GNU `as`/`ld`.
+The full native `make test` lane also requires BMI2 and AVX for the current
+assembly X25519 helper. On Linux hosts without those CPU features, use
+`make test-linux` with user-mode `qemu-x86_64` for the cross-built ELF's
+Python harness, and run the non-X25519 native proof targets directly.
 
 ```sh
 make test

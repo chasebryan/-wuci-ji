@@ -1,6 +1,10 @@
 # WUCI Build Targets
 
-Native build and tests require Linux x86_64 with GNU `as`/`ld`.
+Native build and most targeted tests require Linux x86_64 with GNU `as`/`ld`.
+The full native `make test` target also requires BMI2 and AVX because the
+current assembly X25519 helper uses those instructions. On Linux hosts without
+those CPU features, use `make test-linux` for the cross-built ELF's Python
+harness and run targeted non-X25519 proof lanes natively.
 
 ## Minimal
 
