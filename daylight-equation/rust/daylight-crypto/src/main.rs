@@ -32,12 +32,13 @@ fn run() -> Result<(), String> {
         "mldsa87-selftest" => run_mldsa87_selftest(),
         "slhdsa-shake-256s-selftest" => run_slhdsa_shake_256s_selftest(),
         "v4-reference-vector" => run_v4_reference_vector(),
+        "v6-schema-vector" => run_v6_schema_vector(),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -196,6 +197,43 @@ fn run_v4_reference_vector() -> Result<(), String> {
     println!("ciphertext_hex={}", hex_lower(&vector.envelope.ciphertext));
     println!("commitment_hex={}", hex_lower(&vector.envelope.commitment));
     println!("record_index={}", vector.envelope.record_index);
+    Ok(())
+}
+
+fn run_v6_schema_vector() -> Result<(), String> {
+    let vector =
+        daylight_crypto::v6::daylight_v6_schema_vector().map_err(|err| format!("{err:?}"))?;
+    println!("version=daylight-v6-schema-vector-v1");
+    println!("conformance_level=C1-OPEN");
+    println!("expected_result=bottom");
+    println!(
+        "expected_rejection_stage={}",
+        vector.expected_rejection_stage.as_str()
+    );
+    println!("private_kem_allowed={}", vector.private_kem_allowed);
+    println!("aead_dec_allowed={}", vector.aead_dec_allowed);
+    println!("omega_cbor_hex={}", hex_lower(&vector.omega));
+    println!("header_cbor_hex={}", hex_lower(&vector.header_bytes));
+    println!("kem_block_cbor_hex={}", hex_lower(&vector.kem_block_bytes));
+    println!(
+        "auth_block_cbor_hex={}",
+        hex_lower(&vector.auth_block_bytes)
+    );
+    println!("aux_block_cbor_hex={}", hex_lower(&vector.aux_block_bytes));
+    println!("T0_hex={}", hex_lower(&vector.transcript.t0));
+    println!("h0_hex={}", hex_lower(&vector.transcript.h0));
+    println!("kem_hash_hex={}", hex_lower(&vector.transcript.kem_hash));
+    println!(
+        "cipher_hash_hex={}",
+        hex_lower(&vector.transcript.cipher_hash)
+    );
+    println!(
+        "review_receipt_hash_hex={}",
+        hex_lower(&vector.transcript.review_receipt_hash)
+    );
+    println!("T1_hex={}", hex_lower(&vector.transcript.t1));
+    println!("h1_hex={}", hex_lower(&vector.transcript.h1));
+    println!("AuthMsg_hex={}", hex_lower(&vector.transcript.auth_msg));
     Ok(())
 }
 

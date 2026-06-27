@@ -101,9 +101,23 @@ Current implemented subset:
   bad claim, missing root hash authorization, unsupported FROST requirement,
   bad KEM derivation, public precheck before private derivation, bad ciphertext,
   bad commitment, bad nonce, bad leakage, and malformed envelope bytes.
+- v0.5.1/2 v6 hardening layer in `../rust/daylight-crypto/src/v6.rs`:
+  deterministic CBOR maps/null/bool, exact-key v6 object schemas, `HC`/`HB`
+  digest convention helpers, versioned v6 transcript/KDF labels, static policy
+  object parsing, C1 schema vector generation, and rejection-stage tests. This
+  layer intentionally rejects at `REJECT_AUTH_SIGNATURE` before private KEM or
+  AEAD because production key-live authority is undefined.
+- Imported Daylight v0.6 M1 Python fixture artifact in
+  `../fixtures/daylight-v06-m1/`, with 5 valid vectors and 27 negative vectors
+  wired through `make daylight-v06-m1-fixture-test`. Its KEM, signature,
+  review, certificate, revocation, and log predicates are deterministic
+  fixtures only.
 
 Remaining before this can be called complete:
 
+- Review the imported v0.6 M1 fixture profile and compare its byte-level corpus
+  against the Rust v6 schema surface.
+- Independent second v6 parser and cross-parser agreement.
 - Coverage-guided fuzzing for the deterministic-CBOR header/envelope parser.
 - OS RNG selection policy and key lifecycle handling for the KEM-derived
   Seal/Open path.
@@ -138,6 +152,13 @@ Initial status:
   supplied shared secrets or ML-KEM+DHKEM outputs, and supplied precheck
   evidence. It is useful for fail-closed invariant testing, but it is not full
   M2 reference completion.
+- The same crate also implements the v0.5.1/2 v6 byte-level hardening surface
+  for schema, transcript, KDF-label, and rejection-stage analysis. It is useful
+  for M1 hardening, but it is not a successful Open implementation and does not
+  claim M1 completion.
+- The extracted Python v0.6 M1 fixture artifact is tracked separately under
+  `../fixtures/daylight-v06-m1/`; it improves executable byte-level evidence,
+  but does not replace real cryptographic providers or independent review.
 - The DHKEM lane is deliberately KEM-only. It does not add a full HPKE session
   layer or change Daylight's AEAD/key schedule.
 - Candidate check: `hpke = 0.14.0-pre.2` exposes

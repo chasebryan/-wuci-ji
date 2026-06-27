@@ -1,0 +1,18 @@
+{
+  "aead_dec_allowed": false,
+  "conformance_level": "C1-OPEN-fixture",
+  "expected_rejection_stage": "REJECT_PARSE",
+  "expected_result": "bottom",
+  "mutation": {
+    "mutation_name": "duplicate_map_key"
+  },
+  "private_kem_allowed": false,
+  "public_files": [
+    "omega.cbor.hex"
+  ],
+  "secret_files": [
+    "secrets.json"
+  ],
+  "vector_id": "N2_duplicate_map_key",
+  "warning": "Fixture crypto only. Not ML-KEM/ML-DSA/SLH-DSA production cryptography."
+}

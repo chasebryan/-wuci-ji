@@ -1,0 +1,558 @@
+{
+  "failed": 0,
+  "passed": 32,
+  "results": [
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "policy_hash mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUX_HASH"
+      },
+      "expected_rejection_stage": "REJECT_AUX_HASH",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N10_bad_policy_hash"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "keyset_hash mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUX_HASH"
+      },
+      "expected_rejection_stage": "REJECT_AUX_HASH",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N11_bad_keyset_hash"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "claims_hash mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUX_HASH"
+      },
+      "expected_rejection_stage": "REJECT_AUX_HASH",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N12_bad_claims_hash"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "q_kem_key_id mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_KEM_BLOCK"
+      },
+      "expected_rejection_stage": "REJECT_KEM_BLOCK",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N13_bad_kem_key_id"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "q_sigs must be array"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUTH_BLOCK"
+      },
+      "expected_rejection_stage": "REJECT_AUTH_BLOCK",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N14_bad_auth_block_shape"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "insufficient Q threshold"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUTH_SIGNATURE"
+      },
+      "expected_rejection_stage": "REJECT_AUTH_SIGNATURE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N15_bad_ml_dsa_signature"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "insufficient Q threshold"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUTH_SIGNATURE"
+      },
+      "expected_rejection_stage": "REJECT_AUTH_SIGNATURE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N16_insufficient_q_threshold"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "insufficient Q domain count"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_AUTH_SIGNATURE"
+      },
+      "expected_rejection_stage": "REJECT_AUTH_SIGNATURE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N17_insufficient_domain_count"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "bad review receipt"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_REVIEW"
+      },
+      "expected_rejection_stage": "REJECT_REVIEW",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N18_bad_review_receipt"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "r below policy minimum"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_DOWNGRADE"
+      },
+      "expected_rejection_stage": "REJECT_DOWNGRADE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N19_bad_downgrade"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "non-minimal integer/length"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_PARSE"
+      },
+      "expected_rejection_stage": "REJECT_PARSE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N1_noncanonical_cbor"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "missing or bad log proof"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_LOG"
+      },
+      "expected_rejection_stage": "REJECT_LOG",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N20_missing_required_log"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "AEAD decrypt failed"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_AEAD"
+      },
+      "expected_rejection_stage": "REJECT_AEAD",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N21_bad_mlkem_ciphertext"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "AEAD decrypt failed"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_AEAD"
+      },
+      "expected_rejection_stage": "REJECT_AEAD",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N22_bad_dhkem_encapsulation"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "AEAD decrypt failed"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_AEAD"
+      },
+      "expected_rejection_stage": "REJECT_AEAD",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N23_bad_aead_tag"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "simple values/floats forbidden"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_PAYLOAD"
+      },
+      "expected_rejection_stage": "REJECT_PAYLOAD",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N24_bad_private_payload_encoding"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "artifact commitment mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_COMMIT"
+      },
+      "expected_rejection_stage": "REJECT_COMMIT",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N25_bad_artifact_commitment"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "metadata_only leak mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_LEAK"
+      },
+      "expected_rejection_stage": "REJECT_LEAK",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N26_bad_leak_value"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": null,
+        "diagnostics": [
+          "PublicPreOK=1",
+          "reviewed_content hidden commitment mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": true,
+        "rejection_stage": "REJECT_LEAK"
+      },
+      "expected_rejection_stage": "REJECT_LEAK",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N27_bad_review_blind"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "duplicate map key"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_PARSE"
+      },
+      "expected_rejection_stage": "REJECT_PARSE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N2_duplicate_map_key"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "Envelope_v6 keys must be exactly [0, 1, 2, 3, 4, 5, 6]"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_SCHEMA"
+      },
+      "expected_rejection_stage": "REJECT_SCHEMA",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N3_unknown_envelope_key"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "Header_v6 keys must be exactly [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_SCHEMA"
+      },
+      "expected_rejection_stage": "REJECT_SCHEMA",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N4_unknown_header_key"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "key_epoch must be u64"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_SCHEMA"
+      },
+      "expected_rejection_stage": "REJECT_SCHEMA",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N5_wrong_field_type"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "bad aead_id"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_SUITE"
+      },
+      "expected_rejection_stage": "REJECT_SUITE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N6_wrong_enum_value"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "Q_roster must be sorted by key_id"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_POLICY"
+      },
+      "expected_rejection_stage": "REJECT_POLICY",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N7_unsorted_roster"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "allowed_profiles must be sorted"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_POLICY"
+      },
+      "expected_rejection_stage": "REJECT_POLICY",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N8_unsorted_policy_array"
+    },
+    {
+      "actual": {
+        "aead_dec_called": false,
+        "artifact_hex": null,
+        "diagnostics": [
+          "suite_id mismatch"
+        ],
+        "ok": false,
+        "private_kem_called": false,
+        "rejection_stage": "REJECT_SUITE"
+      },
+      "expected_rejection_stage": "REJECT_SUITE",
+      "expected_result": "bottom",
+      "notes": [],
+      "ok": true,
+      "vector_id": "N9_bad_suite_id"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": "4461796c696768742076302e36204d3120666978747572652061727469666163743a2056315f6d657461646174615f6f6e6c795f6f70656e",
+        "diagnostics": [
+          "PublicPreOK=1"
+        ],
+        "ok": true,
+        "private_kem_called": true,
+        "rejection_stage": null
+      },
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "notes": [],
+      "ok": true,
+      "vector_id": "V1_metadata_only_open"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": "4461796c696768742076302e36204d3120666978747572652061727469666163743a2056325f7075626c69635f636f6d6d69746d656e745f6f70656e",
+        "diagnostics": [
+          "PublicPreOK=1"
+        ],
+        "ok": true,
+        "private_kem_called": true,
+        "rejection_stage": null
+      },
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "notes": [],
+      "ok": true,
+      "vector_id": "V2_public_commitment_open"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": "4461796c696768742076302e36204d3120666978747572652061727469666163743a2056335f72657669657765645f636f6e74656e745f6f70656e",
+        "diagnostics": [
+          "PublicPreOK=1"
+        ],
+        "ok": true,
+        "private_kem_called": true,
+        "rejection_stage": null
+      },
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "notes": [],
+      "ok": true,
+      "vector_id": "V3_reviewed_content_open"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": "4461796c696768742076302e36204d3120666978747572652061727469666163743a2056345f70715f7374726963745f6f70656e",
+        "diagnostics": [
+          "PublicPreOK=1"
+        ],
+        "ok": true,
+        "private_kem_called": true,
+        "rejection_stage": null
+      },
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "notes": [],
+      "ok": true,
+      "vector_id": "V4_pq_strict_open"
+    },
+    {
+      "actual": {
+        "aead_dec_called": true,
+        "artifact_hex": "4461796c696768742076302e36204d3120666978747572652061727469666163743a2056355f63686163686132305f6f70656e",
+        "diagnostics": [
+          "PublicPreOK=1"
+        ],
+        "ok": true,
+        "private_kem_called": true,
+        "rejection_stage": null
+      },
+      "expected_rejection_stage": null,
+      "expected_result": "artifact",
+      "notes": [],
+      "ok": true,
+      "vector_id": "V5_chacha20_open"
+    }
+  ],
+  "total": 32
+}

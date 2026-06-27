@@ -1,0 +1,29 @@
+{
+  "aead_dec_allowed": false,
+  "conformance_level": "C1-OPEN-fixture",
+  "expected_rejection_stage": "REJECT_LOG",
+  "expected_result": "bottom",
+  "mutation": {
+    "mutation_name": "missing_required_log"
+  },
+  "private_kem_allowed": false,
+  "public_files": [
+    "omega.cbor.hex",
+    "header.cbor.hex",
+    "kem_block.cbor.hex",
+    "auth_block.cbor.hex",
+    "aux_block.cbor.hex",
+    "T0.hex",
+    "h0.hex",
+    "T1.hex",
+    "h1.hex",
+    "AuthMsg.hex"
+  ],
+  "secret_files": [
+    "secrets.json",
+    "secret_trace.json",
+    "expected_artifact.hex"
+  ],
+  "vector_id": "N20_missing_required_log",
+  "warning": "Fixture crypto only. Not ML-KEM/ML-DSA/SLH-DSA production cryptography."
+}

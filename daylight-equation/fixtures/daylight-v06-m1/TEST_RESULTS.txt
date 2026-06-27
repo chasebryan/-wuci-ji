@@ -1,0 +1,40 @@
+Daylight v0.6 M1 Fixture Test Results
+======================================
+
+Total vectors: 32
+Passed:        32
+Failed:        0
+
+Vector summary:
+- N10_bad_policy_hash: PASS (REJECT_AUX_HASH)
+- N11_bad_keyset_hash: PASS (REJECT_AUX_HASH)
+- N12_bad_claims_hash: PASS (REJECT_AUX_HASH)
+- N13_bad_kem_key_id: PASS (REJECT_KEM_BLOCK)
+- N14_bad_auth_block_shape: PASS (REJECT_AUTH_BLOCK)
+- N15_bad_ml_dsa_signature: PASS (REJECT_AUTH_SIGNATURE)
+- N16_insufficient_q_threshold: PASS (REJECT_AUTH_SIGNATURE)
+- N17_insufficient_domain_count: PASS (REJECT_AUTH_SIGNATURE)
+- N18_bad_review_receipt: PASS (REJECT_REVIEW)
+- N19_bad_downgrade: PASS (REJECT_DOWNGRADE)
+- N1_noncanonical_cbor: PASS (REJECT_PARSE)
+- N20_missing_required_log: PASS (REJECT_LOG)
+- N21_bad_mlkem_ciphertext: PASS (REJECT_AEAD)
+- N22_bad_dhkem_encapsulation: PASS (REJECT_AEAD)
+- N23_bad_aead_tag: PASS (REJECT_AEAD)
+- N24_bad_private_payload_encoding: PASS (REJECT_PAYLOAD)
+- N25_bad_artifact_commitment: PASS (REJECT_COMMIT)
+- N26_bad_leak_value: PASS (REJECT_LEAK)
+- N27_bad_review_blind: PASS (REJECT_LEAK)
+- N2_duplicate_map_key: PASS (REJECT_PARSE)
+- N3_unknown_envelope_key: PASS (REJECT_SCHEMA)
+- N4_unknown_header_key: PASS (REJECT_SCHEMA)
+- N5_wrong_field_type: PASS (REJECT_SCHEMA)
+- N6_wrong_enum_value: PASS (REJECT_SUITE)
+- N7_unsorted_roster: PASS (REJECT_POLICY)
+- N8_unsorted_policy_array: PASS (REJECT_POLICY)
+- N9_bad_suite_id: PASS (REJECT_SUITE)
+- V1_metadata_only_open: PASS (artifact)
+- V2_public_commitment_open: PASS (artifact)
+- V3_reviewed_content_open: PASS (artifact)
+- V4_pq_strict_open: PASS (artifact)
+- V5_chacha20_open: PASS (artifact)

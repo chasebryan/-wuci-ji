@@ -28,6 +28,9 @@ See `SOURCE.md` for commit, blob, and digest provenance.
 
 ```text
 analysis/
+  daylight-envelope-hardening-v0.5.1-2.md
+                           v0.6 M1-hardening delta implemented as the
+                           v0.5.1/2 byte-level schema/transcript layer.
   daylight-minimal-core-v0.4.md
                            Active minimal core math and implementation target.
   daylight-envelope-math-spec-v0.3.md
@@ -39,6 +42,10 @@ analysis/
   review-dissemination-plan.md
 design/
   rust-implementation-plan.md
+fixtures/
+  README.md                Boundary notes for executable fixture artifacts.
+  daylight-v06-m1/         Extracted v0.6 M1 fixture artifact with Python
+                           runner, vectors, fixture profile, and test results.
 research/
   standards-baseline.md
 rust/daylight-model/
@@ -65,13 +72,11 @@ rust/daylight-crypto/
 
 ## Current Implementation Scope
 
-The current Daylight minimal core target is tracked in
-`analysis/daylight-minimal-core-v0.4.md`. It keeps Daylight at
-`research_draft`, forbids production use before maturity level M5, splits
-release level `r` from cryptographic strength `s`, removes compact release
-mode from the openable core, uses `D2`/`D3` profile-dependent authorization
-requirements, uses deterministic-CBOR encoding, uses HKDF-SHA512 for the core
-schedule, and names the classical HPKE lane as `DHKEM(P-384,HKDF-SHA384)`.
+The original Daylight minimal core target is tracked in
+`analysis/daylight-minimal-core-v0.4.md`. The latest hardening layer is tracked
+in `analysis/daylight-envelope-hardening-v0.5.1-2.md`, based on `DLv0.5/2.md`
+and the supplied v0.6 M1-hardening delta. Daylight remains `research_draft`,
+production-disallowed, and not externally reviewed.
 
 The Rust crate under `rust/daylight-model/` only models declared action sets,
 v0.3 profiles, claim levels, mode requirements, downgrade arithmetic, and
@@ -115,6 +120,16 @@ lane:
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`.
 - AES-256-GCM, ChaCha20-Poly1305, and Argon2id through pinned crates.
+- Daylight Envelope v0.5.1/2 v6 byte-level hardening under `src/v6.rs`,
+  including deterministic CBOR maps/null/bool, exact-key v6 schemas,
+  HC/HB transcript convention helpers, v6 transcript/KDF labels, static policy
+  parsing, rejection-stage tests, and a schema vector that fails closed at
+  `REJECT_AUTH_SIGNATURE` before private KEM or AEAD.
+- An extracted Daylight Envelope v0.6 M1 fixture artifact under
+  `fixtures/daylight-v06-m1/`, wired to `make daylight-v06-m1-fixture-test`.
+  This artifact uses deterministic fixture providers and the Python
+  `cryptography` package, so it is intentionally separate from the stdlib-only
+  WUCI proof lanes.
 
 It does not implement full Daylight Minimal Core M2 completion, coverage-guided
 parser fuzzing, a complete cross-implementation vector corpus, OS RNG selection
@@ -131,4 +146,11 @@ cd daylight-equation/rust/daylight-crypto
 cargo test --offline
 cargo run --offline -- status
 cargo run --offline -- v4-reference-vector
+cargo run --offline -- v6-schema-vector
+```
+
+Run the imported v0.6 M1 fixture corpus explicitly:
+
+```sh
+make daylight-v06-m1-fixture-test
 ```

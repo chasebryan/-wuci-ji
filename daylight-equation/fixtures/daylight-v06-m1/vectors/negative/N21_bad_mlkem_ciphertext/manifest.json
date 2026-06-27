@@ -1,0 +1,29 @@
+{
+  "aead_dec_allowed": true,
+  "conformance_level": "C1-OPEN-fixture",
+  "expected_rejection_stage": "REJECT_AEAD",
+  "expected_result": "bottom",
+  "mutation": {
+    "mutation_name": "bad_mlkem_ciphertext"
+  },
+  "private_kem_allowed": true,
+  "public_files": [
+    "omega.cbor.hex",
+    "header.cbor.hex",
+    "kem_block.cbor.hex",
+    "auth_block.cbor.hex",
+    "aux_block.cbor.hex",
+    "T0.hex",
+    "h0.hex",
+    "T1.hex",
+    "h1.hex",
+    "AuthMsg.hex"
+  ],
+  "secret_files": [
+    "secrets.json",
+    "secret_trace.json",
+    "expected_artifact.hex"
+  ],
+  "vector_id": "N21_bad_mlkem_ciphertext",
+  "warning": "Fixture crypto only. Not ML-KEM/ML-DSA/SLH-DSA production cryptography."
+}

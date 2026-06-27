@@ -29,6 +29,11 @@ It implements only pinned, locally available pieces:
   `vectors/daylight-v4-reference-vector-v1.txt`, verified by unit tests.
 - One deterministic v4 negative parser seed corpus in
   `vectors/daylight-v4-negative-parser-vectors-v1.txt`, verified by unit tests.
+- Daylight Envelope v0.5.1/2 v6 byte-level hardening under `src/v6.rs`,
+  including deterministic CBOR map/null/bool support, exact-key typed v6
+  schemas, `HC`/`HB` digest convention helpers, v6 transcript/KDF labels,
+  static policy parsing, rejection-stage tests, and a C1 schema vector CLI that
+  fails closed at `REJECT_AUTH_SIGNATURE` before private KEM or AEAD.
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`, with a deterministic
   fixture selftest.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`, with a
@@ -43,10 +48,19 @@ integrated policy/gate/witness/log/provenance/install validators,
 Those surfaces are reported as unsupported, externally supplied prechecks, or
 fail closed.
 
+The v6 hardening module is not an M1 completion claim. It still lacks the full
+minimum C1 vector corpus and a second independent parser.
+
+The adjacent imported Python fixture artifact lives at
+`../../fixtures/daylight-v06-m1/` and is run from the repository root with
+`make daylight-v06-m1-fixture-test`. It is not linked into this crate and does
+not convert fixture predicates into production cryptography.
+
 ```sh
 cargo test --offline
 cargo run --offline -- status
 cargo run --offline -- v4-reference-vector
+cargo run --offline -- v6-schema-vector
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest
 cargo run --offline -- mlkem1024-selftest

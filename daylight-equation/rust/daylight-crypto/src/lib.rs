@@ -4,6 +4,8 @@
 //! verification pieces that can be pinned locally. Missing Daylight primitives
 //! are explicit unsupported/fail-closed surfaces, not permissive stubs.
 
+pub mod v6;
+
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::Aes256Gcm;
 use argon2::{Algorithm, Argon2, Params, Version};
@@ -401,6 +403,11 @@ pub fn primitive_statuses() -> &'static [PrimitiveStatus] {
             name: "Daylight Minimal Core v4 seal/open",
             implemented: true,
             note: "fail-closed v0.4 surface with deterministic-CBOR header/envelope decoding, HKDF-SHA512, ML-KEM+DHKEM-derived key schedules, caller-supplied RNG seal API, and persisted positive/negative seed vectors; real auth/log/witness integration remains external precheck evidence",
+        },
+        PrimitiveStatus {
+            name: "Daylight Envelope v0.5.1/2 v6 byte-level hardening",
+            implemented: true,
+            note: "M1-style deterministic CBOR map/null/bool parser, typed v6 envelope/header/aux/policy/keyset/auth schemas, HC/HB transcript convention, HKDF-SHA512 labels, schema vector, and fail-closed public precheck that rejects before private KEM/AEAD because KeyLive authority is undefined",
         },
         PrimitiveStatus {
             name: "FROST_custom(P-384,SHA-384)",

@@ -1,0 +1,18 @@
+{
+  "aead_dec_allowed": false,
+  "conformance_level": "C1-OPEN-fixture",
+  "expected_rejection_stage": "REJECT_PARSE",
+  "expected_result": "bottom",
+  "mutation": {
+    "mutation_name": "noncanonical_cbor"
+  },
+  "private_kem_allowed": false,
+  "public_files": [
+    "omega.cbor.hex"
+  ],
+  "secret_files": [
+    "secrets.json"
+  ],
+  "vector_id": "N1_noncanonical_cbor",
+  "warning": "Fixture crypto only. Not ML-KEM/ML-DSA/SLH-DSA production cryptography."
+}
