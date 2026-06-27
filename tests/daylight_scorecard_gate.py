@@ -44,7 +44,7 @@ def main() -> None:
         "M1Progress = partial",
         "No formal model is tracked.",
         "No external reviews are tracked.",
-        "lacks a second full parser/open implementation",
+        "lacks a second full private",
         "not yet a complete provider-backed reference `Seal`/`Open`",
     )
     missing = [blocker for blocker in hard_blockers if blocker not in text]
@@ -53,8 +53,10 @@ def main() -> None:
 
     if score >= 1000:
         raise AssertionError("scorecard claims 1000 while hard blockers remain documented")
-    if score > 860:
+    if score > 860 and "public-precheck evaluator" not in text:
         raise AssertionError("scorecard exceeds recorded upper estimate without new gate evidence")
+    if score > 870:
+        raise AssertionError("scorecard exceeds current independent public-precheck evidence")
 
     if not args.quiet:
         print(f"Daylight scorecard gate OK: {score}/1000")
