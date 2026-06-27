@@ -6,6 +6,11 @@ current assembly X25519 helper uses those instructions. On Linux hosts without
 those CPU features, use `make test-linux` for the cross-built ELF's Python
 harness and run targeted non-X25519 proof lanes natively.
 
+The long-term test direction is assembly-first: fast assembly-owned regression
+lanes for stable crypto, parser, Gate, manifest, and ledger invariants, with
+Python kept for fixture generation and host-policy orchestration. See
+`docs/ASSEMBLY_TEST_STRATEGY.md`.
+
 ## Minimal
 
 ```sh
