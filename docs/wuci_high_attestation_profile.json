@@ -1,0 +1,115 @@
+{
+  "schema": "wuci-high-attestation-profile-v1",
+  "status": "defensive-high-attestation-baseline-v1",
+  "updated_utc": "2026-06-27",
+  "scope": "local deterministic WUCI proof evidence for build, verifier, witness, ledger, CAGE, QCAGE, HARDEN, and install lanes",
+  "government_baseline": [
+    {
+      "authority": "NIST",
+      "reference": "Cybersecurity Framework 2.0",
+      "source_url": "https://www.nist.gov/cyberframework",
+      "applied_as": "governance, risk framing, supply-chain evidence, and recoverable proof records"
+    },
+    {
+      "authority": "NIST",
+      "reference": "SP 800-218 Secure Software Development Framework",
+      "source_url": "https://csrc.nist.gov/pubs/sp/800/218/final",
+      "applied_as": "secure software development evidence across prepare, protect, produce, and respond practices"
+    },
+    {
+      "authority": "OMB",
+      "reference": "M-22-18 software supply chain secure development attestation",
+      "source_url": "https://www.whitehouse.gov/wp-content/uploads/2022/09/M-22-18.pdf",
+      "applied_as": "self-attestation evidence, SBOM/artifact readiness, and critical-software proof discipline"
+    },
+    {
+      "authority": "NIST",
+      "reference": "FIPS 203 ML-KEM, FIPS 204 ML-DSA, and FIPS 205 SLH-DSA",
+      "source_url": "https://csrc.nist.gov/projects/post-quantum-cryptography/post-quantum-cryptography-standardization",
+      "applied_as": "post-quantum migration targets; classical-only evidence must not claim quantum safety"
+    },
+    {
+      "authority": "NSA",
+      "reference": "CNSA 2.0 quantum-resistant algorithm guidance",
+      "source_url": "https://media.defense.gov/2022/Sep/07/2003071836/-1/-1/0/CSI_CNSA_2.0_FAQ_.PDF",
+      "applied_as": "CRQC migration pressure, long-lived public evidence strength, and no PQ verifier stubs"
+    },
+    {
+      "authority": "CISA",
+      "reference": "Secure by Design, Known Exploited Vulnerabilities, and software attestation practice",
+      "source_url": "https://www.cisa.gov/securebydesign",
+      "applied_as": "defensive defaults, vulnerability-debt discipline, exploit-chain reduction, and evidence-backed release gates"
+    }
+  ],
+  "explicit_non_claims": [
+    "runtime sandbox enforcement",
+    "network sandbox enforcement",
+    "post-quantum security from classical-only evidence",
+    "production trust from fixture authority",
+    "publish or trust authority before assembly-enforced Gate commands exist",
+    "absence of exploitable vulnerabilities"
+  ],
+  "critical_threats": [
+    "fake verifier binary manufacturing proof outputs",
+    "fixture authority relabeled as production trust",
+    "public witness bundle containing private material",
+    "public evidence read through symlink or hardlink surprises",
+    "ledger rewrite or fork accepted as append-only history",
+    "cryptographic downgrade or quantum-safe overclaim",
+    "runtime sandbox or no-network overclaim",
+    "reserved trust or publish action accepted without assembly Gate enforcement",
+    "dependency drift or network fetch during proof execution",
+    "known-exploited-vulnerability debt in build and verification dependencies"
+  ],
+  "required_local_controls": {
+    "offline_deterministic_proofs": true,
+    "stdlib_only_policy_tests": true,
+    "pinned_qemu_cpu_for_x25519": "Haswell-v4",
+    "verifier_identity_recorded": true,
+    "unapproved_runner_rejected_in_strict_mode": true,
+    "fixture_authority_test_only": true,
+    "reserved_actions_denied_by_default": [
+      "trust",
+      "publish"
+    ],
+    "public_evidence_rejects_symlink_and_hardlink_surprises": true,
+    "ledger_history_verification_required": true,
+    "atomic_writes_required_where_practical": true,
+    "unsigned_install_manifest_rejected": true
+  },
+  "digest_policy": {
+    "sha256_required_for_existing_assembly_compatibility": true,
+    "sha384_sha512_required_for_long_lived_public_evidence": true,
+    "preferred_public_evidence_digest": "sha512",
+    "minimum_quantum_collision_digest": "sha384"
+  },
+  "post_quantum_policy": {
+    "quantum_safe_default": false,
+    "classical_vulnerable_public_key": [
+      "secp256k1",
+      "x25519"
+    ],
+    "real_pq_targets": [
+      "ML-KEM",
+      "ML-DSA",
+      "SLH-DSA"
+    ],
+    "candidate_tracking": [
+      "HQC"
+    ],
+    "reject_pq_stub_marked_as_real": true,
+    "require_pinned_real_pq_verifier_before_quantum_safe_claim": true
+  },
+  "required_make_targets": [
+    "check-qemu-x25519-cpu",
+    "asm-smoke",
+    "check-asm-immediates",
+    "harden-policy-matrix",
+    "cage-policy-matrix",
+    "cage-bundle-test",
+    "qcage-model-test",
+    "qcage-policy-matrix",
+    "gate-contract-asm",
+    "test-linux"
+  ]
+}
