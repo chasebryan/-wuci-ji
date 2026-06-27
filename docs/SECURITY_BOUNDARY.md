@@ -15,6 +15,7 @@ the current repository has code and tests for that behavior.
 | HARDEN boundary | Verifier identity, safe I/O, fixture quarantine, reserved-action denial, witness symlink/hardlink rejection, ledger mutation checks | Python policy/tests plus assembly no-follow flags | Defensive perimeter hardening |
 | CAGE boundary | Public witness bundle legitimacy, no private material, deny general runtime execution | Python policy/tooling | Artifact airlock; not OS sandboxing |
 | QCAGE boundary | Digest vectors, crypto inventory, build graph evidence, quantum migration debt, no false PQ claim | Python policy/tooling | Quantum-aware metadata; not PQ security |
+| CARROT runtime policy boundary | Policy says no network, FROST/Gate may attest policy only, seccomp denies network syscalls, user+network namespace entry is checked | Python policy plus assembly seccomp probe and Rust wrapper source | Local no-network syscall proof lane on supporting kernels; not general sandboxing or VM containment |
 | INSTALL boundary | Copied local install root key, OpenSSH signed manifest, digest vector, proof gates, atomic install, audit receipt | Python installer plus existing proof lanes | Signed zero-prompt install lane; no runtime/PQ claim |
 
 ## Artifact Size Boundary

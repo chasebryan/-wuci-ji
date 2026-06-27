@@ -1,0 +1,25 @@
+{
+  "schema": "wuci-crypto-audit-policy-v1",
+  "status": "external-audit-required-before-production-claim-v1",
+  "self_audit_allowed_as_evidence": true,
+  "self_audit_sufficient_for_production_ready": false,
+  "required_external_audit_evidence": {
+    "auditor_identity": true,
+    "scope": [
+      "assembly crypto primitives",
+      "artifact envelope authentication",
+      "Gate contract parsing",
+      "authority root handling",
+      "witness and ledger proof formats",
+      "sandbox wrapper"
+    ],
+    "report_digest_sha256": true,
+    "finding_disposition": true,
+    "production_surface_version": true
+  },
+  "non_claims": [
+    "passing KATs is not an independent audit",
+    "static caller audits are not constant-time certification",
+    "internal review is not external cryptographic assurance"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "wuci-production-authority-policy-v1",
+  "status": "production-authority-required-before-production-claim-v1",
+  "fixture_authority_allowed_for_production": false,
+  "required_authority_fields": [
+    "schema",
+    "suite",
+    "production",
+    "authority-id",
+    "group-public-key",
+    "allow-open",
+    "allow-release",
+    "allow-trust",
+    "allow-publish"
+  ],
+  "required_for_production": {
+    "production": true,
+    "fixture_path_rejected": true,
+    "key_ceremony_document_required": true,
+    "root_sha256_record_required": true,
+    "publish_or_trust_requires_assembly_gate": true
+  },
+  "non_claims": [
+    "fixture FROST is never production authority",
+    "production authority does not imply runtime sandboxing",
+    "production authority does not imply quantum safety"
+  ]
+}

@@ -13,7 +13,7 @@ HOST_OS := $(shell uname -s)
 HOST_ARCH := $(shell uname -m)
 
 TARGET := build/wuci-ji
-ASM_SOURCES := src/main.s src/wuci-ji.s src/gate_contract.s src/ledger.s src/regression.s src/sys.s src/encoding.s src/frost.s src/hmac_hkdf.s src/secp256k1_field.s src/secp256k1_point.s src/secp256k1_scalar.s src/sha256.s src/x25519.s
+ASM_SOURCES := src/main.s src/wuci-ji.s src/gate_contract.s src/ledger.s src/regression.s src/sandbox.s src/sys.s src/encoding.s src/frost.s src/hmac_hkdf.s src/secp256k1_field.s src/secp256k1_point.s src/secp256k1_scalar.s src/sha256.s src/x25519.s
 OBJECTS := $(patsubst src/%.s,build/%.o,$(ASM_SOURCES))
 CROSS_SOURCES := $(patsubst src/%.s,build/%.zig.s,$(ASM_SOURCES))
 CROSS_TARGET := build/wuci-ji-linux-x86_64
@@ -52,6 +52,10 @@ HARDEN_TRUSTED_BIN_SHA256 ?=
 HARDEN_STRICT ?= 1
 WUCI_SBOM ?= build/wuci-sbom.json
 WUCI_PROVENANCE ?= build/wuci-provenance.json
+CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
+CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
+PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
+CRYPTO_SELF_AUDIT ?= build/wuci-crypto-self-audit.json
 INSTALL_PREFIX ?= $(HOME)/.local
 INSTALL_ROOT_KEY ?= $(HOME)/.config/wuci-ji/install-root.pub
 INSTALL_MANIFEST ?= install/wuci-install-manifest.v1
@@ -64,7 +68,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof install-audit install-key-check install-manifest install-proof install-test install-verify ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof install-audit install-key-check install-manifest install-proof install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test pq-verifier-detect pq-verifier-test production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -684,7 +688,42 @@ sbom-provenance: build-linux
 sbom-provenance-test:
 	$(PYTHON) tests/wuci_provenance.py --quiet
 
-high-attestation-proof: high-attestation-profile sbom-provenance sbom-provenance-test check-qemu-x25519-cpu asm-smoke check-asm-immediates harden-policy-matrix cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix gate-contract-asm test-linux
+carrot-policy: check-native $(TARGET)
+	$(PYTHON) tools/wuci_carrot.py validate --policy $(CARROT_POLICY) --quiet
+	$(PYTHON) tools/wuci_carrot.py attest --policy $(CARROT_POLICY) --probe-bin $(abspath $(TARGET)) --out $(CARROT_ATTESTATION) --quiet
+	@printf 'WUCI CARROT attestation: %s\n' "$(CARROT_ATTESTATION)"
+
+kernel-sandbox-proof: check-native $(TARGET) carrot-policy
+	$(PYTHON) tests/wuci_sandbox_enforcement.py --quiet
+
+rust-sandbox-build:
+	@if ! command -v rustc >/dev/null 2>&1; then \
+		echo "wuci-sandbox: rustc is required to build the Rust kernel wrapper."; \
+		exit 2; \
+	fi
+	mkdir -p build
+	rustc -C opt-level=2 -o build/wuci-sandbox tools/wuci_sandbox.rs
+
+pq-verifier-detect:
+	$(PYTHON) tools/wuci_pq_verifier.py detect --out $(PQ_VERIFIER_EVIDENCE) --quiet
+	$(PYTHON) tools/wuci_pq_verifier.py verify --evidence $(PQ_VERIFIER_EVIDENCE) --quiet
+	@printf 'WUCI PQ verifier evidence: %s\n' "$(PQ_VERIFIER_EVIDENCE)"
+
+pq-verifier-test:
+	$(PYTHON) tests/wuci_pq_verifier.py --quiet
+
+production-readiness-gates:
+	$(PYTHON) tests/wuci_production_readiness_gates.py --quiet
+
+crypto-self-audit:
+	$(PYTHON) tools/wuci_crypto_audit.py emit --repo . --out $(CRYPTO_SELF_AUDIT) --quiet
+	$(PYTHON) tools/wuci_crypto_audit.py verify --repo . --audit $(CRYPTO_SELF_AUDIT) --quiet
+	@printf 'WUCI crypto self-audit: %s\n' "$(CRYPTO_SELF_AUDIT)"
+
+crypto-self-audit-test:
+	$(PYTHON) tests/wuci_crypto_audit.py --quiet
+
+high-attestation-proof: high-attestation-profile sbom-provenance sbom-provenance-test carrot-policy kernel-sandbox-proof pq-verifier-detect pq-verifier-test production-readiness-gates crypto-self-audit crypto-self-audit-test check-qemu-x25519-cpu asm-smoke check-asm-immediates harden-policy-matrix cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix gate-contract-asm test-linux
 	@printf 'WUCI high-attestation proof complete\n'
 
 install-key-check:
