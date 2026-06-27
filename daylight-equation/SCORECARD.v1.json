@@ -190,7 +190,7 @@
     {
       "name": "daylight_authority_verifier",
       "satisfied": true,
-      "reason": "The repo verifies signed non-fixture Daylight authority candidates and fails integrated public authority until publish/trust authority support and predicate integrations exist."
+      "reason": "The repo verifies signed non-fixture Daylight authority candidates and fails integrated public authority until publish/trust authority support and digest-bound predicate proof integrations exist."
     },
     {
       "name": "formal_model",

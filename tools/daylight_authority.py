@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -26,6 +27,7 @@ EVIDENCE_KEYS = {
     "reviewed_commit",
     "production_authority",
     "public_authority_predicates",
+    "public_authority_proofs",
     "non_claims",
 }
 PRODUCTION_AUTHORITY_KEYS = {
@@ -34,6 +36,9 @@ PRODUCTION_AUTHORITY_KEYS = {
     "ceremony_root_key",
     "ceremony_signature",
 }
+MISSING_PROOF_KEYS = {"status", "reason"}
+VERIFIED_PROOF_KEYS = {"status", "evidence", "evidence_sha256", "verification_command"}
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 
 REQUIRED_PUBLIC_AUTHORITY_PREDICATES = (
     "certificate",
@@ -74,6 +79,12 @@ def read_json(path: Path, context: str) -> Any:
         raise DaylightAuthorityError(f"{context} is not UTF-8") from exc
     except json.JSONDecodeError as exc:
         raise DaylightAuthorityError(f"{context} is not valid JSON: {exc.msg}") from exc
+
+
+def sha256_file(path: Path, context: str) -> str:
+    digest = hashlib.sha256()
+    digest.update(read_bytes(path, context))
+    return digest.hexdigest()
 
 
 def write_json_new(path: Path, value: dict[str, Any], context: str) -> None:
@@ -123,6 +134,78 @@ def validate_predicates(value: Any) -> dict[str, bool]:
     return result
 
 
+def resolve_relative_path(base: Path, value: Any, context: str) -> Path:
+    if not isinstance(value, str) or not value:
+        fail(f"{context} must be a non-empty relative path")
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        fail(f"{context} must stay under the Daylight authority evidence directory")
+    try:
+        return wuci_safeio.require_under_directory(base / path, base, context)
+    except wuci_safeio.SafeIOError as exc:
+        raise DaylightAuthorityError(str(exc)) from exc
+
+
+def validate_predicate_proofs(
+    *,
+    value: Any,
+    predicates: dict[str, bool],
+    base: Path,
+    repo: Path,
+) -> tuple[dict[str, dict[str, Any]], dict[str, bool], list[str]]:
+    if not isinstance(value, dict):
+        fail("public_authority_proofs must be an object")
+    unexpected = sorted(set(value).difference(REQUIRED_PUBLIC_AUTHORITY_PREDICATES))
+    if unexpected:
+        fail("unexpected public authority proof predicates: " + ", ".join(unexpected))
+    makefile = (repo / "Makefile").read_text(encoding="utf-8")
+    proofs: dict[str, dict[str, Any]] = {}
+    bound: dict[str, bool] = {}
+    blockers: list[str] = []
+    for name in REQUIRED_PUBLIC_AUTHORITY_PREDICATES:
+        proof = value.get(name)
+        if not isinstance(proof, dict):
+            fail(f"public authority proof must be an object: {name}")
+        status = proof.get("status")
+        if status == "missing":
+            unexpected_keys = sorted(set(proof).difference(MISSING_PROOF_KEYS))
+            if unexpected_keys:
+                fail(f"unexpected missing proof fields for {name}: " + ", ".join(unexpected_keys))
+            if not isinstance(proof.get("reason"), str) or not proof["reason"]:
+                fail(f"missing public authority proof reason is required: {name}")
+            proofs[name] = {"status": "missing", "reason": proof["reason"]}
+            bound[name] = False
+        elif status == "verified":
+            unexpected_keys = sorted(set(proof).difference(VERIFIED_PROOF_KEYS))
+            if unexpected_keys:
+                fail(f"unexpected verified proof fields for {name}: " + ", ".join(unexpected_keys))
+            evidence_path = resolve_relative_path(base, proof.get("evidence"), f"{name} public authority proof")
+            expected_sha256 = proof.get("evidence_sha256")
+            if not isinstance(expected_sha256, str) or HEX64_RE.fullmatch(expected_sha256) is None:
+                fail(f"{name} public authority proof evidence_sha256 must be lowercase SHA-256")
+            actual_sha256 = sha256_file(evidence_path, f"{name} public authority proof")
+            if actual_sha256 != expected_sha256:
+                fail(f"{name} public authority proof digest mismatch")
+            command = proof.get("verification_command")
+            if not isinstance(command, str) or not command.startswith("make "):
+                fail(f"{name} public authority proof verification_command must be a make target")
+            target = command.removeprefix("make ")
+            if f"{target}:" not in makefile:
+                fail(f"{name} public authority proof verification target is missing: {target}")
+            proofs[name] = {
+                "status": "verified",
+                "evidence": proof["evidence"],
+                "evidence_sha256": expected_sha256,
+                "verification_command": command,
+            }
+            bound[name] = True
+        else:
+            fail(f"unsupported public authority proof status for {name}")
+        if predicates[name] and not bound[name]:
+            blockers.append(f"public authority predicate proof missing: {name}")
+    return proofs, bound, blockers
+
+
 def verify_daylight_authority(
     *,
     evidence_path: Path,
@@ -152,8 +235,14 @@ def verify_daylight_authority(
         fail("reviewed_commit must be a full lowercase git commit")
     if evidence["reviewed_commit"] != current_git_commit(repo):
         fail("reviewed_commit does not match current HEAD")
-    predicates = validate_predicates(evidence.get("public_authority_predicates"))
     base = evidence_path.parent
+    predicates = validate_predicates(evidence.get("public_authority_predicates"))
+    predicate_proofs, predicate_proofs_bound, proof_blockers = validate_predicate_proofs(
+        value=evidence.get("public_authority_proofs"),
+        predicates=predicates,
+        base=base,
+        repo=repo,
+    )
     production = evidence.get("production_authority")
     if not isinstance(production, dict):
         fail("production_authority must be an object")
@@ -181,7 +270,7 @@ def verify_daylight_authority(
     except wuci_production_authority.ProductionAuthorityError as exc:
         raise DaylightAuthorityError(str(exc)) from exc
 
-    integrated_predicates = all(predicates.values())
+    integrated_predicates = all(predicates.values()) and all(predicate_proofs_bound.values())
     authority_supports_public_gate = (
         authority["allow_open"]
         and authority["allow_release"]
@@ -190,12 +279,14 @@ def verify_daylight_authority(
     )
     integrated_public_authority = integrated_predicates and authority_supports_public_gate
     remaining_blockers = [f"public authority predicate missing: {name}" for name, ok in predicates.items() if not ok]
+    remaining_blockers.extend(proof_blockers)
     if not authority["allow_trust"]:
         remaining_blockers.append("signed production authority must support trust authority")
     if not authority["allow_publish"]:
         remaining_blockers.append("signed production authority must support publish authority")
     if require_integrated and not integrated_public_authority:
         missing = [name for name, ok in predicates.items() if not ok]
+        missing.extend([f"{name}-proof" for name, ok in predicate_proofs_bound.items() if predicates[name] and not ok])
         if not authority["allow_trust"]:
             missing.append("trust-authority")
         if not authority["allow_publish"]:
@@ -210,6 +301,8 @@ def verify_daylight_authority(
         "reviewed_commit": evidence["reviewed_commit"],
         "signed_wuci_authority_verified": True,
         "public_authority_predicates": predicates,
+        "public_authority_proofs": predicate_proofs,
+        "predicate_proofs_bound": predicate_proofs_bound,
         "integrated_predicates": integrated_predicates,
         "authority_supports_public_gate": authority_supports_public_gate,
         "integrated_public_authority": integrated_public_authority,
@@ -261,8 +354,15 @@ def run_emit_candidate(args: argparse.Namespace) -> int:
             "publish": args.publish,
             "trust": args.trust,
         },
+        "public_authority_proofs": {
+            name: {
+                "status": "missing",
+                "reason": "no integrated Daylight public-authority proof artifact supplied",
+            }
+            for name in REQUIRED_PUBLIC_AUTHORITY_PREDICATES
+        },
         "non_claims": [
-            "candidate authority evidence is not integrated public authority unless every predicate is true and signed authority supports publish and trust",
+            "candidate authority evidence is not integrated public authority unless every predicate is true, proof-bound, and signed authority supports publish and trust",
             "candidate authority evidence does not claim runtime containment",
             "candidate authority evidence does not claim whole-system post-quantum safety",
         ],

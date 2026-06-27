@@ -179,12 +179,40 @@ def main() -> None:
         summary = json.loads(verified.stdout.decode("utf-8"))
         assert summary["schema"] == "daylight-v06-authority-verification-v1"
         assert summary["signed_wuci_authority_verified"] is True
-        assert summary["integrated_predicates"] is True
+        assert summary["integrated_predicates"] is False
+        assert summary["public_authority_proofs"]["certificate"]["status"] == "missing"
+        assert summary["predicate_proofs_bound"]["certificate"] is False
         assert summary["authority_supports_public_gate"] is False
         assert summary["integrated_public_authority"] is False
         assert summary["production_authority_for_daylight"] is False
+        assert "public authority predicate proof missing: certificate" in summary["remaining_blockers"]
         assert "signed production authority must support trust authority" in summary["remaining_blockers"]
         assert "signed production authority must support publish authority" in summary["remaining_blockers"]
+
+        proof = tmp / "certificate-proof.txt"
+        proof.write_text("deterministic certificate proof placeholder\n", encoding="ascii")
+        value = json.loads(evidence.read_text(encoding="utf-8"))
+        value["public_authority_proofs"]["certificate"] = {
+            "status": "verified",
+            "evidence": proof.name,
+            "evidence_sha256": hashlib.sha256(proof.read_bytes()).hexdigest(),
+            "verification_command": "make daylight-v06-authority-verifier-test",
+        }
+        proof_bound = tmp / "daylight-authority-certificate-proof.json"
+        proof_bound.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        proof_bound_result = run_daylight("verify", "--repo", str(REPO), "--evidence", str(proof_bound), "--json")
+        assert_ok(proof_bound_result, "verify proof-bound Daylight authority candidate")
+        proof_bound_summary = json.loads(proof_bound_result.stdout.decode("utf-8"))
+        assert proof_bound_summary["predicate_proofs_bound"]["certificate"] is True
+        assert "public authority predicate proof missing: certificate" not in proof_bound_summary["remaining_blockers"]
+        assert "public authority predicate proof missing: revocation" in proof_bound_summary["remaining_blockers"]
+
+        value["public_authority_proofs"]["certificate"]["evidence_sha256"] = "0" * 64
+        bad_proof = tmp / "daylight-authority-bad-certificate-proof.json"
+        bad_proof.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        bad_proof_result = run_daylight("verify", "--repo", str(REPO), "--evidence", str(bad_proof), "--quiet")
+        assert bad_proof_result.returncode != 0
+        assert b"certificate public authority proof digest mismatch" in bad_proof_result.stderr
 
         value = json.loads(evidence.read_text(encoding="utf-8"))
         value["integrated_public_authority"] = True
