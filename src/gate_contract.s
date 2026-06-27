@@ -10,6 +10,19 @@
 .global run_open_authorized_rooted
 .global run_release_authorized_contract
 .global run_release_authorized_rooted
+.global gate_setup_open_action
+.global gate_setup_release_action
+.global gate_parse_contract
+.global gate_build_manifest
+.global gate_build_warrant
+.global gate_contract_buf
+.global gate_contract_len
+.global gate_manifest_buf
+.global gate_manifest_len
+.global gate_warrant_buf
+.global gate_warrant_len
+.global gate_artifact_sha256
+.global gate_authorization_message_sha256
 
 .extern write_all
 .extern exit_process

@@ -25,10 +25,13 @@ research-only crypto and fixture-authority warnings.
    scalar/point primitives, and any future core primitive that can be tested
    from embedded vectors.
 2. `asm-regression`: assembly-owned boundary tests over embedded vectors and,
-   over time, stable repo corpus files. The first slice covers ledger
-   empty-root, leaf, and node hash vectors. Future slices should cover
-   envelope parsing, manifest text, warrant-message text, authority-root
-   parsing, flat/rooted Gate contract parsing, and release decision text.
+   over time, stable repo corpus files. Current coverage includes ledger
+   empty-root, leaf, and node hash vectors; small secp256k1 scalar arithmetic
+   KATs; minimal v1 manifest and warrant text; and Gate receipt-contract
+   parser accept/reject invariants for action matching, lowercase hex, field
+   order, and duplicate/trailing data rejection. Future slices should cover
+   envelope v2/v3 manifest text, authority-root parsing, rooted Gate contract
+   parsing, and release decision text.
 3. `asm-smoke` (Make orchestration): no Python business logic; only build,
    temporary directories, `printf`, command invocation, and `cmp`/`test` style
    checks around `wuci-ji selftest` and `wuci-ji asm-regression`.
@@ -64,8 +67,9 @@ failure sites.
 1. Keep extending `src/regression.s` instead of growing the already-large
    command handlers.
 2. Add the next embedded or checked-in vectors that require no fixture
-   emitters: SHA/HMAC/HKDF/Poly/ChaCha extra KATs, then minimal
-   envelope/manifest corpus validation.
+   emitters: wider secp256k1/FROST KATs, SHA/HMAC/HKDF/Poly/ChaCha extra KATs,
+   v2/v3 envelope manifest validation, rooted authority parsing, and release
+   decision text.
 3. Move one Python assertion group at a time behind the assembly target. When a
    Python test becomes only an orchestration wrapper around an assembly-owned
    invariant, replace it with corpus bytes plus the assembly lane.
