@@ -92,6 +92,8 @@
     "daylight-equation/analysis/daylight-v06-external-review-packet.md",
     "daylight-equation/evidence/daylight-v06-external-review-packet.v1.json",
     "tests/daylight_v06_external_review_packet.py",
+    "tools/daylight_external_review.py",
+    "tests/daylight_external_review.py",
     "daylight-equation/research/daylight-v06-1000-preflight.md",
     "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
     "tests/daylight_v06_1000_preflight.py"
@@ -171,6 +173,11 @@
       "name": "external_review_packet",
       "satisfied": true,
       "reason": "The repo tracks a current review packet for the 975/1000 evidence set, but no independent external review artifacts are tracked."
+    },
+    {
+      "name": "external_review_verifier",
+      "satisfied": true,
+      "reason": "The repo verifies signed Daylight external-review evidence and requires exactly two independent signed reviews before external review credit can be claimed."
     },
     {
       "name": "external_review",

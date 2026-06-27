@@ -74,6 +74,12 @@ def main() -> None:
     assert requirements["production_blocking_findings_closed"] is True
     assert requirements["fixture_material_rejected"] is True
     assert requirements["unsigned_review_evidence_is_test_only"] is True
+    assert requirements["compatible_daylight_external_review_schema"] == "daylight-v06-external-review-v1"
+    assert requirements["compatible_daylight_external_review_set_schema"] == "daylight-v06-external-review-set-v1"
+    assert (
+        requirements["compatible_daylight_external_review_signature_namespace"]
+        == "daylight-v06-external-review-v1"
+    )
     assert requirements["compatible_wuci_external_audit_schema"] == "wuci-external-audit-evidence-v1"
     assert requirements["compatible_wuci_external_audit_signature_namespace"] == "wuci-external-audit-v1"
     assert requirements["compatible_wuci_production_authority_schema"] == "wuci-production-authority-ceremony-v1"

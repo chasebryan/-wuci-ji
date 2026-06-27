@@ -16,6 +16,7 @@ make daylight-scorecard-test
 make daylight-v06-m4-z3-proof-test
 make daylight-v06-m4-symbolic-model-test
 make daylight-v06-1000-preflight-test
+make daylight-v06-external-review-verifier-test
 make daylight-v6-provider-vector-agreement-test
 make daylight-v06-schema-freeze-test
 make daylight-v6-reference-negative-corpus-test
@@ -56,6 +57,10 @@ must identify the reviewed commit, cover the formal model, provider-backed
 vectors, cryptographic boundary, and production-authority blockers, and close
 or explicitly preserve every production-blocking finding. Review artifacts must
 be attributable and signed or otherwise independently verifiable.
+
+The repo accepts signed review evidence through `tools/daylight_external_review.py`.
+Score use requires a `daylight-v06-external-review-set-v1` manifest containing
+exactly two independent signed review entries for the current commit.
 
 ## Boundary
 
