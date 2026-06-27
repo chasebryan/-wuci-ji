@@ -73,7 +73,9 @@ def main() -> None:
     assert controls["unsigned_install_manifest_rejected"] is True
     assert controls["machine_readable_cli_outputs"] is True
     assert controls["wjstar_formal_composition_model"] is True
+    assert controls["wjnext_canonical_transcript_model"] is True
     assert controls["deterministic_parser_corpus_replay"] is True
+    assert controls["parser_hardening_proof"] is True
     assert controls["release_bundle_verifier"] is True
     assert controls["real_pq_verifier_pins_fail_closed"] is True
     assert controls["real_pq_external_verifier_protocol"] == "wuci-pq-external-verify-v1"

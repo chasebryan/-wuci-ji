@@ -161,7 +161,7 @@ make verify-release-bundle \
 `make verify-release-bundle` writes
 `build/wuci-release-bundle-verification.json`. The verifier recomputes binary
 digests, checks SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
-evidence, crypto self-audit, parser replay, optional signed production
+evidence, crypto self-audit, parser hardening replay, optional signed production
 authority evidence, optional signed external audit evidence, witness, ledger,
 install signature, and Rust wrapper evidence. A successful verifier run is
 release evidence only; it does not create runtime sandbox completeness or

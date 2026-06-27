@@ -23,7 +23,8 @@ emit local SBOM/provenance evidence, and audit a signed local install. See
 [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md), and
 [docs/wuci_wjstar_model.md](docs/wuci_wjstar_model.md) for the exact split
 between assembly, Zig, Python, Makefile, CI, fixture authority, and the WJ*
-target composition model.
+target composition model. The WJ-next canonical transcript target is tracked in
+[docs/wuci_wjnext_model.md](docs/wuci_wjnext_model.md).
 
 ## Minimal Build And Test
 
@@ -404,7 +405,8 @@ composes that baseline with the pinned qemu X25519 lane, assembly checks,
 HARDEN, CAGE/QCAGE, CARROT seccomp/namespace no-network proof, PQ verifier
 detection, optional pinned real-PQ verifier evidence, the local Rust FIPS 204
 ML-DSA verifier proof lane, crypto self-audit, signed external-audit verifier
-tests, deterministic parser corpus replay, release bundle verification,
+tests, WJ*/WJ-next model checks, deterministic parser hardening replay,
+release bundle verification,
 production-readiness gates, Gate contract, and full Linux CLI harness. `make
 host-capacity` reports detected logical CPUs; independent proof targets can run
 with `make -jN` while shared evidence paths remain serialized by dependencies.

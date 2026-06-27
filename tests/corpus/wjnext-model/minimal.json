@@ -1,0 +1,30 @@
+{
+  "schema": "wuci-wjnext-model-v1",
+  "composition": "WJ_next = Accept_v2_mu(a, Omega)",
+  "actions": [
+    "open",
+    "release"
+  ],
+  "transcript": {
+    "domain": "wuci/transcript/v2",
+    "canonicalization": "C14N_v2",
+    "hash": "m_v2 = H(\"wuci/transcript/v2\" || T_v2)"
+  },
+  "pq_modes": {
+    "compat": {
+      "accepted": true
+    },
+    "hybrid-evidence": {
+      "accepted": true,
+      "requires": [
+        "MLDSA_Verify",
+        "PinOK",
+        "KAT_OK"
+      ]
+    },
+    "pq-secure": {
+      "accepted": false,
+      "reason": "false until earned"
+    }
+  }
+}

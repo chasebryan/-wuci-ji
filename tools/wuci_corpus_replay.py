@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -13,32 +14,70 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
+REQUIRED_SURFACES = (
+    "armor",
+    "authority-root",
+    "envelope",
+    "gate-contract",
+    "ledger-entry",
+    "ledger-head",
+    "ledger-proof",
+    "wjnext-model",
+    "wjstar-model",
+)
+MUTATION_FAMILIES = (
+    "seed",
+    "empty",
+    "truncate-half",
+    "drop-last-byte",
+    "append-nul",
+    "append-junk-line",
+    "flip-first-bit",
+    "flip-last-high-bit",
+    "crlf",
+    "duplicate",
+    "long-prefix",
+)
+
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+import wuci_ledger  # noqa: E402
 
 
 class CorpusReplayError(RuntimeError):
     pass
 
 
-def run(argv: list[str], *, cwd: Path, timeout: float = 5.0) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(
-        argv,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=timeout,
-        check=False,
-    )
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
-def mutated_cases(data: bytes) -> list[bytes]:
-    cases = [b"", data[: max(0, len(data) // 2)], data + b"\x00"]
+def mutation_cases(data: bytes) -> list[tuple[str, bytes]]:
+    cases = [
+        ("seed", data),
+        ("empty", b""),
+        ("truncate-half", data[: max(0, len(data) // 2)]),
+        ("append-nul", data + b"\x00"),
+        ("append-junk-line", data + b"junk: value\n"),
+        ("crlf", data.replace(b"\n", b"\r\n")),
+        ("duplicate", data + data),
+        ("long-prefix", b"A" * 128 + data),
+    ]
     if data:
         flipped = bytearray(data)
         flipped[0] ^= 0x01
-        cases.append(bytes(flipped))
+        cases.append(("flip-first-bit", bytes(flipped)))
         flipped = bytearray(data)
         flipped[-1] ^= 0x80
-        cases.append(bytes(flipped))
+        cases.append(("flip-last-high-bit", bytes(flipped)))
+        cases.append(("drop-last-byte", data[:-1]))
+    else:
+        cases.extend(
+            [
+                ("flip-first-bit", b"\x01"),
+                ("flip-last-high-bit", b"\x80"),
+                ("drop-last-byte", b""),
+            ]
+        )
     return cases
 
 
@@ -54,41 +93,198 @@ def classify(path: Path) -> str:
         return "gate-contract"
     if "/ledger-entry/" in rel:
         return "ledger-entry"
+    if "/ledger-head/" in rel:
+        return "ledger-head"
+    if "/ledger-proof/" in rel:
+        return "ledger-proof"
+    if "/wjnext-model/" in rel:
+        return "wjnext-model"
+    if "/wjstar-model/" in rel:
+        return "wjstar-model"
     return "unknown"
 
 
-def replay_one(bin_path: Path, corpus_file: Path, work: Path) -> list[dict[str, Any]]:
+def run_process(argv: list[str], *, cwd: Path, timeout: float = 5.0) -> dict[str, Any]:
+    try:
+        proc = subprocess.run(
+            argv,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "accepted": False,
+            "returncode": None,
+            "signal": None,
+            "stderr_bytes": 0,
+            "stdout_bytes": 0,
+            "timeout": True,
+        }
+    signal = -proc.returncode if proc.returncode < 0 else None
+    return {
+        "accepted": proc.returncode == 0,
+        "returncode": proc.returncode,
+        "signal": signal,
+        "stderr_bytes": len(proc.stderr),
+        "stdout_bytes": len(proc.stdout),
+        "timeout": False,
+    }
+
+
+def write_gate_artifact(bin_path: Path, work: Path) -> Path:
+    plain = work / "gate-artifact.txt"
+    sealed = work / "gate-artifact.wj"
+    plain.write_bytes(b"wuci parser corpus replay gate artifact\n")
+    proc = run_process(
+        [
+            str(bin_path),
+            "seal-file-v2",
+            "11" * 32,
+            "2233445566778899aabbccddeeff0011",
+            str(plain),
+            str(sealed),
+        ],
+        cwd=REPO_ROOT,
+    )
+    if proc["returncode"] != 0:
+        raise CorpusReplayError("could not create Gate parser replay artifact")
+    return sealed
+
+
+def internal_parse(surface: str, payload: bytes) -> dict[str, Any]:
+    try:
+        text = payload.decode("utf-8")
+        if surface == "ledger-entry":
+            wuci_ledger.parse_entry(text)
+        elif surface == "ledger-head":
+            wuci_ledger.parse_head(text)
+        elif surface == "ledger-proof":
+            if text.startswith("schema: wuci-ledger-inclusion-proof-v1\n"):
+                wuci_ledger.parse_proof(
+                    text,
+                    wuci_ledger.INCLUSION_FIELDS,
+                    wuci_ledger.INCLUSION_SCHEMA,
+                    "ledger inclusion proof",
+                )
+            elif text.startswith("schema: wuci-ledger-consistency-proof-v1\n"):
+                wuci_ledger.parse_proof(
+                    text,
+                    wuci_ledger.CONSISTENCY_FIELDS,
+                    wuci_ledger.CONSISTENCY_SCHEMA,
+                    "ledger consistency proof",
+                )
+            else:
+                raise CorpusReplayError("unsupported ledger proof schema")
+        elif surface == "wjstar-model":
+            value = json.loads(text)
+            if not isinstance(value, dict):
+                raise CorpusReplayError("WJ* model corpus must be a JSON object")
+            if value.get("schema") != "wuci-wjstar-model-v1":
+                raise CorpusReplayError("WJ* model corpus schema mismatch")
+            if value.get("composition") != "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R":
+                raise CorpusReplayError("WJ* model composition mismatch")
+            if not isinstance(value.get("open_predicate"), list):
+                raise CorpusReplayError("WJ* model open_predicate must be a list")
+        elif surface == "wjnext-model":
+            value = json.loads(text)
+            if not isinstance(value, dict):
+                raise CorpusReplayError("WJ-next model corpus must be a JSON object")
+            if value.get("schema") != "wuci-wjnext-model-v1":
+                raise CorpusReplayError("WJ-next model corpus schema mismatch")
+            if value.get("composition") != "WJ_next = Accept_v2_mu(a, Omega)":
+                raise CorpusReplayError("WJ-next model composition mismatch")
+            transcript = value.get("transcript")
+            if not isinstance(transcript, dict) or transcript.get("domain") != "wuci/transcript/v2":
+                raise CorpusReplayError("WJ-next model transcript domain mismatch")
+            pq_modes = value.get("pq_modes")
+            if not isinstance(pq_modes, dict):
+                raise CorpusReplayError("WJ-next model pq_modes must be an object")
+            pq_secure = pq_modes.get("pq-secure")
+            if not isinstance(pq_secure, dict) or pq_secure.get("accepted") is not False:
+                raise CorpusReplayError("WJ-next pq-secure mode must stay false until earned")
+        else:
+            raise CorpusReplayError(f"unsupported internal parser surface: {surface}")
+        return {
+            "accepted": True,
+            "returncode": 0,
+            "signal": None,
+            "stderr_bytes": 0,
+            "stdout_bytes": 0,
+            "timeout": False,
+        }
+    except (UnicodeDecodeError, json.JSONDecodeError, wuci_ledger.LedgerError, CorpusReplayError):
+        return {
+            "accepted": False,
+            "returncode": 1,
+            "signal": None,
+            "stderr_bytes": 0,
+            "stdout_bytes": 0,
+            "timeout": False,
+        }
+
+
+def replay_payload(
+    *,
+    bin_path: Path,
+    gate_artifact: Path,
+    surface: str,
+    sample: Path,
+    payload: bytes,
+    mutation: str,
+    work: Path,
+) -> dict[str, Any] | None:
+    sample_path = work / f"{surface}-{sample.stem}-{mutation}.bin"
+    sample_path.write_bytes(payload)
+    parser_kind = "assembly-cli"
+    if surface == "envelope":
+        outcome = run_process([str(bin_path), "inspect-file", str(sample_path)], cwd=REPO_ROOT)
+    elif surface == "armor":
+        outcome = run_process(
+            [str(bin_path), "dearmor-file", str(sample_path), str(work / f"{sample_path.name}.out")],
+            cwd=REPO_ROOT,
+        )
+    elif surface == "authority-root":
+        outcome = run_process([str(bin_path), "authority-root-verify", str(sample_path)], cwd=REPO_ROOT)
+    elif surface == "gate-contract":
+        outcome = run_process(
+            [str(bin_path), "gate-contract-verify", str(gate_artifact), str(sample_path)],
+            cwd=REPO_ROOT,
+        )
+    elif surface in {"ledger-entry", "ledger-head", "ledger-proof", "wjnext-model", "wjstar-model"}:
+        parser_kind = "python-internal"
+        outcome = internal_parse(surface, payload)
+    else:
+        return None
+    return {
+        "surface": surface,
+        "sample": sample.relative_to(REPO_ROOT).as_posix(),
+        "mutation": mutation,
+        "parser": parser_kind,
+        "payload_bytes": len(payload),
+        "payload_sha256": sha256_bytes(payload),
+        **outcome,
+    }
+
+
+def replay_one(bin_path: Path, gate_artifact: Path, corpus_file: Path, work: Path) -> list[dict[str, Any]]:
     data = corpus_file.read_bytes()
     surface = classify(corpus_file)
     results: list[dict[str, Any]] = []
-    for index, payload in enumerate([data, *mutated_cases(data)]):
-        sample = work / f"{surface}-{corpus_file.stem}-{index}.bin"
-        sample.write_bytes(payload)
-        if surface == "envelope":
-            argv = [str(bin_path), "inspect-file", str(sample)]
-        elif surface == "armor":
-            argv = [str(bin_path), "dearmor-file", str(sample), str(work / f"{sample.name}.out")]
-        elif surface == "authority-root":
-            argv = [str(bin_path), "authority-root-verify", str(sample)]
-        elif surface == "gate-contract":
-            argv = [str(bin_path), "gate-contract-verify", str(sample), str(sample)]
-        elif surface == "ledger-entry":
-            argv = [str(bin_path), "ledger-leaf-file", str(sample)]
-        else:
-            continue
-        proc = run(argv, cwd=REPO_ROOT)
-        if proc.returncode < 0:
-            raise CorpusReplayError(f"{corpus_file} terminated by signal {-proc.returncode}")
-        results.append(
-            {
-                "surface": surface,
-                "sample": corpus_file.relative_to(REPO_ROOT).as_posix(),
-                "mutation": index,
-                "returncode": proc.returncode,
-                "stdout_bytes": len(proc.stdout),
-                "stderr_bytes": len(proc.stderr),
-            }
+    for mutation, payload in mutation_cases(data):
+        result = replay_payload(
+            bin_path=bin_path,
+            gate_artifact=gate_artifact,
+            surface=surface,
+            sample=corpus_file,
+            payload=payload,
+            mutation=mutation,
+            work=work,
         )
+        if result is not None:
+            results.append(result)
     return results
 
 
@@ -108,15 +304,34 @@ def main() -> int:
         all_results: list[dict[str, Any]] = []
         with tempfile.TemporaryDirectory(prefix="wuci-corpus-replay-") as tmp_name:
             work = Path(tmp_name)
+            gate_artifact = write_gate_artifact(bin_path, work)
             for path in files:
-                all_results.extend(replay_one(bin_path, path, work))
+                all_results.extend(replay_one(bin_path, gate_artifact, path, work))
+        surfaces: dict[str, int] = {}
+        for result in all_results:
+            surfaces[result["surface"]] = surfaces.get(result["surface"], 0) + 1
+        signals = sum(1 for result in all_results if result["signal"] is not None)
+        timeouts = sum(1 for result in all_results if result["timeout"] is True)
+        missing_surfaces = sorted(set(REQUIRED_SURFACES).difference(surfaces))
+        if missing_surfaces:
+            raise CorpusReplayError(f"missing required parser corpus surfaces: {', '.join(missing_surfaces)}")
         report = {
-            "schema": "wuci-parser-corpus-replay-v1",
+            "schema": "wuci-parser-corpus-replay-v2",
             "corpus": str(corpus),
+            "deterministic_mutation_mode": True,
+            "fail_closed": signals == 0 and timeouts == 0,
             "files": len(files),
             "cases": len(all_results),
+            "mutation_families": list(MUTATION_FAMILIES),
+            "required_surfaces": list(REQUIRED_SURFACES),
             "offensive_fuzzing": False,
             "network_required": False,
+            "runtime_sandbox_claim": False,
+            "signals": signals,
+            "surfaces": surfaces,
+            "timeouts": timeouts,
+            "wjstar_model_covered": surfaces.get("wjstar-model", 0) > 0,
+            "wjnext_model_covered": surfaces.get("wjnext-model", 0) > 0,
             "results": all_results,
         }
         out = Path(args.out)

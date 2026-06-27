@@ -116,12 +116,43 @@ def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
         raise ReleaseBundleError("internal crypto audit must not claim external audit")
     if crypto_audit.get("production_sufficient") is not False:
         raise ReleaseBundleError("internal crypto audit must not claim production sufficiency")
-    if parser_replay.get("schema") != "wuci-parser-corpus-replay-v1":
+    if parser_replay.get("schema") != "wuci-parser-corpus-replay-v2":
         raise ReleaseBundleError("parser corpus replay schema mismatch")
     if parser_replay.get("offensive_fuzzing") is not False:
         raise ReleaseBundleError("parser corpus replay must not be offensive fuzzing")
     if parser_replay.get("network_required") is not False:
         raise ReleaseBundleError("parser corpus replay must not require network")
+    if parser_replay.get("runtime_sandbox_claim") is not False:
+        raise ReleaseBundleError("parser corpus replay must not claim runtime sandboxing")
+    if parser_replay.get("deterministic_mutation_mode") is not True:
+        raise ReleaseBundleError("parser corpus replay must be deterministic")
+    if parser_replay.get("fail_closed") is not True:
+        raise ReleaseBundleError("parser corpus replay must fail closed")
+    if parser_replay.get("timeouts") != 0 or parser_replay.get("signals") != 0:
+        raise ReleaseBundleError("parser corpus replay must not time out or terminate by signal")
+    required_parser_surfaces = {
+        "armor",
+        "authority-root",
+        "envelope",
+        "gate-contract",
+        "ledger-entry",
+        "ledger-head",
+        "ledger-proof",
+        "wjnext-model",
+        "wjstar-model",
+    }
+    parser_surfaces = parser_replay.get("surfaces")
+    if not isinstance(parser_surfaces, dict):
+        raise ReleaseBundleError("parser corpus replay must record surface coverage")
+    missing_parser_surfaces = sorted(required_parser_surfaces.difference(parser_surfaces))
+    if missing_parser_surfaces:
+        raise ReleaseBundleError(
+            "parser corpus replay missing surfaces: " + ", ".join(missing_parser_surfaces)
+        )
+    if parser_replay.get("wjstar_model_covered") is not True:
+        raise ReleaseBundleError("parser corpus replay must cover WJ* model inputs")
+    if parser_replay.get("wjnext_model_covered") is not True:
+        raise ReleaseBundleError("parser corpus replay must cover WJ-next model inputs")
     if production_authority.get("schema") != "wuci-production-authority-policy-v1":
         raise ReleaseBundleError("production authority policy schema mismatch")
     if production_authority.get("fixture_authority_allowed_for_production") is not False:
@@ -142,6 +173,7 @@ def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
         "crypto_production_sufficient": crypto_audit.get("production_sufficient") is True,
         "parser_corpus_replay_sha256": sha_file(Path(args.parser_replay), "sha256"),
         "parser_corpus_replay_cases": parser_replay.get("cases"),
+        "parser_corpus_replay_surfaces": sorted(parser_replay.get("surfaces", {}).keys()),
         "production_authority_policy_sha256": sha_file(
             Path(args.production_authority_policy), "sha256"
         ),

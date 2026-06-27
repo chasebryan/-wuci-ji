@@ -1,0 +1,10 @@
+{
+  "schema": "wuci-wjstar-model-v1",
+  "composition": "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R",
+  "open_predicate": [
+    "AEAD.Dec_K(C; M || G) = A",
+    "V_F(sigma_F, H(W), PK_F) = 1",
+    "G(M) = 1",
+    "MerkleVerify(H(W), R, path) = 1"
+  ]
+}

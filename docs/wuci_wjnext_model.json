@@ -1,0 +1,95 @@
+{
+  "schema": "wuci-wjnext-model-v1",
+  "status": "canonical-transcript-target-not-production-claim",
+  "composition": "WJ_next = Accept_v2_mu(a, Omega)",
+  "actions": [
+    "open",
+    "release"
+  ],
+  "omega": [
+    "C",
+    "M",
+    "Gamma",
+    "alpha",
+    "B",
+    "L",
+    "rho",
+    "iota",
+    "sigma_F",
+    "epsilon_Q"
+  ],
+  "digest_vector": [
+    "SHA256",
+    "SHA384",
+    "SHA512"
+  ],
+  "transcript": {
+    "domain": "wuci/transcript/v2",
+    "canonicalization": "C14N_v2",
+    "fields": [
+      "a",
+      "Hvec(C)",
+      "Hvec(M)",
+      "Hvec(Gamma)",
+      "Hvec(alpha)",
+      "Hvec(B)",
+      "head(L)",
+      "Hvec(rho)",
+      "Hvec(iota)",
+      "mu"
+    ],
+    "hash": "m_v2 = H(\"wuci/transcript/v2\" || T_v2)"
+  },
+  "accept_predicate": [
+    "a in {open, release}",
+    "Parse_v2(Omega)",
+    "EnvOK(C, M)",
+    "RootOK(alpha, a, PK_F)",
+    "FROSTVerify_2_of_3(PK_F, m_v2, sigma_F)",
+    "GateOK(Gamma, a, M, alpha, m_v2)",
+    "WitnessOK(B, M, Gamma, alpha, m_v2)",
+    "PrivateMaterial(B) = 0",
+    "LedgerOK(L, Hvec(B))",
+    "ProvenanceOK(rho, Hvec(C))",
+    "InstallOK(iota, Hvec(C))",
+    "PQModeOK_mu(epsilon_Q, m_v2)"
+  ],
+  "pq_modes": {
+    "compat": {
+      "accepted": true,
+      "requires": []
+    },
+    "hybrid-evidence": {
+      "accepted": true,
+      "requires": [
+        "MLDSA_Verify",
+        "PinOK",
+        "KAT_OK"
+      ]
+    },
+    "pq-secure": {
+      "accepted": false,
+      "reason": "false until earned"
+    }
+  },
+  "typed_verifier_predicate": "canonical transcript -> one authorization hash -> typed verifier predicate",
+  "implementation_mapping": {
+    "C": "sealed artifact ciphertext",
+    "M": "manifest and artifact digest evidence",
+    "Gamma": "Gate contract/policy",
+    "alpha": "authority root",
+    "B": "public witness bundle",
+    "L": "ledger history",
+    "rho": "provenance evidence",
+    "iota": "install manifest/signature evidence",
+    "sigma_F": "FROST threshold authority signature",
+    "epsilon_Q": "PQ verifier evidence mode"
+  },
+  "non_claims": [
+    "this transcript model is not a production signature ceremony",
+    "compat mode does not claim post-quantum security",
+    "hybrid-evidence mode requires pinned ML-DSA evidence and still is not a full system quantum-safe claim",
+    "pq-secure mode is false until independently earned",
+    "this model does not claim runtime sandboxing"
+  ]
+}

@@ -20,10 +20,27 @@ The initial harness is regression-oriented and stdlib-only:
 ```sh
 make parser-adversarial-test
 make aead-boundary-test
+make parser-hardening-proof
 ```
 
 Those tests mutate known-good contracts/artifacts and require fail-closed
 behavior with no plaintext output on open failure.
+
+`parser-hardening-proof` writes v2 replay evidence to
+`build/wuci-parser-corpus-replay.json`. It covers:
+
+- Envelope inspect parsing.
+- Armor/dearmor parsing.
+- Authority root parsing.
+- Gate contract parsing against a temporary valid sealed artifact.
+- Ledger entry, head, inclusion proof, and consistency proof parsing.
+- WJ* model JSON parsing.
+- WJ-next canonical transcript model JSON parsing.
+
+The lane is deterministic, offline, stdlib-only Python plus the local assembly
+binary, and defensive only. It records mutation families, surface coverage,
+timeouts, signal exits, and per-case payload digests. It is not offensive
+fuzzing and does not claim coverage-guided fuzzing.
 
 ## Future Native Fuzz Lane
 

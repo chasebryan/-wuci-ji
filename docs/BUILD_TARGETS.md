@@ -91,8 +91,15 @@ local parser corpus replay, release bundle verification, production-readiness
 gates, Gate contract assembly checks, and the full qemu Linux CLI test.
 
 `parser-corpus-replay` replays committed parser corpora plus deterministic
-mutations through assembly parser/verifier surfaces. It is local fail-closed
-replay evidence, not offensive fuzzing or a coverage-guided CI fuzzer.
+mutations through assembly parser/verifier surfaces and internal public-parser
+checks. The v2 evidence requires envelope, armor, authority-root, Gate contract,
+ledger entry, ledger head, ledger proof, and WJ* model coverage, with zero
+timeouts and zero signal terminations. It is local fail-closed replay evidence,
+not offensive fuzzing or a coverage-guided CI fuzzer.
+
+`parser-corpus-replay-test` validates the v2 JSON evidence shape.
+`parser-hardening-proof` composes replay generation and validation for the
+high-attestation lane.
 
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
@@ -100,9 +107,16 @@ AEAD/FROST/Gate/Merkle/witness open predicate and the 2-of-3 threshold
 probability calculation. It is a model-consistency gate, not a production
 cryptography claim.
 
+`wjnext-model-test` checks the WJ-next canonical transcript model in
+`docs/wuci_wjnext_model.json` and `docs/wuci_wjnext_model.md`. It pins
+`T_v2 = C14N_v2(...)`, `m_v2 = H("wuci/transcript/v2" || T_v2)`, the typed
+acceptance predicate, and the PQ modes where `compat` is allowed,
+`hybrid-evidence` requires ML-DSA verification plus pins/KATs, and `pq-secure`
+stays false until earned.
+
 `verify-release-bundle` writes `build/wuci-release-bundle-verification.json`.
 It verifies SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
-evidence, crypto self-audit, parser replay, production authority policy,
+evidence, crypto self-audit, parser hardening replay, production authority policy,
 optional signed non-fixture production authority evidence, optional signed
 external audit evidence, witness bundle, ledger history, install manifest
 signature, binary hashes, and Rust no-network wrapper evidence. The output

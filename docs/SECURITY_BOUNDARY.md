@@ -18,9 +18,12 @@ the current repository has code and tests for that behavior.
 | CARROT runtime policy boundary | Policy says no network, FROST/Gate may attest policy only, seccomp denies network syscalls, user+network namespace entry is checked | Python policy plus assembly seccomp probe and Rust wrapper source | Local no-network syscall proof lane on supporting kernels; not general sandboxing or VM containment |
 | INSTALL boundary | Copied local install root key, OpenSSH signed manifest, digest vector, proof gates, atomic install, audit receipt | Python installer plus existing proof lanes | Signed zero-prompt install lane; no runtime/PQ claim |
 | WJ* composition boundary | AEAD secrecy, FROST threshold authority, Gate policy, Merkle evidence, witness root mapping | Formal model plus existing proof lanes | Target composition model; fixture FROST remains test-only |
+| WJ-next transcript boundary | Canonical transcript, digest vector, one authorization hash, typed verifier predicate, PQ mode discipline | Formal model plus parser hardening replay | Target transcript model; pq-secure remains false until earned |
 
 See `docs/wuci_wjstar_model.md` for the formal target composition:
 `WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R`.
+See `docs/wuci_wjnext_model.md` for the canonical transcript target:
+`canonical transcript -> one authorization hash -> typed verifier predicate`.
 
 ## Artifact Size Boundary
 
