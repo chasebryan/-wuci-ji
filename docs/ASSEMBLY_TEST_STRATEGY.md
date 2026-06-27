@@ -24,10 +24,11 @@ research-only crypto and fixture-authority warnings.
    crypto KAT lane for SHA-256, HMAC/HKDF, Poly1305, ChaCha20, AEAD internals,
    scalar/point primitives, and any future core primitive that can be tested
    from embedded vectors.
-2. `asm-regression` (next target): assembly-owned boundary tests over stable
-   repo corpus files. This should cover envelope parsing, manifest text,
-   warrant-message text, authority-root parsing, flat/rooted Gate contract
-   parsing, release decision text, and ledger leaf/node outputs.
+2. `asm-regression`: assembly-owned boundary tests over embedded vectors and,
+   over time, stable repo corpus files. The first slice covers ledger
+   empty-root, leaf, and node hash vectors. Future slices should cover
+   envelope parsing, manifest text, warrant-message text, authority-root
+   parsing, flat/rooted Gate contract parsing, and release decision text.
 3. `asm-smoke` (Make orchestration): no Python business logic; only build,
    temporary directories, `printf`, command invocation, and `cmp`/`test` style
    checks around `wuci-ji selftest` and `wuci-ji asm-regression`.
@@ -60,14 +61,12 @@ failure sites.
 
 ## First Implementation Slice
 
-1. Add an `asm-regression` command to `src/main.s`.
-2. Implement it in a new `src/regression.s` or a clearly separated section,
-   not inside the already-large command handlers.
-3. Start with embedded or checked-in vectors that require no fixture emitters:
-   SHA/HMAC/HKDF/Poly/ChaCha extra KATs, ledger empty/leaf/node vectors, and
-   minimal envelope/manifest corpus validation.
-4. Add `make asm-regression` and `make asm-smoke`.
-5. Move one Python assertion group at a time behind the assembly target. When a
+1. Keep extending `src/regression.s` instead of growing the already-large
+   command handlers.
+2. Add the next embedded or checked-in vectors that require no fixture
+   emitters: SHA/HMAC/HKDF/Poly/ChaCha extra KATs, then minimal
+   envelope/manifest corpus validation.
+3. Move one Python assertion group at a time behind the assembly target. When a
    Python test becomes only an orchestration wrapper around an assembly-owned
    invariant, replace it with corpus bytes plus the assembly lane.
 

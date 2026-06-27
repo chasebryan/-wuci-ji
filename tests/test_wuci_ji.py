@@ -2121,6 +2121,7 @@ def assert_rejects_extra_args(key: bytes, key_id: bytes, sealed: bytes) -> None:
             (["keygen", "extra"], b"", None),
             (["keypair", "extra"], b"", None),
             (["selftest", "extra"], b"", None),
+            (["asm-regression", "extra"], b"", None),
             (["hmac-sha256", key.hex(), "extra"], b"abc", None),
             (["seal", key.hex(), "extra"], b"abc", None),
             (
@@ -2296,6 +2297,7 @@ def assert_help_output() -> None:
         "armor-file <in> <out>          wrap an artifact in copy/paste ASCII armor; no overwrite",
         "dearmor-file <in> <out>        decode copy/paste ASCII armor; no overwrite",
         "selftest                       run built-in known-answer tests",
+        "asm-regression                 run assembly-owned regression vectors",
     ):
         assert snippet in help_text, snippet
 
@@ -2304,6 +2306,11 @@ def main() -> None:
     selftest = run(["selftest"])
     assert selftest.returncode == 0, selftest.stderr.decode("utf-8", "replace")
     assert selftest.stdout == b"wuci-ji selftest: PASS\n"
+    asm_regression = run(["asm-regression"])
+    assert asm_regression.returncode == 0, asm_regression.stderr.decode(
+        "utf-8", "replace"
+    )
+    assert asm_regression.stdout == b"wuci-ji asm-regression: PASS\n"
     assert_help_output()
 
     assert_sha256(b"")

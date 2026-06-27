@@ -15,6 +15,7 @@ Python kept for fixture generation and host-policy orchestration. See
 
 ```sh
 make build-linux
+make asm-smoke
 make test
 make install-test
 make parser-adversarial-test
@@ -25,6 +26,7 @@ make secret-path-isolation-test
 ## Native Proof Lanes
 
 ```sh
+make asm-regression
 make authority-root-check
 make gate-contract-asm
 make self-release-asm-contract-proof
