@@ -25,6 +25,8 @@ STANDARD_REFERENCES = {
     "LMS": "NIST SP 800-208",
     "XMSS": "NIST SP 800-208",
 }
+LOCAL_FIPS204_IMPLEMENTATION_NAME = "wuci-pq-fips204-verify"
+LOCAL_FIPS204_IMPLEMENTATION_VERSION = "0.1.0-fips204-0.4.6-ml-dsa-65"
 
 
 class PQVerifierError(RuntimeError):
@@ -292,6 +294,56 @@ def run_verify_real(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_pin_local_fips204(args: argparse.Namespace) -> int:
+    evidence = load_json(Path(args.evidence))
+    if not isinstance(evidence, dict):
+        raise PQVerifierError("real PQ verifier evidence must be a JSON object")
+    if evidence.get("schema") != "wuci-real-pq-verifier-evidence-v2":
+        raise PQVerifierError("local FIPS 204 pinning requires v2 real PQ evidence")
+    if evidence.get("implementation_name") != LOCAL_FIPS204_IMPLEMENTATION_NAME:
+        raise PQVerifierError("local FIPS 204 pinning requires the WUCI FIPS 204 verifier")
+    if evidence.get("implementation_version") != LOCAL_FIPS204_IMPLEMENTATION_VERSION:
+        raise PQVerifierError("local FIPS 204 verifier version mismatch")
+    if evidence.get("algorithm") != "ML-DSA":
+        raise PQVerifierError("local FIPS 204 verifier must be pinned as ML-DSA")
+    if evidence.get("standard_reference") != "NIST FIPS 204":
+        raise PQVerifierError("local FIPS 204 verifier must cite NIST FIPS 204")
+    if evidence.get("verifier_protocol") != EXTERNAL_VERIFY_PROTOCOL:
+        raise PQVerifierError("local FIPS 204 verifier protocol mismatch")
+    require_boolean(evidence.get("known_answer_test"), "known_answer_test", True)
+    require_boolean(evidence.get("no_stub_mode"), "no_stub_mode", True)
+    require_boolean(evidence.get("offline_verification"), "offline_verification", True)
+    require_boolean(evidence.get("network_required"), "network_required", False)
+    validate_kat(evidence.get("kat"))
+    binary_path = Path(str(evidence.get("binary_path", "")))
+    require_regular(binary_path, "real PQ verifier binary")
+    observed_sha256 = sha256_file(binary_path)
+    if evidence.get("binary_sha256") != observed_sha256:
+        raise PQVerifierError("real PQ verifier binary digest mismatch")
+    pins = {
+        "schema": "wuci-pq-verifier-pins-v1",
+        "status": "local-fips204-ml-dsa-65-verifier-pin-v1",
+        "allowed_verifiers": [
+            {
+                "algorithm": "ML-DSA",
+                "binary_sha256": observed_sha256,
+                "implementation_name": LOCAL_FIPS204_IMPLEMENTATION_NAME,
+                "implementation_version": LOCAL_FIPS204_IMPLEMENTATION_VERSION,
+                "verifier_protocol": EXTERNAL_VERIFY_PROTOCOL,
+            }
+        ],
+        "non_claims": [
+            "this local pin clears only the real-PQ verifier evidence gate",
+            "this local pin does not make WUCI-JI quantum-safe",
+            "this local pin does not replace independent cryptographic audit",
+        ],
+    }
+    write_json(Path(args.out), pins)
+    if not args.quiet:
+        print(f"wrote local FIPS 204 PQ verifier pins: {args.out}")
+    return 0
+
+
 def run_attest_real(args: argparse.Namespace) -> int:
     algorithm = args.algorithm
     if algorithm not in SIGNATURE_TARGETS:
@@ -369,6 +421,12 @@ def main() -> int:
     real_parser.add_argument("--rerun", action="store_true")
     real_parser.add_argument("--quiet", action="store_true")
     real_parser.set_defaults(func=run_verify_real)
+
+    pin_fips204 = sub.add_parser("pin-local-fips204")
+    pin_fips204.add_argument("--evidence", required=True)
+    pin_fips204.add_argument("--out", required=True)
+    pin_fips204.add_argument("--quiet", action="store_true")
+    pin_fips204.set_defaults(func=run_pin_local_fips204)
 
     attest_parser = sub.add_parser("attest-real")
     attest_parser.add_argument("--verifier", required=True)

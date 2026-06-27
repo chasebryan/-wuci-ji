@@ -76,7 +76,10 @@ def main() -> None:
     assert controls["release_bundle_verifier"] is True
     assert controls["real_pq_verifier_pins_fail_closed"] is True
     assert controls["real_pq_external_verifier_protocol"] == "wuci-pq-external-verify-v1"
+    assert controls["local_fips204_ml_dsa_verifier_proof"] is True
     assert controls["signed_production_authority_ceremony_required"] is True
+    assert controls["signed_external_audit_evidence_required"] is True
+    assert controls["external_audit_signature_namespace"] == "wuci-external-audit-v1"
     assert controls["multi_core_proof_execution_supported"] is True
 
     digest = profile["digest_policy"]
@@ -91,6 +94,8 @@ def main() -> None:
     assert pq["quantum_safe_default"] is False
     assert pq["reject_pq_stub_marked_as_real"] is True
     assert pq["external_verifier_protocol"] == "wuci-pq-external-verify-v1"
+    assert pq["local_fips204_ml_dsa_verifier"] == "tools/wuci-pq-fips204-verify"
+    assert pq["local_fips204_ml_dsa_verifier_target"] == "make pq-verifier-fips204-proof"
     assert pq["require_pinned_real_pq_verifier_before_quantum_safe_claim"] is True
     assert set(pq["classical_vulnerable_public_key"]) <= set(
         qcage["algorithm_inventory"]["classical_vulnerable_public_key"]

@@ -97,21 +97,33 @@ replay evidence, not offensive fuzzing or a coverage-guided CI fuzzer.
 `verify-release-bundle` writes `build/wuci-release-bundle-verification.json`.
 It verifies SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
 evidence, crypto self-audit, parser replay, production authority policy,
-optional signed non-fixture production authority evidence, witness bundle,
-ledger history, install manifest signature, binary hashes, and Rust no-network
-wrapper evidence. The output remains an evidence candidate and records blockers
-instead of claiming production readiness.
+optional signed non-fixture production authority evidence, optional signed
+external audit evidence, witness bundle, ledger history, install manifest
+signature, binary hashes, and Rust no-network wrapper evidence. The output
+remains an evidence candidate and records blockers instead of claiming
+production readiness.
 
 `pq-verifier-real-attest` and `pq-verifier-real` are explicit
 external-evidence lanes. They require caller-supplied `PQ_VERIFIER_BIN`, KAT
 paths, implementation metadata, `REAL_PQ_VERIFIER_EVIDENCE`, and reviewed pins
 before any real-PQ evidence can clear a release blocker.
 
+`pq-verifier-fips204-proof` is the bundled local Rust FIPS 204 ML-DSA verifier
+lane. It builds `tools/wuci-pq-fips204-verify`, runs selftest and deterministic
+KAT verification, emits `build/wuci-real-pq-verifier.json`, and writes
+`build/wuci-pq-fips204-pins.json`. This clears only the real-PQ verifier
+evidence gate when those files are passed to release verification.
+
 `production-authority-verify` is also explicit. It requires
 `PRODUCTION_AUTHORITY_ROOT`, `PRODUCTION_AUTHORITY_CEREMONY`,
 `PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY`, and
 `PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE`; fixture roots and unsigned
 ceremonies fail closed.
+
+`external-audit-test` exercises the signed external-audit evidence verifier.
+Release verification requires all four external-audit inputs together:
+`EXTERNAL_AUDIT_EVIDENCE`, `EXTERNAL_AUDIT_REPORT`,
+`EXTERNAL_AUDIT_ROOT_KEY`, and `EXTERNAL_AUDIT_SIGNATURE`.
 
 `host-capacity` prints the detected logical CPU count. Independent proof lanes
 can be run with `make -jN`; targets that share witness, ledger, CAGE, QCAGE, or

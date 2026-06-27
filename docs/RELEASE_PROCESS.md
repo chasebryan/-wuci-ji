@@ -74,6 +74,25 @@ The candidate still fails production release verification until
 binary digest, implementation metadata, algorithm, and
 `wuci-pq-external-verify-v1` protocol.
 
+For the bundled local Rust FIPS 204 ML-DSA verifier lane, run:
+
+```sh
+make pq-verifier-fips204-proof
+```
+
+That target builds `tools/wuci-pq-fips204-verify`, runs selftest and KAT
+verification, emits `build/wuci-real-pq-verifier.json`, and writes
+`build/wuci-pq-fips204-pins.json`. Use those files with release verification by
+passing:
+
+```sh
+REAL_PQ_VERIFIER_EVIDENCE=build/wuci-real-pq-verifier.json
+PQ_VERIFIER_PINS=build/wuci-pq-fips204-pins.json
+```
+
+This clears only the real-PQ verifier evidence gate. It does not make WUCI-JI
+quantum-safe and does not replace independent audit.
+
 Optional non-fixture production authority evidence is also external. Emit and
 ceremonially sign it outside fixture paths:
 
@@ -99,24 +118,53 @@ python3 tools/wuci_production_authority.py sign-ceremony \
   --signature /absolute/path/to/wuci-production-authority-ceremony.sig
 ```
 
+Optional independent external audit evidence is also external and signed. The
+report and signing keys must stay outside fixture paths:
+
+```sh
+python3 tools/wuci_external_audit.py emit \
+  --report /absolute/path/to/external-audit-report.txt \
+  --auditor 'external auditor identity' \
+  --audit-id external-audit-YYYYMMDD \
+  --production-sufficient \
+  --out /absolute/path/to/wuci-external-audit.json
+
+python3 tools/wuci_external_audit.py sign-evidence \
+  --evidence /absolute/path/to/wuci-external-audit.json \
+  --signing-key /absolute/path/to/external-audit-signing-key \
+  --audit-root-key /absolute/path/to/external-audit-root.pub \
+  --signature /absolute/path/to/wuci-external-audit.sig
+```
+
+The verifier requires scope covering `crypto`, `pq-verifier`,
+`production-authority`, `release-bundle`, and `runtime-sandbox`, current
+`reviewed_commit`, report SHA-256/SHA-384/SHA-512 matches, and a valid
+OpenSSH signature in the `wuci-external-audit-v1` namespace. Unsigned
+verification is test-only.
+
 Then pass the external evidence into release verification:
 
 ```sh
 make verify-release-bundle \
   REAL_PQ_VERIFIER_EVIDENCE=/absolute/path/to/wuci-real-pq.json \
+  PQ_VERIFIER_PINS=/absolute/path/to/wuci-pq-pins.json \
   PRODUCTION_AUTHORITY_ROOT=/absolute/path/to/wuci-production-authority.txt \
   PRODUCTION_AUTHORITY_CEREMONY=/absolute/path/to/wuci-production-authority-ceremony.json \
   PRODUCTION_AUTHORITY_CEREMONY_ROOT_KEY=/absolute/path/to/ceremony-root.pub \
-  PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE=/absolute/path/to/wuci-production-authority-ceremony.sig
+  PRODUCTION_AUTHORITY_CEREMONY_SIGNATURE=/absolute/path/to/wuci-production-authority-ceremony.sig \
+  EXTERNAL_AUDIT_EVIDENCE=/absolute/path/to/wuci-external-audit.json \
+  EXTERNAL_AUDIT_REPORT=/absolute/path/to/external-audit-report.txt \
+  EXTERNAL_AUDIT_ROOT_KEY=/absolute/path/to/external-audit-root.pub \
+  EXTERNAL_AUDIT_SIGNATURE=/absolute/path/to/wuci-external-audit.sig
 ```
 
 `make verify-release-bundle` writes
 `build/wuci-release-bundle-verification.json`. The verifier recomputes binary
 digests, checks SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
 evidence, crypto self-audit, parser replay, optional signed production
-authority evidence, witness, ledger, install signature, and Rust wrapper
-evidence. A successful verifier run is release evidence only; it does not
-create external crypto audit assurance, runtime sandbox completeness, or
+authority evidence, optional signed external audit evidence, witness, ledger,
+install signature, and Rust wrapper evidence. A successful verifier run is
+release evidence only; it does not create runtime sandbox completeness or
 quantum-safe system status.
 
 Do not publish a release that relies on fixture authority while describing it

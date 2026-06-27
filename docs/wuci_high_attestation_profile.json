@@ -88,7 +88,10 @@
     "release_bundle_verifier": true,
     "real_pq_verifier_pins_fail_closed": true,
     "real_pq_external_verifier_protocol": "wuci-pq-external-verify-v1",
+    "local_fips204_ml_dsa_verifier_proof": true,
     "signed_production_authority_ceremony_required": true,
+    "signed_external_audit_evidence_required": true,
+    "external_audit_signature_namespace": "wuci-external-audit-v1",
     "multi_core_proof_execution_supported": true
   },
   "digest_policy": {
@@ -113,6 +116,8 @@
     ],
     "reject_pq_stub_marked_as_real": true,
     "external_verifier_protocol": "wuci-pq-external-verify-v1",
+    "local_fips204_ml_dsa_verifier": "tools/wuci-pq-fips204-verify",
+    "local_fips204_ml_dsa_verifier_target": "make pq-verifier-fips204-proof",
     "require_pinned_real_pq_verifier_before_quantum_safe_claim": true
   },
   "required_make_targets": [
@@ -124,6 +129,7 @@
     "sbom-provenance",
     "sbom-provenance-test",
     "pq-verifier-detect",
+    "pq-verifier-fips204-proof",
     "pq-verifier-real-attest",
     "pq-verifier-real",
     "pq-verifier-test",
@@ -131,6 +137,7 @@
     "production-readiness-gates",
     "crypto-self-audit",
     "crypto-self-audit-test",
+    "external-audit-test",
     "parser-corpus-replay",
     "verify-release-bundle",
     "host-capacity",

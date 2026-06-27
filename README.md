@@ -400,8 +400,9 @@ verify-self-release-bundle` recomputes those checks from the bundle files.
 `docs/wuci_high_attestation_profile.json`; `make high-attestation-proof`
 composes that baseline with the pinned qemu X25519 lane, assembly checks,
 HARDEN, CAGE/QCAGE, CARROT seccomp/namespace no-network proof, PQ verifier
-detection, optional pinned real-PQ verifier evidence, crypto self-audit,
-deterministic parser corpus replay, release bundle verification,
+detection, optional pinned real-PQ verifier evidence, the local Rust FIPS 204
+ML-DSA verifier proof lane, crypto self-audit, signed external-audit verifier
+tests, deterministic parser corpus replay, release bundle verification,
 production-readiness gates, Gate contract, and full Linux CLI harness. `make
 host-capacity` reports detected logical CPUs; independent proof targets can run
 with `make -jN` while shared evidence paths remain serialized by dependencies.

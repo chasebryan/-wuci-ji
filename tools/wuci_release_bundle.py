@@ -14,6 +14,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 import wuci_install  # noqa: E402
+import wuci_external_audit  # noqa: E402
 import wuci_pq_verifier  # noqa: E402
 import wuci_production_authority  # noqa: E402
 
@@ -220,6 +221,44 @@ def verify_production_authority(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def verify_external_audit(args: argparse.Namespace, repo: Path) -> dict[str, Any]:
+    values = (
+        args.external_audit_evidence,
+        args.external_audit_report,
+        args.external_audit_root_key,
+        args.external_audit_signature,
+    )
+    if not any(values):
+        return {
+            "provided": False,
+            "verified": False,
+            "reason": "no independent external crypto/security audit evidence supplied",
+        }
+    if not all(values):
+        raise ReleaseBundleError(
+            "external audit release evidence requires evidence, report, root key, and signature"
+        )
+    try:
+        summary = wuci_external_audit.verify_external_audit(
+            evidence_path=Path(args.external_audit_evidence),
+            report_path=Path(args.external_audit_report),
+            audit_root_key=Path(args.external_audit_root_key),
+            audit_signature=Path(args.external_audit_signature),
+            repo=repo,
+            ssh_keygen=args.ssh_keygen,
+            allow_unsigned_audit=False,
+        )
+    except wuci_external_audit.ExternalAuditError as exc:
+        raise ReleaseBundleError(f"external audit evidence failed: {exc}") from exc
+    return {
+        "provided": True,
+        "verified": True,
+        "audit_root_key_sha256": sha_file(Path(args.external_audit_root_key), "sha256"),
+        "audit_signature_sha256": sha_file(Path(args.external_audit_signature), "sha256"),
+        **summary,
+    }
+
+
 def verify_install_manifest(args: argparse.Namespace, binary_hashes: dict[str, str]) -> dict[str, Any]:
     manifest_path = Path(args.install_manifest)
     manifest = wuci_install.verify_manifest_signature(
@@ -339,6 +378,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
             "fixture authority remains test-only",
             "internal crypto self-audit is not external cryptographic assurance",
             "PQ detector does not claim quantum safety without separate pinned real verifier evidence",
+            "external audit evidence does not by itself create production authority",
         ],
         "binary": {
             "path": str(bin_path),
@@ -347,6 +387,7 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         "json_evidence": verify_json_evidence(args),
         "real_pq_evidence": verify_real_pq(args),
         "production_authority": verify_production_authority(args),
+        "external_audit": verify_external_audit(args, repo),
         "install": verify_install_manifest(args, binary_hashes),
         "public_evidence": verify_witness_and_ledger(args, repo),
         "runtime_evidence": verify_runtime(args, repo),
@@ -358,10 +399,8 @@ def verify(args: argparse.Namespace) -> dict[str, Any]:
         blockers.append("no real pinned PQ signature verifier evidence supplied")
     if result["production_authority"]["verified"] is not True:
         blockers.append("no signed non-fixture production authority ceremony supplied")
-    if result["json_evidence"]["crypto_external_audit"] is not True:
+    if result["external_audit"]["verified"] is not True:
         blockers.append("no independent external crypto/security audit evidence supplied")
-    if result["json_evidence"]["crypto_production_sufficient"] is not True:
-        blockers.append("internal crypto self-audit is not production sufficient")
     if blockers:
         result["blockers"] = blockers
     return result
@@ -396,6 +435,10 @@ def main() -> int:
     parser.add_argument("--production-authority-ceremony")
     parser.add_argument("--production-authority-ceremony-root-key")
     parser.add_argument("--production-authority-ceremony-signature")
+    parser.add_argument("--external-audit-evidence")
+    parser.add_argument("--external-audit-report")
+    parser.add_argument("--external-audit-root-key")
+    parser.add_argument("--external-audit-signature")
     parser.add_argument("--witness-bundle", default="build/wuci-witness-bundle")
     parser.add_argument("--ledger", default="build/wuci-ledger")
     parser.add_argument("--install-manifest", default="install/wuci-install-manifest.v1")

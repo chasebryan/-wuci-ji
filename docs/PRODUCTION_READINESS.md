@@ -33,9 +33,16 @@ These targets produce or verify:
 - Compiled Rust wrapper evidence through `make rust-sandbox-test`.
 - Fixture-authority production rejection gates.
 - Real-PQ verifier detection that fails closed for quantum-safe claims when no
-  pinned verifier is available. A separate real-verifier adapter can attest an
-  external verifier through a KAT run, but empty pins still fail closed.
+  pinned verifier is available. `make pq-verifier-fips204-proof` builds the
+  local Rust FIPS 204 ML-DSA verifier, runs its KAT/selftest, emits v2
+  real-PQ evidence, and writes a local pin for that verifier binary. This
+  clears only the real-PQ verifier evidence gate; it does not make the WUCI-JI
+  system quantum-safe.
 - Internal crypto self-audit evidence that is explicitly not an external audit.
+- Signed external audit evidence tooling. `tools/wuci_external_audit.py`
+  verifies report digests, required scope, current reviewed commit, and an
+  OpenSSH Ed25519 signature in the `wuci-external-audit-v1` namespace. Unsigned
+  verification is test-only through `--allow-unsigned-audit`.
 - Deterministic local parser corpus replay through assembly parser/verifier
   surfaces.
 - Release bundle verification evidence in
@@ -61,17 +68,20 @@ These targets produce or verify:
   containment are not complete. CARROT currently proves a narrow
   network-syscall deny lane on kernels that allow seccomp filters and
   unprivileged user+net namespaces.
-- Real pinned PQ verifier evidence is not available unless
-  `tools/wuci_pq_verifier.py verify-real` passes against reviewed pins. To
-  generate candidate evidence, provide a real external verifier implementing
-  `wuci-pq-external-verify-v1` and run `make pq-verifier-real-attest` with
-  `PQ_VERIFIER_BIN`, KAT public key/message/signature paths, implementation
-  metadata, and `REAL_PQ_VERIFIER_EVIDENCE`.
+- Real pinned PQ verifier evidence is available only when
+  `tools/wuci_pq_verifier.py verify-real` passes against reviewed pins. The
+  local Rust FIPS 204 verifier path can produce local ML-DSA verifier evidence
+  with `make pq-verifier-fips204-proof`, but that evidence is still only a
+  verifier gate and not a quantum-safe system claim.
 - Release bundle verification currently records blockers instead of a
   production-ready claim when the install manifest is not signed for the
   current build, no real pinned PQ verifier evidence exists, no signed
-  non-fixture production authority ceremony is supplied, or only internal
-  self-audit evidence exists.
+  non-fixture production authority ceremony is supplied, or no signed
+  independent external audit evidence is supplied.
+- External audit evidence can only clear its blocker when an external report,
+  evidence JSON, auditor root public key, and detached signature all verify.
+  The current repository contains the verifier workflow, not an external audit
+  report or private signing key.
 - The current-build install manifest blocker can only be cleared by the install
   root key holder through `make install-sign-current
   INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key`; private keys must
@@ -92,6 +102,10 @@ A future production-ready claim requires all of the following:
 - Release SBOM and provenance artifacts generated from a clean tree.
 - Repeatable release build with SHA-256/SHA-384/SHA-512 public evidence.
 - Independent security review or audit record covering the production surface.
+  `tools/wuci_external_audit.py emit`, `sign-evidence`, and `verify` provide
+  the local evidence format. Production release verification requires an
+  external OpenSSH Ed25519 audit root signature; unsigned audit verification is
+  test-only and must use `--allow-unsigned-audit`.
 - Release-grade Rust sandbox wrapper evidence, kernel no-network proof, and
   independent review of the wrapper's namespace/seccomp posture.
 - Fuzz/adversarial parser evidence for artifact, contract, witness, and ledger

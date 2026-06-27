@@ -4,7 +4,11 @@
   "self_audit_allowed_as_evidence": true,
   "self_audit_sufficient_for_production_ready": false,
   "required_external_audit_evidence": {
+    "schema": "wuci-external-audit-evidence-v1",
+    "verification_schema": "wuci-external-audit-verification-v1",
     "auditor_identity": true,
+    "audit_id": true,
+    "reviewed_commit": true,
     "scope": [
       "assembly crypto primitives",
       "artifact envelope authentication",
@@ -13,13 +17,33 @@
       "witness and ledger proof formats",
       "sandbox wrapper"
     ],
+    "required_verification_scope": [
+      "crypto",
+      "pq-verifier",
+      "production-authority",
+      "release-bundle",
+      "runtime-sandbox"
+    ],
+    "external_audit": true,
+    "production_sufficient": true,
+    "fixture_material_used": false,
+    "network_required": false,
+    "offensive_tooling_included": false,
     "report_digest_sha256": true,
+    "report_digest_sha384": true,
+    "report_digest_sha512": true,
     "finding_disposition": true,
-    "production_surface_version": true
+    "required_finding_disposition": "all-production-blocking-findings-closed",
+    "production_surface_version": true,
+    "signature_required": true,
+    "signature_namespace": "wuci-external-audit-v1",
+    "signature_identity": "wuci-external-audit",
+    "root_key_type": "OpenSSH Ed25519"
   },
   "non_claims": [
     "passing KATs is not an independent audit",
     "static caller audits are not constant-time certification",
-    "internal review is not external cryptographic assurance"
+    "internal review is not external cryptographic assurance",
+    "unsigned external-audit evidence is test-only"
   ]
 }

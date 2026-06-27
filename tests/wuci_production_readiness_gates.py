@@ -64,8 +64,18 @@ def main() -> None:
     assert audit["schema"] == "wuci-crypto-audit-policy-v1"
     assert audit["self_audit_allowed_as_evidence"] is True
     assert audit["self_audit_sufficient_for_production_ready"] is False
+    assert audit["required_external_audit_evidence"]["schema"] == "wuci-external-audit-evidence-v1"
+    assert audit["required_external_audit_evidence"]["verification_schema"] == "wuci-external-audit-verification-v1"
     assert audit["required_external_audit_evidence"]["report_digest_sha256"] is True
+    assert audit["required_external_audit_evidence"]["report_digest_sha384"] is True
+    assert audit["required_external_audit_evidence"]["report_digest_sha512"] is True
+    assert audit["required_external_audit_evidence"]["signature_required"] is True
+    assert audit["required_external_audit_evidence"]["signature_namespace"] == "wuci-external-audit-v1"
+    assert audit["required_external_audit_evidence"]["required_finding_disposition"] == "all-production-blocking-findings-closed"
+    for scope in ("crypto", "pq-verifier", "production-authority", "release-bundle", "runtime-sandbox"):
+        assert scope in audit["required_external_audit_evidence"]["required_verification_scope"]
     assert "passing KATs is not an independent audit" in audit["non_claims"]
+    assert "unsigned external-audit evidence is test-only" in audit["non_claims"]
 
     assert pq["schema"] == "wuci-pq-verifier-contract-v1"
     assert "ML-DSA" in pq["accepted_signature_algorithms"]
