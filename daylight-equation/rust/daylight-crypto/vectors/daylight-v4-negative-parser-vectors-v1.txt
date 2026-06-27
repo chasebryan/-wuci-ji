@@ -1,0 +1,31 @@
+# Daylight Envelope v4 deterministic negative parser vectors v1.
+# These are minimized parser fixtures, not adversarial tooling or production data.
+version=daylight-v4-negative-parser-vectors-v1
+cases=nonminimal_uint,indefinite_array,unsupported_map,trailing_data,truncated_bytes,header_unsupported_version,header_wrong_version_type,envelope_wrong_length,envelope_unknown_label
+case.nonminimal_uint.target=enc
+case.nonminimal_uint.input_hex=1817
+case.nonminimal_uint.expected=non-minimal CBOR integer or length
+case.indefinite_array.target=enc
+case.indefinite_array.input_hex=9fff
+case.indefinite_array.expected=indefinite-length CBOR is forbidden
+case.unsupported_map.target=enc
+case.unsupported_map.input_hex=a0
+case.unsupported_map.expected=unsupported CBOR major type
+case.trailing_data.target=enc
+case.trailing_data.input_hex=0102
+case.trailing_data.expected=trailing CBOR data
+case.truncated_bytes.target=enc
+case.truncated_bytes.input_hex=4361
+case.truncated_bytes.expected=truncated CBOR input
+case.header_unsupported_version.target=header
+case.header_unsupported_version.input_hex=9003000000000000000000000000000000
+case.header_unsupported_version.expected=unsupported Daylight header version
+case.header_wrong_version_type.target=header
+case.header_wrong_version_type.input_hex=906176000000000000000000000000000000
+case.header_wrong_version_type.expected=expected CBOR uint
+case.envelope_wrong_length.target=envelope
+case.envelope_wrong_length.input_hex=88746461796c696768742e656e76656c6f70652e763400000000000000
+case.envelope_wrong_length.expected=unexpected CBOR array length
+case.envelope_unknown_label.target=envelope
+case.envelope_unknown_label.input_hex=8961780000000000000000
+case.envelope_unknown_label.expected=unknown DaylightEnvelopeV4 label
