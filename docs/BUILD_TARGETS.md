@@ -94,6 +94,12 @@ gates, Gate contract assembly checks, and the full qemu Linux CLI test.
 mutations through assembly parser/verifier surfaces. It is local fail-closed
 replay evidence, not offensive fuzzing or a coverage-guided CI fuzzer.
 
+`wjstar-model-test` checks the formal WJ* composition model in
+`docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
+AEAD/FROST/Gate/Merkle/witness open predicate and the 2-of-3 threshold
+probability calculation. It is a model-consistency gate, not a production
+cryptography claim.
+
 `verify-release-bundle` writes `build/wuci-release-bundle-verification.json`.
 It verifies SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
 evidence, crypto self-audit, parser replay, production authority policy,

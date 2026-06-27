@@ -1,0 +1,70 @@
+{
+  "schema": "wuci-wjstar-model-v1",
+  "status": "formal-target-composition-not-production-claim",
+  "composition": "WJ* = AEAD + FROST_(2/3) + H-Merkle + G + R",
+  "components": {
+    "AEAD": {
+      "role": "secrecy",
+      "construction": "C = AEAD.Enc_K(A; AD = M || G)",
+      "key_schedule": "K = KDF(s, M)"
+    },
+    "FROST_2_of_3": {
+      "role": "authority",
+      "message": "H(W)",
+      "verify": "V_F(sigma_F, H(W), PK_F) = 1",
+      "n": 3,
+      "t": 2
+    },
+    "H_Merkle": {
+      "role": "evidence",
+      "root": "R = MerkleRoot{H(C), H(M), H(G), H(W), H(sigma_F)}"
+    },
+    "G": {
+      "role": "policy",
+      "predicate": "G(M) = 1"
+    },
+    "R": {
+      "role": "witness",
+      "predicate": "MerkleVerify(H(W), R, path) = 1"
+    }
+  },
+  "objects": {
+    "A": "artifact",
+    "M": "H(A || v || pi)",
+    "G": "pi(M)",
+    "W": "(M, G, tau, rho)",
+    "sigma_F": "FROST.Sign_(2/3)(H(W))",
+    "Omega": "(C, M, G, W, sigma_F, R, path)"
+  },
+  "open_predicate": [
+    "AEAD.Dec_K(C; M || G) = A",
+    "V_F(sigma_F, H(W), PK_F) = 1",
+    "G(M) = 1",
+    "MerkleVerify(H(W), R, path) = 1"
+  ],
+  "threshold_probability": {
+    "formula": "P_auth(p; 3, 2) = P_break(c; 3, 2) = 3x^2 - 2x^3",
+    "p_auth_at_0_95": "0.99275",
+    "p_break_at_0_01": "0.000298",
+    "one_of_one_break": "c",
+    "two_of_three_break_small_c": "approximately 3c^2",
+    "selected_threshold": {
+      "n": 3,
+      "t": 2,
+      "reason": "minimize complexity while improving loss tolerance and single-key compromise resistance"
+    }
+  },
+  "implementation_mapping": {
+    "AEAD": "assembly envelope open/seal and Gate-authorized open paths",
+    "FROST_2_of_3": "target production authority profile; current fixture FROST remains test-only",
+    "H_Merkle": "ledger leaf/root/proof primitives and witness/ledger tooling",
+    "G": "Gate contract and rooted authority predicates",
+    "R": "public witness bundle and ledger evidence"
+  },
+  "non_claims": [
+    "this model does not make fixture FROST production authority",
+    "this model does not claim post-quantum security",
+    "this model does not claim runtime sandboxing",
+    "this model does not replace independent cryptographic audit"
+  ]
+}

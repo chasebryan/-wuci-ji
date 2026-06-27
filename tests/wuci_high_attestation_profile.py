@@ -72,6 +72,7 @@ def main() -> None:
     assert controls["ledger_history_verification_required"] is harden["ledger_policy"]["verify_history_required"]
     assert controls["unsigned_install_manifest_rejected"] is True
     assert controls["machine_readable_cli_outputs"] is True
+    assert controls["wjstar_formal_composition_model"] is True
     assert controls["deterministic_parser_corpus_replay"] is True
     assert controls["release_bundle_verifier"] is True
     assert controls["real_pq_verifier_pins_fail_closed"] is True

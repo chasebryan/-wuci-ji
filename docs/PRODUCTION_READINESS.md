@@ -32,6 +32,9 @@ These targets produce or verify:
   `wuci-ji sandbox-seccomp-net-deny-selftest` plus namespace entry checks.
 - Compiled Rust wrapper evidence through `make rust-sandbox-test`.
 - Fixture-authority production rejection gates.
+- Formal WJ* composition model checks through `make wjstar-model-test`, covering
+  AEAD secrecy, 2-of-3 FROST authority, Gate policy, H-Merkle evidence, and
+  witness root mapping. This is a target model, not a production claim.
 - Real-PQ verifier detection that fails closed for quantum-safe claims when no
   pinned verifier is available. `make pq-verifier-fips204-proof` builds the
   local Rust FIPS 204 ML-DSA verifier, runs its KAT/selftest, emits v2

@@ -20,8 +20,10 @@ assembly and Zig lanes, produce public witness evidence, append ledger history,
 emit local SBOM/provenance evidence, and audit a signed local install. See
 [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md),
 [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md),
-and [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) for the exact split
-between assembly, Zig, Python, Makefile, CI, and fixture authority.
+[docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md), and
+[docs/wuci_wjstar_model.md](docs/wuci_wjstar_model.md) for the exact split
+between assembly, Zig, Python, Makefile, CI, fixture authority, and the WJ*
+target composition model.
 
 ## Minimal Build And Test
 
