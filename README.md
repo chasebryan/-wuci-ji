@@ -348,6 +348,8 @@ make qcage-model-test
 make qcage-policy-matrix
 make qcage-proof
 make harden-proof
+make high-attestation-profile
+make high-attestation-proof
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test
@@ -373,6 +375,12 @@ manifest, warrant message, receipt, and opened binary. The attestation records
 the relevant SHA-256 values, Gate decision fields, byte-identity check,
 executable check, and current boundary statement. `make
 verify-self-release-bundle` recomputes those checks from the bundle files.
+`make high-attestation-profile` validates the local defensive baseline in
+`docs/wuci_high_attestation_profile.json`; `make high-attestation-proof`
+composes that baseline with the pinned qemu X25519 lane, assembly checks,
+HARDEN, CAGE/QCAGE, Gate contract, and full Linux CLI harness. This is a local
+evidence-strengthening lane, not a claim of runtime sandboxing, quantum safety,
+production authority, or vulnerability absence.
 `make self-release-contract-bundle` also writes `receipt-contract.txt`, opens
 through the Zig flat-contract verifier, and records the contract hash plus Zig
 contract verification checks in the attestation.

@@ -51,6 +51,23 @@ make witness-archive-test
 make reproducible-build-metadata
 ```
 
+## High Attestation
+
+```sh
+make high-attestation-profile
+make high-attestation-proof
+```
+
+`high-attestation-profile` checks the machine-readable defensive baseline in
+`docs/wuci_high_attestation_profile.json`. The baseline maps current U.S.
+government defensive guidance into local WUCI controls without claiming runtime
+sandboxing, no-network containment, quantum safety, production authority, or
+absence of vulnerabilities.
+
+`high-attestation-proof` composes the profile check, pinned qemu X25519 CPU
+smoke, assembly smoke/regression audit, HARDEN policy, CAGE/QCAGE policy and
+bundle checks, Gate contract assembly checks, and the full qemu Linux CLI test.
+
 ## Zig Proof Lanes
 
 ```sh
