@@ -56,6 +56,8 @@ make reproducible-build-metadata
 ```sh
 make high-attestation-profile
 make high-attestation-proof
+make sbom-provenance
+make sbom-provenance-test
 ```
 
 `high-attestation-profile` checks the machine-readable defensive baseline in
@@ -66,7 +68,14 @@ absence of vulnerabilities.
 
 `high-attestation-proof` composes the profile check, pinned qemu X25519 CPU
 smoke, assembly smoke/regression audit, HARDEN policy, CAGE/QCAGE policy and
-bundle checks, Gate contract assembly checks, and the full qemu Linux CLI test.
+bundle checks, SBOM/provenance evidence, Gate contract assembly checks, and the
+full qemu Linux CLI test.
+
+`sbom-provenance` emits and verifies `build/wuci-sbom.json` and
+`build/wuci-provenance.json` without network access. The generated provenance
+records Apache-2.0 licensing, toolchain evidence, git state, binary hashes, the
+pinned qemu CPU model, the high-attestation profile digest, and the current
+non-production-ready status.
 
 ## Zig Proof Lanes
 

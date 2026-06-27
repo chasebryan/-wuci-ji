@@ -17,7 +17,9 @@ authority.
 The strongest current claim is mechanical, not production trust: the repo can
 build a Linux x86_64 binary, seal it, warrant it, verify flat contracts through
 assembly and Zig lanes, produce public witness evidence, append ledger history,
-and audit a signed local install. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+emit local SBOM/provenance evidence, and audit a signed local install. See
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md),
+[docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md),
 and [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) for the exact split
 between assembly, Zig, Python, Makefile, CI, and fixture authority.
 
@@ -350,6 +352,8 @@ make qcage-proof
 make harden-proof
 make high-attestation-profile
 make high-attestation-proof
+make sbom-provenance
+make sbom-provenance-test
 make witness-zig
 make verify-self-release-bundle
 make self-release-attestation-test
@@ -454,4 +458,4 @@ rooted `open`, `release`, and rooted `release` contract paths itself.
 
 ## License
 
-NO SUCH MACHINE — ALL RIGHTS RESERVED. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

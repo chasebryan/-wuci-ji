@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE = REPO_ROOT / "docs" / "wuci_high_attestation_profile.json"
 HARDENING_POLICY = REPO_ROOT / "docs" / "wuci_hardening_policy.json"
 QCAGE_POLICY = REPO_ROOT / "docs" / "wuci_qcage_policy.json"
+PRODUCTION_READINESS = REPO_ROOT / "docs" / "PRODUCTION_READINESS.md"
 MAKEFILE = REPO_ROOT / "Makefile"
 
 
@@ -22,9 +23,11 @@ def main() -> None:
     harden = json.loads(HARDENING_POLICY.read_text(encoding="utf-8"))
     qcage = json.loads(QCAGE_POLICY.read_text(encoding="utf-8"))
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    readiness = PRODUCTION_READINESS.read_text(encoding="utf-8")
 
     assert profile["schema"] == "wuci-high-attestation-profile-v1"
     assert profile["status"] == "defensive-high-attestation-baseline-v1"
+    assert profile["adoption_license"] == "Apache-2.0"
 
     authorities = {entry["authority"] for entry in profile["government_baseline"]}
     assert {"NIST", "OMB", "NSA", "CISA"}.issubset(authorities)
@@ -88,6 +91,10 @@ def main() -> None:
     for target in required_targets:
         assert f"{target}:" in makefile or f" {target}" in makefile, target
         assert target in makefile, target
+
+    assert "WUCI-JI is not production-ready today." in readiness
+    assert "production-readiness evidence candidate" in readiness
+    assert "Apache-2.0" in readiness
 
     if not args.quiet:
         print("wuci high-attestation profile: PASS")

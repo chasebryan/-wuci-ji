@@ -50,6 +50,8 @@ QCAGE_BUILD_GRAPH ?= build/wuci-qcage-build-graph.json
 QCAGE_ATTESTATION ?= build/wuci-qcage-attestation.json
 HARDEN_TRUSTED_BIN_SHA256 ?=
 HARDEN_STRICT ?= 1
+WUCI_SBOM ?= build/wuci-sbom.json
+WUCI_PROVENANCE ?= build/wuci-provenance.json
 INSTALL_PREFIX ?= $(HOME)/.local
 INSTALL_ROOT_KEY ?= $(HOME)/.config/wuci-ji/install-root.pub
 INSTALL_MANIFEST ?= install/wuci-install-manifest.v1
@@ -62,7 +64,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof install-audit install-key-check install-manifest install-proof install-test install-verify ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof install-audit install-key-check install-manifest install-proof install-test install-verify ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history parser-adversarial-test publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-contract-demo self-release-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 
 all: check-native $(TARGET)
 
@@ -673,7 +675,16 @@ harden0-proof: harden0-policy-matrix harden0-safeio-test harden0-verifier-identi
 high-attestation-profile:
 	$(PYTHON) tests/wuci_high_attestation_profile.py --quiet
 
-high-attestation-proof: high-attestation-profile check-qemu-x25519-cpu asm-smoke check-asm-immediates harden-policy-matrix cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix gate-contract-asm test-linux
+sbom-provenance: build-linux
+	$(PYTHON) tools/wuci_provenance.py emit --repo . --sbom $(WUCI_SBOM) --provenance $(WUCI_PROVENANCE) --quiet
+	$(PYTHON) tools/wuci_provenance.py verify --repo . --sbom $(WUCI_SBOM) --provenance $(WUCI_PROVENANCE) --quiet
+	@printf 'WUCI SBOM: %s\n' "$(WUCI_SBOM)"
+	@printf 'WUCI provenance: %s\n' "$(WUCI_PROVENANCE)"
+
+sbom-provenance-test:
+	$(PYTHON) tests/wuci_provenance.py --quiet
+
+high-attestation-proof: high-attestation-profile sbom-provenance sbom-provenance-test check-qemu-x25519-cpu asm-smoke check-asm-immediates harden-policy-matrix cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix gate-contract-asm test-linux
 	@printf 'WUCI high-attestation proof complete\n'
 
 install-key-check:

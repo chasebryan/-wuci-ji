@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TOOL = REPO_ROOT / "tools" / "wuci_provenance.py"
+
+
+def run_cmd(argv: list[str]) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        argv,
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def assert_ok(proc: subprocess.CompletedProcess[bytes], label: str) -> None:
+    assert proc.returncode == 0, (
+        label,
+        proc.returncode,
+        proc.stdout.decode("utf-8", "replace"),
+        proc.stderr.decode("utf-8", "replace"),
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Check WUCI SBOM/provenance behavior.")
+    parser.add_argument("--quiet", action="store_true", help="suppress summary")
+    args = parser.parse_args()
+
+    with tempfile.TemporaryDirectory(prefix="wuci-provenance-") as tmp_name:
+        tmp = Path(tmp_name)
+        sbom = tmp / "wuci-sbom.json"
+        provenance = tmp / "wuci-provenance.json"
+
+        assert_ok(
+            run_cmd(
+                [
+                    sys.executable,
+                    str(TOOL),
+                    "emit",
+                    "--repo",
+                    str(REPO_ROOT),
+                    "--sbom",
+                    str(sbom),
+                    "--provenance",
+                    str(provenance),
+                    "--quiet",
+                ]
+            ),
+            "emit provenance",
+        )
+        assert_ok(
+            run_cmd(
+                [
+                    sys.executable,
+                    str(TOOL),
+                    "verify",
+                    "--repo",
+                    str(REPO_ROOT),
+                    "--sbom",
+                    str(sbom),
+                    "--provenance",
+                    str(provenance),
+                    "--quiet",
+                ]
+            ),
+            "verify provenance",
+        )
+
+        sbom_data = json.loads(sbom.read_text(encoding="utf-8"))
+        provenance_data = json.loads(provenance.read_text(encoding="utf-8"))
+
+        assert sbom_data["schema"] == "wuci-sbom-v1"
+        assert sbom_data["license"] == "Apache-2.0"
+        assert sbom_data["network_required"] is False
+        assert sbom_data["package_manager_dependencies"] == []
+        assert any(item["path"] == "LICENSE" for item in sbom_data["files"])
+        assert any(item["path"] == "NOTICE" for item in sbom_data["files"])
+
+        assert provenance_data["schema"] == "wuci-provenance-v1"
+        assert provenance_data["license"] == "Apache-2.0"
+        assert provenance_data["qemu"]["cpu"] == "Haswell-v4"
+        assert provenance_data["production_readiness"]["claim"] == "not-production-ready"
+        assert provenance_data["production_readiness"]["current_best_lane"] == "make high-attestation-proof"
+
+    if not args.quiet:
+        print("wuci provenance: PASS")
+
+
+if __name__ == "__main__":
+    main()
