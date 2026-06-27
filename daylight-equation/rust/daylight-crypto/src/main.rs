@@ -33,12 +33,13 @@ fn run() -> Result<(), String> {
         "slhdsa-shake-256s-selftest" => run_slhdsa_shake_256s_selftest(),
         "v4-reference-vector" => run_v4_reference_vector(),
         "v6-schema-vector" => run_v6_schema_vector(),
+        "v6-provider-kem-evidence" => run_v6_provider_kem_evidence(),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -234,6 +235,69 @@ fn run_v6_schema_vector() -> Result<(), String> {
     println!("T1_hex={}", hex_lower(&vector.transcript.t1));
     println!("h1_hex={}", hex_lower(&vector.transcript.h1));
     println!("AuthMsg_hex={}", hex_lower(&vector.transcript.auth_msg));
+    Ok(())
+}
+
+fn run_v6_provider_kem_evidence() -> Result<(), String> {
+    let evidence = daylight_crypto::v6::daylight_v6_provider_kem_evidence()
+        .map_err(|err| format!("{err:?}"))?;
+    println!("version=daylight-v6-provider-kem-evidence-v1");
+    println!("profile=fixture-only-provider-kem");
+    println!("expected_result=not_open");
+    println!("provider_backed_kem={}", evidence.provider_backed_kem);
+    println!(
+        "provider_backed_reference_seal_open={}",
+        evidence.provider_backed_reference_seal_open
+    );
+    println!("production_allowed={}", evidence.production_allowed);
+    println!(
+        "schema_expected_rejection_stage={}",
+        evidence.schema_vector.expected_rejection_stage.as_str()
+    );
+    println!(
+        "schema_private_kem_allowed={}",
+        evidence.schema_vector.private_kem_allowed
+    );
+    println!(
+        "schema_aead_dec_allowed={}",
+        evidence.schema_vector.aead_dec_allowed
+    );
+    println!(
+        "mlkem1024_decaps_matches={}",
+        evidence.mlkem1024_decaps_matches
+    );
+    println!(
+        "dhkem_p384_decaps_matches={}",
+        evidence.dhkem_p384_decaps_matches
+    );
+    println!(
+        "h0_hex={}",
+        hex_lower(&evidence.schema_vector.transcript.h0)
+    );
+    println!(
+        "kem_hash_hex={}",
+        hex_lower(&evidence.schema_vector.transcript.kem_hash)
+    );
+    println!(
+        "kem_context_sha3_512_hex={}",
+        hex_lower(&evidence.kem_context_hash)
+    );
+    println!("ss_q_sha3_512_hex={}", hex_lower(&evidence.ss_q_hash));
+    println!("ss_c_sha3_512_hex={}", hex_lower(&evidence.ss_c_hash));
+    println!(
+        "envelope_key_sha3_512_hex={}",
+        hex_lower(&evidence.envelope_key_hash)
+    );
+    println!(
+        "commitment_key_sha3_512_hex={}",
+        hex_lower(&evidence.commitment_key_hash)
+    );
+    println!(
+        "base_nonce_sha3_512_hex={}",
+        hex_lower(&evidence.base_nonce_hash)
+    );
+    println!("enc_q_sha3_512_hex={}", hex_lower(&evidence.enc_q_hash));
+    println!("enc_c_sha3_512_hex={}", hex_lower(&evidence.enc_c_hash));
     Ok(())
 }
 

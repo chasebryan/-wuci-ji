@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 900 / 1000
+Daylight_v0.6_research_score = 910 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -30,9 +30,12 @@ independently reproduces public-precheck accept/reject behavior and
 fixture-profile private `Open` outcomes without importing the fixture
 implementation, and the checked cross-agreement evidence shows all 32 vectors
 agree across the recorded fixture runner, static public checker, and
-independent private `Open` verifier. The same artifact profile still declares
-`RealCryptoProvider = 0`, `M1Progress = partial`, no provider-backed v6
-reference `Seal`/`Open`, no formal model, and no external review.
+independent private `Open` verifier. The Rust lane also now tracks
+provider-backed v6 KEM/key-schedule evidence for the schema vector through
+pinned ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) primitive crates. The same
+artifact profile still declares `RealCryptoProvider = 0`,
+`M1Progress = partial`, no provider-backed v6 reference `Seal`/`Open`, no
+formal model, and no external review.
 
 ## Scored Evidence
 
@@ -40,13 +43,13 @@ reference `Seal`/`Open`, no formal model, and no external review.
 Byte-level schema and transcript clarity       190 / 200
 Deterministic valid and negative fixture corpus 160 / 175
 Fail-closed public-before-private ordering      125 / 125
-Pinned Rust primitive experiments               135 / 150
+Pinned Rust primitive experiments               145 / 150
 Daylight v4/v6 parser and rejection behavior    125 / 125
 Documentation, claim discipline, provenance     100 / 100
 Independent parser and vector reproduction       65 / 75
 Formal model                                      0 / 25
 External review                                   0 / 25
-Total                                           900 / 1000
+Total                                           910 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -89,6 +92,9 @@ If any item is missing, the valid score is below 1000.
   public-precheck evaluator, and fixture-profile private `Open` verifier, but
   still lacks provider-backed v6 `Seal`/`Open` and full
   cross-implementation agreement with a provider-backed lane.
+- The Rust v6 lane has provider-backed v6 KEM/key-schedule evidence for the
+  schema vector, but this evidence intentionally stops short of private `Open`
+  and does not change the `RealCryptoProvider = 0` fixture-artifact claim.
 - No public fuzz corpus or independent reproduction bundle is tracked.
 - No formal model is tracked.
 - No external reviews are tracked.
@@ -98,8 +104,8 @@ If any item is missing, the valid score is below 1000.
 ## Next Score-Raising Work
 
 1. Replace the fixture crypto predicates in a separate provider-backed v6
-   `Seal`/`Open` lane while preserving the fixture profile as non-production
-   regression data.
+   `Seal`/`Open` lane while preserving the fixture profile and the
+   provider-backed KEM/key-schedule evidence as non-production regression data.
 2. Extend the scorecard guard into generated machine-readable score evidence,
    while preserving the current failure if the scorecard says 1000 and any hard
    gate above is still missing.
@@ -116,6 +122,8 @@ If any item is missing, the valid score is below 1000.
 - [v0.6 M1 hardening reference](references/dlv0.5/v0.6M1-HARDENING.md)
 - [v0.5.1/2 hardening note](specs/daylight-envelope-hardening-v0.5.1-2.md)
 - [daylight-crypto README](rust/daylight-crypto/README.md)
+- [provider-backed v6 KEM/key-schedule evidence vector](rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt)
+- `make daylight-v6-provider-kem-evidence-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)

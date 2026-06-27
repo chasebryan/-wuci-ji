@@ -7,9 +7,10 @@
 //! rejects before any private KEM or AEAD operation would be allowed.
 
 use crate::{
-    dhkem_p384_hkdf_sha384_derive_keypair, dhkem_p384_hkdf_sha384_encaps_from_ikm,
-    mldsa87_kat_fixture, mlkem1024_kat_fixture, AeadAlgorithm, DaylightCryptoError,
-    DHKEM_P384_ENCAPSULATED_KEY_LEN, DHKEM_P384_SHARED_SECRET_LEN,
+    dhkem_p384_hkdf_sha384_decaps, dhkem_p384_hkdf_sha384_derive_keypair,
+    dhkem_p384_hkdf_sha384_encaps_from_ikm, mldsa87_kat_fixture, mlkem1024_decaps,
+    mlkem1024_kat_fixture, AeadAlgorithm, DaylightCryptoError, DHKEM_P384_ENCAPSULATED_KEY_LEN,
+    DHKEM_P384_SHARED_SECRET_LEN,
 };
 use daylight_model::{action_allowed, mode_ok, Action, Mode, Profile};
 use fips203::ml_kem_1024;
@@ -23,6 +24,8 @@ use sha3::{Digest, Sha3_512, Shake256};
 pub const DAYLIGHT_V6_MAGIC: &str = "DAYLIGHT-ENVELOPE-v6";
 pub const DAYLIGHT_AUTH_CONTEXT_V6: &[u8] = b"WUCI-DAYLIGHT:AUTH:v6";
 pub const DAYLIGHT_REVIEW_CONTEXT_V6: &[u8] = b"WUCI-DAYLIGHT:REVIEW:v6";
+const DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM: &[u8] = b"daylight v6 schema recipient";
+const DAYLIGHT_V6_SCHEMA_DHKEM_EPHEMERAL_IKM: &[u8] = b"daylight v6 schema ephemeral";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CborValue {
@@ -279,6 +282,26 @@ pub struct DaylightV6SchemaVector {
     pub expected_rejection_stage: DaylightRejectionStageV6,
     pub private_kem_allowed: bool,
     pub aead_dec_allowed: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DaylightV6ProviderKemEvidence {
+    pub schema_vector: DaylightV6SchemaVector,
+    pub kem_context: Vec<u8>,
+    pub kem_context_hash: [u8; 64],
+    pub key_schedule: DaylightKeyScheduleV6,
+    pub ss_q_hash: [u8; 64],
+    pub ss_c_hash: [u8; 64],
+    pub envelope_key_hash: [u8; 64],
+    pub commitment_key_hash: [u8; 64],
+    pub base_nonce_hash: [u8; 64],
+    pub enc_q_hash: [u8; 64],
+    pub enc_c_hash: [u8; 64],
+    pub mlkem1024_decaps_matches: bool,
+    pub dhkem_p384_decaps_matches: bool,
+    pub provider_backed_kem: bool,
+    pub provider_backed_reference_seal_open: bool,
+    pub production_allowed: bool,
 }
 
 struct EnvelopePartsV6 {
@@ -606,10 +629,11 @@ pub fn daylight_vector_public_precheck_v6(
 pub fn daylight_v6_schema_vector() -> Result<DaylightV6SchemaVector, DaylightCryptoError> {
     let artifact = b"daylight v6 schema vector artifact";
     let mlkem = mlkem1024_kat_fixture()?;
-    let dhkem_recipient = dhkem_p384_hkdf_sha384_derive_keypair(b"daylight v6 schema recipient")?;
+    let dhkem_recipient =
+        dhkem_p384_hkdf_sha384_derive_keypair(DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM)?;
     let dhkem_enc = dhkem_p384_hkdf_sha384_encaps_from_ikm(
         &dhkem_recipient.public_key,
-        b"daylight v6 schema ephemeral",
+        DAYLIGHT_V6_SCHEMA_DHKEM_EPHEMERAL_IKM,
     )?;
     let mldsa = mldsa87_kat_fixture()?;
     let domain_id = CborValue::Text("domain-a".to_string());
@@ -744,6 +768,71 @@ pub fn daylight_v6_schema_vector() -> Result<DaylightV6SchemaVector, DaylightCry
         expected_rejection_stage: DaylightRejectionStageV6::RejectAuthSignature,
         private_kem_allowed: false,
         aead_dec_allowed: false,
+    })
+}
+
+pub fn daylight_v6_provider_kem_evidence(
+) -> Result<DaylightV6ProviderKemEvidence, DaylightCryptoError> {
+    let schema_vector = daylight_v6_schema_vector()?;
+    let mlkem = mlkem1024_kat_fixture()?;
+    let dhkem_recipient =
+        dhkem_p384_hkdf_sha384_derive_keypair(DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM)?;
+    let dhkem_enc = dhkem_p384_hkdf_sha384_encaps_from_ikm(
+        &dhkem_recipient.public_key,
+        DAYLIGHT_V6_SCHEMA_DHKEM_EPHEMERAL_IKM,
+    )?;
+
+    if schema_vector.envelope.kem_block.enc_q != mlkem.ciphertext
+        || schema_vector.envelope.kem_block.enc_c != dhkem_enc.encapped_key
+    {
+        return Err(DaylightCryptoError::DecodeRejected(
+            "schema vector KEM material mismatch",
+        ));
+    }
+
+    let ss_q = mlkem1024_decaps(&mlkem.decaps_key, &schema_vector.envelope.kem_block.enc_q)?;
+    let ss_c = dhkem_p384_hkdf_sha384_decaps(
+        &dhkem_recipient.private_key,
+        &schema_vector.envelope.kem_block.enc_c,
+    )?;
+    let mlkem1024_decaps_matches = ss_q == mlkem.shared_secret;
+    let dhkem_p384_decaps_matches = ss_c == dhkem_enc.shared_secret;
+    if !mlkem1024_decaps_matches || !dhkem_p384_decaps_matches {
+        return Err(DaylightCryptoError::DecapsulationFailed);
+    }
+
+    let kem_context = daylight_kem_context_v6(
+        &schema_vector.envelope.header,
+        &schema_vector.transcript.h0,
+        &schema_vector.envelope.kem_block,
+    )?;
+    let key_schedule = daylight_key_schedule_v6(
+        &ss_q,
+        &ss_c,
+        &kem_context,
+        &schema_vector.transcript.h0,
+        &schema_vector.transcript.kem_hash,
+        &schema_vector.envelope.header,
+        &schema_vector.envelope.kem_block,
+    )?;
+
+    Ok(DaylightV6ProviderKemEvidence {
+        kem_context_hash: hb_v6(&kem_context),
+        ss_q_hash: hb_v6(&ss_q),
+        ss_c_hash: hb_v6(&ss_c),
+        envelope_key_hash: hb_v6(&key_schedule.envelope_key),
+        commitment_key_hash: hb_v6(&key_schedule.commitment_key),
+        base_nonce_hash: hb_v6(&key_schedule.base_nonce),
+        enc_q_hash: hb_v6(&schema_vector.envelope.kem_block.enc_q),
+        enc_c_hash: hb_v6(&schema_vector.envelope.kem_block.enc_c),
+        schema_vector,
+        kem_context,
+        key_schedule,
+        mlkem1024_decaps_matches,
+        dhkem_p384_decaps_matches,
+        provider_backed_kem: true,
+        provider_backed_reference_seal_open: false,
+        production_allowed: false,
     })
 }
 
@@ -2314,6 +2403,32 @@ mod tests {
     }
 
     #[test]
+    fn v6_provider_kem_evidence_uses_real_kems_and_stays_non_open() {
+        let evidence = daylight_v6_provider_kem_evidence().unwrap();
+        assert!(evidence.provider_backed_kem);
+        assert!(!evidence.provider_backed_reference_seal_open);
+        assert!(!evidence.production_allowed);
+        assert!(evidence.mlkem1024_decaps_matches);
+        assert!(evidence.dhkem_p384_decaps_matches);
+        assert_ne!(
+            evidence.key_schedule.envelope_key,
+            evidence.key_schedule.commitment_key
+        );
+        assert_eq!(evidence.key_schedule.base_nonce.len(), 12);
+        assert_ne!(evidence.ss_q_hash, hb_v6(&[0u8; 32]));
+        assert_ne!(
+            evidence.ss_c_hash,
+            hb_v6(&[0u8; DHKEM_P384_SHARED_SECRET_LEN])
+        );
+        assert_eq!(
+            daylight_vector_public_precheck_v6(&evidence.schema_vector.omega, Some(1)),
+            Err(DaylightRejectionStageV6::RejectAuthSignature)
+        );
+        assert!(!evidence.schema_vector.private_kem_allowed);
+        assert!(!evidence.schema_vector.aead_dec_allowed);
+    }
+
+    #[test]
     fn v6_schema_vector_file_matches_implementation() {
         let fields = parse_vector_file(include_str!("../vectors/daylight-v6-schema-vector-v1.txt"));
         let vector = daylight_v6_schema_vector().unwrap();
@@ -2386,6 +2501,95 @@ mod tests {
         assert_eq!(
             vector_field(&fields, "AuthMsg_hex"),
             crate::hex_lower(&vector.transcript.auth_msg)
+        );
+    }
+
+    #[test]
+    fn v6_provider_kem_evidence_file_matches_implementation() {
+        let fields = parse_vector_file(include_str!(
+            "../vectors/daylight-v6-provider-kem-evidence-v1.txt"
+        ));
+        let evidence = daylight_v6_provider_kem_evidence().unwrap();
+        assert_eq!(
+            vector_field(&fields, "version"),
+            "daylight-v6-provider-kem-evidence-v1"
+        );
+        assert_eq!(
+            vector_field(&fields, "profile"),
+            "fixture-only-provider-kem"
+        );
+        assert_eq!(vector_field(&fields, "expected_result"), "not_open");
+        assert_eq!(
+            vector_field(&fields, "provider_backed_kem"),
+            evidence.provider_backed_kem.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "provider_backed_reference_seal_open"),
+            evidence.provider_backed_reference_seal_open.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "production_allowed"),
+            evidence.production_allowed.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "schema_expected_rejection_stage"),
+            evidence.schema_vector.expected_rejection_stage.as_str()
+        );
+        assert_eq!(
+            vector_field(&fields, "schema_private_kem_allowed"),
+            evidence.schema_vector.private_kem_allowed.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "schema_aead_dec_allowed"),
+            evidence.schema_vector.aead_dec_allowed.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "mlkem1024_decaps_matches"),
+            evidence.mlkem1024_decaps_matches.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "dhkem_p384_decaps_matches"),
+            evidence.dhkem_p384_decaps_matches.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "h0_hex"),
+            crate::hex_lower(&evidence.schema_vector.transcript.h0)
+        );
+        assert_eq!(
+            vector_field(&fields, "kem_hash_hex"),
+            crate::hex_lower(&evidence.schema_vector.transcript.kem_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "kem_context_sha3_512_hex"),
+            crate::hex_lower(&evidence.kem_context_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "ss_q_sha3_512_hex"),
+            crate::hex_lower(&evidence.ss_q_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "ss_c_sha3_512_hex"),
+            crate::hex_lower(&evidence.ss_c_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "envelope_key_sha3_512_hex"),
+            crate::hex_lower(&evidence.envelope_key_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "commitment_key_sha3_512_hex"),
+            crate::hex_lower(&evidence.commitment_key_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "base_nonce_sha3_512_hex"),
+            crate::hex_lower(&evidence.base_nonce_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "enc_q_sha3_512_hex"),
+            crate::hex_lower(&evidence.enc_q_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "enc_c_sha3_512_hex"),
+            crate::hex_lower(&evidence.enc_c_hash)
         );
     }
 }

@@ -99,7 +99,15 @@ def main() -> None:
         if "daylight-equation/evidence/daylight-v06-m1-cross-agreement.v1.json" not in evidence:
             raise AssertionError("machine scorecard missing cross-agreement evidence")
     if score > 900:
-        raise AssertionError("scorecard exceeds current cross-agreement evidence")
+        if "provider-backed v6 KEM/key-schedule evidence" not in text:
+            raise AssertionError("scorecard exceeds cross-agreement evidence without provider-KEM evidence")
+        evidence = set(machine["evidence"])
+        if "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt" not in evidence:
+            raise AssertionError("machine scorecard missing provider-KEM evidence vector")
+        if "daylight-v6-provider-kem-evidence-test" not in text:
+            raise AssertionError("scorecard missing provider-KEM evidence test target")
+    if score > 910:
+        raise AssertionError("scorecard exceeds provider-KEM evidence without provider-backed Seal/Open")
 
     if not args.quiet:
         print(f"Daylight scorecard gate OK: {score}/1000")

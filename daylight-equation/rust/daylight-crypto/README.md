@@ -34,6 +34,11 @@ It implements only pinned, locally available pieces:
   schemas, `HC`/`HB` digest convention helpers, v6 transcript/KDF labels,
   static policy parsing, rejection-stage tests, and a C1 schema vector CLI that
   fails closed at `REJECT_AUTH_SIGNATURE` before private KEM or AEAD.
+- Provider-backed v6 KEM/key-schedule evidence for the C1 schema vector,
+  including ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) decapsulation agreement
+  and hashed key-schedule outputs in
+  `vectors/daylight-v6-provider-kem-evidence-v1.txt`. This is not a v6
+  reference `Seal`/`Open` implementation.
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`, with a deterministic
   fixture selftest.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`, with a
@@ -50,6 +55,9 @@ fail closed.
 
 The v6 hardening module is not an M1 completion claim. It still lacks the full
 minimum C1 vector corpus and a second independent parser.
+The provider-backed v6 KEM/key-schedule evidence does not make the imported
+fixture artifact a real-crypto-provider artifact and does not authorize private
+Open or production use.
 
 The adjacent imported Python fixture artifact lives at
 `../../fixtures/daylight-v06-m1/` and is run from the repository root with
@@ -61,6 +69,7 @@ cargo test --offline
 cargo run --offline -- status
 cargo run --offline -- v4-reference-vector
 cargo run --offline -- v6-schema-vector
+cargo run --offline -- v6-provider-kem-evidence
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest
 cargo run --offline -- mlkem1024-selftest
