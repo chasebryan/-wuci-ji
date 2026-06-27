@@ -1,7 +1,7 @@
 # Rust Implementation Plan
 
 This plan keeps Daylight implementation work staged. The active minimal core
-target is `analysis/daylight-minimal-core-v0.4.md`; Daylight remains
+target is `../specs/daylight-minimal-core-v0.4.md`; Daylight remains
 `research_draft` and production-disallowed until the M5 external-review gate.
 
 ## Phase 0: Model Only

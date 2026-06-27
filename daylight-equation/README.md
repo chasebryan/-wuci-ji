@@ -27,14 +27,16 @@ See `SOURCE.md` for commit, blob, and digest provenance.
 ## Directory Layout
 
 ```text
-analysis/
+specs/
+  daylight-minimal-core-v0.4.md
+                           Active minimal core math and implementation target.
   daylight-envelope-hardening-v0.5.1-2.md
                            v0.6 M1-hardening delta implemented as the
                            v0.5.1/2 byte-level schema/transcript layer.
-  daylight-minimal-core-v0.4.md
-                           Active minimal core math and implementation target.
   daylight-envelope-math-spec-v0.3.md
                            Prior v0.3 envelope math and maturity gate.
+analysis/
+  README.md                Index for exploratory and explanatory notes.
   poster-transcription.md  Visual transcription of the poster.
   corrected-daylight-equation.md
                            Earlier corrected math/specification pass.
@@ -48,6 +50,9 @@ fixtures/
                            runner, vectors, fixture profile, and test results.
 research/
   standards-baseline.md
+references/
+  README.md                Imported source/reference material.
+  dlv0.5/                  Preserved v0.5 and v0.6 M1 reference docs.
 rust/daylight-model/
   Std-only Rust model crate for threshold/profile math only.
 rust/daylight-crypto/
@@ -73,10 +78,10 @@ rust/daylight-crypto/
 ## Current Implementation Scope
 
 The original Daylight minimal core target is tracked in
-`analysis/daylight-minimal-core-v0.4.md`. The latest hardening layer is tracked
-in `analysis/daylight-envelope-hardening-v0.5.1-2.md`, based on `DLv0.5/2.md`
-and the supplied v0.6 M1-hardening delta. Daylight remains `research_draft`,
-production-disallowed, and not externally reviewed.
+`specs/daylight-minimal-core-v0.4.md`. The latest hardening layer is tracked in
+`specs/daylight-envelope-hardening-v0.5.1-2.md`, based on
+`references/dlv0.5/2.md` and the supplied v0.6 M1-hardening delta. Daylight
+remains `research_draft`, production-disallowed, and not externally reviewed.
 
 The Rust crate under `rust/daylight-model/` only models declared action sets,
 v0.3 profiles, claim levels, mode requirements, downgrade arithmetic, and

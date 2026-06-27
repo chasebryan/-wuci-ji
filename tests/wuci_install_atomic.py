@@ -23,7 +23,9 @@ def expect_fail(fn) -> None:
 
 def main() -> None:
     argparse.ArgumentParser().add_argument("--quiet", action="store_true")
-    with tempfile.TemporaryDirectory() as tmp_name:
+    tmp_root = REPO / "build" / "test-tmp"
+    tmp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=tmp_root) as tmp_name:
         tmp = Path(tmp_name)
         target = tmp / "bin" / "wuci-ji"
         wuci_install.atomic_install_bytes(target, b"one", mode=0o755, context="binary")

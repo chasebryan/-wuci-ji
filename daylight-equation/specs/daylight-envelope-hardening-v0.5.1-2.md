@@ -2,7 +2,7 @@
 
 This note records the implementation layer added from the supplied
 `DAYLIGHT ENVELOPE -- MINIMAL MATH CORE v0.6` hardening delta over
-`DLv0.5/2.md`.
+`../references/dlv0.5/2.md`.
 
 ## Status
 

@@ -97,3 +97,18 @@ Copying the key from the same checkout creates an explicit local trust pin and
 prevents blind remote execution, but it does not protect an already-compromised
 first checkout. The install root key fingerprint should be published
 out-of-band before production use.
+
+The atomic install rule is:
+
+```text
+AtomicInstall(P, A) =
+  every existing parent of P is not a symlink
+  AND final target P is not a symlink
+  AND bytes are written to a temporary sibling path
+  AND temporary path is renamed into place
+  AND final mode matches the install mode
+```
+
+The regression test is `tests/wuci_install_atomic.py`. It uses a repository-local
+temporary root under `build/test-tmp` so Darwin hosts do not fail only because
+the default system temp directory resolves through `/var -> /private/var`.
