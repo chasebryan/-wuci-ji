@@ -27,6 +27,7 @@ See `SOURCE.md` for commit, blob, and digest provenance.
 ## Directory Layout
 
 ```text
+SCORECARD.md              Current evidence score, 1000/1000 gate, and blockers.
 specs/
   daylight-minimal-core-v0.4.md
                            Active minimal core math and implementation target.
@@ -76,6 +77,10 @@ rust/daylight-crypto/
   stdlib-only Python for repository proof lanes.
 
 ## Current Implementation Scope
+
+The current evidence score and 1000/1000 gate are tracked in `SCORECARD.md`.
+The active score is a research score only; it is not a production-readiness,
+runtime-containment, quantum-safety, or external-review claim.
 
 The original Daylight minimal core target is tracked in
 `specs/daylight-minimal-core-v0.4.md`. The latest hardening layer is tracked in
