@@ -21,7 +21,10 @@ The project root `AGENTS.md` (and its component-specific sections) are **mandato
 **Assembly core (src/*.s + include/wuci.inc)**:
 - Changes must keep `make` builds + `tests/check_asm_immediates.py` + selftest + policy matrices passing.
 - Pay extreme attention to immediates, zeroization, O_NOFOLLOW | O_EXCL | O_CLOEXEC, auth-before-plaintext, exit-time scrubbing.
-- Current WIP area (as of recent work): streaming authenticated open (temp + RENAME_NOREPLACE path prepared in `sys.s` / `write_open_plaintext`; full streaming read loop still TODO).
+- Current streaming-open boundary: direct `open-file*`, Gate-authorized
+  file opens, and file manifest/warrant/release SHA lanes stream as documented
+  in `docs/SECURITY_BOUNDARY.md`; bounded stdin/inspect/armor/raw `aead-open`
+  paths remain intentional.
 
 **Zig tools** (`tools/*.zig`):
 - Use current Zig (0.17+ dev on this machine). `@splat` and modern patterns are expected.
