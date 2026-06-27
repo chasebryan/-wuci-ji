@@ -66,6 +66,10 @@ These targets produce or verify:
   production-ready claim when the install manifest is not signed for the
   current build, no real pinned PQ verifier evidence exists, or no non-fixture
   production authority ceremony is supplied.
+- The current-build install manifest blocker can only be cleared by the install
+  root key holder through `make install-sign-current
+  INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key`; private keys must
+  stay outside the repository.
 - KEV/CVE review is represented as policy discipline, not a live vulnerability
   attestation.
 

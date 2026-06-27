@@ -277,7 +277,8 @@ def manifest_fields_for_binary(bin_path: Path) -> dict[str, str]:
     }
 
 
-def validate_repo_key_sidecar(repo_key: Path = DEFAULT_REPO_ROOT_KEY) -> str:
+def validate_repo_key_sidecar(repo_key: Path | None = None) -> str:
+    repo_key = DEFAULT_REPO_ROOT_KEY if repo_key is None else repo_key
     key_hash = sha256_file(repo_key, "repository install root key")
     sidecar = read_ascii(DEFAULT_REPO_ROOT_KEY_SHA256, "install root key sha256 sidecar")
     expected = f"{key_hash}  install/wuci-install-root.v1.pub\n"
@@ -365,6 +366,69 @@ def verify_manifest_signature(
         fail(f"install manifest signature verification failed: {detail}")
     if not quiet:
         print("install-manifest-signature: PASS")
+    return manifest
+
+
+def require_signing_key(path: Path) -> None:
+    try:
+        wuci_safeio.require_private_file_mode(path, "install signing key")
+    except wuci_safeio.SafeIOError as exc:
+        raise InstallError(str(exc)) from exc
+
+
+def sign_manifest_signature(
+    *,
+    signing_key: Path,
+    install_root_key: Path,
+    manifest_path: Path,
+    signature_path: Path,
+    ssh_keygen: str | None = None,
+    quiet: bool = False,
+) -> dict[str, str]:
+    require_signing_key(signing_key)
+    manifest_bytes = read_bytes(manifest_path, "install manifest", max_bytes=65536)
+    manifest = parse_manifest(manifest_bytes.decode("ascii"))
+    ssh = ssh_keygen_path(ssh_keygen)
+    with tempfile.TemporaryDirectory(prefix="wuci-install-sign-") as tmp:
+        sign_input = Path(tmp) / "manifest"
+        sign_input.write_bytes(manifest_bytes)
+        proc = subprocess.run(
+            [
+                ssh,
+                "-Y",
+                "sign",
+                "-f",
+                str(signing_key),
+                "-n",
+                SIGNATURE_NAMESPACE,
+                str(sign_input),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout).decode("utf-8", "replace").strip()
+            fail(f"install manifest signing failed: {detail}")
+        generated_sig = sign_input.with_suffix(sign_input.suffix + ".sig")
+        signature_bytes = read_bytes(generated_sig, "generated install manifest signature", max_bytes=65536)
+        verify_path = Path(tmp) / "manifest.sig.verify"
+        verify_path.write_bytes(signature_bytes)
+        verify_manifest_signature(
+            install_root_key=install_root_key,
+            manifest_path=manifest_path,
+            signature_path=verify_path,
+            ssh_keygen=ssh,
+            quiet=True,
+        )
+    atomic_install_bytes(
+        signature_path,
+        signature_bytes,
+        mode=0o644,
+        context="install manifest signature",
+    )
+    if not quiet:
+        print(f"wrote install manifest signature: {signature_path}")
     return manifest
 
 
@@ -723,6 +787,35 @@ def run_verify_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_sign_manifest(args: argparse.Namespace) -> int:
+    emit_json = getattr(args, "json", False)
+    manifest = sign_manifest_signature(
+        signing_key=Path(args.signing_key).expanduser(),
+        install_root_key=Path(args.install_root_key).expanduser(),
+        manifest_path=Path(args.manifest),
+        signature_path=Path(args.signature),
+        ssh_keygen=args.ssh_keygen,
+        quiet=emit_json,
+    )
+    if emit_json:
+        print_json(
+            {
+                "schema": "wuci-install-manifest-sign-v1",
+                "manifest_path": str(args.manifest),
+                "signature_path": str(args.signature),
+                "signature_verified": True,
+                "install_root_key_sha256": sha256_file(
+                    Path(args.install_root_key).expanduser(),
+                    "install root key",
+                ),
+                "binary_sha256": manifest["binary-sha256"],
+                "binary_sha384": manifest["binary-sha384"],
+                "binary_sha512": manifest["binary-sha512"],
+            }
+        )
+    return 0
+
+
 def run_install(args: argparse.Namespace) -> int:
     if args.version != VERSION:
         fail("unsupported install version")
@@ -843,6 +936,15 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--ssh-keygen")
     verify.add_argument("--json", action="store_true")
     verify.set_defaults(func=run_verify_manifest)
+
+    sign = subparsers.add_parser("sign-manifest")
+    sign.add_argument("--install-root-key", required=True)
+    sign.add_argument("--signing-key", required=True)
+    sign.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
+    sign.add_argument("--signature", default=str(DEFAULT_SIGNATURE))
+    sign.add_argument("--ssh-keygen")
+    sign.add_argument("--json", action="store_true")
+    sign.set_defaults(func=run_sign_manifest)
 
     install = subparsers.add_parser("install")
     install.add_argument("--install-root-key", required=True)

@@ -5,6 +5,8 @@ import argparse
 import contextlib
 import io
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -54,6 +56,74 @@ def main() -> None:
         assert data["out"] == str(out)
         assert data["manifest"]["binary-sha256"] == live_manifest["binary-sha256"]
         assert wuci_install.parse_manifest(out.read_text(encoding="ascii")) == data["manifest"]
+
+    ssh = shutil.which("ssh-keygen")
+    assert ssh is not None
+    with tempfile.TemporaryDirectory(prefix="wuci-install-sign-") as tmp_name:
+        tmp = Path(tmp_name)
+        key = tmp / "install-root"
+        subprocess.run(
+            [ssh, "-q", "-t", "ed25519", "-N", "", "-f", str(key)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        pub = Path(str(key) + ".pub")
+        sidecar = tmp / "install-root.pub.sha256"
+        sidecar.write_text(
+            f"{wuci_install.sha256_file(pub)}  install/wuci-install-root.v1.pub\n",
+            encoding="ascii",
+        )
+        manifest_out = tmp / "install-manifest.v1"
+        signature_out = tmp / "install-manifest.v1.sig"
+        old_root = wuci_install.DEFAULT_REPO_ROOT_KEY
+        old_sidecar = wuci_install.DEFAULT_REPO_ROOT_KEY_SHA256
+        try:
+            wuci_install.DEFAULT_REPO_ROOT_KEY = pub
+            wuci_install.DEFAULT_REPO_ROOT_KEY_SHA256 = sidecar
+            with contextlib.redirect_stdout(io.StringIO()):
+                assert (
+                    wuci_install.run_manifest(
+                        argparse.Namespace(bin=str(current_bin), out=str(manifest_out), json=False)
+                    )
+                    == 0
+                )
+            sign_capture = io.StringIO()
+            with contextlib.redirect_stdout(sign_capture):
+                assert (
+                    wuci_install.run_sign_manifest(
+                        argparse.Namespace(
+                            install_root_key=str(pub),
+                            signing_key=str(key),
+                            manifest=str(manifest_out),
+                            signature=str(signature_out),
+                            ssh_keygen=ssh,
+                            json=True,
+                        )
+                    )
+                    == 0
+                )
+            sign_data = json.loads(sign_capture.getvalue())
+            assert sign_data["schema"] == "wuci-install-manifest-sign-v1"
+            assert sign_data["signature_verified"] is True
+            assert sign_data["signature_path"] == str(signature_out)
+            assert signature_out.read_text(encoding="ascii").startswith("-----BEGIN SSH SIGNATURE-----")
+            with contextlib.redirect_stdout(io.StringIO()):
+                assert (
+                    wuci_install.run_verify_manifest(
+                        argparse.Namespace(
+                            install_root_key=str(pub),
+                            manifest=str(manifest_out),
+                            signature=str(signature_out),
+                            ssh_keygen=ssh,
+                            json=True,
+                        )
+                    )
+                    == 0
+                )
+        finally:
+            wuci_install.DEFAULT_REPO_ROOT_KEY = old_root
+            wuci_install.DEFAULT_REPO_ROOT_KEY_SHA256 = old_sidecar
 
     expect_fail(lambda: wuci_install.parse_manifest(text.rstrip("\n")))
     expect_fail(lambda: wuci_install.parse_manifest(text.replace("\n", "\r\n")))

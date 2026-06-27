@@ -335,6 +335,7 @@ byte-identical executable copy.
 make authority-root-check
 make self-release-demo
 make self-release-bundle
+make install-sign-current INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key
 make self-release-contract-bundle
 make self-release-asm-contract-proof
 make self-release-anchored-proof

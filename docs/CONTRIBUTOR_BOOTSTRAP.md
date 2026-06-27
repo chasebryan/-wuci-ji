@@ -12,6 +12,7 @@ promised on macOS, Windows, arm64, or non-Linux kernels.
 | Linux+QEMU test | Zig, Python 3, `qemu-x86_64` |
 | Zig cross-build | Zig |
 | Install proof | Python 3, OpenSSH `ssh-keygen`, copied install root key |
+| Install signing | OpenSSH `ssh-keygen`, external private install signing key |
 | CARROT kernel proof | Linux `unshare` with unprivileged user+network namespaces and seccomp filter support |
 | Rust sandbox wrapper build/test | `rustc` |
 
@@ -79,6 +80,17 @@ make install-proof INSTALL_ROOT_KEY=$HOME/.config/wuci-ji/install-root.pub INSTA
 
 The install lane is noninteractive and requires a local copied root key. It
 does not fetch remote code or claim runtime/PQ assurance.
+
+Release signing is also noninteractive, but it requires the private install
+root signing key holder:
+
+```sh
+make install-sign-current INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key
+```
+
+The command regenerates the current manifest, signs it in the
+`wuci-install-v1` OpenSSH namespace, and verifies the detached signature before
+writing it. Do not put private signing keys in the repository.
 
 ## Common Failures
 

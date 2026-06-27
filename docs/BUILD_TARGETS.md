@@ -21,6 +21,7 @@ make build-linux
 make asm-smoke
 make test
 make install-test
+make install-sign-current INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key
 make parser-adversarial-test
 make aead-boundary-test
 make secret-path-isolation-test

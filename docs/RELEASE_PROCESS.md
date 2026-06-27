@@ -36,6 +36,19 @@ make sbom-provenance
 make verify-release-bundle
 ```
 
+When the install root key holder is ready to bind the current build, sign the
+current manifest noninteractively:
+
+```sh
+make install-sign-current INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key
+make install-verify INSTALL_ROOT_KEY=install/wuci-install-root.v1.pub
+```
+
+The signing key is never committed. `install-sign-current` regenerates the
+manifest for the current binary, creates an OpenSSH detached signature in the
+`wuci-install-v1` namespace, and verifies that signature against the install
+root public key before writing `$(INSTALL_SIGNATURE)`.
+
 `make verify-release-bundle` writes
 `build/wuci-release-bundle-verification.json`. The verifier recomputes binary
 digests, checks SBOM/provenance, CARROT, PQ detector, crypto self-audit, parser
