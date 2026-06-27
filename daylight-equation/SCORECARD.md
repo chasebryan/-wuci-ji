@@ -144,6 +144,8 @@ If any item is missing, the valid score is below 1000.
 - A composed Daylight 1000 claim gate is tracked and intentionally exits
   nonzero until the scorecard, signed external-review set, and integrated
   Daylight authority evidence all prove the 1000 checkpoint.
+- A guarded Daylight 1000 checkpoint writer is tracked and refuses to write a
+  checkpoint artifact unless the composed claim gate is ready.
 
 ## Next Score-Raising Work
 
@@ -210,6 +212,9 @@ If any item is missing, the valid score is below 1000.
 - [1000 claim gate](../tools/daylight_1000_gate.py)
 - [1000 claim gate test](../tests/daylight_1000_gate.py)
 - `make daylight-v06-1000-claim-gate-test`
+- [1000 checkpoint writer](../tools/daylight_1000_checkpoint.py)
+- [1000 checkpoint writer test](../tests/daylight_1000_checkpoint.py)
+- `make daylight-v06-1000-checkpoint-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)

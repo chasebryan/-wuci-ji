@@ -100,7 +100,9 @@
     "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
     "tests/daylight_v06_1000_preflight.py",
     "tools/daylight_1000_gate.py",
-    "tests/daylight_1000_gate.py"
+    "tests/daylight_1000_gate.py",
+    "tools/daylight_1000_checkpoint.py",
+    "tests/daylight_1000_checkpoint.py"
   ],
   "hard_gates": [
     {
@@ -172,6 +174,11 @@
       "name": "daylight_1000_claim_gate",
       "satisfied": true,
       "reason": "The repo checks a composed Daylight 1000 claim gate that exits nonzero until scorecard, external review set, and integrated authority evidence all prove the checkpoint."
+    },
+    {
+      "name": "daylight_1000_checkpoint_writer",
+      "satisfied": true,
+      "reason": "The repo checks a guarded Daylight 1000 checkpoint writer that refuses to write a checkpoint artifact unless the composed claim gate is ready."
     },
     {
       "name": "daylight_authority_verifier",

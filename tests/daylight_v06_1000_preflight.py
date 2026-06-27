@@ -90,6 +90,7 @@ def main() -> None:
         == "daylight-v06-authority-verification-v1"
     )
     assert requirements["compatible_daylight_1000_claim_gate_schema"] == "daylight-v06-1000-claim-gate-v1"
+    assert requirements["compatible_daylight_1000_checkpoint_schema"] == "daylight-v06-1000-checkpoint-v1"
 
     for evidence in (
         "daylight-equation/research/daylight-v06-1000-preflight.md",
@@ -97,17 +98,23 @@ def main() -> None:
         "tests/daylight_v06_1000_preflight.py",
         "tools/daylight_1000_gate.py",
         "tests/daylight_1000_gate.py",
+        "tools/daylight_1000_checkpoint.py",
+        "tests/daylight_1000_checkpoint.py",
     ):
         assert evidence in machine["evidence"]
         assert Path(evidence).name in scorecard
     assert hard_gates.get("daylight_1000_preflight") is True
     assert hard_gates.get("daylight_1000_claim_gate") is True
+    assert hard_gates.get("daylight_1000_checkpoint_writer") is True
     assert "daylight-v06-1000-preflight-test:" in makefile
     assert "daylight-v06-1000-preflight-test" in scorecard
     assert "daylight-v06-1000-preflight-test" in build_targets
     assert "daylight-v06-1000-claim-gate-test:" in makefile
     assert "daylight-v06-1000-claim-gate-test" in scorecard
     assert "daylight-v06-1000-claim-gate-test" in build_targets
+    assert "daylight-v06-1000-checkpoint-test:" in makefile
+    assert "daylight-v06-1000-checkpoint-test" in scorecard
+    assert "daylight-v06-1000-checkpoint-test" in build_targets
 
     doc_flat = " ".join(doc.split())
     for phrase in (

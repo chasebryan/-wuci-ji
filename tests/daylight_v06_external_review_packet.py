@@ -50,6 +50,8 @@ def main() -> None:
         "tests/daylight_authority.py",
         "tools/daylight_1000_gate.py",
         "tests/daylight_1000_gate.py",
+        "tools/daylight_1000_checkpoint.py",
+        "tests/daylight_1000_checkpoint.py",
     ):
         assert required in paths
 
@@ -88,11 +90,14 @@ def main() -> None:
     assert "tests/daylight_authority.py" in evidence
     assert "tools/daylight_1000_gate.py" in evidence
     assert "tests/daylight_1000_gate.py" in evidence
+    assert "tools/daylight_1000_checkpoint.py" in evidence
+    assert "tests/daylight_1000_checkpoint.py" in evidence
     hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
     assert hard_gates.get("external_review_packet") is True
     assert hard_gates.get("external_review_verifier") is True
     assert hard_gates.get("daylight_authority_verifier") is True
     assert hard_gates.get("daylight_1000_claim_gate") is True
+    assert hard_gates.get("daylight_1000_checkpoint_writer") is True
     assert hard_gates.get("external_review") is False
 
     if not args.quiet:

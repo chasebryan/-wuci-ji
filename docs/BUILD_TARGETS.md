@@ -154,6 +154,12 @@ Daylight authority evidence, then exits nonzero until every 1000 checkpoint
 condition is proved. It is not external review, not production authority, and
 does not raise the score.
 
+`daylight-v06-1000-checkpoint-test` checks
+`tools/daylight_1000_checkpoint.py`, the guarded Daylight v0.6 1000 checkpoint
+writer. It refuses to write a checkpoint artifact unless the composed 1000
+claim gate is ready. It is not external review, not production authority, and
+does not raise the score.
+
 `daylight-v06-authority-verifier-test` checks `tools/daylight_authority.py`,
 the Daylight v0.6 public-authority candidate verifier. It exercises signed
 non-fixture WUCI open/release authority verification and proves the candidate

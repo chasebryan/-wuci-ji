@@ -63,6 +63,14 @@
       "purpose": "1000 claim gate test"
     },
     {
+      "path": "tools/daylight_1000_checkpoint.py",
+      "purpose": "guarded 1000 checkpoint writer"
+    },
+    {
+      "path": "tests/daylight_1000_checkpoint.py",
+      "purpose": "1000 checkpoint writer test"
+    },
+    {
       "path": "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
       "purpose": "v6 byte-schema freeze evidence"
     },
@@ -81,6 +89,7 @@
     "make daylight-v06-m4-symbolic-model-test",
     "make daylight-v06-1000-preflight-test",
     "make daylight-v06-1000-claim-gate-test",
+    "make daylight-v06-1000-checkpoint-test",
     "make daylight-v06-external-review-verifier-test",
     "make daylight-v06-authority-verifier-test",
     "make daylight-v6-provider-vector-agreement-test",
