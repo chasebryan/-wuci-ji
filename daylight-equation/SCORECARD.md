@@ -38,7 +38,10 @@ AEAD seal/open with `AD = T0`, artifact commitment checking, and public
 precheck rejection before private work. A provider-backed v6 reference
 `Seal`/`Open` lane now seals and opens the C1 schema artifact with provider
 ML-KEM, DHKEM, and AEAD while requiring explicit non-production external public
-precheck evidence. The same artifact profile still declares
+precheck evidence. Provider-backed v6 vector-agreement evidence now checks the
+KEM/key-schedule, private-roundtrip, and reference `Seal`/`Open` vectors
+against the same artifact and non-production public-boundary claims. The same
+artifact profile still declares
 `RealCryptoProvider = 0`, `M1Progress = partial`, no integrated production
 public authority, no complete formal model, and no external review.
 
@@ -117,8 +120,9 @@ If any item is missing, the valid score is below 1000.
 
 ## Next Score-Raising Work
 
-1. Extend cross-implementation agreement output to include the provider-backed
-   reference `Seal`/`Open` lane.
+1. Expand provider-backed vector agreement from the current C1 reference
+   evidence into a full valid/negative corpus and a second independent
+   implementation.
 2. Replace externally supplied public precheck evidence with integrated
    certificate, revocation, transparency-log, install, witness, publish, and
    trust-authority verification gates.
@@ -140,6 +144,9 @@ If any item is missing, the valid score is below 1000.
 - `make daylight-v6-provider-private-roundtrip-test`
 - [provider-backed v6 reference `Seal`/`Open` evidence vector](rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt)
 - `make daylight-v6-reference-seal-open-test`
+- [provider-backed v6 vector-agreement evidence](evidence/daylight-v6-provider-vector-agreement.v1.json)
+- [provider-backed v6 vector-agreement verifier](../tests/daylight_v6_provider_vector_agreement.py)
+- `make daylight-v6-provider-vector-agreement-test`
 - [partial fail-closed formal model](research/daylight-v06-fail-closed-model.md)
 - [partial fail-closed formal model JSON](research/daylight-v06-fail-closed-model.v1.json)
 - [partial fail-closed formal model verifier](../tests/daylight_v06_fail_closed_model.py)

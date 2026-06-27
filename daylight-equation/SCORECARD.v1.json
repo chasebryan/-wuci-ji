@@ -73,6 +73,8 @@
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt",
+    "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
+    "tests/daylight_v6_provider_vector_agreement.py",
     "daylight-equation/research/daylight-v06-fail-closed-model.md",
     "daylight-equation/research/daylight-v06-fail-closed-model.v1.json",
     "tests/daylight_v06_fail_closed_model.py"
@@ -102,6 +104,11 @@
       "name": "provider_backed_reference_seal_open",
       "satisfied": true,
       "reason": "The Rust v6 lane has provider-backed reference Seal/Open evidence for the C1 schema vector behind explicit non-production external public precheck evidence."
+    },
+    {
+      "name": "provider_backed_vector_agreement",
+      "satisfied": true,
+      "reason": "The repo verifies agreement across provider-backed KEM/key-schedule, private-roundtrip, and reference Seal/Open vectors for artifact identity and non-production public-boundary claims."
     },
     {
       "name": "integrated_public_authority",

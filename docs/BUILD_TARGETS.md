@@ -119,6 +119,14 @@ provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,
 and continued public-precheck rejection before private work. It is not a full
 provider-backed public `Seal`/`Open` lane.
 
+`daylight-v6-provider-vector-agreement-test` checks the provider-backed v6
+vector-agreement evidence in
+`daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json`. It
+verifies that the KEM/key-schedule, private-roundtrip, and reference
+`Seal`/`Open` vectors agree on artifact identity, public rejection boundary,
+production-disallowed state, and non-production reference-lane boundaries. It
+is not independent external review or production authority.
+
 `daylight-v6-reference-seal-open-test` checks the Rust Daylight v6 reference
 `Seal`/`Open` evidence vector. It covers provider-backed ML-KEM-1024,
 DHKEM(P-384,HKDF-SHA384), AEAD seal/open, typed private payload decoding,

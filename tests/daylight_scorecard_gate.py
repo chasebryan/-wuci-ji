@@ -127,14 +127,24 @@ def main() -> None:
     if score > 920:
         if "provider-backed v6 reference `Seal`/`Open` evidence" not in text:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without reference Seal/Open evidence")
+        if "Provider-backed v6 vector-agreement evidence" not in text:
+            raise AssertionError("scorecard exceeds private-roundtrip evidence without provider vector-agreement evidence")
         evidence = set(machine["evidence"])
         if "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt" not in evidence:
             raise AssertionError("machine scorecard missing reference Seal/Open evidence vector")
+        if "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json" not in evidence:
+            raise AssertionError("machine scorecard missing provider vector-agreement evidence")
+        if "tests/daylight_v6_provider_vector_agreement.py" not in evidence:
+            raise AssertionError("machine scorecard missing provider vector-agreement verifier")
         if "daylight-v6-reference-seal-open-test" not in text:
             raise AssertionError("scorecard missing reference Seal/Open test target")
+        if "daylight-v6-provider-vector-agreement-test" not in text:
+            raise AssertionError("scorecard missing provider vector-agreement test target")
         hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
         if hard_gates.get("provider_backed_reference_seal_open") is not True:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying reference Seal/Open gate")
+        if hard_gates.get("provider_backed_vector_agreement") is not True:
+            raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying provider vector-agreement gate")
     if score > 940:
         raise AssertionError(
             "scorecard exceeds provider-backed reference Seal/Open without complete formal model, external review, and production authority evidence"

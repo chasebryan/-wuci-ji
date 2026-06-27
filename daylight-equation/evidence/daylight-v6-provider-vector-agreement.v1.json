@@ -1,0 +1,31 @@
+{
+  "as_of": "2026-06-27",
+  "inputs": [
+    {
+      "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt",
+      "sha3_512": "5c7c0c197c0625b425ef15ccf23060eebf4c2a71e8718735c8959021d675c2ed67b04b42e19cea912483545f5edc358ba68c8e20dd3369e885423ad8be05382a"
+    },
+    {
+      "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt",
+      "sha3_512": "9b47e5d2c354d6df0a6838e551840f53e4e21a2aea649885e32820d43c63d8af44a88cbdefd0507162ab4963fafa3a602cec511705984105419d1e594cb0c2df"
+    },
+    {
+      "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt",
+      "sha3_512": "97147e60fb7d779b30d0f59ea56f716bddb2c45a9749e2a97913b918e08deda5a527d9a3c8341f3784b0493bb4ffc34e33f77d4ecefd9b3bec5f6d2c2da585b0"
+    }
+  ],
+  "schema_version": 1,
+  "subject": "Daylight_v0.6_provider_vector_agreement",
+  "summary": {
+    "artifact_hash": "dd01392ad6bab0d361dbac4df82f0afec4c864b259306fde694a4c910f002740df3ff133d6908b9346734a707438c18ae815d55803e4e95435622d63889f1f86",
+    "auth_messages_bound_to_h1": true,
+    "production_allowed": false,
+    "provider_backed_kem": true,
+    "provider_backed_private_roundtrip": true,
+    "provider_backed_reference_seal_open": true,
+    "public_authority_external": true,
+    "public_precheck_rejection_stage": "REJECT_AUTH_SIGNATURE",
+    "same_artifact_opened": true,
+    "seal_outputs_domain_separated_from_private_roundtrip": true
+  }
+}
