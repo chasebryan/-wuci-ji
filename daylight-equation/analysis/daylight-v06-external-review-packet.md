@@ -85,6 +85,9 @@ All review-set paths are portable relative paths under the manifest directory.
 Absolute paths and `..` traversal are rejected before a review set can count
 toward the score.
 
+The review-set manifest is also strict-shape: extra top-level fields and extra
+per-review fields are rejected rather than interpreted as evidence.
+
 ## Boundary
 
 Non-claims:

@@ -77,9 +77,11 @@ def main() -> None:
         in criteria
     )
     assert "two-review manifest uses only portable relative paths under the manifest directory" in criteria
+    assert "two-review manifest rejects extra top-level and per-review self-claim fields" in criteria
     assert "tools/daylight_external_review.py emit-set" in doc
     assert "tools/daylight_external_review.py verify-set" in doc
     assert "Absolute paths and `..` traversal are rejected" in doc
+    assert "extra top-level fields and extra per-review fields are rejected" in " ".join(doc.split())
 
     for non_claim in packet["non_claims"]:
         assert non_claim in doc

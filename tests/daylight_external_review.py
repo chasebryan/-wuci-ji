@@ -247,6 +247,42 @@ def main() -> None:
         assert escaping.returncode != 0
         assert b"portable relative path" in escaping.stderr
 
+        self_claiming_manifest = tmp / "self-claiming-reviews.json"
+        self_claiming_value = json.loads(manifest.read_text(encoding="utf-8"))
+        self_claiming_value["external_review_set_verified"] = True
+        self_claiming_manifest.write_text(
+            json.dumps(self_claiming_value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self_claiming = run_tool(
+            "verify-set",
+            "--repo",
+            str(REPO),
+            "--manifest",
+            str(self_claiming_manifest),
+            "--quiet",
+        )
+        assert self_claiming.returncode != 0
+        assert b"unexpected Daylight external review set fields" in self_claiming.stderr
+
+        self_claiming_entry_manifest = tmp / "self-claiming-entry-reviews.json"
+        self_claiming_entry_value = json.loads(manifest.read_text(encoding="utf-8"))
+        self_claiming_entry_value["reviews"][0]["signature_verified"] = True
+        self_claiming_entry_manifest.write_text(
+            json.dumps(self_claiming_entry_value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self_claiming_entry = run_tool(
+            "verify-set",
+            "--repo",
+            str(REPO),
+            "--manifest",
+            str(self_claiming_entry_manifest),
+            "--quiet",
+        )
+        assert self_claiming_entry.returncode != 0
+        assert b"unexpected review set entry fields" in self_claiming_entry.stderr
+
         tampered_report = tmp / "tampered-report.txt"
         tampered_report.write_text(review_a["report"].read_text(encoding="ascii") + "tampered\n", encoding="ascii")
         tampered = run_tool(

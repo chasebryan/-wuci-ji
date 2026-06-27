@@ -36,6 +36,8 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 HEX96_RE = re.compile(r"^[0-9a-f]{96}$")
 HEX128_RE = re.compile(r"^[0-9a-f]{128}$")
+SET_MANIFEST_KEYS = {"schema", "subject", "reviews", "non_claims"}
+SET_REVIEW_ENTRY_KEYS = {"evidence", "report", "review_root_key", "signature"}
 
 
 class DaylightReviewError(RuntimeError):
@@ -335,6 +337,9 @@ def verify_review_set(*, manifest_path: Path, repo: Path, ssh_keygen: str | None
     manifest = read_json(manifest_path, "Daylight external review set")
     if not isinstance(manifest, dict):
         fail("Daylight external review set must be a JSON object")
+    unexpected_manifest_keys = sorted(set(manifest).difference(SET_MANIFEST_KEYS))
+    if unexpected_manifest_keys:
+        fail("unexpected Daylight external review set fields: " + ", ".join(unexpected_manifest_keys))
     if manifest.get("schema") != SET_SCHEMA:
         fail("unsupported Daylight external review set schema")
     if manifest.get("subject") != "Daylight_v0.6":
@@ -347,6 +352,9 @@ def verify_review_set(*, manifest_path: Path, repo: Path, ssh_keygen: str | None
     for index, entry in enumerate(reviews):
         if not isinstance(entry, dict):
             fail("review set entries must be objects")
+        unexpected_entry_keys = sorted(set(entry).difference(SET_REVIEW_ENTRY_KEYS))
+        if unexpected_entry_keys:
+            fail("unexpected review set entry fields: " + ", ".join(unexpected_entry_keys))
         summaries.append(
             verify_review(
                 evidence_path=resolve_manifest_path(base, entry.get("evidence"), f"review {index} evidence"),

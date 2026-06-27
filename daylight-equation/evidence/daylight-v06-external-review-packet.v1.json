@@ -121,6 +121,7 @@
     "review artifacts are attributable and signed or otherwise independently verifiable",
     "two-review manifest is emitted by tools/daylight_external_review.py emit-set and passes verify-set",
     "two-review manifest uses only portable relative paths under the manifest directory",
+    "two-review manifest rejects extra top-level and per-review self-claim fields",
     "review artifacts do not rely on fixture authority as production authority"
   ],
   "non_claims": [
