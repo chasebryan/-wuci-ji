@@ -1,0 +1,92 @@
+{
+  "schema": "daylight-v06-fail-closed-model-v1",
+  "subject": "Daylight_v0.6",
+  "status": "partial-fail-closed-ordering-not-full-formal-proof",
+  "source": "daylight-equation/references/dlv0.5/2.md section 31",
+  "open_predicate": "Open(omega) != bottom iff PublicPreOK(omega) and exists A_prime such that PrivateOpenOK(A_prime, omega)",
+  "public_precheck_predicates": [
+    "ParseOK",
+    "SuiteOK",
+    "AuxHashOK",
+    "KEMBlockOK",
+    "ModeOK",
+    "PolicyOK",
+    "ClaimOK",
+    "GateOK",
+    "ProvenanceOK",
+    "ContentReviewPreOK",
+    "V_Auth",
+    "NoDowngradeFinal",
+    "LogOK",
+    "InstallOK",
+    "WitnessOK"
+  ],
+  "private_open_predicates": [
+    "DeriveOK",
+    "AEAD.Dec",
+    "PayloadOK",
+    "CommitOK",
+    "LeakOK"
+  ],
+  "fail_closed_invariants": [
+    "ParseOK = 0 => Open = bottom",
+    "SuiteOK = 0 => Open = bottom",
+    "AuxHashOK = 0 => Open = bottom",
+    "KEMBlockOK = 0 => Open = bottom",
+    "ModeOK = 0 => Open = bottom",
+    "PolicyOK = 0 => Open = bottom",
+    "ClaimOK = 0 => Open = bottom",
+    "GateOK = 0 => Open = bottom",
+    "ProvenanceOK = 0 => Open = bottom",
+    "ContentReviewPreOK = 0 => Open = bottom",
+    "V_Auth = 0 => Open = bottom",
+    "NoDowngradeFinal = 0 => Open = bottom",
+    "LogOK = 0 => Open = bottom",
+    "InstallOK = 0 => Open = bottom",
+    "WitnessOK = 0 => Open = bottom",
+    "DeriveOK = 0 => Open = bottom",
+    "AEAD.Dec = bottom => Open = bottom",
+    "PayloadOK = 0 => Open = bottom",
+    "CommitOK = 0 => Open = bottom",
+    "LeakOK = 0 => Open = bottom"
+  ],
+  "private_operation_barrier": {
+    "predicate": "PublicPreOK = 0",
+    "forbidden_operations": [
+      "private KEM operation",
+      "AEAD.Dec",
+      "plaintext materialization"
+    ]
+  },
+  "checked_properties": {
+    "single_failure_fail_closed": true,
+    "public_precheck_blocks_private_operations": true,
+    "open_requires_public_and_private_predicates": true,
+    "success_requires_all_predicates_true": true
+  },
+  "coverage": {
+    "fail_closed_ordering": "partial",
+    "authorization": "partial",
+    "downgrade_resistance": "partial",
+    "confidentiality": "not-modeled",
+    "constant_time_secret_paths": "not-modeled",
+    "provider_backed_v6_seal_open": "not-modeled",
+    "production_authority": "not-modeled"
+  },
+  "non_claims": [
+    "this model is not a complete Daylight formal model",
+    "this model does not prove confidentiality",
+    "this model does not implement provider-backed v6 Seal/Open",
+    "this model does not make fixture predicates production authority",
+    "this model does not claim runtime containment",
+    "this model does not replace independent external review"
+  ],
+  "proof_obligations_remaining": [
+    "complete confidentiality model",
+    "complete authorization and authority model",
+    "complete downgrade-resistance model",
+    "provider-backed v6 Seal/Open model linked to implementation",
+    "constant-time and failure-path review",
+    "external review"
+  ]
+}

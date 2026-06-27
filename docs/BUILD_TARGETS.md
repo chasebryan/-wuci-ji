@@ -103,6 +103,15 @@ not offensive fuzzing or a coverage-guided CI fuzzer.
 `parser-hardening-proof` composes replay generation and validation for the
 high-attestation lane.
 
+`daylight-v06-fail-closed-model-test` checks the partial Daylight v0.6
+fail-closed ordering model in
+`daylight-equation/research/daylight-v06-fail-closed-model.v1.json` and
+`daylight-equation/research/daylight-v06-fail-closed-model.md`. It verifies
+single-predicate `Open = bottom` behavior and the `PublicPreOK = 0` barrier
+against private KEM, AEAD decrypt, and plaintext materialization. It is not a
+complete confidentiality, authorization, downgrade-resistance, or production
+authority proof.
+
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
 AEAD/FROST/Gate/Merkle/witness open predicate, Golden Lock v1 transcript, the

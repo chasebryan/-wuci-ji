@@ -73,7 +73,7 @@ def main() -> None:
     hard_blockers = (
         "RealCryptoProvider = 0",
         "M1Progress = partial",
-        "No formal model is tracked.",
+        "No complete formal model is tracked.",
         "No external reviews are tracked.",
         "still lacks provider-backed v6 `Seal`/`Open`",
         "not yet a complete provider-backed reference `Seal`/`Open`",
@@ -107,7 +107,17 @@ def main() -> None:
         if "daylight-v6-provider-kem-evidence-test" not in text:
             raise AssertionError("scorecard missing provider-KEM evidence test target")
     if score > 910:
-        raise AssertionError("scorecard exceeds provider-KEM evidence without provider-backed Seal/Open")
+        if "partial fail-closed formal model" not in text:
+            raise AssertionError("scorecard exceeds provider-KEM evidence without partial formal model evidence")
+        evidence = set(machine["evidence"])
+        if "daylight-equation/research/daylight-v06-fail-closed-model.v1.json" not in evidence:
+            raise AssertionError("machine scorecard missing partial fail-closed model evidence")
+        if "tests/daylight_v06_fail_closed_model.py" not in evidence:
+            raise AssertionError("machine scorecard missing partial fail-closed model verifier")
+        if "daylight-v06-fail-closed-model-test" not in text:
+            raise AssertionError("scorecard missing partial fail-closed model test target")
+    if score > 915:
+        raise AssertionError("scorecard exceeds partial model evidence without complete formal model")
 
     if not args.quiet:
         print(f"Daylight scorecard gate OK: {score}/1000")

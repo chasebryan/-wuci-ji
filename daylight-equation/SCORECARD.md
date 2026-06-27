@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 910 / 1000
+Daylight_v0.6_research_score = 915 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -35,7 +35,7 @@ provider-backed v6 KEM/key-schedule evidence for the schema vector through
 pinned ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) primitive crates. The same
 artifact profile still declares `RealCryptoProvider = 0`,
 `M1Progress = partial`, no provider-backed v6 reference `Seal`/`Open`, no
-formal model, and no external review.
+complete formal model, and no external review.
 
 ## Scored Evidence
 
@@ -47,9 +47,9 @@ Pinned Rust primitive experiments               145 / 150
 Daylight v4/v6 parser and rejection behavior    125 / 125
 Documentation, claim discipline, provenance     100 / 100
 Independent parser and vector reproduction       65 / 75
-Formal model                                      0 / 25
+Formal model                                      5 / 25
 External review                                   0 / 25
-Total                                           910 / 1000
+Total                                           915 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -96,7 +96,10 @@ If any item is missing, the valid score is below 1000.
   schema vector, but this evidence intentionally stops short of private `Open`
   and does not change the `RealCryptoProvider = 0` fixture-artifact claim.
 - No public fuzz corpus or independent reproduction bundle is tracked.
-- No formal model is tracked.
+- A partial fail-closed formal model is tracked for `Open = bottom` ordering
+  and the public-before-private barrier, but no complete formal model is
+  tracked for confidentiality, authorization, downgrade resistance, and
+  fail-closed release behavior. No complete formal model is tracked.
 - No external reviews are tracked.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
@@ -113,7 +116,8 @@ If any item is missing, the valid score is below 1000.
    provider-backed lane.
 4. Publish a clean KAT bundle with valid, negative, and parser-only vectors
    plus reproduction commands.
-5. Draft the formal model surface before adding any production authority claim.
+5. Expand the partial fail-closed formal model into a complete M4 model before
+   adding any production authority claim.
 
 ## Evidence Links
 
@@ -124,6 +128,10 @@ If any item is missing, the valid score is below 1000.
 - [daylight-crypto README](rust/daylight-crypto/README.md)
 - [provider-backed v6 KEM/key-schedule evidence vector](rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt)
 - `make daylight-v6-provider-kem-evidence-test`
+- [partial fail-closed formal model](research/daylight-v06-fail-closed-model.md)
+- [partial fail-closed formal model JSON](research/daylight-v06-fail-closed-model.v1.json)
+- [partial fail-closed formal model verifier](../tests/daylight_v06_fail_closed_model.py)
+- `make daylight-v06-fail-closed-model-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)
