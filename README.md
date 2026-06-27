@@ -27,7 +27,9 @@ Native `make` and `make selftest` require Linux x86_64 with GNU `as`/`ld`.
 The full native `make test` lane also requires BMI2 and AVX for the current
 assembly X25519 helper. On Linux hosts without those CPU features, use
 `make test-linux` with user-mode `qemu-x86_64` for the cross-built ELF's
-Python harness, and run the non-X25519 native proof targets directly.
+Python harness. That target defaults to `QEMU_CPU=Haswell-v4`, which provides
+the BMI2/AVX instruction surface needed by the current X25519 helper under
+QEMU. Run the non-X25519 native proof targets directly on older x86_64 hosts.
 
 ```sh
 make test
