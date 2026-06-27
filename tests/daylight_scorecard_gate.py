@@ -117,7 +117,15 @@ def main() -> None:
         if "daylight-v06-fail-closed-model-test" not in text:
             raise AssertionError("scorecard missing partial fail-closed model test target")
     if score > 915:
-        raise AssertionError("scorecard exceeds partial model evidence without complete formal model")
+        if "provider-backed v6 private-roundtrip evidence" not in text:
+            raise AssertionError("scorecard exceeds partial model evidence without private-roundtrip evidence")
+        evidence = set(machine["evidence"])
+        if "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt" not in evidence:
+            raise AssertionError("machine scorecard missing private-roundtrip evidence vector")
+        if "daylight-v6-provider-private-roundtrip-test" not in text:
+            raise AssertionError("scorecard missing private-roundtrip test target")
+    if score > 920:
+        raise AssertionError("scorecard exceeds private-roundtrip evidence without provider-backed Seal/Open")
 
     if not args.quiet:
         print(f"Daylight scorecard gate OK: {score}/1000")

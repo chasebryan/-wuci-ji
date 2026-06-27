@@ -112,6 +112,12 @@ against private KEM, AEAD decrypt, and plaintext materialization. It is not a
 complete confidentiality, authorization, downgrade-resistance, or production
 authority proof.
 
+`daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
+private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,
+provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,
+and continued public-precheck rejection before private work. It is not a full
+provider-backed public `Seal`/`Open` lane.
+
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
 AEAD/FROST/Gate/Merkle/witness open predicate, Golden Lock v1 transcript, the

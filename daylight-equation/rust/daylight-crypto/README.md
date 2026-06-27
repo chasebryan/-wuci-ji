@@ -39,6 +39,11 @@ It implements only pinned, locally available pieces:
   and hashed key-schedule outputs in
   `vectors/daylight-v6-provider-kem-evidence-v1.txt`. This is not a v6
   reference `Seal`/`Open` implementation.
+- Provider-backed v6 private-roundtrip evidence for the C1 schema vector,
+  including typed `PrivatePayload_v6` CBOR, AEAD seal/open with `AD = T0`,
+  artifact commitment checking, and a persisted vector in
+  `vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt`. This is a
+  prechecked private-path proof only; public authorization still fails closed.
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`, with a deterministic
   fixture selftest.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`, with a
@@ -58,6 +63,9 @@ minimum C1 vector corpus and a second independent parser.
 The provider-backed v6 KEM/key-schedule evidence does not make the imported
 fixture artifact a real-crypto-provider artifact and does not authorize private
 Open or production use.
+The provider-backed v6 private-roundtrip evidence also does not satisfy the
+provider-backed reference `Seal`/`Open` gate because certificate, revocation,
+log, install, witness, and production authority predicates remain absent.
 
 The adjacent imported Python fixture artifact lives at
 `../../fixtures/daylight-v06-m1/` and is run from the repository root with
@@ -70,6 +78,7 @@ cargo run --offline -- status
 cargo run --offline -- v4-reference-vector
 cargo run --offline -- v6-schema-vector
 cargo run --offline -- v6-provider-kem-evidence
+cargo run --offline -- v6-provider-private-roundtrip-evidence
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest
 cargo run --offline -- mlkem1024-selftest

@@ -7,10 +7,10 @@
 //! rejects before any private KEM or AEAD operation would be allowed.
 
 use crate::{
-    dhkem_p384_hkdf_sha384_decaps, dhkem_p384_hkdf_sha384_derive_keypair,
-    dhkem_p384_hkdf_sha384_encaps_from_ikm, mldsa87_kat_fixture, mlkem1024_decaps,
-    mlkem1024_kat_fixture, AeadAlgorithm, DaylightCryptoError, DHKEM_P384_ENCAPSULATED_KEY_LEN,
-    DHKEM_P384_SHARED_SECRET_LEN,
+    aead_open, aead_seal, derive_nonce, dhkem_p384_hkdf_sha384_decaps,
+    dhkem_p384_hkdf_sha384_derive_keypair, dhkem_p384_hkdf_sha384_encaps_from_ikm,
+    mldsa87_kat_fixture, mlkem1024_decaps, mlkem1024_kat_fixture, AeadAlgorithm,
+    DaylightCryptoError, DHKEM_P384_ENCAPSULATED_KEY_LEN, DHKEM_P384_SHARED_SECRET_LEN,
 };
 use daylight_model::{action_allowed, mode_ok, Action, Mode, Profile};
 use fips203::ml_kem_1024;
@@ -26,6 +26,7 @@ pub const DAYLIGHT_AUTH_CONTEXT_V6: &[u8] = b"WUCI-DAYLIGHT:AUTH:v6";
 pub const DAYLIGHT_REVIEW_CONTEXT_V6: &[u8] = b"WUCI-DAYLIGHT:REVIEW:v6";
 const DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM: &[u8] = b"daylight v6 schema recipient";
 const DAYLIGHT_V6_SCHEMA_DHKEM_EPHEMERAL_IKM: &[u8] = b"daylight v6 schema ephemeral";
+const DAYLIGHT_V6_SCHEMA_ARTIFACT: &[u8] = b"daylight v6 schema vector artifact";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CborValue {
@@ -300,6 +301,26 @@ pub struct DaylightV6ProviderKemEvidence {
     pub mlkem1024_decaps_matches: bool,
     pub dhkem_p384_decaps_matches: bool,
     pub provider_backed_kem: bool,
+    pub provider_backed_reference_seal_open: bool,
+    pub production_allowed: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DaylightV6ProviderPrivateRoundtripEvidence {
+    pub envelope: DaylightEnvelopeV6,
+    pub omega: Vec<u8>,
+    pub transcript: DaylightTranscriptV6,
+    pub artifact_hash: [u8; 64],
+    pub private_payload_hash: [u8; 64],
+    pub ciphertext_hash: [u8; 64],
+    pub nonce_hash: [u8; 64],
+    pub com_a_hash: [u8; 64],
+    pub opened_artifact_hash: [u8; 64],
+    pub opened_artifact_matches: bool,
+    pub commitment_matches: bool,
+    pub aead_roundtrip_matches: bool,
+    pub public_precheck_rejection_stage: DaylightRejectionStageV6,
+    pub provider_backed_private_roundtrip: bool,
     pub provider_backed_reference_seal_open: bool,
     pub production_allowed: bool,
 }
@@ -627,7 +648,7 @@ pub fn daylight_vector_public_precheck_v6(
 }
 
 pub fn daylight_v6_schema_vector() -> Result<DaylightV6SchemaVector, DaylightCryptoError> {
-    let artifact = b"daylight v6 schema vector artifact";
+    let artifact = DAYLIGHT_V6_SCHEMA_ARTIFACT;
     let mlkem = mlkem1024_kat_fixture()?;
     let dhkem_recipient =
         dhkem_p384_hkdf_sha384_derive_keypair(DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM)?;
@@ -834,6 +855,137 @@ pub fn daylight_v6_provider_kem_evidence(
         provider_backed_reference_seal_open: false,
         production_allowed: false,
     })
+}
+
+pub fn daylight_v6_provider_private_roundtrip_evidence(
+) -> Result<DaylightV6ProviderPrivateRoundtripEvidence, DaylightCryptoError> {
+    let kem_evidence = daylight_v6_provider_kem_evidence()?;
+    let artifact = DAYLIGHT_V6_SCHEMA_ARTIFACT;
+    let private_payload = daylight_private_payload_bytes_v6(artifact, None)?;
+    let nonce = derive_nonce(&kem_evidence.key_schedule.base_nonce, 0)?;
+    let ciphertext = aead_seal(
+        kem_evidence.schema_vector.envelope.header.aead,
+        &kem_evidence.key_schedule.envelope_key,
+        &nonce,
+        &kem_evidence.schema_vector.transcript.t0,
+        &private_payload,
+    )?;
+    let com_a = daylight_artifact_commitment_v6(
+        &kem_evidence.key_schedule.commitment_key,
+        &kem_evidence.schema_vector.transcript.h0,
+        &ciphertext,
+        artifact,
+        &kem_evidence.schema_vector.envelope.header.leak_value,
+    )?;
+    let mut envelope = kem_evidence.schema_vector.envelope.clone();
+    envelope.ciphertext = ciphertext.clone();
+    envelope.com_a = com_a;
+    let review_receipt_hash = envelope.aux_block.review_receipt_hash()?;
+    let transcript = daylight_transcript_v6(
+        &envelope.header,
+        &envelope.kem_block,
+        &envelope.ciphertext,
+        &envelope.com_a,
+        &review_receipt_hash,
+    )?;
+    let omega = daylight_envelope_bytes_v6(&envelope)?;
+    let public_precheck_rejection_stage = match daylight_vector_public_precheck_v6(&omega, Some(1))
+    {
+        Ok(_) => {
+            return Err(DaylightCryptoError::DecodeRejected(
+                "private roundtrip vector unexpectedly passed public precheck",
+            ))
+        }
+        Err(stage) => stage,
+    };
+    let opened_payload = aead_open(
+        envelope.header.aead,
+        &kem_evidence.key_schedule.envelope_key,
+        &nonce,
+        &kem_evidence.schema_vector.transcript.t0,
+        &ciphertext,
+    )?;
+    let opened_artifact = daylight_private_payload_artifact_v6(&opened_payload)?;
+    let opened_artifact_matches = opened_artifact == artifact;
+    let expected_com_a = daylight_artifact_commitment_v6(
+        &kem_evidence.key_schedule.commitment_key,
+        &kem_evidence.schema_vector.transcript.h0,
+        &ciphertext,
+        &opened_artifact,
+        &envelope.header.leak_value,
+    )?;
+    let commitment_matches = expected_com_a == envelope.com_a;
+    let aead_roundtrip_matches = opened_payload == private_payload;
+    if !opened_artifact_matches || !commitment_matches || !aead_roundtrip_matches {
+        return Err(DaylightCryptoError::VerificationRejected);
+    }
+
+    Ok(DaylightV6ProviderPrivateRoundtripEvidence {
+        artifact_hash: hb_v6(artifact),
+        private_payload_hash: hb_v6(&private_payload),
+        ciphertext_hash: hb_v6(&ciphertext),
+        nonce_hash: hb_v6(&nonce),
+        com_a_hash: hb_v6(&com_a),
+        opened_artifact_hash: hb_v6(&opened_artifact),
+        envelope,
+        omega,
+        transcript,
+        opened_artifact_matches,
+        commitment_matches,
+        aead_roundtrip_matches,
+        public_precheck_rejection_stage,
+        provider_backed_private_roundtrip: true,
+        provider_backed_reference_seal_open: false,
+        production_allowed: false,
+    })
+}
+
+pub fn daylight_artifact_commitment_v6(
+    commitment_key: &[u8; 32],
+    h0: &[u8; 64],
+    ciphertext: &[u8],
+    artifact: &[u8],
+    leak_value: &DaylightLeakValueV6,
+) -> Result<[u8; 32], DaylightCryptoError> {
+    let artifact_len =
+        u64::try_from(artifact.len()).map_err(|_| DaylightCryptoError::EncodingTooLarge)?;
+    let input = CborValue::Array(vec![
+        CborValue::Bytes(h0.to_vec()),
+        CborValue::Bytes(hb_v6(ciphertext).to_vec()),
+        CborValue::UInt(artifact_len),
+        CborValue::Bytes(artifact_hash_v6(artifact).to_vec()),
+        leak_value_cbor_v6(leak_value),
+    ]);
+    let output = kdf2_v6(commitment_key, "daylight.artifact.commit.v6", &input, 32)?;
+    fixed_decode(&output)
+}
+
+pub fn daylight_private_payload_bytes_v6(
+    artifact: &[u8],
+    review_blind: Option<&[u8; 32]>,
+) -> Result<Vec<u8>, DaylightCryptoError> {
+    encode_cbor_value(&CborValue::Map(vec![
+        (0, CborValue::Bytes(artifact.to_vec())),
+        (
+            1,
+            review_blind
+                .map(|blind| CborValue::Bytes(blind.to_vec()))
+                .unwrap_or(CborValue::Null),
+        ),
+    ]))
+}
+
+pub fn daylight_private_payload_artifact_v6(
+    payload: &[u8],
+) -> Result<Vec<u8>, DaylightCryptoError> {
+    let value = decode_cbor_value(payload)?;
+    let entries = expect_map_exact(&value, &[0, 1], "PrivatePayload_v6")?;
+    let artifact = expect_bytes(map_get(entries, 0)?, "private_payload.artifact")?.to_vec();
+    match map_get(entries, 1)? {
+        CborValue::Null => Ok(artifact),
+        CborValue::Bytes(bytes) if bytes.len() == 32 => Ok(artifact),
+        _ => Err(DaylightCryptoError::DecodeRejected("bad review_blind")),
+    }
 }
 
 pub fn daylight_kem_key_id_v6(
@@ -2429,6 +2581,27 @@ mod tests {
     }
 
     #[test]
+    fn v6_provider_private_roundtrip_opens_only_after_prechecked_private_path() {
+        let evidence = daylight_v6_provider_private_roundtrip_evidence().unwrap();
+        assert!(evidence.provider_backed_private_roundtrip);
+        assert!(!evidence.provider_backed_reference_seal_open);
+        assert!(!evidence.production_allowed);
+        assert!(evidence.opened_artifact_matches);
+        assert!(evidence.commitment_matches);
+        assert!(evidence.aead_roundtrip_matches);
+        assert_eq!(
+            evidence.public_precheck_rejection_stage,
+            DaylightRejectionStageV6::RejectAuthSignature
+        );
+        assert_eq!(
+            daylight_vector_public_precheck_v6(&evidence.omega, Some(1)),
+            Err(DaylightRejectionStageV6::RejectAuthSignature)
+        );
+        assert_ne!(evidence.ciphertext_hash, hb_v6(&[]));
+        assert_ne!(evidence.envelope.com_a, [0u8; 32]);
+    }
+
+    #[test]
     fn v6_schema_vector_file_matches_implementation() {
         let fields = parse_vector_file(include_str!("../vectors/daylight-v6-schema-vector-v1.txt"));
         let vector = daylight_v6_schema_vector().unwrap();
@@ -2590,6 +2763,90 @@ mod tests {
         assert_eq!(
             vector_field(&fields, "enc_c_sha3_512_hex"),
             crate::hex_lower(&evidence.enc_c_hash)
+        );
+    }
+
+    #[test]
+    fn v6_provider_private_roundtrip_evidence_file_matches_implementation() {
+        let fields = parse_vector_file(include_str!(
+            "../vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt"
+        ));
+        let evidence = daylight_v6_provider_private_roundtrip_evidence().unwrap();
+        assert_eq!(
+            vector_field(&fields, "version"),
+            "daylight-v6-provider-private-roundtrip-evidence-v1"
+        );
+        assert_eq!(
+            vector_field(&fields, "profile"),
+            "fixture-only-provider-private-roundtrip"
+        );
+        assert_eq!(
+            vector_field(&fields, "expected_result"),
+            "private_roundtrip_only"
+        );
+        assert_eq!(
+            vector_field(&fields, "provider_backed_private_roundtrip"),
+            evidence.provider_backed_private_roundtrip.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "provider_backed_reference_seal_open"),
+            evidence.provider_backed_reference_seal_open.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "production_allowed"),
+            evidence.production_allowed.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "public_precheck_rejection_stage"),
+            evidence.public_precheck_rejection_stage.as_str()
+        );
+        assert_eq!(
+            vector_field(&fields, "opened_artifact_matches"),
+            evidence.opened_artifact_matches.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "commitment_matches"),
+            evidence.commitment_matches.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "aead_roundtrip_matches"),
+            evidence.aead_roundtrip_matches.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "artifact_sha3_512_hex"),
+            crate::hex_lower(&evidence.artifact_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "opened_artifact_sha3_512_hex"),
+            crate::hex_lower(&evidence.opened_artifact_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "private_payload_cbor_sha3_512_hex"),
+            crate::hex_lower(&evidence.private_payload_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "ciphertext_sha3_512_hex"),
+            crate::hex_lower(&evidence.ciphertext_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "nonce_sha3_512_hex"),
+            crate::hex_lower(&evidence.nonce_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "com_a_hex"),
+            crate::hex_lower(&evidence.envelope.com_a)
+        );
+        assert_eq!(
+            vector_field(&fields, "com_a_sha3_512_hex"),
+            crate::hex_lower(&evidence.com_a_hash)
+        );
+        assert_eq!(
+            vector_field(&fields, "h1_hex"),
+            crate::hex_lower(&evidence.transcript.h1)
+        );
+        assert_eq!(
+            vector_field(&fields, "AuthMsg_hex"),
+            crate::hex_lower(&evidence.transcript.auth_msg)
         );
     }
 }

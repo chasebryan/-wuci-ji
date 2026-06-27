@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 915,
+    "value": 920,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -29,7 +29,7 @@
     },
     {
       "name": "pinned_rust_primitive_experiments",
-      "value": 145,
+      "value": 150,
       "maximum": 150
     },
     {
@@ -71,6 +71,7 @@
     "tests/daylight_v06_m1_cross_agreement.py",
     "daylight-equation/evidence/daylight-v06-m1-cross-agreement.v1.json",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt",
+    "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt",
     "daylight-equation/research/daylight-v06-fail-closed-model.md",
     "daylight-equation/research/daylight-v06-fail-closed-model.v1.json",
     "tests/daylight_v06_fail_closed_model.py"
@@ -90,6 +91,11 @@
       "name": "provider_backed_v6_kem_key_schedule_evidence",
       "satisfied": true,
       "reason": "The Rust v6 lane verifies deterministic ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) decapsulation agreement and derives the v6 key schedule for the schema vector, without claiming provider-backed Seal/Open."
+    },
+    {
+      "name": "provider_backed_v6_private_roundtrip_evidence",
+      "satisfied": true,
+      "reason": "The Rust v6 lane verifies typed PrivatePayload_v6 CBOR, AEAD seal/open with AD=T0, artifact commitment checking, and public-precheck rejection before private work, without claiming full provider-backed Seal/Open."
     },
     {
       "name": "provider_backed_reference_seal_open",

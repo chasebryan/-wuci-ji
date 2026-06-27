@@ -34,12 +34,13 @@ fn run() -> Result<(), String> {
         "v4-reference-vector" => run_v4_reference_vector(),
         "v6-schema-vector" => run_v6_schema_vector(),
         "v6-provider-kem-evidence" => run_v6_provider_kem_evidence(),
+        "v6-provider-private-roundtrip-evidence" => run_v6_provider_private_roundtrip_evidence(),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -298,6 +299,55 @@ fn run_v6_provider_kem_evidence() -> Result<(), String> {
     );
     println!("enc_q_sha3_512_hex={}", hex_lower(&evidence.enc_q_hash));
     println!("enc_c_sha3_512_hex={}", hex_lower(&evidence.enc_c_hash));
+    Ok(())
+}
+
+fn run_v6_provider_private_roundtrip_evidence() -> Result<(), String> {
+    let evidence = daylight_crypto::v6::daylight_v6_provider_private_roundtrip_evidence()
+        .map_err(|err| format!("{err:?}"))?;
+    println!("version=daylight-v6-provider-private-roundtrip-evidence-v1");
+    println!("profile=fixture-only-provider-private-roundtrip");
+    println!("expected_result=private_roundtrip_only");
+    println!(
+        "provider_backed_private_roundtrip={}",
+        evidence.provider_backed_private_roundtrip
+    );
+    println!(
+        "provider_backed_reference_seal_open={}",
+        evidence.provider_backed_reference_seal_open
+    );
+    println!("production_allowed={}", evidence.production_allowed);
+    println!(
+        "public_precheck_rejection_stage={}",
+        evidence.public_precheck_rejection_stage.as_str()
+    );
+    println!(
+        "opened_artifact_matches={}",
+        evidence.opened_artifact_matches
+    );
+    println!("commitment_matches={}", evidence.commitment_matches);
+    println!("aead_roundtrip_matches={}", evidence.aead_roundtrip_matches);
+    println!(
+        "artifact_sha3_512_hex={}",
+        hex_lower(&evidence.artifact_hash)
+    );
+    println!(
+        "opened_artifact_sha3_512_hex={}",
+        hex_lower(&evidence.opened_artifact_hash)
+    );
+    println!(
+        "private_payload_cbor_sha3_512_hex={}",
+        hex_lower(&evidence.private_payload_hash)
+    );
+    println!(
+        "ciphertext_sha3_512_hex={}",
+        hex_lower(&evidence.ciphertext_hash)
+    );
+    println!("nonce_sha3_512_hex={}", hex_lower(&evidence.nonce_hash));
+    println!("com_a_hex={}", hex_lower(&evidence.envelope.com_a));
+    println!("com_a_sha3_512_hex={}", hex_lower(&evidence.com_a_hash));
+    println!("h1_hex={}", hex_lower(&evidence.transcript.h1));
+    println!("AuthMsg_hex={}", hex_lower(&evidence.transcript.auth_msg));
     Ok(())
 }
 
