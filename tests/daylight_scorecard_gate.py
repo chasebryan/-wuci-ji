@@ -44,7 +44,7 @@ def main() -> None:
         "M1Progress = partial",
         "No formal model is tracked.",
         "No external reviews are tracked.",
-        "still lacks a second independent parser",
+        "lacks a second full parser/open implementation",
         "not yet a complete provider-backed reference `Seal`/`Open`",
     )
     missing = [blocker for blocker in hard_blockers if blocker not in text]

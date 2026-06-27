@@ -6,24 +6,27 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 855 / 1000
+Daylight_v0.6_research_score = 860 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
 ExternalReviewClaim = 0
 ```
 
-The score sits between the two estimates recorded with the imported v0.6 M1
-fixture artifact:
+The score now sits at the upper estimate recorded with the imported v0.6 M1
+fixture artifact because the repo adds an independent stdlib static vector
+checker for deterministic-CBOR structure, transcript hash consistency,
+manifest/result agreement, and SHA-256 fixture integrity:
 
 ```text
 Grok-style estimate = 860 / 1000
 GPT self-rating     = 845 / 1000
 ```
 
-The midpoint is the defensible repo score because the fixture artifact removed
-major byte-level ambiguity, while the same artifact profile still declares
-`RealCryptoProvider = 0`, `M1Progress = partial`, no independent
+The upper estimate is the defensible repo score because the fixture artifact
+removed major byte-level ambiguity and the static checker adds a second
+non-runner validation path. The same artifact profile still declares
+`RealCryptoProvider = 0`, `M1Progress = partial`, no independent full
 implementation, no formal model, and no external review.
 
 ## Scored Evidence
@@ -35,10 +38,10 @@ Fail-closed public-before-private ordering      125 / 125
 Pinned Rust primitive experiments               135 / 150
 Daylight v4/v6 parser and rejection behavior    120 / 125
 Documentation, claim discipline, provenance     100 / 100
-Independent parser and vector reproduction       25 / 75
+Independent parser and vector reproduction       30 / 75
 Formal model                                      0 / 25
 External review                                   0 / 25
-Total                                           855 / 1000
+Total                                           860 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -77,8 +80,9 @@ If any item is missing, the valid score is below 1000.
 - The Rust `daylight-crypto` lane pins real primitive crates, but the v6
   artifact is not yet a complete provider-backed reference `Seal`/`Open`
   implementation.
-- The v6 hardening module still lacks a second independent parser and full
-  cross-implementation agreement.
+- The v6 hardening module has an independent static vector checker, but still
+  lacks a second full parser/open implementation and full cross-implementation
+  agreement.
 - No public fuzz corpus or independent reproduction bundle is tracked.
 - No formal model is tracked.
 - No external reviews are tracked.
@@ -87,11 +91,12 @@ If any item is missing, the valid score is below 1000.
 
 ## Next Score-Raising Work
 
-1. Build an independent stdlib parser/vector checker that reads the v0.6 M1
-   vector manifest and verifies deterministic CBOR, schema, and rejection
-   stages without importing the fixture implementation.
-2. Add a generated score fixture that fails if the scorecard says 1000 while
-   any hard gate above is still missing.
+1. Promote the independent stdlib static vector checker into a second full
+   parser/open implementation that can reproduce the vector outcomes without
+   importing the fixture implementation.
+2. Extend the scorecard guard into generated machine-readable score evidence,
+   while preserving the current failure if the scorecard says 1000 and any hard
+   gate above is still missing.
 3. Replace the fixture crypto predicates in a separate provider-backed lane,
    preserving the current fixture profile as non-production regression data.
 4. Publish a clean KAT bundle with valid, negative, and parser-only vectors
@@ -106,3 +111,5 @@ If any item is missing, the valid score is below 1000.
 - [v0.5.1/2 hardening note](specs/daylight-envelope-hardening-v0.5.1-2.md)
 - [daylight-crypto README](rust/daylight-crypto/README.md)
 - [standards baseline](research/standards-baseline.md)
+- [scorecard guard](../tests/daylight_scorecard_gate.py)
+- [independent static vector checker](../tests/daylight_v06_m1_static_vectors.py)
