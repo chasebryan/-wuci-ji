@@ -205,7 +205,7 @@
     {
       "name": "external_review_verifier",
       "satisfied": true,
-      "reason": "The repo verifies signed Daylight external-review evidence and requires exactly two independent signed reviews before external review credit can be claimed."
+      "reason": "The repo verifies root-key-bound signed Daylight external-review evidence and requires exactly two independent signed reviews before external review credit can be claimed."
     },
     {
       "name": "external_review",

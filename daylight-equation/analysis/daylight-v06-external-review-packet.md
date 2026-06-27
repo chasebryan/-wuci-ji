@@ -65,6 +65,8 @@ be attributable and signed or otherwise independently verifiable.
 The repo accepts signed review evidence through `tools/daylight_external_review.py`.
 Score use requires a `daylight-v06-external-review-set-v1` manifest containing
 exactly two independent signed review entries for the current commit.
+Each signed review evidence file binds its review root key SHA-256 inside the
+signed JSON, and verification rejects a mismatched root key.
 
 Review-set assembly should use the tool path, not hand-written JSON:
 

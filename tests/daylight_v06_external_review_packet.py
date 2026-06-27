@@ -74,6 +74,7 @@ def main() -> None:
     assert "at least two independent reviewers" in criteria
     assert "reviewed commit equals current release candidate commit" in criteria
     assert "review artifacts are attributable and signed or otherwise independently verifiable" in criteria
+    assert "signed review evidence binds the review root key SHA-256 inside the signed JSON" in criteria
     assert (
         "two-review manifest is emitted by tools/daylight_external_review.py emit-set and passes verify-set"
         in criteria
@@ -82,6 +83,7 @@ def main() -> None:
     assert "two-review manifest rejects extra top-level and per-review self-claim fields" in criteria
     assert "tools/daylight_external_review.py emit-set" in doc
     assert "tools/daylight_external_review.py verify-set" in doc
+    assert "review root key SHA-256" in doc
     assert "Absolute paths and `..` traversal are rejected" in doc
     assert "extra top-level fields and extra per-review fields are rejected" in " ".join(doc.split())
 

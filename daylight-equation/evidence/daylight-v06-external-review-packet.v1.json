@@ -128,6 +128,7 @@
     "review scope covers formal model, provider-backed vectors, cryptographic boundary, and production-authority blockers",
     "all production-blocking findings are closed or explicitly accepted as score blockers",
     "review artifacts are attributable and signed or otherwise independently verifiable",
+    "signed review evidence binds the review root key SHA-256 inside the signed JSON",
     "two-review manifest is emitted by tools/daylight_external_review.py emit-set and passes verify-set",
     "two-review manifest uses only portable relative paths under the manifest directory",
     "two-review manifest rejects extra top-level and per-review self-claim fields",

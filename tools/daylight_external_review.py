@@ -36,6 +36,29 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 HEX96_RE = re.compile(r"^[0-9a-f]{96}$")
 HEX128_RE = re.compile(r"^[0-9a-f]{128}$")
+EVIDENCE_KEYS = {
+    "schema",
+    "subject",
+    "completed_utc",
+    "external_review",
+    "fixture_material_used",
+    "independent_reviewer",
+    "network_required",
+    "offensive_tooling_included",
+    "production_blocking_findings_closed",
+    "report_sha256",
+    "report_sha384",
+    "report_sha512",
+    "review_id",
+    "review_packet_sha256",
+    "review_root_key_sha256",
+    "reviewed_commit",
+    "reviewer_identity",
+    "scope",
+    "signature_namespace",
+    "signature_required",
+    "non_claims",
+}
 SET_MANIFEST_KEYS = {"schema", "subject", "reviews", "non_claims"}
 SET_REVIEW_ENTRY_KEYS = {"evidence", "report", "review_root_key", "signature"}
 
@@ -234,6 +257,9 @@ def validate_evidence(*, evidence_path: Path, report_path: Path, repo: Path) -> 
     evidence = read_json(evidence_path, "Daylight external review evidence")
     if not isinstance(evidence, dict):
         fail("Daylight external review evidence must be a JSON object")
+    unexpected_evidence_keys = sorted(set(evidence).difference(EVIDENCE_KEYS))
+    if unexpected_evidence_keys:
+        fail("unexpected Daylight external review evidence fields: " + ", ".join(unexpected_evidence_keys))
     if evidence.get("schema") != EVIDENCE_SCHEMA:
         fail("unsupported Daylight external review evidence schema")
     if evidence.get("subject") != "Daylight_v0.6":
@@ -297,6 +323,11 @@ def verify_review(
     if review_root_key is not None or signature is not None:
         if review_root_key is None or signature is None:
             fail("external review signature verification requires root key and signature")
+        expected_root_key_sha256 = validate_digest(
+            evidence.get("review_root_key_sha256"),
+            HEX64_RE,
+            "review_root_key_sha256",
+        )
         verify_ssh_signature(
             message=read_bytes(evidence_path, "Daylight external review evidence", max_bytes=512 * 1024),
             root_key=review_root_key,
@@ -305,8 +336,12 @@ def verify_review(
         )
         signature_verified = True
         root_key_sha256 = sha_file(review_root_key, "sha256", "Daylight external review root key")
+        if root_key_sha256 != expected_root_key_sha256:
+            fail("review root key SHA-256 mismatch")
     elif not allow_unsigned_review:
         fail("score use requires signed Daylight external review evidence")
+    elif "review_root_key_sha256" in evidence:
+        validate_digest(evidence.get("review_root_key_sha256"), HEX64_RE, "review_root_key_sha256")
     return {
         "review_id": evidence["review_id"],
         "reviewer_identity": evidence["reviewer_identity"],
@@ -402,6 +437,9 @@ def run_emit(args: argparse.Namespace) -> int:
         fail("--review-id must be a stable lowercase id")
     if not args.reviewer.strip():
         fail("--reviewer is required")
+    review_root_key = Path(args.review_root_key)
+    read_public_key_line(review_root_key)
+    root_key_sha256 = sha_file(review_root_key, "sha256", "Daylight external review root key")
     scope = sorted(set(args.scope or sorted(REQUIRED_SCOPES)))
     value = {
         "schema": EVIDENCE_SCHEMA,
@@ -418,6 +456,7 @@ def run_emit(args: argparse.Namespace) -> int:
         "report_sha512": sha_file(Path(args.report), "sha512", "Daylight external review report"),
         "review_id": args.review_id,
         "review_packet_sha256": sha_file(PACKET, "sha256", "Daylight external review packet"),
+        "review_root_key_sha256": root_key_sha256,
         "reviewed_commit": args.reviewed_commit or current_git_commit(repo),
         "reviewer_identity": args.reviewer,
         "scope": scope,
@@ -522,6 +561,7 @@ def main() -> int:
     emit = sub.add_parser("emit")
     emit.add_argument("--repo", default=".")
     emit.add_argument("--report", required=True)
+    emit.add_argument("--review-root-key", required=True)
     emit.add_argument("--reviewer", required=True)
     emit.add_argument("--review-id", required=True)
     emit.add_argument("--reviewed-commit")

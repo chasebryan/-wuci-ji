@@ -62,6 +62,8 @@ def emit_review(tmp: Path, name: str, reviewer: str, completed: str) -> dict[str
         "production-authority blockers, claim discipline\n",
         encoding="ascii",
     )
+    keygen(key)
+    root_key = key.with_suffix(".pub")
     assert_ok(
         run_tool(
             "emit",
@@ -69,6 +71,8 @@ def emit_review(tmp: Path, name: str, reviewer: str, completed: str) -> dict[str
             str(REPO),
             "--report",
             str(report),
+            "--review-root-key",
+            str(root_key),
             "--reviewer",
             reviewer,
             "--review-id",
@@ -84,8 +88,6 @@ def emit_review(tmp: Path, name: str, reviewer: str, completed: str) -> dict[str
         ),
         f"emit review {name}",
     )
-    keygen(key)
-    root_key = key.with_suffix(".pub")
     assert_ok(
         run_tool(
             "sign-evidence",
@@ -180,6 +182,91 @@ def main() -> None:
         single_summary = json.loads(single.stdout.decode("utf-8"))
         assert single_summary["external_review_verified"] is True
         assert single_summary["signature_verified"] is True
+        assert single_summary["root_key_sha256"] == json.loads(
+            review_a["evidence"].read_text(encoding="utf-8")
+        )["review_root_key_sha256"]
+
+        mismatch_key = tmp / "mismatch-review-key"
+        keygen(mismatch_key)
+        mismatch = run_tool(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--evidence",
+            str(review_a["evidence"]),
+            "--report",
+            str(review_a["report"]),
+            "--review-root-key",
+            str(mismatch_key.with_suffix(".pub")),
+            "--signature",
+            str(review_a["signature"]),
+            "--quiet",
+        )
+        assert mismatch.returncode != 0
+        assert b"Daylight external review signature verification failed" in mismatch.stderr
+
+        digest_mismatch_evidence = tmp / "digest-mismatch-review.json"
+        digest_mismatch_signature = tmp / "digest-mismatch-review.json.sig"
+        digest_mismatch_value = json.loads(review_a["evidence"].read_text(encoding="utf-8"))
+        digest_mismatch_value["review_root_key_sha256"] = json.loads(
+            review_b["evidence"].read_text(encoding="utf-8")
+        )["review_root_key_sha256"]
+        digest_mismatch_evidence.write_text(
+            json.dumps(digest_mismatch_value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        assert_ok(
+            run_tool(
+                "sign-evidence",
+                "--evidence",
+                str(digest_mismatch_evidence),
+                "--signing-key",
+                str(review_a["key"]),
+                "--review-root-key",
+                str(review_a["root_key"]),
+                "--signature",
+                str(digest_mismatch_signature),
+                "--quiet",
+            ),
+            "sign root-key digest mismatch review",
+        )
+        digest_mismatch = run_tool(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--evidence",
+            str(digest_mismatch_evidence),
+            "--report",
+            str(review_a["report"]),
+            "--review-root-key",
+            str(review_a["root_key"]),
+            "--signature",
+            str(digest_mismatch_signature),
+            "--quiet",
+        )
+        assert digest_mismatch.returncode != 0
+        assert b"review root key SHA-256 mismatch" in digest_mismatch.stderr
+
+        self_claiming_review = tmp / "self-claiming-review.json"
+        self_claiming_value = json.loads(review_a["evidence"].read_text(encoding="utf-8"))
+        self_claiming_value["external_review_verified"] = True
+        self_claiming_review.write_text(
+            json.dumps(self_claiming_value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self_claiming = run_tool(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--evidence",
+            str(self_claiming_review),
+            "--report",
+            str(review_a["report"]),
+            "--allow-unsigned-review",
+            "--quiet",
+        )
+        assert self_claiming.returncode != 0
+        assert b"unexpected Daylight external review evidence fields" in self_claiming.stderr
 
         manifest = tmp / "reviews.json"
         assert_ok(
