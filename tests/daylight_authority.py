@@ -186,6 +186,42 @@ def main() -> None:
         assert "signed production authority must support trust authority" in summary["remaining_blockers"]
         assert "signed production authority must support publish authority" in summary["remaining_blockers"]
 
+        value = json.loads(evidence.read_text(encoding="utf-8"))
+        value["integrated_public_authority"] = True
+        self_claiming = tmp / "daylight-authority-self-claiming.json"
+        self_claiming.write_text(
+            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        self_claiming_result = run_daylight(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--evidence",
+            str(self_claiming),
+            "--quiet",
+        )
+        assert self_claiming_result.returncode != 0
+        assert b"unexpected Daylight authority evidence fields" in self_claiming_result.stderr
+
+        value = json.loads(evidence.read_text(encoding="utf-8"))
+        value["production_authority"]["allow_publish"] = True
+        nested_self_claiming = tmp / "daylight-authority-nested-self-claiming.json"
+        nested_self_claiming.write_text(
+            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        nested_self_claiming_result = run_daylight(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--evidence",
+            str(nested_self_claiming),
+            "--quiet",
+        )
+        assert nested_self_claiming_result.returncode != 0
+        assert b"unexpected production_authority fields" in nested_self_claiming_result.stderr
+
         strict = run_daylight(
             "verify",
             "--repo",

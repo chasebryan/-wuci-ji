@@ -16,6 +16,24 @@ import wuci_safeio
 EVIDENCE_SCHEMA = "daylight-v06-authority-evidence-v1"
 VERIFY_SCHEMA = "daylight-v06-authority-verification-v1"
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+EVIDENCE_KEYS = {
+    "schema",
+    "subject",
+    "fixture_material_used",
+    "external_public_precheck_evidence",
+    "network_required",
+    "offensive_tooling_included",
+    "reviewed_commit",
+    "production_authority",
+    "public_authority_predicates",
+    "non_claims",
+}
+PRODUCTION_AUTHORITY_KEYS = {
+    "authority",
+    "ceremony",
+    "ceremony_root_key",
+    "ceremony_signature",
+}
 
 REQUIRED_PUBLIC_AUTHORITY_PREDICATES = (
     "certificate",
@@ -115,6 +133,9 @@ def verify_daylight_authority(
     evidence = read_json(evidence_path, "Daylight authority evidence")
     if not isinstance(evidence, dict):
         fail("Daylight authority evidence must be a JSON object")
+    unexpected_evidence_keys = sorted(set(evidence).difference(EVIDENCE_KEYS))
+    if unexpected_evidence_keys:
+        fail("unexpected Daylight authority evidence fields: " + ", ".join(unexpected_evidence_keys))
     if evidence.get("schema") != EVIDENCE_SCHEMA:
         fail("unsupported Daylight authority evidence schema")
     if evidence.get("subject") != "Daylight_v0.6":
@@ -136,6 +157,9 @@ def verify_daylight_authority(
     production = evidence.get("production_authority")
     if not isinstance(production, dict):
         fail("production_authority must be an object")
+    unexpected_production_keys = sorted(set(production).difference(PRODUCTION_AUTHORITY_KEYS))
+    if unexpected_production_keys:
+        fail("unexpected production_authority fields: " + ", ".join(unexpected_production_keys))
     try:
         authority = wuci_production_authority.verify_authority(
             authority_path=resolve_manifest_path(base, production.get("authority"), "production authority root"),
