@@ -147,6 +147,15 @@ authority, at least two independent external reviews, and signed non-fixture
 production authority evidence are all tracked. It is a fail-closed readiness
 gate, not score evidence.
 
+`daylight-v06-external-review-packet-test` checks the Daylight v0.6 external
+review packet in
+`daylight-equation/evidence/daylight-v06-external-review-packet.v1.json` and
+`daylight-equation/analysis/daylight-v06-external-review-packet.md`. It
+verifies that the packet links the current 975 evidence set, review questions,
+local proof commands, and external review acceptance criteria while keeping
+`ExternalReviewClaim = 0`. It is not an external review and does not raise the
+score.
+
 `daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
 private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,
 provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,

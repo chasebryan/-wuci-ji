@@ -1,0 +1,95 @@
+{
+  "schema": "daylight-v06-external-review-packet-v1",
+  "subject": "Daylight_v0.6",
+  "status": "review-packet-not-external-review",
+  "as_of": "2026-06-27",
+  "current_score": 975,
+  "external_reviews_tracked": 0,
+  "review_packet_items": [
+    {
+      "path": "daylight-equation/SCORECARD.md",
+      "purpose": "score, hard gates, non-claims, and remaining blockers"
+    },
+    {
+      "path": "daylight-equation/SCORECARD.v1.json",
+      "purpose": "machine-readable score, evidence list, and hard gates"
+    },
+    {
+      "path": "daylight-equation/research/daylight-v06-m4-z3-proof.smt2",
+      "purpose": "SMT-LIB2 M4 predicate proof input"
+    },
+    {
+      "path": "daylight-equation/research/daylight-v06-m4-z3-proof.v1.json",
+      "purpose": "machine-readable Z3 proof expectations"
+    },
+    {
+      "path": "tests/daylight_v06_m4_z3_proof.py",
+      "purpose": "Z3 proof verifier"
+    },
+    {
+      "path": "daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json",
+      "purpose": "symbolic M4 predicate model"
+    },
+    {
+      "path": "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
+      "purpose": "fail-closed 1000 claim preflight"
+    },
+    {
+      "path": "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
+      "purpose": "provider-backed vector agreement evidence"
+    },
+    {
+      "path": "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
+      "purpose": "v6 byte-schema freeze evidence"
+    },
+    {
+      "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
+      "purpose": "provider-backed reference negative corpus"
+    },
+    {
+      "path": "daylight-equation/references/dlv0.5/v0.6M1-HARDENING.md",
+      "purpose": "source hardening reference"
+    }
+  ],
+  "required_local_commands": [
+    "make daylight-scorecard-test",
+    "make daylight-v06-m4-z3-proof-test",
+    "make daylight-v06-m4-symbolic-model-test",
+    "make daylight-v06-1000-preflight-test",
+    "make daylight-v6-provider-vector-agreement-test",
+    "make daylight-v06-schema-freeze-test",
+    "make daylight-v6-reference-negative-corpus-test"
+  ],
+  "review_questions": {
+    "formal_model": [
+      "Does the SMT predicate model faithfully encode the Daylight v0.6 M4 Open predicate?",
+      "Are authorization and downgrade predicates represented as necessary conditions?",
+      "Are the confidentiality assumptions stated narrowly enough for a conditional predicate proof?"
+    ],
+    "cryptography": [
+      "Are provider-backed ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) lanes combined and labeled without fallback semantics?",
+      "Does AEAD use transcript-bound associated data consistently?",
+      "Do the current non-claims prevent quantum-safety and production-readiness overreach?"
+    ],
+    "implementation_boundary": [
+      "Are fixture providers and externally supplied public authority evidence quarantined from production claims?",
+      "Are public-precheck failures fail-closed before private KEM, AEAD.Dec, and plaintext materialization?",
+      "Are certificate, revocation, log, install, witness, publish, and trust authority predicates still visibly unresolved?"
+    ]
+  },
+  "external_review_acceptance_criteria": [
+    "at least two independent reviewers",
+    "reviewed commit equals current release candidate commit",
+    "review scope covers formal model, provider-backed vectors, cryptographic boundary, and production-authority blockers",
+    "all production-blocking findings are closed or explicitly accepted as score blockers",
+    "review artifacts are attributable and signed or otherwise independently verifiable",
+    "review artifacts do not rely on fixture authority as production authority"
+  ],
+  "non_claims": [
+    "this packet is not an external review",
+    "this packet does not raise the Daylight score",
+    "this packet is not production authority",
+    "this packet does not make Daylight production-ready",
+    "this packet does not claim whole-system post-quantum safety"
+  ]
+}

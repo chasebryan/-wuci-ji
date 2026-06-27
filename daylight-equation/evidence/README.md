@@ -12,3 +12,6 @@ post-quantum assurance.
   Rust provider-backed KEM/key-schedule, private-roundtrip, reference
   `Seal`/`Open`, and reference negative-corpus evidence vectors while
   preserving the non-production, external-public-authority boundary.
+- `daylight-v06-external-review-packet.v1.json` records the current 975/1000
+  evidence packet for outside review. It is not itself an external review and
+  does not raise the score.

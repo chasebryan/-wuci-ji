@@ -128,6 +128,8 @@ If any item is missing, the valid score is below 1000.
   predicate model, but it is not an external review and does not prove
   cryptographic primitive security.
 - No external reviews are tracked.
+- A current external review packet is tracked for reviewers, but it is not an
+  external review and does not change `ExternalReviewClaim = 0`.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
 - A Daylight 1000 preflight gate is tracked and intentionally remains blocked
@@ -182,6 +184,10 @@ If any item is missing, the valid score is below 1000.
 - [M4 Z3 proof SMT-LIB](research/daylight-v06-m4-z3-proof.smt2)
 - [M4 Z3 proof verifier](../tests/daylight_v06_m4_z3_proof.py)
 - `make daylight-v06-m4-z3-proof-test`
+- [external review packet](analysis/daylight-v06-external-review-packet.md)
+- [external review packet JSON](evidence/daylight-v06-external-review-packet.v1.json)
+- [external review packet verifier](../tests/daylight_v06_external_review_packet.py)
+- `make daylight-v06-external-review-packet-test`
 - [1000 preflight](research/daylight-v06-1000-preflight.md)
 - [1000 preflight JSON](research/daylight-v06-1000-preflight.v1.json)
 - [1000 preflight verifier](../tests/daylight_v06_1000_preflight.py)
