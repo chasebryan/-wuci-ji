@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 955 / 1000
+Daylight_v0.6_research_score = 970 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -44,9 +44,14 @@ negative-corpus vectors against the same artifact and non-production
 public-boundary claims. Checked schema-freeze evidence now pins the v6 schema
 surface names, transcript labels, KDF labels, rejection stages, schema vector,
 and reference negative-corpus hooks against the Rust lane and reference docs.
+An expanded M4 symbolic model now exhaustively checks the 20-predicate
+public/private `Open` truth table for confidentiality assumptions,
+authorization requirements, downgrade requirements, and fail-closed release
+behavior.
 The same artifact profile still declares
 `RealCryptoProvider = 0`, `M1Progress = partial`, no integrated production
-public authority, no complete formal model, and no external review.
+public authority, no mechanized or externally reviewed complete formal proof,
+and no external review.
 
 ## Scored Evidence
 
@@ -58,9 +63,9 @@ Pinned Rust primitive experiments               150 / 150
 Daylight v4/v6 parser and rejection behavior    125 / 125
 Documentation, claim discipline, provenance     100 / 100
 Independent parser and vector reproduction       75 / 75
-Formal model                                      5 / 25
+Formal model                                     20 / 25
 External review                                   0 / 25
-Total                                           955 / 1000
+Total                                           970 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -116,10 +121,11 @@ If any item is missing, the valid score is below 1000.
   non-production lane only; it is not a full provider-backed valid/negative
   corpus and does not replace a second independent implementation.
 - No public fuzz corpus or independent reproduction bundle is tracked.
-- A partial fail-closed formal model is tracked for `Open = bottom` ordering
-  and the public-before-private barrier, but no complete formal model is
-  tracked for confidentiality, authorization, downgrade resistance, and
-  fail-closed release behavior. No complete formal model is tracked.
+- A partial fail-closed formal model is tracked for `Open = bottom` ordering,
+  and an expanded M4 symbolic model covers confidentiality, authorization,
+  downgrade resistance, and fail-closed release behavior over the current
+  predicate model. No complete formal model is tracked as a mechanized proof or
+  independent formal-methods review.
 - No external reviews are tracked.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
@@ -163,6 +169,10 @@ If any item is missing, the valid score is below 1000.
 - [schema freeze evidence JSON](research/daylight-v06-schema-freeze.v1.json)
 - [schema freeze verifier](../tests/daylight_v06_schema_freeze.py)
 - `make daylight-v06-schema-freeze-test`
+- [M4 symbolic model](research/daylight-v06-m4-symbolic-model.md)
+- [M4 symbolic model JSON](research/daylight-v06-m4-symbolic-model.v1.json)
+- [M4 symbolic model verifier](../tests/daylight_v06_m4_symbolic_model.py)
+- `make daylight-v06-m4-symbolic-model-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)

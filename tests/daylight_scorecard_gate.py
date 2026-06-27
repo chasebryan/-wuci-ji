@@ -73,7 +73,7 @@ def main() -> None:
     hard_blockers = (
         "RealCryptoProvider = 0",
         "M1Progress = partial",
-        "No complete formal model is tracked.",
+        "No complete formal model is tracked",
         "No external reviews are tracked.",
         "provider-backed reference `Seal`/`Open` remains non-production",
         "public authority remains external",
@@ -170,8 +170,24 @@ def main() -> None:
         if hard_gates.get("byte_schema_freeze_evidence") is not True:
             raise AssertionError("scorecard exceeds reference corpus without satisfying schema-freeze gate")
     if score > 955:
+        if "expanded M4 symbolic model" not in text:
+            raise AssertionError("scorecard exceeds schema-freeze evidence without M4 symbolic model evidence")
+        evidence = set(machine["evidence"])
+        for required in (
+            "daylight-equation/research/daylight-v06-m4-symbolic-model.md",
+            "daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json",
+            "tests/daylight_v06_m4_symbolic_model.py",
+        ):
+            if required not in evidence:
+                raise AssertionError(f"machine scorecard missing M4 symbolic model evidence: {required}")
+        if "daylight-v06-m4-symbolic-model-test" not in text:
+            raise AssertionError("scorecard missing M4 symbolic model test target")
+        hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
+        if hard_gates.get("m4_symbolic_model") is not True:
+            raise AssertionError("scorecard exceeds schema-freeze evidence without satisfying M4 symbolic model gate")
+    if score > 970:
         raise AssertionError(
-            "scorecard exceeds schema-freeze evidence without complete formal model, external review, and production authority evidence"
+            "scorecard exceeds M4 symbolic model evidence without mechanized formal proof, external review, and production authority evidence"
         )
 
     if not args.quiet:

@@ -121,6 +121,15 @@ vector hooks, and negative-corpus hooks against the current Rust v6 lane and
 reference docs. It is not a formal model, external review, or production
 authority proof.
 
+`daylight-v06-m4-symbolic-model-test` checks the Daylight v0.6 M4 symbolic
+model in `daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json`
+and `daylight-equation/research/daylight-v06-m4-symbolic-model.md`. It
+exhaustively checks the 20-predicate public/private `Open` truth table for
+confidentiality assumptions, authorization requirements, downgrade
+requirements, and fail-closed release behavior. It is not a mechanized
+theorem-prover proof, external review, production authority, runtime
+containment, or whole-system post-quantum-safety evidence.
+
 `daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
 private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,
 provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,

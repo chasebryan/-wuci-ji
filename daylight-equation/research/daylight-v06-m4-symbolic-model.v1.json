@@ -1,0 +1,97 @@
+{
+  "schema": "daylight-v06-m4-symbolic-model-v1",
+  "subject": "Daylight_v0.6",
+  "status": "symbolic-m4-model-not-mechanized-proof",
+  "source": "daylight-equation/references/dlv0.5/v0.6M1-HARDENING.md sections 20, 21, and 25",
+  "open_predicate": "Open(omega) != bottom iff all public_precheck_predicates and all private_open_predicates hold",
+  "private_operation_barrier": "any failed public_precheck_predicate blocks private KEM, AEAD.Dec, and plaintext materialization",
+  "public_precheck_predicates": [
+    "ParseOK",
+    "SuiteOK",
+    "AuxHashOK",
+    "KEMBlockOK",
+    "ModeOK",
+    "PolicyOK",
+    "ClaimOK",
+    "GateOK",
+    "ProvenanceOK",
+    "ContentReviewPreOK",
+    "V_Auth",
+    "NoDowngradeFinal",
+    "LogOK",
+    "InstallOK",
+    "WitnessOK"
+  ],
+  "private_open_predicates": [
+    "DeriveOK",
+    "AEAD.Dec",
+    "PayloadOK",
+    "CommitOK",
+    "LeakOK"
+  ],
+  "security_assumptions": {
+    "confidentiality": [
+      "AtLeastOneKEMSharedSecretPseudorandom",
+      "HKDF_SHA512_Extractor_PRF",
+      "AEAD_IND_CCA",
+      "PublicKeysValidate",
+      "SideChannelsBounded"
+    ],
+    "authorization": [
+      "SignatureUnforgeability",
+      "QuorumPolicySound",
+      "CertificatePredicateSound",
+      "RevocationPredicateSound"
+    ],
+    "downgrade_resistance": [
+      "PolicyMinimumModeSound",
+      "TranscriptBindingSound",
+      "NoDowngradePredicateSound"
+    ]
+  },
+  "security_claims": {
+    "confidentiality": "If all confidentiality assumptions hold, Open materializes plaintext only when public and private predicates all hold; otherwise Open = bottom.",
+    "authorization": "Open cannot succeed without V_Auth, GateOK, PolicyOK, ClaimOK, and ContentReviewPreOK.",
+    "downgrade_resistance": "Open cannot succeed when NoDowngradeFinal, ModeOK, PolicyOK, or ClaimOK is false.",
+    "fail_closed_release": "Every single failed public or private predicate forces Open = bottom; every failed public predicate also blocks private operations."
+  },
+  "checked_properties": {
+    "truth_table_states": 1048576,
+    "open_iff_all_public_and_private_predicates": true,
+    "single_failure_fail_closed": true,
+    "public_precheck_blocks_private_operations": true,
+    "authorization_predicates_required": true,
+    "downgrade_predicates_required": true,
+    "confidentiality_assumptions_required_for_confidentiality_claim": true,
+    "forbidden_claims_pinned": true
+  },
+  "implementation_links": [
+    "daylight-equation/research/daylight-v06-fail-closed-model.v1.json",
+    "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
+    "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
+    "tests/daylight_v06_m1_static_vectors.py"
+  ],
+  "forbidden_claims": [
+    "global_security_strength = 256",
+    "reviewed_content publicly proves absence of hidden content",
+    "witness evidence proves no private material exists",
+    "audit log is a confidentiality primitive",
+    "FROST is core",
+    "C1 conformance implies production readiness"
+  ],
+  "non_claims": [
+    "this symbolic model is not a mechanized theorem-prover proof",
+    "this symbolic model is not external review",
+    "this symbolic model is not production authority",
+    "this symbolic model does not claim runtime containment",
+    "this symbolic model does not claim whole-system post-quantum safety",
+    "this symbolic model does not replace constant-time and failure-path review"
+  ],
+  "remaining_proof_obligations": [
+    "mechanized proof or independent formal-methods review",
+    "constant-time and failure-path review",
+    "integrated public authority predicates",
+    "production authority ceremony",
+    "at least two independent external reviews"
+  ]
+}

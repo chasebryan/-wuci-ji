@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 955,
+    "value": 970,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -49,7 +49,7 @@
     },
     {
       "name": "formal_model",
-      "value": 5,
+      "value": 20,
       "maximum": 25
     },
     {
@@ -81,7 +81,10 @@
     "tests/daylight_v06_fail_closed_model.py",
     "daylight-equation/research/daylight-v06-schema-freeze.md",
     "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
-    "tests/daylight_v06_schema_freeze.py"
+    "tests/daylight_v06_schema_freeze.py",
+    "daylight-equation/research/daylight-v06-m4-symbolic-model.md",
+    "daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json",
+    "tests/daylight_v06_m4_symbolic_model.py"
   ],
   "hard_gates": [
     {
@@ -135,9 +138,14 @@
       "reason": "The repo tracks a checked partial model for Open=bottom ordering and the PublicPreOK private-operation barrier."
     },
     {
+      "name": "m4_symbolic_model",
+      "satisfied": true,
+      "reason": "The repo checks an expanded M4 symbolic model for confidentiality assumptions, authorization requirements, downgrade requirements, and fail-closed release behavior over the current 20-predicate Open model."
+    },
+    {
       "name": "formal_model",
       "satisfied": false,
-      "reason": "Only a partial fail-closed model is tracked; no complete confidentiality, authorization, downgrade-resistance, and fail-closed release behavior model exists."
+      "reason": "A symbolic M4 model is tracked, but no mechanized proof or independent formal-methods review exists."
     },
     {
       "name": "external_review",

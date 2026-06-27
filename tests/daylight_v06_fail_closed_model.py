@@ -188,7 +188,7 @@ def main() -> None:
     assert "daylight-v06-fail-closed-model-test:" in makefile
     assert "daylight-v6-reference-seal-open-test:" in makefile
     assert "daylight-v06-fail-closed-model.v1.json" in scorecard
-    assert "No complete formal model is tracked." in scorecard
+    assert "No complete formal model is tracked" in scorecard
 
     if not args.quiet:
         print("Daylight v0.6 fail-closed model: PASS")
