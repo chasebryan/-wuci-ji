@@ -108,9 +108,10 @@ fail-closed ordering model in
 `daylight-equation/research/daylight-v06-fail-closed-model.v1.json` and
 `daylight-equation/research/daylight-v06-fail-closed-model.md`. It verifies
 single-predicate `Open = bottom` behavior and the `PublicPreOK = 0` barrier
-against private KEM, AEAD decrypt, and plaintext materialization. It is not a
-complete confidentiality, authorization, downgrade-resistance, or production
-authority proof.
+against private KEM, AEAD decrypt, and plaintext materialization, and checks
+the non-production provider-backed v6 reference `Seal`/`Open` implementation
+link. It is not a complete confidentiality, authorization, downgrade-resistance,
+or production authority proof.
 
 `daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
 private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,

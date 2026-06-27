@@ -13,6 +13,15 @@ MODEL_DOC = REPO / "daylight-equation" / "research" / "daylight-v06-fail-closed-
 REFERENCE = REPO / "daylight-equation" / "references" / "dlv0.5" / "2.md"
 SCORECARD = REPO / "daylight-equation" / "SCORECARD.md"
 MAKEFILE = REPO / "Makefile"
+V6_IMPL = REPO / "daylight-equation" / "rust" / "daylight-crypto" / "src" / "v6.rs"
+V6_REFERENCE_VECTOR = (
+    REPO
+    / "daylight-equation"
+    / "rust"
+    / "daylight-crypto"
+    / "vectors"
+    / "daylight-v6-reference-seal-open-evidence-v1.txt"
+)
 
 PUBLIC_PREDICATES = [
     "ParseOK",
@@ -59,6 +68,8 @@ def main() -> None:
     reference = REFERENCE.read_text(encoding="utf-8")
     scorecard = SCORECARD.read_text(encoding="utf-8")
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    v6_impl = V6_IMPL.read_text(encoding="utf-8")
+    v6_reference_vector = V6_REFERENCE_VECTOR.read_text(encoding="utf-8")
 
     assert model["schema"] == "daylight-v06-fail-closed-model-v1"
     assert model["subject"] == "Daylight_v0.6"
@@ -121,15 +132,38 @@ def main() -> None:
         "public_precheck_blocks_private_operations": True,
         "open_requires_public_and_private_predicates": True,
         "success_requires_all_predicates_true": True,
+        "provider_backed_reference_lane_linked": True,
     }
     assert model["coverage"]["fail_closed_ordering"] == "partial"
     assert model["coverage"]["confidentiality"] == "not-modeled"
-    assert model["coverage"]["provider_backed_v6_seal_open"] == "not-modeled"
+    assert (
+        model["coverage"]["provider_backed_v6_seal_open"]
+        == "implementation-linked-nonproduction-reference-lane"
+    )
+    implementation_link = model["implementation_links"]["provider_backed_v6_reference_seal_open"]
+    assert implementation_link["status"] == "linked-nonproduction-reference-lane"
+    assert implementation_link["source"] == "daylight-equation/rust/daylight-crypto/src/v6.rs"
+    assert (
+        implementation_link["evidence_vector"]
+        == "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt"
+    )
+    assert implementation_link["test_target"] == "daylight-v6-reference-seal-open-test"
+    assert "production_allowed=false" in implementation_link["boundary"]
+    for function_name in implementation_link["functions"]:
+        assert function_name in v6_impl
+        assert function_name in doc
+    for field in (
+        "version=daylight-v6-reference-seal-open-evidence-v1",
+        "provider_backed_reference_seal_open=true",
+        "public_authority_external=true",
+        "production_allowed=false",
+    ):
+        assert field in v6_reference_vector
 
     for non_claim in (
         "this model is not a complete Daylight formal model",
         "this model does not prove confidentiality",
-        "this model does not implement provider-backed v6 Seal/Open",
+        "this model does not make provider-backed v6 Seal/Open production authority",
         "this model does not make fixture predicates production authority",
         "this model does not claim runtime containment",
         "this model does not replace independent external review",
@@ -145,12 +179,14 @@ def main() -> None:
         "no private KEM operation",
         "no AEAD.Dec",
         "no plaintext materialization",
+        "non-production reference lane with externally supplied public precheck evidence",
         "does not satisfy the 1000/1000 formal-model gate",
     ):
         assert phrase in doc_flat
 
     assert "daylight-v06-fail-closed-model-test" in scorecard
     assert "daylight-v06-fail-closed-model-test:" in makefile
+    assert "daylight-v6-reference-seal-open-test:" in makefile
     assert "daylight-v06-fail-closed-model.v1.json" in scorecard
     assert "No complete formal model is tracked." in scorecard
 

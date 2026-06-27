@@ -62,7 +62,23 @@
     "single_failure_fail_closed": true,
     "public_precheck_blocks_private_operations": true,
     "open_requires_public_and_private_predicates": true,
-    "success_requires_all_predicates_true": true
+    "success_requires_all_predicates_true": true,
+    "provider_backed_reference_lane_linked": true
+  },
+  "implementation_links": {
+    "provider_backed_v6_reference_seal_open": {
+      "status": "linked-nonproduction-reference-lane",
+      "source": "daylight-equation/rust/daylight-crypto/src/v6.rs",
+      "functions": [
+        "daylight_seal_v6_with_kems_from_seed",
+        "daylight_open_v6_with_kems",
+        "daylight_reference_precheck_v6",
+        "daylight_v6_reference_seal_open_evidence"
+      ],
+      "evidence_vector": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt",
+      "test_target": "daylight-v6-reference-seal-open-test",
+      "boundary": "requires explicit non-production external public precheck evidence and keeps production_allowed=false"
+    }
   },
   "coverage": {
     "fail_closed_ordering": "partial",
@@ -70,13 +86,13 @@
     "downgrade_resistance": "partial",
     "confidentiality": "not-modeled",
     "constant_time_secret_paths": "not-modeled",
-    "provider_backed_v6_seal_open": "not-modeled",
+    "provider_backed_v6_seal_open": "implementation-linked-nonproduction-reference-lane",
     "production_authority": "not-modeled"
   },
   "non_claims": [
     "this model is not a complete Daylight formal model",
     "this model does not prove confidentiality",
-    "this model does not implement provider-backed v6 Seal/Open",
+    "this model does not make provider-backed v6 Seal/Open production authority",
     "this model does not make fixture predicates production authority",
     "this model does not claim runtime containment",
     "this model does not replace independent external review"
@@ -85,7 +101,8 @@
     "complete confidentiality model",
     "complete authorization and authority model",
     "complete downgrade-resistance model",
-    "provider-backed v6 Seal/Open model linked to implementation",
+    "complete provider-backed corpus and cross-implementation model",
+    "integrated public authority model",
     "constant-time and failure-path review",
     "external review"
   ]
