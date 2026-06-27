@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 945,
+    "value": 955,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -14,7 +14,7 @@
   "components": [
     {
       "name": "byte_level_schema_and_transcript_clarity",
-      "value": 190,
+      "value": 200,
       "maximum": 200
     },
     {
@@ -78,7 +78,10 @@
     "tests/daylight_v6_provider_vector_agreement.py",
     "daylight-equation/research/daylight-v06-fail-closed-model.md",
     "daylight-equation/research/daylight-v06-fail-closed-model.v1.json",
-    "tests/daylight_v06_fail_closed_model.py"
+    "tests/daylight_v06_fail_closed_model.py",
+    "daylight-equation/research/daylight-v06-schema-freeze.md",
+    "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
+    "tests/daylight_v06_schema_freeze.py"
   ],
   "hard_gates": [
     {
@@ -115,6 +118,11 @@
       "name": "provider_backed_reference_negative_corpus",
       "satisfied": true,
       "reason": "The Rust v6 lane has a checked 12-case provider-backed reference negative corpus for external public-precheck denials, production-disallowed denial, and private-path mutation failures."
+    },
+    {
+      "name": "byte_schema_freeze_evidence",
+      "satisfied": true,
+      "reason": "The repo checks Daylight v6 schema surface names, transcript labels, KDF labels, rejection stages, schema vector hooks, and reference negative-corpus hooks against the Rust v6 lane and reference docs."
     },
     {
       "name": "integrated_public_authority",

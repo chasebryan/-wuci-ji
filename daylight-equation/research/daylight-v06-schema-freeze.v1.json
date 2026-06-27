@@ -1,0 +1,77 @@
+{
+  "schema": "daylight-v06-schema-freeze-v1",
+  "subject": "Daylight_v0.6",
+  "status": "m1-byte-schema-freeze-evidence-not-production",
+  "source": "daylight-equation/references/dlv0.5/v0.6M1-HARDENING.md section 26",
+  "frozen_schema_surfaces": [
+    "Deterministic-CBOR-Daylight-v6 schema",
+    "Envelope_v6 schema",
+    "Header_v6 schema",
+    "AuxBlock_v6 schema",
+    "Policy_v6 schema",
+    "KeySetPub_v6 schema",
+    "AuthBlock_v6 schema",
+    "PrivatePayload_v6 schema"
+  ],
+  "frozen_transcript_labels": [
+    "daylight.pre.v6",
+    "daylight.auth.transcript.v6",
+    "daylight.authorization.message.v6"
+  ],
+  "frozen_kdf_labels": [
+    "daylight-kdf2-salt.v6",
+    "daylight-kdf2-info.v6",
+    "daylight.kem.context.v6",
+    "daylight.kem.salt.v6",
+    "daylight.hybrid.ikm.v6",
+    "daylight.key.schedule.v6",
+    "daylight.artifact.commit.v6",
+    "daylight.review.hidden.v6",
+    "daylight.key-id.v6"
+  ],
+  "frozen_contexts": [
+    "DAYLIGHT-ENVELOPE-v6",
+    "WUCI-DAYLIGHT:AUTH:v6",
+    "WUCI-DAYLIGHT:REVIEW:v6"
+  ],
+  "frozen_rejection_stages": [
+    "REJECT_PARSE",
+    "REJECT_SCHEMA",
+    "REJECT_SUITE",
+    "REJECT_AUX_HASH",
+    "REJECT_POLICY",
+    "REJECT_CLAIMS",
+    "REJECT_KEM_BLOCK",
+    "REJECT_AUTH_BLOCK",
+    "REJECT_AUTH_SIGNATURE",
+    "REJECT_REVIEW",
+    "REJECT_DOWNGRADE",
+    "REJECT_LOG",
+    "REJECT_INSTALL",
+    "REJECT_WITNESS",
+    "REJECT_DECAP",
+    "REJECT_AEAD",
+    "REJECT_PAYLOAD",
+    "REJECT_COMMIT",
+    "REJECT_LEAK"
+  ],
+  "evidence_vectors": [
+    "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-schema-vector-v1.txt",
+    "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt"
+  ],
+  "checked_properties": {
+    "schema_surfaces_present_in_reference_and_fixture_profile": true,
+    "transcript_labels_present_in_reference_and_rust": true,
+    "kdf_labels_present_in_reference_or_rust": true,
+    "rejection_stages_present_in_reference_and_rust": true,
+    "schema_vector_roundtrip_test_linked": true,
+    "negative_corpus_test_linked": true
+  },
+  "non_claims": [
+    "this freeze evidence is not a complete formal model",
+    "this freeze evidence is not external review",
+    "this freeze evidence is not production authority",
+    "this freeze evidence does not claim runtime containment",
+    "this freeze evidence does not claim whole-system post-quantum safety"
+  ]
+}

@@ -113,6 +113,14 @@ the non-production provider-backed v6 reference `Seal`/`Open` implementation
 link. It is not a complete confidentiality, authorization, downgrade-resistance,
 or production authority proof.
 
+`daylight-v06-schema-freeze-test` checks the Daylight v0.6 byte-schema freeze
+evidence in `daylight-equation/research/daylight-v06-schema-freeze.v1.json` and
+`daylight-equation/research/daylight-v06-schema-freeze.md`. It verifies frozen
+schema surface names, transcript labels, KDF labels, rejection stages, schema
+vector hooks, and negative-corpus hooks against the current Rust v6 lane and
+reference docs. It is not a formal model, external review, or production
+authority proof.
+
 `daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
 private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,
 provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,

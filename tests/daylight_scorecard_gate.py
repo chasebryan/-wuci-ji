@@ -154,8 +154,24 @@ def main() -> None:
         if hard_gates.get("provider_backed_reference_negative_corpus") is not True:
             raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying reference negative corpus gate")
     if score > 945:
+        if "schema-freeze evidence" not in text:
+            raise AssertionError("scorecard exceeds reference corpus without schema-freeze evidence")
+        evidence = set(machine["evidence"])
+        for required in (
+            "daylight-equation/research/daylight-v06-schema-freeze.md",
+            "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
+            "tests/daylight_v06_schema_freeze.py",
+        ):
+            if required not in evidence:
+                raise AssertionError(f"machine scorecard missing schema-freeze evidence: {required}")
+        if "daylight-v06-schema-freeze-test" not in text:
+            raise AssertionError("scorecard missing schema-freeze test target")
+        hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
+        if hard_gates.get("byte_schema_freeze_evidence") is not True:
+            raise AssertionError("scorecard exceeds reference corpus without satisfying schema-freeze gate")
+    if score > 955:
         raise AssertionError(
-            "scorecard exceeds provider-backed reference corpus without complete formal model, external review, and production authority evidence"
+            "scorecard exceeds schema-freeze evidence without complete formal model, external review, and production authority evidence"
         )
 
     if not args.quiet:

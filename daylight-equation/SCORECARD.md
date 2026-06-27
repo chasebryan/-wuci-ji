@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 945 / 1000
+Daylight_v0.6_research_score = 955 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -41,14 +41,17 @@ ML-KEM, DHKEM, and AEAD while requiring explicit non-production external public
 precheck evidence. Provider-backed v6 vector-agreement evidence now checks the
 KEM/key-schedule, private-roundtrip, reference `Seal`/`Open`, and reference
 negative-corpus vectors against the same artifact and non-production
-public-boundary claims. The same artifact profile still declares
+public-boundary claims. Checked schema-freeze evidence now pins the v6 schema
+surface names, transcript labels, KDF labels, rejection stages, schema vector,
+and reference negative-corpus hooks against the Rust lane and reference docs.
+The same artifact profile still declares
 `RealCryptoProvider = 0`, `M1Progress = partial`, no integrated production
 public authority, no complete formal model, and no external review.
 
 ## Scored Evidence
 
 ```text
-Byte-level schema and transcript clarity       190 / 200
+Byte-level schema and transcript clarity       200 / 200
 Deterministic valid and negative fixture corpus 175 / 175
 Fail-closed public-before-private ordering      125 / 125
 Pinned Rust primitive experiments               150 / 150
@@ -57,7 +60,7 @@ Documentation, claim discipline, provenance     100 / 100
 Independent parser and vector reproduction       75 / 75
 Formal model                                      5 / 25
 External review                                   0 / 25
-Total                                           945 / 1000
+Total                                           955 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -156,6 +159,10 @@ If any item is missing, the valid score is below 1000.
 - [partial fail-closed formal model JSON](research/daylight-v06-fail-closed-model.v1.json)
 - [partial fail-closed formal model verifier](../tests/daylight_v06_fail_closed_model.py)
 - `make daylight-v06-fail-closed-model-test`
+- [schema freeze evidence](research/daylight-v06-schema-freeze.md)
+- [schema freeze evidence JSON](research/daylight-v06-schema-freeze.v1.json)
+- [schema freeze verifier](../tests/daylight_v06_schema_freeze.py)
+- `make daylight-v06-schema-freeze-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)
