@@ -83,7 +83,7 @@ def main() -> None:
     assert "daylight-v06-schema-freeze-test" in scorecard
     assert "daylight-v06-schema-freeze-test:" in makefile
     assert "daylight-v06-schema-freeze.v1.json" in scorecard
-    assert "Daylight_v0.6_research_score = 970 / 1000" in scorecard
+    assert "Daylight_v0.6_research_score = 975 / 1000" in scorecard
 
     if not args.quiet:
         print("Daylight v0.6 schema freeze: PASS")

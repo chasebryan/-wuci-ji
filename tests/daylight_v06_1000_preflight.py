@@ -64,7 +64,7 @@ def main() -> None:
     claim_gates = {gate["name"]: gate for gate in preflight["claim_gates"]}
     assert claim_gates["score_exactly_1000"]["satisfied"] is False
     assert claim_gates["integrated_public_authority"]["satisfied"] is False
-    assert claim_gates["mechanized_or_independently_reviewed_formal_model"]["satisfied"] is False
+    assert claim_gates["mechanized_or_independently_reviewed_formal_model"]["satisfied"] is True
     assert claim_gates["two_independent_external_reviews"]["satisfied"] is False
     assert claim_gates["production_authority"]["satisfied"] is False
 
@@ -94,7 +94,8 @@ def main() -> None:
     doc_flat = " ".join(doc.split())
     for phrase in (
         "deliberately fails closed today",
-        "current valid score is 970/1000",
+        "current valid score is 975/1000",
+        "mechanized M4 predicate proof is tracked",
         "at least two independent external reviews",
         "signed non-fixture production, publish, and trust authority evidence",
     ):

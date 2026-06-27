@@ -3,12 +3,11 @@
 This preflight is the local gate for any future
 `Daylight_v0.6_research_score = 1000 / 1000` checkpoint.
 
-It deliberately fails closed today. The current valid score is 970/1000, and
-the remaining 30 points require evidence that cannot be invented inside the
-repo:
+It deliberately fails closed today. The current valid score is 975/1000, and
+the remaining 25 points require evidence that cannot be invented inside the
+repo. The mechanized M4 predicate proof is tracked, but these blockers remain:
 
 - integrated public authority;
-- a mechanized proof or independent formal-methods review;
 - at least two independent external reviews with production-blocking findings
   addressed;
 - signed non-fixture production, publish, and trust authority evidence.

@@ -172,8 +172,7 @@ def main() -> None:
     assert "daylight-v06-m4-symbolic-model-test" in scorecard
     assert "daylight-v06-m4-symbolic-model-test:" in makefile
     assert "daylight-v06-m4-symbolic-model.v1.json" in scorecard
-    assert "Daylight_v0.6_research_score = 970 / 1000" in scorecard
-    assert "No complete formal model is tracked" in scorecard
+    assert "Daylight_v0.6_research_score = 975 / 1000" in scorecard
 
     if not args.quiet:
         print(f"Daylight v0.6 M4 symbolic model: PASS ({truth_table_states} states)")

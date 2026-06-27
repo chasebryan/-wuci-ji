@@ -1,0 +1,36 @@
+{
+  "schema": "daylight-v06-m4-z3-proof-v1",
+  "subject": "Daylight_v0.6",
+  "status": "smt-backed-m4-predicate-proof-not-external-review",
+  "model": "daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json",
+  "smt2": "daylight-equation/research/daylight-v06-m4-z3-proof.smt2",
+  "solver": {
+    "name": "z3",
+    "interface": "SMT-LIB2",
+    "logic": "QF_UF",
+    "expected_check_sat_result": "unsat",
+    "expected_unsat_checks": 38
+  },
+  "proved_properties": {
+    "open_iff_all_public_and_private_predicates": true,
+    "public_precheck_blocks_private_operations": true,
+    "open_requires_private_operations_allowed": true,
+    "single_failure_fail_closed": true,
+    "authorization_predicates_required": true,
+    "downgrade_predicates_required": true,
+    "confidentiality_assumptions_required_for_confidential_release": true
+  },
+  "non_claims": [
+    "this Z3 proof is not external review",
+    "this Z3 proof is not production authority",
+    "this Z3 proof does not prove cryptographic primitive security",
+    "this Z3 proof does not claim runtime containment",
+    "this Z3 proof does not claim whole-system post-quantum safety",
+    "this Z3 proof does not replace constant-time and failure-path review"
+  ],
+  "remaining_1000_obligations": [
+    "integrated public authority predicates",
+    "at least two independent external reviews",
+    "signed non-fixture production authority evidence"
+  ]
+}

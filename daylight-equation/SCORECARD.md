@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 970 / 1000
+Daylight_v0.6_research_score = 975 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -47,11 +47,11 @@ and reference negative-corpus hooks against the Rust lane and reference docs.
 An expanded M4 symbolic model now exhaustively checks the 20-predicate
 public/private `Open` truth table for confidentiality assumptions,
 authorization requirements, downgrade requirements, and fail-closed release
-behavior.
+behavior. A Z3-backed SMT proof now mechanically discharges 38 negated
+predicate obligations for the same model.
 The same artifact profile still declares
 `RealCryptoProvider = 0`, `M1Progress = partial`, no integrated production
-public authority, no mechanized or externally reviewed complete formal proof,
-and no external review.
+public authority, and no external review.
 
 ## Scored Evidence
 
@@ -63,9 +63,9 @@ Pinned Rust primitive experiments               150 / 150
 Daylight v4/v6 parser and rejection behavior    125 / 125
 Documentation, claim discipline, provenance     100 / 100
 Independent parser and vector reproduction       75 / 75
-Formal model                                     20 / 25
+Formal model                                     25 / 25
 External review                                   0 / 25
-Total                                           970 / 1000
+Total                                           975 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -124,15 +124,15 @@ If any item is missing, the valid score is below 1000.
 - A partial fail-closed formal model is tracked for `Open = bottom` ordering,
   and an expanded M4 symbolic model covers confidentiality, authorization,
   downgrade resistance, and fail-closed release behavior over the current
-  predicate model. No complete formal model is tracked as a mechanized proof or
-  independent formal-methods review.
+  predicate model. A Z3-backed SMT proof mechanically checks the current
+  predicate model, but it is not an external review and does not prove
+  cryptographic primitive security.
 - No external reviews are tracked.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
 - A Daylight 1000 preflight gate is tracked and intentionally remains blocked
-  until integrated public authority, mechanized or independently reviewed
-  formal evidence, two independent external reviews, and signed non-fixture
-  production authority evidence exist.
+  until integrated public authority, two independent external reviews, and
+  signed non-fixture production authority evidence exist.
 
 ## Next Score-Raising Work
 
@@ -144,8 +144,8 @@ If any item is missing, the valid score is below 1000.
    trust-authority verification gates.
 3. Publish a clean KAT bundle with valid, negative, and parser-only vectors
    plus reproduction commands.
-4. Promote the symbolic M4 model into a mechanized proof or independent
-   formal-methods review before adding any 1000/1000 claim.
+4. Prepare an external review packet around the M4 proof, provider-backed
+   vectors, and remaining production-authority blockers.
 
 ## Evidence Links
 
@@ -177,6 +177,11 @@ If any item is missing, the valid score is below 1000.
 - [M4 symbolic model JSON](research/daylight-v06-m4-symbolic-model.v1.json)
 - [M4 symbolic model verifier](../tests/daylight_v06_m4_symbolic_model.py)
 - `make daylight-v06-m4-symbolic-model-test`
+- [M4 Z3 proof](research/daylight-v06-m4-z3-proof.md)
+- [M4 Z3 proof JSON](research/daylight-v06-m4-z3-proof.v1.json)
+- [M4 Z3 proof SMT-LIB](research/daylight-v06-m4-z3-proof.smt2)
+- [M4 Z3 proof verifier](../tests/daylight_v06_m4_z3_proof.py)
+- `make daylight-v06-m4-z3-proof-test`
 - [1000 preflight](research/daylight-v06-1000-preflight.md)
 - [1000 preflight JSON](research/daylight-v06-1000-preflight.v1.json)
 - [1000 preflight verifier](../tests/daylight_v06_1000_preflight.py)

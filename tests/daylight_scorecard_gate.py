@@ -63,7 +63,6 @@ def main() -> None:
     for required_gate in (
         "real_crypto_provider",
         "integrated_public_authority",
-        "formal_model",
         "external_review",
         "production_authority",
     ):
@@ -73,7 +72,6 @@ def main() -> None:
     hard_blockers = (
         "RealCryptoProvider = 0",
         "M1Progress = partial",
-        "No complete formal model is tracked",
         "No external reviews are tracked.",
         "provider-backed reference `Seal`/`Open` remains non-production",
         "public authority remains external",
@@ -186,8 +184,27 @@ def main() -> None:
         if hard_gates.get("m4_symbolic_model") is not True:
             raise AssertionError("scorecard exceeds schema-freeze evidence without satisfying M4 symbolic model gate")
     if score > 970:
+        if "Z3-backed SMT proof" not in text:
+            raise AssertionError("scorecard exceeds M4 symbolic evidence without Z3 proof evidence")
+        evidence = set(machine["evidence"])
+        for required in (
+            "daylight-equation/research/daylight-v06-m4-z3-proof.md",
+            "daylight-equation/research/daylight-v06-m4-z3-proof.v1.json",
+            "daylight-equation/research/daylight-v06-m4-z3-proof.smt2",
+            "tests/daylight_v06_m4_z3_proof.py",
+        ):
+            if required not in evidence:
+                raise AssertionError(f"machine scorecard missing M4 Z3 proof evidence: {required}")
+        if "daylight-v06-m4-z3-proof-test" not in text:
+            raise AssertionError("scorecard missing M4 Z3 proof test target")
+        hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
+        if hard_gates.get("m4_z3_proof") is not True:
+            raise AssertionError("scorecard exceeds M4 symbolic evidence without satisfying M4 Z3 proof gate")
+        if hard_gates.get("formal_model") is not True:
+            raise AssertionError("scorecard exceeds M4 symbolic evidence without satisfying formal model gate")
+    if score > 975:
         raise AssertionError(
-            "scorecard exceeds M4 symbolic model evidence without mechanized formal proof, external review, and production authority evidence"
+            "scorecard exceeds M4 Z3 proof evidence without external review, integrated authority, and production authority evidence"
         )
 
     if not args.quiet:

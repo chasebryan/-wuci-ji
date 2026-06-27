@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 970,
+    "value": 975,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -49,7 +49,7 @@
     },
     {
       "name": "formal_model",
-      "value": 20,
+      "value": 25,
       "maximum": 25
     },
     {
@@ -85,6 +85,10 @@
     "daylight-equation/research/daylight-v06-m4-symbolic-model.md",
     "daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json",
     "tests/daylight_v06_m4_symbolic_model.py",
+    "daylight-equation/research/daylight-v06-m4-z3-proof.md",
+    "daylight-equation/research/daylight-v06-m4-z3-proof.v1.json",
+    "daylight-equation/research/daylight-v06-m4-z3-proof.smt2",
+    "tests/daylight_v06_m4_z3_proof.py",
     "daylight-equation/research/daylight-v06-1000-preflight.md",
     "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
     "tests/daylight_v06_1000_preflight.py"
@@ -146,14 +150,19 @@
       "reason": "The repo checks an expanded M4 symbolic model for confidentiality assumptions, authorization requirements, downgrade requirements, and fail-closed release behavior over the current 20-predicate Open model."
     },
     {
+      "name": "m4_z3_proof",
+      "satisfied": true,
+      "reason": "The repo runs Z3 over 38 negated M4 predicate obligations and requires every query to return unsat."
+    },
+    {
       "name": "daylight_1000_preflight",
       "satisfied": true,
-      "reason": "The repo checks a fail-closed Daylight 1000 preflight that refuses a 1000 checkpoint until integrated public authority, mechanized or independently reviewed formal evidence, external reviews, and signed non-fixture production authority evidence exist."
+      "reason": "The repo checks a fail-closed Daylight 1000 preflight that refuses a 1000 checkpoint until integrated public authority, external reviews, and signed non-fixture production authority evidence exist."
     },
     {
       "name": "formal_model",
-      "satisfied": false,
-      "reason": "A symbolic M4 model is tracked, but no mechanized proof or independent formal-methods review exists."
+      "satisfied": true,
+      "reason": "The current M4 predicate model is covered by a Z3-backed SMT proof; this does not replace external review or cryptographic primitive review."
     },
     {
       "name": "external_review",
