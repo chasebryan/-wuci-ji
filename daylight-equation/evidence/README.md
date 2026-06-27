@@ -9,6 +9,6 @@ post-quantum assurance.
   imported fixture runner, independent static public checker, and independent
   fixture-profile private `Open` verifier.
 - `daylight-v6-provider-vector-agreement.v1.json` records agreement across the
-  Rust provider-backed KEM/key-schedule, private-roundtrip, and reference
-  `Seal`/`Open` evidence vectors while preserving the non-production,
-  external-public-authority boundary.
+  Rust provider-backed KEM/key-schedule, private-roundtrip, reference
+  `Seal`/`Open`, and reference negative-corpus evidence vectors while
+  preserving the non-production, external-public-authority boundary.

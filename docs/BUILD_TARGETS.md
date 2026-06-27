@@ -135,6 +135,14 @@ evidence, and fail-closed mutation tests. It is not production authority,
 integrated public authority, runtime containment, or whole-system
 post-quantum-safety evidence.
 
+`daylight-v6-reference-negative-corpus-test` checks the Rust Daylight v6
+reference negative corpus in
+`daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt`.
+It covers non-production external public-precheck denials,
+production-disallowed denial, and private-path AEAD and commitment mutation
+failures. It is not a full provider-backed corpus or independent external
+review.
+
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
 AEAD/FROST/Gate/Merkle/witness open predicate, Golden Lock v1 transcript, the

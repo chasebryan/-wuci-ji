@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 940 / 1000
+Daylight_v0.6_research_score = 945 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -39,9 +39,9 @@ precheck rejection before private work. A provider-backed v6 reference
 `Seal`/`Open` lane now seals and opens the C1 schema artifact with provider
 ML-KEM, DHKEM, and AEAD while requiring explicit non-production external public
 precheck evidence. Provider-backed v6 vector-agreement evidence now checks the
-KEM/key-schedule, private-roundtrip, and reference `Seal`/`Open` vectors
-against the same artifact and non-production public-boundary claims. The same
-artifact profile still declares
+KEM/key-schedule, private-roundtrip, reference `Seal`/`Open`, and reference
+negative-corpus vectors against the same artifact and non-production
+public-boundary claims. The same artifact profile still declares
 `RealCryptoProvider = 0`, `M1Progress = partial`, no integrated production
 public authority, no complete formal model, and no external review.
 
@@ -49,7 +49,7 @@ public authority, no complete formal model, and no external review.
 
 ```text
 Byte-level schema and transcript clarity       190 / 200
-Deterministic valid and negative fixture corpus 170 / 175
+Deterministic valid and negative fixture corpus 175 / 175
 Fail-closed public-before-private ordering      125 / 125
 Pinned Rust primitive experiments               150 / 150
 Daylight v4/v6 parser and rejection behavior    125 / 125
@@ -57,7 +57,7 @@ Documentation, claim discipline, provenance     100 / 100
 Independent parser and vector reproduction       75 / 75
 Formal model                                      5 / 25
 External review                                   0 / 25
-Total                                           940 / 1000
+Total                                           945 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -109,6 +109,9 @@ If any item is missing, the valid score is below 1000.
   public authority remains external; certificate, revocation, transparency-log,
   install, witness, publish, trust, and production authority predicates are not
   integrated.
+- The provider-backed reference negative corpus covers the current C1
+  non-production lane only; it is not a full provider-backed valid/negative
+  corpus and does not replace a second independent implementation.
 - No public fuzz corpus or independent reproduction bundle is tracked.
 - A partial fail-closed formal model is tracked for `Open = bottom` ordering
   and the public-before-private barrier, but no complete formal model is
@@ -144,6 +147,8 @@ If any item is missing, the valid score is below 1000.
 - `make daylight-v6-provider-private-roundtrip-test`
 - [provider-backed v6 reference `Seal`/`Open` evidence vector](rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt)
 - `make daylight-v6-reference-seal-open-test`
+- [provider-backed v6 reference negative corpus](rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt)
+- `make daylight-v6-reference-negative-corpus-test`
 - [provider-backed v6 vector-agreement evidence](evidence/daylight-v6-provider-vector-agreement.v1.json)
 - [provider-backed v6 vector-agreement verifier](../tests/daylight_v6_provider_vector_agreement.py)
 - `make daylight-v6-provider-vector-agreement-test`

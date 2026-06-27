@@ -12,6 +12,10 @@
     {
       "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt",
       "sha3_512": "97147e60fb7d779b30d0f59ea56f716bddb2c45a9749e2a97913b918e08deda5a527d9a3c8341f3784b0493bb4ffc34e33f77d4ecefd9b3bec5f6d2c2da585b0"
+    },
+    {
+      "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
+      "sha3_512": "007f3cbfcc5cd4a0f46f27148b6cc0928a233619ee990c5191e0a90f001d74db45315457ed1bd679f5db641212db94571fa488d93b945f79d49a8d440b1a8cc4"
     }
   ],
   "schema_version": 1,
@@ -25,6 +29,8 @@
     "provider_backed_reference_seal_open": true,
     "public_authority_external": true,
     "public_precheck_rejection_stage": "REJECT_AUTH_SIGNATURE",
+    "reference_negative_cases": 12,
+    "reference_negative_corpus_all_fail_closed": true,
     "same_artifact_opened": true,
     "seal_outputs_domain_separated_from_private_roundtrip": true
   }

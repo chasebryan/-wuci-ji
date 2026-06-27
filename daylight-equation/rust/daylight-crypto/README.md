@@ -52,6 +52,10 @@ It implements only pinned, locally available pieces:
   explicit non-production external public precheck evidence and does not
   integrate production certificate, revocation, log, install, witness, publish,
   or trust authority.
+- A provider-backed v6 reference negative corpus in
+  `vectors/daylight-v6-reference-negative-corpus-v1.txt`, covering external
+  public-precheck denials, production-disallowed denial, and private-path AEAD
+  and commitment mutation failures for the non-production reference lane.
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`, with a deterministic
   fixture selftest.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`, with a
@@ -89,6 +93,7 @@ cargo run --offline -- v6-schema-vector
 cargo run --offline -- v6-provider-kem-evidence
 cargo run --offline -- v6-provider-private-roundtrip-evidence
 cargo run --offline -- v6-reference-seal-open-evidence
+cargo run --offline -- v6-reference-negative-corpus-evidence
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest
 cargo run --offline -- mlkem1024-selftest

@@ -36,12 +36,13 @@ fn run() -> Result<(), String> {
         "v6-provider-kem-evidence" => run_v6_provider_kem_evidence(),
         "v6-provider-private-roundtrip-evidence" => run_v6_provider_private_roundtrip_evidence(),
         "v6-reference-seal-open-evidence" => run_v6_reference_seal_open_evidence(),
+        "v6-reference-negative-corpus-evidence" => run_v6_reference_negative_corpus_evidence(),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence|v6-reference-negative-corpus-evidence>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -395,6 +396,37 @@ fn run_v6_reference_seal_open_evidence() -> Result<(), String> {
     );
     println!("h1_hex={}", hex_lower(&evidence.opened.transcript.h1));
     println!("AuthMsg_hex={}", hex_lower(&evidence.opened.auth_msg));
+    Ok(())
+}
+
+fn run_v6_reference_negative_corpus_evidence() -> Result<(), String> {
+    let evidence = daylight_crypto::v6::daylight_v6_reference_negative_corpus_evidence()
+        .map_err(|err| format!("{err:?}"))?;
+    println!("version=daylight-v6-reference-negative-corpus-v1");
+    println!("profile=nonproduction-external-public-precheck");
+    println!(
+        "provider_backed_reference_seal_open={}",
+        evidence.provider_backed_reference_seal_open
+    );
+    println!(
+        "public_authority_external={}",
+        evidence.public_authority_external
+    );
+    println!("production_allowed={}", evidence.production_allowed);
+    println!("total_cases={}", evidence.total_cases);
+    println!("all_fail_closed={}", evidence.all_fail_closed);
+    for (index, case) in evidence.cases.iter().enumerate() {
+        println!(
+            "case_{:02}={}|{}|expected={}|actual={}|public_precheck_required={}|private_path_reached={}",
+            index + 1,
+            case.case_id,
+            case.mutation,
+            daylight_crypto::v6::daylight_open_failure_name_v6(case.expected_failure),
+            daylight_crypto::v6::daylight_open_failure_name_v6(case.actual_failure),
+            case.public_precheck_required,
+            case.private_path_reached
+        );
+    }
     Ok(())
 }
 

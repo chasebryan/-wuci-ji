@@ -15,6 +15,7 @@ EVIDENCE = REPO / "daylight-equation" / "evidence" / "daylight-v6-provider-vecto
 KEM_VECTOR = VECTOR_ROOT / "daylight-v6-provider-kem-evidence-v1.txt"
 PRIVATE_VECTOR = VECTOR_ROOT / "daylight-v6-provider-private-roundtrip-evidence-v1.txt"
 REFERENCE_VECTOR = VECTOR_ROOT / "daylight-v6-reference-seal-open-evidence-v1.txt"
+NEGATIVE_VECTOR = VECTOR_ROOT / "daylight-v6-reference-negative-corpus-v1.txt"
 
 
 def canonical_json(value: Any) -> str:
@@ -59,6 +60,7 @@ def generate() -> dict[str, Any]:
     kem = parse_vector(KEM_VECTOR)
     private = parse_vector(PRIVATE_VECTOR)
     reference = parse_vector(REFERENCE_VECTOR)
+    negative = parse_vector(NEGATIVE_VECTOR)
 
     require_field(kem, "version", "daylight-v6-provider-kem-evidence-v1", "kem")
     require_field(kem, "expected_result", "not_open", "kem")
@@ -92,6 +94,22 @@ def generate() -> dict[str, Any]:
     require_field(reference, "opened_artifact_matches", "true", "reference")
     require_auth_msg(reference, "reference")
 
+    require_field(negative, "version", "daylight-v6-reference-negative-corpus-v1", "negative")
+    require_field(negative, "profile", "nonproduction-external-public-precheck", "negative")
+    require_field(negative, "provider_backed_reference_seal_open", "true", "negative")
+    require_field(negative, "public_authority_external", "true", "negative")
+    require_field(negative, "production_allowed", "false", "negative")
+    require_field(negative, "total_cases", "12", "negative")
+    require_field(negative, "all_fail_closed", "true", "negative")
+    for index in range(1, 13):
+        case = negative[f"case_{index:02}"]
+        if "|expected=" not in case or "|actual=" not in case:
+            raise AssertionError(f"negative: case_{index:02} missing expected/actual failure")
+        expected = case.split("|expected=", 1)[1].split("|", 1)[0]
+        actual = case.split("|actual=", 1)[1].split("|", 1)[0]
+        if expected != actual:
+            raise AssertionError(f"negative: case_{index:02} did not fail closed as expected")
+
     artifact_hash = private["artifact_sha3_512_hex"]
     if private["opened_artifact_sha3_512_hex"] != artifact_hash:
         raise AssertionError("private: opened artifact hash disagrees with artifact hash")
@@ -110,6 +128,7 @@ def generate() -> dict[str, Any]:
         {"path": str(KEM_VECTOR.relative_to(REPO)), "sha3_512": file_sha3_512(KEM_VECTOR)},
         {"path": str(PRIVATE_VECTOR.relative_to(REPO)), "sha3_512": file_sha3_512(PRIVATE_VECTOR)},
         {"path": str(REFERENCE_VECTOR.relative_to(REPO)), "sha3_512": file_sha3_512(REFERENCE_VECTOR)},
+        {"path": str(NEGATIVE_VECTOR.relative_to(REPO)), "sha3_512": file_sha3_512(NEGATIVE_VECTOR)},
     ]
     return {
         "as_of": "2026-06-27",
@@ -124,6 +143,8 @@ def generate() -> dict[str, Any]:
             "provider_backed_reference_seal_open": True,
             "public_authority_external": True,
             "public_precheck_rejection_stage": "REJECT_AUTH_SIGNATURE",
+            "reference_negative_cases": 12,
+            "reference_negative_corpus_all_fail_closed": True,
             "production_allowed": False,
             "same_artifact_opened": True,
             "seal_outputs_domain_separated_from_private_roundtrip": True,

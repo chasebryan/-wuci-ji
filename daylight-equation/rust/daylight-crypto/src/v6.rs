@@ -423,6 +423,26 @@ pub struct DaylightV6ReferenceSealOpenEvidence {
     pub production_allowed: bool,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DaylightV6ReferenceNegativeCase {
+    pub case_id: &'static str,
+    pub mutation: &'static str,
+    pub expected_failure: DaylightOpenFailure,
+    pub actual_failure: DaylightOpenFailure,
+    pub public_precheck_required: bool,
+    pub private_path_reached: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DaylightV6ReferenceNegativeCorpusEvidence {
+    pub cases: Vec<DaylightV6ReferenceNegativeCase>,
+    pub total_cases: usize,
+    pub all_fail_closed: bool,
+    pub provider_backed_reference_seal_open: bool,
+    pub public_authority_external: bool,
+    pub production_allowed: bool,
+}
+
 struct EnvelopePartsV6 {
     header: CborValue,
     kem_block: CborValue,
@@ -1298,36 +1318,7 @@ pub fn daylight_v6_provider_private_roundtrip_evidence(
 
 pub fn daylight_v6_reference_seal_open_evidence(
 ) -> Result<DaylightV6ReferenceSealOpenEvidence, DaylightCryptoError> {
-    let schema_vector = daylight_v6_schema_vector()?;
-    let mlkem = mlkem1024_kat_fixture()?;
-    let dhkem_recipient =
-        dhkem_p384_hkdf_sha384_derive_keypair(DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM)?;
-    let recipient_public = DaylightRecipientPublicKeysV6 {
-        mlkem_encaps_key: mlkem.encaps_key,
-        dhkem_public_key: dhkem_recipient.public_key,
-    };
-    let recipient_secret = DaylightRecipientSecretKeysV6 {
-        mlkem_decaps_key: mlkem.decaps_key,
-        dhkem_private_key: dhkem_recipient.private_key,
-    };
-    let kem_inputs = DaylightSealKemInputsV6 {
-        mlkem_encaps_seed: [0x52; 32],
-        dhkem_ephemeral_ikm: b"daylight v6 reference seal open ephemeral".to_vec(),
-    };
-    let kem_key_ids = DaylightKemKeyIdsV6 {
-        q_kem_key_id: schema_vector.envelope.kem_block.q_kem_key_id,
-        c_kem_key_id: schema_vector.envelope.kem_block.c_kem_key_id,
-    };
-    let envelope = daylight_seal_v6_with_kems_from_seed(
-        schema_vector.envelope.header,
-        schema_vector.envelope.auth_block,
-        schema_vector.envelope.aux_block,
-        kem_key_ids,
-        &recipient_public,
-        &kem_inputs,
-        DAYLIGHT_V6_SCHEMA_ARTIFACT,
-        None,
-    )?;
+    let (envelope, recipient_secret) = daylight_v6_reference_fixture()?;
     let omega = daylight_envelope_bytes_v6(&envelope)?;
     let public_precheck_rejection_stage = match daylight_vector_public_precheck_v6(&omega, Some(1))
     {
@@ -1360,6 +1351,241 @@ pub fn daylight_v6_reference_seal_open_evidence(
         public_authority_external: true,
         production_allowed: false,
     })
+}
+
+pub fn daylight_v6_reference_negative_corpus_evidence(
+) -> Result<DaylightV6ReferenceNegativeCorpusEvidence, DaylightCryptoError> {
+    let (envelope, recipient_secret) = daylight_v6_reference_fixture()?;
+    let precheck = DaylightReferencePrecheckV6::nonproduction_all_passed();
+    let mut cases = Vec::new();
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.auth_signature_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N1_auth_signature_false",
+        "auth_signature_ok=false",
+        DaylightOpenFailure::AuthQ,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.external_authority_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N2_external_authority_false",
+        "external_authority_ok=false",
+        DaylightOpenFailure::AuthQ,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.review_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N3_review_false",
+        "review_ok=false",
+        DaylightOpenFailure::Gate,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.downgrade_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N4_downgrade_false",
+        "downgrade_ok=false",
+        DaylightOpenFailure::NoDowngrade,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.log_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N5_log_false",
+        "log_ok=false",
+        DaylightOpenFailure::Log,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.install_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N6_install_false",
+        "install_ok=false",
+        DaylightOpenFailure::Install,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.witness_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N7_witness_false",
+        "witness_ok=false",
+        DaylightOpenFailure::Witness,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.production_allowed = true;
+    cases.push(daylight_v6_reference_negative_case(
+        "N8_production_allowed_true",
+        "production_allowed=true",
+        DaylightOpenFailure::Gate,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.policy_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N9_policy_false",
+        "policy_ok=false",
+        DaylightOpenFailure::Policy,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_precheck = precheck.clone();
+    bad_precheck.claims_ok = false;
+    cases.push(daylight_v6_reference_negative_case(
+        "N10_claims_false",
+        "claims_ok=false",
+        DaylightOpenFailure::Claim,
+        true,
+        false,
+        daylight_open_v6_with_kems(&envelope, &recipient_secret, &bad_precheck, Some(1)),
+    )?);
+
+    let mut bad_ciphertext = envelope.clone();
+    bad_ciphertext.ciphertext[0] ^= 0x80;
+    cases.push(daylight_v6_reference_negative_case(
+        "N11_ciphertext_mutated",
+        "ciphertext[0]^=0x80",
+        DaylightOpenFailure::Aead,
+        false,
+        true,
+        daylight_open_v6_with_kems(&bad_ciphertext, &recipient_secret, &precheck, Some(1)),
+    )?);
+
+    let mut bad_commitment = envelope;
+    bad_commitment.com_a[0] ^= 0x80;
+    cases.push(daylight_v6_reference_negative_case(
+        "N12_commitment_mutated",
+        "com_a[0]^=0x80",
+        DaylightOpenFailure::Commit,
+        false,
+        true,
+        daylight_open_v6_with_kems(&bad_commitment, &recipient_secret, &precheck, Some(1)),
+    )?);
+
+    let total_cases = cases.len();
+    Ok(DaylightV6ReferenceNegativeCorpusEvidence {
+        cases,
+        total_cases,
+        all_fail_closed: true,
+        provider_backed_reference_seal_open: true,
+        public_authority_external: true,
+        production_allowed: false,
+    })
+}
+
+fn daylight_v6_reference_fixture(
+) -> Result<(DaylightEnvelopeV6, DaylightRecipientSecretKeysV6), DaylightCryptoError> {
+    let schema_vector = daylight_v6_schema_vector()?;
+    let mlkem = mlkem1024_kat_fixture()?;
+    let dhkem_recipient =
+        dhkem_p384_hkdf_sha384_derive_keypair(DAYLIGHT_V6_SCHEMA_DHKEM_RECIPIENT_IKM)?;
+    let recipient_public = DaylightRecipientPublicKeysV6 {
+        mlkem_encaps_key: mlkem.encaps_key,
+        dhkem_public_key: dhkem_recipient.public_key,
+    };
+    let recipient_secret = DaylightRecipientSecretKeysV6 {
+        mlkem_decaps_key: mlkem.decaps_key,
+        dhkem_private_key: dhkem_recipient.private_key,
+    };
+    let kem_inputs = DaylightSealKemInputsV6 {
+        mlkem_encaps_seed: [0x52; 32],
+        dhkem_ephemeral_ikm: b"daylight v6 reference seal open ephemeral".to_vec(),
+    };
+    let kem_key_ids = DaylightKemKeyIdsV6 {
+        q_kem_key_id: schema_vector.envelope.kem_block.q_kem_key_id,
+        c_kem_key_id: schema_vector.envelope.kem_block.c_kem_key_id,
+    };
+    let envelope = daylight_seal_v6_with_kems_from_seed(
+        schema_vector.envelope.header,
+        schema_vector.envelope.auth_block,
+        schema_vector.envelope.aux_block,
+        kem_key_ids,
+        &recipient_public,
+        &kem_inputs,
+        DAYLIGHT_V6_SCHEMA_ARTIFACT,
+        None,
+    )?;
+    Ok((envelope, recipient_secret))
+}
+
+fn daylight_v6_reference_negative_case(
+    case_id: &'static str,
+    mutation: &'static str,
+    expected_failure: DaylightOpenFailure,
+    public_precheck_required: bool,
+    private_path_reached: bool,
+    result: Result<DaylightOpenReportV6, DaylightCryptoError>,
+) -> Result<DaylightV6ReferenceNegativeCase, DaylightCryptoError> {
+    let actual_failure = match result {
+        Err(DaylightCryptoError::OpenRejected(actual)) => actual,
+        Ok(_) | Err(_) => return Err(DaylightCryptoError::VerificationRejected),
+    };
+    if actual_failure != expected_failure {
+        return Err(DaylightCryptoError::VerificationRejected);
+    }
+    Ok(DaylightV6ReferenceNegativeCase {
+        case_id,
+        mutation,
+        expected_failure,
+        actual_failure,
+        public_precheck_required,
+        private_path_reached,
+    })
+}
+
+pub fn daylight_open_failure_name_v6(failure: DaylightOpenFailure) -> &'static str {
+    match failure {
+        DaylightOpenFailure::Parse => "Parse",
+        DaylightOpenFailure::Suite => "Suite",
+        DaylightOpenFailure::Env => "Env",
+        DaylightOpenFailure::Mode => "Mode",
+        DaylightOpenFailure::Policy => "Policy",
+        DaylightOpenFailure::Gate => "Gate",
+        DaylightOpenFailure::Provenance => "Provenance",
+        DaylightOpenFailure::Install => "Install",
+        DaylightOpenFailure::Witness => "Witness",
+        DaylightOpenFailure::Log => "Log",
+        DaylightOpenFailure::LogMonotone => "LogMonotone",
+        DaylightOpenFailure::Claim => "Claim",
+        DaylightOpenFailure::NoDowngrade => "NoDowngrade",
+        DaylightOpenFailure::AuthQ => "AuthQ",
+        DaylightOpenFailure::AuthH => "AuthH",
+        DaylightOpenFailure::AuthFUnsupported => "AuthFUnsupported",
+        DaylightOpenFailure::Nonce => "Nonce",
+        DaylightOpenFailure::Derive => "Derive",
+        DaylightOpenFailure::Aead => "Aead",
+        DaylightOpenFailure::Commit => "Commit",
+        DaylightOpenFailure::Leak => "Leak",
+    }
 }
 
 pub fn daylight_artifact_commitment_v6(
@@ -3171,6 +3397,53 @@ mod tests {
     }
 
     #[test]
+    fn v6_reference_negative_corpus_covers_public_and_private_failures() {
+        let evidence = daylight_v6_reference_negative_corpus_evidence().unwrap();
+        assert!(evidence.provider_backed_reference_seal_open);
+        assert!(evidence.public_authority_external);
+        assert!(!evidence.production_allowed);
+        assert!(evidence.all_fail_closed);
+        assert_eq!(evidence.total_cases, 12);
+        assert_eq!(evidence.cases.len(), evidence.total_cases);
+        assert_eq!(
+            evidence
+                .cases
+                .iter()
+                .filter(|case| case.public_precheck_required && !case.private_path_reached)
+                .count(),
+            10
+        );
+        assert_eq!(
+            evidence
+                .cases
+                .iter()
+                .filter(|case| !case.public_precheck_required && case.private_path_reached)
+                .count(),
+            2
+        );
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::AuthQ));
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::Install));
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::Witness));
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::Aead));
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::Commit));
+    }
+
+    #[test]
     fn v6_schema_vector_file_matches_implementation() {
         let fields = parse_vector_file(include_str!("../vectors/daylight-v6-schema-vector-v1.txt"));
         let vector = daylight_v6_schema_vector().unwrap();
@@ -3489,5 +3762,54 @@ mod tests {
             vector_field(&fields, "AuthMsg_hex"),
             crate::hex_lower(&evidence.opened.auth_msg)
         );
+    }
+
+    #[test]
+    fn v6_reference_negative_corpus_file_matches_implementation() {
+        let fields = parse_vector_file(include_str!(
+            "../vectors/daylight-v6-reference-negative-corpus-v1.txt"
+        ));
+        let evidence = daylight_v6_reference_negative_corpus_evidence().unwrap();
+        assert_eq!(
+            vector_field(&fields, "version"),
+            "daylight-v6-reference-negative-corpus-v1"
+        );
+        assert_eq!(
+            vector_field(&fields, "profile"),
+            "nonproduction-external-public-precheck"
+        );
+        assert_eq!(
+            vector_field(&fields, "provider_backed_reference_seal_open"),
+            evidence.provider_backed_reference_seal_open.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "public_authority_external"),
+            evidence.public_authority_external.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "production_allowed"),
+            evidence.production_allowed.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "total_cases"),
+            evidence.total_cases.to_string()
+        );
+        assert_eq!(
+            vector_field(&fields, "all_fail_closed"),
+            evidence.all_fail_closed.to_string()
+        );
+        for (index, case) in evidence.cases.iter().enumerate() {
+            let key = format!("case_{:02}", index + 1);
+            let expected = format!(
+                "{}|{}|expected={}|actual={}|public_precheck_required={}|private_path_reached={}",
+                case.case_id,
+                case.mutation,
+                daylight_open_failure_name_v6(case.expected_failure),
+                daylight_open_failure_name_v6(case.actual_failure),
+                case.public_precheck_required,
+                case.private_path_reached
+            );
+            assert_eq!(vector_field(&fields, &key), expected);
+        }
     }
 }

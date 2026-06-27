@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 940,
+    "value": 945,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -19,7 +19,7 @@
     },
     {
       "name": "deterministic_valid_and_negative_fixture_corpus",
-      "value": 170,
+      "value": 175,
       "maximum": 175
     },
     {
@@ -73,6 +73,7 @@
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt",
+    "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
     "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
     "tests/daylight_v6_provider_vector_agreement.py",
     "daylight-equation/research/daylight-v06-fail-closed-model.md",
@@ -108,7 +109,12 @@
     {
       "name": "provider_backed_vector_agreement",
       "satisfied": true,
-      "reason": "The repo verifies agreement across provider-backed KEM/key-schedule, private-roundtrip, and reference Seal/Open vectors for artifact identity and non-production public-boundary claims."
+      "reason": "The repo verifies agreement across provider-backed KEM/key-schedule, private-roundtrip, reference Seal/Open, and reference negative-corpus vectors for artifact identity and non-production public-boundary claims."
+    },
+    {
+      "name": "provider_backed_reference_negative_corpus",
+      "satisfied": true,
+      "reason": "The Rust v6 lane has a checked 12-case provider-backed reference negative corpus for external public-precheck denials, production-disallowed denial, and private-path mutation failures."
     },
     {
       "name": "integrated_public_authority",
