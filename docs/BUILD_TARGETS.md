@@ -147,6 +147,13 @@ authority, at least two independent external reviews, and signed non-fixture
 production authority evidence are all tracked. It is a fail-closed readiness
 gate, not score evidence.
 
+`daylight-v06-authority-verifier-test` checks `tools/daylight_authority.py`,
+the Daylight v0.6 public-authority candidate verifier. It exercises signed
+non-fixture WUCI open/release authority verification and proves the candidate
+does not satisfy integrated Daylight public authority until publish/trust
+authority support and all predicate integrations exist. It is not production
+authority and does not raise the score.
+
 `daylight-v06-external-review-packet-test` checks the Daylight v0.6 external
 review packet in
 `daylight-equation/evidence/daylight-v06-external-review-packet.v1.json` and

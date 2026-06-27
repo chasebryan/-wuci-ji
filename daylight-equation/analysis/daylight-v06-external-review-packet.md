@@ -17,6 +17,7 @@ make daylight-v06-m4-z3-proof-test
 make daylight-v06-m4-symbolic-model-test
 make daylight-v06-1000-preflight-test
 make daylight-v06-external-review-verifier-test
+make daylight-v06-authority-verifier-test
 make daylight-v6-provider-vector-agreement-test
 make daylight-v06-schema-freeze-test
 make daylight-v6-reference-negative-corpus-test

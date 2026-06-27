@@ -94,6 +94,8 @@
     "tests/daylight_v06_external_review_packet.py",
     "tools/daylight_external_review.py",
     "tests/daylight_external_review.py",
+    "tools/daylight_authority.py",
+    "tests/daylight_authority.py",
     "daylight-equation/research/daylight-v06-1000-preflight.md",
     "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
     "tests/daylight_v06_1000_preflight.py"
@@ -163,6 +165,11 @@
       "name": "daylight_1000_preflight",
       "satisfied": true,
       "reason": "The repo checks a fail-closed Daylight 1000 preflight that refuses a 1000 checkpoint until integrated public authority, external reviews, and signed non-fixture production authority evidence exist."
+    },
+    {
+      "name": "daylight_authority_verifier",
+      "satisfied": true,
+      "reason": "The repo verifies signed non-fixture Daylight authority candidates and fails integrated public authority until publish/trust authority support and predicate integrations exist."
     },
     {
       "name": "formal_model",

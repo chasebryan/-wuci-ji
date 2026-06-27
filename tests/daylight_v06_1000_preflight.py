@@ -84,6 +84,11 @@ def main() -> None:
     assert requirements["compatible_wuci_external_audit_signature_namespace"] == "wuci-external-audit-v1"
     assert requirements["compatible_wuci_production_authority_schema"] == "wuci-production-authority-ceremony-v1"
     assert requirements["compatible_wuci_production_authority_signature_namespace"] == "wuci-production-authority-v1"
+    assert requirements["compatible_daylight_authority_schema"] == "daylight-v06-authority-evidence-v1"
+    assert (
+        requirements["compatible_daylight_authority_verification_schema"]
+        == "daylight-v06-authority-verification-v1"
+    )
 
     for evidence in (
         "daylight-equation/research/daylight-v06-1000-preflight.md",

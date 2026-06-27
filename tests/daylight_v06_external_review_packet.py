@@ -46,6 +46,8 @@ def main() -> None:
         "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
         "tools/daylight_external_review.py",
         "tests/daylight_external_review.py",
+        "tools/daylight_authority.py",
+        "tests/daylight_authority.py",
     ):
         assert required in paths
 
@@ -80,9 +82,12 @@ def main() -> None:
     assert "tests/daylight_v06_external_review_packet.py" in evidence
     assert "tools/daylight_external_review.py" in evidence
     assert "tests/daylight_external_review.py" in evidence
+    assert "tools/daylight_authority.py" in evidence
+    assert "tests/daylight_authority.py" in evidence
     hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
     assert hard_gates.get("external_review_packet") is True
     assert hard_gates.get("external_review_verifier") is True
+    assert hard_gates.get("daylight_authority_verifier") is True
     assert hard_gates.get("external_review") is False
 
     if not args.quiet:

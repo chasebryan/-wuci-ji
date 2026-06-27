@@ -132,6 +132,10 @@ If any item is missing, the valid score is below 1000.
   external review and does not change `ExternalReviewClaim = 0`.
 - A Daylight-specific signed external-review verifier is tracked for accepting
   two independent reviews later; no signed review set is currently tracked.
+- A Daylight authority verifier is tracked for signed non-fixture authority
+  candidates, but the current WUCI authority lane still does not support
+  publish/trust authority and no integrated Daylight authority evidence is
+  tracked.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
 - A Daylight 1000 preflight gate is tracked and intentionally remains blocked
@@ -193,6 +197,9 @@ If any item is missing, the valid score is below 1000.
 - [signed external review verifier](../tools/daylight_external_review.py)
 - [signed external review verifier test](../tests/daylight_external_review.py)
 - `make daylight-v06-external-review-verifier-test`
+- [Daylight authority verifier](../tools/daylight_authority.py)
+- [Daylight authority verifier test](../tests/daylight_authority.py)
+- `make daylight-v06-authority-verifier-test`
 - [1000 preflight](research/daylight-v06-1000-preflight.md)
 - [1000 preflight JSON](research/daylight-v06-1000-preflight.v1.json)
 - [1000 preflight verifier](../tests/daylight_v06_1000_preflight.py)

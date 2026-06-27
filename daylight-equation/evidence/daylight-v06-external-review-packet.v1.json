@@ -47,6 +47,14 @@
       "purpose": "signed external-review verifier test"
     },
     {
+      "path": "tools/daylight_authority.py",
+      "purpose": "signed Daylight authority candidate verifier"
+    },
+    {
+      "path": "tests/daylight_authority.py",
+      "purpose": "Daylight authority verifier test"
+    },
+    {
       "path": "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
       "purpose": "v6 byte-schema freeze evidence"
     },
@@ -65,6 +73,7 @@
     "make daylight-v06-m4-symbolic-model-test",
     "make daylight-v06-1000-preflight-test",
     "make daylight-v06-external-review-verifier-test",
+    "make daylight-v06-authority-verifier-test",
     "make daylight-v6-provider-vector-agreement-test",
     "make daylight-v06-schema-freeze-test",
     "make daylight-v6-reference-negative-corpus-test"
