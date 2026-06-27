@@ -65,6 +65,22 @@ The repo accepts signed review evidence through `tools/daylight_external_review.
 Score use requires a `daylight-v06-external-review-set-v1` manifest containing
 exactly two independent signed review entries for the current commit.
 
+Review-set assembly should use the tool path, not hand-written JSON:
+
+```sh
+python3 tools/daylight_external_review.py emit-set \
+  --review-a-evidence review-a.json \
+  --review-a-report review-a.md \
+  --review-a-root-key review-a.pub \
+  --review-a-signature review-a.sig \
+  --review-b-evidence review-b.json \
+  --review-b-report review-b.md \
+  --review-b-root-key review-b.pub \
+  --review-b-signature review-b.sig \
+  --out reviews.json
+python3 tools/daylight_external_review.py verify-set --repo . --manifest reviews.json
+```
+
 ## Boundary
 
 Non-claims:

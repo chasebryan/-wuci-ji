@@ -131,7 +131,8 @@ If any item is missing, the valid score is below 1000.
 - A current external review packet is tracked for reviewers, but it is not an
   external review and does not change `ExternalReviewClaim = 0`.
 - A Daylight-specific signed external-review verifier is tracked for accepting
-  two independent reviews later; no signed review set is currently tracked.
+  and assembling two independent reviews later; no signed review set is
+  currently tracked.
 - A Daylight authority verifier is tracked for signed non-fixture authority
   candidates, but the current WUCI authority lane still does not support
   publish/trust authority and no integrated Daylight authority evidence is

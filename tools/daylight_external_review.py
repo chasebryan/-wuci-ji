@@ -455,6 +455,40 @@ def run_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def review_set_entry(args: argparse.Namespace, prefix: str) -> dict[str, str]:
+    entry = {
+        "evidence": getattr(args, f"{prefix}_evidence"),
+        "report": getattr(args, f"{prefix}_report"),
+        "review_root_key": getattr(args, f"{prefix}_root_key"),
+        "signature": getattr(args, f"{prefix}_signature"),
+    }
+    for name, value in entry.items():
+        if not isinstance(value, str) or not value or "\0" in value:
+            fail(f"{prefix.replace('_', '-')} {name} must be a non-empty path")
+    return entry
+
+
+def run_emit_set(args: argparse.Namespace) -> int:
+    value = {
+        "schema": SET_SCHEMA,
+        "subject": "Daylight_v0.6",
+        "reviews": [
+            review_set_entry(args, "review_a"),
+            review_set_entry(args, "review_b"),
+        ],
+        "non_claims": [
+            "external review set manifests are not score-usable until verify-set passes",
+            "external review set manifests do not create production authority",
+            "external review set manifests do not claim runtime containment",
+            "external review set manifests do not claim whole-system post-quantum safety",
+        ],
+    }
+    write_json_new(Path(args.out), value, "Daylight external review set")
+    if not args.quiet:
+        print(f"wrote Daylight external review set manifest: {args.out}")
+    return 0
+
+
 def run_verify_set(args: argparse.Namespace) -> int:
     summary = verify_review_set(
         manifest_path=Path(args.manifest),
@@ -505,6 +539,19 @@ def main() -> int:
     verify.add_argument("--json", action="store_true")
     verify.add_argument("--quiet", action="store_true")
     verify.set_defaults(func=run_verify)
+
+    emit_set = sub.add_parser("emit-set")
+    emit_set.add_argument("--review-a-evidence", required=True)
+    emit_set.add_argument("--review-a-report", required=True)
+    emit_set.add_argument("--review-a-root-key", required=True)
+    emit_set.add_argument("--review-a-signature", required=True)
+    emit_set.add_argument("--review-b-evidence", required=True)
+    emit_set.add_argument("--review-b-report", required=True)
+    emit_set.add_argument("--review-b-root-key", required=True)
+    emit_set.add_argument("--review-b-signature", required=True)
+    emit_set.add_argument("--out", required=True)
+    emit_set.add_argument("--quiet", action="store_true")
+    emit_set.set_defaults(func=run_emit_set)
 
     verify_set = sub.add_parser("verify-set")
     verify_set.add_argument("--repo", default=".")

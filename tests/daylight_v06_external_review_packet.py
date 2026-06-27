@@ -72,6 +72,12 @@ def main() -> None:
     assert "at least two independent reviewers" in criteria
     assert "reviewed commit equals current release candidate commit" in criteria
     assert "review artifacts are attributable and signed or otherwise independently verifiable" in criteria
+    assert (
+        "two-review manifest is emitted by tools/daylight_external_review.py emit-set and passes verify-set"
+        in criteria
+    )
+    assert "tools/daylight_external_review.py emit-set" in doc
+    assert "tools/daylight_external_review.py verify-set" in doc
 
     for non_claim in packet["non_claims"]:
         assert non_claim in doc

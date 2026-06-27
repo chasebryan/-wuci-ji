@@ -179,9 +179,10 @@ score.
 `daylight-v06-external-review-verifier-test` checks
 `tools/daylight_external_review.py`, the signed Daylight v0.6 external-review
 evidence verifier. It exercises evidence emission, OpenSSH Ed25519 signing,
-single-review verification, two-review-set verification, and failure cases for
-unsigned, duplicate, scope-incomplete, and report-tampered evidence. It is not
-itself an external review and does not raise the score.
+single-review verification, review-set manifest emission, two-review-set
+verification, and failure cases for unsigned, duplicate, scope-incomplete, and
+report-tampered evidence. It is not itself an external review and does not
+raise the score.
 
 `daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
 private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,

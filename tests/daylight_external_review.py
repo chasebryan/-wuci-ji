@@ -110,21 +110,33 @@ def emit_review(tmp: Path, name: str, reviewer: str, completed: str) -> dict[str
     }
 
 
-def write_manifest(path: Path, reviews: list[dict[str, Path]]) -> None:
-    value = {
-        "schema": "daylight-v06-external-review-set-v1",
-        "subject": "Daylight_v0.6",
-        "reviews": [
-            {
-                "evidence": item["evidence"].name,
-                "report": item["report"].name,
-                "review_root_key": item["root_key"].name,
-                "signature": item["signature"].name,
-            }
-            for item in reviews
-        ],
-    }
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def emit_set_manifest(
+    path: Path,
+    reviews: list[dict[str, Path]],
+) -> subprocess.CompletedProcess[bytes]:
+    assert len(reviews) == 2
+    return run_tool(
+        "emit-set",
+        "--review-a-evidence",
+        reviews[0]["evidence"].name,
+        "--review-a-report",
+        reviews[0]["report"].name,
+        "--review-a-root-key",
+        reviews[0]["root_key"].name,
+        "--review-a-signature",
+        reviews[0]["signature"].name,
+        "--review-b-evidence",
+        reviews[1]["evidence"].name,
+        "--review-b-report",
+        reviews[1]["report"].name,
+        "--review-b-root-key",
+        reviews[1]["root_key"].name,
+        "--review-b-signature",
+        reviews[1]["signature"].name,
+        "--out",
+        str(path),
+        "--quiet",
+    )
 
 
 def main() -> None:
@@ -170,7 +182,17 @@ def main() -> None:
         assert single_summary["signature_verified"] is True
 
         manifest = tmp / "reviews.json"
-        write_manifest(manifest, [review_a, review_b])
+        assert_ok(
+            emit_set_manifest(manifest, [review_a, review_b]),
+            "emit signed review set manifest",
+        )
+        manifest_value = json.loads(manifest.read_text(encoding="utf-8"))
+        assert manifest_value["schema"] == "daylight-v06-external-review-set-v1"
+        assert manifest_value["reviews"][0]["evidence"] == review_a["evidence"].name
+        assert "external review set manifests do not create production authority" in manifest_value["non_claims"]
+        overwrite = emit_set_manifest(manifest, [review_a, review_b])
+        assert overwrite.returncode != 0
+        assert b"could not create new Daylight external review set" in overwrite.stderr
         review_set = run_tool("verify-set", "--repo", str(REPO), "--manifest", str(manifest), "--json")
         assert_ok(review_set, "verify signed review set")
         summary = json.loads(review_set.stdout.decode("utf-8"))
@@ -180,7 +202,10 @@ def main() -> None:
         assert len({item["root_key_sha256"] for item in summary["reviews"]}) == 2
 
         duplicate_manifest = tmp / "duplicate-reviews.json"
-        write_manifest(duplicate_manifest, [review_a, review_a])
+        assert_ok(
+            emit_set_manifest(duplicate_manifest, [review_a, review_a]),
+            "emit duplicate review set manifest",
+        )
         duplicate = run_tool("verify-set", "--repo", str(REPO), "--manifest", str(duplicate_manifest), "--quiet")
         assert duplicate.returncode != 0
         assert b"two distinct review ids" in duplicate.stderr

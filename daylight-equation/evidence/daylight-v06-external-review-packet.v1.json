@@ -40,7 +40,7 @@
     },
     {
       "path": "tools/daylight_external_review.py",
-      "purpose": "signed external-review evidence acceptance verifier"
+      "purpose": "signed external-review evidence and review-set manifest acceptance verifier"
     },
     {
       "path": "tests/daylight_external_review.py",
@@ -119,6 +119,7 @@
     "review scope covers formal model, provider-backed vectors, cryptographic boundary, and production-authority blockers",
     "all production-blocking findings are closed or explicitly accepted as score blockers",
     "review artifacts are attributable and signed or otherwise independently verifiable",
+    "two-review manifest is emitted by tools/daylight_external_review.py emit-set and passes verify-set",
     "review artifacts do not rely on fixture authority as production authority"
   ],
   "non_claims": [
