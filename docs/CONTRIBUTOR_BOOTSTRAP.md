@@ -13,7 +13,7 @@ promised on macOS, Windows, arm64, or non-Linux kernels.
 | Zig cross-build | Zig |
 | Install proof | Python 3, OpenSSH `ssh-keygen`, copied install root key |
 | CARROT kernel proof | Linux `unshare` with unprivileged user+network namespaces and seccomp filter support |
-| Rust sandbox wrapper build | `rustc` |
+| Rust sandbox wrapper build/test | `rustc` |
 
 ## Native Linux
 
@@ -72,6 +72,9 @@ does not fetch remote code or claim runtime/PQ assurance.
 - `test-linux requires Linux user-mode qemu-x86_64`: install qemu-user or set
   `QEMU_X86_64`.
 - `rustc is required`: install Rust before running `make rust-sandbox-build`.
+- `wuci-sandbox selftest`: run `make rust-sandbox-test` to build the wrapper,
+  install its seccomp no-network filter, and execute `wuci-ji selftest` under
+  the wrapper.
 - `kernel seccomp no-network probe did not deny socket creation`: the host
   kernel or policy does not support the CARROT proof lane as configured.
 - `install root key`: copy `install/wuci-install-root.v1.pub` to the configured

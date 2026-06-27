@@ -60,6 +60,8 @@ make sbom-provenance
 make sbom-provenance-test
 make carrot-policy
 make kernel-sandbox-proof
+make rust-sandbox-build
+make rust-sandbox-test
 make pq-verifier-detect
 make pq-verifier-test
 make production-readiness-gates
@@ -76,14 +78,20 @@ safety, production authority, or absence of vulnerabilities.
 `high-attestation-proof` composes the profile check, pinned qemu X25519 CPU
 smoke, assembly smoke/regression audit, HARDEN policy, CAGE/QCAGE policy and
 bundle checks, SBOM/provenance evidence, CARROT kernel no-network proof,
-real-PQ verifier detection, crypto self-audit evidence, production-readiness
-gates, Gate contract assembly checks, and the full qemu Linux CLI test.
+compiled Rust sandbox wrapper evidence, real-PQ verifier detection, crypto
+self-audit evidence, production-readiness gates, Gate contract assembly checks,
+and the full qemu Linux CLI test.
 
 `kernel-sandbox-proof` is local kernel evidence: it requires Linux support for
 seccomp filters plus unprivileged user and network namespaces and passes only
 when `wuci-ji sandbox-seccomp-net-deny-selftest` installs a network-syscall deny
 filter and observes AF_INET socket creation denied with `EPERM`. It is not a
 general runtime sandbox or VM boundary.
+
+`rust-sandbox-test` builds `tools/wuci_sandbox.rs`, runs the Rust wrapper's own
+seccomp no-network selftest, then executes `wuci-ji selftest` under the wrapper.
+It requires `rustc`; the Makefile also checks the standard `~/.cargo/bin/rustc`
+location when Rust is installed by rustup but not exported in `PATH`.
 
 `sbom-provenance` emits and verifies `build/wuci-sbom.json` and
 `build/wuci-provenance.json` without network access. The generated provenance

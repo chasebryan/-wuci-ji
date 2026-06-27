@@ -86,6 +86,7 @@ def main() -> None:
         "SYS_SOCKET",
         "SYS_CONNECT",
         "SYS_CLOSE_RANGE",
+        "--selftest",
         "unshare(",
         "Command::new",
     ):

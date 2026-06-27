@@ -65,6 +65,7 @@ def main() -> None:
     assert controls["seccomp_network_syscall_deny_filter"] is True
     assert controls["rust_sandbox_wrapper_source"] is True
     assert controls["rust_sandbox_wrapper_build_gate"] is True
+    assert controls["rust_sandbox_wrapper_selftest"] is True
     assert controls["fixture_authority_test_only"] is True
     assert controls["reserved_actions_denied_by_default"] == harden["reserved_actions"]
     assert controls["unapproved_runner_rejected_in_strict_mode"] is strict["reject_unapproved_runner"]

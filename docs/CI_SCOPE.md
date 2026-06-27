@@ -38,6 +38,6 @@ The following gates may depend on host CPU, kernel, or local tool availability:
 - `make carrot-policy` emits CARROT attestation with the same kernel proof.
 - `make high-attestation-proof` composes the full local evidence lane and
   includes qemu, CARROT, CAGE/QCAGE, Gate, and full Linux CLI tests.
-- `make rust-sandbox-build` requires `rustc`.
+- `make rust-sandbox-build` and `make rust-sandbox-test` require `rustc`.
 - `make pq-verifier-detect` records local OpenSSL/PQ verifier availability and
   does not claim quantum safety unless a real pinned verifier is detected.

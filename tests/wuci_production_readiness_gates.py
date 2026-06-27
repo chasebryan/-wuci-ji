@@ -74,7 +74,7 @@ def main() -> None:
     for blocker in (
         "Fixture authority is still test-only",
         "Custom assembly crypto has not been independently audited",
-        "General runtime sandboxing, compiled Rust wrapper evidence",
+        "General runtime sandboxing, independent wrapper/seccomp review",
         "If claiming quantum safety, a real pinned PQ verifier lane",
         "Internal crypto self-audit evidence",
     ):

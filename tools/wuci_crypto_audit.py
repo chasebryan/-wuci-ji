@@ -31,6 +31,7 @@ REQUIRED_TARGETS = (
     "qcage-policy-matrix",
     "pq-verifier-test",
     "kernel-sandbox-proof",
+    "rust-sandbox-test",
 )
 
 

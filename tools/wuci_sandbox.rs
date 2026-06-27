@@ -43,6 +43,8 @@ const SYS_ACCEPT4: u32 = 288;
 const SYS_RECVMMSG: u32 = 299;
 const SYS_SENDMMSG: u32 = 307;
 const SYS_CLOSE_RANGE: c_long = 436;
+const AF_INET: c_long = 2;
+const SOCK_STREAM: c_long = 1;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -186,6 +188,9 @@ fn close_extra_fds() {
 
 fn enter_no_network_namespace() -> Result<(), String> {
     unsafe {
+        let uid = getuid();
+        let gid = getgid();
+
         syscall_ok(
             prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0),
             "PR_SET_NO_NEW_PRIVS",
@@ -193,8 +198,6 @@ fn enter_no_network_namespace() -> Result<(), String> {
 
         syscall_ok(unshare(CLONE_NEWUSER), "unshare(CLONE_NEWUSER)")?;
 
-        let uid = getuid();
-        let gid = getgid();
         let _ = write_proc("/proc/self/setgroups", "deny\n");
         write_proc("/proc/self/uid_map", &format!("0 {uid} 1\n"))?;
         write_proc("/proc/self/gid_map", &format!("0 {gid} 1\n"))?;
@@ -208,22 +211,50 @@ fn enter_no_network_namespace() -> Result<(), String> {
 }
 
 fn usage() -> String {
-    "usage: wuci-sandbox --no-network -- <command> [args...]".to_string()
+    "usage: wuci-sandbox --selftest | --no-network -- <command> [args...]".to_string()
 }
 
-fn parse_args() -> Result<Vec<OsString>, String> {
+enum Mode {
+    Selftest,
+    Exec(Vec<OsString>),
+}
+
+fn parse_args() -> Result<Mode, String> {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
+    if args.len() == 1 && args[0] == "--selftest" {
+        return Ok(Mode::Selftest);
+    }
     if args.len() < 3 {
         return Err(usage());
     }
     if args[0] != "--no-network" || args[1] != "--" {
         return Err("wuci-sandbox requires --no-network and a -- separator".to_string());
     }
-    Ok(args[2..].to_vec())
+    Ok(Mode::Exec(args[2..].to_vec()))
+}
+
+fn selftest() -> Result<i32, String> {
+    enter_no_network_namespace()?;
+    close_extra_fds();
+    install_network_seccomp_filter()?;
+    let result = unsafe { syscall(SYS_SOCKET as c_long, AF_INET, SOCK_STREAM, 0 as c_long) };
+    if result == -1 {
+        println!("wuci-sandbox selftest: PASS");
+        return Ok(0);
+    }
+    if result >= 0 {
+        unsafe {
+            let _ = syscall(SYS_CLOSE, result);
+        }
+    }
+    Err("socket creation was not denied after seccomp install".to_string())
 }
 
 fn run() -> Result<i32, String> {
-    let command = parse_args()?;
+    let command = match parse_args()? {
+        Mode::Selftest => return selftest(),
+        Mode::Exec(command) => command,
+    };
     enter_no_network_namespace()?;
     close_extra_fds();
     install_network_seccomp_filter()?;

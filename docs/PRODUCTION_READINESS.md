@@ -29,6 +29,7 @@ These targets produce or verify:
 - HARDEN, CAGE, QCAGE, and Gate contract proof lanes.
 - CARROT runtime policy validation and kernel no-network proof using
   `wuci-ji sandbox-seccomp-net-deny-selftest` plus namespace entry checks.
+- Compiled Rust wrapper evidence through `make rust-sandbox-test`.
 - Fixture-authority production rejection gates.
 - Real-PQ verifier detection that fails closed for quantum-safe claims when no
   pinned verifier is available.
@@ -46,8 +47,8 @@ These targets produce or verify:
   verified.
 - Production publish/trust Gate commands do not exist as assembly-enforced
   authority paths.
-- General runtime sandboxing, compiled Rust wrapper evidence, seccomp review,
-  and VM-grade containment are not complete. CARROT currently proves a narrow
+- General runtime sandboxing, independent wrapper/seccomp review, and VM-grade
+  containment are not complete. CARROT currently proves a narrow
   network-syscall deny lane on kernels that allow seccomp filters and
   unprivileged user+net namespaces.
 - Real pinned PQ verifier evidence is not available unless
@@ -63,8 +64,8 @@ A future production-ready claim requires all of the following:
 - Release SBOM and provenance artifacts generated from a clean tree.
 - Repeatable release build with SHA-256/SHA-384/SHA-512 public evidence.
 - Independent security review or audit record covering the production surface.
-- Compiled Rust sandbox wrapper evidence, kernel no-network proof, and review
-  of the wrapper's namespace/seccomp posture.
+- Release-grade Rust sandbox wrapper evidence, kernel no-network proof, and
+  independent review of the wrapper's namespace/seccomp posture.
 - Fuzz/adversarial parser evidence for artifact, contract, witness, and ledger
   inputs.
 - Explicit decision on whether WUCI is a crypto product, verifier, artifact
