@@ -1268,6 +1268,7 @@ stream_open_file:
     push r13
     push r14
     push r15
+    mov r14, -1
 
     mov rdi, qword ptr [rip + aead_input_path]
     mov eax, SYS_OPENAT
@@ -1542,8 +1543,8 @@ stream_open_file:
 .Lstream_file_open_fail:
 .Lstream_envelope_error:
     # best effort close if we had fd
-    test r14, r14
-    jz .Lstream_err
+    cmp r14, 0
+    jl .Lstream_err
     mov eax, SYS_CLOSE
     mov rdi, r14
     syscall
@@ -1569,6 +1570,7 @@ stream_open_file_authorized:
     push r13
     push r14
     push r15
+    mov r14, -1
 
     mov rdi, qword ptr [rip + aead_input_path]
     mov eax, SYS_OPENAT
@@ -1716,9 +1718,8 @@ stream_open_file_authorized:
     mov r13, STDOUT
 .Lsauth_have_writer:
 
-    # save h (in r15) , use r15 for chunk temp in loop
-    sub rsp, 8
-    mov [rsp], r15
+    # save h (in r15), use r15 for chunk temp in loop
+    mov qword ptr [rip + stream_hold], r15
 
     # ct chunks
 .Lsauth_ct_loop:
@@ -1764,8 +1765,7 @@ stream_open_file_authorized:
 
 .Lsauth_ct_done:
     # restore h_len
-    mov r15, [rsp]
-    add rsp, 8
+    mov r15, qword ptr [rip + stream_hold]
 
     # read tag + update full sha with tag bytes (artifact sha covers header+ct+tag)
     mov eax, SYS_READ
@@ -1867,8 +1867,8 @@ stream_open_file_authorized:
 .Lsauth_hdr_read_fail:
 .Lsauth_file_open_fail:
 .Lsauth_envelope_error:
-    test r14, r14
-    jz .Lsauth_err
+    cmp r14, 0
+    jl .Lsauth_err
     mov eax, SYS_CLOSE
     mov rdi, r14
     syscall
@@ -1891,6 +1891,7 @@ stream_sha_for_release:
     push r13
     push r14
     push r15
+    mov r14, -1
 
     mov rdi, qword ptr [rip + aead_input_path]
     mov eax, SYS_OPENAT
@@ -2097,8 +2098,8 @@ stream_sha_for_release:
 .Lsr_hdr_read_fail:
 .Lsr_file_open_fail:
 .Lsr_envelope_error:
-    test r14, r14
-    jz .Lsr_err
+    cmp r14, 0
+    jl .Lsr_err
     mov eax, SYS_CLOSE
     mov rdi, r14
     syscall
