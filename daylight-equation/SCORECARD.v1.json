@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 870,
+    "value": 890,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -44,7 +44,7 @@
     },
     {
       "name": "independent_parser_and_vector_reproduction",
-      "value": 40,
+      "value": 60,
       "maximum": 75
     },
     {
@@ -66,7 +66,8 @@
     "daylight-equation/rust/daylight-crypto/README.md",
     "daylight-equation/research/standards-baseline.md",
     "tests/daylight_scorecard_gate.py",
-    "tests/daylight_v06_m1_static_vectors.py"
+    "tests/daylight_v06_m1_static_vectors.py",
+    "tests/daylight_v06_m1_independent_open.py"
   ],
   "hard_gates": [
     {
@@ -75,9 +76,14 @@
       "reason": "The v0.6 M1 artifact profile declares RealCryptoProvider = 0."
     },
     {
-      "name": "full_private_open_implementation",
+      "name": "fixture_profile_private_open_reproduction",
+      "satisfied": true,
+      "reason": "The independent verifier reproduces fixture-profile private Open outcomes without importing the fixture implementation."
+    },
+    {
+      "name": "provider_backed_reference_seal_open",
       "satisfied": false,
-      "reason": "The independent checker reproduces public-precheck behavior but not private Open behavior."
+      "reason": "No provider-backed v6 reference Seal/Open lane exists."
     },
     {
       "name": "formal_model",

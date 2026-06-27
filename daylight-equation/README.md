@@ -164,5 +164,6 @@ Run the imported v0.6 M1 fixture corpus explicitly:
 
 ```sh
 make daylight-v06-m1-fixture-test
+make daylight-v06-m1-independent-open-test
 make daylight-v06-m1-static-test
 ```

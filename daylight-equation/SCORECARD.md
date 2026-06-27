@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 870 / 1000
+Daylight_v0.6_research_score = 890 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -16,19 +16,20 @@ ExternalReviewClaim = 0
 The score now sits slightly above the upper estimate recorded with the imported
 v0.6 M1 fixture artifact because the repo adds an independent stdlib checker
 for deterministic-CBOR structure, transcript hash consistency, public-precheck
-rejection-stage evaluation, manifest/result agreement, and SHA-256 fixture
-integrity:
+rejection-stage evaluation, an independent fixture-profile private `Open`
+verifier, manifest/result agreement, and SHA-256 fixture integrity:
 
 ```text
 Grok-style estimate = 860 / 1000
 GPT self-rating     = 845 / 1000
 ```
 
-The small increase beyond that estimate is defensible because the checker now
-independently reproduces public-precheck accept/reject behavior without
-importing the fixture implementation. The same artifact profile still declares
-`RealCryptoProvider = 0`, `M1Progress = partial`, no independent full private
-Open implementation, no formal model, and no external review.
+The increase beyond that estimate is defensible because the checker now
+independently reproduces public-precheck accept/reject behavior and
+fixture-profile private `Open` outcomes without importing the fixture
+implementation. The same artifact profile still declares
+`RealCryptoProvider = 0`, `M1Progress = partial`, no provider-backed v6
+reference `Seal`/`Open`, no formal model, and no external review.
 
 ## Scored Evidence
 
@@ -39,10 +40,10 @@ Fail-closed public-before-private ordering      125 / 125
 Pinned Rust primitive experiments               135 / 150
 Daylight v4/v6 parser and rejection behavior    120 / 125
 Documentation, claim discipline, provenance     100 / 100
-Independent parser and vector reproduction       40 / 75
+Independent parser and vector reproduction       60 / 75
 Formal model                                      0 / 25
 External review                                   0 / 25
-Total                                           870 / 1000
+Total                                           890 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -81,9 +82,10 @@ If any item is missing, the valid score is below 1000.
 - The Rust `daylight-crypto` lane pins real primitive crates, but the v6
   artifact is not yet a complete provider-backed reference `Seal`/`Open`
   implementation.
-- The v6 hardening module has an independent static vector checker and
-  public-precheck evaluator, but still lacks a second full private
-  `Open` implementation and full cross-implementation agreement.
+- The v6 hardening module has an independent static vector checker,
+  public-precheck evaluator, and fixture-profile private `Open` verifier, but
+  still lacks provider-backed v6 `Seal`/`Open` and full
+  cross-implementation agreement.
 - No public fuzz corpus or independent reproduction bundle is tracked.
 - No formal model is tracked.
 - No external reviews are tracked.
@@ -92,14 +94,15 @@ If any item is missing, the valid score is below 1000.
 
 ## Next Score-Raising Work
 
-1. Promote the independent stdlib checker into a second full private `Open`
-   implementation that can reproduce the private-stage vector outcomes without
-   importing the fixture implementation.
+1. Replace the fixture crypto predicates in a separate provider-backed v6
+   `Seal`/`Open` lane while preserving the fixture profile as non-production
+   regression data.
 2. Extend the scorecard guard into generated machine-readable score evidence,
    while preserving the current failure if the scorecard says 1000 and any hard
    gate above is still missing.
-3. Replace the fixture crypto predicates in a separate provider-backed lane,
-   preserving the current fixture profile as non-production regression data.
+3. Add cross-implementation agreement output comparing the fixture runner,
+   static/public checker, independent private `Open` verifier, and future
+   provider-backed lane.
 4. Publish a clean KAT bundle with valid, negative, and parser-only vectors
    plus reproduction commands.
 5. Draft the formal model surface before adding any production authority claim.
@@ -115,3 +118,4 @@ If any item is missing, the valid score is below 1000.
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [scorecard guard](../tests/daylight_scorecard_gate.py)
 - [independent static vector checker](../tests/daylight_v06_m1_static_vectors.py)
+- [independent private Open verifier](../tests/daylight_v06_m1_independent_open.py)
