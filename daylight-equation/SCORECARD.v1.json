@@ -4,7 +4,7 @@
   "as_of": "2026-06-27",
   "score": {
     "name": "Daylight_v0.6_research_score",
-    "value": 920,
+    "value": 940,
     "maximum": 1000,
     "production_allowed": false,
     "runtime_containment_claim": false,
@@ -19,7 +19,7 @@
     },
     {
       "name": "deterministic_valid_and_negative_fixture_corpus",
-      "value": 160,
+      "value": 170,
       "maximum": 175
     },
     {
@@ -44,7 +44,7 @@
     },
     {
       "name": "independent_parser_and_vector_reproduction",
-      "value": 65,
+      "value": 75,
       "maximum": 75
     },
     {
@@ -72,6 +72,7 @@
     "daylight-equation/evidence/daylight-v06-m1-cross-agreement.v1.json",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt",
     "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt",
+    "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt",
     "daylight-equation/research/daylight-v06-fail-closed-model.md",
     "daylight-equation/research/daylight-v06-fail-closed-model.v1.json",
     "tests/daylight_v06_fail_closed_model.py"
@@ -90,17 +91,22 @@
     {
       "name": "provider_backed_v6_kem_key_schedule_evidence",
       "satisfied": true,
-      "reason": "The Rust v6 lane verifies deterministic ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) decapsulation agreement and derives the v6 key schedule for the schema vector, without claiming provider-backed Seal/Open."
+      "reason": "The Rust v6 lane verifies deterministic ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) decapsulation agreement and derives the v6 key schedule for the schema vector."
     },
     {
       "name": "provider_backed_v6_private_roundtrip_evidence",
       "satisfied": true,
-      "reason": "The Rust v6 lane verifies typed PrivatePayload_v6 CBOR, AEAD seal/open with AD=T0, artifact commitment checking, and public-precheck rejection before private work, without claiming full provider-backed Seal/Open."
+      "reason": "The Rust v6 lane verifies typed PrivatePayload_v6 CBOR, AEAD seal/open with AD=T0, artifact commitment checking, and public-precheck rejection before private work."
     },
     {
       "name": "provider_backed_reference_seal_open",
+      "satisfied": true,
+      "reason": "The Rust v6 lane has provider-backed reference Seal/Open evidence for the C1 schema vector behind explicit non-production external public precheck evidence."
+    },
+    {
+      "name": "integrated_public_authority",
       "satisfied": false,
-      "reason": "No provider-backed v6 reference Seal/Open lane exists."
+      "reason": "The v6 reference Seal/Open lane uses externally supplied non-production public precheck evidence; certificate, revocation, log, install, witness, publish, and trust authority are not integrated."
     },
     {
       "name": "partial_fail_closed_formal_model",

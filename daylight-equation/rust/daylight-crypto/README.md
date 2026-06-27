@@ -44,6 +44,14 @@ It implements only pinned, locally available pieces:
   artifact commitment checking, and a persisted vector in
   `vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt`. This is a
   prechecked private-path proof only; public authorization still fails closed.
+- Provider-backed v6 reference `Seal`/`Open` evidence for the C1 schema vector,
+  including provider ML-KEM-1024, DHKEM(P-384,HKDF-SHA384), AEAD seal/open,
+  typed private payload decoding, artifact commitment checking, and a persisted
+  vector in
+  `vectors/daylight-v6-reference-seal-open-evidence-v1.txt`. This lane requires
+  explicit non-production external public precheck evidence and does not
+  integrate production certificate, revocation, log, install, witness, publish,
+  or trust authority.
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`, with a deterministic
   fixture selftest.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`, with a
@@ -63,9 +71,10 @@ minimum C1 vector corpus and a second independent parser.
 The provider-backed v6 KEM/key-schedule evidence does not make the imported
 fixture artifact a real-crypto-provider artifact and does not authorize private
 Open or production use.
-The provider-backed v6 private-roundtrip evidence also does not satisfy the
-provider-backed reference `Seal`/`Open` gate because certificate, revocation,
-log, install, witness, and production authority predicates remain absent.
+The provider-backed v6 private-roundtrip and reference `Seal`/`Open` evidence
+also do not satisfy production authority because certificate, revocation, log,
+install, witness, publish, trust, and production authority predicates remain
+externally supplied or absent.
 
 The adjacent imported Python fixture artifact lives at
 `../../fixtures/daylight-v06-m1/` and is run from the repository root with
@@ -79,6 +88,7 @@ cargo run --offline -- v4-reference-vector
 cargo run --offline -- v6-schema-vector
 cargo run --offline -- v6-provider-kem-evidence
 cargo run --offline -- v6-provider-private-roundtrip-evidence
+cargo run --offline -- v6-reference-seal-open-evidence
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest
 cargo run --offline -- mlkem1024-selftest

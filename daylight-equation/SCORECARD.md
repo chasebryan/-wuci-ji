@@ -6,7 +6,7 @@ research scorecard, not a production-readiness certificate.
 Current valid score as of 2026-06-27:
 
 ```text
-Daylight_v0.6_research_score = 920 / 1000
+Daylight_v0.6_research_score = 940 / 1000
 ProductionAllowed = 0
 RuntimeContainmentClaim = 0
 WholeSystemPostQuantumSafetyClaim = 0
@@ -35,23 +35,26 @@ provider-backed v6 KEM/key-schedule evidence for the schema vector through
 pinned ML-KEM-1024 and DHKEM(P-384,HKDF-SHA384) primitive crates, plus
 provider-backed v6 private-roundtrip evidence for typed `PrivatePayload_v6`,
 AEAD seal/open with `AD = T0`, artifact commitment checking, and public
-precheck rejection before private work. The same artifact profile still
-declares `RealCryptoProvider = 0`, `M1Progress = partial`, no provider-backed
-v6 reference `Seal`/`Open`, no complete formal model, and no external review.
+precheck rejection before private work. A provider-backed v6 reference
+`Seal`/`Open` lane now seals and opens the C1 schema artifact with provider
+ML-KEM, DHKEM, and AEAD while requiring explicit non-production external public
+precheck evidence. The same artifact profile still declares
+`RealCryptoProvider = 0`, `M1Progress = partial`, no integrated production
+public authority, no complete formal model, and no external review.
 
 ## Scored Evidence
 
 ```text
 Byte-level schema and transcript clarity       190 / 200
-Deterministic valid and negative fixture corpus 160 / 175
+Deterministic valid and negative fixture corpus 170 / 175
 Fail-closed public-before-private ordering      125 / 125
 Pinned Rust primitive experiments               150 / 150
 Daylight v4/v6 parser and rejection behavior    125 / 125
 Documentation, claim discipline, provenance     100 / 100
-Independent parser and vector reproduction       65 / 75
+Independent parser and vector reproduction       75 / 75
 Formal model                                      5 / 25
 External review                                   0 / 25
-Total                                           920 / 1000
+Total                                           940 / 1000
 ```
 
 This is intentionally not a production score. The current evidence supports
@@ -87,19 +90,22 @@ If any item is missing, the valid score is below 1000.
 - The imported v0.6 M1 fixture uses deterministic fixture providers for
   ML-KEM, DHKEM, ML-DSA, SLH-DSA, reviewer signatures, certificate predicates,
   revocation predicates, and transparency-log predicates.
-- The Rust `daylight-crypto` lane pins real primitive crates, but the v6
-  artifact is not yet a complete provider-backed reference `Seal`/`Open`
-  implementation.
+- The Rust `daylight-crypto` lane pins real primitive crates and now includes a
+  provider-backed v6 reference `Seal`/`Open` lane, but that lane is explicitly
+  non-production and depends on externally supplied public precheck evidence.
 - The v6 hardening module has an independent static vector checker,
   public-precheck evaluator, and fixture-profile private `Open` verifier, but
-  still lacks provider-backed v6 `Seal`/`Open` and full
-  cross-implementation agreement with a provider-backed lane.
+  still lacks full cross-implementation agreement with a provider-backed lane.
 - The Rust v6 lane has provider-backed v6 KEM/key-schedule evidence for the
   schema vector, but this evidence intentionally stops short of private `Open`
   and does not change the `RealCryptoProvider = 0` fixture-artifact claim.
 - The Rust v6 lane has provider-backed v6 private-roundtrip evidence for the
   prechecked private path, but public authorization still fails closed and the
-  crate still lacks a complete provider-backed v6 reference `Seal`/`Open`.
+  fixture-artifact `RealCryptoProvider = 0` claim is unchanged.
+- The provider-backed reference `Seal`/`Open` remains non-production, and
+  public authority remains external; certificate, revocation, transparency-log,
+  install, witness, publish, trust, and production authority predicates are not
+  integrated.
 - No public fuzz corpus or independent reproduction bundle is tracked.
 - A partial fail-closed formal model is tracked for `Open = bottom` ordering
   and the public-before-private barrier, but no complete formal model is
@@ -111,18 +117,14 @@ If any item is missing, the valid score is below 1000.
 
 ## Next Score-Raising Work
 
-1. Replace the fixture crypto predicates in a separate provider-backed v6
-   `Seal`/`Open` lane while preserving the fixture profile and the
-   provider-backed KEM/key-schedule and private-roundtrip evidence as
-   non-production regression data.
-2. Extend the scorecard guard into generated machine-readable score evidence,
-   while preserving the current failure if the scorecard says 1000 and any hard
-   gate above is still missing.
-3. Extend cross-implementation agreement output to include the future
-   provider-backed lane.
-4. Publish a clean KAT bundle with valid, negative, and parser-only vectors
+1. Extend cross-implementation agreement output to include the provider-backed
+   reference `Seal`/`Open` lane.
+2. Replace externally supplied public precheck evidence with integrated
+   certificate, revocation, transparency-log, install, witness, publish, and
+   trust-authority verification gates.
+3. Publish a clean KAT bundle with valid, negative, and parser-only vectors
    plus reproduction commands.
-5. Expand the partial fail-closed formal model into a complete M4 model before
+4. Expand the partial fail-closed formal model into a complete M4 model before
    adding any production authority claim.
 
 ## Evidence Links
@@ -136,6 +138,8 @@ If any item is missing, the valid score is below 1000.
 - `make daylight-v6-provider-kem-evidence-test`
 - [provider-backed v6 private-roundtrip evidence vector](rust/daylight-crypto/vectors/daylight-v6-provider-private-roundtrip-evidence-v1.txt)
 - `make daylight-v6-provider-private-roundtrip-test`
+- [provider-backed v6 reference `Seal`/`Open` evidence vector](rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt)
+- `make daylight-v6-reference-seal-open-test`
 - [partial fail-closed formal model](research/daylight-v06-fail-closed-model.md)
 - [partial fail-closed formal model JSON](research/daylight-v06-fail-closed-model.v1.json)
 - [partial fail-closed formal model verifier](../tests/daylight_v06_fail_closed_model.py)

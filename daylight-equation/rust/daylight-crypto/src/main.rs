@@ -35,12 +35,13 @@ fn run() -> Result<(), String> {
         "v6-schema-vector" => run_v6_schema_vector(),
         "v6-provider-kem-evidence" => run_v6_provider_kem_evidence(),
         "v6-provider-private-roundtrip-evidence" => run_v6_provider_private_roundtrip_evidence(),
+        "v6-reference-seal-open-evidence" => run_v6_reference_seal_open_evidence(),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -348,6 +349,52 @@ fn run_v6_provider_private_roundtrip_evidence() -> Result<(), String> {
     println!("com_a_sha3_512_hex={}", hex_lower(&evidence.com_a_hash));
     println!("h1_hex={}", hex_lower(&evidence.transcript.h1));
     println!("AuthMsg_hex={}", hex_lower(&evidence.transcript.auth_msg));
+    Ok(())
+}
+
+fn run_v6_reference_seal_open_evidence() -> Result<(), String> {
+    let evidence = daylight_crypto::v6::daylight_v6_reference_seal_open_evidence()
+        .map_err(|err| format!("{err:?}"))?;
+    println!("version=daylight-v6-reference-seal-open-evidence-v1");
+    println!("profile=nonproduction-external-public-precheck");
+    println!("expected_result=reference_seal_open");
+    println!(
+        "provider_backed_reference_seal_open={}",
+        evidence.provider_backed_reference_seal_open
+    );
+    println!(
+        "public_authority_external={}",
+        evidence.public_authority_external
+    );
+    println!("production_allowed={}", evidence.production_allowed);
+    println!(
+        "public_precheck_rejection_stage={}",
+        evidence.public_precheck_rejection_stage.as_str()
+    );
+    println!(
+        "opened_artifact_matches={}",
+        evidence.opened_artifact_matches
+    );
+    println!(
+        "artifact_sha3_512_hex={}",
+        hex_lower(&evidence.artifact_hash)
+    );
+    println!(
+        "opened_artifact_sha3_512_hex={}",
+        hex_lower(&evidence.opened_artifact_hash)
+    );
+    println!(
+        "ciphertext_sha3_512_hex={}",
+        hex_lower(&evidence.ciphertext_hash)
+    );
+    println!("com_a_hex={}", hex_lower(&evidence.envelope.com_a));
+    println!("com_a_sha3_512_hex={}", hex_lower(&evidence.com_a_hash));
+    println!(
+        "auth_msg_sha3_512_hex={}",
+        hex_lower(&evidence.auth_msg_hash)
+    );
+    println!("h1_hex={}", hex_lower(&evidence.opened.transcript.h1));
+    println!("AuthMsg_hex={}", hex_lower(&evidence.opened.auth_msg));
     Ok(())
 }
 

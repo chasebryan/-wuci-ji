@@ -118,6 +118,14 @@ provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,
 and continued public-precheck rejection before private work. It is not a full
 provider-backed public `Seal`/`Open` lane.
 
+`daylight-v6-reference-seal-open-test` checks the Rust Daylight v6 reference
+`Seal`/`Open` evidence vector. It covers provider-backed ML-KEM-1024,
+DHKEM(P-384,HKDF-SHA384), AEAD seal/open, typed private payload decoding,
+artifact commitment checking, explicit non-production external public precheck
+evidence, and fail-closed mutation tests. It is not production authority,
+integrated public authority, runtime containment, or whole-system
+post-quantum-safety evidence.
+
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
 AEAD/FROST/Gate/Merkle/witness open predicate, Golden Lock v1 transcript, the

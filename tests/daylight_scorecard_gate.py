@@ -62,7 +62,7 @@ def main() -> None:
     open_gates = [gate["name"] for gate in machine["hard_gates"] if gate["satisfied"] is not True]
     for required_gate in (
         "real_crypto_provider",
-        "provider_backed_reference_seal_open",
+        "integrated_public_authority",
         "formal_model",
         "external_review",
         "production_authority",
@@ -75,8 +75,8 @@ def main() -> None:
         "M1Progress = partial",
         "No complete formal model is tracked.",
         "No external reviews are tracked.",
-        "still lacks provider-backed v6 `Seal`/`Open`",
-        "not yet a complete provider-backed reference `Seal`/`Open`",
+        "provider-backed reference `Seal`/`Open` remains non-production",
+        "public authority remains external",
     )
     missing = [blocker for blocker in hard_blockers if blocker not in text]
     if missing:
@@ -125,7 +125,20 @@ def main() -> None:
         if "daylight-v6-provider-private-roundtrip-test" not in text:
             raise AssertionError("scorecard missing private-roundtrip test target")
     if score > 920:
-        raise AssertionError("scorecard exceeds private-roundtrip evidence without provider-backed Seal/Open")
+        if "provider-backed v6 reference `Seal`/`Open` evidence" not in text:
+            raise AssertionError("scorecard exceeds private-roundtrip evidence without reference Seal/Open evidence")
+        evidence = set(machine["evidence"])
+        if "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-seal-open-evidence-v1.txt" not in evidence:
+            raise AssertionError("machine scorecard missing reference Seal/Open evidence vector")
+        if "daylight-v6-reference-seal-open-test" not in text:
+            raise AssertionError("scorecard missing reference Seal/Open test target")
+        hard_gates = {gate["name"]: gate["satisfied"] for gate in machine["hard_gates"]}
+        if hard_gates.get("provider_backed_reference_seal_open") is not True:
+            raise AssertionError("scorecard exceeds private-roundtrip evidence without satisfying reference Seal/Open gate")
+    if score > 940:
+        raise AssertionError(
+            "scorecard exceeds provider-backed reference Seal/Open without complete formal model, external review, and production authority evidence"
+        )
 
     if not args.quiet:
         print(f"Daylight scorecard gate OK: {score}/1000")
