@@ -17,6 +17,8 @@
 .extern read_key_file
 .extern read_artifact_file
 .extern open_parse_loaded_envelope
+.extern stream_open_file_authorized
+.extern stream_sha_for_release
 .extern sha256_init
 .extern sha256_update
 .extern sha256_final
@@ -26,10 +28,23 @@
 .extern aead_output_path
 .extern aead_text_len
 .extern aead_open_buf
+.extern aead_input_path
+.extern aead_expected_tag
+.extern envelope_header_buf
 .extern io_buf
 .extern hex_buf
 .extern sha_ctx
 .extern digest_buf
+.extern gate_computed_artifact_sha256
+.extern gate_computed_ct_sha256
+.extern gate_use_streamed
+.extern gate_sha_artifact_ctx
+.extern gate_sha_ct_ctx
+.extern rename_noreplace_path
+.extern unlink_path
+.extern open_temp_path
+.extern aead_output_path
+.extern write_all
 .extern frost_scalar_buf
 .extern frost_group_commitment
 .extern frost_group_public_key
@@ -177,14 +192,11 @@ run_open_authorized_contract:
     mov qword ptr [rip + aead_output_path], rax
 
     mov rdi, qword ptr [rsp + 32]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_open_file_authorized
     cmp eax, 1
-    je .Lopen_authorized_read_contract
-    cmp eax, 2
-    je gate_contract_file_error
-    jmp gate_artifact_file_error
+    jne gate_artifact_file_error
 
-.Lopen_authorized_read_contract:
     mov rdi, qword ptr [rsp + 40]
     call gate_read_contract_file
     cmp eax, 1
@@ -192,9 +204,20 @@ run_open_authorized_contract:
 
     call gate_verify_loaded_contract
     cmp eax, 1
-    jne gate_contract_error
+    jne .Lgate_open_auth_fail
 
-    jmp open_parse_loaded_envelope
+    call gate_commit_streamed_open
+    test eax, eax
+    jnz .Lopen_ok_contract
+    mov edi, 1
+    jmp exit_process
+.Lopen_ok_contract:
+    xor edi, edi
+    jmp exit_process
+
+.Lgate_open_auth_fail:
+    call gate_abort_streamed_open
+    jmp gate_contract_error
 
 run_open_authorized_rooted:
     cmp qword ptr [rsp], 7
@@ -224,14 +247,11 @@ run_open_authorized_rooted:
     mov qword ptr [rip + aead_output_path], rax
 
     mov rdi, qword ptr [rsp + 40]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_open_file_authorized
     cmp eax, 1
-    je .Lopen_rooted_read_contract
-    cmp eax, 2
-    je gate_contract_file_error
-    jmp gate_artifact_file_error
+    jne gate_artifact_file_error
 
-.Lopen_rooted_read_contract:
     mov rdi, qword ptr [rsp + 48]
     call gate_read_contract_file
     cmp eax, 1
@@ -239,9 +259,20 @@ run_open_authorized_rooted:
 
     call gate_verify_loaded_rooted_contract
     cmp eax, 1
-    jne gate_contract_error
+    jne .Lgate_open_auth_fail_rooted
 
-    jmp open_parse_loaded_envelope
+    call gate_commit_streamed_open
+    test eax, eax
+    jnz .Lopen_ok_rooted
+    mov edi, 1
+    jmp exit_process
+.Lopen_ok_rooted:
+    xor edi, edi
+    jmp exit_process
+
+.Lgate_open_auth_fail_rooted:
+    call gate_abort_streamed_open
+    jmp gate_contract_error
 
 run_release_authorized_contract:
     cmp qword ptr [rsp], 4
@@ -250,11 +281,10 @@ run_release_authorized_contract:
     call gate_setup_release_action
 
     mov rdi, qword ptr [rsp + 24]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_sha_for_release  # streaming SHA for large release support
     cmp eax, 1
     je .Lrelease_authorized_read_contract
-    cmp eax, 2
-    je gate_contract_file_error
     jmp gate_artifact_file_error
 
 .Lrelease_authorized_read_contract:
@@ -290,11 +320,10 @@ run_release_authorized_rooted:
     jne gate_authority_error
 
     mov rdi, qword ptr [rsp + 32]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_sha_for_release  # streaming SHA for large release support
     cmp eax, 1
     je .Lrelease_rooted_read_contract
-    cmp eax, 2
-    je gate_contract_file_error
     jmp gate_artifact_file_error
 
 .Lrelease_rooted_read_contract:
@@ -353,6 +382,7 @@ gate_verify_loaded_contract_after_parse:
     mov rsi, qword ptr [rip + gate_manifest_len]
     lea rdx, [rip + digest_buf]
     call gate_sha256_to_digest
+
     lea rdi, [rip + digest_buf]
     lea rsi, [rip + gate_artifact_manifest_sha256]
     mov edx, 32
@@ -398,6 +428,37 @@ gate_require_authority_release:
     cmp eax, 1
     sete al
     movzx eax, al
+    ret
+
+# Helpers for streamed authorized open commit/abort (after tag success in stream, before/after gate verify)
+gate_commit_streamed_open:
+    movzx eax, byte ptr [rip + gate_use_streamed]
+    test eax, eax
+    jz .Lcommit_done
+    lea rdi, [rip + open_temp_path]
+    mov rsi, qword ptr [rip + aead_output_path]
+    call rename_noreplace_path
+    test eax, eax
+    jnz .Lcommit_ok
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+    mov byte ptr [rip + gate_use_streamed], 0
+    xor eax, eax
+    ret
+.Lcommit_ok:
+    mov byte ptr [rip + gate_use_streamed], 0
+.Lcommit_done:
+    mov eax, 1
+    ret
+
+gate_abort_streamed_open:
+    movzx eax, byte ptr [rip + gate_use_streamed]
+    test eax, eax
+    jz .Labort_done
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+    mov byte ptr [rip + gate_use_streamed], 0
+.Labort_done:
     ret
 
 gate_read_contract_file:
@@ -967,6 +1028,13 @@ gate_build_manifest:
     lea rax, [rip + gate_manifest_buf + GATE_MANIFEST_MAX]
     mov qword ptr [rip + gate_append_end], rax
 
+    movzx eax, byte ptr [rip + gate_use_streamed]
+    test eax, eax
+    jz .Lgate_build_not_streamed
+    pop rbx
+    jmp gate_build_manifest_streamed
+
+.Lgate_build_not_streamed:
     mov rbx, qword ptr [rip + aead_text_len]
     cmp rbx, ENVELOPE_MIN_LEN
     jb .Lgate_manifest_fail
@@ -1242,6 +1310,311 @@ gate_build_manifest:
 .Lgate_manifest_return:
     pop rbx
     ret
+
+# Streamed version: uses precomputed shas + saved header (envelope_header_buf) + aead_expected_tag
+# + adjusted aead_text_len (full). Called only when gate_use_streamed != 0.
+gate_build_manifest_streamed:
+    push rbx
+    lea rax, [rip + gate_manifest_buf]
+    mov qword ptr [rip + gate_append_ptr], rax
+    lea rax, [rip + gate_manifest_buf + GATE_MANIFEST_MAX]
+    mov qword ptr [rip + gate_append_end], rax
+
+    # version detect from saved header (first bytes)
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + gate_envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lgate_stream_v1
+
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + gate_envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lgate_stream_v2
+
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + gate_envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lgate_stream_v3
+    jmp .Lgate_manifest_fail
+
+.Lgate_stream_v1:
+    lea rdi, [rip + gate_manifest_v1_msg]
+    mov esi, OFFSET FLAT:gate_manifest_v1_msg_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    # artifact sha from precomputed (no re-sha of large data)
+    lea rdi, [rip + gate_manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:gate_manifest_artifact_sha256_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_artifact_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    lea rdi, [rip + hex_buf]
+    mov esi, 65
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_artifact_sha256]
+    lea rsi, [rip + gate_artifact_sha256]
+    mov edx, 32
+    call memeq
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_ciphertext_length_label]
+    mov esi, OFFSET FLAT:gate_manifest_ciphertext_length_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_MIN_LEN
+    call gate_append_u64_decimal_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    # ct sha precomputed
+    lea rdi, [rip + gate_manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:gate_manifest_ciphertext_sha256_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_ct_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    lea rdi, [rip + hex_buf]
+    mov esi, 65
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_nonce_label]
+    mov esi, OFFSET FLAT:gate_manifest_nonce_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN]
+    mov esi, ENVELOPE_NONCE_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_tag_label]
+    mov esi, OFFSET FLAT:gate_manifest_tag_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + aead_expected_tag]
+    mov esi, ENVELOPE_TAG_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    jmp .Lgate_manifest_done
+
+.Lgate_stream_v2:
+    lea rdi, [rip + gate_manifest_v2_msg]
+    mov esi, OFFSET FLAT:gate_manifest_v2_msg_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    # key-id immediately after v2 msg (exact original order)
+    lea rdi, [rip + gate_manifest_key_id_label]
+    mov esi, OFFSET FLAT:gate_manifest_key_id_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN]
+    mov esi, ENVELOPE_KEY_ID_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:gate_manifest_artifact_sha256_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_artifact_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    lea rdi, [rip + hex_buf]
+    mov esi, 65
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_artifact_sha256]
+    lea rsi, [rip + gate_artifact_sha256]
+    mov edx, 32
+    call memeq
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_ciphertext_length_label]
+    mov esi, OFFSET FLAT:gate_manifest_ciphertext_length_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_V2_MIN_LEN
+    call gate_append_u64_decimal_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:gate_manifest_ciphertext_sha256_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_ct_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    lea rdi, [rip + hex_buf]
+    mov esi, 65
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_nonce_label]
+    mov esi, OFFSET FLAT:gate_manifest_nonce_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    mov esi, ENVELOPE_NONCE_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_tag_label]
+    mov esi, OFFSET FLAT:gate_manifest_tag_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + aead_expected_tag]
+    mov esi, ENVELOPE_TAG_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    jmp .Lgate_manifest_done
+
+.Lgate_stream_v3:
+    lea rdi, [rip + gate_manifest_v3_msg]
+    mov esi, OFFSET FLAT:gate_manifest_v3_msg_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_ephemeral_public_label]
+    mov esi, OFFSET FLAT:gate_manifest_ephemeral_public_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN]
+    mov esi, ENVELOPE_X25519_PUBLIC_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_key_id_label]
+    mov esi, OFFSET FLAT:gate_manifest_key_id_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN]
+    mov esi, ENVELOPE_KEY_ID_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:gate_manifest_artifact_sha256_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_artifact_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    lea rdi, [rip + hex_buf]
+    mov esi, 65
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_artifact_sha256]
+    lea rsi, [rip + gate_artifact_sha256]
+    mov edx, 32
+    call memeq
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_ciphertext_length_label]
+    mov esi, OFFSET FLAT:gate_manifest_ciphertext_length_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_V3_MIN_LEN
+    call gate_append_u64_decimal_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:gate_manifest_ciphertext_sha256_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + gate_computed_ct_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    lea rdi, [rip + hex_buf]
+    mov esi, 65
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_nonce_label]
+    mov esi, OFFSET FLAT:gate_manifest_nonce_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
+    mov esi, ENVELOPE_NONCE_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+
+    lea rdi, [rip + gate_manifest_tag_label]
+    mov esi, OFFSET FLAT:gate_manifest_tag_label_len
+    call gate_append_bytes
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    lea rdi, [rip + aead_expected_tag]
+    mov esi, ENVELOPE_TAG_LEN
+    call gate_append_hex_newline
+    cmp eax, 1
+    jne .Lgate_manifest_fail
+    jmp .Lgate_manifest_done
 
 gate_build_warrant:
     lea rax, [rip + gate_warrant_buf]

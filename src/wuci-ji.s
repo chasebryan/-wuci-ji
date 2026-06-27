@@ -21,6 +21,8 @@
 .global run_open_file
 .global run_open_file_keyfile
 .global open_parse_loaded_envelope
+.global stream_open_file_authorized
+.global stream_sha_for_release
 .global run_open_to
 .global run_open_keyfile
 .global run_inspect
@@ -866,6 +868,7 @@ seal_v2_with_loaded_key:
 seal_stream_with_current_aad:
     mov qword ptr [rip + aead_text_len], 0
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
 
 .Lseal_read_loop:
     mov eax, SYS_READ
@@ -946,12 +949,16 @@ run_open_file:
     mov qword ptr [rip + aead_output_path], rax
 
     mov rdi, qword ptr [rsp + 32]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_open_file
     cmp eax, 1
-    je open_parse_loaded_envelope
+    je 1f
     cmp eax, 2
-    je aead_size_error
+    je envelope_error
     jmp artifact_file_error
+1:
+    xor edi, edi
+    jmp exit_process
 
 run_open_file_keyfile:
     cmp qword ptr [rsp], 5
@@ -967,12 +974,16 @@ run_open_file_keyfile:
     mov qword ptr [rip + aead_output_path], rax
 
     mov rdi, qword ptr [rsp + 32]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_open_file
     cmp eax, 1
-    je open_parse_loaded_envelope
+    je 1f
     cmp eax, 2
-    je aead_size_error
+    je envelope_error
     jmp artifact_file_error
+1:
+    xor edi, edi
+    jmp exit_process
 
 run_open_to:
     cmp qword ptr [rsp], 5
@@ -1088,6 +1099,7 @@ open_parse_loaded_envelope:
     jne envelope_error
 
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
     lea rdi, [rip + aead_open_buf + ENVELOPE_HEADER_LEN]
     mov rsi, qword ptr [rip + aead_text_len]
     call chacha20_xor
@@ -1137,6 +1149,7 @@ open_parse_loaded_envelope:
     jne envelope_error
 
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
     lea rdi, [rip + aead_open_buf + ENVELOPE_V2_HEADER_LEN]
     mov rsi, qword ptr [rip + aead_text_len]
     call chacha20_xor
@@ -1229,6 +1242,7 @@ open_to_parse_loaded_envelope:
     jne envelope_error
 
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
     lea rdi, [rip + aead_open_buf + ENVELOPE_V3_HEADER_LEN]
     mov rsi, qword ptr [rip + aead_text_len]
     call chacha20_xor
@@ -1242,6 +1256,860 @@ open_to_parse_loaded_envelope:
 
     xor edi, edi
     jmp exit_process
+
+stream_open_file:
+    # Streaming authenticated open for file-based inputs (lifts AEAD_OPEN_MAX).
+    # Opens input, parses header (v1/v2/v3), uses lseek to determine ct_len,
+    # streams ct chunks: poly + chacha + write PT chunks to (temp or stdout),
+    # reads final tag, finishes poly, verifies, then rename on success.
+    # Only final path receives PT after full auth; temp cleaned on fail.
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, qword ptr [rip + aead_input_path]
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, qword ptr [rip + aead_input_path]
+    mov edx, FILE_READ_FLAGS
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js .Lstream_file_open_fail
+    mov r14, rax                 # r14 = input_fd
+
+    # Read initial bytes for header detection (use max v3 header size)
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + io_buf]
+    mov edx, ENVELOPE_V3_HEADER_LEN
+    syscall
+    test rax, rax
+    jle .Lstream_hdr_read_fail
+    mov r15, rax                 # bytes read for header probe
+
+    # Detect version and set header_len, aad_flag, nonce_offset
+    # v1: prefix 8 + nonce12 =20
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lstream_v1
+
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lstream_v2
+
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lstream_v3
+
+    jmp .Lstream_envelope_error
+
+.Lstream_v1:
+    mov r13d, ENVELOPE_HEADER_LEN     # r13 = header_len
+    mov r12d, 0                       # r12 = has_aad (0/1)
+    # copy nonce
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lstream_got_header
+
+.Lstream_v2:
+    mov r13d, ENVELOPE_V2_HEADER_LEN
+    mov r12d, 1
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lstream_got_header
+
+.Lstream_v3:
+    # For direct-key open-file paths, v3 requires prior derive_v3_aead_key
+    # (normally via open-to). Support here only if key already matches.
+    # Copy nonce from v3 location and set aad.
+    mov r13d, ENVELOPE_V3_HEADER_LEN
+    mov r12d, 1
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lstream_got_header
+
+.Lstream_got_header:
+    # Seek to end to get total size
+    mov eax, SYS_LSEEK
+    mov rdi, r14
+    xor esi, esi
+    mov edx, SEEK_END
+    syscall
+    test rax, rax
+    js .Lstream_seek_fail
+    mov rbx, rax                     # rbx = file_size
+
+    # Seek back to start of ct (after header)
+    mov eax, SYS_LSEEK
+    mov rdi, r14
+    mov rsi, r13                     # header_len (from r13d promoted)
+    xor edx, edx                     # SEEK_SET
+    syscall
+    test rax, rax
+    js .Lstream_seek_fail
+
+    # ct_len = file_size - header_len - tag_len
+    mov rax, rbx
+    sub rax, r13
+    sub rax, ENVELOPE_TAG_LEN
+    test rax, rax
+    js .Lstream_size_fail
+    mov qword ptr [rip + aead_text_len], rax
+    mov r15, rax                     # r15 = ct_len (remaining)
+
+    # Init AEAD poly
+    call aead_poly1305_init
+    test r12d, r12d
+    jz .Lstream_no_aad
+    # AAD the header we read into io_buf
+    lea rdi, [rip + io_buf]
+    mov esi, r13d
+    call aead_poly1305_update_aad
+.Lstream_no_aad:
+    mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
+
+    # Prepare output writer (temp if aead_output_path set, else stdout)
+    xor r12d, r12d                   # r12 will be "using_temp" flag (reuse, careful)
+    mov rax, qword ptr [rip + aead_output_path]
+    test rax, rax
+    jz .Lstream_use_stdout
+    mov rdi, rax
+    call create_open_temp
+    test eax, eax
+    jz .Lstream_temp_fail
+    mov r13, qword ptr [rip + open_temp_fd]   # r13 = pt write fd (temp)
+    mov r12d, 1
+    jmp .Lstream_have_writer
+.Lstream_use_stdout:
+    mov r13, STDOUT
+.Lstream_have_writer:
+
+    # Chunked decrypt loop over ct
+.Lstream_ct_loop:
+    test r15, r15
+    jz .Lstream_ct_done
+    mov edx, 4096
+    cmp r15, rdx
+    cmovb rdx, r15
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + io_buf]
+    syscall
+    test rax, rax
+    js .Lstream_read_fail
+    jz .Lstream_unexpected_eof
+    mov rbx, rax                     # actual this chunk
+    sub r15, rbx
+
+    # poly CT
+    lea rdi, [rip + io_buf]
+    mov rsi, rbx
+    call poly1305_update
+
+    # chacha CT->PT in place in io_buf
+    lea rdi, [rip + io_buf]
+    mov rsi, rbx
+    call chacha20_xor
+
+    # write PT chunk to writer fd (temp or stdout)
+    mov rdi, r13
+    lea rsi, [rip + io_buf]
+    mov rdx, rbx
+    call write_all
+    test eax, eax
+    jne .Lstream_write_fail
+    jmp .Lstream_ct_loop
+
+.Lstream_ct_done:
+    # Read trailing tag
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    syscall
+    cmp rax, ENVELOPE_TAG_LEN
+    jne .Lstream_tag_read_fail
+
+    # close input
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+
+    # finish and check tag
+    mov rdi, qword ptr [rip + aead_text_len]
+    lea rsi, [rip + poly_tag]
+    call aead_poly1305_finish
+
+    lea rdi, [rip + poly_tag]
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    call memeq
+    cmp eax, 1
+    jne .Lstream_tag_fail
+
+    # Auth success: finalize output (rename if temp)
+    test r12d, r12d
+    jz .Lstream_success
+    # close temp writer
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    # rename noreplace
+    lea rdi, [rip + open_temp_path]
+    mov rsi, qword ptr [rip + aead_output_path]
+    call rename_noreplace_path
+    test eax, eax
+    jz .Lstream_rename_fail
+    jmp .Lstream_success
+
+.Lstream_success:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    mov eax, 1
+    ret
+
+    # error paths with cleanup
+.Lstream_rename_fail:
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+    xor eax, eax
+    jmp .Lstream_err_pop
+
+.Lstream_tag_fail:
+    test r12d, r12d
+    jz .Lstream_tag_err
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+.Lstream_tag_err:
+    mov eax, 2
+    jmp .Lstream_err_pop
+
+.Lstream_write_fail:
+    test r12d, r12d
+    jz .Lstream_err
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+    jmp .Lstream_err
+
+.Lstream_read_fail:
+.Lstream_unexpected_eof:
+.Lstream_tag_read_fail:
+    test r12d, r12d
+    jz .Lstream_close_in_err
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+.Lstream_close_in_err:
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+    jmp .Lstream_err
+
+.Lstream_temp_fail:
+.Lstream_seek_fail:
+.Lstream_size_fail:
+.Lstream_hdr_read_fail:
+.Lstream_file_open_fail:
+.Lstream_envelope_error:
+    # best effort close if we had fd
+    test r14, r14
+    jz .Lstream_err
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+.Lstream_err:
+    xor eax, eax
+.Lstream_err_pop:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+# stream_open_file_authorized: like stream_open_file but for Gate-authorized open paths.
+# Performs one-pass streaming decrypt to temp (tag checked), while updating
+# gate_sha_*_ctx for full artifact and ct-only. On tag success: finalize to
+# gate_computed_*_sha256, save header, set gate_use_streamed=1, aead_text_len=full,
+# close temp fd (no rename yet). Caller does gate verify then commit rename or abort.
+# This lifts AEAD_OPEN_MAX for open-authorized-* while keeping Gate decision before final path PT.
+stream_open_file_authorized:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, qword ptr [rip + aead_input_path]
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, qword ptr [rip + aead_input_path]
+    mov edx, FILE_READ_FLAGS
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js .Lsauth_file_open_fail
+    mov r14, rax                 # r14 = input_fd
+
+    # Read header probe
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + io_buf]
+    mov edx, ENVELOPE_V3_HEADER_LEN
+    syscall
+    test rax, rax
+    jle .Lsauth_hdr_read_fail
+    mov r15, rax
+
+    # detect + nonce + set header_len in r13d , aad in r12d (reused later for temp flag)
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lsauth_v1
+
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lsauth_v2
+
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lsauth_v3
+
+    jmp .Lsauth_envelope_error
+
+.Lsauth_v1:
+    mov r13d, ENVELOPE_HEADER_LEN
+    mov r12d, 0
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lsauth_got_header
+
+.Lsauth_v2:
+    mov r13d, ENVELOPE_V2_HEADER_LEN
+    mov r12d, 1
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lsauth_got_header
+
+.Lsauth_v3:
+    mov r13d, ENVELOPE_V3_HEADER_LEN
+    mov r12d, 1
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lsauth_got_header
+
+.Lsauth_got_header:
+    # save header for later nonce/tag extraction in streamed manifest build
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + io_buf]
+    mov ecx, r13d
+    rep movsb
+
+    mov r15, r13                     # r15 = header_len (preserved across writer fd in r13)
+
+    # lseek end for size
+    mov eax, SYS_LSEEK
+    mov rdi, r14
+    xor esi, esi
+    mov edx, SEEK_END
+    syscall
+    test rax, rax
+    js .Lsauth_seek_fail
+    mov rbx, rax                 # total size
+
+    mov eax, SYS_LSEEK
+    mov rdi, r14
+    mov rsi, r15
+    xor edx, edx
+    syscall
+    test rax, rax
+    js .Lsauth_seek_fail
+
+    mov rax, rbx
+    sub rax, r15
+    sub rax, ENVELOPE_TAG_LEN
+    test rax, rax
+    js .Lsauth_size_fail
+    mov qword ptr [rip + aead_text_len], rax   # temp ct, will adjust to full later
+    mov rbx, rax                     # ct rem in rbx (safe)
+
+    # init shas for gate
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    call sha256_init
+    lea rdi, [rip + gate_sha_ct_ctx]
+    call sha256_init
+
+    # update full sha with the header bytes we already read (in io_buf)
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, r13
+    call sha256_update
+
+    # init poly + aad if needed
+    call aead_poly1305_init
+    test r12d, r12d
+    jz .Lsauth_no_aad_init
+    lea rdi, [rip + io_buf]
+    mov esi, r13d
+    call aead_poly1305_update_aad
+.Lsauth_no_aad_init:
+    mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
+
+    # prepare writer (temp if output set)
+    xor r12d, r12d
+    mov rax, qword ptr [rip + aead_output_path]
+    test rax, rax
+    jz .Lsauth_use_stdout
+    mov rdi, rax
+    call create_open_temp
+    test eax, eax
+    jz .Lsauth_temp_fail
+    mov r13, qword ptr [rip + open_temp_fd]
+    mov r12d, 1
+    jmp .Lsauth_have_writer
+.Lsauth_use_stdout:
+    mov r13, STDOUT
+.Lsauth_have_writer:
+
+    # save h (in r15) , use r15 for chunk temp in loop
+    sub rsp, 8
+    mov [rsp], r15
+
+    # ct chunks
+.Lsauth_ct_loop:
+    test rbx, rbx
+    jz .Lsauth_ct_done
+    mov edx, 4096
+    cmp rbx, rdx
+    cmovb rdx, rbx
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + io_buf]
+    syscall
+    test rax, rax
+    js .Lsauth_read_fail
+    jz .Lsauth_unexpected_eof
+    mov r15, rax   # chunk temp in r15
+    sub rbx, r15
+
+    # update shas: full + ct
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, r15
+    call sha256_update
+    lea rdi, [rip + gate_sha_ct_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, r15
+    call sha256_update
+
+    # poly + chacha + write pt
+    lea rdi, [rip + io_buf]
+    mov rsi, r15
+    call poly1305_update
+    lea rdi, [rip + io_buf]
+    mov rsi, r15
+    call chacha20_xor
+    mov rdi, r13
+    lea rsi, [rip + io_buf]
+    mov rdx, r15
+    call write_all
+    test eax, eax
+    jne .Lsauth_write_fail
+    jmp .Lsauth_ct_loop
+
+.Lsauth_ct_done:
+    # restore h_len
+    mov r15, [rsp]
+    add rsp, 8
+
+    # read tag + update full sha with tag bytes (artifact sha covers header+ct+tag)
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    syscall
+    cmp rax, ENVELOPE_TAG_LEN
+    jne .Lsauth_tag_read_fail
+
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + aead_expected_tag]
+    mov rdx, ENVELOPE_TAG_LEN
+    call sha256_update
+
+    # close input
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+
+    # poly finish + check
+    mov rdi, qword ptr [rip + aead_text_len]  # was ct
+    lea rsi, [rip + poly_tag]
+    call aead_poly1305_finish
+    lea rdi, [rip + poly_tag]
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    call memeq
+    cmp eax, 1
+    jne .Lsauth_tag_fail
+
+    # finalize shas to computed
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + gate_computed_artifact_sha256]
+    call sha256_final
+    lea rdi, [rip + gate_sha_ct_ctx]
+    lea rsi, [rip + gate_computed_ct_sha256]
+    call sha256_final
+
+    # set full size for gate logic (header + ct + tag)
+    mov rax, qword ptr [rip + aead_text_len]
+    add rax, r15
+    add rax, ENVELOPE_TAG_LEN
+    mov qword ptr [rip + aead_text_len], rax
+
+    mov byte ptr [rip + gate_use_streamed], 1
+
+    # close writer fd (temp written, rename later if gate ok)
+    test r12d, r12d
+    jz .Lsauth_success
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+
+.Lsauth_success:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    mov eax, 1
+    ret
+
+    # error paths (cleanup temp if open, close in)
+.Lsauth_tag_fail:
+.Lsauth_tag_read_fail:
+    test r12d, r12d
+    jz .Lsauth_tag_err
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+.Lsauth_tag_err:
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+    mov eax, 2
+    jmp .Lsauth_err
+.Lsauth_write_fail:
+.Lsauth_read_fail:
+.Lsauth_unexpected_eof:
+    test r12d, r12d
+    jz .Lsauth_close_in_err2
+    mov eax, SYS_CLOSE
+    mov rdi, r13
+    syscall
+    lea rdi, [rip + open_temp_path]
+    call unlink_path
+.Lsauth_close_in_err2:
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+    jmp .Lsauth_err
+
+.Lsauth_temp_fail:
+.Lsauth_seek_fail:
+.Lsauth_size_fail:
+.Lsauth_hdr_read_fail:
+.Lsauth_file_open_fail:
+.Lsauth_envelope_error:
+    test r14, r14
+    jz .Lsauth_err
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+.Lsauth_err:
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+# stream_sha_for_release: streaming SHA-only (full + ct) for release-authorized paths.
+# Mirrors SHA/header/flag logic from stream_open_file_authorized (no poly/chacha/decrypt/temp).
+# Sets gate_computed_* + envelope_header_buf + gate_use_streamed + aead_text_len=full.
+# Allows gate_verify_loaded_* to use gate_build_manifest_streamed for large artifacts.
+stream_sha_for_release:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, qword ptr [rip + aead_input_path]
+    mov eax, SYS_OPENAT
+    mov rdi, AT_FDCWD
+    mov rsi, qword ptr [rip + aead_input_path]
+    mov edx, FILE_READ_FLAGS
+    xor r10d, r10d
+    syscall
+    test rax, rax
+    js .Lsr_file_open_fail
+    mov r14, rax                 # r14 = input_fd
+
+    # Read header probe
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + io_buf]
+    mov edx, ENVELOPE_V3_HEADER_LEN
+    syscall
+    test rax, rax
+    jle .Lsr_hdr_read_fail
+    mov r15, rax
+
+    # detect + set header_len in r13d
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lsr_v1
+
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lsr_v2
+
+    lea rdi, [rip + io_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lsr_v3
+
+    jmp .Lsr_envelope_error
+
+.Lsr_v1:
+    mov r13d, ENVELOPE_HEADER_LEN
+    lea rdi, [rip + chacha_nonce]  # not needed but for consistency
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lsr_got_header
+
+.Lsr_v2:
+    mov r13d, ENVELOPE_V2_HEADER_LEN
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lsr_got_header
+
+.Lsr_v3:
+    mov r13d, ENVELOPE_V3_HEADER_LEN
+    lea rdi, [rip + chacha_nonce]
+    lea rsi, [rip + io_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
+    mov ecx, ENVELOPE_NONCE_LEN
+    rep movsb
+    jmp .Lsr_got_header
+
+.Lsr_got_header:
+    # save header for streamed manifest build
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + io_buf]
+    mov ecx, r13d
+    rep movsb
+
+    # lseek end
+    mov eax, SYS_LSEEK
+    mov rdi, r14
+    xor esi, esi
+    mov edx, SEEK_END
+    syscall
+    test rax, rax
+    js .Lsr_seek_fail
+    mov rbx, rax
+
+    # lseek to after header
+    mov eax, SYS_LSEEK
+    mov rdi, r14
+    mov rsi, r13
+    xor edx, edx
+    syscall
+    test rax, rax
+    js .Lsr_seek_fail
+
+    mov rax, rbx
+    sub rax, r13
+    sub rax, ENVELOPE_TAG_LEN
+    test rax, rax
+    js .Lsr_size_fail
+    mov qword ptr [rip + aead_text_len], rax   # temp as ct
+    mov r15, rax  # ct_len
+
+    # init gate shas
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    call sha256_init
+    lea rdi, [rip + gate_sha_ct_ctx]
+    call sha256_init
+
+    # update artifact sha with header (from io_buf)
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, r13
+    call sha256_update
+
+    # chunk loop for ct: update both shas
+.Lsr_ct_loop:
+    test r15, r15
+    jz .Lsr_ct_done
+    mov edx, 4096
+    cmp r15, rdx
+    cmovb rdx, r15
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + io_buf]
+    syscall
+    test rax, rax
+    js .Lsr_read_fail
+    jz .Lsr_unexpected_eof
+    mov r12, rax
+    sub r15, r12
+
+    # artifact sha (full)
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, r12
+    call sha256_update
+
+    # ct sha
+    lea rdi, [rip + gate_sha_ct_ctx]
+    lea rsi, [rip + io_buf]
+    mov rdx, r12
+    call sha256_update
+
+    jmp .Lsr_ct_loop
+
+.Lsr_ct_done:
+    # read tag, update artifact sha with tag
+    mov eax, SYS_READ
+    mov rdi, r14
+    lea rsi, [rip + aead_expected_tag]
+    mov edx, ENVELOPE_TAG_LEN
+    syscall
+    cmp rax, ENVELOPE_TAG_LEN
+    jne .Lsr_tag_read_fail
+
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + aead_expected_tag]
+    mov rdx, ENVELOPE_TAG_LEN
+    call sha256_update
+
+    # close input
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+
+    # finalize
+    lea rdi, [rip + gate_sha_artifact_ctx]
+    lea rsi, [rip + gate_computed_artifact_sha256]
+    call sha256_final
+
+    lea rdi, [rip + gate_sha_ct_ctx]
+    lea rsi, [rip + gate_computed_ct_sha256]
+    call sha256_final
+
+    # set full size
+    mov rax, qword ptr [rip + aead_text_len]
+    add rax, r13
+    add rax, ENVELOPE_TAG_LEN
+    mov qword ptr [rip + aead_text_len], rax
+
+    mov byte ptr [rip + gate_use_streamed], 1
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    mov eax, 1
+    ret
+
+    # errors
+.Lsr_tag_read_fail:
+.Lsr_read_fail:
+.Lsr_unexpected_eof:
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+    jmp .Lsr_err
+
+.Lsr_size_fail:
+.Lsr_seek_fail:
+.Lsr_hdr_read_fail:
+.Lsr_file_open_fail:
+.Lsr_envelope_error:
+    test r14, r14
+    jz .Lsr_err
+    mov eax, SYS_CLOSE
+    mov rdi, r14
+    syscall
+.Lsr_err:
+    xor eax, eax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
 
 run_inspect:
     cmp qword ptr [rsp], 2
@@ -1464,11 +2332,15 @@ run_manifest_file:
     jne usage_exit
 
     mov rdi, qword ptr [rsp + 24]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_sha_for_release
     cmp eax, 1
-    je manifest_parse_loaded_envelope
-    cmp eax, 2
-    je aead_size_error
+    jne artifact_file_error
+    call write_streamed_manifest
+    cmp eax, 1
+    jne envelope_error
+    xor edi, edi
+    jmp exit_process
     jmp artifact_file_error
 
 run_warrant_message_file:
@@ -1525,11 +2397,10 @@ run_warrant_message_file:
 
 .Lwarrant_action_loaded:
     mov rdi, qword ptr [rsp + 32]
-    call read_artifact_file
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_sha_for_release
     cmp eax, 1
-    je .Lwarrant_validate_loaded_envelope
-    cmp eax, 2
-    je aead_size_error
+    je .Lwarrant_write_message
     jmp artifact_file_error
 
 .Lwarrant_validate_loaded_envelope:
@@ -1579,7 +2450,232 @@ run_warrant_message_file:
     lea rsi, [rip + warrant_message_manifest_prefix]
     mov edx, OFFSET FLAT:warrant_message_manifest_prefix_len
     call write_all
-    jmp manifest_parse_loaded_envelope
+    call write_streamed_manifest
+    cmp eax, 1
+    jne envelope_error
+    xor edi, edi
+    jmp exit_process
+
+write_streamed_digest_line:
+    push rbx
+    push r12
+    push r13
+    mov rbx, rdi
+    mov r12, rsi
+    mov r13, rdx
+    mov rdi, STDOUT
+    mov rsi, rbx
+    mov rdx, r12
+    call write_all
+    mov rdi, r13
+    mov esi, 32
+    call write_hex_newline_stdout
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
+write_hex_newline_stdout:
+    push rbx
+    mov rbx, rsi
+    lea rsi, [rip + hex_buf]
+    mov rdx, rbx
+    call hex_encode
+    lea rax, [rbx + rbx]
+    lea rdx, [rip + hex_buf]
+    mov byte ptr [rdx + rax], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    lea rdx, [rax + 1]
+    call write_all
+    pop rbx
+    ret
+
+write_streamed_manifest:
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + envelope_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lstream_manifest_v1
+
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + envelope_v2_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lstream_manifest_v2
+
+    lea rdi, [rip + envelope_header_buf]
+    lea rsi, [rip + envelope_v3_prefix]
+    mov edx, ENVELOPE_PREFIX_LEN
+    call memeq
+    cmp eax, 1
+    je .Lstream_manifest_v3
+    xor eax, eax
+    ret
+
+.Lstream_manifest_v1:
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_v1_msg]
+    mov edx, OFFSET FLAT:manifest_v1_msg_len
+    call write_all
+
+    lea rdi, [rip + manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:manifest_artifact_sha256_label_len
+    lea rdx, [rip + gate_computed_artifact_sha256]
+    call write_streamed_digest_line
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_length_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
+    call write_all
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_MIN_LEN
+    call write_u64_decimal_stdout
+    mov rdi, STDOUT
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+
+    lea rdi, [rip + manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    lea rdx, [rip + gate_computed_ct_sha256]
+    call write_streamed_digest_line
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN]
+    mov esi, ENVELOPE_NONCE_LEN
+    call write_hex_newline_stdout
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_tag_label]
+    mov edx, OFFSET FLAT:manifest_tag_label_len
+    call write_all
+    lea rdi, [rip + aead_expected_tag]
+    mov esi, ENVELOPE_TAG_LEN
+    call write_hex_newline_stdout
+    mov eax, 1
+    ret
+
+.Lstream_manifest_v2:
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_v2_msg]
+    mov edx, OFFSET FLAT:manifest_v2_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_key_id_label]
+    mov edx, OFFSET FLAT:inspect_key_id_label_len
+    call write_all
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN]
+    mov esi, ENVELOPE_KEY_ID_LEN
+    call write_hex_newline_stdout
+
+    lea rdi, [rip + manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:manifest_artifact_sha256_label_len
+    lea rdx, [rip + gate_computed_artifact_sha256]
+    call write_streamed_digest_line
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_length_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
+    call write_all
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_V2_MIN_LEN
+    call write_u64_decimal_stdout
+    mov rdi, STDOUT
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+
+    lea rdi, [rip + manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    lea rdx, [rip + gate_computed_ct_sha256]
+    call write_streamed_digest_line
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_KEY_ID_LEN]
+    mov esi, ENVELOPE_NONCE_LEN
+    call write_hex_newline_stdout
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_tag_label]
+    mov edx, OFFSET FLAT:manifest_tag_label_len
+    call write_all
+    lea rdi, [rip + aead_expected_tag]
+    mov esi, ENVELOPE_TAG_LEN
+    call write_hex_newline_stdout
+    mov eax, 1
+    ret
+
+.Lstream_manifest_v3:
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_v3_msg]
+    mov edx, OFFSET FLAT:manifest_v3_msg_len
+    call write_all
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_ephemeral_public_label]
+    mov edx, OFFSET FLAT:inspect_ephemeral_public_label_len
+    call write_all
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN]
+    mov esi, ENVELOPE_X25519_PUBLIC_LEN
+    call write_hex_newline_stdout
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_key_id_label]
+    mov edx, OFFSET FLAT:inspect_key_id_label_len
+    call write_all
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN]
+    mov esi, ENVELOPE_KEY_ID_LEN
+    call write_hex_newline_stdout
+
+    lea rdi, [rip + manifest_artifact_sha256_label]
+    mov esi, OFFSET FLAT:manifest_artifact_sha256_label_len
+    lea rdx, [rip + gate_computed_artifact_sha256]
+    call write_streamed_digest_line
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_ciphertext_length_label]
+    mov edx, OFFSET FLAT:manifest_ciphertext_length_label_len
+    call write_all
+    mov rdi, qword ptr [rip + aead_text_len]
+    sub rdi, ENVELOPE_V3_MIN_LEN
+    call write_u64_decimal_stdout
+    mov rdi, STDOUT
+    lea rsi, [rip + newline_msg]
+    mov edx, OFFSET FLAT:newline_msg_len
+    call write_all
+
+    lea rdi, [rip + manifest_ciphertext_sha256_label]
+    mov esi, OFFSET FLAT:manifest_ciphertext_sha256_label_len
+    lea rdx, [rip + gate_computed_ct_sha256]
+    call write_streamed_digest_line
+
+    mov rdi, STDOUT
+    lea rsi, [rip + inspect_nonce_label]
+    mov edx, OFFSET FLAT:inspect_nonce_label_len
+    call write_all
+    lea rdi, [rip + envelope_header_buf + ENVELOPE_PREFIX_LEN + ENVELOPE_X25519_PUBLIC_LEN + ENVELOPE_KEY_ID_LEN]
+    mov esi, ENVELOPE_NONCE_LEN
+    call write_hex_newline_stdout
+
+    mov rdi, STDOUT
+    lea rsi, [rip + manifest_tag_label]
+    mov edx, OFFSET FLAT:manifest_tag_label_len
+    call write_all
+    lea rdi, [rip + aead_expected_tag]
+    mov esi, ENVELOPE_TAG_LEN
+    call write_hex_newline_stdout
+    mov eax, 1
+    ret
 
 manifest_parse_loaded_envelope:
     mov rbx, qword ptr [rip + aead_text_len]
@@ -1920,6 +3016,7 @@ run_aead_seal:
     call aead_poly1305_init
     mov qword ptr [rip + aead_text_len], 0
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
 
 .Laead_seal_read_loop:
     mov eax, SYS_READ
@@ -2025,6 +3122,7 @@ run_aead_open:
     jne aead_auth_error
 
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
     lea rdi, [rip + aead_open_buf]
     mov rsi, qword ptr [rip + aead_text_len]
     call chacha20_xor
@@ -2243,6 +3341,7 @@ run_selftest:
     mov ecx, 3
     rep movsb
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
     lea rdi, [rip + io_buf]
     mov esi, 3
     call chacha20_xor
@@ -2268,6 +3367,7 @@ run_selftest:
     jne selftest_fail
 
     mov dword ptr [rip + chacha_counter], 1
+    mov dword ptr [rip + chacha_counter + 4], 0
     lea rdi, [rip + io_buf]
     mov esi, 3
     call chacha20_xor
@@ -3413,7 +4513,8 @@ chacha20_xor:
     mov edx, dword ptr [rip + chacha_counter]
     lea rcx, [rip + chacha_block]
     call chacha20_block
-    inc dword ptr [rip + chacha_counter]
+    add dword ptr [rip + chacha_counter], 1
+    adc dword ptr [rip + chacha_counter + 4], 0
 
     mov r13, 64
     cmp r12, 64
@@ -4253,13 +5354,47 @@ aead_aad_len:
 aead_output_path:
     .skip 8
 .align 8
+aead_input_path:
+    .skip 8
+.align 8
+stream_hold:
+    .skip 16
+chacha_temp:
+    .skip 16
+.align 8
 .global open_temp_path
 .global open_temp_fd
+.global gate_sha_artifact_ctx
+.global gate_sha_ct_ctx
+.global gate_computed_artifact_sha256
+.global gate_computed_ct_sha256
+.global gate_use_streamed
+.global aead_expected_tag
+.global envelope_header_buf
+.global aead_input_path
 open_temp_path:
     .skip 4096
 .align 8
 open_temp_fd:
     .skip 8
+.align 8
+# Streaming support for Gate-authorized opens (large artifacts): on-the-fly SHA contexts + computed digests
+# (full artifact and ct-only) so gate_build_manifest can verify without loading entire sealed into aead_open_buf.
+.align 16
+gate_sha_artifact_ctx:
+    .skip SHA256_CTX_SIZE
+.align 16
+gate_sha_ct_ctx:
+    .skip SHA256_CTX_SIZE
+.align 16
+gate_computed_artifact_sha256:
+    .skip 32
+.align 16
+gate_computed_ct_sha256:
+    .skip 32
+.align 8
+gate_use_streamed:
+    .skip 1
 .align 8
 warrant_action_ptr:
     .skip 8
@@ -4283,7 +5418,7 @@ chacha_nonce:
     .skip 12
 .align 4
 chacha_counter:
-    .skip 4
+    .skip 8
 .align 16
 chacha_block:
     .skip 64

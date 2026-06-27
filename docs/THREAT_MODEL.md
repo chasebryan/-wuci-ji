@@ -43,8 +43,9 @@ secret. Fixture authority is test-only.
 - Post-quantum signature verification or quantum-safe status.
 - Independent audit, formal verification, broad fuzzing, or constant-time
   certification.
-- Large streaming artifact open beyond the current bounded in-memory envelope
-  path.
+- Runtime and display paths that still intentionally use the bounded
+  `AEAD_OPEN_MAX` in-memory envelope path, including stdin `open`, stdin
+  `manifest`, inspect, armor/dearmor, raw `aead-open`, and v3 recipient open.
 
 ## TCB Split
 
@@ -61,7 +62,7 @@ secret. Fixture authority is test-only.
 
 | Tier | Examples | Status |
 | --- | --- | --- |
-| Stable verifier commands | `manifest-file`, `warrant-message-file`, `authority-root-verify`, `gate-contract-verify`, `gate-contract-verify-rooted`, `release-authorized-rooted`, `ledger-leaf-file`, `ledger-node` | Current proof surface |
+| Stable verifier commands | `manifest-file`, `warrant-message-file`, `authority-root-verify`, `gate-contract-verify`, `gate-contract-verify-rooted`, `release-authorized-rooted`, `ledger-leaf-file`, `ledger-node` | Current proof surface; file manifest/warrant paths stream SHA computation |
 | Artifact workflow commands | `seal-file-keyfile-v2`, `open-file-keyfile`, `open-authorized-contract`, `open-authorized-rooted` | Demo/research artifact flow |
 | Dev/test crypto primitives | `secp256k1-*`, `frost-secp256k1-*`, `aead-*`, `hmac-sha256`, `hkdf-sha256`, `poly1305`, `chacha20` | Developer test surface, not user-safe product UX |
 | Explicitly risky public-only primitive | `secp256k1-basepoint-mul-variable-time-public-only` | Variable-time, public scalars only |

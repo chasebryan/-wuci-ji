@@ -591,6 +591,70 @@ def main() -> None:
     if not args.quiet:
         print("wuci rooted asm gate contract tests passed")
 
+    # Large (>1 MiB) rooted artifacts must pass the streamed manifest/warrant
+    # and streamed Gate-authorized open/release lanes without full-buffer reads.
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tmp = Path(temp_dir)
+        key_path = tmp / "artifact.key"
+        key_path.write_text(("11" * 32) + "\n", encoding="ascii")
+        large_data = b"R" * (1024 * 1024 + 2048)
+        plain_path = tmp / "large-plain.bin"
+        artifact_path = tmp / "large-sealed.wj"
+        plain_path.write_bytes(large_data)
+        sealed = run_wuci(
+            [
+                "seal-file-keyfile-v2",
+                str(key_path),
+                "2233445566778899aabbccddeeff0011",
+                str(plain_path),
+                str(artifact_path),
+            ]
+        )
+        assert_ok(sealed, "seal large rooted artifact")
+
+        receipt_path = make_receipt(tmp, artifact_path, "open")
+        contract_path = tmp / "large-open-contract.txt"
+        emit_contract(artifact_path, receipt_path, contract_path, "open")
+        authority_path = tmp / "large-authority-root.txt"
+        emit_authority(contract_path, authority_path)
+        opened_path = tmp / "large-opened.bin"
+        opened = run_wuci(
+            [
+                "open-authorized-rooted",
+                str(authority_path),
+                str(key_path),
+                str(artifact_path),
+                str(contract_path),
+                str(opened_path),
+            ]
+        )
+        assert_ok(opened, "large rooted contract open")
+        assert opened_path.read_bytes() == large_data
+
+        release_receipt_path = make_receipt(tmp, artifact_path, "release")
+        release_contract_path = tmp / "large-release-contract.txt"
+        emit_contract(artifact_path, release_receipt_path, release_contract_path, "release")
+        release_authority_path = tmp / "large-release-authority-root.txt"
+        emit_authority(
+            release_contract_path,
+            release_authority_path,
+            allow_open="false",
+            allow_release="true",
+        )
+        release = run_wuci(
+            [
+                "release-authorized-rooted",
+                str(release_authority_path),
+                str(artifact_path),
+                str(release_contract_path),
+            ]
+        )
+        assert_ok(release, "large rooted release")
+        assert release.stdout.startswith(b"authorized: true\naction: release\n")
+
+        if not args.quiet:
+            print("added explicit large >1M rooted streaming Gate test")
+
 
 if __name__ == "__main__":
     main()

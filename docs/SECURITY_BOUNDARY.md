@@ -6,7 +6,7 @@ the current repository has code and tests for that behavior.
 
 | Boundary | What It Checks | Owner | Current Status |
 | --- | --- | --- | --- |
-| Envelope secrecy boundary | ChaCha20-Poly1305 envelope parse/open, tag verification before plaintext output, bounded artifact reads, no-overwrite output | Assembly | Enforced for current in-memory artifact size cap |
+| Envelope secrecy boundary | ChaCha20-Poly1305 envelope parse/open, tag verification before final file output, bounded stdin/inspect reads, no-overwrite output | Assembly | Enforced; file opens stream through temp files, stdin/inspect paths stay bounded |
 | Warrant authorization boundary | Deterministic fixture FROST receipt generation and receipt JSON checks | Python/Zig emitters plus assembly helpers | Demo/reference; fixture-only authority |
 | Flat Gate contract boundary | Fixed-order ASCII contract parse, artifact hash, manifest hash, warrant-message hash, challenge, signature, output safety | Assembly | Enforced for open/release paths |
 | Root authority boundary | Authority root parse, authority ID, action allow bits, contract group key equals authority group key | Assembly plus fixture anchor files | Enforced for rooted open/release; fixture roots are test-only |
@@ -19,12 +19,29 @@ the current repository has code and tests for that behavior.
 
 ## Artifact Size Boundary
 
-The current envelope open path is bounded by `AEAD_OPEN_MAX` and reads the
-artifact into memory before authentication. This keeps failure behavior simple:
-malformed or oversized artifacts fail before plaintext output is created.
+Plain `open-file*` paths use streaming authenticated decryption: read the
+header, lseek for ciphertext length, update Poly1305 and ChaCha20 by chunk
+while writing plaintext to a sibling 0600 temp file opened with
+`O_EXCL|O_NOFOLLOW`, verify the final tag, then `RENAME_NOREPLACE` to the
+requested output path. On authentication or I/O failure, the temp path is
+unlinked. No plaintext reaches the requested output path until the tag
+succeeds.
 
-TODO: implement streaming authenticated open to a temporary file, verify the
-final tag, then atomically rename while preserving no-overwrite behavior.
+Gate-authorized file opens use the same streamed artifact hash/ciphertext hash
+and temp-file open lane. The authorized output path is committed only after the
+flat or rooted Gate contract verifies; failed Gate verification unlinks the
+temp. This is final-path authorization, not OS containment: a private 0600 temp
+plaintext file exists transiently before the Gate commit step.
+
+`manifest-file`, `warrant-message-file`, and assembly release decisions now
+stream artifact and ciphertext SHA-256 computation for file inputs, so large
+sealed artifacts can be warranted and released without the old
+`AEAD_OPEN_MAX` full-buffer read.
+
+Stdin `open`, stdin `manifest`, `inspect`, `inspect-file`, `open-to`,
+armor/dearmor, and raw `aead-open` still use the bounded in-memory read paths
+where they need authenticate-before-stdout behavior, display-only simplicity,
+or v3 recipient-key processing.
 
 ## Variable-Time Public Primitive
 

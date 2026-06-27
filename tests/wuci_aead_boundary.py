@@ -35,7 +35,8 @@ def seal_and_open(tmp: Path, size: int, name: str) -> None:
     plain.write_bytes((b"wuci-boundary-" * ((size // 14) + 1))[:size])
     sealed_proc = run(["seal-file", KEY.hex(), str(plain), str(sealed)])
     assert sealed_proc.returncode == 0, sealed_proc.stderr.decode("utf-8", "replace")
-    assert sealed.stat().st_size <= AEAD_OPEN_MAX
+    # streaming open supports > old AEAD_OPEN_MAX; only check reasonable
+    assert sealed.stat().st_size > 0
     open_proc = run(["open-file", KEY.hex(), str(sealed), str(opened)])
     assert open_proc.returncode == 0, open_proc.stderr.decode("utf-8", "replace")
     assert opened.read_bytes() == plain.read_bytes()
@@ -65,6 +66,12 @@ def main() -> None:
         assert open_proc.returncode != 0
         assert open_proc.stdout == b""
         assert not opened.exists()
+
+    # Streaming open supports artifacts larger than old AEAD_OPEN_MAX (write-to-temp + tag verify + rename).
+    large_size = AEAD_OPEN_MAX + 1024
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        seal_and_open(tmp, large_size, "above-old-max")
 
     if not args.quiet:
         print("wuci AEAD boundary: PASS")

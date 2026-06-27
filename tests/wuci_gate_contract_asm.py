@@ -490,6 +490,61 @@ def main() -> None:
     if not args.quiet:
         print("wuci asm gate contract tests passed")
 
+    # Large (>1 MiB) artifact: manifest/warrant generation and Gate-authorized
+    # open/release must all stay off the old AEAD_OPEN_MAX full-buffer path.
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        key_path = tmp / "artifact.key"
+        key_path.write_text(("11" * 32) + "\n", encoding="ascii")
+        large_data = b"L" * (1024 * 1024 + 2048)
+        large_plain = tmp / "lp.txt"
+        large_plain.write_bytes(large_data)
+        large_art = tmp / "ls.wj"
+        subprocess.check_call(
+            [
+                *RUNNER,
+                str(BIN),
+                "seal-file-keyfile-v2",
+                str(key_path),
+                "2233445566778899aabbccddeeff0011",
+                str(large_plain),
+                str(large_art),
+            ]
+        )
+
+        ol = tmp / "ol.txt"
+        res = run_wuci(["open-file-keyfile", str(key_path), str(large_art), str(ol)])
+        assert res.returncode == 0
+        assert ol.read_bytes() == large_data
+
+        receipt_path = make_receipt(tmp, large_art, "open")
+        contract_path = tmp / "large-open-contract.txt"
+        emit_contract(large_art, receipt_path, contract_path, "open")
+        opened_path = tmp / "large-opened.txt"
+        opened = run_wuci(
+            [
+                "open-authorized-contract",
+                str(key_path),
+                str(large_art),
+                str(contract_path),
+                str(opened_path),
+            ]
+        )
+        assert_ok(opened, "large assembly contract open")
+        assert opened_path.read_bytes() == large_data
+
+        release_receipt_path = make_receipt(tmp, large_art, "release")
+        release_contract_path = tmp / "large-release-contract.txt"
+        emit_contract(large_art, release_receipt_path, release_contract_path, "release")
+        release = run_wuci(
+            ["release-authorized-contract", str(large_art), str(release_contract_path)]
+        )
+        assert_ok(release, "large assembly release contract")
+        assert release.stdout.startswith(b"authorized: true\naction: release\n")
+
+        if not args.quiet:
+            print("added explicit large >1M streaming Gate test")
+
 
 if __name__ == "__main__":
     main()
