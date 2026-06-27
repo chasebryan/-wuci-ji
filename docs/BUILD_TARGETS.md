@@ -130,6 +130,15 @@ requirements, and fail-closed release behavior. It is not a mechanized
 theorem-prover proof, external review, production authority, runtime
 containment, or whole-system post-quantum-safety evidence.
 
+`daylight-v06-1000-preflight-test` checks the Daylight v0.6 1000 preflight in
+`daylight-equation/research/daylight-v06-1000-preflight.v1.json` and
+`daylight-equation/research/daylight-v06-1000-preflight.md`. It verifies that
+the current repo remains blocked from a 1000/1000 claim until integrated public
+authority, mechanized or independently reviewed formal evidence, at least two
+independent external reviews, and signed non-fixture production authority
+evidence are all tracked. It is a fail-closed readiness gate, not score
+evidence.
+
 `daylight-v6-provider-private-roundtrip-test` checks the Rust Daylight v6
 private-roundtrip evidence vector. It covers typed `PrivatePayload_v6` CBOR,
 provider-backed AEAD seal/open with `AD = T0`, artifact commitment checking,

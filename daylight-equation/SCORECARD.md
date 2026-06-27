@@ -129,6 +129,10 @@ If any item is missing, the valid score is below 1000.
 - No external reviews are tracked.
 - No production authority, publish authority, trust authority, or runtime
   containment gate exists for Daylight.
+- A Daylight 1000 preflight gate is tracked and intentionally remains blocked
+  until integrated public authority, mechanized or independently reviewed
+  formal evidence, two independent external reviews, and signed non-fixture
+  production authority evidence exist.
 
 ## Next Score-Raising Work
 
@@ -140,8 +144,8 @@ If any item is missing, the valid score is below 1000.
    trust-authority verification gates.
 3. Publish a clean KAT bundle with valid, negative, and parser-only vectors
    plus reproduction commands.
-4. Expand the partial fail-closed formal model into a complete M4 model before
-   adding any production authority claim.
+4. Promote the symbolic M4 model into a mechanized proof or independent
+   formal-methods review before adding any 1000/1000 claim.
 
 ## Evidence Links
 
@@ -173,6 +177,10 @@ If any item is missing, the valid score is below 1000.
 - [M4 symbolic model JSON](research/daylight-v06-m4-symbolic-model.v1.json)
 - [M4 symbolic model verifier](../tests/daylight_v06_m4_symbolic_model.py)
 - `make daylight-v06-m4-symbolic-model-test`
+- [1000 preflight](research/daylight-v06-1000-preflight.md)
+- [1000 preflight JSON](research/daylight-v06-1000-preflight.v1.json)
+- [1000 preflight verifier](../tests/daylight_v06_1000_preflight.py)
+- `make daylight-v06-1000-preflight-test`
 - [standards baseline](research/standards-baseline.md)
 - [machine-readable scorecard](SCORECARD.v1.json)
 - [cross-agreement evidence](evidence/daylight-v06-m1-cross-agreement.v1.json)
