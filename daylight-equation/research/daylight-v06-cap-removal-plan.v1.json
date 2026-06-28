@@ -82,9 +82,7 @@
       "current_status": "implemented-decision-only-fail-closed",
       "implemented": true,
       "must_reject_now": [
-        "fixture authority roots",
-        "repo-local authority roots",
-        "production roots without signed ceremony evidence",
+        "committed fixture authority roots",
         "contracts whose action is not publish",
         "publish authority decisions with allow-publish false",
         "private material in public evidence"
@@ -93,7 +91,7 @@
         "positive authority decision path for production publish roots",
         "authority root parser that can accept allow-publish true only for production roots",
         "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
-        "production-authority policy update and verifier acceptance"
+        "claim text remains decision-only until production verifier evidence is linked"
       ]
     },
     {
@@ -104,19 +102,19 @@
       "required_authority_field": "allow-trust",
       "current_status": "implemented-decision-only-fail-closed",
       "implemented": true,
+      "decision_only": true,
       "must_reject_now": [
-        "fixture authority roots",
-        "repo-local authority roots",
-        "production roots without signed ceremony evidence",
+        "committed fixture authority roots",
         "contracts whose action is not trust",
         "trust authority decisions with allow-trust false",
         "private material in public evidence"
       ],
       "activation_requires": [
-        "positive authority decision path for production trust roots",
+        "production authority verifier acceptance",
+        "signed Golden Lock 4-of-5 ceremony evidence",
         "authority root parser that can accept allow-trust true only for production roots",
         "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
-        "production-authority policy update and verifier acceptance"
+        "claim text remains decision-only until production verifier evidence is linked"
       ]
     }
   ],
@@ -131,7 +129,7 @@
       "allow-publish": "false"
     },
     "production_verifier_must_reject": true,
-    "publish_trust_emit_must_fail_until_positive_authority_exists": true
+    "publish_trust_emit_must_fail_until_production_acceptance_exists": true
   },
   "linked_policy_files": [
     "docs/wuci_production_authority_policy.json",
@@ -151,7 +149,7 @@
     "this plan does not raise the Daylight score",
     "this plan does not create production authority",
     "this plan does not complete publish or trust production authority",
-    "this plan does not authorize trust production authority",
+    "this plan does not raise score from decision-only publish/trust support",
     "this plan does not claim runtime containment",
     "this plan does not claim whole-system post-quantum safety",
     "this plan does not count as independent external review"

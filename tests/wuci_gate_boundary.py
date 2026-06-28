@@ -51,7 +51,7 @@ def main() -> None:
     }
     assert set(boundary) == expected_keys
     assert boundary["schema"] == "wuci-gate-boundary-v1"
-    assert boundary["status"] == "python-preview-plus-assembly-anchored-rooted-contracts"
+    assert boundary["status"] == "python-preview-plus-assembly-anchored-rooted-publish-trust-contracts"
     assert boundary["enforcement_implemented"] is True
     assert boundary["assembly_command_enforcement_implemented"] is True
 
@@ -147,6 +147,9 @@ def main() -> None:
     assert "anchored_authority_policy_mismatch" in rejection_classes
     assert "wrong_release_action" in rejection_classes
     assert "wrong_rooted_release_action" in rejection_classes
+    assert "authority_publish_disallowed" in rejection_classes
+    assert "wrong_rooted_publish_action" in rejection_classes
+    assert "wrong_rooted_trust_action" in rejection_classes
     assert "publish_bundle_tamper" in rejection_classes
     assert "witness_private_file_present" in rejection_classes
     assert "witness_publish_index_missing" in rejection_classes

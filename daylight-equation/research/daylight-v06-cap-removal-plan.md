@@ -46,16 +46,16 @@ evidence.
 The next production-authority surface is intentionally staged:
 
 ```text
-publish-authorized-rooted <authority> <artifact> <contract>
-trust-authorized-rooted <authority> <artifact> <contract>
+publish-authorized-rooted <authority> <artifact> <contract>  implemented decision-only
+trust-authorized-rooted <authority> <artifact> <contract>    implemented decision-only
 ```
 
 `publish-authorized-rooted` and `trust-authorized-rooted` are implemented only
 as assembly decision paths that verify rooted contract evidence and then emit
 fail-closed unauthorized decisions while `allow-publish` and `allow-trust`
-remain false. They do not publish, install trust, or create production
-authority. Fixture authority must not satisfy either command. The current
-fixture roots must continue to carry:
+remain false. They do not publish, trust, install, execute, decrypt, write
+plaintext, or create production authority. Fixture authority must not satisfy
+either command. The current fixture roots must continue to carry:
 
 ```text
 production: false
@@ -63,11 +63,10 @@ allow-trust: false
 allow-publish: false
 ```
 
-Full activation requires a non-fixture production authority root, signed Golden
-Lock 4-of-5 ceremony evidence, positive production publish/trust authority
-decisions, authority parsing that accepts `allow-publish` and `allow-trust`
-only for production roots, and negative tests for fixture roots, wrong actions,
-malformed contracts, and policy mismatches.
+Score-cap clearance still requires a non-fixture production authority root,
+signed Golden Lock 4-of-5 ceremony evidence, production authority verifier
+acceptance, and negative tests for fixture roots, wrong actions, malformed
+contracts, and policy mismatches.
 
 ## Runtime Containment Contract
 
@@ -91,7 +90,7 @@ Non-claims:
 this plan does not raise the Daylight score
 this plan does not create production authority
 this plan does not complete publish or trust production authority
-this plan does not authorize trust production authority
+this plan does not raise score from decision-only publish/trust support
 this plan does not claim runtime containment
 this plan does not claim whole-system post-quantum safety
 this plan does not count as independent external review

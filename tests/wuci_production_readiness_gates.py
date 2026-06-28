@@ -48,6 +48,12 @@ def main() -> None:
         "publish-authorized-rooted",
         "trust-authorized-rooted",
     ]
+    assert required["implemented_publish_trust_assembly_commands"] == [
+        "publish-authorized-rooted",
+        "trust-authorized-rooted",
+    ]
+    assert required["blocked_publish_trust_assembly_commands"] == []
+    assert "decision-only" in required["publish_trust_command_scope"]
     assert authority["golden_lock"]["schema"] == "wuci-golden-lock-v1"
     assert authority["golden_lock"]["normal_open_release_threshold"] == {"n": 5, "t": 3}
     assert authority["golden_lock"]["root_authority_audit_ceremony_threshold"] == {"n": 5, "t": 4}

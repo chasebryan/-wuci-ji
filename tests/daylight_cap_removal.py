@@ -63,7 +63,7 @@ def main() -> None:
         "this plan does not raise the Daylight score",
         "this plan does not create production authority",
         "this plan does not complete publish or trust production authority",
-        "this plan does not authorize trust production authority",
+        "this plan does not raise score from decision-only publish/trust support",
     ):
         assert non_claim in summary["non_claims"]
 
@@ -81,13 +81,41 @@ def main() -> None:
         assert inactive_result.returncode != 0
         assert b"required cap blocker is not active" in inactive_result.stderr
 
-        unimplemented = json.loads(json.dumps(value))
-        unimplemented["publish_trust_command_contracts"][1]["implemented"] = False
-        unimplemented_path = tmp / "unimplemented.json"
-        unimplemented_path.write_text(json.dumps(unimplemented, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        unimplemented_result = run_tool("verify", "--repo", str(REPO), "--plan", str(unimplemented_path), "--quiet")
-        assert unimplemented_result.returncode != 0
-        assert b"implemented state mismatch" in unimplemented_result.stderr
+        publish_disabled = json.loads(json.dumps(value))
+        publish_disabled["publish_trust_command_contracts"][0]["implemented"] = False
+        publish_disabled_path = tmp / "publish-disabled.json"
+        publish_disabled_path.write_text(
+            json.dumps(publish_disabled, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        publish_disabled_result = run_tool(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--plan",
+            str(publish_disabled_path),
+            "--quiet",
+        )
+        assert publish_disabled_result.returncode != 0
+        assert b"implemented state mismatch" in publish_disabled_result.stderr
+
+        trust_disabled = json.loads(json.dumps(value))
+        trust_disabled["publish_trust_command_contracts"][1]["implemented"] = False
+        trust_disabled_path = tmp / "trust-disabled.json"
+        trust_disabled_path.write_text(
+            json.dumps(trust_disabled, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        trust_disabled_result = run_tool(
+            "verify",
+            "--repo",
+            str(REPO),
+            "--plan",
+            str(trust_disabled_path),
+            "--quiet",
+        )
+        assert trust_disabled_result.returncode != 0
+        assert b"implemented state mismatch" in trust_disabled_result.stderr
 
         fixture_allowed = json.loads(json.dumps(value))
         fixture_allowed["fixture_authority_rejections"]["required_fields"]["allow-publish"] = "true"

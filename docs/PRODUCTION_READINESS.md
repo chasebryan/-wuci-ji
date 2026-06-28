@@ -75,8 +75,8 @@ These targets produce or verify:
   current publish and trust commands are fail-closed decision paths only.
 - Daylight cap-removal evidence through `make daylight-v06-cap-removal-test`,
   proving that the current 8250/10000 cap remains active, fixture authority
-  cannot satisfy publish/trust, and `publish-authorized-rooted` plus
-  `trust-authorized-rooted` remain fail-closed.
+  cannot satisfy publish/trust, and the publish/trust command contracts remain
+  fail-closed decision-only paths with no production-authority claim.
 - Machine-readable JSON outputs for Gate and install verifier tooling.
 - `build/wuci-sbom.json`.
 - `build/wuci-provenance.json`.
@@ -90,10 +90,13 @@ These targets produce or verify:
 - Custom assembly crypto has not been independently audited or formally
   verified.
 - Production publish/trust Gate authority is incomplete. The
-  `publish-authorized-rooted` and `trust-authorized-rooted` commands exist only
-  as fail-closed decision paths; until both pass boundary tests as positive
-  production-authority paths, production authority roots must keep
-  `allow-publish` and `allow-trust` false.
+  `publish-authorized-rooted` and `trust-authorized-rooted` now exist as
+  fail-closed decision-only assembly paths that verify rooted contracts and
+  print unauthorized decisions; they do not install, execute, decrypt, write
+  plaintext, or create production authority. Production authority roots emitted
+  by the verifier must still keep `allow-publish` and `allow-trust` false until
+  the signed ceremony workflow and production-authority verifier acceptance are
+  linked.
 - General runtime sandboxing, independent wrapper/seccomp review, and VM-grade
   containment are not complete. CARROT currently proves a narrow
   network-syscall deny lane on kernels that allow seccomp filters and

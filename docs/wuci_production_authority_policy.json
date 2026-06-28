@@ -27,7 +27,13 @@
     "required_publish_trust_assembly_commands": [
       "publish-authorized-rooted",
       "trust-authorized-rooted"
-    ]
+    ],
+    "implemented_publish_trust_assembly_commands": [
+      "publish-authorized-rooted",
+      "trust-authorized-rooted"
+    ],
+    "blocked_publish_trust_assembly_commands": [],
+    "publish_trust_command_scope": "fail-closed decision-only; does not install, execute, decrypt, write plaintext, or create production authority"
   },
   "golden_lock": {
     "schema": "wuci-golden-lock-v1",

@@ -64,6 +64,7 @@ def main() -> None:
     assert "gh run watch <run-id> --exit-status" in passoff
     assert "Continue assembly-backed publish/trust Gate work without enabling production claims." in passoff
     assert "Prepare positive production publish/trust authority prerequisites without enabling production claims." in passoff
+    assert "implemented only for fail-closed decisions" in passoff
     assert "publish-authorized-rooted" in passoff
     assert "trust-authorized-rooted" in passoff
     assert "fixture authority cannot satisfy publish/trust authority" in passoff

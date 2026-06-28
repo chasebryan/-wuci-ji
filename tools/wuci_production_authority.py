@@ -175,9 +175,7 @@ def parse_authority(text: str) -> dict[str, str]:
     if not any(fields[label] == "true" for label in ("allow-open", "allow-release")):
         fail("production authority must enable at least open or release")
     if fields["allow-trust"] == "true" or fields["allow-publish"] == "true":
-        fail(
-            "production trust/publish authority requires positive assembly Gate authority and policy acceptance first"
-        )
+        fail("production trust/publish authority requires signed ceremony-backed verifier acceptance")
     return fields
 
 
@@ -472,9 +470,7 @@ def run_emit_root(args: argparse.Namespace) -> int:
     group_public_key = args.group_public_key
     validate_compressed_secp256k1(group_public_key)
     if args.allow_trust or args.allow_publish:
-        fail(
-            "production trust/publish authority requires positive assembly Gate authority and policy acceptance first"
-        )
+        fail("production trust/publish authority requires signed ceremony-backed verifier acceptance")
     if not (args.allow_open or args.allow_release):
         fail("emit-root requires --allow-open or --allow-release")
     out = Path(args.out)

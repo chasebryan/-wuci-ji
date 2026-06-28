@@ -1,6 +1,6 @@
 {
   "schema": "wuci-gate-receipt-contract-boundary-v1",
-  "status": "python-derived-assembly-enforced-rooted-open-release-contracts",
+  "status": "python-derived-assembly-enforced-rooted-open-release-publish-trust-contracts",
   "contract_schema": "wuci-gate-receipt-contract-v1",
   "purpose": "Define the fixed flat receipt contract that Python may derive from a verified WUCI-WARRANT JSON receipt and assembly can enforce through gate-contract-verify, open-authorized-contract, release-authorized-contract, and rooted Gate commands that pin group-public-key to a WUCI-ROOT authority file.",
   "producer": "tools/wuci_receipt_contract.py",
@@ -47,7 +47,7 @@
   ],
   "value_constraints": {
     "schema": "literal wuci-gate-receipt-contract-v1",
-    "action": "one of open, release, trust, publish; assembly open-authorized-contract and open-authorized-rooted accept only open, and release-authorized-contract and release-authorized-rooted accept only release",
+    "action": "one of open, release, trust, publish; assembly open-authorized-contract and open-authorized-rooted accept only open, release-authorized-contract and release-authorized-rooted accept only release, publish-authorized-rooted accepts only publish, and trust-authorized-rooted accepts only trust",
     "artifact-sha256": "64 lowercase hex characters",
     "authorization-message-sha256": "64 lowercase hex characters",
     "receipt-sha256": "64 lowercase hex characters",
@@ -66,6 +66,8 @@
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",
     "Do not accept non-release actions through release-authorized-rooted.",
+    "Do not accept non-publish actions through publish-authorized-rooted.",
+    "Do not accept non-trust actions through trust-authorized-rooted.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

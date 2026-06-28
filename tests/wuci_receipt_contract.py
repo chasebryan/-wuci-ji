@@ -316,6 +316,14 @@ def assert_contract_shape(contract_path: Path) -> None:
         "Do not accept non-release actions through release-authorized-rooted."
         in spec["assembly_non_goals"]
     )
+    assert (
+        "Do not accept non-publish actions through publish-authorized-rooted."
+        in spec["assembly_non_goals"]
+    )
+    assert (
+        "Do not accept non-trust actions through trust-authorized-rooted."
+        in spec["assembly_non_goals"]
+    )
 
 
 def main() -> None:

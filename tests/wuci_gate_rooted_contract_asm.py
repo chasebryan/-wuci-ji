@@ -88,19 +88,22 @@ def authority_id(group_public_key: str) -> str:
 def authority_text(
     group_public_key: str,
     *,
+    production: str = "false",
     allow_open: str = "true",
     allow_release: str = "false",
+    allow_trust: str = "false",
+    allow_publish: str = "false",
 ) -> str:
     return (
         "schema: wuci-authority-root-v1\n"
         "suite: FROST-secp256k1-SHA256-v1\n"
-        "production: false\n"
+        f"production: {production}\n"
         f"authority-id: {authority_id(group_public_key)}\n"
         f"group-public-key: {group_public_key}\n"
         f"allow-open: {allow_open}\n"
         f"allow-release: {allow_release}\n"
-        "allow-trust: false\n"
-        "allow-publish: false\n"
+        f"allow-trust: {allow_trust}\n"
+        f"allow-publish: {allow_publish}\n"
     )
 
 
@@ -521,8 +524,8 @@ def main() -> None:
             release_contract_path,
         )
 
-        trust_contract_path = tmp / "rooted-trust-contract.txt"
         trust_receipt_path = make_receipt(tmp, artifact_path, "trust")
+        trust_contract_path = tmp / "trust-contract.txt"
         emit_contract(artifact_path, trust_receipt_path, trust_contract_path, "trust")
         assert_rooted_release_fails(
             release_authority_path,
@@ -625,6 +628,10 @@ def main() -> None:
                 "publish-wrong-action",
                 lambda text: replace_value(text, "action", "release"),
             ),
+            (
+                "publish-tampered-signature-scalar",
+                lambda text: replace_value(text, "signature-scalar", "00" * 32),
+            ),
         ):
             bad_publish_contract = mutate_text(
                 publish_contract_path.read_bytes(),
@@ -635,6 +642,31 @@ def main() -> None:
                 release_authority_path,
                 artifact_path,
                 bad_publish_contract,
+            )
+
+        for name, mutator in (
+            (
+                "trust-wrong-challenge",
+                lambda text: replace_value(text, "challenge", "00" * 32),
+            ),
+            (
+                "trust-wrong-action",
+                lambda text: replace_value(text, "action", "release"),
+            ),
+            (
+                "trust-tampered-signature-scalar",
+                lambda text: replace_value(text, "signature-scalar", "00" * 32),
+            ),
+        ):
+            bad_trust_contract = mutate_text(
+                trust_contract_path.read_bytes(),
+                tmp / f"{name}.txt",
+                mutator,
+            )
+            assert_rooted_trust_contract_fails(
+                release_authority_path,
+                artifact_path,
+                bad_trust_contract,
             )
 
         signature_tamper = mutate_text(

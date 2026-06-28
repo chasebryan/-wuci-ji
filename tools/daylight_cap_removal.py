@@ -133,7 +133,7 @@ def verify_fixture_rejections(repo: Path, plan: dict[str, Any]) -> list[str]:
         fail("fixture rejection required fields changed")
     if fixture.get("production_verifier_must_reject") is not True:
         fail("fixture production verifier rejection is not required")
-    if fixture.get("publish_trust_emit_must_fail_until_positive_authority_exists") is not True:
+    if fixture.get("publish_trust_emit_must_fail_until_production_acceptance_exists") is not True:
         fail("publish/trust emit fail-closed requirement is missing")
 
     verified_paths: list[str] = []
@@ -173,7 +173,7 @@ def verify_fixture_rejections(repo: Path, plan: dict[str, Any]) -> list[str]:
             )
             require_proc_failure(
                 proc,
-                b"trust/publish authority requires positive assembly Gate authority",
+                b"trust/publish authority requires signed ceremony-backed verifier acceptance",
                 f"production authority {flag} rejection",
             )
 
@@ -256,6 +256,8 @@ def verify_command_contracts(repo: Path, plan: dict[str, Any]) -> list[str]:
                 fail(f"{name} Wuci Gate assembly authority schema mismatch")
             if name in futures:
                 fail(f"{name} must not remain in Wuci Gate future commands")
+            if "fail-closed unauthorized decision" not in str(command.get("decision", "")):
+                fail(f"{name} must remain a fail-closed decision")
             if name not in main_s:
                 fail(f"{name} is missing from assembly command dispatch")
         else:

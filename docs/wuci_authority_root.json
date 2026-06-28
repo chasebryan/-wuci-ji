@@ -1,9 +1,9 @@
 {
   "schema": "wuci-authority-root-boundary-v1",
-  "status": "assembly-enforced-open-release-root-with-committed-anchor",
+  "status": "assembly-enforced-open-release-root-with-fail-closed-publish-trust-decisions",
   "authority_schema": "wuci-authority-root-v1",
-  "purpose": "Define the fixed flat WUCI-ROOT authority file used by rooted assembly Gate commands, and the committed WUCI-ANCHOR fixtures that pin receipt contracts to trusted fixture quorum keys before the contracts are generated.",
-  "producer": "tools/wuci_authority_root.py",
+  "purpose": "Define the fixed flat WUCI-ROOT authority file used by rooted assembly Gate commands, and the committed WUCI-ANCHOR fixtures that pin receipt contracts to trusted fixture quorum keys before the contracts are generated. Publish/trust commands verify rooted contracts but remain fail-closed while allow-publish and allow-trust stay false.",
+  "producer": "tools/wuci_authority_root.py for committed open/release roots; rooted Gate tests use fixture roots for fail-closed publish/trust decisions",
   "anchor_verifier": "tools/wuci_authority_anchor.py",
   "verification_target": "tests/wuci_gate_rooted_contract_asm.py and tests/wuci_authority_anchor.py",
   "anchors": {
@@ -60,24 +60,27 @@
     "production": "literal false",
     "authority-id": "SHA-256 of the decoded 33-byte group-public-key, encoded as 64 lowercase hex characters",
     "group-public-key": "33-byte compressed SEC1 point encoded as 66 lowercase hex characters",
-    "allow-open": "literal true or false; rooted open commands require true",
-    "allow-release": "literal true or false; release-authorized-rooted requires true",
-    "allow-trust": "literal false",
-    "allow-publish": "literal false"
+    "allow-open": "literal true or false; rooted open commands require true with production false",
+    "allow-release": "literal true or false; release-authorized-rooted requires true with production false",
+    "allow-trust": "literal false until production authority verifier acceptance exists",
+    "allow-publish": "literal false until production authority verifier acceptance exists"
   },
   "assembly_commands": [
     "authority-root-verify <authority>",
     "gate-contract-verify-rooted <authority> <artifact> <contract>",
     "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>",
-    "release-authorized-rooted <authority> <artifact> <contract>"
+    "release-authorized-rooted <authority> <artifact> <contract>",
+    "publish-authorized-rooted <authority> <artifact> <contract>",
+    "trust-authorized-rooted <authority> <artifact> <contract>"
   ],
   "assembly_non_goals": [
     "Do not parse authority JSON in assembly.",
     "Do not accept signer shares or arbitrary signer manifests.",
-    "Do not accept production authority roots.",
+    "Do not accept production authority roots in assembly authority-root parsing.",
     "Do not derive anchored proof authority roots from receipt contracts.",
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-rooted.",
-    "Do not accept trust or publish authority bits yet."
+    "Do not treat publish-authorized-rooted denial output as production publish authority.",
+    "Do not treat trust-authorized-rooted denial output as production trust authority."
   ]
 }
