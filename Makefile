@@ -109,6 +109,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v6-nightlight-deep-assessment-test
 .PHONY: self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-demo
 .PHONY: harden0-ledger-mutation-test
+.PHONY: install-local
 
 all: check-native $(TARGET)
 
@@ -1000,6 +1001,12 @@ verify-release-bundle: check-native $(TARGET) sbom-provenance carrot-policy rust
 
 high-attestation-proof: high-attestation-profile host-capacity sbom-provenance sbom-provenance-test carrot-policy kernel-sandbox-proof rust-sandbox-test pq-verifier-detect pq-verifier-test pq-verifier-fips204-proof production-readiness-gates crypto-self-audit crypto-self-audit-test external-audit-test wjstar-model-test wjnext-model-test wjgold-model-test golden-lock-policy-matrix parser-hardening-proof verify-release-bundle check-qemu-x25519-cpu asm-smoke check-asm-immediates harden-policy-matrix cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix gate-contract-asm test-linux
 	@printf 'WUCI high-attestation proof complete\n'
+
+install-local:
+	install -d -m 0700 "$(dir $(INSTALL_ROOT_KEY))"
+	install -m 0644 "install/wuci-install-root.v1.pub" "$(INSTALL_ROOT_KEY)"
+	$(MAKE) install-proof INSTALL_ROOT_KEY="$(INSTALL_ROOT_KEY)" INSTALL_PREFIX="$(INSTALL_PREFIX)"
+	$(MAKE) install-audit INSTALL_PREFIX="$(INSTALL_PREFIX)"
 
 install-key-check:
 	$(PYTHON) tools/wuci_install.py trust-key-check --install-root-key $(INSTALL_ROOT_KEY)

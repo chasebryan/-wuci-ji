@@ -133,14 +133,15 @@ make cage-proof
 make qcage-proof
 ```
 
-Run the signed local install proof lane:
+Run the signed local install proof lane from a checked-out release:
 
 ```sh
-mkdir -p "$HOME/.config/wuci-ji"
-cp install/wuci-install-root.v1.pub "$HOME/.config/wuci-ji/install-root.pub"
-make install-proof INSTALL_ROOT_KEY="$HOME/.config/wuci-ji/install-root.pub" INSTALL_PREFIX="$HOME/.local"
-"$HOME/.local/bin/wuci-ji-audit"
+make install-local
 ```
+
+This single command copies the repository install root key into the local trust
+path, verifies the signed install manifest and binary digest vector, installs
+to `$HOME/.local`, and runs the install audit.
 
 Build local self-release evidence:
 
