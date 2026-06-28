@@ -33,8 +33,8 @@ COMMAND_CONTRACTS = {
         "shape": "trust-authorized-rooted <authority> <artifact> <contract>",
         "required_action": "trust",
         "required_authority_field": "allow-trust",
-        "current_status": "specified-not-implemented-fail-closed",
-        "implemented": False,
+        "current_status": "implemented-decision-only-fail-closed",
+        "implemented": True,
     },
 }
 SECP256K1_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -133,7 +133,7 @@ def verify_fixture_rejections(repo: Path, plan: dict[str, Any]) -> list[str]:
         fail("fixture rejection required fields changed")
     if fixture.get("production_verifier_must_reject") is not True:
         fail("fixture production verifier rejection is not required")
-    if fixture.get("publish_trust_emit_must_fail_until_assembly_gate_exists") is not True:
+    if fixture.get("publish_trust_emit_must_fail_until_positive_authority_exists") is not True:
         fail("publish/trust emit fail-closed requirement is missing")
 
     verified_paths: list[str] = []
@@ -173,7 +173,7 @@ def verify_fixture_rejections(repo: Path, plan: dict[str, Any]) -> list[str]:
             )
             require_proc_failure(
                 proc,
-                b"trust/publish authority requires assembly Gate enforcement first",
+                b"trust/publish authority requires positive assembly Gate authority",
                 f"production authority {flag} rejection",
             )
 

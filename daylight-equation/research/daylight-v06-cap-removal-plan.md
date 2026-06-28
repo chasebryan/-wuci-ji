@@ -50,11 +50,11 @@ publish-authorized-rooted <authority> <artifact> <contract>
 trust-authorized-rooted <authority> <artifact> <contract>
 ```
 
-`publish-authorized-rooted` is implemented only as an assembly decision path
-that verifies rooted publish contract evidence and then emits a fail-closed
-unauthorized decision while `allow-publish` remains false. It does not publish
-or create production authority. `trust-authorized-rooted` remains specified but
-not implemented. Fixture authority must not satisfy either command. The current
+`publish-authorized-rooted` and `trust-authorized-rooted` are implemented only
+as assembly decision paths that verify rooted contract evidence and then emit
+fail-closed unauthorized decisions while `allow-publish` and `allow-trust`
+remain false. They do not publish, install trust, or create production
+authority. Fixture authority must not satisfy either command. The current
 fixture roots must continue to carry:
 
 ```text
@@ -64,10 +64,10 @@ allow-publish: false
 ```
 
 Full activation requires a non-fixture production authority root, signed Golden
-Lock 4-of-5 ceremony evidence, positive publish/trust authority parsing,
-trust command dispatch, flat publish/trust contract verification, and negative
-tests for fixture roots, wrong actions, malformed contracts, and policy
-mismatches.
+Lock 4-of-5 ceremony evidence, positive production publish/trust authority
+decisions, authority parsing that accepts `allow-publish` and `allow-trust`
+only for production roots, and negative tests for fixture roots, wrong actions,
+malformed contracts, and policy mismatches.
 
 ## Runtime Containment Contract
 
@@ -91,7 +91,7 @@ Non-claims:
 this plan does not raise the Daylight score
 this plan does not create production authority
 this plan does not complete publish or trust production authority
-this plan does not implement trust Gate commands
+this plan does not authorize trust production authority
 this plan does not claim runtime containment
 this plan does not claim whole-system post-quantum safety
 this plan does not count as independent external review

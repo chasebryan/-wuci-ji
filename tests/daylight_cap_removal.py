@@ -63,7 +63,7 @@ def main() -> None:
         "this plan does not raise the Daylight score",
         "this plan does not create production authority",
         "this plan does not complete publish or trust production authority",
-        "this plan does not implement trust Gate commands",
+        "this plan does not authorize trust production authority",
     ):
         assert non_claim in summary["non_claims"]
 
@@ -81,13 +81,13 @@ def main() -> None:
         assert inactive_result.returncode != 0
         assert b"required cap blocker is not active" in inactive_result.stderr
 
-        implemented = json.loads(json.dumps(value))
-        implemented["publish_trust_command_contracts"][1]["implemented"] = True
-        implemented_path = tmp / "implemented.json"
-        implemented_path.write_text(json.dumps(implemented, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        implemented_result = run_tool("verify", "--repo", str(REPO), "--plan", str(implemented_path), "--quiet")
-        assert implemented_result.returncode != 0
-        assert b"implemented state mismatch" in implemented_result.stderr
+        unimplemented = json.loads(json.dumps(value))
+        unimplemented["publish_trust_command_contracts"][1]["implemented"] = False
+        unimplemented_path = tmp / "unimplemented.json"
+        unimplemented_path.write_text(json.dumps(unimplemented, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        unimplemented_result = run_tool("verify", "--repo", str(REPO), "--plan", str(unimplemented_path), "--quiet")
+        assert unimplemented_result.returncode != 0
+        assert b"implemented state mismatch" in unimplemented_result.stderr
 
         fixture_allowed = json.loads(json.dumps(value))
         fixture_allowed["fixture_authority_rejections"]["required_fields"]["allow-publish"] = "true"

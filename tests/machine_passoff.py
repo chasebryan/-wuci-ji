@@ -62,7 +62,8 @@ def main() -> None:
     assert "git pull --ff-only origin main" in passoff
     assert "git push origin main" in passoff
     assert "gh run watch <run-id> --exit-status" in passoff
-    assert "Begin assembly-backed publish/trust Gate work without enabling production claims." in passoff
+    assert "Continue assembly-backed publish/trust Gate work without enabling production claims." in passoff
+    assert "Prepare positive production publish/trust authority prerequisites without enabling production claims." in passoff
     assert "publish-authorized-rooted" in passoff
     assert "trust-authorized-rooted" in passoff
     assert "fixture authority cannot satisfy publish/trust authority" in passoff

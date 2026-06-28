@@ -16,7 +16,8 @@
     "open-authorized-rooted",
     "release-authorized-contract",
     "release-authorized-rooted",
-    "publish-authorized-rooted"
+    "publish-authorized-rooted",
+    "trust-authorized-rooted"
   ],
   "python_workflow_surfaces": [
     "tools/wuci_frost_authorize.py",
@@ -122,6 +123,15 @@
       "authority_schema": "wuci-authority-root-v1",
       "implemented": true,
       "decision": "fail-closed unauthorized decision while fixture and production authority roots keep allow-publish false"
+    },
+    {
+      "name": "trust-authorized-rooted",
+      "shape": "trust-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "trust",
+      "contract_schema": "wuci-gate-receipt-contract-v1",
+      "authority_schema": "wuci-authority-root-v1",
+      "implemented": true,
+      "decision": "fail-closed unauthorized decision while fixture and production authority roots keep allow-trust false"
     }
   ],
   "future_commands": [
@@ -130,14 +140,6 @@
       "shape": "release-authorized <artifact> <receipt>",
       "required_action": "release",
       "implemented": false
-    },
-    {
-      "name": "trust-authorized-rooted",
-      "shape": "trust-authorized-rooted <authority> <artifact> <contract>",
-      "required_action": "trust",
-      "authority_schema": "wuci-authority-root-v1",
-      "implemented": false,
-      "blocker": "trust authority requires assembly Gate enforcement before production authority may allow trust"
     }
   ],
   "receipt_policy_inputs": [
@@ -189,6 +191,7 @@
     "authority_open_disallowed",
     "authority_release_disallowed",
     "authority_publish_disallowed",
+    "authority_trust_disallowed",
     "authority_anchor_path_mismatch",
     "authority_anchor_digest_mismatch",
     "self_derived_authority_rejected",
@@ -215,7 +218,7 @@
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",
     "Do not accept non-release actions through release-authorized-rooted.",
-    "Do not accept trust authority until a dedicated assembly command exists.",
+    "Do not treat trust-authorized-rooted denial output as production trust authority.",
     "Do not treat publish-authorized-rooted denial output as production publish authority.",
     "Do not make Python the canonical authorization-message owner."
   ]

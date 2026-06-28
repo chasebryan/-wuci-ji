@@ -75,6 +75,7 @@
 .extern run_release_authorized_contract
 .extern run_release_authorized_rooted
 .extern run_publish_authorized_rooted
+.extern run_trust_authorized_rooted
 .extern run_ledger_empty_root
 .extern run_ledger_leaf_file
 .extern run_ledger_node
@@ -205,6 +206,7 @@ command_table:
     .quad cmd_release_authorized_contract, run_release_authorized_contract
     .quad cmd_release_authorized_rooted, run_release_authorized_rooted
     .quad cmd_publish_authorized_rooted, run_publish_authorized_rooted
+    .quad cmd_trust_authorized_rooted, run_trust_authorized_rooted
     .quad cmd_ledger_empty_root, run_ledger_empty_root
     .quad cmd_ledger_leaf_file, run_ledger_leaf_file
     .quad cmd_ledger_node, run_ledger_node
@@ -366,6 +368,8 @@ cmd_release_authorized_rooted:
     .asciz "release-authorized-rooted"
 cmd_publish_authorized_rooted:
     .asciz "publish-authorized-rooted"
+cmd_trust_authorized_rooted:
+    .asciz "trust-authorized-rooted"
 cmd_ledger_empty_root:
     .asciz "ledger-empty-root"
 cmd_ledger_leaf_file:
@@ -400,7 +404,7 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul-variable-time-public-only|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|authority-root-verify|gate-contract-verify|gate-contract-verify-rooted|open-authorized-contract|open-authorized-rooted|release-authorized-contract|release-authorized-rooted|publish-authorized-rooted|ledger-empty-root|ledger-leaf-file|ledger-node|inspect|inspect-file|manifest|manifest-file|warrant-message-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest|asm-regression|sandbox-net-deny-probe|sandbox-seccomp-net-deny-selftest> [args]\n"
+    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul-variable-time-public-only|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|authority-root-verify|gate-contract-verify|gate-contract-verify-rooted|open-authorized-contract|open-authorized-rooted|release-authorized-contract|release-authorized-rooted|publish-authorized-rooted|trust-authorized-rooted|ledger-empty-root|ledger-leaf-file|ledger-node|inspect|inspect-file|manifest|manifest-file|warrant-message-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest|asm-regression|sandbox-net-deny-probe|sandbox-seccomp-net-deny-selftest> [args]\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
     .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
@@ -466,6 +470,7 @@ usage_msg:
     .ascii "  release-authorized-contract <artifact> <contract> verify release contract and print decision\n"
     .ascii "  release-authorized-rooted <authority> <artifact> <contract> verify rooted release contract and print decision\n"
     .ascii "  publish-authorized-rooted <authority> <artifact> <contract> verify rooted publish contract and print fail-closed decision\n"
+    .ascii "  trust-authorized-rooted <authority> <artifact> <contract> verify rooted trust contract and print fail-closed decision\n"
     .ascii "  ledger-empty-root              print SHA-256 Merkle root for an empty WUCI-LEDGER\n"
     .ascii "  ledger-leaf-file <entry>       print SHA-256(00 || entry bytes) for a ledger entry\n"
     .ascii "  ledger-node <left> <right>     print SHA-256(01 || left || right); inputs are 64 hex\n"

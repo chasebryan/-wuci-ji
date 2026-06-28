@@ -42,10 +42,10 @@
       "clearance_requires": [
         "non-fixture production authority root",
         "signed Golden Lock 4-of-5 production authority ceremony",
-        "assembly-enforced publish-authorized-rooted command",
-        "assembly-enforced trust-authorized-rooted command",
+        "positive production publish-authorized-rooted authority path",
+        "positive production trust-authorized-rooted authority path",
         "fixture authority roots continue to reject allow-trust and allow-publish",
-        "production authority verifier accepts publish/trust only after assembly Gate support exists"
+        "production authority verifier accepts publish/trust only after positive production Gate authority exists"
       ]
     },
     {
@@ -90,6 +90,7 @@
         "private material in public evidence"
       ],
       "activation_requires": [
+        "positive authority decision path for production publish roots",
         "authority root parser that can accept allow-publish true only for production roots",
         "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
         "production-authority policy update and verifier acceptance"
@@ -101,18 +102,18 @@
       "required_action": "trust",
       "authority_schema": "wuci-authority-root-v1",
       "required_authority_field": "allow-trust",
-      "current_status": "specified-not-implemented-fail-closed",
-      "implemented": false,
+      "current_status": "implemented-decision-only-fail-closed",
+      "implemented": true,
       "must_reject_now": [
         "fixture authority roots",
         "repo-local authority roots",
         "production roots without signed ceremony evidence",
         "contracts whose action is not trust",
+        "trust authority decisions with allow-trust false",
         "private material in public evidence"
       ],
       "activation_requires": [
-        "assembly command dispatch entry",
-        "flat trust contract parser and verifier",
+        "positive authority decision path for production trust roots",
         "authority root parser that can accept allow-trust true only for production roots",
         "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
         "production-authority policy update and verifier acceptance"
@@ -130,7 +131,7 @@
       "allow-publish": "false"
     },
     "production_verifier_must_reject": true,
-    "publish_trust_emit_must_fail_until_assembly_gate_exists": true
+    "publish_trust_emit_must_fail_until_positive_authority_exists": true
   },
   "linked_policy_files": [
     "docs/wuci_production_authority_policy.json",
@@ -150,7 +151,7 @@
     "this plan does not raise the Daylight score",
     "this plan does not create production authority",
     "this plan does not complete publish or trust production authority",
-    "this plan does not implement trust Gate commands",
+    "this plan does not authorize trust production authority",
     "this plan does not claim runtime containment",
     "this plan does not claim whole-system post-quantum safety",
     "this plan does not count as independent external review"

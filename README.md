@@ -62,7 +62,7 @@ ledger history + Daylight review boundary
 | --- | --- | --- |
 | Envelope | WJSEAL artifact sealing/opening through the current assembly path. | Secrecy and final-output safety are assembly-owned. |
 | Warrant | Deterministic fixture quorum receipt for review workflows. | Fixture authority only. |
-| Gate / Root / Anchor | Flat and rooted contract checks for open/release, plus fail-closed publish decision evidence. | Trust authority remains unimplemented; publish is not production authority. |
+| Gate / Root / Anchor | Flat and rooted contract checks for open/release, plus fail-closed publish/trust decision evidence. | Positive publish/trust authority remains unimplemented; denial evidence is not production authority. |
 | Witness | Public, keyless release evidence bundle. | Excludes private keys, plaintext binaries, and private transcripts. |
 | Ledger | Hash-only transparency history for witness bundles. | Local deterministic history, not an operated public log service. |
 | HARDEN | Verifier identity, safe I/O, fixture quarantine, action policy, and public-file hardening. | Defensive perimeter checks only. |

@@ -116,37 +116,40 @@ proving that the current blockers are explicit and fail closed.
 The latest completed local slice began this target:
 
 ```text
-Begin assembly-backed publish/trust Gate work without enabling production claims.
+Continue assembly-backed publish/trust Gate work without enabling production claims.
 ```
 
 It added:
 
 - `publish-authorized-rooted <authority> <artifact> <contract>`
 - a fail-closed assembly publish decision path
+- `trust-authorized-rooted <authority> <artifact> <contract>`
+- a fail-closed assembly trust decision path
 - rooted Gate tests for valid publish evidence and publish tampering
-- updated cap-removal evidence showing publish is not production authority
+- rooted Gate tests for valid trust evidence and wrong-action trust rejection
+- updated cap-removal evidence showing publish/trust are not production authority
 - `tools/daylight_cap_removal.py`
 - `daylight-equation/research/daylight-v06-cap-removal-plan.v1.json`
 
 That slice does not raise the score. It proves that fixture authority cannot satisfy publish/trust authority, and it keeps the 10,000-point model capped at
-8250 because trust authority, positive production publish authority, runtime
-containment, integrated public authority, and external review remain blocked.
+8250 because positive production publish/trust authority, runtime containment,
+integrated public authority, and external review remain blocked.
 
 ## Next Bounded Slice
 
 Continue from the production-authority cap. The next engineering target is:
 
 ```text
-Continue assembly-backed publish/trust Gate work without enabling production claims.
+Prepare positive production publish/trust authority prerequisites without enabling production claims.
 ```
 
 Recommended order:
 
-1. Keep `publish-authorized-rooted` fail-closed until production authority
-   parsing, signed ceremony evidence, and policy acceptance are ready.
-2. Repeat the same narrow pattern for `trust-authorized-rooted`, but keep it
-   fail-closed. Trust is stronger than publish and must not imply local
-   installation or production trust authority.
+1. Keep `publish-authorized-rooted` and `trust-authorized-rooted` fail-closed
+   until production authority parsing, signed ceremony evidence, and policy
+   acceptance are ready.
+2. Treat trust as stronger than publish: it must not imply local installation,
+   runtime containment, or production trust authority.
 3. Keep fixture roots rejected:
 
    ```text
@@ -157,22 +160,22 @@ Recommended order:
    allow-publish: false
    ```
 
-4. Update these files together when the trust command contract becomes real:
+4. Update these files together when positive publish/trust authority acceptance
+   becomes real:
 
    ```text
    docs/wuci_gate_boundary.json
    docs/wuci_production_authority_policy.json
    docs/PRODUCTION_READINESS.md
-   src/main.s
    src/gate_contract.s
    tests/wuci_gate_boundary.py
    tests/wuci_production_authority.py
    tests/daylight_cap_removal.py
    ```
 
-5. Only after `trust-authorized-rooted` is implemented and tested should the
-   production-authority tool consider accepting publish/trust authority bits,
-   and only with signed non-fixture ceremony evidence.
+5. Only after positive publish/trust decisions are implemented and tested
+   should the production-authority tool consider accepting publish/trust
+   authority bits, and only with signed non-fixture ceremony evidence.
 
 The cap-removal verifier must continue to fail closed until all linked evidence
 exists. If a command becomes implemented, update the plan and tests in the same

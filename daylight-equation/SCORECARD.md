@@ -145,8 +145,8 @@ If any item is missing, the valid score is below 1000.
   digest binding, but the current WUCI authority lane still does not support
   publish/trust authority and no integrated Daylight authority evidence is
   tracked.
-- No production authority, publish authority, trust authority, or runtime
-  containment gate exists for Daylight.
+- No positive production authority, publish authority, trust authority, or
+  runtime containment gate exists for Daylight.
 - A Daylight 1000 preflight gate is tracked and intentionally remains blocked
   until integrated public authority, two independent external reviews, and
   signed non-fixture production authority evidence exist.

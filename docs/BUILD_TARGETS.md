@@ -124,12 +124,12 @@ whole-system post-quantum-safety claim.
 `daylight-equation/research/daylight-v06-cap-removal-plan.v1.json` and
 `daylight-equation/research/daylight-v06-cap-removal-plan.md`. It verifies that
 the 8250/10000 cap remains active, that `publish-authorized-rooted` is only a
-fail-closed decision path, that `trust-authorized-rooted` is still specified but
-not implemented, that fixture authority cannot satisfy publish/trust, and that
-WUCI production-authority tooling still rejects trust/publish authority until
-the complete assembly Gate surface exists. It does not raise the score, create
-production authority, implement runtime containment, or count as external
-review.
+fail-closed decision path, that `trust-authorized-rooted` is also only a
+fail-closed decision path, that fixture authority cannot satisfy publish/trust,
+and that WUCI production-authority tooling still rejects trust/publish
+authority until positive production Gate authority exists. It does not raise
+the score, create production authority, implement runtime containment, or count
+as external review.
 
 `daylight-v06-fail-closed-model-test` checks the partial Daylight v0.6
 fail-closed ordering model in

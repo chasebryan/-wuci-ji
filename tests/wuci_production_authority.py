@@ -104,7 +104,7 @@ def main() -> None:
             "--quiet",
         )
         assert trust_emit.returncode != 0
-        assert b"trust/publish authority requires assembly Gate" in trust_emit.stderr
+        assert b"trust/publish authority requires positive assembly Gate authority" in trust_emit.stderr
 
         weak_ceremony = run_tool(
             "ceremony",

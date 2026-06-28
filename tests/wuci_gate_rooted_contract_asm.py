@@ -269,6 +269,23 @@ def assert_rooted_publish_contract_fails(
     assert proc.stdout == b""
 
 
+def assert_rooted_trust_contract_fails(
+    authority_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+) -> None:
+    proc = run_wuci(
+        [
+            "trust-authorized-rooted",
+            str(authority_path),
+            str(artifact_path),
+            str(contract_path),
+        ]
+    )
+    assert proc.returncode != 0
+    assert proc.stdout == b""
+
+
 def assert_rooted_open_fails_without_plaintext(
     *,
     authority_path: Path,
@@ -504,15 +521,14 @@ def main() -> None:
             release_contract_path,
         )
 
-        for action in ("trust",):
-            action_receipt_path = make_receipt(tmp, artifact_path, action)
-            action_contract_path = tmp / f"{action}-contract.txt"
-            emit_contract(artifact_path, action_receipt_path, action_contract_path, action)
-            assert_rooted_release_fails(
-                release_authority_path,
-                artifact_path,
-                action_contract_path,
-            )
+        trust_contract_path = tmp / "rooted-trust-contract.txt"
+        trust_receipt_path = make_receipt(tmp, artifact_path, "trust")
+        emit_contract(artifact_path, trust_receipt_path, trust_contract_path, "trust")
+        assert_rooted_release_fails(
+            release_authority_path,
+            artifact_path,
+            trust_contract_path,
+        )
 
         publish_contract_path = tmp / "rooted-publish-contract.txt"
         publish_receipt_path = make_receipt(tmp, artifact_path, "publish")
@@ -543,6 +559,37 @@ def main() -> None:
             release_contract_path,
         )
         assert_rooted_release_fails(
+            release_authority_path,
+            artifact_path,
+            publish_contract_path,
+        )
+
+        trust_denied = run_wuci(
+            [
+                "trust-authorized-rooted",
+                str(release_authority_path),
+                str(artifact_path),
+                str(trust_contract_path),
+            ]
+        )
+        assert trust_denied.returncode != 0
+        trust_text = trust_denied.stdout.decode("ascii")
+        assert trust_text.startswith(
+            "authorized: false\n"
+            "action: trust\n"
+            "reason: authority-trust-disallowed\n"
+        )
+        assert (
+            f"artifact-sha256: {read_value(trust_contract_path.read_text(encoding='ascii'), 'artifact-sha256')}\n"
+            in trust_text
+        )
+        assert trust_denied.stderr == b""
+        assert_rooted_trust_contract_fails(
+            release_authority_path,
+            artifact_path,
+            release_contract_path,
+        )
+        assert_rooted_trust_contract_fails(
             release_authority_path,
             artifact_path,
             publish_contract_path,
@@ -738,6 +785,22 @@ def main() -> None:
         assert publish.returncode != 0
         assert publish.stdout.startswith(
             b"authorized: false\naction: publish\nreason: authority-publish-disallowed\n"
+        )
+
+        trust_receipt_path = make_receipt(tmp, artifact_path, "trust")
+        trust_contract_path = tmp / "large-trust-contract.txt"
+        emit_contract(artifact_path, trust_receipt_path, trust_contract_path, "trust")
+        trust = run_wuci(
+            [
+                "trust-authorized-rooted",
+                str(release_authority_path),
+                str(artifact_path),
+                str(trust_contract_path),
+            ]
+        )
+        assert trust.returncode != 0
+        assert trust.stdout.startswith(
+            b"authorized: false\naction: trust\nreason: authority-trust-disallowed\n"
         )
 
         if not args.quiet:

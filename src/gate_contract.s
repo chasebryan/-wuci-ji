@@ -11,9 +11,11 @@
 .global run_release_authorized_contract
 .global run_release_authorized_rooted
 .global run_publish_authorized_rooted
+.global run_trust_authorized_rooted
 .global gate_setup_open_action
 .global gate_setup_release_action
 .global gate_setup_publish_action
+.global gate_setup_trust_action
 .global gate_parse_contract
 .global gate_build_manifest
 .global gate_build_warrant
@@ -391,6 +393,42 @@ run_publish_authorized_rooted:
     mov edi, 1
     jmp exit_process
 
+run_trust_authorized_rooted:
+    cmp qword ptr [rsp], 5
+    jne usage_exit
+
+    call gate_setup_trust_action
+
+    mov rdi, qword ptr [rsp + 24]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_authority_file_error
+
+    call gate_parse_authority_root
+    cmp eax, 1
+    jne gate_authority_error
+
+    mov rdi, qword ptr [rsp + 32]
+    mov qword ptr [rip + aead_input_path], rdi
+    call stream_sha_for_release
+    cmp eax, 1
+    je .Ltrust_rooted_read_contract
+    jmp gate_artifact_file_error
+
+.Ltrust_rooted_read_contract:
+    mov rdi, qword ptr [rsp + 40]
+    call gate_read_contract_file
+    cmp eax, 1
+    jne gate_contract_file_error
+
+    call gate_verify_loaded_rooted_contract
+    cmp eax, 1
+    jne gate_contract_error
+
+    call gate_write_trust_denied_decision
+    mov edi, 1
+    jmp exit_process
+
 gate_setup_open_action:
     lea rax, [rip + gate_action_open_line]
     mov qword ptr [rip + gate_expected_action_line_ptr], rax
@@ -416,6 +454,15 @@ gate_setup_publish_action:
     lea rax, [rip + gate_action_publish_value]
     mov qword ptr [rip + gate_expected_action_ptr], rax
     mov qword ptr [rip + gate_expected_action_len], OFFSET FLAT:gate_action_publish_value_len
+    ret
+
+gate_setup_trust_action:
+    lea rax, [rip + gate_action_trust_line]
+    mov qword ptr [rip + gate_expected_action_line_ptr], rax
+    mov qword ptr [rip + gate_expected_action_line_len], OFFSET FLAT:gate_action_trust_line_len
+    lea rax, [rip + gate_action_trust_value]
+    mov qword ptr [rip + gate_expected_action_ptr], rax
+    mov qword ptr [rip + gate_expected_action_len], OFFSET FLAT:gate_action_trust_value_len
     ret
 
 gate_verify_loaded_contract:
@@ -2045,6 +2092,22 @@ gate_write_publish_denied_decision:
     call write_all
     ret
 
+gate_write_trust_denied_decision:
+    mov rdi, STDOUT
+    lea rsi, [rip + gate_trust_denied_decision_prefix]
+    mov edx, OFFSET FLAT:gate_trust_denied_decision_prefix_len
+    call write_all
+    lea rdi, [rip + gate_artifact_sha256]
+    lea rsi, [rip + hex_buf]
+    mov edx, 32
+    call hex_encode
+    mov byte ptr [rip + hex_buf + 64], 10
+    mov rdi, STDOUT
+    lea rsi, [rip + hex_buf]
+    mov edx, 65
+    call write_all
+    ret
+
 gate_artifact_file_error:
     mov rdi, STDERR
     lea rsi, [rip + gate_artifact_file_error_msg]
@@ -2181,6 +2244,10 @@ gate_action_publish_line:
     .ascii "action: publish\n"
 .set gate_action_publish_line_len, . - gate_action_publish_line
 
+gate_action_trust_line:
+    .ascii "action: trust\n"
+.set gate_action_trust_line_len, . - gate_action_trust_line
+
 gate_action_open_value:
     .ascii "open"
 .set gate_action_open_value_len, . - gate_action_open_value
@@ -2192,6 +2259,10 @@ gate_action_release_value:
 gate_action_publish_value:
     .ascii "publish"
 .set gate_action_publish_value_len, . - gate_action_publish_value
+
+gate_action_trust_value:
+    .ascii "trust"
+.set gate_action_trust_value_len, . - gate_action_trust_value
 
 gate_release_decision_prefix:
     .ascii "authorized: true\n"
@@ -2205,6 +2276,13 @@ gate_publish_denied_decision_prefix:
     .ascii "reason: authority-publish-disallowed\n"
     .ascii "artifact-sha256: "
 .set gate_publish_denied_decision_prefix_len, . - gate_publish_denied_decision_prefix
+
+gate_trust_denied_decision_prefix:
+    .ascii "authorized: false\n"
+    .ascii "action: trust\n"
+    .ascii "reason: authority-trust-disallowed\n"
+    .ascii "artifact-sha256: "
+.set gate_trust_denied_decision_prefix_len, . - gate_trust_denied_decision_prefix
 
 gate_artifact_sha256_label:
     .ascii "artifact-sha256: "
