@@ -103,6 +103,17 @@ not offensive fuzzing or a coverage-guided CI fuzzer.
 `parser-hardening-proof` composes replay generation and validation for the
 high-attestation lane.
 
+`daylight-v06-peer-review-score-test` checks the additive 10,000-point
+Daylight v0.6 peer-review scoring model in
+`daylight-equation/analysis/daylight-v06-peer-review-scoring-model-10000.v1.json`
+and
+`daylight-equation/analysis/daylight-v06-peer-review-scoring-model-10000.md`.
+It verifies the component sum, active hard caps, legal-safety nullifier,
+non-claim text, required evidence links, and that the existing 975/1000
+research scorecard remains unchanged. It is not an external review, not a
+production-readiness claim, not runtime containment evidence, and not a
+whole-system post-quantum-safety claim.
+
 `daylight-v06-fail-closed-model-test` checks the partial Daylight v0.6
 fail-closed ordering model in
 `daylight-equation/research/daylight-v06-fail-closed-model.v1.json` and

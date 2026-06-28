@@ -1,0 +1,167 @@
+{
+  "schema": "daylight-v06-peer-review-scoring-model-10000-v1",
+  "subject": "Daylight_v0.6",
+  "status": "lawful-defensive-peer-review-evaluation-not-replacement-scorecard",
+  "as_of": "2026-06-28",
+  "score": {
+    "name": "Daylight_v0.6_peer_review_evaluation_score",
+    "component_total": 8075,
+    "cap_ceiling": 8250,
+    "legal_factor": 1,
+    "value": 8075,
+    "maximum": 10000,
+    "replaces_daylight_research_scorecard": false,
+    "production_allowed": false,
+    "runtime_containment_claim": false,
+    "whole_system_post_quantum_safety_claim": false,
+    "external_review_claim": false
+  },
+  "formula": {
+    "component_total": "B = sum(component.value)",
+    "component_maximum": "M = sum(component.maximum) = 10000",
+    "cap_ceiling": "C = min(active hard-cap maximum_score values, or 10000 if none are active)",
+    "legal_factor": "L = 0 if legal_safety_nullifier.triggered else 1",
+    "final_score": "S = L * min(B, C)"
+  },
+  "legal_safety_nullifier": {
+    "triggered": false,
+    "score_if_triggered": 0,
+    "triggers": [
+      "exploit generation",
+      "vulnerability reproduction against live targets",
+      "offensive scanning",
+      "jailbreak harnesses",
+      "malware logic",
+      "network attack logic",
+      "unauthorized operational instructions"
+    ]
+  },
+  "hard_caps": [
+    {
+      "name": "no_independent_external_reviews_tracked",
+      "active": true,
+      "maximum_score": 9000,
+      "reason": "ExternalReviewClaim remains 0 and no independent signed review set is tracked."
+    },
+    {
+      "name": "no_integrated_public_authority",
+      "active": true,
+      "maximum_score": 8500,
+      "reason": "Certificate, revocation, log, install, witness, publish, and trust authority are not integrated."
+    },
+    {
+      "name": "no_production_authority_publish_authority_or_trust_gate",
+      "active": true,
+      "maximum_score": 8250,
+      "reason": "ProductionAllowed remains 0 and no assembly-enforced publish/trust authority gate exists."
+    },
+    {
+      "name": "no_runtime_containment_enforcement",
+      "active": true,
+      "maximum_score": 8250,
+      "reason": "RuntimeContainmentClaim remains 0 and no OS-level containment enforcement is claimed."
+    },
+    {
+      "name": "no_whole_system_post_quantum_safety_claim",
+      "active": true,
+      "maximum_score": 8500,
+      "reason": "WholeSystemPostQuantumSafetyClaim remains 0 and the repo does not claim whole-system PQ safety."
+    }
+  ],
+  "components": [
+    {
+      "name": "lawful_review_boundary_and_claim_control",
+      "value": 1000,
+      "maximum": 1000,
+      "reason": "The evaluation is defensive, local, claim-bounded, and explicitly rejects production, runtime containment, whole-system PQ-safety, and external-review claims."
+    },
+    {
+      "name": "specification_schema_transcript_and_kdf_surface",
+      "value": 1450,
+      "maximum": 1500,
+      "reason": "The v6 schema, transcript labels, KDF labels, rejection stages, schema-freeze evidence, and reference docs are pinned and checked."
+    },
+    {
+      "name": "reproducible_corpora_and_kat_bundle",
+      "value": 1400,
+      "maximum": 1500,
+      "reason": "The repo tracks deterministic fixture vectors, negative corpora, provider-backed vectors, vector-agreement evidence, and a KAT reproduction bundle."
+    },
+    {
+      "name": "fail_closed_implementation_and_negative_behavior",
+      "value": 1125,
+      "maximum": 1200,
+      "reason": "Public-precheck denial, private-path mutation failures, and fail-closed Open behavior are tested, with unresolved authority integration kept as a blocker."
+    },
+    {
+      "name": "cryptographic_provider_evidence",
+      "value": 950,
+      "maximum": 1200,
+      "reason": "Provider-backed ML-KEM-1024, DHKEM(P-384,HKDF-SHA384), HKDF, and AEAD evidence exists, but the v0.6 M1 artifact profile and production authority remain non-production."
+    },
+    {
+      "name": "formal_model_and_smt_support",
+      "value": 950,
+      "maximum": 1000,
+      "reason": "The repo has an expanded M4 symbolic model and Z3-backed predicate proof, while preserving the need for independent formal-methods and constant-time review."
+    },
+    {
+      "name": "review_packet_provenance_and_verifier_automation",
+      "value": 850,
+      "maximum": 900,
+      "reason": "The repo tracks a review packet, signed external-review verifier, strict review-set manifest verifier, authority verifier, and composed 1000 claim gate."
+    },
+    {
+      "name": "integrated_public_authority_and_trust_model",
+      "value": 350,
+      "maximum": 800,
+      "reason": "Authority candidate verification exists, but integrated certificate, revocation, log, install, witness, publish, and trust authority remain unresolved."
+    },
+    {
+      "name": "independent_external_peer_review",
+      "value": 0,
+      "maximum": 600,
+      "reason": "No independent signed external reviews are tracked."
+    },
+    {
+      "name": "production_runtime_containment_and_deployment",
+      "value": 0,
+      "maximum": 300,
+      "reason": "No production authority, runtime containment, deployment authority, or production-readiness claim exists."
+    }
+  ],
+  "source_evidence": [
+    "AGENTS.md",
+    "daylight-equation/SCORECARD.md",
+    "daylight-equation/SCORECARD.v1.json",
+    "daylight-equation/analysis/daylight-v06-external-review-packet.md",
+    "daylight-equation/evidence/daylight-v06-external-review-packet.v1.json",
+    "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
+    "daylight-equation/research/daylight-v06-m4-symbolic-model.v1.json",
+    "daylight-equation/research/daylight-v06-m4-z3-proof.v1.json",
+    "daylight-equation/research/daylight-v06-1000-preflight.v1.json",
+    "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
+    "daylight-equation/evidence/daylight-v6-kat-reproduction-bundle.v1.json",
+    "tools/daylight_external_review.py",
+    "tools/daylight_authority.py",
+    "tools/daylight_1000_gate.py",
+    "tests/daylight_v06_review_scoring_model.py"
+  ],
+  "required_local_commands": [
+    "make daylight-v06-peer-review-score-test",
+    "make daylight-scorecard-test",
+    "make daylight-v06-external-review-packet-test",
+    "make daylight-v06-authority-verifier-test",
+    "make daylight-v06-1000-claim-gate-test"
+  ],
+  "non_claims": [
+    "this model does not replace the Daylight 975/1000 research scorecard",
+    "this model is not an external review",
+    "this model does not raise the Daylight research score",
+    "this model is not production authority",
+    "this model does not make Daylight production-ready",
+    "this model does not claim runtime containment",
+    "this model does not claim whole-system post-quantum safety",
+    "this model is not legal advice"
+  ]
+}
