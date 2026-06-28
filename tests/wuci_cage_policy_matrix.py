@@ -82,6 +82,8 @@ def main() -> None:
         "transcript_in_public_bundle",
         "ledger_proof_mismatch",
         "runtime_sandbox_claim_without_enforcement",
+        "symlink_public_witness_file",
+        "hardlink_public_witness_file",
     ):
         assert name in rejections
 

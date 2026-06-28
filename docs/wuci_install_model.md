@@ -90,6 +90,7 @@ KeyCopied(K) =
   local_trust_key_path exists
   AND local_trust_key_path is regular
   AND local_trust_key_path is not a symlink
+  AND local_trust_key_path is not hardlinked
   AND SHA256(local_trust_key_path) = SHA256(repo_install_root_key)
 ```
 
@@ -97,6 +98,11 @@ Copying the key from the same checkout creates an explicit local trust pin and
 prevents blind remote execution, but it does not protect an already-compromised
 first checkout. The install root key fingerprint should be published
 out-of-band before production use.
+
+Signed install proof inputs are read as regular files and must not be symlinks
+or hardlinks. This applies to the local install root key, repository root-key
+sidecar, install manifest, install signature, install receipt, and public proof
+trees hashed into install receipts.
 
 The atomic install rule is:
 

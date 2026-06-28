@@ -5,6 +5,7 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -101,6 +102,21 @@ def main() -> None:
         assert data["schema"] == "wuci-install-audit-v1"
         assert data["audit_passed"] is True
         assert data["receipt"]["binary_sha256"] == wuci_install.sha256_file(prefix / "bin" / "wuci-ji")
+        share = prefix / "share" / "wuci-ji"
+        receipt = share / "install-receipt.json"
+        receipt_link = share / "install-receipt.hardlink.json"
+        os.link(receipt, receipt_link)
+        try:
+            expect_fail(lambda: wuci_install.run_audit(argparse.Namespace(prefix=str(prefix), ssh_keygen=None)))
+        finally:
+            receipt_link.unlink()
+        manifest = share / "wuci-install-manifest.v1"
+        manifest_link = share / "wuci-install-manifest.v1.hardlink"
+        os.link(manifest, manifest_link)
+        try:
+            expect_fail(lambda: wuci_install.run_audit(argparse.Namespace(prefix=str(prefix), ssh_keygen=None)))
+        finally:
+            manifest_link.unlink()
         (prefix / "bin" / "wuci-ji").write_bytes(b"tampered")
         expect_fail(lambda: wuci_install.run_audit(argparse.Namespace(prefix=str(prefix), ssh_keygen=None)))
 

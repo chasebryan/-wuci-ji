@@ -106,6 +106,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v06-protocol-state-test
 .PHONY: wuci-daylight-bridge-test
 .PHONY: self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-demo
+.PHONY: harden0-ledger-mutation-test
 
 all: check-native $(TARGET)
 
@@ -718,10 +719,13 @@ harden0-action-policy-test: check-native $(TARGET)
 harden-ledger-mutation-test: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger_mutation_hardening.py --quiet
 
+harden0-ledger-mutation-test: check-native $(TARGET)
+	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger_mutation_hardening.py --quiet
+
 harden-proof: harden-policy-matrix harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden-fixture-quarantine-test harden-action-policy-test harden-ledger-mutation-test
 	@printf 'WUCI-HARDEN proof complete\n'
 
-harden0-proof: harden0-policy-matrix harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test harden0-fixture-quarantine-test harden0-action-policy-test
+harden0-proof: harden0-policy-matrix harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test harden0-fixture-quarantine-test harden0-action-policy-test harden0-ledger-mutation-test
 	@printf 'WUCI-HARDEN-0 proof complete\n'
 
 high-attestation-profile:
@@ -1008,6 +1012,7 @@ install-sign-current: check-native $(TARGET)
 install-verify: install-key-check
 	$(PYTHON) tools/wuci_install.py verify-manifest \
 		--install-root-key $(INSTALL_ROOT_KEY) \
+		--bin $(abspath $(TARGET)) \
 		--manifest $(INSTALL_MANIFEST) \
 		--signature $(INSTALL_SIGNATURE)
 

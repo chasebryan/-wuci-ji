@@ -5,6 +5,7 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -113,6 +114,7 @@ def main() -> None:
                     wuci_install.run_verify_manifest(
                         argparse.Namespace(
                             install_root_key=str(pub),
+                            bin=str(current_bin),
                             manifest=str(manifest_out),
                             signature=str(signature_out),
                             ssh_keygen=ssh,
@@ -121,6 +123,71 @@ def main() -> None:
                     )
                     == 0
                 )
+            bad_bin = tmp / "wrong-wuci-ji"
+            bad_bin.write_bytes(b"wrong binary\n")
+            expect_fail(
+                lambda: wuci_install.run_verify_manifest(
+                    argparse.Namespace(
+                        install_root_key=str(pub),
+                        bin=str(bad_bin),
+                        manifest=str(manifest_out),
+                        signature=str(signature_out),
+                        ssh_keygen=ssh,
+                        json=True,
+                    )
+                )
+            )
+            manifest_link = tmp / "install-manifest.v1.hardlink"
+            os.link(manifest_out, manifest_link)
+            try:
+                expect_fail(
+                    lambda: wuci_install.run_verify_manifest(
+                        argparse.Namespace(
+                            install_root_key=str(pub),
+                            bin=str(current_bin),
+                            manifest=str(manifest_link),
+                            signature=str(signature_out),
+                            ssh_keygen=ssh,
+                            json=False,
+                        )
+                    )
+                )
+            finally:
+                manifest_link.unlink()
+            signature_link = tmp / "install-manifest.v1.sig.hardlink"
+            os.link(signature_out, signature_link)
+            try:
+                expect_fail(
+                    lambda: wuci_install.run_verify_manifest(
+                        argparse.Namespace(
+                            install_root_key=str(pub),
+                            bin=str(current_bin),
+                            manifest=str(manifest_out),
+                            signature=str(signature_link),
+                            ssh_keygen=ssh,
+                            json=False,
+                        )
+                    )
+                )
+            finally:
+                signature_link.unlink()
+            pub_link = tmp / "install-root.pub.hardlink"
+            os.link(pub, pub_link)
+            try:
+                expect_fail(
+                    lambda: wuci_install.run_verify_manifest(
+                        argparse.Namespace(
+                            install_root_key=str(pub_link),
+                            bin=str(current_bin),
+                            manifest=str(manifest_out),
+                            signature=str(signature_out),
+                            ssh_keygen=ssh,
+                            json=False,
+                        )
+                    )
+                )
+            finally:
+                pub_link.unlink()
         finally:
             wuci_install.DEFAULT_REPO_ROOT_KEY = old_root
             wuci_install.DEFAULT_REPO_ROOT_KEY_SHA256 = old_sidecar
