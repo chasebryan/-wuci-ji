@@ -20,6 +20,8 @@ deterministic, and easy to inspect without overstating what is proved.
 - [BUILD_NOTES.md](BUILD_NOTES.md) is the current handoff checkpoint.
 - [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) is the main claim
   boundary.
+- [docs/MACHINE_PASSOFF.md](docs/MACHINE_PASSOFF.md) is the continuation
+  pattern for another machine.
 - [docs/BUILD_TARGETS.md](docs/BUILD_TARGETS.md) lists the proof and test
   targets.
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) explains what the project
@@ -83,6 +85,8 @@ Use these entry points:
   for the 10,000-point review model.
 - [daylight-equation/analysis/daylight-v06-written-code-protocol-state.md](daylight-equation/analysis/daylight-v06-written-code-protocol-state.md)
   for the written-code Daylight v0.6 protocol-state boundary.
+- [daylight-equation/research/daylight-v06-cap-removal-plan.md](daylight-equation/research/daylight-v06-cap-removal-plan.md)
+  for the fail-closed plan to clear the current 8250/10000 hard caps.
 - [daylight-equation/research/daylight-v06-m4-z3-proof.md](daylight-equation/research/daylight-v06-m4-z3-proof.md)
   for the mechanized predicate proof.
 - [daylight-equation/evidence/README.md](daylight-equation/evidence/README.md)
@@ -144,6 +148,12 @@ Run the Daylight protocol-state check without the WJSEAL bridge:
 
 ```sh
 make daylight-v06-protocol-state-test
+```
+
+Run the Daylight cap-removal blocker check:
+
+```sh
+make daylight-v06-cap-removal-test
 ```
 
 Run Gate proof lanes:
@@ -222,6 +232,7 @@ daylight-equation/      Daylight math, analysis, evidence, fixtures, and Rust co
 DLv0.5/                 Preserved earlier Daylight reference material.
 ```
 
+Machine continuation is in [docs/MACHINE_PASSOFF.md](docs/MACHINE_PASSOFF.md).
 Contributor setup is in
 [docs/CONTRIBUTOR_BOOTSTRAP.md](docs/CONTRIBUTOR_BOOTSTRAP.md). CI scope is in
 [docs/CI_SCOPE.md](docs/CI_SCOPE.md). Release requirements are in

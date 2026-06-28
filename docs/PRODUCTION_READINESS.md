@@ -72,6 +72,10 @@ These targets produce or verify:
 - Production authority policy evidence that rejects fixture authority and
   requires a signed non-fixture ceremony plus assembly Gate publish/trust
   enforcement before any publish/trust production authority claim.
+- Daylight cap-removal evidence through `make daylight-v06-cap-removal-test`,
+  proving that the current 8250/10000 cap remains active, fixture authority
+  cannot satisfy publish/trust, and the publish/trust command contracts are
+  specified but still fail closed.
 - Machine-readable JSON outputs for Gate and install verifier tooling.
 - `build/wuci-sbom.json`.
 - `build/wuci-provenance.json`.

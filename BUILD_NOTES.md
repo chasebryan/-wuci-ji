@@ -4,6 +4,10 @@ Updated: 2026-06-21
 
 This file is the machine-handoff checkpoint for `-wuci-ji`.
 
+For a fresh machine or new continuation agent, start with the passoff pattern in
+[docs/MACHINE_PASSOFF.md](docs/MACHINE_PASSOFF.md), then return here for the
+host/build history.
+
 ## Platform contract
 
 `src/wuci-ji.s` is an x86_64 Linux program. It defines `_start` directly and uses

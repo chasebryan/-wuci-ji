@@ -1,0 +1,158 @@
+{
+  "schema": "daylight-v06-cap-removal-plan-v1",
+  "subject": "Daylight_v0.6",
+  "status": "cap-removal-planned-fail-closed",
+  "review_date": "2026-06-28",
+  "markdown_path": "daylight-equation/research/daylight-v06-cap-removal-plan.md",
+  "score_state": {
+    "peer_review_evaluation_score": 8250,
+    "peer_review_evaluation_maximum": 10000,
+    "daylight_research_score": 975,
+    "daylight_research_maximum": 1000,
+    "score_increase_authorized": false,
+    "reason": "This plan records evidence required to clear caps; it does not clear any cap by itself."
+  },
+  "active_cap_blockers": [
+    {
+      "name": "no_independent_external_reviews_tracked",
+      "active": true,
+      "maximum_score": 9000,
+      "clearance_requires": [
+        "two independent signed external review records",
+        "review scope covers formal model, provider-backed vectors, production-authority blockers, and claim discipline",
+        "all production-blocking findings are addressed or explicitly deferred with score impact"
+      ]
+    },
+    {
+      "name": "no_integrated_public_authority",
+      "active": true,
+      "maximum_score": 8500,
+      "clearance_requires": [
+        "certificate predicate proof integrated into Daylight authority evidence",
+        "revocation predicate proof integrated into Daylight authority evidence",
+        "transparency-log predicate proof integrated into Daylight authority evidence",
+        "install, witness, publish, and trust predicate proofs digest-bound to local evidence",
+        "Daylight authority verifier reports integrated_public_authority=true"
+      ]
+    },
+    {
+      "name": "no_production_authority_publish_authority_or_trust_gate",
+      "active": true,
+      "maximum_score": 8250,
+      "clearance_requires": [
+        "non-fixture production authority root",
+        "signed Golden Lock 4-of-5 production authority ceremony",
+        "assembly-enforced publish-authorized-rooted command",
+        "assembly-enforced trust-authorized-rooted command",
+        "fixture authority roots continue to reject allow-trust and allow-publish",
+        "production authority verifier accepts publish/trust only after assembly Gate support exists"
+      ]
+    },
+    {
+      "name": "no_runtime_containment_enforcement",
+      "active": true,
+      "maximum_score": 8250,
+      "clearance_requires": [
+        "named OS-enforced containment profile",
+        "seccomp or equivalent syscall policy evidence for the profile",
+        "namespace or equivalent isolation evidence for the profile",
+        "fail-closed tests when kernel support is missing",
+        "claim text remains limited to the verified profile"
+      ]
+    },
+    {
+      "name": "no_whole_system_post_quantum_safety_claim",
+      "active": true,
+      "maximum_score": 8500,
+      "clearance_requires": [
+        "real pinned PQ verifier evidence",
+        "hybrid or PQ authority policy for selected release lanes",
+        "classical-only evidence remains labeled quantum-vulnerable",
+        "whole-system PQ safety is not claimed from verifier evidence alone"
+      ]
+    }
+  ],
+  "publish_trust_command_contracts": [
+    {
+      "name": "publish-authorized-rooted",
+      "shape": "publish-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "publish",
+      "authority_schema": "wuci-authority-root-v1",
+      "required_authority_field": "allow-publish",
+      "current_status": "specified-not-implemented-fail-closed",
+      "implemented": false,
+      "must_reject_now": [
+        "fixture authority roots",
+        "repo-local authority roots",
+        "production roots without signed ceremony evidence",
+        "contracts whose action is not publish",
+        "private material in public evidence"
+      ],
+      "activation_requires": [
+        "assembly command dispatch entry",
+        "flat publish contract parser and verifier",
+        "authority root parser that can accept allow-publish true only for production roots",
+        "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
+        "production-authority policy update and verifier acceptance"
+      ]
+    },
+    {
+      "name": "trust-authorized-rooted",
+      "shape": "trust-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "trust",
+      "authority_schema": "wuci-authority-root-v1",
+      "required_authority_field": "allow-trust",
+      "current_status": "specified-not-implemented-fail-closed",
+      "implemented": false,
+      "must_reject_now": [
+        "fixture authority roots",
+        "repo-local authority roots",
+        "production roots without signed ceremony evidence",
+        "contracts whose action is not trust",
+        "private material in public evidence"
+      ],
+      "activation_requires": [
+        "assembly command dispatch entry",
+        "flat trust contract parser and verifier",
+        "authority root parser that can accept allow-trust true only for production roots",
+        "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
+        "production-authority policy update and verifier acceptance"
+      ]
+    }
+  ],
+  "fixture_authority_rejections": {
+    "paths": [
+      "authority/wuci-root.fixture.txt",
+      "authority/wuci-release-root.fixture.txt"
+    ],
+    "required_fields": {
+      "production": "false",
+      "allow-trust": "false",
+      "allow-publish": "false"
+    },
+    "production_verifier_must_reject": true,
+    "publish_trust_emit_must_fail_until_assembly_gate_exists": true
+  },
+  "linked_policy_files": [
+    "docs/wuci_production_authority_policy.json",
+    "docs/wuci_gate_boundary.json",
+    "docs/PRODUCTION_READINESS.md",
+    "daylight-equation/analysis/daylight-v06-peer-review-scoring-model-10000.v1.json",
+    "daylight-equation/analysis/daylight-v06-peer-review-scoring-model-10000.md",
+    "daylight-equation/SCORECARD.md"
+  ],
+  "required_local_commands": [
+    "make daylight-v06-cap-removal-test",
+    "make daylight-v06-peer-review-score-test",
+    "make daylight-v06-authority-verifier-test",
+    "make production-readiness-gates"
+  ],
+  "non_claims": [
+    "this plan does not raise the Daylight score",
+    "this plan does not create production authority",
+    "this plan does not implement publish or trust Gate commands",
+    "this plan does not claim runtime containment",
+    "this plan does not claim whole-system post-quantum safety",
+    "this plan does not count as independent external review"
+  ]
+}

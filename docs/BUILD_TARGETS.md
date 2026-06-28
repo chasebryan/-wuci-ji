@@ -14,10 +14,15 @@ lanes for stable crypto, parser, Gate, manifest, and ledger invariants, with
 Python kept for fixture generation and host-policy orchestration. See
 `docs/ASSEMBLY_TEST_STRATEGY.md`.
 
+`machine-passoff-test` checks the fresh-machine continuation handoff in
+`docs/MACHINE_PASSOFF.md`, including the read order, score boundary, next
+publish/trust Gate slice, and required local continuation commands.
+
 ## Minimal
 
 ```sh
 make build-linux
+make machine-passoff-test
 make asm-smoke
 make test
 make install-test
@@ -114,6 +119,16 @@ required evidence links, and that the existing 975/1000 research scorecard
 remains unchanged. It is not an external review, not an official endorsement,
 not a production-readiness claim, not runtime containment evidence, and not a
 whole-system post-quantum-safety claim.
+
+`daylight-v06-cap-removal-test` checks the fail-closed cap-removal plan in
+`daylight-equation/research/daylight-v06-cap-removal-plan.v1.json` and
+`daylight-equation/research/daylight-v06-cap-removal-plan.md`. It verifies that
+the 8250/10000 cap remains active, that publish/trust authority command
+contracts are specified but not implemented, that fixture authority cannot
+satisfy publish/trust, and that WUCI production-authority tooling still rejects
+trust/publish authority until assembly Gate enforcement exists. It does not
+raise the score, create production authority, implement runtime containment, or
+count as external review.
 
 `daylight-v06-fail-closed-model-test` checks the partial Daylight v0.6
 fail-closed ordering model in

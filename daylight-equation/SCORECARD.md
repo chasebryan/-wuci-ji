@@ -156,6 +156,9 @@ If any item is missing, the valid score is below 1000.
 
 ## Next Score-Raising Work
 
+0. Track the cap-removal blocker state through the fail-closed
+   [cap-removal plan](research/daylight-v06-cap-removal-plan.md) and verifier
+   before changing any score claim.
 1. Expand provider-backed vector agreement from the current C1 reference
    evidence into a full valid/negative corpus and a second independent
    implementation.
@@ -215,6 +218,11 @@ If any item is missing, the valid score is below 1000.
 - [Daylight authority verifier](../tools/daylight_authority.py)
 - [Daylight authority verifier test](../tests/daylight_authority.py)
 - `make daylight-v06-authority-verifier-test`
+- [cap-removal plan](research/daylight-v06-cap-removal-plan.md)
+- [cap-removal plan JSON](research/daylight-v06-cap-removal-plan.v1.json)
+- [cap-removal verifier](../tools/daylight_cap_removal.py)
+- [cap-removal verifier test](../tests/daylight_cap_removal.py)
+- `make daylight-v06-cap-removal-test`
 - [1000 preflight](research/daylight-v06-1000-preflight.md)
 - [1000 preflight JSON](research/daylight-v06-1000-preflight.v1.json)
 - [1000 preflight verifier](../tests/daylight_v06_1000_preflight.py)
