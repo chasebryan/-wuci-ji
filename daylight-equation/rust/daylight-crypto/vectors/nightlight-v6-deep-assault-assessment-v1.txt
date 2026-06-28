@@ -1,0 +1,57 @@
+version=nightlight-v6-deep-assault-assessment-v1
+subject=Nightlight_Daylight_v6_deep_learning_assessment
+algorithm=deterministic-coverage-learning-v1
+expected_result=learning_guided_gap_assessment
+defensive_only=true
+learning_enabled=true
+offensive_logic_added=false
+network_required=false
+score_delta=0
+input_adversarial_cases=57
+fail_closed_cases=57
+learning_epochs=8
+learning_arms_total=21
+public_stage_target_total=14
+public_stage_covered=13
+public_stage_gap_count=1
+private_failure_target_total=4
+private_failure_covered=2
+private_failure_gap_count=2
+recommendations_total=6
+top_priority=980
+learning_arm_01=reference_private|reference private mutation denial|cases=2|fail_closed=2|private_path_reach=2|unique_public_stages=0|risk_weight=120|novelty=400|priority=2600
+learning_arm_02=auth_shape|authorization block shape gate|cases=5|fail_closed=5|private_path_reach=0|unique_public_stages=1|risk_weight=105|novelty=250|priority=2300
+learning_arm_03=authorization|public authorization boundary|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=1|risk_weight=115|novelty=150|priority=2300
+learning_arm_04=kem_shape|KEM identifier and shape gate|cases=5|fail_closed=5|private_path_reach=0|unique_public_stages=1|risk_weight=105|novelty=250|priority=2300
+learning_arm_05=aux_hash|auxiliary object hash binding|cases=5|fail_closed=5|private_path_reach=0|unique_public_stages=1|risk_weight=95|novelty=250|priority=2200
+learning_arm_06=reference_auth|reference authorization denial|cases=2|fail_closed=2|private_path_reach=0|unique_public_stages=0|risk_weight=115|novelty=50|priority=2200
+learning_arm_07=policy|static policy gate|cases=7|fail_closed=7|private_path_reach=0|unique_public_stages=1|risk_weight=85|novelty=300|priority=2150
+learning_arm_08=downgrade|downgrade denial gate|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=1|risk_weight=95|novelty=150|priority=2100
+learning_arm_09=suite|suite and mode downgrade boundary|cases=3|fail_closed=3|private_path_reach=0|unique_public_stages=1|risk_weight=90|novelty=200|priority=2100
+learning_arm_10=review|review receipt gate|cases=2|fail_closed=2|private_path_reach=0|unique_public_stages=1|risk_weight=90|novelty=175|priority=2075
+learning_arm_11=claims|claim class and shape gate|cases=4|fail_closed=4|private_path_reach=0|unique_public_stages=1|risk_weight=80|novelty=225|priority=2025
+learning_arm_12=reference_gate|reference public gate denial|cases=3|fail_closed=3|private_path_reach=0|unique_public_stages=0|risk_weight=95|novelty=75|priority=2025
+learning_arm_13=schema|typed envelope schema boundary|cases=6|fail_closed=6|private_path_reach=0|unique_public_stages=1|risk_weight=75|novelty=275|priority=2025
+learning_arm_14=log|log evidence gate|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=1|risk_weight=85|novelty=150|priority=2000
+learning_arm_15=witness|witness evidence gate|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=1|risk_weight=85|novelty=150|priority=2000
+learning_arm_16=parser|malformed input parser boundary|cases=4|fail_closed=4|private_path_reach=0|unique_public_stages=1|risk_weight=70|novelty=225|priority=1925
+learning_arm_17=reference_install|reference install denial|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=0|risk_weight=90|novelty=25|priority=1925
+learning_arm_18=reference_witness|reference witness denial|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=0|risk_weight=90|novelty=25|priority=1925
+learning_arm_19=reference_log|reference log denial|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=0|risk_weight=85|novelty=25|priority=1875
+learning_arm_20=reference_policy|reference policy denial|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=0|risk_weight=85|novelty=25|priority=1875
+learning_arm_21=reference_claim|reference claim denial|cases=1|fail_closed=1|private_path_reach=0|unique_public_stages=0|risk_weight=80|novelty=25|priority=1825
+learning_epoch_01=epoch=1|arm=reference_private|priority=2600|rationale=private mutation cases exercise late fail-closed commitments
+learning_epoch_02=epoch=2|arm=auth_shape|priority=2300|rationale=auth block shape gates protect signature verification inputs
+learning_epoch_03=epoch=3|arm=authorization|priority=2300|rationale=authorization remains the final public fail-closed boundary
+learning_epoch_04=epoch=4|arm=kem_shape|priority=2300|rationale=KEM shape gates protect provider-backed derivation inputs
+learning_epoch_05=epoch=5|arm=aux_hash|priority=2200|rationale=aux hash binding prevents unbound policy/keyset/claim substitution
+learning_epoch_06=epoch=6|arm=reference_auth|priority=2200|rationale=reference auth denial keeps private Open behind public authority
+learning_epoch_07=epoch=7|arm=policy|priority=2150|rationale=coverage-learning selected this arm by risk and novelty score
+learning_epoch_08=epoch=8|arm=downgrade|priority=2100|rationale=downgrade gates protect release and mode floors
+learning_recommendation_01=missing_public_install_stage|target=add install-action public validation simulation|priority=980|rationale=public stage targets include REJECT_INSTALL but the current public corpus does not reach it
+learning_recommendation_02=missing_private_derive_failure|target=add deterministic bad-recipient-key decapsulation denial|priority=960|rationale=private failure targets include Derive while current private mutations cover AEAD and Commit
+learning_recommendation_03=missing_private_leak_failure|target=add deterministic leak-value mismatch denial|priority=940|rationale=leak validation is a late boundary and should have a direct defensive regression case
+learning_recommendation_04=sparse_auth_signature_stage|target=add more public authorization-denial variants|priority=900|rationale=REJECT_AUTH_SIGNATURE is the intended final public boundary and currently has sparse variants
+learning_recommendation_05=sparse_review_stage|target=add review receipt shape and hash-binding simulations|priority=860|rationale=review gates protect content-scope escalation and need broader defensive coverage
+learning_recommendation_06=sparse_log_witness_stages|target=add log and witness object-shape simulations|priority=830|rationale=log and witness gates are represented but still shallow in the public corpus
+learning_hash_hex=674d6c68c7f4de0486eb1da9707371af2a1848a4dd0e6dd1a088da0dd650c9a9d1c8f0002253c99b6ff97e2b448e29973138a2998a04e3fcebecca47f94dcea1

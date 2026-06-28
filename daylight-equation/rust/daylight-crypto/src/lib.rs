@@ -4,6 +4,7 @@
 //! verification pieces that can be pinned locally. Missing Daylight primitives
 //! are explicit unsupported/fail-closed surfaces, not permissive stubs.
 
+pub mod nightlight;
 pub mod v6;
 pub mod wuci_daylight;
 

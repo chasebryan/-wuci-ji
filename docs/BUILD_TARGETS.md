@@ -269,6 +269,28 @@ production-disallowed denial, and private-path AEAD and commitment mutation
 failures. It is not a full provider-backed corpus or independent external
 review.
 
+`daylight-v6-nightlight-battery-test` checks the Nightlight v6 equation
+battery in
+`daylight-equation/rust/daylight-crypto/vectors/nightlight-v6-equation-battery-v1.txt`.
+It aggregates the existing v6 schema, provider KEM, private-roundtrip,
+reference `Seal`/`Open`, and reference negative-corpus evidence into
+an open-ended deterministic equation gate. The current battery covers malformed
+CBOR, schema mutation, suite downgrade, aux-hash drift, policy denial, review,
+log, witness, claims, KEM-shape, and auth-block-shape simulations at the
+public boundary, plus the existing private-path AEAD and commitment mutation
+checks. It does not add offensive logic, network behavior, production
+authority, runtime containment, whole-system post-quantum-safety claims, or a
+score increase.
+
+`daylight-v6-nightlight-deep-assessment-test` checks the Nightlight v6 deep
+assessment vector in
+`daylight-equation/rust/daylight-crypto/vectors/nightlight-v6-deep-assault-assessment-v1.txt`.
+It applies deterministic coverage learning over the local fail-closed
+Nightlight corpus, ranks risk/novelty arms, emits prioritized epochs, and
+records gap recommendations for future defensive tests. It does not add
+offensive logic, network behavior, production authority, runtime containment,
+whole-system post-quantum-safety claims, or a score increase.
+
 `wjstar-model-test` checks the formal WJ* composition model in
 `docs/wuci_wjstar_model.json` and `docs/wuci_wjstar_model.md`, including the
 AEAD/FROST/Gate/Merkle/witness open predicate, Golden Lock v1 transcript, the

@@ -37,13 +37,15 @@ fn run() -> Result<(), String> {
         "v6-provider-private-roundtrip-evidence" => run_v6_provider_private_roundtrip_evidence(),
         "v6-reference-seal-open-evidence" => run_v6_reference_seal_open_evidence(),
         "v6-reference-negative-corpus-evidence" => run_v6_reference_negative_corpus_evidence(),
+        "nightlight-v6-equation-battery" => run_nightlight_v6_equation_battery(),
+        "nightlight-v6-deep-assault-assessment" => run_nightlight_v6_deep_assessment(),
         "wuci-daylight-envelope-boundary" => run_wuci_daylight_envelope_boundary(&args),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence|v6-reference-negative-corpus-evidence|wuci-daylight-envelope-boundary>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence|v6-reference-negative-corpus-evidence|nightlight-v6-equation-battery|nightlight-v6-deep-assault-assessment|wuci-daylight-envelope-boundary>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -511,6 +513,264 @@ fn run_v6_reference_negative_corpus_evidence() -> Result<(), String> {
             case.private_path_reached
         );
     }
+    Ok(())
+}
+
+fn run_nightlight_v6_equation_battery() -> Result<(), String> {
+    let battery = daylight_crypto::nightlight::nightlight_v6_equation_battery()
+        .map_err(|err| format!("{err:?}"))?;
+    println!("version={}", battery.schema);
+    println!("subject={}", battery.subject);
+    println!("profile={}", battery.profile);
+    println!("scope=no-network-no-offensive-logic");
+    println!("expected_result=defensive_battery_ready");
+    println!("score_delta={}", battery.score_delta);
+    println!("production_allowed={}", battery.production_allowed);
+    println!(
+        "runtime_containment_claim={}",
+        battery.runtime_containment_claim
+    );
+    println!(
+        "whole_system_post_quantum_safety_claim={}",
+        battery.whole_system_post_quantum_safety_claim
+    );
+    println!("offensive_logic_added={}", battery.offensive_logic_added);
+    println!("network_required={}", battery.network_required);
+    println!("open_ended_gate={}", battery.open_ended_gate);
+    println!(
+        "minimum_reference_negative_cases={}",
+        battery.minimum_reference_negative_cases
+    );
+    println!(
+        "minimum_public_simulation_cases={}",
+        battery.minimum_public_simulation_cases
+    );
+    println!("equation_checks_total={}", battery.equation_checks_total);
+    println!("equation_checks_failed={}", battery.equation_checks_failed);
+    println!("equation_holds={}", battery.equation_holds);
+    println!(
+        "efficiency_checks_total={}",
+        battery.efficiency_checks_total
+    );
+    println!(
+        "efficiency_checks_failed={}",
+        battery.efficiency_checks_failed
+    );
+    println!("efficiency_holds={}", battery.efficiency_holds);
+    println!(
+        "defensive_battery_ready={}",
+        battery.defensive_battery_ready
+    );
+    println!("provider_backed_kem={}", battery.provider_backed_kem);
+    println!(
+        "provider_backed_private_roundtrip={}",
+        battery.provider_backed_private_roundtrip
+    );
+    println!(
+        "provider_backed_reference_seal_open={}",
+        battery.provider_backed_reference_seal_open
+    );
+    println!(
+        "public_authority_external={}",
+        battery.public_authority_external
+    );
+    println!(
+        "schema_public_precheck_rejection_stage={}",
+        battery.schema_public_precheck_rejection_stage.as_str()
+    );
+    println!(
+        "private_public_precheck_rejection_stage={}",
+        battery.private_public_precheck_rejection_stage.as_str()
+    );
+    println!(
+        "reference_public_precheck_rejection_stage={}",
+        battery.reference_public_precheck_rejection_stage.as_str()
+    );
+    println!("total_negative_cases={}", battery.total_negative_cases);
+    println!(
+        "fail_closed_negative_cases={}",
+        battery.fail_closed_negative_cases
+    );
+    println!(
+        "public_simulation_cases_total={}",
+        battery.public_simulation_cases_total
+    );
+    println!(
+        "public_simulation_fail_closed_cases={}",
+        battery.public_simulation_fail_closed_cases
+    );
+    println!(
+        "public_simulation_all_fail_closed={}",
+        battery.public_simulation_all_fail_closed
+    );
+    println!(
+        "adversarial_cases_total={}",
+        battery.adversarial_cases_total
+    );
+    println!(
+        "adversarial_cases_fail_closed={}",
+        battery.adversarial_cases_fail_closed
+    );
+    println!(
+        "public_precheck_stop_count={}",
+        battery.public_precheck_stop_count
+    );
+    println!(
+        "private_path_mutation_count={}",
+        battery.private_path_mutation_count
+    );
+    println!(
+        "private_path_reach_count={}",
+        battery.private_path_reach_count
+    );
+    for failure_count in &battery.failure_counts {
+        println!(
+            "failure_count_{}={}",
+            daylight_crypto::v6::daylight_open_failure_name_v6(failure_count.failure),
+            failure_count.count
+        );
+    }
+    for stage_count in &battery.public_simulation_stage_counts {
+        println!(
+            "public_stage_count_{}={}",
+            stage_count.stage.as_str(),
+            stage_count.count
+        );
+    }
+    for (index, case) in battery.public_simulation_cases.iter().enumerate() {
+        println!(
+            "public_simulation_case_{:02}={}|{}|expected={}|actual={}|fail_closed={}|private_path_reached={}",
+            index + 1,
+            case.case_id,
+            case.mutation,
+            case.expected_stage.as_str(),
+            case.actual_stage.as_str(),
+            case.fail_closed,
+            case.private_path_reached
+        );
+    }
+    println!(
+        "artifact_sha3_512_hex={}",
+        hex_lower(&battery.artifact_hash)
+    );
+    println!(
+        "schema_omega_sha3_512_hex={}",
+        hex_lower(&battery.schema_omega_hash)
+    );
+    println!(
+        "private_omega_sha3_512_hex={}",
+        hex_lower(&battery.private_omega_hash)
+    );
+    println!(
+        "reference_omega_sha3_512_hex={}",
+        hex_lower(&battery.reference_omega_hash)
+    );
+    println!(
+        "private_ciphertext_sha3_512_hex={}",
+        hex_lower(&battery.private_ciphertext_hash)
+    );
+    println!(
+        "reference_ciphertext_sha3_512_hex={}",
+        hex_lower(&battery.reference_ciphertext_hash)
+    );
+    println!(
+        "private_com_a_sha3_512_hex={}",
+        hex_lower(&battery.private_com_a_hash)
+    );
+    println!(
+        "reference_com_a_sha3_512_hex={}",
+        hex_lower(&battery.reference_com_a_hash)
+    );
+    println!(
+        "negative_case_set_sha3_512_hex={}",
+        hex_lower(&battery.negative_case_set_hash)
+    );
+    println!(
+        "public_simulation_case_set_sha3_512_hex={}",
+        hex_lower(&battery.public_simulation_case_set_hash)
+    );
+    println!("battery_sha3_512_hex={}", hex_lower(&battery.battery_hash));
+    Ok(())
+}
+
+fn run_nightlight_v6_deep_assessment() -> Result<(), String> {
+    let assessment = daylight_crypto::nightlight::nightlight_v6_deep_assessment()
+        .map_err(|err| format!("{err:?}"))?;
+    println!("version={}", assessment.schema);
+    println!("subject={}", assessment.subject);
+    println!("algorithm={}", assessment.algorithm);
+    println!("expected_result=learning_guided_gap_assessment");
+    println!("defensive_only={}", assessment.defensive_only);
+    println!("learning_enabled={}", assessment.learning_enabled);
+    println!("offensive_logic_added={}", assessment.offensive_logic_added);
+    println!("network_required={}", assessment.network_required);
+    println!("score_delta={}", assessment.score_delta);
+    println!(
+        "input_adversarial_cases={}",
+        assessment.input_adversarial_cases
+    );
+    println!("fail_closed_cases={}", assessment.fail_closed_cases);
+    println!("learning_epochs={}", assessment.learning_epochs);
+    println!("learning_arms_total={}", assessment.learning_arms_total);
+    println!(
+        "public_stage_target_total={}",
+        assessment.public_stage_target_total
+    );
+    println!("public_stage_covered={}", assessment.public_stage_covered);
+    println!(
+        "public_stage_gap_count={}",
+        assessment.public_stage_gap_count
+    );
+    println!(
+        "private_failure_target_total={}",
+        assessment.private_failure_target_total
+    );
+    println!(
+        "private_failure_covered={}",
+        assessment.private_failure_covered
+    );
+    println!(
+        "private_failure_gap_count={}",
+        assessment.private_failure_gap_count
+    );
+    println!("recommendations_total={}", assessment.recommendations_total);
+    println!("top_priority={}", assessment.top_priority);
+    for (index, arm) in assessment.arms.iter().enumerate() {
+        println!(
+            "learning_arm_{:02}={}|{}|cases={}|fail_closed={}|private_path_reach={}|unique_public_stages={}|risk_weight={}|novelty={}|priority={}",
+            index + 1,
+            arm.arm_id,
+            arm.category,
+            arm.cases_total,
+            arm.fail_closed_cases,
+            arm.private_path_reach_count,
+            arm.unique_public_stages,
+            arm.risk_weight,
+            arm.novelty_score,
+            arm.learned_priority
+        );
+    }
+    for (index, epoch) in assessment.epochs.iter().enumerate() {
+        println!(
+            "learning_epoch_{:02}=epoch={}|arm={}|priority={}|rationale={}",
+            index + 1,
+            epoch.epoch,
+            epoch.selected_arm,
+            epoch.learned_priority,
+            epoch.rationale
+        );
+    }
+    for recommendation in &assessment.recommendations {
+        println!(
+            "learning_recommendation_{:02}={}|target={}|priority={}|rationale={}",
+            recommendation.rank,
+            recommendation.gap_id,
+            recommendation.target,
+            recommendation.priority,
+            recommendation.rationale
+        );
+    }
+    println!("learning_hash_hex={}", hex_lower(&assessment.learning_hash));
     Ok(())
 }
 

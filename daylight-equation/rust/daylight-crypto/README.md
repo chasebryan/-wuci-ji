@@ -67,6 +67,22 @@ It implements only pinned, locally available pieces:
   `vectors/daylight-v6-reference-negative-corpus-v1.txt`, covering external
   public-precheck denials, production-disallowed denial, and private-path AEAD
   and commitment mutation failures for the non-production reference lane.
+- A Nightlight v6 equation battery in
+  `vectors/nightlight-v6-equation-battery-v1.txt`, aggregating the v6 schema,
+  provider KEM, private-roundtrip, reference `Seal`/`Open`, and reference
+  negative-corpus evidence into an open-ended deterministic equation,
+  domain-separation, and fail-closed efficiency gate. The current vector covers
+  45 public-boundary mutation simulations plus 12 reference negative cases,
+  with minimum thresholds so the corpus can grow without changing the gate
+  shape. These are defensive adversarial validation simulations that force
+  Daylight to reject tampered or malformed inputs; they are not attack crypto
+  and do not raise the Daylight score.
+- A Nightlight v6 deep assessment in
+  `vectors/nightlight-v6-deep-assault-assessment-v1.txt`, applying
+  `deterministic-coverage-learning-v1` over the same local fail-closed corpus.
+  It scores learning arms by risk, novelty, and coverage, emits eight
+  prioritized epochs, and records gap recommendations without adding
+  offensive logic, network behavior, or score claims.
 - ML-DSA-87 verification through pinned `fips204 = 0.4.6`, with a deterministic
   fixture selftest.
 - SLH-DSA-SHAKE-256s verification through pinned `fips205 = 0.4.1`, with a
@@ -105,6 +121,8 @@ cargo run --offline -- v6-provider-kem-evidence
 cargo run --offline -- v6-provider-private-roundtrip-evidence
 cargo run --offline -- v6-reference-seal-open-evidence
 cargo run --offline -- v6-reference-negative-corpus-evidence
+cargo run --offline -- nightlight-v6-equation-battery
+cargo run --offline -- nightlight-v6-deep-assault-assessment
 cargo run --offline -- wuci-daylight-envelope-boundary --file ../../../build/wuci-gate-demo/sealed.wj
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest

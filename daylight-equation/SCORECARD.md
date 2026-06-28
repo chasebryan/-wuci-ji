@@ -185,6 +185,12 @@ If any item is missing, the valid score is below 1000.
 - `make daylight-v6-reference-seal-open-test`
 - [provider-backed v6 reference negative corpus](rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt)
 - `make daylight-v6-reference-negative-corpus-test`
+- [Nightlight v6 equation battery](rust/daylight-crypto/vectors/nightlight-v6-equation-battery-v1.txt)
+- [Nightlight v6 deep assault assessment](rust/daylight-crypto/vectors/nightlight-v6-deep-assault-assessment-v1.txt)
+- [Nightlight v6 defensive assault assessment](analysis/nightlight-v6-defensive-assault-assessment.md)
+- [Nightlight v6 deep assessment verifier](../tests/daylight_v6_nightlight_deep_assessment.py)
+- `make daylight-v6-nightlight-battery-test`
+- `make daylight-v6-nightlight-deep-assessment-test`
 - [provider-backed v6 vector-agreement evidence](evidence/daylight-v6-provider-vector-agreement.v1.json)
 - [provider-backed v6 vector-agreement verifier](../tests/daylight_v6_provider_vector_agreement.py)
 - `make daylight-v6-provider-vector-agreement-test`
