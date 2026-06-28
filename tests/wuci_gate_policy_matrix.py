@@ -210,6 +210,7 @@ def main() -> None:
         "authority_group_key_mismatch",
         "authority_open_disallowed",
         "authority_release_disallowed",
+        "authority_publish_disallowed",
         "authority_anchor_path_mismatch",
         "authority_anchor_digest_mismatch",
         "self_derived_authority_rejected",
