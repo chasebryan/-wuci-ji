@@ -13,7 +13,10 @@ use crate::{
     AeadAlgorithm, DaylightCryptoError, DaylightOpenFailure, DHKEM_P384_ENCAPSULATED_KEY_LEN,
     DHKEM_P384_PRIVATE_KEY_LEN, DHKEM_P384_PUBLIC_KEY_LEN, DHKEM_P384_SHARED_SECRET_LEN,
 };
-use daylight_model::{action_allowed, mode_ok, Action, Mode, Profile};
+use daylight_model::{
+    action_allowed, mode_ok, Action, DaylightV06ClaimBoundary, DaylightV06PublicPredicate,
+    DaylightV06PublicPredicates, Mode, Profile, DAYLIGHT_V06_8250_RESEARCH_BOUNDARY,
+};
 use fips203::ml_kem_1024;
 use fips204::ml_dsa_87;
 use fips205::slh_dsa_shake_256s;
@@ -305,6 +308,10 @@ pub struct DaylightReferencePrecheckV6 {
     pub policy_ok: bool,
     pub claims_ok: bool,
     pub kem_block_ok: bool,
+    pub mode_ok: bool,
+    pub gate_ok: bool,
+    pub provenance_ok: bool,
+    pub content_review_pre_ok: bool,
     pub auth_block_ok: bool,
     pub auth_signature_ok: bool,
     pub review_ok: bool,
@@ -326,6 +333,10 @@ impl DaylightReferencePrecheckV6 {
             policy_ok: true,
             claims_ok: true,
             kem_block_ok: true,
+            mode_ok: true,
+            gate_ok: true,
+            provenance_ok: true,
+            content_review_pre_ok: true,
             auth_block_ok: true,
             auth_signature_ok: true,
             review_ok: true,
@@ -337,6 +348,26 @@ impl DaylightReferencePrecheckV6 {
             production_allowed: false,
         }
     }
+
+    pub const fn public_predicates(&self) -> DaylightV06PublicPredicates {
+        DaylightV06PublicPredicates {
+            parse_ok: self.parse_ok && self.schema_ok,
+            suite_ok: self.suite_ok,
+            aux_hash_ok: self.aux_hash_ok,
+            kem_block_ok: self.kem_block_ok,
+            mode_ok: self.mode_ok,
+            policy_ok: self.policy_ok,
+            claim_ok: self.claims_ok,
+            gate_ok: self.gate_ok && self.review_ok,
+            provenance_ok: self.provenance_ok,
+            content_review_pre_ok: self.content_review_pre_ok,
+            v_auth: self.auth_block_ok && self.auth_signature_ok && self.external_authority_ok,
+            no_downgrade_final: self.downgrade_ok,
+            log_ok: self.log_ok,
+            install_ok: self.install_ok,
+            witness_ok: self.witness_ok,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -344,6 +375,32 @@ pub struct DaylightOpenReportV6 {
     pub artifact: Vec<u8>,
     pub transcript: DaylightTranscriptV6,
     pub auth_msg: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DaylightAuthorizedEnvelopeV6 {
+    envelope: DaylightEnvelopeV6,
+    transcript: DaylightTranscriptV6,
+    public_predicates: DaylightV06PublicPredicates,
+    claim_boundary: DaylightV06ClaimBoundary,
+}
+
+impl DaylightAuthorizedEnvelopeV6 {
+    pub fn envelope(&self) -> &DaylightEnvelopeV6 {
+        &self.envelope
+    }
+
+    pub fn transcript(&self) -> &DaylightTranscriptV6 {
+        &self.transcript
+    }
+
+    pub const fn public_predicates(&self) -> DaylightV06PublicPredicates {
+        self.public_predicates
+    }
+
+    pub const fn claim_boundary(&self) -> DaylightV06ClaimBoundary {
+        self.claim_boundary
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1046,7 +1103,40 @@ pub fn daylight_open_v6_with_kems(
     precheck: &DaylightReferencePrecheckV6,
     now_epoch: Option<u64>,
 ) -> Result<DaylightOpenReportV6, DaylightCryptoError> {
+    let authorized = daylight_authorized_envelope_v6(envelope, precheck, now_epoch)?;
+    daylight_open_authorized_v6_with_kems(&authorized, recipient_keys)
+}
+
+pub fn daylight_authorized_envelope_v6(
+    envelope: &DaylightEnvelopeV6,
+    precheck: &DaylightReferencePrecheckV6,
+    now_epoch: Option<u64>,
+) -> Result<DaylightAuthorizedEnvelopeV6, DaylightCryptoError> {
     let transcript = daylight_reference_precheck_v6(envelope, precheck, now_epoch)?;
+    let public_predicates = precheck.public_predicates();
+    if let Some(predicate) = public_predicates.first_failed() {
+        return Err(daylight_public_predicate_error_v6(predicate));
+    }
+    if !DAYLIGHT_V06_8250_RESEARCH_BOUNDARY.zero_claims_hold()
+        || DAYLIGHT_V06_8250_RESEARCH_BOUNDARY.final_score() != 8250
+    {
+        return Err(DaylightCryptoError::OpenRejected(DaylightOpenFailure::Gate));
+    }
+
+    Ok(DaylightAuthorizedEnvelopeV6 {
+        envelope: envelope.clone(),
+        transcript,
+        public_predicates,
+        claim_boundary: DAYLIGHT_V06_8250_RESEARCH_BOUNDARY,
+    })
+}
+
+pub fn daylight_open_authorized_v6_with_kems(
+    authorized: &DaylightAuthorizedEnvelopeV6,
+    recipient_keys: &DaylightRecipientSecretKeysV6,
+) -> Result<DaylightOpenReportV6, DaylightCryptoError> {
+    let envelope = authorized.envelope();
+    let transcript = authorized.transcript();
     let ss_q = mlkem1024_decaps(&recipient_keys.mlkem_decaps_key, &envelope.kem_block.enc_q)
         .map_err(|_| DaylightCryptoError::OpenRejected(DaylightOpenFailure::Derive))?;
     let ss_c =
@@ -1095,7 +1185,7 @@ pub fn daylight_open_v6_with_kems(
     Ok(DaylightOpenReportV6 {
         artifact: payload.artifact,
         auth_msg: transcript.auth_msg.clone(),
-        transcript,
+        transcript: transcript.clone(),
     })
 }
 
@@ -1155,6 +1245,20 @@ fn daylight_reference_precheck_v6(
         now_epoch,
     )
     .map_err(daylight_open_error_from_rejection_v6)?;
+    if !precheck.mode_ok {
+        return Err(DaylightCryptoError::OpenRejected(DaylightOpenFailure::Mode));
+    }
+    if !precheck.gate_ok {
+        return Err(DaylightCryptoError::OpenRejected(DaylightOpenFailure::Gate));
+    }
+    if !precheck.provenance_ok {
+        return Err(DaylightCryptoError::OpenRejected(
+            DaylightOpenFailure::Provenance,
+        ));
+    }
+    if !precheck.content_review_pre_ok {
+        return Err(DaylightCryptoError::OpenRejected(DaylightOpenFailure::Gate));
+    }
     check_kem_block_public_shape_v6(&envelope.kem_block, &keyset)
         .map_err(daylight_open_error_from_rejection_v6)?;
     if !precheck.kem_block_ok {
@@ -1206,6 +1310,29 @@ fn daylight_reference_precheck_v6(
         ));
     }
     Ok(transcript)
+}
+
+fn daylight_public_predicate_error_v6(
+    predicate: DaylightV06PublicPredicate,
+) -> DaylightCryptoError {
+    let failure = match predicate {
+        DaylightV06PublicPredicate::ParseOk => DaylightOpenFailure::Parse,
+        DaylightV06PublicPredicate::SuiteOk => DaylightOpenFailure::Suite,
+        DaylightV06PublicPredicate::AuxHashOk => DaylightOpenFailure::Env,
+        DaylightV06PublicPredicate::KemBlockOk => DaylightOpenFailure::Env,
+        DaylightV06PublicPredicate::ModeOk => DaylightOpenFailure::Mode,
+        DaylightV06PublicPredicate::PolicyOk => DaylightOpenFailure::Policy,
+        DaylightV06PublicPredicate::ClaimOk => DaylightOpenFailure::Claim,
+        DaylightV06PublicPredicate::GateOk => DaylightOpenFailure::Gate,
+        DaylightV06PublicPredicate::ProvenanceOk => DaylightOpenFailure::Provenance,
+        DaylightV06PublicPredicate::ContentReviewPreOk => DaylightOpenFailure::Gate,
+        DaylightV06PublicPredicate::VAuth => DaylightOpenFailure::AuthQ,
+        DaylightV06PublicPredicate::NoDowngradeFinal => DaylightOpenFailure::NoDowngrade,
+        DaylightV06PublicPredicate::LogOk => DaylightOpenFailure::Log,
+        DaylightV06PublicPredicate::InstallOk => DaylightOpenFailure::Install,
+        DaylightV06PublicPredicate::WitnessOk => DaylightOpenFailure::Witness,
+    };
+    DaylightCryptoError::OpenRejected(failure)
 }
 
 fn daylight_open_error_from_rejection_v6(stage: DaylightRejectionStageV6) -> DaylightCryptoError {
@@ -3322,6 +3449,38 @@ mod tests {
         assert_eq!(
             daylight_vector_public_precheck_v6(&evidence.omega, Some(1)),
             Err(DaylightRejectionStageV6::RejectAuthSignature)
+        );
+    }
+
+    #[test]
+    fn v6_authorized_state_carries_8250_boundary_before_private_open() {
+        let (envelope, recipient_secret) = daylight_v6_reference_fixture().unwrap();
+        let precheck = DaylightReferencePrecheckV6::nonproduction_all_passed();
+        let authorized = daylight_authorized_envelope_v6(&envelope, &precheck, Some(1)).unwrap();
+
+        assert!(authorized.public_predicates().all_hold());
+        assert_eq!(authorized.claim_boundary().final_score(), 8250);
+        assert!(authorized.claim_boundary().zero_claims_hold());
+        assert!(!authorized.claim_boundary().production_allowed);
+        assert!(!authorized.claim_boundary().runtime_containment_claim);
+        assert!(
+            !authorized
+                .claim_boundary()
+                .whole_system_post_quantum_safety_claim
+        );
+        assert!(!authorized.claim_boundary().external_review_claim);
+        assert!(!authorized.claim_boundary().official_endorsement_claim);
+
+        let opened = daylight_open_authorized_v6_with_kems(&authorized, &recipient_secret).unwrap();
+        assert_eq!(opened.artifact, DAYLIGHT_V6_SCHEMA_ARTIFACT);
+
+        let mut bad_precheck = precheck;
+        bad_precheck.auth_signature_ok = false;
+        assert_eq!(
+            daylight_authorized_envelope_v6(&envelope, &bad_precheck, Some(1)),
+            Err(DaylightCryptoError::OpenRejected(
+                DaylightOpenFailure::AuthQ
+            ))
         );
     }
 

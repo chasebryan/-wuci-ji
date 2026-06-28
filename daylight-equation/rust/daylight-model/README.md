@@ -15,10 +15,14 @@ It currently provides:
 - Downgrade policy arithmetic over policy minimums and ledger monotonicity.
 - Threshold probability arithmetic with explicit independent-signer
   assumptions.
+- Daylight v0.6 public/private `Open` predicate names, truth-table helpers,
+  and the cap-limited 8250/10000 research boundary with production, runtime
+  containment, whole-system post-quantum-safety, external-review, and official
+  endorsement claims held at zero.
 
 It deliberately does not implement cryptography, parsing of untrusted Daylight
 artifacts, networking, runtime sandboxing, or production authority.
 
 ```sh
-cargo test
+cargo test --offline
 ```

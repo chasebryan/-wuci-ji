@@ -142,6 +142,14 @@ requirements, and fail-closed release behavior. It is not a mechanized
 theorem-prover proof, external review, production authority, runtime
 containment, or whole-system post-quantum-safety evidence.
 
+`daylight-v06-protocol-state-test` checks the Rust written-code form of the
+current 8250/10000 Daylight v0.6 research boundary. It runs the std-only
+`daylight-model` v0.6 predicate tests, including the 20-predicate truth table
+and zero-claim boundary, and checks that the Rust crypto lane constructs a
+`DaylightAuthorizedEnvelopeV6` before entering the provider-backed private
+`Open` path. It is not production authority, runtime containment evidence,
+whole-system post-quantum-safety evidence, or external review.
+
 `daylight-v06-m4-z3-proof-test` checks the Daylight v0.6 M4 Z3 proof in
 `daylight-equation/research/daylight-v06-m4-z3-proof.smt2`,
 `daylight-equation/research/daylight-v06-m4-z3-proof.v1.json`, and

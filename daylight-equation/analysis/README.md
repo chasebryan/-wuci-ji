@@ -13,3 +13,5 @@ Active specs have moved to `../specs/`. Imported source references live in
   desk review as non-peer-review, non-certification evidence.
 - `daylight-v06-peer-review-scoring-model-10000.md` adds a separate lawful
   peer-review scoring overlay without replacing the scorecard.
+- `daylight-v06-written-code-protocol-state.md` records the Rust written-code
+  protocol-state slice for the current 8250/10000 research boundary.

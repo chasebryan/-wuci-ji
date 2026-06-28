@@ -114,6 +114,357 @@ pub const DAYLIGHT_SECURITY_STRENGTH: SecurityStrengthVector = SecurityStrengthV
     min_scalar_bits: 128,
 };
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DaylightV06PublicPredicate {
+    ParseOk,
+    SuiteOk,
+    AuxHashOk,
+    KemBlockOk,
+    ModeOk,
+    PolicyOk,
+    ClaimOk,
+    GateOk,
+    ProvenanceOk,
+    ContentReviewPreOk,
+    VAuth,
+    NoDowngradeFinal,
+    LogOk,
+    InstallOk,
+    WitnessOk,
+}
+
+impl DaylightV06PublicPredicate {
+    pub const fn name(self) -> &'static str {
+        match self {
+            DaylightV06PublicPredicate::ParseOk => "ParseOK",
+            DaylightV06PublicPredicate::SuiteOk => "SuiteOK",
+            DaylightV06PublicPredicate::AuxHashOk => "AuxHashOK",
+            DaylightV06PublicPredicate::KemBlockOk => "KEMBlockOK",
+            DaylightV06PublicPredicate::ModeOk => "ModeOK",
+            DaylightV06PublicPredicate::PolicyOk => "PolicyOK",
+            DaylightV06PublicPredicate::ClaimOk => "ClaimOK",
+            DaylightV06PublicPredicate::GateOk => "GateOK",
+            DaylightV06PublicPredicate::ProvenanceOk => "ProvenanceOK",
+            DaylightV06PublicPredicate::ContentReviewPreOk => "ContentReviewPreOK",
+            DaylightV06PublicPredicate::VAuth => "V_Auth",
+            DaylightV06PublicPredicate::NoDowngradeFinal => "NoDowngradeFinal",
+            DaylightV06PublicPredicate::LogOk => "LogOK",
+            DaylightV06PublicPredicate::InstallOk => "InstallOK",
+            DaylightV06PublicPredicate::WitnessOk => "WitnessOK",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DaylightV06PrivatePredicate {
+    DeriveOk,
+    AeadDec,
+    PayloadOk,
+    CommitOk,
+    LeakOk,
+}
+
+impl DaylightV06PrivatePredicate {
+    pub const fn name(self) -> &'static str {
+        match self {
+            DaylightV06PrivatePredicate::DeriveOk => "DeriveOK",
+            DaylightV06PrivatePredicate::AeadDec => "AEAD.Dec",
+            DaylightV06PrivatePredicate::PayloadOk => "PayloadOK",
+            DaylightV06PrivatePredicate::CommitOk => "CommitOK",
+            DaylightV06PrivatePredicate::LeakOk => "LeakOK",
+        }
+    }
+}
+
+pub const DAYLIGHT_V06_PUBLIC_PREDICATES: [DaylightV06PublicPredicate; 15] = [
+    DaylightV06PublicPredicate::ParseOk,
+    DaylightV06PublicPredicate::SuiteOk,
+    DaylightV06PublicPredicate::AuxHashOk,
+    DaylightV06PublicPredicate::KemBlockOk,
+    DaylightV06PublicPredicate::ModeOk,
+    DaylightV06PublicPredicate::PolicyOk,
+    DaylightV06PublicPredicate::ClaimOk,
+    DaylightV06PublicPredicate::GateOk,
+    DaylightV06PublicPredicate::ProvenanceOk,
+    DaylightV06PublicPredicate::ContentReviewPreOk,
+    DaylightV06PublicPredicate::VAuth,
+    DaylightV06PublicPredicate::NoDowngradeFinal,
+    DaylightV06PublicPredicate::LogOk,
+    DaylightV06PublicPredicate::InstallOk,
+    DaylightV06PublicPredicate::WitnessOk,
+];
+
+pub const DAYLIGHT_V06_PRIVATE_PREDICATES: [DaylightV06PrivatePredicate; 5] = [
+    DaylightV06PrivatePredicate::DeriveOk,
+    DaylightV06PrivatePredicate::AeadDec,
+    DaylightV06PrivatePredicate::PayloadOk,
+    DaylightV06PrivatePredicate::CommitOk,
+    DaylightV06PrivatePredicate::LeakOk,
+];
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DaylightV06PublicPredicates {
+    pub parse_ok: bool,
+    pub suite_ok: bool,
+    pub aux_hash_ok: bool,
+    pub kem_block_ok: bool,
+    pub mode_ok: bool,
+    pub policy_ok: bool,
+    pub claim_ok: bool,
+    pub gate_ok: bool,
+    pub provenance_ok: bool,
+    pub content_review_pre_ok: bool,
+    pub v_auth: bool,
+    pub no_downgrade_final: bool,
+    pub log_ok: bool,
+    pub install_ok: bool,
+    pub witness_ok: bool,
+}
+
+impl DaylightV06PublicPredicates {
+    pub const fn all_passed() -> Self {
+        Self {
+            parse_ok: true,
+            suite_ok: true,
+            aux_hash_ok: true,
+            kem_block_ok: true,
+            mode_ok: true,
+            policy_ok: true,
+            claim_ok: true,
+            gate_ok: true,
+            provenance_ok: true,
+            content_review_pre_ok: true,
+            v_auth: true,
+            no_downgrade_final: true,
+            log_ok: true,
+            install_ok: true,
+            witness_ok: true,
+        }
+    }
+
+    pub const fn all_failed() -> Self {
+        Self {
+            parse_ok: false,
+            suite_ok: false,
+            aux_hash_ok: false,
+            kem_block_ok: false,
+            mode_ok: false,
+            policy_ok: false,
+            claim_ok: false,
+            gate_ok: false,
+            provenance_ok: false,
+            content_review_pre_ok: false,
+            v_auth: false,
+            no_downgrade_final: false,
+            log_ok: false,
+            install_ok: false,
+            witness_ok: false,
+        }
+    }
+
+    pub const fn get(&self, predicate: DaylightV06PublicPredicate) -> bool {
+        match predicate {
+            DaylightV06PublicPredicate::ParseOk => self.parse_ok,
+            DaylightV06PublicPredicate::SuiteOk => self.suite_ok,
+            DaylightV06PublicPredicate::AuxHashOk => self.aux_hash_ok,
+            DaylightV06PublicPredicate::KemBlockOk => self.kem_block_ok,
+            DaylightV06PublicPredicate::ModeOk => self.mode_ok,
+            DaylightV06PublicPredicate::PolicyOk => self.policy_ok,
+            DaylightV06PublicPredicate::ClaimOk => self.claim_ok,
+            DaylightV06PublicPredicate::GateOk => self.gate_ok,
+            DaylightV06PublicPredicate::ProvenanceOk => self.provenance_ok,
+            DaylightV06PublicPredicate::ContentReviewPreOk => self.content_review_pre_ok,
+            DaylightV06PublicPredicate::VAuth => self.v_auth,
+            DaylightV06PublicPredicate::NoDowngradeFinal => self.no_downgrade_final,
+            DaylightV06PublicPredicate::LogOk => self.log_ok,
+            DaylightV06PublicPredicate::InstallOk => self.install_ok,
+            DaylightV06PublicPredicate::WitnessOk => self.witness_ok,
+        }
+    }
+
+    pub fn with(mut self, predicate: DaylightV06PublicPredicate, value: bool) -> Self {
+        match predicate {
+            DaylightV06PublicPredicate::ParseOk => self.parse_ok = value,
+            DaylightV06PublicPredicate::SuiteOk => self.suite_ok = value,
+            DaylightV06PublicPredicate::AuxHashOk => self.aux_hash_ok = value,
+            DaylightV06PublicPredicate::KemBlockOk => self.kem_block_ok = value,
+            DaylightV06PublicPredicate::ModeOk => self.mode_ok = value,
+            DaylightV06PublicPredicate::PolicyOk => self.policy_ok = value,
+            DaylightV06PublicPredicate::ClaimOk => self.claim_ok = value,
+            DaylightV06PublicPredicate::GateOk => self.gate_ok = value,
+            DaylightV06PublicPredicate::ProvenanceOk => self.provenance_ok = value,
+            DaylightV06PublicPredicate::ContentReviewPreOk => {
+                self.content_review_pre_ok = value;
+            }
+            DaylightV06PublicPredicate::VAuth => self.v_auth = value,
+            DaylightV06PublicPredicate::NoDowngradeFinal => self.no_downgrade_final = value,
+            DaylightV06PublicPredicate::LogOk => self.log_ok = value,
+            DaylightV06PublicPredicate::InstallOk => self.install_ok = value,
+            DaylightV06PublicPredicate::WitnessOk => self.witness_ok = value,
+        }
+        self
+    }
+
+    pub fn all_hold(&self) -> bool {
+        DAYLIGHT_V06_PUBLIC_PREDICATES
+            .iter()
+            .all(|predicate| self.get(*predicate))
+    }
+
+    pub fn first_failed(&self) -> Option<DaylightV06PublicPredicate> {
+        DAYLIGHT_V06_PUBLIC_PREDICATES
+            .iter()
+            .copied()
+            .find(|predicate| !self.get(*predicate))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DaylightV06PrivatePredicates {
+    pub derive_ok: bool,
+    pub aead_dec: bool,
+    pub payload_ok: bool,
+    pub commit_ok: bool,
+    pub leak_ok: bool,
+}
+
+impl DaylightV06PrivatePredicates {
+    pub const fn all_passed() -> Self {
+        Self {
+            derive_ok: true,
+            aead_dec: true,
+            payload_ok: true,
+            commit_ok: true,
+            leak_ok: true,
+        }
+    }
+
+    pub const fn all_failed() -> Self {
+        Self {
+            derive_ok: false,
+            aead_dec: false,
+            payload_ok: false,
+            commit_ok: false,
+            leak_ok: false,
+        }
+    }
+
+    pub const fn get(&self, predicate: DaylightV06PrivatePredicate) -> bool {
+        match predicate {
+            DaylightV06PrivatePredicate::DeriveOk => self.derive_ok,
+            DaylightV06PrivatePredicate::AeadDec => self.aead_dec,
+            DaylightV06PrivatePredicate::PayloadOk => self.payload_ok,
+            DaylightV06PrivatePredicate::CommitOk => self.commit_ok,
+            DaylightV06PrivatePredicate::LeakOk => self.leak_ok,
+        }
+    }
+
+    pub fn with(mut self, predicate: DaylightV06PrivatePredicate, value: bool) -> Self {
+        match predicate {
+            DaylightV06PrivatePredicate::DeriveOk => self.derive_ok = value,
+            DaylightV06PrivatePredicate::AeadDec => self.aead_dec = value,
+            DaylightV06PrivatePredicate::PayloadOk => self.payload_ok = value,
+            DaylightV06PrivatePredicate::CommitOk => self.commit_ok = value,
+            DaylightV06PrivatePredicate::LeakOk => self.leak_ok = value,
+        }
+        self
+    }
+
+    pub fn all_hold(&self) -> bool {
+        DAYLIGHT_V06_PRIVATE_PREDICATES
+            .iter()
+            .all(|predicate| self.get(*predicate))
+    }
+
+    pub fn first_failed(&self) -> Option<DaylightV06PrivatePredicate> {
+        DAYLIGHT_V06_PRIVATE_PREDICATES
+            .iter()
+            .copied()
+            .find(|predicate| !self.get(*predicate))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DaylightV06OpenPredicateState {
+    pub public: DaylightV06PublicPredicates,
+    pub private: DaylightV06PrivatePredicates,
+}
+
+impl DaylightV06OpenPredicateState {
+    pub const fn all_passed() -> Self {
+        Self {
+            public: DaylightV06PublicPredicates::all_passed(),
+            private: DaylightV06PrivatePredicates::all_passed(),
+        }
+    }
+
+    pub fn private_ops_allowed(&self) -> bool {
+        self.public.all_hold()
+    }
+
+    pub fn open_succeeds(&self) -> bool {
+        self.public.all_hold() && self.private.all_hold()
+    }
+
+    pub fn first_failed_public(&self) -> Option<DaylightV06PublicPredicate> {
+        self.public.first_failed()
+    }
+
+    pub fn first_failed_private(&self) -> Option<DaylightV06PrivatePredicate> {
+        if self.public.all_hold() {
+            self.private.first_failed()
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DaylightV06ClaimBoundary {
+    pub component_total: u16,
+    pub cap_ceiling: u16,
+    pub score_max: u16,
+    pub production_allowed: bool,
+    pub runtime_containment_claim: bool,
+    pub whole_system_post_quantum_safety_claim: bool,
+    pub external_review_claim: bool,
+    pub official_endorsement_claim: bool,
+    pub legal_safety_nullifier_triggered: bool,
+}
+
+impl DaylightV06ClaimBoundary {
+    pub const fn final_score(&self) -> u16 {
+        if self.legal_safety_nullifier_triggered {
+            0
+        } else if self.component_total < self.cap_ceiling {
+            self.component_total
+        } else {
+            self.cap_ceiling
+        }
+    }
+
+    pub const fn zero_claims_hold(&self) -> bool {
+        !self.production_allowed
+            && !self.runtime_containment_claim
+            && !self.whole_system_post_quantum_safety_claim
+            && !self.external_review_claim
+            && !self.official_endorsement_claim
+    }
+}
+
+pub const DAYLIGHT_V06_8250_RESEARCH_BOUNDARY: DaylightV06ClaimBoundary =
+    DaylightV06ClaimBoundary {
+        component_total: 8250,
+        cap_ceiling: 8250,
+        score_max: 10000,
+        production_allowed: false,
+        runtime_containment_claim: false,
+        whole_system_post_quantum_safety_claim: false,
+        external_review_claim: false,
+        official_endorsement_claim: false,
+        legal_safety_nullifier_triggered: false,
+    };
+
 pub fn actions_for_release_level(release_level: u8) -> Result<&'static [Action], ModelError> {
     match release_level {
         0 => Ok(&[Action::Research, Action::Proof]),
@@ -482,6 +833,91 @@ mod tests {
         assert_eq!(DAYLIGHT_SECURITY_STRENGTH.aead_conf_bits_approx, 256);
         assert_eq!(DAYLIGHT_SECURITY_STRENGTH.aead_int_bits_max, 128);
         assert_eq!(DAYLIGHT_SECURITY_STRENGTH.min_scalar_bits, 128);
+    }
+
+    #[test]
+    fn daylight_v06_predicate_names_match_m4_model() {
+        let public_names: Vec<&str> = DAYLIGHT_V06_PUBLIC_PREDICATES
+            .iter()
+            .map(|predicate| predicate.name())
+            .collect();
+        let private_names: Vec<&str> = DAYLIGHT_V06_PRIVATE_PREDICATES
+            .iter()
+            .map(|predicate| predicate.name())
+            .collect();
+
+        assert_eq!(
+            public_names,
+            vec![
+                "ParseOK",
+                "SuiteOK",
+                "AuxHashOK",
+                "KEMBlockOK",
+                "ModeOK",
+                "PolicyOK",
+                "ClaimOK",
+                "GateOK",
+                "ProvenanceOK",
+                "ContentReviewPreOK",
+                "V_Auth",
+                "NoDowngradeFinal",
+                "LogOK",
+                "InstallOK",
+                "WitnessOK",
+            ]
+        );
+        assert_eq!(
+            private_names,
+            vec!["DeriveOK", "AEAD.Dec", "PayloadOK", "CommitOK", "LeakOK"]
+        );
+    }
+
+    #[test]
+    fn daylight_v06_open_truth_table_is_fail_closed() {
+        let total_predicates =
+            DAYLIGHT_V06_PUBLIC_PREDICATES.len() + DAYLIGHT_V06_PRIVATE_PREDICATES.len();
+        let mut state_count = 0usize;
+
+        for mask in 0u32..(1u32 << total_predicates) {
+            let mut public = DaylightV06PublicPredicates::all_failed();
+            let mut private = DaylightV06PrivatePredicates::all_failed();
+
+            for (index, predicate) in DAYLIGHT_V06_PUBLIC_PREDICATES.iter().enumerate() {
+                public = public.with(*predicate, (mask & (1u32 << index)) != 0);
+            }
+            for (offset, predicate) in DAYLIGHT_V06_PRIVATE_PREDICATES.iter().enumerate() {
+                let index = DAYLIGHT_V06_PUBLIC_PREDICATES.len() + offset;
+                private = private.with(*predicate, (mask & (1u32 << index)) != 0);
+            }
+
+            let state = DaylightV06OpenPredicateState { public, private };
+            assert_eq!(state.private_ops_allowed(), public.all_hold());
+            assert_eq!(
+                state.open_succeeds(),
+                public.all_hold() && private.all_hold()
+            );
+            if !public.all_hold() {
+                assert!(state.first_failed_public().is_some());
+                assert_eq!(state.first_failed_private(), None);
+            } else if !private.all_hold() {
+                assert!(state.first_failed_private().is_some());
+            }
+            state_count += 1;
+        }
+
+        assert_eq!(state_count, 1usize << total_predicates);
+        assert!(DaylightV06OpenPredicateState::all_passed().open_succeeds());
+    }
+
+    #[test]
+    fn daylight_v06_8250_boundary_keeps_nonclaims_zero() {
+        let boundary = DAYLIGHT_V06_8250_RESEARCH_BOUNDARY;
+        assert_eq!(boundary.component_total, 8250);
+        assert_eq!(boundary.cap_ceiling, 8250);
+        assert_eq!(boundary.score_max, 10000);
+        assert_eq!(boundary.final_score(), 8250);
+        assert!(boundary.zero_claims_hold());
+        assert!(!boundary.legal_safety_nullifier_triggered);
     }
 
     #[test]

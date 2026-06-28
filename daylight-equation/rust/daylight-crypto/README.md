@@ -52,6 +52,12 @@ It implements only pinned, locally available pieces:
   explicit non-production external public precheck evidence and does not
   integrate production certificate, revocation, log, install, witness, publish,
   or trust authority.
+- A typed v6 lifecycle where `daylight_authorized_envelope_v6` constructs a
+  `DaylightAuthorizedEnvelopeV6` only after public predicates and the
+  cap-limited 8250/10000 research boundary pass, and
+  `daylight_open_authorized_v6_with_kems` is the provider-backed private path
+  for that typed state. This is research evidence only and does not convert
+  externally supplied public authority into production authority.
 - A provider-backed v6 reference negative corpus in
   `vectors/daylight-v6-reference-negative-corpus-v1.txt`, covering external
   public-precheck denials, production-disallowed denial, and private-path AEAD
