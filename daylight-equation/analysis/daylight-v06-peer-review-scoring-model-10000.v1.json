@@ -5,16 +5,32 @@
   "as_of": "2026-06-28",
   "score": {
     "name": "Daylight_v0.6_peer_review_evaluation_score",
-    "component_total": 8075,
+    "component_total": 8250,
     "cap_ceiling": 8250,
     "legal_factor": 1,
-    "value": 8075,
+    "value": 8250,
     "maximum": 10000,
+    "cap_limited": true,
     "replaces_daylight_research_scorecard": false,
     "production_allowed": false,
     "runtime_containment_claim": false,
     "whole_system_post_quantum_safety_claim": false,
-    "external_review_claim": false
+    "external_review_claim": false,
+    "official_endorsement_claim": false
+  },
+  "desk_review_inputs": {
+    "chatgpt_assessed_research_score": 900,
+    "category_row_sum": 810,
+    "category_row_sum_matches_reported_score": false,
+    "confidence_range": {
+      "low": 880,
+      "high": 930,
+      "maximum": 1000
+    },
+    "classification": "Strong Executable Research Artifact",
+    "path": "daylight-equation/analysis/daylight-v06-chatgpt-desk-review-scorecard.v1.json",
+    "counts_as_external_review": false,
+    "counts_as_official_endorsement": false
   },
   "formula": {
     "component_total": "B = sum(component.value)",
@@ -73,43 +89,43 @@
       "name": "lawful_review_boundary_and_claim_control",
       "value": 1000,
       "maximum": 1000,
-      "reason": "The evaluation is defensive, local, claim-bounded, and explicitly rejects production, runtime containment, whole-system PQ-safety, and external-review claims."
+      "reason": "The evaluation is defensive, local, claim-bounded, and explicitly rejects production, runtime containment, whole-system PQ-safety, external-review, and official-endorsement claims."
     },
     {
       "name": "specification_schema_transcript_and_kdf_surface",
-      "value": 1450,
+      "value": 1500,
       "maximum": 1500,
-      "reason": "The v6 schema, transcript labels, KDF labels, rejection stages, schema-freeze evidence, and reference docs are pinned and checked."
+      "reason": "The v6 schema, transcript labels, KDF labels, rejection stages, schema-freeze evidence, reference docs, and desk-review claim-discipline finding are pinned and checked."
     },
     {
       "name": "reproducible_corpora_and_kat_bundle",
       "value": 1400,
       "maximum": 1500,
-      "reason": "The repo tracks deterministic fixture vectors, negative corpora, provider-backed vectors, vector-agreement evidence, and a KAT reproduction bundle."
+      "reason": "The repo tracks deterministic fixture vectors, negative corpora, provider-backed vectors, vector-agreement evidence, and a KAT reproduction bundle; the desk review still calls out the need for broader independent corpus diversity."
     },
     {
       "name": "fail_closed_implementation_and_negative_behavior",
-      "value": 1125,
+      "value": 1150,
       "maximum": 1200,
-      "reason": "Public-precheck denial, private-path mutation failures, and fail-closed Open behavior are tested, with unresolved authority integration kept as a blocker."
+      "reason": "Public-precheck denial, private-path mutation failures, and fail-closed Open behavior are tested, with desk-review confirmation that the public-before-private framing is directionally correct and unresolved authority integration remains a blocker."
     },
     {
       "name": "cryptographic_provider_evidence",
-      "value": 950,
+      "value": 975,
       "maximum": 1200,
-      "reason": "Provider-backed ML-KEM-1024, DHKEM(P-384,HKDF-SHA384), HKDF, and AEAD evidence exists, but the v0.6 M1 artifact profile and production authority remain non-production."
+      "reason": "Provider-backed ML-KEM-1024, DHKEM(P-384,HKDF-SHA384), HKDF, and AEAD evidence exists, and desk review credits standards-aligned primitive vocabulary; the v0.6 M1 artifact profile and production authority remain non-production."
     },
     {
       "name": "formal_model_and_smt_support",
-      "value": 950,
+      "value": 975,
       "maximum": 1000,
-      "reason": "The repo has an expanded M4 symbolic model and Z3-backed predicate proof, while preserving the need for independent formal-methods and constant-time review."
+      "reason": "The repo has an expanded M4 symbolic model and Z3-backed predicate proof, and desk review rates the formal evidence useful for research while preserving the need for independent formal-methods and constant-time review."
     },
     {
       "name": "review_packet_provenance_and_verifier_automation",
-      "value": 850,
+      "value": 900,
       "maximum": 900,
-      "reason": "The repo tracks a review packet, signed external-review verifier, strict review-set manifest verifier, authority verifier, and composed 1000 claim gate."
+      "reason": "The repo tracks a review packet, signed external-review verifier, strict review-set manifest verifier, authority verifier, composed 1000 claim gate, and a desk review that pressure-tests communications risk."
     },
     {
       "name": "integrated_public_authority_and_trust_model",
@@ -134,6 +150,8 @@
     "AGENTS.md",
     "daylight-equation/SCORECARD.md",
     "daylight-equation/SCORECARD.v1.json",
+    "daylight-equation/analysis/daylight-v06-chatgpt-desk-review-scorecard.md",
+    "daylight-equation/analysis/daylight-v06-chatgpt-desk-review-scorecard.v1.json",
     "daylight-equation/analysis/daylight-v06-external-review-packet.md",
     "daylight-equation/evidence/daylight-v06-external-review-packet.v1.json",
     "daylight-equation/research/daylight-v06-schema-freeze.v1.json",
@@ -162,6 +180,7 @@
     "this model does not make Daylight production-ready",
     "this model does not claim runtime containment",
     "this model does not claim whole-system post-quantum safety",
+    "this model does not claim official endorsement",
     "this model is not legal advice"
   ]
 }
