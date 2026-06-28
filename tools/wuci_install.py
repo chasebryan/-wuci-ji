@@ -276,6 +276,13 @@ def policy() -> dict[str, Any]:
     return raw
 
 
+def manifest_path_for_binary(bin_path: Path) -> str:
+    try:
+        return bin_path.resolve().relative_to(REPO_ROOT).as_posix()
+    except (OSError, ValueError):
+        return str(bin_path)
+
+
 def manifest_fields_for_binary(bin_path: Path) -> dict[str, str]:
     policy()
     return {
@@ -284,7 +291,7 @@ def manifest_fields_for_binary(bin_path: Path) -> dict[str, str]:
         "product-english-name": "Wuci-ji",
         "version": VERSION,
         "platform": PLATFORM,
-        "binary-path": str(bin_path),
+        "binary-path": manifest_path_for_binary(bin_path),
         "binary-sha256": sha256_file(bin_path, "candidate binary"),
         "binary-sha384": sha384_file(bin_path, "candidate binary"),
         "binary-sha512": sha512_file(bin_path, "candidate binary"),

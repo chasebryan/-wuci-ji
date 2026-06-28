@@ -36,6 +36,7 @@ def main() -> None:
 
     current_bin = REPO / "build" / "wuci-ji"
     live_fields = wuci_install.manifest_fields_for_binary(current_bin)
+    assert live_fields["binary-path"] == "build/wuci-ji"
     live_text = wuci_install.canonical_manifest(live_fields)
     live_manifest = wuci_install.parse_manifest(live_text)
     assert live_manifest["binary-sha256"] == wuci_install.sha256_file(current_bin)
