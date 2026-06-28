@@ -58,6 +58,11 @@ It implements only pinned, locally available pieces:
   `daylight_open_authorized_v6_with_kems` is the provider-backed private path
   for that typed state. This is research evidence only and does not convert
   externally supplied public authority into production authority.
+- A WUCI-DAYLIGHT bridge command,
+  `wuci-daylight-envelope-boundary --file <artifact>`, that classifies WJSEAL
+  v1/v2/v3 envelope bytes, binds them to the Daylight v0.6 8250/10000
+  zero-claim boundary, and records that WUCI-GATE is still required for
+  plaintext release. It does not decrypt, verify tags, or accept keys.
 - A provider-backed v6 reference negative corpus in
   `vectors/daylight-v6-reference-negative-corpus-v1.txt`, covering external
   public-precheck denials, production-disallowed denial, and private-path AEAD
@@ -100,6 +105,7 @@ cargo run --offline -- v6-provider-kem-evidence
 cargo run --offline -- v6-provider-private-roundtrip-evidence
 cargo run --offline -- v6-reference-seal-open-evidence
 cargo run --offline -- v6-reference-negative-corpus-evidence
+cargo run --offline -- wuci-daylight-envelope-boundary --file ../../../build/wuci-gate-demo/sealed.wj
 cargo run --offline -- digest --file ../../notes/daylight-eq.jpeg
 cargo run --offline -- dhkem-p384-selftest
 cargo run --offline -- mlkem1024-selftest

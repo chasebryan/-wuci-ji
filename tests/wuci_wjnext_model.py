@@ -36,6 +36,7 @@ def main() -> None:
     for field in (
         "a",
         "Hvec(C)",
+        "Hvec(Delta_D)",
         "Hvec(M)",
         "Hvec(Gamma)",
         "Hvec(alpha)",
@@ -52,6 +53,7 @@ def main() -> None:
         "a in {open, release}",
         "Parse_v2(Omega)",
         "EnvOK(C, M)",
+        "DaylightBoundaryOK(Delta_D, C)",
         "RootOK(alpha, a, PK_F)",
         "FROSTVerify_2_of_3(PK_F, m_v2, sigma_F)",
         "GateOK(Gamma, a, M, alpha, m_v2)",
@@ -77,17 +79,23 @@ def main() -> None:
     )
     for phrase in (
         "WJ_next = Accept_v2_mu(a, Omega)",
+        "Delta_D",
+        "DaylightBoundaryOK(Delta_D, C)",
         'm_v2 = H("wuci/transcript/v2" || T_v2)',
         "mu = pq-secure       -> 0 until earned",
         "canonical transcript -> one authorization hash -> typed verifier predicate",
     ):
         assert phrase in doc
     for non_claim in (
+        "WUCI-DAYLIGHT bridge evidence does not decrypt, verify tags, replace Gate, or create production authority",
         "compat mode does not claim post-quantum security",
         "pq-secure mode is false until independently earned",
         "this model does not claim runtime sandboxing",
     ):
         assert non_claim in model["non_claims"]
+
+    mapping = model["implementation_mapping"]
+    assert mapping["Delta_D"] == "WUCI-DAYLIGHT envelope-boundary evidence for C"
 
     assert "wjnext-model-test" in build_targets
     assert "wjnext-model-test:" in makefile

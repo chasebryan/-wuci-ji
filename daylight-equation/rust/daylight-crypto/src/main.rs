@@ -37,12 +37,13 @@ fn run() -> Result<(), String> {
         "v6-provider-private-roundtrip-evidence" => run_v6_provider_private_roundtrip_evidence(),
         "v6-reference-seal-open-evidence" => run_v6_reference_seal_open_evidence(),
         "v6-reference-negative-corpus-evidence" => run_v6_reference_negative_corpus_evidence(),
+        "wuci-daylight-envelope-boundary" => run_wuci_daylight_envelope_boundary(&args),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence|v6-reference-negative-corpus-evidence>".to_string()
+    "usage: daylight-crypto <status|digest|dhkem-p384-selftest|mlkem1024-selftest|mldsa87-verify|mldsa87-selftest|slhdsa-shake-256s-selftest|v4-reference-vector|v6-schema-vector|v6-provider-kem-evidence|v6-provider-private-roundtrip-evidence|v6-reference-seal-open-evidence|v6-reference-negative-corpus-evidence|wuci-daylight-envelope-boundary>".to_string()
 }
 
 fn run_status() -> Result<(), String> {
@@ -66,6 +67,89 @@ fn run_digest(args: &[String]) -> Result<(), String> {
     println!("sha3-512: {}", hex_lower(&vector.sha3_512));
     println!("shake256-512: {}", hex_lower(&vector.shake256_512));
     println!("daylight-h-d: {}", hex_lower(&daylight));
+    Ok(())
+}
+
+fn run_wuci_daylight_envelope_boundary(args: &[String]) -> Result<(), String> {
+    let path = PathBuf::from(value_arg(args, "--file")?);
+    let bytes = read_regular_file(&path)?;
+    let boundary = daylight_crypto::wuci_daylight::wuci_daylight_envelope_boundary(&bytes)
+        .map_err(|err| format!("{err:?}"))?;
+
+    println!("schema={}", boundary.schema);
+    println!("daylight_score={}", boundary.claim_boundary.final_score());
+    println!("daylight_score_max={}", boundary.claim_boundary.score_max);
+    println!(
+        "production_allowed={}",
+        boundary.claim_boundary.production_allowed
+    );
+    println!(
+        "runtime_containment_claim={}",
+        boundary.claim_boundary.runtime_containment_claim
+    );
+    println!(
+        "whole_system_post_quantum_safety_claim={}",
+        boundary
+            .claim_boundary
+            .whole_system_post_quantum_safety_claim
+    );
+    println!(
+        "external_review_claim={}",
+        boundary.claim_boundary.external_review_claim
+    );
+    println!(
+        "official_endorsement_claim={}",
+        boundary.claim_boundary.official_endorsement_claim
+    );
+    println!("envelope_version={}", boundary.envelope_version.as_str());
+    println!("encryption_system={}", boundary.encryption_system);
+    println!("aead_algorithm={}", boundary.aead_algorithm);
+    println!("key_agreement={}", boundary.key_agreement);
+    println!("tag_verified={}", boundary.tag_verified);
+    println!(
+        "daylight_authorized_state_required={}",
+        boundary.daylight_authorized_state_required
+    );
+    println!(
+        "daylight_private_open_authorized={}",
+        boundary.daylight_private_open_authorized
+    );
+    println!(
+        "wuci_gate_required_for_plaintext_release={}",
+        boundary.wuci_gate_required_for_plaintext_release
+    );
+    println!("envelope_len={}", boundary.envelope_len);
+    println!("header_len={}", boundary.header_len);
+    println!("ciphertext_len={}", boundary.ciphertext_len);
+    println!("tag_len={}", boundary.tag_len);
+    println!(
+        "envelope_sha256_hex={}",
+        hex_lower(&boundary.envelope_sha256)
+    );
+    println!(
+        "envelope_sha3_512_hex={}",
+        hex_lower(&boundary.envelope_sha3_512)
+    );
+    println!("header_sha256_hex={}", hex_lower(&boundary.header_sha256));
+    println!(
+        "ciphertext_sha256_hex={}",
+        hex_lower(&boundary.ciphertext_sha256)
+    );
+    println!("tag_sha256_hex={}", hex_lower(&boundary.tag_sha256));
+    println!(
+        "key_id_hex={}",
+        boundary
+            .key_id
+            .map(|bytes| hex_lower(&bytes))
+            .unwrap_or_else(|| "none".to_string())
+    );
+    println!(
+        "ephemeral_public_hex={}",
+        boundary
+            .ephemeral_public
+            .map(|bytes| hex_lower(&bytes))
+            .unwrap_or_else(|| "none".to_string())
+    );
     Ok(())
 }
 

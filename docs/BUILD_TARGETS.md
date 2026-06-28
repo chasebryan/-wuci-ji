@@ -150,6 +150,14 @@ and zero-claim boundary, and checks that the Rust crypto lane constructs a
 `Open` path. It is not production authority, runtime containment evidence,
 whole-system post-quantum-safety evidence, or external review.
 
+`wuci-daylight-bridge-test` composes the Daylight v0.6 protocol-state target
+with the Wuci-Ji envelope bridge. It checks that the Daylight Rust crate
+classifies WJSEAL v1/v2/v3 envelope bytes, records the 8250/10000 zero-claim
+boundary, keeps `daylight_private_open_authorized=false`, and requires WUCI-GATE
+for plaintext release. It does not decrypt, verify AEAD tags, accept keys,
+replace Gate, create production authority, claim runtime containment, or claim
+whole-system post-quantum safety.
+
 `daylight-v06-m4-z3-proof-test` checks the Daylight v0.6 M4 Z3 proof in
 `daylight-equation/research/daylight-v06-m4-z3-proof.smt2`,
 `daylight-equation/research/daylight-v06-m4-z3-proof.v1.json`, and

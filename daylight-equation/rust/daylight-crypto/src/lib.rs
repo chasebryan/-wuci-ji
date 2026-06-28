@@ -5,6 +5,7 @@
 //! are explicit unsupported/fail-closed surfaces, not permissive stubs.
 
 pub mod v6;
+pub mod wuci_daylight;
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::Aes256Gcm;

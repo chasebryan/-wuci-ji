@@ -30,6 +30,9 @@ The implementation now has two explicit Rust surfaces:
   `DaylightAuthorizedEnvelopeV6` only after public predicates and the 8250
   boundary pass. The provider-backed private path is
   `daylight_open_authorized_v6_with_kems`, which consumes that typed state.
+- `daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs` binds Wuci-Ji
+  WJSEAL envelope bytes to the same Daylight boundary for project-wide
+  encryption-surface evidence.
 
 This is not a wrapper around a successful production `Open`. It is the current
 research protocol lifecycle made explicit in code:

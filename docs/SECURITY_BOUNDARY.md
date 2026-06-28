@@ -7,6 +7,7 @@ the current repository has code and tests for that behavior.
 | Boundary | What It Checks | Owner | Current Status |
 | --- | --- | --- | --- |
 | Envelope secrecy boundary | ChaCha20-Poly1305 envelope parse/open, tag verification before final file output, bounded stdin/inspect reads, no-overwrite output | Assembly | Enforced; file opens stream through temp files, stdin/inspect paths stay bounded |
+| WUCI-DAYLIGHT bridge boundary | WJSEAL v1/v2/v3 public envelope classification, digest binding, Daylight v0.6 8250 zero-claim boundary, Gate-required plaintext release | Daylight Rust crate plus root Make target | Deterministic bridge evidence; does not decrypt, verify tags, accept keys, replace Gate, or create production authority |
 | Warrant authorization boundary | Deterministic fixture FROST receipt generation and receipt JSON checks | Python/Zig emitters plus assembly helpers | Demo/reference; fixture-only authority |
 | Flat Gate contract boundary | Fixed-order ASCII contract parse, artifact hash, manifest hash, warrant-message hash, challenge, signature, output safety | Assembly | Enforced for open/release paths |
 | Root authority boundary | Authority root parse, authority ID, action allow bits, contract group key equals authority group key | Assembly plus fixture anchor files | Enforced for rooted open/release; publish/trust commands are unimplemented and fixture roots are test-only |
