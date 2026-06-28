@@ -26,11 +26,15 @@ COMMAND_CONTRACTS = {
         "shape": "publish-authorized-rooted <authority> <artifact> <contract>",
         "required_action": "publish",
         "required_authority_field": "allow-publish",
+        "current_status": "implemented-decision-only-fail-closed",
+        "implemented": True,
     },
     "trust-authorized-rooted": {
         "shape": "trust-authorized-rooted <authority> <artifact> <contract>",
         "required_action": "trust",
         "required_authority_field": "allow-trust",
+        "current_status": "specified-not-implemented-fail-closed",
+        "implemented": False,
     },
 }
 SECP256K1_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -206,6 +210,11 @@ def verify_command_contracts(repo: Path, plan: dict[str, Any]) -> list[str]:
 
     gate = read_json(repo / "docs/wuci_gate_boundary.json", "Wuci Gate boundary")
     futures = {item.get("name"): item for item in gate.get("future_commands", []) if isinstance(item, dict)}
+    assembly = {
+        item.get("name"): item
+        for item in gate.get("assembly_contract_commands", [])
+        if isinstance(item, dict)
+    }
     main_s = read_text(repo / "src/main.s", "assembly command dispatch", max_bytes=512 * 1024)
     policy = read_json(repo / "docs/wuci_production_authority_policy.json", "production authority policy")
     required_commands = policy.get("required_for_production", {}).get("required_publish_trust_assembly_commands")
@@ -223,27 +232,46 @@ def verify_command_contracts(repo: Path, plan: dict[str, Any]) -> list[str]:
             fail(f"{name} authority schema mismatch")
         if item.get("required_authority_field") != expected["required_authority_field"]:
             fail(f"{name} required authority field mismatch")
-        if item.get("current_status") != "specified-not-implemented-fail-closed":
-            fail(f"{name} current status must stay fail-closed")
-        if item.get("implemented") is not False:
-            fail(f"{name} must not be marked implemented")
+        if item.get("current_status") != expected["current_status"]:
+            fail(f"{name} current status mismatch")
+        if item.get("implemented") is not expected["implemented"]:
+            fail(f"{name} implemented state mismatch")
         for key in ("must_reject_now", "activation_requires"):
             if not isinstance(item.get(key), list) or not item[key]:
                 fail(f"{name} missing {key}")
 
-        future = futures.get(name)
-        if not isinstance(future, dict):
-            fail(f"{name} is missing from Wuci Gate future commands")
-        if future.get("implemented") is not False:
-            fail(f"{name} future command must not be marked implemented")
-        if future.get("shape") != expected["shape"]:
-            fail(f"{name} Wuci Gate shape mismatch")
-        if future.get("required_action") != expected["required_action"]:
-            fail(f"{name} Wuci Gate action mismatch")
-        if "assembly Gate enforcement" not in str(future.get("blocker", "")):
-            fail(f"{name} Wuci Gate blocker must mention assembly Gate enforcement")
-        if name in main_s:
-            fail(f"{name} appears in assembly command dispatch before implementation")
+        if expected["implemented"]:
+            command = assembly.get(name)
+            if not isinstance(command, dict):
+                fail(f"{name} is missing from Wuci Gate assembly commands")
+            if command.get("implemented") is not True:
+                fail(f"{name} assembly command must be marked implemented")
+            if command.get("shape") != expected["shape"]:
+                fail(f"{name} Wuci Gate assembly shape mismatch")
+            if command.get("required_action") != expected["required_action"]:
+                fail(f"{name} Wuci Gate assembly action mismatch")
+            if command.get("contract_schema") != "wuci-gate-receipt-contract-v1":
+                fail(f"{name} Wuci Gate assembly contract schema mismatch")
+            if command.get("authority_schema") != "wuci-authority-root-v1":
+                fail(f"{name} Wuci Gate assembly authority schema mismatch")
+            if name in futures:
+                fail(f"{name} must not remain in Wuci Gate future commands")
+            if name not in main_s:
+                fail(f"{name} is missing from assembly command dispatch")
+        else:
+            future = futures.get(name)
+            if not isinstance(future, dict):
+                fail(f"{name} is missing from Wuci Gate future commands")
+            if future.get("implemented") is not False:
+                fail(f"{name} future command must not be marked implemented")
+            if future.get("shape") != expected["shape"]:
+                fail(f"{name} Wuci Gate shape mismatch")
+            if future.get("required_action") != expected["required_action"]:
+                fail(f"{name} Wuci Gate action mismatch")
+            if "assembly Gate enforcement" not in str(future.get("blocker", "")):
+                fail(f"{name} Wuci Gate blocker must mention assembly Gate enforcement")
+            if name in main_s:
+                fail(f"{name} appears in assembly command dispatch before implementation")
         verified.append(name)
     return verified
 

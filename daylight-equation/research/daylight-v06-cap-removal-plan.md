@@ -43,17 +43,19 @@ evidence.
 
 ## Publish And Trust Gate Contract
 
-The next production-authority surface is intentionally specified but not
-implemented:
+The next production-authority surface is intentionally staged:
 
 ```text
 publish-authorized-rooted <authority> <artifact> <contract>
 trust-authorized-rooted <authority> <artifact> <contract>
 ```
 
-Both commands must remain fail-closed until there is assembly Gate enforcement
-for the corresponding action. Fixture authority must not satisfy either
-command. The current fixture roots must continue to carry:
+`publish-authorized-rooted` is implemented only as an assembly decision path
+that verifies rooted publish contract evidence and then emits a fail-closed
+unauthorized decision while `allow-publish` remains false. It does not publish
+or create production authority. `trust-authorized-rooted` remains specified but
+not implemented. Fixture authority must not satisfy either command. The current
+fixture roots must continue to carry:
 
 ```text
 production: false
@@ -61,10 +63,11 @@ allow-trust: false
 allow-publish: false
 ```
 
-Activation requires a non-fixture production authority root, signed Golden Lock
-4-of-5 ceremony evidence, assembly command dispatch, flat publish/trust
-contract verification, and negative tests for fixture roots, wrong actions,
-malformed contracts, and policy mismatches.
+Full activation requires a non-fixture production authority root, signed Golden
+Lock 4-of-5 ceremony evidence, positive publish/trust authority parsing,
+trust command dispatch, flat publish/trust contract verification, and negative
+tests for fixture roots, wrong actions, malformed contracts, and policy
+mismatches.
 
 ## Runtime Containment Contract
 
@@ -87,7 +90,8 @@ Non-claims:
 ```text
 this plan does not raise the Daylight score
 this plan does not create production authority
-this plan does not implement publish or trust Gate commands
+this plan does not complete publish or trust production authority
+this plan does not implement trust Gate commands
 this plan does not claim runtime containment
 this plan does not claim whole-system post-quantum safety
 this plan does not count as independent external review

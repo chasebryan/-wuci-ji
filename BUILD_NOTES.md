@@ -761,6 +761,11 @@ immediates only in the generated `build/wuci-ji.zig.s` source.
    `make gate-receipt-contract` plus the Zig `make gate-contract-zig` bridge;
    use that contract bridge before promoting any assembly `open-authorized`
    command.
+   `publish-authorized-rooted` is now wired as an assembly rooted publish
+   contract decision path, but it deliberately exits nonzero with
+   `authorized: false` while current authority roots keep `allow-publish:
+   false`. It is not production publish authority and does not raise the
+   Daylight cap.
    Use `make self-release-contract-bundle` as the current strongest
    end-to-end release proof, and `make self-release-attestation-test` as the
    tamper-rejection guard. Wuci-ji sealed itself, warranted itself, emitted a

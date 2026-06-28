@@ -15,7 +15,8 @@
     "open-authorized-contract",
     "open-authorized-rooted",
     "release-authorized-contract",
-    "release-authorized-rooted"
+    "release-authorized-rooted",
+    "publish-authorized-rooted"
   ],
   "python_workflow_surfaces": [
     "tools/wuci_frost_authorize.py",
@@ -112,6 +113,15 @@
       "contract_schema": "wuci-gate-receipt-contract-v1",
       "authority_schema": "wuci-authority-root-v1",
       "implemented": true
+    },
+    {
+      "name": "publish-authorized-rooted",
+      "shape": "publish-authorized-rooted <authority> <artifact> <contract>",
+      "required_action": "publish",
+      "contract_schema": "wuci-gate-receipt-contract-v1",
+      "authority_schema": "wuci-authority-root-v1",
+      "implemented": true,
+      "decision": "fail-closed unauthorized decision while fixture and production authority roots keep allow-publish false"
     }
   ],
   "future_commands": [
@@ -127,15 +137,7 @@
       "required_action": "trust",
       "authority_schema": "wuci-authority-root-v1",
       "implemented": false,
-      "blocker": "publish/trust authority requires assembly Gate enforcement before production authority may allow trust"
-    },
-    {
-      "name": "publish-authorized-rooted",
-      "shape": "publish-authorized-rooted <authority> <artifact> <contract>",
-      "required_action": "publish",
-      "authority_schema": "wuci-authority-root-v1",
-      "implemented": false,
-      "blocker": "publish/trust authority requires assembly Gate enforcement before production authority may allow publish"
+      "blocker": "trust authority requires assembly Gate enforcement before production authority may allow trust"
     }
   ],
   "receipt_policy_inputs": [
@@ -186,6 +188,7 @@
     "authority_group_key_mismatch",
     "authority_open_disallowed",
     "authority_release_disallowed",
+    "authority_publish_disallowed",
     "authority_anchor_path_mismatch",
     "authority_anchor_digest_mismatch",
     "self_derived_authority_rejected",
@@ -212,7 +215,8 @@
     "Do not accept non-open actions through open-authorized-rooted.",
     "Do not accept non-release actions through release-authorized-contract.",
     "Do not accept non-release actions through release-authorized-rooted.",
-    "Do not accept trust or publish authority until dedicated assembly commands exist.",
+    "Do not accept trust authority until a dedicated assembly command exists.",
+    "Do not treat publish-authorized-rooted denial output as production publish authority.",
     "Do not make Python the canonical authorization-message owner."
   ]
 }

@@ -79,18 +79,17 @@
       "required_action": "publish",
       "authority_schema": "wuci-authority-root-v1",
       "required_authority_field": "allow-publish",
-      "current_status": "specified-not-implemented-fail-closed",
-      "implemented": false,
+      "current_status": "implemented-decision-only-fail-closed",
+      "implemented": true,
       "must_reject_now": [
         "fixture authority roots",
         "repo-local authority roots",
         "production roots without signed ceremony evidence",
         "contracts whose action is not publish",
+        "publish authority decisions with allow-publish false",
         "private material in public evidence"
       ],
       "activation_requires": [
-        "assembly command dispatch entry",
-        "flat publish contract parser and verifier",
         "authority root parser that can accept allow-publish true only for production roots",
         "negative tests for fixture roots, wrong action, malformed contracts, and policy mismatch",
         "production-authority policy update and verifier acceptance"
@@ -150,7 +149,8 @@
   "non_claims": [
     "this plan does not raise the Daylight score",
     "this plan does not create production authority",
-    "this plan does not implement publish or trust Gate commands",
+    "this plan does not complete publish or trust production authority",
+    "this plan does not implement trust Gate commands",
     "this plan does not claim runtime containment",
     "this plan does not claim whole-system post-quantum safety",
     "this plan does not count as independent external review"

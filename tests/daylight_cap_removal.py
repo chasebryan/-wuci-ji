@@ -62,7 +62,8 @@ def main() -> None:
     for non_claim in (
         "this plan does not raise the Daylight score",
         "this plan does not create production authority",
-        "this plan does not implement publish or trust Gate commands",
+        "this plan does not complete publish or trust production authority",
+        "this plan does not implement trust Gate commands",
     ):
         assert non_claim in summary["non_claims"]
 
@@ -81,12 +82,12 @@ def main() -> None:
         assert b"required cap blocker is not active" in inactive_result.stderr
 
         implemented = json.loads(json.dumps(value))
-        implemented["publish_trust_command_contracts"][0]["implemented"] = True
+        implemented["publish_trust_command_contracts"][1]["implemented"] = True
         implemented_path = tmp / "implemented.json"
         implemented_path.write_text(json.dumps(implemented, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         implemented_result = run_tool("verify", "--repo", str(REPO), "--plan", str(implemented_path), "--quiet")
         assert implemented_result.returncode != 0
-        assert b"must not be marked implemented" in implemented_result.stderr
+        assert b"implemented state mismatch" in implemented_result.stderr
 
         fixture_allowed = json.loads(json.dumps(value))
         fixture_allowed["fixture_authority_rejections"]["required_fields"]["allow-publish"] = "true"

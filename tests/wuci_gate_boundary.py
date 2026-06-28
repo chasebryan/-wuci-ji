@@ -66,6 +66,7 @@ def main() -> None:
     assert "open-authorized-rooted" in assembly_surfaces
     assert "release-authorized-contract" in assembly_surfaces
     assert "release-authorized-rooted" in assembly_surfaces
+    assert "publish-authorized-rooted" in assembly_surfaces
 
     python_surfaces = set(require_list(boundary, "python_workflow_surfaces"))
     assert "tools/wuci_frost_authorize.py" in python_surfaces
@@ -137,6 +138,7 @@ def main() -> None:
     assert "authority_group_key_mismatch" in rejection_classes
     assert "authority_open_disallowed" in rejection_classes
     assert "authority_release_disallowed" in rejection_classes
+    assert "authority_publish_disallowed" in rejection_classes
     assert "authority_anchor_path_mismatch" in rejection_classes
     assert "authority_anchor_digest_mismatch" in rejection_classes
     assert "self_derived_authority_rejected" in rejection_classes
@@ -159,6 +161,7 @@ def main() -> None:
         "open-authorized-rooted",
         "release-authorized-contract",
         "release-authorized-rooted",
+        "publish-authorized-rooted",
     }
     expected_actions = {
         "gate-contract-verify": "open",
@@ -167,6 +170,7 @@ def main() -> None:
         "open-authorized-rooted": "open",
         "release-authorized-contract": "release",
         "release-authorized-rooted": "release",
+        "publish-authorized-rooted": "publish",
     }
     for command in assembly_commands:
         assert command["implemented"] is True
@@ -178,13 +182,10 @@ def main() -> None:
     future_commands = require_list(boundary, "future_commands")
     future_by_name = {command["name"]: command for command in future_commands}
     future_names = set(future_by_name)
-    assert future_names == {"release-authorized", "publish-authorized-rooted", "trust-authorized-rooted"}
+    assert future_names == {"release-authorized", "trust-authorized-rooted"}
     for command in future_commands:
         assert command["implemented"] is False
     assert future_by_name["release-authorized"]["required_action"] == "release"
-    assert future_by_name["publish-authorized-rooted"]["required_action"] == "publish"
-    assert future_by_name["publish-authorized-rooted"]["authority_schema"] == "wuci-authority-root-v1"
-    assert "assembly Gate enforcement" in future_by_name["publish-authorized-rooted"]["blocker"]
     assert future_by_name["trust-authorized-rooted"]["required_action"] == "trust"
     assert future_by_name["trust-authorized-rooted"]["authority_schema"] == "wuci-authority-root-v1"
     assert "assembly Gate enforcement" in future_by_name["trust-authorized-rooted"]["blocker"]
@@ -200,6 +201,7 @@ def main() -> None:
     assert "open-authorized-rooted <authority> <keyfile> <artifact> <contract> <out>" in help_text
     assert "release-authorized-contract <artifact> <contract>" in help_text
     assert "release-authorized-rooted <authority> <artifact> <contract>" in help_text
+    assert "publish-authorized-rooted <authority> <artifact> <contract>" in help_text
     for command in assembly_names:
         rejected = run_wuci([command])
         assert rejected.returncode != 0

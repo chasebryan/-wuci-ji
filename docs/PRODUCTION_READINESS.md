@@ -71,11 +71,12 @@ These targets produce or verify:
   `build/wuci-release-bundle-verification.json`.
 - Production authority policy evidence that rejects fixture authority and
   requires a signed non-fixture ceremony plus assembly Gate publish/trust
-  enforcement before any publish/trust production authority claim.
+  enforcement before any publish/trust production authority claim. The current
+  publish command is a fail-closed decision path only.
 - Daylight cap-removal evidence through `make daylight-v06-cap-removal-test`,
   proving that the current 8250/10000 cap remains active, fixture authority
-  cannot satisfy publish/trust, and the publish/trust command contracts are
-  specified but still fail closed.
+  cannot satisfy publish/trust, `publish-authorized-rooted` is fail-closed, and
+  `trust-authorized-rooted` remains specified but unimplemented.
 - Machine-readable JSON outputs for Gate and install verifier tooling.
 - `build/wuci-sbom.json`.
 - `build/wuci-provenance.json`.
@@ -88,10 +89,11 @@ These targets produce or verify:
   quantum-safe.
 - Custom assembly crypto has not been independently audited or formally
   verified.
-- Production publish/trust Gate commands do not exist as assembly-enforced
-  authority paths. The blocked command names are `publish-authorized-rooted`
-  and `trust-authorized-rooted`; until they exist and pass boundary tests,
-  production authority roots must keep `allow-publish` and `allow-trust` false.
+- Production publish/trust Gate authority is incomplete. The
+  `publish-authorized-rooted` command exists only as a fail-closed decision
+  path, and `trust-authorized-rooted` is still unimplemented; until both pass
+  boundary tests as positive production-authority paths, production authority
+  roots must keep `allow-publish` and `allow-trust` false.
 - General runtime sandboxing, independent wrapper/seccomp review, and VM-grade
   containment are not complete. CARROT currently proves a narrow
   network-syscall deny lane on kernels that allow seccomp filters and

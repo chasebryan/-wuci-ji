@@ -252,6 +252,23 @@ def assert_rooted_release_fails(
     assert proc.stdout == b""
 
 
+def assert_rooted_publish_contract_fails(
+    authority_path: Path,
+    artifact_path: Path,
+    contract_path: Path,
+) -> None:
+    proc = run_wuci(
+        [
+            "publish-authorized-rooted",
+            str(authority_path),
+            str(artifact_path),
+            str(contract_path),
+        ]
+    )
+    assert proc.returncode != 0
+    assert proc.stdout == b""
+
+
 def assert_rooted_open_fails_without_plaintext(
     *,
     authority_path: Path,
@@ -487,7 +504,7 @@ def main() -> None:
             release_contract_path,
         )
 
-        for action in ("trust", "publish"):
+        for action in ("trust",):
             action_receipt_path = make_receipt(tmp, artifact_path, action)
             action_contract_path = tmp / f"{action}-contract.txt"
             emit_contract(artifact_path, action_receipt_path, action_contract_path, action)
@@ -496,6 +513,40 @@ def main() -> None:
                 artifact_path,
                 action_contract_path,
             )
+
+        publish_contract_path = tmp / "rooted-publish-contract.txt"
+        publish_receipt_path = make_receipt(tmp, artifact_path, "publish")
+        emit_contract(artifact_path, publish_receipt_path, publish_contract_path, "publish")
+        publish_denied = run_wuci(
+            [
+                "publish-authorized-rooted",
+                str(release_authority_path),
+                str(artifact_path),
+                str(publish_contract_path),
+            ]
+        )
+        assert publish_denied.returncode != 0
+        publish_text = publish_denied.stdout.decode("ascii")
+        assert publish_text.startswith(
+            "authorized: false\n"
+            "action: publish\n"
+            "reason: authority-publish-disallowed\n"
+        )
+        assert (
+            f"artifact-sha256: {read_value(publish_contract_path.read_text(encoding='ascii'), 'artifact-sha256')}\n"
+            in publish_text
+        )
+        assert publish_denied.stderr == b""
+        assert_rooted_publish_contract_fails(
+            release_authority_path,
+            artifact_path,
+            release_contract_path,
+        )
+        assert_rooted_release_fails(
+            release_authority_path,
+            artifact_path,
+            publish_contract_path,
+        )
 
         for name, mutator in (
             (
@@ -516,6 +567,27 @@ def main() -> None:
                 release_authority_path,
                 artifact_path,
                 bad_release_contract,
+            )
+
+        for name, mutator in (
+            (
+                "publish-wrong-challenge",
+                lambda text: replace_value(text, "challenge", "00" * 32),
+            ),
+            (
+                "publish-wrong-action",
+                lambda text: replace_value(text, "action", "release"),
+            ),
+        ):
+            bad_publish_contract = mutate_text(
+                publish_contract_path.read_bytes(),
+                tmp / f"{name}.txt",
+                mutator,
+            )
+            assert_rooted_publish_contract_fails(
+                release_authority_path,
+                artifact_path,
+                bad_publish_contract,
             )
 
         signature_tamper = mutate_text(
@@ -651,6 +723,22 @@ def main() -> None:
         )
         assert_ok(release, "large rooted release")
         assert release.stdout.startswith(b"authorized: true\naction: release\n")
+
+        publish_receipt_path = make_receipt(tmp, artifact_path, "publish")
+        publish_contract_path = tmp / "large-publish-contract.txt"
+        emit_contract(artifact_path, publish_receipt_path, publish_contract_path, "publish")
+        publish = run_wuci(
+            [
+                "publish-authorized-rooted",
+                str(release_authority_path),
+                str(artifact_path),
+                str(publish_contract_path),
+            ]
+        )
+        assert publish.returncode != 0
+        assert publish.stdout.startswith(
+            b"authorized: false\naction: publish\nreason: authority-publish-disallowed\n"
+        )
 
         if not args.quiet:
             print("added explicit large >1M rooted streaming Gate test")
