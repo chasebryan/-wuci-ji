@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-06-27",
+  "as_of": "2026-06-28",
   "bundle_verification_command": "make daylight-v6-kat-reproduction-bundle-test",
   "generation_commands": [
     {
@@ -49,13 +49,13 @@
     {
       "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
       "role": "provider-backed reference negative corpus",
-      "sha3_512": "007f3cbfcc5cd4a0f46f27148b6cc0928a233619ee990c5191e0a90f001d74db45315457ed1bd679f5db641212db94571fa488d93b945f79d49a8d440b1a8cc4",
+      "sha3_512": "0ac3093c8bd27c8ec27ad4c72b3fbbc6e023c33af8c5642424445fbba7e1ce1330e7fa315c12627fb8e37577da51eb321ee88d90590360e20e6120a3f089e57f",
       "verification_command": "make daylight-v6-reference-negative-corpus-test"
     },
     {
       "path": "daylight-equation/evidence/daylight-v6-provider-vector-agreement.v1.json",
       "role": "provider-backed vector agreement evidence",
-      "sha3_512": "dc6e3621d15c5c6d579134c62cab464a7437b6c8067ca55bc7184e181a03092cde6c48da500430fec74512a2a1f8289a1a3c2e7dcce65e7ac160cab12d9ec48f",
+      "sha3_512": "d6f4af12e3e9d5c27a30901d534164909b4728625720300cd795872508242f5501c0ad0f4512f2d101ec3bf45dbf39b00e1acdc56286c06d47863d24fdc8ab66",
       "verification_command": "make daylight-v6-provider-vector-agreement-test"
     }
   ],
@@ -68,7 +68,7 @@
     "provider_backed_private_roundtrip": true,
     "provider_backed_reference_seal_open": true,
     "public_authority_external": true,
-    "reference_negative_cases": 12,
+    "reference_negative_cases": 14,
     "reference_negative_corpus_all_fail_closed": true,
     "score_delta": 0,
     "vector_artifact_count": 4

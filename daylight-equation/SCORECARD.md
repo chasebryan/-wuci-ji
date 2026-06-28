@@ -121,8 +121,10 @@ If any item is missing, the valid score is below 1000.
   install, witness, publish, trust, and production authority predicates are not
   integrated.
 - The provider-backed reference negative corpus covers the current C1
-  non-production lane only; it is not a full provider-backed valid/negative
-  corpus and does not replace a second independent implementation.
+  non-production lane only, including public-precheck denials plus AEAD,
+  commitment, derivation, and leak-validation failures; it is not a full
+  provider-backed valid/negative corpus and does not replace a second
+  independent implementation.
 - A public KAT/reproduction bundle is tracked for the current provider-backed
   evidence, but no public fuzz corpus or second independent implementation is
   tracked.

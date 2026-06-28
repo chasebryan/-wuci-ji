@@ -730,6 +730,19 @@ fn nightlight_public_simulation_cases(
         DaylightRejectionStageV6::RejectLog,
         |policy| policy.log_required_actions = vec![Action::Open],
     )?;
+    let mut bound_install = base.clone();
+    bound_install.aux_block.install_manifest = Some(CborValue::Text(
+        "deterministic-install-evidence-v1".to_string(),
+    ));
+    bound_install.header.install_manifest_hash =
+        hc_v6(bound_install.aux_block.install_manifest.as_ref().unwrap())?;
+    push_public_envelope_case(
+        &mut cases,
+        "P30_bound_install_manifest_unsupported",
+        "aux.install_manifest=hash_bound_unsupported",
+        DaylightRejectionStageV6::RejectInstall,
+        bound_install,
+    )?;
     let mut review_scope = base.clone();
     review_scope.header.content_scope = DaylightContentScopeV6::PublicCommitment;
     review_scope.header.leak_value = DaylightLeakValueV6::PublicCommitment {
@@ -738,7 +751,7 @@ fn nightlight_public_simulation_cases(
     };
     push_public_envelope_case(
         &mut cases,
-        "P30_public_commitment_without_review",
+        "P31_public_commitment_without_review",
         "header.content_scope=PublicCommitment,no_review_receipt",
         DaylightRejectionStageV6::RejectReview,
         review_scope,
@@ -753,7 +766,7 @@ fn nightlight_public_simulation_cases(
     refresh_claims_hash(&mut disallowed_claim)?;
     push_public_envelope_case(
         &mut cases,
-        "P31_claim_class_7_release_1",
+        "P32_claim_class_7_release_1",
         "claims=[class=7]",
         DaylightRejectionStageV6::RejectClaims,
         disallowed_claim,
@@ -764,7 +777,7 @@ fn nightlight_public_simulation_cases(
     refresh_claims_hash(&mut unknown_claim)?;
     push_public_envelope_case(
         &mut cases,
-        "P32_claim_class_8",
+        "P33_claim_class_8",
         "claims=[class=8]",
         DaylightRejectionStageV6::RejectClaims,
         unknown_claim,
@@ -774,7 +787,7 @@ fn nightlight_public_simulation_cases(
     refresh_claims_hash(&mut malformed_claim)?;
     push_public_envelope_case(
         &mut cases,
-        "P33_claim_null",
+        "P34_claim_null",
         "claims=[null]",
         DaylightRejectionStageV6::RejectClaims,
         malformed_claim,
@@ -782,7 +795,7 @@ fn nightlight_public_simulation_cases(
     push_policy_case(
         &mut cases,
         &base,
-        "P34_policy_disallows_claim_classes",
+        "P35_policy_disallows_claim_classes",
         "policy.allowed_claim_classes=[]",
         DaylightRejectionStageV6::RejectClaims,
         |policy| policy.allowed_claim_classes.clear(),
@@ -797,7 +810,7 @@ fn nightlight_public_simulation_cases(
     refresh_keyset_hash(&mut short_ek_q)?;
     push_public_envelope_case(
         &mut cases,
-        "P35_keyset_short_ek_q",
+        "P36_keyset_short_ek_q",
         "keyset.ek_Q_len=16",
         DaylightRejectionStageV6::RejectKemBlock,
         short_ek_q,
@@ -806,7 +819,7 @@ fn nightlight_public_simulation_cases(
     q_kem_id_mismatch.kem_block.q_kem_key_id[0] ^= 0x80;
     push_public_envelope_case(
         &mut cases,
-        "P36_q_kem_key_id_mismatch",
+        "P37_q_kem_key_id_mismatch",
         "kem.q_kem_key_id[0]^=0x80",
         DaylightRejectionStageV6::RejectKemBlock,
         q_kem_id_mismatch,
@@ -815,7 +828,7 @@ fn nightlight_public_simulation_cases(
     c_kem_id_mismatch.kem_block.c_kem_key_id[0] ^= 0x80;
     push_public_envelope_case(
         &mut cases,
-        "P37_c_kem_key_id_mismatch",
+        "P38_c_kem_key_id_mismatch",
         "kem.c_kem_key_id[0]^=0x80",
         DaylightRejectionStageV6::RejectKemBlock,
         c_kem_id_mismatch,
@@ -824,7 +837,7 @@ fn nightlight_public_simulation_cases(
         cbor_map_replace(base.kem_block.to_cbor(), 2, CborValue::Bytes(vec![0u8; 16]))?;
     push_public_value_case(
         &mut cases,
-        "P38_short_enc_q",
+        "P39_short_enc_q",
         "kem.enc_Q_len=16",
         DaylightRejectionStageV6::RejectKemBlock,
         cbor_map_replace(base.to_cbor(), 2, short_enc_q)?,
@@ -833,7 +846,7 @@ fn nightlight_public_simulation_cases(
         cbor_map_replace(base.kem_block.to_cbor(), 3, CborValue::Bytes(vec![0u8; 16]))?;
     push_public_value_case(
         &mut cases,
-        "P39_short_enc_c",
+        "P40_short_enc_c",
         "kem.enc_C_len=16",
         DaylightRejectionStageV6::RejectKemBlock,
         cbor_map_replace(base.to_cbor(), 2, short_enc_c)?,
@@ -843,7 +856,7 @@ fn nightlight_public_simulation_cases(
     short_q_sig.auth_block.q_sigs[0].sig.truncate(16);
     push_public_envelope_case(
         &mut cases,
-        "P40_short_q_signature",
+        "P41_short_q_signature",
         "auth.q_sig.sig_len=16",
         DaylightRejectionStageV6::RejectAuthBlock,
         short_q_sig,
@@ -855,7 +868,7 @@ fn nightlight_public_simulation_cases(
         .push(duplicate_q_sig.auth_block.q_sigs[0].clone());
     push_public_envelope_case(
         &mut cases,
-        "P41_duplicate_q_signature_key",
+        "P42_duplicate_q_signature_key",
         "auth.q_sigs=duplicate_key",
         DaylightRejectionStageV6::RejectAuthBlock,
         duplicate_q_sig,
@@ -864,7 +877,7 @@ fn nightlight_public_simulation_cases(
     short_h_sig.auth_block.h_sig = Some(vec![0u8; 16]);
     push_public_envelope_case(
         &mut cases,
-        "P42_short_h_signature",
+        "P43_short_h_signature",
         "auth.h_sig_len=16",
         DaylightRejectionStageV6::RejectAuthBlock,
         short_h_sig,
@@ -876,21 +889,21 @@ fn nightlight_public_simulation_cases(
     });
     push_public_envelope_case(
         &mut cases,
-        "P43_unexpected_frost_auth",
+        "P44_unexpected_frost_auth",
         "auth.frost_auth=Some_for_D2Hybrid",
         DaylightRejectionStageV6::RejectAuthBlock,
         unexpected_frost,
     )?;
     push_public_value_case(
         &mut cases,
-        "P44_null_auth_block",
+        "P45_null_auth_block",
         "auth_block=null",
         DaylightRejectionStageV6::RejectAuthBlock,
         cbor_map_replace(base.to_cbor(), 5, CborValue::Null)?,
     )?;
     push_public_envelope_case(
         &mut cases,
-        "P45_valid_schema_public_precheck",
+        "P46_valid_schema_public_precheck",
         "baseline_schema_vector",
         DaylightRejectionStageV6::RejectAuthSignature,
         base,
@@ -1312,6 +1325,7 @@ fn public_case_arm_id(stage: DaylightRejectionStageV6) -> &'static str {
         DaylightRejectionStageV6::RejectReview => "review",
         DaylightRejectionStageV6::RejectDowngrade => "downgrade",
         DaylightRejectionStageV6::RejectLog => "log",
+        DaylightRejectionStageV6::RejectInstall => "install",
         DaylightRejectionStageV6::RejectWitness => "witness",
         _ => "schema",
     }
@@ -1373,6 +1387,7 @@ fn learning_rationale(arm_id: &str) -> &'static str {
         "suite" => "suite and mode checks protect downgrade boundaries",
         "review" => "review gates protect content-scope escalation",
         "downgrade" => "downgrade gates protect release and mode floors",
+        "install" => "install gates keep install evidence explicit and public",
         "reference_auth" => "reference auth denial keeps private Open behind public authority",
         _ => "coverage-learning selected this arm by risk and novelty score",
     }
@@ -1573,6 +1588,18 @@ mod tests {
             .public_simulation_stage_counts
             .iter()
             .any(|count| count.stage == DaylightRejectionStageV6::RejectAuthSignature));
+        assert!(battery
+            .public_simulation_stage_counts
+            .iter()
+            .any(|count| count.stage == DaylightRejectionStageV6::RejectInstall));
+        assert!(battery
+            .failure_counts
+            .iter()
+            .any(|count| count.failure == DaylightOpenFailure::Derive));
+        assert!(battery
+            .failure_counts
+            .iter()
+            .any(|count| count.failure == DaylightOpenFailure::Leak));
         assert_ne!(
             battery.private_ciphertext_hash,
             battery.reference_ciphertext_hash
@@ -1823,13 +1850,13 @@ mod tests {
         assert_eq!(assessment.learning_epochs, NIGHTLIGHT_LEARNING_EPOCHS);
         assert!(assessment.learning_arms_total >= 20);
         assert_eq!(assessment.public_stage_target_total, 14);
-        assert!(assessment.public_stage_covered >= 13);
+        assert_eq!(assessment.public_stage_covered, 14);
         assert_eq!(
             assessment.public_stage_gap_count,
             assessment.public_stage_target_total - assessment.public_stage_covered
         );
         assert_eq!(assessment.private_failure_target_total, 4);
-        assert!(assessment.private_failure_covered >= 2);
+        assert_eq!(assessment.private_failure_covered, 4);
         assert_eq!(
             assessment.private_failure_gap_count,
             assessment.private_failure_target_total - assessment.private_failure_covered
@@ -1858,15 +1885,15 @@ mod tests {
         assert!(assessment
             .recommendations
             .iter()
-            .any(|recommendation| recommendation.gap_id == "missing_public_install_stage"));
+            .all(|recommendation| recommendation.gap_id != "missing_public_install_stage"));
         assert!(assessment
             .recommendations
             .iter()
-            .any(|recommendation| recommendation.gap_id == "missing_private_derive_failure"));
+            .all(|recommendation| recommendation.gap_id != "missing_private_derive_failure"));
         assert!(assessment
             .recommendations
             .iter()
-            .any(|recommendation| recommendation.gap_id == "missing_private_leak_failure"));
+            .all(|recommendation| recommendation.gap_id != "missing_private_leak_failure"));
     }
 
     #[test]

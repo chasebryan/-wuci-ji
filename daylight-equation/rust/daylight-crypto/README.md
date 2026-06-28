@@ -66,13 +66,14 @@ It implements only pinned, locally available pieces:
 - A provider-backed v6 reference negative corpus in
   `vectors/daylight-v6-reference-negative-corpus-v1.txt`, covering external
   public-precheck denials, production-disallowed denial, and private-path AEAD
-  and commitment mutation failures for the non-production reference lane.
+  commitment, derivation, and leak-validation failures for the non-production
+  reference lane.
 - A Nightlight v6 equation battery in
   `vectors/nightlight-v6-equation-battery-v1.txt`, aggregating the v6 schema,
   provider KEM, private-roundtrip, reference `Seal`/`Open`, and reference
   negative-corpus evidence into an open-ended deterministic equation,
   domain-separation, and fail-closed efficiency gate. The current vector covers
-  45 public-boundary mutation simulations plus 12 reference negative cases,
+  46 public-boundary mutation simulations plus 14 reference negative cases,
   with minimum thresholds so the corpus can grow without changing the gate
   shape. These are defensive adversarial validation simulations that force
   Daylight to reject tampered or malformed inputs; they are not attack crypto

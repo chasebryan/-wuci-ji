@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-06-27",
+  "as_of": "2026-06-28",
   "inputs": [
     {
       "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-provider-kem-evidence-v1.txt",
@@ -15,7 +15,7 @@
     },
     {
       "path": "daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt",
-      "sha3_512": "007f3cbfcc5cd4a0f46f27148b6cc0928a233619ee990c5191e0a90f001d74db45315457ed1bd679f5db641212db94571fa488d93b945f79d49a8d440b1a8cc4"
+      "sha3_512": "0ac3093c8bd27c8ec27ad4c72b3fbbc6e023c33af8c5642424445fbba7e1ce1330e7fa315c12627fb8e37577da51eb321ee88d90590360e20e6120a3f089e57f"
     }
   ],
   "schema_version": 1,
@@ -29,7 +29,7 @@
     "provider_backed_reference_seal_open": true,
     "public_authority_external": true,
     "public_precheck_rejection_stage": "REJECT_AUTH_SIGNATURE",
-    "reference_negative_cases": 12,
+    "reference_negative_cases": 14,
     "reference_negative_corpus_all_fail_closed": true,
     "same_artifact_opened": true,
     "seal_outputs_domain_separated_from_private_roundtrip": true

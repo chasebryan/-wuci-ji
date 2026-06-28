@@ -265,9 +265,9 @@ post-quantum-safety evidence.
 reference negative corpus in
 `daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt`.
 It covers non-production external public-precheck denials,
-production-disallowed denial, and private-path AEAD and commitment mutation
-failures. It is not a full provider-backed corpus or independent external
-review.
+production-disallowed denial, and private-path AEAD, commitment, derivation,
+and leak-validation failures. It is not a full provider-backed corpus or
+independent external review.
 
 `daylight-v6-nightlight-battery-test` checks the Nightlight v6 equation
 battery in
@@ -276,9 +276,10 @@ It aggregates the existing v6 schema, provider KEM, private-roundtrip,
 reference `Seal`/`Open`, and reference negative-corpus evidence into
 an open-ended deterministic equation gate. The current battery covers malformed
 CBOR, schema mutation, suite downgrade, aux-hash drift, policy denial, review,
-log, witness, claims, KEM-shape, and auth-block-shape simulations at the
-public boundary, plus the existing private-path AEAD and commitment mutation
-checks. It does not add offensive logic, network behavior, production
+log, install, witness, claims, KEM-shape, and auth-block-shape simulations at
+the public boundary, plus the existing private-path AEAD, commitment,
+derivation, and leak-validation checks. It does not add offensive logic,
+network behavior, production
 authority, runtime containment, whole-system post-quantum-safety claims, or a
 score increase.
 

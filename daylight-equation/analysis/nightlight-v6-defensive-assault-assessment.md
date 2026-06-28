@@ -31,11 +31,11 @@ make daylight-v6-nightlight-deep-assessment-test
 
 ## Current Coverage
 
-The current battery covers 57 deterministic defensive cases:
+The current battery covers 60 deterministic defensive cases:
 
-- 45 public-boundary simulations;
-- 12 reference negative cases;
-- 57 fail-closed outcomes;
+- 46 public-boundary simulations;
+- 14 reference negative cases;
+- 60 fail-closed outcomes;
 - 0 offensive logic additions;
 - 0 network requirements.
 
@@ -45,7 +45,7 @@ Public-boundary assault-simulation categories:
 - envelope schema mutation;
 - suite and mode downgrade boundaries;
 - aux-hash mismatch and unbound aux object insertion;
-- policy mismatch, expiry, provenance, witness, log, and review gates;
+- policy mismatch, expiry, provenance, install, witness, log, and review gates;
 - claim class and claim-shape denial;
 - KEM key-id and KEM shape rejection;
 - auth-block shape rejection;
@@ -56,7 +56,9 @@ Reference negative categories:
 - auth-signature and external-authority denial;
 - review, downgrade, log, install, witness, policy, and claim denial;
 - private-path AEAD mutation denial;
-- private-path commitment mutation denial.
+- private-path commitment mutation denial;
+- private-path derivation denial;
+- private-path leak-validation denial.
 
 ## Learning-Guided Gap Closure
 
@@ -73,15 +75,20 @@ local deterministic scoring pass over existing fail-closed evidence:
   failure classes;
 - recommendations are emitted only as defensive validation gaps.
 
-The current deep assessment keeps all 57 adversarial cases fail-closed and
-identifies these priority gaps for future Daylight hardening:
+The current deep assessment keeps all 60 adversarial cases fail-closed,
+covers all 14 tracked public rejection stages, covers all 4 tracked private
+failure classes, and closed the previous install, derive, and leak gaps:
 
-- `missing_public_install_stage`: add an install-action public validation
-  simulation that reaches `REJECT_INSTALL`;
-- `missing_private_derive_failure`: add a deterministic bad-recipient-key
-  decapsulation denial;
-- `missing_private_leak_failure`: add a deterministic leak-value mismatch
-  denial;
+- `REJECT_INSTALL` is covered by a hash-bound but unsupported install-manifest
+  public simulation;
+- `Derive` is covered by a deterministic malformed recipient decapsulation-key
+  private-path denial;
+- `Leak` is covered by a deterministic metadata leak-value mismatch that passes
+  AEAD and commitment checks before failing at leak validation.
+
+It still identifies these sparse-coverage priorities for future defensive
+hardening:
+
 - `sparse_auth_signature_stage`: broaden public authorization-denial variants;
 - `sparse_review_stage`: add review receipt shape and hash-binding simulations;
 - `sparse_log_witness_stages`: broaden log and witness object-shape

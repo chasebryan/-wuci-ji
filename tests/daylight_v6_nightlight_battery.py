@@ -119,7 +119,20 @@ def main() -> None:
     }
     if sum(failure_counts.values()) != total_negative:
         raise AssertionError("Nightlight failure counts do not sum to total cases")
-    for failure_name in ("AuthQ", "Gate", "Policy", "Install", "Witness", "Log", "Claim", "NoDowngrade", "Aead", "Commit"):
+    for failure_name in (
+        "AuthQ",
+        "Gate",
+        "Policy",
+        "Install",
+        "Witness",
+        "Log",
+        "Claim",
+        "NoDowngrade",
+        "Derive",
+        "Aead",
+        "Commit",
+        "Leak",
+    ):
         if failure_counts.get(failure_name, 0) < 1:
             raise AssertionError(f"Nightlight missing failure coverage for {failure_name}")
 
@@ -143,6 +156,7 @@ def main() -> None:
         "REJECT_REVIEW",
         "REJECT_DOWNGRADE",
         "REJECT_LOG",
+        "REJECT_INSTALL",
         "REJECT_WITNESS",
     ):
         if public_stage_counts.get(stage_name, 0) < 1:

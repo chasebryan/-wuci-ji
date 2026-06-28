@@ -1607,7 +1607,7 @@ pub fn daylight_v6_reference_negative_corpus_evidence(
         daylight_open_v6_with_kems(&bad_ciphertext, &recipient_secret, &precheck, Some(1)),
     )?);
 
-    let mut bad_commitment = envelope;
+    let mut bad_commitment = envelope.clone();
     bad_commitment.com_a[0] ^= 0x80;
     cases.push(daylight_v6_reference_negative_case(
         "N12_commitment_mutated",
@@ -1616,6 +1616,31 @@ pub fn daylight_v6_reference_negative_corpus_evidence(
         false,
         true,
         daylight_open_v6_with_kems(&bad_commitment, &recipient_secret, &precheck, Some(1)),
+    )?);
+
+    let mut bad_recipient_secret = recipient_secret.clone();
+    bad_recipient_secret.mlkem_decaps_key.truncate(16);
+    cases.push(daylight_v6_reference_negative_case(
+        "N13_recipient_decapsulation_key_truncated",
+        "recipient.mlkem_decaps_key_len=16",
+        DaylightOpenFailure::Derive,
+        false,
+        true,
+        daylight_open_v6_with_kems(&envelope, &bad_recipient_secret, &precheck, Some(1)),
+    )?);
+
+    let schema_vector = daylight_v6_schema_vector()?;
+    let mut bad_leak_header = schema_vector.envelope.header;
+    bad_leak_header.leak_value = DaylightLeakValueV6::MetadataOnly { artifact_len: 0 };
+    let (bad_leak, bad_leak_recipient_secret) =
+        daylight_v6_reference_fixture_with_header(bad_leak_header)?;
+    cases.push(daylight_v6_reference_negative_case(
+        "N14_metadata_leak_length_mismatch",
+        "header.leak_value.artifact_len=0",
+        DaylightOpenFailure::Leak,
+        false,
+        true,
+        daylight_open_v6_with_kems(&bad_leak, &bad_leak_recipient_secret, &precheck, Some(1)),
     )?);
 
     let total_cases = cases.len();
@@ -1630,6 +1655,13 @@ pub fn daylight_v6_reference_negative_corpus_evidence(
 }
 
 fn daylight_v6_reference_fixture(
+) -> Result<(DaylightEnvelopeV6, DaylightRecipientSecretKeysV6), DaylightCryptoError> {
+    let schema_vector = daylight_v6_schema_vector()?;
+    daylight_v6_reference_fixture_with_header(schema_vector.envelope.header)
+}
+
+fn daylight_v6_reference_fixture_with_header(
+    header: DaylightHeaderV6,
 ) -> Result<(DaylightEnvelopeV6, DaylightRecipientSecretKeysV6), DaylightCryptoError> {
     let schema_vector = daylight_v6_schema_vector()?;
     let mlkem = mlkem1024_kat_fixture()?;
@@ -1652,7 +1684,7 @@ fn daylight_v6_reference_fixture(
         c_kem_key_id: schema_vector.envelope.kem_block.c_kem_key_id,
     };
     let envelope = daylight_seal_v6_with_kems_from_seed(
-        schema_vector.envelope.header,
+        header,
         schema_vector.envelope.auth_block,
         schema_vector.envelope.aux_block,
         kem_key_ids,
@@ -2689,6 +2721,9 @@ fn check_static_policy_gate_v6(
     if policy.log_required_actions.contains(&header.action) && aux.log_proof.is_none() {
         return Err(DaylightRejectionStageV6::RejectLog);
     }
+    if aux.install_manifest.is_some() {
+        return Err(DaylightRejectionStageV6::RejectInstall);
+    }
     for claim in claims {
         if !claim_class_allowed_by_release(header.release_level, claim.claim_class)
             || !policy.allowed_claim_classes.contains(&claim.claim_class)
@@ -3545,13 +3580,31 @@ mod tests {
             Err(DaylightCryptoError::OpenRejected(DaylightOpenFailure::Aead))
         );
 
-        let mut bad_commitment = envelope;
+        let mut bad_commitment = envelope.clone();
         bad_commitment.com_a[0] ^= 0x80;
         assert_eq!(
             daylight_open_v6_with_kems(&bad_commitment, &recipient_secret, &precheck, Some(1)),
             Err(DaylightCryptoError::OpenRejected(
                 DaylightOpenFailure::Commit
             ))
+        );
+
+        let mut bad_recipient_secret = recipient_secret;
+        bad_recipient_secret.mlkem_decaps_key.truncate(16);
+        assert_eq!(
+            daylight_open_v6_with_kems(&envelope, &bad_recipient_secret, &precheck, Some(1)),
+            Err(DaylightCryptoError::OpenRejected(
+                DaylightOpenFailure::Derive
+            ))
+        );
+
+        let mut bad_leak_header = schema_vector.envelope.header;
+        bad_leak_header.leak_value = DaylightLeakValueV6::MetadataOnly { artifact_len: 0 };
+        let (bad_leak, bad_leak_recipient_secret) =
+            daylight_v6_reference_fixture_with_header(bad_leak_header).unwrap();
+        assert_eq!(
+            daylight_open_v6_with_kems(&bad_leak, &bad_leak_recipient_secret, &precheck, Some(1)),
+            Err(DaylightCryptoError::OpenRejected(DaylightOpenFailure::Leak))
         );
     }
 
@@ -3562,7 +3615,7 @@ mod tests {
         assert!(evidence.public_authority_external);
         assert!(!evidence.production_allowed);
         assert!(evidence.all_fail_closed);
-        assert_eq!(evidence.total_cases, 12);
+        assert_eq!(evidence.total_cases, 14);
         assert_eq!(evidence.cases.len(), evidence.total_cases);
         assert_eq!(
             evidence
@@ -3578,7 +3631,7 @@ mod tests {
                 .iter()
                 .filter(|case| !case.public_precheck_required && case.private_path_reached)
                 .count(),
-            2
+            4
         );
         assert!(evidence
             .cases
@@ -3600,6 +3653,14 @@ mod tests {
             .cases
             .iter()
             .any(|case| case.actual_failure == DaylightOpenFailure::Commit));
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::Derive));
+        assert!(evidence
+            .cases
+            .iter()
+            .any(|case| case.actual_failure == DaylightOpenFailure::Leak));
     }
 
     #[test]

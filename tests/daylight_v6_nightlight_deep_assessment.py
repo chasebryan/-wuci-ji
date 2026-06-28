@@ -81,7 +81,7 @@ def main() -> None:
     recommendations_total = int(fields["recommendations_total"])
     top_priority = int(fields["top_priority"])
 
-    if input_cases < 57 or fail_closed_cases != input_cases:
+    if input_cases < 60 or fail_closed_cases != input_cases:
         raise AssertionError("deep assessment must consume an all fail-closed adversarial corpus")
     if learning_epochs < 8:
         raise AssertionError("deep assessment must keep at least eight learning epochs")
@@ -89,14 +89,14 @@ def main() -> None:
         raise AssertionError("deep assessment learning arm inventory regressed")
     if public_stage_target_total != 14:
         raise AssertionError("public-stage target set changed unexpectedly")
-    if public_stage_covered < 13:
-        raise AssertionError("deep assessment lost public-stage coverage")
+    if public_stage_covered != public_stage_target_total:
+        raise AssertionError("deep assessment must cover every public-stage target")
     if public_stage_gap_count != public_stage_target_total - public_stage_covered:
         raise AssertionError("public-stage gap count does not match coverage")
     if private_failure_target_total != 4:
         raise AssertionError("private-failure target set changed unexpectedly")
-    if private_failure_covered < 2:
-        raise AssertionError("deep assessment lost private-failure coverage")
+    if private_failure_covered != private_failure_target_total:
+        raise AssertionError("deep assessment must cover every private-failure target")
     if private_failure_gap_count != private_failure_target_total - private_failure_covered:
         raise AssertionError("private-failure gap count does not match coverage")
     if recommendations_total < 3 or top_priority < 900:
@@ -158,13 +158,20 @@ def main() -> None:
             raise AssertionError(f"{key} is missing rationale")
 
     recommendation_ids = {value.split("|", 1)[0] for _, value in recommendation_lines}
-    required_recommendations = {
+    closed_gap_recommendations = {
         "missing_public_install_stage",
         "missing_private_derive_failure",
         "missing_private_leak_failure",
     }
+    if closed_gap_recommendations & recommendation_ids:
+        raise AssertionError("deep assessment still recommends gaps that should be closed")
+    required_recommendations = {
+        "sparse_auth_signature_stage",
+        "sparse_review_stage",
+        "sparse_log_witness_stages",
+    }
     if not required_recommendations.issubset(recommendation_ids):
-        raise AssertionError("deep assessment is missing required gap recommendations")
+        raise AssertionError("deep assessment is missing remaining sparse-coverage recommendations")
     for key, value in sorted(recommendation_lines):
         parsed = parse_kv_parts(value)
         if int(parsed["priority"]) < 1:
@@ -188,7 +195,7 @@ def main() -> None:
     assert "daylight_v6_nightlight_deep_assessment.py" in scorecard
     assert "nightlight-v6-deep-assault-assessment-v1.txt" in evidence_readme
     assert "deterministic-coverage-learning-v1" in assessment_doc
-    assert "missing_public_install_stage" in assessment_doc
+    assert "closed the previous install, derive, and leak gaps" in assessment_doc
 
     if not args.quiet:
         print("Nightlight v6 deep assessment: PASS")

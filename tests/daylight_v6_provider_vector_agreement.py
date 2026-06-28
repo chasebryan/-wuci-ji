@@ -99,9 +99,9 @@ def generate() -> dict[str, Any]:
     require_field(negative, "provider_backed_reference_seal_open", "true", "negative")
     require_field(negative, "public_authority_external", "true", "negative")
     require_field(negative, "production_allowed", "false", "negative")
-    require_field(negative, "total_cases", "12", "negative")
+    require_field(negative, "total_cases", "14", "negative")
     require_field(negative, "all_fail_closed", "true", "negative")
-    for index in range(1, 13):
+    for index in range(1, 15):
         case = negative[f"case_{index:02}"]
         if "|expected=" not in case or "|actual=" not in case:
             raise AssertionError(f"negative: case_{index:02} missing expected/actual failure")
@@ -131,7 +131,7 @@ def generate() -> dict[str, Any]:
         {"path": str(NEGATIVE_VECTOR.relative_to(REPO)), "sha3_512": file_sha3_512(NEGATIVE_VECTOR)},
     ]
     return {
-        "as_of": "2026-06-27",
+        "as_of": "2026-06-28",
         "inputs": inputs,
         "schema_version": 1,
         "subject": "Daylight_v0.6_provider_vector_agreement",
@@ -143,7 +143,7 @@ def generate() -> dict[str, Any]:
             "provider_backed_reference_seal_open": True,
             "public_authority_external": True,
             "public_precheck_rejection_stage": "REJECT_AUTH_SIGNATURE",
-            "reference_negative_cases": 12,
+            "reference_negative_cases": 14,
             "reference_negative_corpus_all_fail_closed": True,
             "production_allowed": False,
             "same_artifact_opened": True,
