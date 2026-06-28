@@ -167,6 +167,7 @@ make gate-contract-zig
 Run defensive perimeter proof lanes:
 
 ```sh
+make harden0-proof
 make harden-proof
 make cage-proof
 make qcage-proof

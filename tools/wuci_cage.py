@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_safeio
 import wuci_witness
 
 
@@ -97,39 +98,41 @@ def sha256_bytes(value: bytes) -> str:
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-    except OSError as exc:
-        raise CageError(f"could not read {path}") from exc
+        digest.update(
+            wuci_safeio.read_regular_bytes(
+                path,
+                str(path),
+                reject_symlink=True,
+                reject_hardlink=True,
+            )
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise CageError(str(exc)) from exc
     return digest.hexdigest()
 
 
 def read_bytes(path: Path, context: str) -> bytes:
     try:
-        return path.read_bytes()
-    except OSError as exc:
-        raise CageError(f"could not read {context}: {path}") from exc
+        return wuci_safeio.read_regular_bytes(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise CageError(str(exc)) from exc
 
 
 def read_text(path: Path, context: str) -> str:
     try:
-        return path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise CageError(f"could not read {context}: {path}") from exc
+        return read_bytes(path, context).decode("utf-8")
     except UnicodeDecodeError as exc:
         raise CageError(f"{context} is not UTF-8 text") from exc
 
 
 def load_json(path: Path, context: str) -> Any:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except OSError as exc:
-        raise CageError(f"could not read {context}: {path}") from exc
+        return json.loads(read_text(path, context))
     except json.JSONDecodeError as exc:
         raise CageError(f"{context} is not valid JSON: {exc.msg}") from exc
 
@@ -198,8 +201,15 @@ def assert_public_bundle_shape(bundle: Path) -> None:
     expected = set(PUBLIC_FILES)
     observed: set[str] = set()
     for child in bundle.iterdir():
-        if child.is_dir():
-            raise CageError(f"public witness bundle entry must be a file: {child.name}")
+        try:
+            wuci_safeio.lstat_regular_file(
+                child,
+                f"public witness bundle entry {child.name}",
+                reject_symlink=True,
+                reject_hardlink=True,
+            )
+        except wuci_safeio.SafeIOError as exc:
+            raise CageError(str(exc)) from exc
         if child.name in FORBIDDEN_PUBLIC_FILES:
             raise CageError(f"forbidden public witness file present: {child.name}")
         if child.name not in expected:

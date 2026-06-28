@@ -155,6 +155,26 @@ def main() -> None:
             "missing manifest rejected",
         )
 
+        symlink_manifest = copy_case(base, tmp, "symlink-manifest")
+        symlink_target = tmp / "symlink-manifest-equivalent.txt"
+        symlink_target.write_bytes((symlink_manifest / "manifest.txt").read_bytes())
+        (symlink_manifest / "manifest.txt").unlink()
+        (symlink_manifest / "manifest.txt").symlink_to(symlink_target)
+        assert_cage_fails(
+            cage_attest(symlink_manifest, tmp / "symlink-manifest.json"),
+            "symlink manifest rejected",
+        )
+
+        hardlink_manifest = copy_case(base, tmp, "hardlink-manifest")
+        hardlink_target = tmp / "hardlink-manifest-equivalent.txt"
+        hardlink_target.write_bytes((hardlink_manifest / "manifest.txt").read_bytes())
+        (hardlink_manifest / "manifest.txt").unlink()
+        os.link(hardlink_target, hardlink_manifest / "manifest.txt")
+        assert_cage_fails(
+            cage_attest(hardlink_manifest, tmp / "hardlink-manifest.json"),
+            "hardlink manifest rejected",
+        )
+
         tampered_manifest = copy_case(base, tmp, "tampered-manifest")
         with (tampered_manifest / "manifest.txt").open("ab") as handle:
             handle.write(b"# tamper\n")

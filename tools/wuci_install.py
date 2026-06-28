@@ -102,54 +102,72 @@ def reject_nul(value: str, context: str) -> None:
         fail(f"{context} must not contain NUL")
 
 
-def read_bytes(path: Path, context: str, *, max_bytes: int | None = None) -> bytes:
+def read_bytes(
+    path: Path,
+    context: str,
+    *,
+    max_bytes: int | None = None,
+    reject_hardlink: bool = False,
+) -> bytes:
     try:
         return wuci_safeio.read_regular_bytes(
             path,
             context,
             reject_symlink=True,
+            reject_hardlink=reject_hardlink,
             max_bytes=max_bytes,
         )
     except wuci_safeio.SafeIOError as exc:
         raise InstallError(str(exc)) from exc
 
 
-def read_ascii(path: Path, context: str, *, max_bytes: int | None = None) -> str:
+def read_ascii(
+    path: Path,
+    context: str,
+    *,
+    max_bytes: int | None = None,
+    reject_hardlink: bool = False,
+) -> str:
     try:
         return wuci_safeio.read_regular_ascii(
             path,
             context,
             reject_symlink=True,
+            reject_hardlink=reject_hardlink,
             max_bytes=max_bytes,
         )
     except wuci_safeio.SafeIOError as exc:
         raise InstallError(str(exc)) from exc
 
 
-def sha256_file(path: Path, context: str = "file") -> str:
+def hash_file(path: Path, algorithm: str, context: str, *, reject_hardlink: bool = False) -> str:
+    if reject_hardlink:
+        digest = hashlib.new(algorithm)
+        digest.update(read_bytes(path, context, reject_hardlink=True))
+        return digest.hexdigest()
     try:
-        return wuci_safeio.sha256_file(path, context)
+        digest = hashlib.new(algorithm)
+        digest.update(wuci_safeio.read_regular_bytes(path, context, reject_symlink=True))
+        return digest.hexdigest()
     except wuci_safeio.SafeIOError as exc:
         raise InstallError(str(exc)) from exc
 
 
-def sha384_file(path: Path, context: str = "file") -> str:
-    try:
-        return wuci_safeio.sha384_file(path, context)
-    except wuci_safeio.SafeIOError as exc:
-        raise InstallError(str(exc)) from exc
+def sha256_file(path: Path, context: str = "file", *, reject_hardlink: bool = False) -> str:
+    return hash_file(path, "sha256", context, reject_hardlink=reject_hardlink)
 
 
-def sha512_file(path: Path, context: str = "file") -> str:
-    try:
-        return wuci_safeio.sha512_file(path, context)
-    except wuci_safeio.SafeIOError as exc:
-        raise InstallError(str(exc)) from exc
+def sha384_file(path: Path, context: str = "file", *, reject_hardlink: bool = False) -> str:
+    return hash_file(path, "sha384", context, reject_hardlink=reject_hardlink)
+
+
+def sha512_file(path: Path, context: str = "file", *, reject_hardlink: bool = False) -> str:
+    return hash_file(path, "sha512", context, reject_hardlink=reject_hardlink)
 
 
 def sha512_path(path: Path, context: str) -> str:
     if path.exists():
-        return sha512_file(path, context)
+        return sha512_file(path, context, reject_hardlink=True)
     return ZERO_SHA512
 
 
@@ -157,7 +175,7 @@ def hash_tree_sha512(path: Path, context: str) -> str:
     if not path.exists():
         return ZERO_SHA512
     if path.is_file():
-        return sha512_file(path, context)
+        return sha512_file(path, context, reject_hardlink=True)
     if not path.is_dir():
         fail(f"{context} must be a file or directory: {path}")
     digest = hashlib.sha512()
@@ -170,9 +188,11 @@ def hash_tree_sha512(path: Path, context: str) -> str:
             continue
         if not stat.S_ISREG(info.st_mode):
             fail(f"{context} must contain only regular files: {child}")
+        if info.st_nlink != 1:
+            fail(f"{context} must not contain hardlinks: {child}")
         digest.update(rel.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(read_bytes(child, f"{context} file {rel}"))
+        digest.update(read_bytes(child, f"{context} file {rel}", reject_hardlink=True))
         digest.update(b"\0")
     return digest.hexdigest()
 
@@ -279,8 +299,12 @@ def manifest_fields_for_binary(bin_path: Path) -> dict[str, str]:
 
 def validate_repo_key_sidecar(repo_key: Path | None = None) -> str:
     repo_key = DEFAULT_REPO_ROOT_KEY if repo_key is None else repo_key
-    key_hash = sha256_file(repo_key, "repository install root key")
-    sidecar = read_ascii(DEFAULT_REPO_ROOT_KEY_SHA256, "install root key sha256 sidecar")
+    key_hash = sha256_file(repo_key, "repository install root key", reject_hardlink=True)
+    sidecar = read_ascii(
+        DEFAULT_REPO_ROOT_KEY_SHA256,
+        "install root key sha256 sidecar",
+        reject_hardlink=True,
+    )
     expected = f"{key_hash}  install/wuci-install-root.v1.pub\n"
     legacy_expected = f"{key_hash}  wuci-install-root.v1.pub\n"
     if sidecar not in {expected, legacy_expected}:
@@ -294,8 +318,18 @@ def trust_key_check(local_key: Path, *, quiet: bool = False) -> str:
             "missing local install root key.\n"
             "Copy install/wuci-install-root.v1.pub to ~/.config/wuci-ji/install-root.pub before installing."
         )
-    repo_bytes = read_bytes(DEFAULT_REPO_ROOT_KEY, "repository install root key", max_bytes=8192)
-    local_bytes = read_bytes(local_key, "local install root key", max_bytes=8192)
+    repo_bytes = read_bytes(
+        DEFAULT_REPO_ROOT_KEY,
+        "repository install root key",
+        max_bytes=8192,
+        reject_hardlink=True,
+    )
+    local_bytes = read_bytes(
+        local_key,
+        "local install root key",
+        max_bytes=8192,
+        reject_hardlink=True,
+    )
     repo_hash = validate_repo_key_sidecar()
     local_hash = hashlib.sha256(local_bytes).hexdigest()
     if local_bytes != repo_bytes:
@@ -332,10 +366,25 @@ def verify_manifest_signature(
     quiet: bool = False,
 ) -> dict[str, str]:
     trust_key_check(install_root_key, quiet=True)
-    manifest_bytes = read_bytes(manifest_path, "install manifest", max_bytes=65536)
+    manifest_bytes = read_bytes(
+        manifest_path,
+        "install manifest",
+        max_bytes=65536,
+        reject_hardlink=True,
+    )
     manifest = parse_manifest(manifest_bytes.decode("ascii"))
-    read_bytes(signature_path, "install manifest signature", max_bytes=65536)
-    key_line = read_bytes(install_root_key, "local install root key", max_bytes=8192).decode("ascii").strip()
+    read_bytes(
+        signature_path,
+        "install manifest signature",
+        max_bytes=65536,
+        reject_hardlink=True,
+    )
+    key_line = read_bytes(
+        install_root_key,
+        "local install root key",
+        max_bytes=8192,
+        reject_hardlink=True,
+    ).decode("ascii").strip()
     if not key_line.startswith(("ssh-ed25519 ", "sk-ssh-ed25519@openssh.com ")):
         fail("install root key must be an OpenSSH Ed25519 public key")
     ssh = ssh_keygen_path(ssh_keygen)
@@ -386,7 +435,12 @@ def sign_manifest_signature(
     quiet: bool = False,
 ) -> dict[str, str]:
     require_signing_key(signing_key)
-    manifest_bytes = read_bytes(manifest_path, "install manifest", max_bytes=65536)
+    manifest_bytes = read_bytes(
+        manifest_path,
+        "install manifest",
+        max_bytes=65536,
+        reject_hardlink=True,
+    )
     manifest = parse_manifest(manifest_bytes.decode("ascii"))
     ssh = ssh_keygen_path(ssh_keygen)
     with tempfile.TemporaryDirectory(prefix="wuci-install-sign-") as tmp:
@@ -411,7 +465,12 @@ def sign_manifest_signature(
             detail = (proc.stderr or proc.stdout).decode("utf-8", "replace").strip()
             fail(f"install manifest signing failed: {detail}")
         generated_sig = sign_input.with_suffix(sign_input.suffix + ".sig")
-        signature_bytes = read_bytes(generated_sig, "generated install manifest signature", max_bytes=65536)
+        signature_bytes = read_bytes(
+            generated_sig,
+            "generated install manifest signature",
+            max_bytes=65536,
+            reject_hardlink=True,
+        )
         verify_path = Path(tmp) / "manifest.sig.verify"
         verify_path.write_bytes(signature_bytes)
         verify_manifest_signature(
@@ -662,7 +721,11 @@ def install_files(
         "audit_command": str(audit_dest),
         "previous_binary_sha256": previous_hash,
         "install_root_key_sha256": key_sha256,
-        "install_manifest_sha512": sha512_file(manifest_path, "install manifest"),
+        "install_manifest_sha512": sha512_file(
+            manifest_path,
+            "install manifest",
+            reject_hardlink=True,
+        ),
         "install_signature_verified": True,
         "binary_sha256": binary_hashes[0],
         "binary_sha384": binary_hashes[1],
@@ -690,7 +753,13 @@ def receipt_path(prefix: Path) -> Path:
 
 def load_receipt(prefix: Path) -> dict[str, Any]:
     try:
-        receipt = json.loads(read_bytes(receipt_path(prefix), "install receipt").decode("utf-8"))
+        receipt = json.loads(
+            read_bytes(
+                receipt_path(prefix),
+                "install receipt",
+                reject_hardlink=True,
+            ).decode("utf-8")
+        )
     except json.JSONDecodeError as exc:
         raise InstallError(f"install receipt is not JSON: {exc.msg}") from exc
     if not isinstance(receipt, dict):
@@ -765,13 +834,15 @@ def run_manifest(args: argparse.Namespace) -> int:
 
 def run_verify_manifest(args: argparse.Namespace) -> int:
     emit_json = getattr(args, "json", False)
+    bin_path = Path(args.bin)
     manifest = verify_manifest_signature(
         install_root_key=Path(args.install_root_key).expanduser(),
         manifest_path=Path(args.manifest),
         signature_path=Path(args.signature),
         ssh_keygen=args.ssh_keygen,
-        quiet=emit_json,
+        quiet=True,
     )
+    binary_hashes = verify_digest_vector(bin_path, manifest)
     if emit_json:
         print_json(
             {
@@ -779,11 +850,14 @@ def run_verify_manifest(args: argparse.Namespace) -> int:
                 "manifest_path": str(args.manifest),
                 "signature_path": str(args.signature),
                 "signature_verified": True,
-                "binary_sha256": manifest["binary-sha256"],
-                "binary_sha384": manifest["binary-sha384"],
-                "binary_sha512": manifest["binary-sha512"],
+                "binary_sha256": binary_hashes[0],
+                "binary_sha384": binary_hashes[1],
+                "binary_sha512": binary_hashes[2],
             }
         )
+    else:
+        print("install-manifest-signature: PASS")
+        print("install-digest-vector: PASS")
     return 0
 
 
@@ -807,6 +881,7 @@ def run_sign_manifest(args: argparse.Namespace) -> int:
                 "install_root_key_sha256": sha256_file(
                     Path(args.install_root_key).expanduser(),
                     "install root key",
+                    reject_hardlink=True,
                 ),
                 "binary_sha256": manifest["binary-sha256"],
                 "binary_sha384": manifest["binary-sha384"],
@@ -889,7 +964,10 @@ def run_audit(args: argparse.Namespace) -> int:
     if sha512_file(binary, "installed binary") != receipt["binary_sha512"]:
         fail("installed binary SHA-512 does not match receipt")
     key = prefix / "share" / "wuci-ji" / "install-root.pub"
-    if sha256_file(key, "installed install root key") != receipt["install_root_key_sha256"]:
+    if (
+        sha256_file(key, "installed install root key", reject_hardlink=True)
+        != receipt["install_root_key_sha256"]
+    ):
         fail("installed install root key SHA-256 does not match receipt")
     manifest = prefix / "share" / "wuci-ji" / "wuci-install-manifest.v1"
     signature = prefix / "share" / "wuci-ji" / "wuci-install-manifest.v1.sig"
@@ -931,6 +1009,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     verify = subparsers.add_parser("verify-manifest")
     verify.add_argument("--install-root-key", required=True)
+    verify.add_argument("--bin", default=str(DEFAULT_BIN))
     verify.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     verify.add_argument("--signature", default=str(DEFAULT_SIGNATURE))
     verify.add_argument("--ssh-keygen")

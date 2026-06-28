@@ -55,6 +55,9 @@ make install-sign-current INSTALL_SIGNING_KEY=/absolute/path/to/root-signing-key
 make install-verify INSTALL_ROOT_KEY=install/wuci-install-root.v1.pub
 ```
 
+`install-verify` checks both the OpenSSH manifest signature and the candidate
+binary digest vector from the signed manifest.
+
 The signing key is never committed. `install-sign-current` regenerates the
 manifest for the current binary, creates an OpenSSH detached signature in the
 `wuci-install-v1` namespace, and verifies that signature against the install

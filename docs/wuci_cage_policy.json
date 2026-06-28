@@ -81,6 +81,8 @@
     "release_decision_denied",
     "missing_attestation",
     "attestation_digest_mismatch",
+    "symlink_public_witness_file",
+    "hardlink_public_witness_file",
     "private_material_in_public_bundle",
     "opened_binary_in_public_bundle",
     "transcript_in_public_bundle",

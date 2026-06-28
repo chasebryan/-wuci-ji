@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -34,6 +35,9 @@ def main() -> None:
         link = tmp / "link.pub"
         link.symlink_to(local)
         expect_fail(lambda: wuci_install.trust_key_check(link, quiet=True))
+        hardlink = tmp / "hardlink.pub"
+        os.link(local, hardlink)
+        expect_fail(lambda: wuci_install.trust_key_check(hardlink, quiet=True))
 
 
 if __name__ == "__main__":
