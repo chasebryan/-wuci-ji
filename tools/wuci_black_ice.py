@@ -1788,6 +1788,7 @@ def handle_kaiju_boot_command(root: Path, args: argparse.Namespace, parts: list[
     plan = json.loads(plan_text)
     if plan.get("qemu_discovered") == "not found on PATH":
         print(f"kaiju boot: QEMU executable not found: {getattr(args, 'kaiju_qemu_bin', wuci_kaiju.DEFAULT_QEMU_BIN)}")
+        print(wuci_kaiju.QEMU_INSTALL_HINT)
         return
     argv = plan["argv"]
     print("kaiju boot: launching non-graphical QEMU")

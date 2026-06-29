@@ -56,8 +56,6 @@ commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
 `profile`, `history`, `security`, `theme`, `banner`, `tips`, `xframe-split`,
 `xframe-next`, `xframe-drop`, `exit`), local learning notes (`learn`), nested
 metadata contexts (`nest`), metadata-only plugin/WASI catalogs (`plugins`,
-`wasm`), guarded Base1/B1/B2 metadata (`base1`), and the bounded Codex bridge
-command (`codex`).
 `wasm`), the WUCI-KAIJU Kali purpose catalog (`kaiju`), guarded Base1/B1/B2
 metadata (`base1`), and the bounded Codex bridge command (`codex`).
 
@@ -122,7 +120,8 @@ kaiju boot
 
 `kaiju boot` launches QEMU with `-nographic`, `-serial mon:stdio`, and
 `-net none` by default. Use `kaiju boot --dry-run` or `cat /kaiju/boot-plan` to
-inspect the exact argv without starting QEMU. The bridge requires a local
+inspect the exact argv without starting QEMU. On RHEL, install `qemu-kvm-core`;
+the bridge auto-detects `/usr/libexec/qemu-kvm`. The bridge requires a local
 operator-supplied ISO; ISO reads reject symlinks and hardlinks, the installed
 ISO gets SHA-256/SHA-384/SHA-512 evidence, and the mutable raw disk is recorded
 separately. WUCI-KAIJU does not expose Kali tools as NOXFRAME commands, perform

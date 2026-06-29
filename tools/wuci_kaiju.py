@@ -26,6 +26,14 @@ ISO_SCHEMA = "wuci-kaiju-iso-install-v1"
 DISK_SCHEMA = "wuci-kaiju-disk-v1"
 BOOT_SCHEMA = "wuci-kaiju-boot-plan-v1"
 DEFAULT_QEMU_BIN = "qemu-system-x86_64"
+DEFAULT_QEMU_CANDIDATES = (
+    "qemu-system-x86_64",
+    "qemu-kvm",
+    "/usr/libexec/qemu-kvm",
+)
+QEMU_INSTALL_HINT = (
+    "install qemu-kvm-core on RHEL, or pass --kaiju-qemu-bin /path/to/qemu"
+)
 DEFAULT_MEMORY_MIB = 2048
 DEFAULT_CPUS = 2
 REQUIRED_PURPOSES = (
@@ -540,6 +548,22 @@ def disk_status_text(disk_root: Path | None = None) -> str:
     return "\n".join(rows)
 
 
+def discover_qemu(qemu_bin: str = DEFAULT_QEMU_BIN) -> str | None:
+    candidates = [qemu_bin]
+    if qemu_bin == DEFAULT_QEMU_BIN:
+        candidates.extend(candidate for candidate in DEFAULT_QEMU_CANDIDATES if candidate not in candidates)
+    for candidate in candidates:
+        if os.sep in candidate:
+            path = Path(candidate)
+            if path.is_file() and os.access(path, os.X_OK):
+                return str(path)
+            continue
+        found = shutil.which(candidate)
+        if found:
+            return found
+    return None
+
+
 def boot_plan(
     *,
     iso_root: Path | None = None,
@@ -558,7 +582,7 @@ def boot_plan(
         raise KaijuError("Kali ISO is not installed: " + "; ".join(iso_result["problems"]))
     disk_result = verify_disk(disk_root)
     disk_path = disk_result.get("disk_path") if disk_result["status"] == "pass" else None
-    qemu_path = shutil.which(qemu_bin) if os.sep not in qemu_bin else qemu_bin
+    qemu_path = discover_qemu(qemu_bin)
     argv = [
         qemu_path or qemu_bin,
         "-m",
@@ -586,6 +610,7 @@ def boot_plan(
         "argv": argv,
         "qemu_bin": qemu_bin,
         "qemu_discovered": qemu_path or "not found on PATH",
+        "qemu_candidates": list(DEFAULT_QEMU_CANDIDATES) if qemu_bin == DEFAULT_QEMU_BIN else [qemu_bin],
         "graphics": "none",
         "console": "serial mon:stdio",
         "network": "user" if network else "none",
@@ -937,7 +962,7 @@ def command_boot(args: argparse.Namespace) -> int:
     if not args.run:
         return 0
     if plan["qemu_discovered"] == "not found on PATH":
-        raise KaijuError(f"QEMU executable not found: {args.qemu_bin}")
+        raise KaijuError(f"QEMU executable not found: {args.qemu_bin}; {QEMU_INSTALL_HINT}")
     print("wuci-kaiju boot: launching non-graphical QEMU")
     print("argv: " + " ".join(plan["argv"]))
     result = subprocess.run(plan["argv"], check=False, shell=False)

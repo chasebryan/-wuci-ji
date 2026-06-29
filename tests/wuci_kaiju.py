@@ -156,6 +156,9 @@ def assert_iso_disk_boot(tmp: Path) -> None:
     assert "-net" in argv
     assert "none" in argv
     assert any(str(disk_result["disk_path"]) in item for item in argv)
+    assert wuci_kaiju.discover_qemu("/bin/true") == "/bin/true"
+    assert wuci_kaiju.discover_qemu(str(tmp / "missing-qemu")) is None
+    assert plan["qemu_candidates"] == ["/bin/true"]
 
 
 def assert_cli() -> None:
