@@ -2242,7 +2242,17 @@ def assert_help_output() -> None:
     assert help_proc.returncode == 0, help_proc.stderr.decode("utf-8", "replace")
     help_text = help_proc.stdout.decode("ascii")
 
+    bare_proc = run([])
+    assert bare_proc.returncode == 0, bare_proc.stderr.decode("utf-8", "replace")
+    assert bare_proc.stdout == help_proc.stdout
+    assert bare_proc.stderr == b""
+
     for snippet in (
+        "WUCI-JI COMMAND MATRIX",
+        "Usage: wuci-ji <command> [args]",
+        "What do you want to do?",
+        "publish/trust commands are fail-closed decision paths, not production authority.",
+        "sandbox probes are narrow kernel checks, not a general runtime sandbox.",
         "frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin",
         "frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin",
         "frost-p256-h3                  RFC9591 FROST(P-256,SHA-256) H3(nonce) scalar over stdin",

@@ -98,7 +98,7 @@
 _start:
     mov rax, qword ptr [rsp]
     cmp rax, 2
-    jb usage_exit
+    jb menu_exit
 
     mov rbx, qword ptr [rsp + 16]
     lea r12, [rip + command_table]
@@ -129,6 +129,7 @@ help_exit:
     cmp qword ptr [rsp], 2
     jne usage_exit
 
+menu_exit:
     mov rdi, STDOUT
     lea rsi, [rip + usage_msg]
     mov edx, OFFSET FLAT:usage_msg_len
@@ -404,7 +405,32 @@ cmd_help_long:
     .asciz "--help"
 
 usage_msg:
-    .ascii "usage: wuci-ji <sha256|frost-p256-h1|frost-p256-h2|frost-p256-h3|frost-p256-h4|frost-p256-h5|frost-secp256k1-h1|frost-secp256k1-h2|frost-secp256k1-h3|frost-secp256k1-h4|frost-secp256k1-h5|secp256k1-scalar-add|secp256k1-scalar-sub|secp256k1-scalar-mul|secp256k1-scalar-inv|frost-secp256k1-lagrange|frost-secp256k1-nonce-generate|frost-secp256k1-commit|frost-secp256k1-commitment-hash|frost-secp256k1-binding-factor|frost-secp256k1-group-commitment|frost-secp256k1-challenge|frost-secp256k1-signing-share|frost-secp256k1-aggregate|frost-secp256k1-verify|secp256k1-field-add|secp256k1-field-sub|secp256k1-field-mul|secp256k1-field-square|secp256k1-field-inv|secp256k1-point-validate|secp256k1-point-double|secp256k1-point-add|secp256k1-basepoint-mul-variable-time-public-only|secp256k1-jacobian-double|secp256k1-jacobian-mixed-add|secp256k1-projective-basepoint-mul|secp256k1-point-encode-compressed|secp256k1-point-encode-uncompressed|secp256k1-point-decode|hmac-sha256|hkdf-sha256|poly1305|chacha20|keygen|keypair|seal|seal-v2|seal-to|seal-file|seal-file-v2|seal-file-keyfile|seal-file-keyfile-v2|open|open-to|open-file|open-file-keyfile|authority-root-verify|gate-contract-verify|gate-contract-verify-rooted|open-authorized-contract|open-authorized-rooted|release-authorized-contract|release-authorized-rooted|publish-authorized-rooted|trust-authorized-rooted|ledger-empty-root|ledger-leaf-file|ledger-node|inspect|inspect-file|manifest|manifest-file|warrant-message-file|armor-file|dearmor-file|seal-keyfile|seal-keyfile-v2|open-keyfile|aead-seal|aead-open|selftest|asm-regression|sandbox-net-deny-probe|sandbox-seccomp-net-deny-selftest> [args]\n"
+    .ascii "\n"
+    .ascii "+------------------------------------------------------------------------------+\n"
+    .ascii "| WUCI-JI COMMAND MATRIX                                                       |\n"
+    .ascii "| Artifact control, rooted Gate decisions, public evidence, and proof lanes.   |\n"
+    .ascii "+------------------------------------------------------------------------------+\n"
+    .ascii "Usage: wuci-ji <command> [args]\n"
+    .ascii "Tip: run wuci-ji with no args or --help to show this board.\n"
+    .ascii "\n"
+    .ascii "+-- What do you want to do? ---------------------------------------------------+\n"
+    .ascii "| Seal an artifact safely       | seal-file-keyfile-v2, seal-to, armor-file    |\n"
+    .ascii "| Inspect public metadata       | inspect-file, manifest-file                  |\n"
+    .ascii "| Build warrant bytes           | warrant-message-file                         |\n"
+    .ascii "| Verify Gate evidence          | authority-root-verify, gate-contract-verify  |\n"
+    .ascii "| Open only after Gate approval | open-authorized-rooted                       |\n"
+    .ascii "| Print release decision        | release-authorized-rooted                    |\n"
+    .ascii "| Prove publish denial          | publish-authorized-rooted                    |\n"
+    .ascii "| Prove trust denial            | trust-authorized-rooted                      |\n"
+    .ascii "| Start public history          | ledger-empty-root                            |\n"
+    .ascii "| Hash a ledger entry           | ledger-leaf-file                             |\n"
+    .ascii "| Combine ledger nodes          | ledger-node                                  |\n"
+    .ascii "| Test this binary              | selftest, asm-regression, sandbox probes     |\n"
+    .ascii "+------------------------------------------------------------------------------+\n"
+    .ascii "Notes: publish/trust commands are fail-closed decision paths, not production authority.\n"
+    .ascii "       sandbox probes are narrow kernel checks, not a general runtime sandbox.\n"
+    .ascii "\n"
+    .ascii "+-- Hash, FROST, and secp256k1 primitives -------------------------------------+\n"
     .ascii "  sha256                         hash stdin with the assembly SHA-256 core\n"
     .ascii "  frost-p256-h1                  RFC9591 FROST(P-256,SHA-256) H1(rho) scalar over stdin\n"
     .ascii "  frost-p256-h2                  RFC9591 FROST(P-256,SHA-256) H2(chal) scalar over stdin\n"
@@ -445,6 +471,8 @@ usage_msg:
     .ascii "  secp256k1-point-encode-compressed <x> <y> encode affine point as SEC1 compressed hex\n"
     .ascii "  secp256k1-point-encode-uncompressed <x> <y> encode affine point as SEC1 uncompressed hex\n"
     .ascii "  secp256k1-point-decode <point> decode SEC1 compressed or uncompressed hex point\n"
+    .ascii "\n"
+    .ascii "+-- Symmetric crypto and envelope keys ----------------------------------------+\n"
     .ascii "  hmac-sha256 <key>              authenticate stdin with a 32-byte hex key\n"
     .ascii "  hkdf-sha256 <salt> <info>      derive 32 bytes from stdin; salt/info are 64 hex each\n"
     .ascii "  poly1305 <key>                 authenticate stdin with a 32-byte one-time hex key\n"
@@ -462,6 +490,8 @@ usage_msg:
     .ascii "  open-to <private> <in> <out>   open v3 file with X25519 private key; no overwrite\n"
     .ascii "  open-file <key> <in> <out>     open file to a new path; no overwrite\n"
     .ascii "  open-file-keyfile <path> <in> <out> open file with key file; no overwrite\n"
+    .ascii "\n"
+    .ascii "+-- WUCI-GATE authority, contracts, and decisions -----------------------------+\n"
     .ascii "  authority-root-verify <authority> verify flat WUCI-ROOT authority file\n"
     .ascii "  gate-contract-verify <artifact> <contract> verify flat WUCI-GATE receipt contract\n"
     .ascii "  gate-contract-verify-rooted <authority> <artifact> <contract> verify contract against trusted authority root\n"
@@ -471,9 +501,13 @@ usage_msg:
     .ascii "  release-authorized-rooted <authority> <artifact> <contract> verify rooted release contract and print decision\n"
     .ascii "  publish-authorized-rooted <authority> <artifact> <contract> verify rooted publish contract and print fail-closed decision\n"
     .ascii "  trust-authorized-rooted <authority> <artifact> <contract> verify rooted trust contract and print fail-closed decision\n"
+    .ascii "\n"
+    .ascii "+-- WUCI-LEDGER public history ------------------------------------------------+\n"
     .ascii "  ledger-empty-root              print SHA-256 Merkle root for an empty WUCI-LEDGER\n"
     .ascii "  ledger-leaf-file <entry>       print SHA-256(00 || entry bytes) for a ledger entry\n"
     .ascii "  ledger-node <left> <right>     print SHA-256(01 || left || right); inputs are 64 hex\n"
+    .ascii "\n"
+    .ascii "+-- Artifact inspection, manifests, and transport -----------------------------+\n"
     .ascii "  inspect                        print envelope metadata from stdin without a key\n"
     .ascii "  inspect-file <path>            print envelope metadata from a file without a key\n"
     .ascii "  manifest                       print metadata, SHA-256 fingerprints, and tag\n"
@@ -484,6 +518,8 @@ usage_msg:
     .ascii "  seal-keyfile <path>            seal with a key file containing 64 hex plus optional newline\n"
     .ascii "  seal-keyfile-v2 <path> <key-id> seal v2 with a key file; key-id is 32 hex\n"
     .ascii "  open-keyfile <path>            open with a key file containing 64 hex plus optional newline\n"
+    .ascii "\n"
+    .ascii "+-- Low-level AEAD and local proof lanes --------------------------------------+\n"
     .ascii "  aead-seal <key> <nonce>        write ChaCha20-Poly1305 ciphertext || raw tag\n"
     .ascii "  aead-open <key> <nonce> <tag>  verify raw ciphertext, then write plaintext; tag=32 hex\n"
     .ascii "  selftest                       run built-in known-answer tests\n"

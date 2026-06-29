@@ -197,6 +197,11 @@ def main() -> None:
     help_proc = run_wuci(["--help"])
     assert help_proc.returncode == 0, help_proc.stderr.decode("utf-8", "replace")
     help_text = help_proc.stdout.decode("ascii")
+    bare_proc = run_wuci([])
+    assert bare_proc.returncode == 0, bare_proc.stderr.decode("utf-8", "replace")
+    assert bare_proc.stdout == help_proc.stdout
+    assert bare_proc.stderr == b""
+    assert "WUCI-JI COMMAND MATRIX" in help_text
     assert "warrant-message-file <action> <path>" in help_text
     assert "authority-root-verify <authority>" in help_text
     assert "gate-contract-verify <artifact> <contract>" in help_text
