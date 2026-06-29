@@ -6,7 +6,6 @@ import datetime as dt
 import hashlib
 import importlib.util
 import json
-import math
 import os
 import re
 import select
@@ -3188,8 +3187,6 @@ def prompt_boot_graphical(prompt: str) -> bool | None:
 
     decision: dict[str, bool | None] = {"value": None}
     frame_state = {"frame": 0, "after": None}
-    petals: list[dict[str, float]] = []
-
     def finish(value: bool) -> None:
         decision["value"] = value
         after_id = frame_state.get("after")
@@ -3223,22 +3220,6 @@ def prompt_boot_graphical(prompt: str) -> bool | None:
             int(a[2] + (b[2] - a[2]) * amount),
         )
 
-    def rebuild_particles(width: int, height: int) -> None:
-        petals.clear()
-        petal_count = max(90, min(260, (width * height) // 11000))
-        for seed in range(petal_count):
-            petals.append(
-                {
-                    "x": float((seed * 389 + 37) % max(width, 1)),
-                    "y": float((seed * 233 + 19) % max(height, 1)),
-                    "r": 2.0 + (seed % 7) * 0.55,
-                    "speed": 0.18 + (seed % 11) * 0.026,
-                    "sway": 14.0 + (seed % 9) * 2.7,
-                    "phase": seed * 0.73,
-                    "depth": float(seed % 4),
-                }
-            )
-
     def draw_gradient(canvas: object, width: int, height: int) -> None:
         bands = 72
         for index in range(bands):
@@ -3266,13 +3247,6 @@ def prompt_boot_graphical(prompt: str) -> bool | None:
             canvas.create_line(x, 0, x, height, fill=grid_color, width=1, tags="frame")
         for y in range(0, height + grid_step, grid_step):
             canvas.create_line(0, y, width, y, fill=grid_color, width=1, tags="frame")
-        for seed in range(34):
-            x = (seed * 263 + 91) % max(width, 1)
-            y = (seed * 149 + 41) % max(int(height * 0.62), 1)
-            shimmer = 0.5 + 0.5 * math.sin(frame * 0.035 + seed)
-            color = mix((122, 26, 48), (255, 192, 215), shimmer)
-            size = 1 + (seed % 3)
-            canvas.create_oval(x, y, x + size, y + size, fill=hex_color(color), outline="", tags="frame")
 
         panel_x = width * 0.58
         panel_y = height * 0.18
@@ -3351,26 +3325,6 @@ def prompt_boot_graphical(prompt: str) -> bool | None:
             packet_x = panel_x + ((frame * (1.2 + index * 0.25) + index * 61) % panel_w)
             canvas.create_rectangle(packet_x, rail_y - 2, packet_x + cell_w * 0.62, rail_y + 2, fill="#ff4f84", outline="", tags="frame")
 
-    def draw_petals(canvas: object, width: int, height: int, frame: int) -> None:
-        colors = ("#ffe8f0", "#ff9fbd", "#e15688", "#9a55da")
-        for item in petals:
-            depth = int(item["depth"])
-            x = (item["x"] + math.sin(frame * 0.023 + item["phase"]) * item["sway"] + frame * (0.05 + depth * 0.02)) % width
-            y = (item["y"] + frame * item["speed"]) % (height + 40) - 20
-            if x >= width * 0.55 and height * 0.14 <= y <= height * 0.84:
-                continue
-            r = item["r"] + depth * 0.35
-            tilt = math.sin(frame * 0.05 + item["phase"]) * r
-            canvas.create_oval(
-                x - r + tilt * 0.25,
-                y - r * 0.55,
-                x + r + tilt,
-                y + r * 0.55,
-                fill=colors[depth],
-                outline="",
-                tags="frame",
-            )
-
     def draw_text(canvas: object, width: int, height: int) -> None:
         title_size = max(44, min(112, width // 13))
         subtitle_size = max(16, min(30, width // 48))
@@ -3447,18 +3401,14 @@ def prompt_boot_graphical(prompt: str) -> bool | None:
     canvas.pack(fill=tk.BOTH, expand=True)
     width = max(800, root.winfo_screenwidth())
     height = max(480, root.winfo_screenheight())
-    rebuild_particles(width, height)
 
     def render() -> None:
         try:
             current_width = max(640, canvas.winfo_width() or width)
             current_height = max(420, canvas.winfo_height() or height)
-            if not petals or abs(current_width - width) > 80 or abs(current_height - height) > 80:
-                rebuild_particles(current_width, current_height)
             canvas.delete("frame")
             frame = frame_state["frame"]
             draw_static_scene(canvas, current_width, current_height, frame)
-            draw_petals(canvas, current_width, current_height, frame)
             draw_text(canvas, current_width, current_height)
             frame_state["frame"] = frame + 1
             frame_state["after"] = root.after(33, render)
@@ -3941,21 +3891,6 @@ def print_banner(
         packet = grid_left + int((frame * (0.2 + index * 0.07) + index * 5) % max(1, grid_right - grid_left))
         for x in range(packet, min(grid_right, packet + max(2, cell_w // 2))):
             put(x, y, "━", fg=hot_color, bold=True)
-
-    petal_count = max(28, min(180, (width * rows) // (35 if full_screen else 48)))
-    petal_chars = ("·", "∙", "✦", "✧", "'", ".")
-    for seed in range(petal_count):
-        depth = seed % 3
-        speed = 0.055 + depth * 0.034 + (seed % 5) * 0.006
-        base_y = (seed * 17 + 5) % rows
-        y = int((base_y + frame * speed) % rows)
-        wind = math.sin(frame * 0.045 + seed * 0.73 + y * 0.19) * (2.2 + depth * 1.7)
-        long_drift = frame * (0.013 + depth * 0.008)
-        x = int((seed * 29 + 13 + wind + long_drift) % width)
-        if x >= grid_left - 1 and grid_top - 1 <= y <= min(rows - 1, rail_start + 4):
-            continue
-        color = ((255, 224, 234), (255, 155, 190), (173, 92, 218))[depth]
-        put(x, y, petal_chars[(seed + frame // 5) % len(petal_chars)], fg=color, bold=depth == 0)
 
     title_center = int(width * (0.38 if width >= 74 else 0.50))
     title_y = max(2, int(rows * 0.44))
@@ -5480,7 +5415,7 @@ def handle_user_command(
             print("theme: crimson")
         return
     if command == "banner":
-        print("banner: responsive Wuci-Ji blossom boot frame")
+        print("banner: responsive Wuci-Ji lattice boot frame")
         print(f"inner-width: {banner_inner_width()}")
         return
     if command == "tips":
@@ -5657,7 +5592,7 @@ def handle_misc_command(
         print(console_capabilities_text())
         return True
     if command == "matrix":
-        print("matrix: use the responsive blossom boot frame; animation is not run inside tests")
+        print("matrix: use the responsive lattice boot frame; animation is not run inside tests")
         return True
     if command == "bootcfg":
         print(f"profile: {args.profile}")

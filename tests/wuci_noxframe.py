@@ -655,6 +655,10 @@ def assert_boot_animation_frame() -> None:
     assert "[2 1; 1 1]" in text
     assert "┌" in text
     assert "┼" in text
+    assert "·" not in text
+    assert "∙" not in text
+    assert "✦" not in text
+    assert "✧" not in text
     assert "SEAL" not in text
     assert "BUS" not in text
     plain = strip_ansi(text.replace("\033[2J\033[H", ""))
