@@ -76,10 +76,11 @@ renders left/right frames, `xframe-split 3` renders top-left/top-right/bottom,
 and `xframe-split 4` renders the maximum quadrant layout. Each xframe carries
 its own cwd, history, aliases, notes, virtual files, and simulated jobs.
 `xframe-next` cycles through open frames in a circular order; interactive
-readline terminals bind the same action to Alt+Shift+Tab. `xframe-drop 1`
-removes the last frame slot: right when two are open, bottom when three are open,
-and bottom-right when four are open. `xframe-drop all` collapses back to the
-original single NOXFRAME frame.
+readline terminals bind the same action to Shift+Tab and F6. Desktop-level
+Alt+Shift+Tab is not used because common window managers intercept it before the
+terminal can deliver it to NOXFRAME. `xframe-drop 1` removes the last frame slot:
+right when two are open, bottom when three are open, and bottom-right when four
+are open. `xframe-drop all` collapses back to the original single NOXFRAME frame.
 
 `wuci-kaiju` is the NOXFRAME Kali-purpose adapter. It reads the checked-in
 catalog at `docs/noxframe/wuci_kaiju_manifest.json` and maps the Kali

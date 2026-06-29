@@ -128,8 +128,8 @@ DEFAULT_SUBSTRATE_LOCK_DEPTH = 9
 KAIJU_MANIFEST_PATH = "docs/noxframe/wuci_kaiju_manifest.json"
 DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
 XFRAME_MAX = 4
-XFRAME_SWITCH_INPUTS = ("\x1b[Z", "\x1b\x1b[Z")
-XFRAME_SWITCH_HINT = "Alt+Shift+Tab"
+XFRAME_SWITCH_INPUTS = ("\x1b[Z", "\x1b\x1b[Z", "\x1b[17~")
+XFRAME_SWITCH_HINT = "Shift+Tab/F6"
 NOXFRAME_SELF_RELEASE_DEMO_DIR = "build/noxframe/self-release"
 NOXFRAME_SELF_RELEASE_ATTESTATION = f"{NOXFRAME_SELF_RELEASE_DEMO_DIR}/attestation.json"
 NOXFRAME_WITNESS_BUNDLE_DIR = "build/noxframe/self-release-witness"
@@ -390,7 +390,7 @@ CONSOLE_COMMANDS = (
     console_cmd("banner", ("splash",), "user", "banner", "Describe the active responsive boot banner.", "user.read", "metadata-only"),
     console_cmd("tips", ("hint", "hints"), "user", "tips", "Show concise operator tips.", "user.read", "metadata-only"),
     console_cmd("xframe-split", ("xsplit",), "user", "xframe-split <2|3|4>", "Split one NOXFRAME launch into up to four session-local xframes.", "user.frame", "local"),
-    console_cmd("xframe-next", ("xnext", "xframe-cycle"), "user", "xframe-next", "Switch to the next open xframe; bound to Alt+Shift+Tab in interactive readline.", "user.frame", "local"),
+    console_cmd("xframe-next", ("xnext", "xframe-cycle"), "user", "xframe-next", "Switch to the next open xframe; bound to Shift+Tab and F6 in interactive readline.", "user.frame", "local"),
     console_cmd("xframe-drop", ("xdrop",), "user", "xframe-drop <1|all>", "Drop the last xframe slot or collapse back to the original frame.", "user.frame", "local"),
     console_cmd("learn", ("memory", "notes"), "learn", "learn [status|list|show|add <text>|clear]", "Maintain session-local learning notes.", "learn.local", "local"),
     console_cmd("ifconfig", (), "net", "ifconfig", "Show virtual network interface policy.", "net.read", "metadata-only"),
@@ -2199,6 +2199,7 @@ def install_console_readline(session: ConsoleSession) -> tuple[object, str] | No
     for binding in (
         '"\\e[Z": "xframe-next\\n"',
         '"\\e\\e[Z": "xframe-next\\n"',
+        '"\\e[17~": "xframe-next\\n"',
     ):
         try:
             readline.parse_and_bind(binding)
