@@ -56,6 +56,8 @@ commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
 `profile`, `history`, `security`, `theme`, `banner`, `tips`, `xframe-split`,
 `xframe-next`, `xframe-drop`, `exit`), local learning notes (`learn`), nested
 metadata contexts (`nest`), metadata-only plugin/WASI catalogs (`plugins`,
+`wasm`), guarded Base1/B1/B2 metadata (`base1`), and the bounded Codex bridge
+command (`codex`).
 `wasm`), the WUCI-KAIJU Kali purpose catalog (`kaiju`), guarded Base1/B1/B2
 metadata (`base1`), and the bounded Codex bridge command (`codex`).
 

@@ -280,6 +280,14 @@ uses `-net none`; network is not enabled unless explicitly requested. WUCI-KAIJU
 does not expose Kali tools as NOXFRAME commands, scan networks, open radios,
 start vulnerable lab targets, or claim runtime containment.
 
+`xframe-split 2`, `xframe-split 3`, and `xframe-split 4` open a session-local
+xframe deck inside one `make noxframe-launch` console. Two frames render
+left/right, three render top-left/top-right/bottom, and four render a quadrant
+layout. `xframe-next` cycles frames and is bound to Alt+Shift+Tab in interactive
+readline terminals. `xframe-drop 1` removes the last slot (right, bottom, or
+bottom-right depending on the current layout), and `xframe-drop all` returns to
+the original single NOXFRAME frame.
+
 `learn` stores notes only in the current console session. Plugin/WASI commands
 are catalogs and policy views, not module execution. `version --compare`
 reports the Phase1 idea map and confirms that NOXFRAME imports no Phase1 code.
