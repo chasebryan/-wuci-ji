@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import wuci_progress
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
@@ -104,15 +105,21 @@ def classify(path: Path) -> str:
     return "unknown"
 
 
-def run_process(argv: list[str], *, cwd: Path, timeout: float = 5.0) -> dict[str, Any]:
+def run_process(
+    argv: list[str],
+    *,
+    cwd: Path,
+    timeout: float = 5.0,
+    ticker_mode: str = "auto",
+    label: str = "CORPUS parser subprocess",
+) -> dict[str, Any]:
     try:
-        proc = subprocess.run(
+        proc = wuci_progress.run_process(
             argv,
             cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             timeout=timeout,
-            check=False,
+            ticker_mode=ticker_mode,
+            label=label,
         )
     except subprocess.TimeoutExpired:
         return {
@@ -134,7 +141,7 @@ def run_process(argv: list[str], *, cwd: Path, timeout: float = 5.0) -> dict[str
     }
 
 
-def write_gate_artifact(bin_path: Path, work: Path) -> Path:
+def write_gate_artifact(bin_path: Path, work: Path, ticker_mode: str = "auto") -> Path:
     plain = work / "gate-artifact.txt"
     sealed = work / "gate-artifact.wj"
     plain.write_bytes(b"wuci parser corpus replay gate artifact\n")
@@ -148,6 +155,8 @@ def write_gate_artifact(bin_path: Path, work: Path) -> Path:
             str(sealed),
         ],
         cwd=REPO_ROOT,
+        ticker_mode=ticker_mode,
+        label="CORPUS gate replay artifact",
     )
     if proc["returncode"] != 0:
         raise CorpusReplayError("could not create Gate parser replay artifact")
@@ -255,23 +264,38 @@ def replay_payload(
     payload: bytes,
     mutation: str,
     work: Path,
+    ticker_mode: str = "auto",
 ) -> dict[str, Any] | None:
     sample_path = work / f"{surface}-{sample.stem}-{mutation}.bin"
     sample_path.write_bytes(payload)
     parser_kind = "assembly-cli"
     if surface == "envelope":
-        outcome = run_process([str(bin_path), "inspect-file", str(sample_path)], cwd=REPO_ROOT)
+        outcome = run_process(
+            [str(bin_path), "inspect-file", str(sample_path)],
+            cwd=REPO_ROOT,
+            ticker_mode=ticker_mode,
+            label=f"CORPUS {surface} {mutation}",
+        )
     elif surface == "armor":
         outcome = run_process(
             [str(bin_path), "dearmor-file", str(sample_path), str(work / f"{sample_path.name}.out")],
             cwd=REPO_ROOT,
+            ticker_mode=ticker_mode,
+            label=f"CORPUS {surface} {mutation}",
         )
     elif surface == "authority-root":
-        outcome = run_process([str(bin_path), "authority-root-verify", str(sample_path)], cwd=REPO_ROOT)
+        outcome = run_process(
+            [str(bin_path), "authority-root-verify", str(sample_path)],
+            cwd=REPO_ROOT,
+            ticker_mode=ticker_mode,
+            label=f"CORPUS {surface} {mutation}",
+        )
     elif surface == "gate-contract":
         outcome = run_process(
             [str(bin_path), "gate-contract-verify", str(gate_artifact), str(sample_path)],
             cwd=REPO_ROOT,
+            ticker_mode=ticker_mode,
+            label=f"CORPUS {surface} {mutation}",
         )
     elif surface in {"ledger-entry", "ledger-head", "ledger-proof", "wjnext-model", "wjstar-model"}:
         parser_kind = "python-internal"
@@ -289,7 +313,13 @@ def replay_payload(
     }
 
 
-def replay_one(bin_path: Path, gate_artifact: Path, corpus_file: Path, work: Path) -> list[dict[str, Any]]:
+def replay_one(
+    bin_path: Path,
+    gate_artifact: Path,
+    corpus_file: Path,
+    work: Path,
+    ticker_mode: str = "auto",
+) -> list[dict[str, Any]]:
     data = corpus_file.read_bytes()
     surface = classify(corpus_file)
     results: list[dict[str, Any]] = []
@@ -302,6 +332,7 @@ def replay_one(bin_path: Path, gate_artifact: Path, corpus_file: Path, work: Pat
             payload=payload,
             mutation=mutation,
             work=work,
+            ticker_mode=ticker_mode,
         )
         if result is not None:
             results.append(result)
@@ -314,8 +345,10 @@ def main() -> int:
     parser.add_argument("--corpus", default="tests/corpus")
     parser.add_argument("--out", required=True)
     parser.add_argument("--quiet", action="store_true")
+    wuci_progress.add_ticker_arg(parser)
     args = parser.parse_args()
     try:
+        ticker_mode = getattr(args, "ticker", "auto")
         bin_path = Path(args.bin)
         if not bin_path.is_file():
             raise CorpusReplayError(f"missing binary: {bin_path}")
@@ -324,9 +357,12 @@ def main() -> int:
         all_results: list[dict[str, Any]] = []
         with tempfile.TemporaryDirectory(prefix="wuci-corpus-replay-") as tmp_name:
             work = Path(tmp_name)
-            gate_artifact = write_gate_artifact(bin_path, work)
-            for path in files:
-                all_results.extend(replay_one(bin_path, gate_artifact, path, work))
+            gate_artifact = write_gate_artifact(bin_path, work, ticker_mode)
+            with wuci_progress.stage("CORPUS replay parser surfaces", ticker_mode):
+                for path in files:
+                    all_results.extend(
+                        replay_one(bin_path, gate_artifact, path, work, ticker_mode)
+                    )
         surfaces: dict[str, int] = {}
         surface_outcomes: dict[str, dict[str, Any]] = {}
         for result in all_results:

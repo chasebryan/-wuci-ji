@@ -6,12 +6,12 @@ import hashlib
 import json
 import os
 import shlex
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 import wuci_frost_authorize as warrant
+import wuci_progress
 import wuci_safeio
 import wuci_verifier_identity
 
@@ -78,20 +78,23 @@ def gate_decision(
     artifact_path: Path,
     action: str,
     receipt_path: Path,
+    ticker_mode: str = "auto",
 ) -> dict[str, str]:
     try:
-        receipt = load_receipt(receipt_path)
-        warrant.verify_receipt(
-            bin_path=bin_path,
-            artifact_path=artifact_path,
-            action=action,
-            receipt_path=receipt_path,
-        )
-        auth_message, auth_message_bytes = warrant.build_authorization(
-            bin_path,
-            artifact_path,
-            action,
-        )
+        with wuci_progress.stage("GATE receipt verification", ticker_mode):
+            receipt = load_receipt(receipt_path)
+            warrant.verify_receipt(
+                bin_path=bin_path,
+                artifact_path=artifact_path,
+                action=action,
+                receipt_path=receipt_path,
+            )
+        with wuci_progress.stage("GATE authorization manifest", ticker_mode):
+            auth_message, auth_message_bytes = warrant.build_authorization(
+                bin_path,
+                artifact_path,
+                action,
+            )
     except warrant.AuthorizationError as exc:
         raise GateError(str(exc)) from exc
 
@@ -149,9 +152,10 @@ def run_open_file_keyfile(
     keyfile_path: Path,
     artifact_path: Path,
     out_path: Path,
+    ticker_mode: str = "auto",
 ) -> None:
     try:
-        proc = subprocess.run(
+        proc = wuci_progress.run_process(
             [
                 *RUNNER,
                 str(bin_path),
@@ -160,11 +164,10 @@ def run_open_file_keyfile(
                 str(artifact_path),
                 str(out_path),
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
+            ticker_mode=ticker_mode,
+            label="GATE open-file-keyfile",
         )
-    except FileNotFoundError as exc:
+    except OSError as exc:
         raise GateError(f"could not execute {bin_path}") from exc
     if proc.returncode != 0:
         stdout = proc.stdout.decode("utf-8", "replace").strip()
@@ -187,11 +190,13 @@ def validate_output_path(out_path: Path) -> None:
 
 
 def run_check(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     decision = gate_decision(
         bin_path=Path(args.bin),
         artifact_path=Path(args.artifact),
         action=args.action,
         receipt_path=Path(args.receipt),
+        ticker_mode=ticker_mode,
     )
     if args.json:
         print_json(json_decision(schema="wuci-gate-check-v1", decision=decision))
@@ -201,11 +206,13 @@ def run_check(args: argparse.Namespace) -> int:
 
 
 def run_open(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     decision = gate_decision(
         bin_path=Path(args.bin),
         artifact_path=Path(args.artifact),
         action=args.action,
         receipt_path=Path(args.receipt),
+        ticker_mode=ticker_mode,
     )
     if decision["action"] != "open" or args.action != "open":
         raise GateError("gate open requires an authorization receipt for action open")
@@ -218,6 +225,7 @@ def run_open(args: argparse.Namespace) -> int:
         keyfile_path=Path(args.keyfile),
         artifact_path=Path(args.artifact),
         out_path=out_path,
+        ticker_mode=ticker_mode,
     )
     if args.json:
         print_json(
@@ -248,6 +256,7 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--receipt", required=True, help="authorization receipt JSON")
     parser.add_argument("--json", action="store_true", help="emit deterministic JSON")
+    wuci_progress.add_ticker_arg(parser)
     wuci_verifier_identity.add_strict_args(parser)
 
 

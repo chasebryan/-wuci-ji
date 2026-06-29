@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import wuci_safeio
+import wuci_progress
 import wuci_verifier_identity
 
 
@@ -39,24 +40,6 @@ SIGNATURE_NAMESPACE = "wuci-install-v1"
 SIGNATURE_IDENTITY = "wuci-install"
 ZERO_SHA512 = "0" * 128
 PRODUCT_UTF8_SHA256 = hashlib.sha256("无此机".encode("utf-8")).hexdigest()
-TICKER_FRAMES = (
-    "[=-------]",
-    "[==------]",
-    "[===-----]",
-    "[====----]",
-    "[=====---]",
-    "[======--]",
-    "[=======-]",
-    "[========]",
-    "[-=======]",
-    "[--======]",
-    "[---=====]",
-    "[----====]",
-    "[-----===]",
-    "[------==]",
-    "[-------=]",
-    "[--------]",
-)
 TICKER_SIGNALS = ("AUTH", "SEAL", "GATE", "ROOT", "CAGE", "QBIT", "WITN", "LEDG")
 
 MANIFEST_FIELDS = (
@@ -140,29 +123,81 @@ def read_ascii(
         raise InstallError(str(exc)) from exc
 
 
-def hash_file(path: Path, algorithm: str, context: str, *, reject_hardlink: bool = False) -> str:
-    if reject_hardlink:
-        digest = hashlib.new(algorithm)
-        digest.update(read_bytes(path, context, reject_hardlink=True))
-        return digest.hexdigest()
+def hash_file(
+    path: Path,
+    algorithm: str,
+    context: str,
+    *,
+    reject_hardlink: bool = False,
+    ticker_mode: str = "auto",
+    ticker_label: str | None = None,
+) -> str:
     try:
-        digest = hashlib.new(algorithm)
-        digest.update(wuci_safeio.read_regular_bytes(path, context, reject_symlink=True))
-        return digest.hexdigest()
+        return wuci_progress.digest_file(
+            path,
+            algorithm,
+            context,
+            ticker_mode=ticker_mode,
+            label=ticker_label or f"INSTALL {algorithm} {path.name}",
+            reject_symlink=True,
+            reject_hardlink=reject_hardlink,
+        )
     except wuci_safeio.SafeIOError as exc:
         raise InstallError(str(exc)) from exc
 
 
-def sha256_file(path: Path, context: str = "file", *, reject_hardlink: bool = False) -> str:
-    return hash_file(path, "sha256", context, reject_hardlink=reject_hardlink)
+def sha256_file(
+    path: Path,
+    context: str = "file",
+    *,
+    reject_hardlink: bool = False,
+    ticker_mode: str = "auto",
+    ticker_label: str | None = None,
+) -> str:
+    return hash_file(
+        path,
+        "sha256",
+        context,
+        reject_hardlink=reject_hardlink,
+        ticker_mode=ticker_mode,
+        ticker_label=ticker_label,
+    )
 
 
-def sha384_file(path: Path, context: str = "file", *, reject_hardlink: bool = False) -> str:
-    return hash_file(path, "sha384", context, reject_hardlink=reject_hardlink)
+def sha384_file(
+    path: Path,
+    context: str = "file",
+    *,
+    reject_hardlink: bool = False,
+    ticker_mode: str = "auto",
+    ticker_label: str | None = None,
+) -> str:
+    return hash_file(
+        path,
+        "sha384",
+        context,
+        reject_hardlink=reject_hardlink,
+        ticker_mode=ticker_mode,
+        ticker_label=ticker_label,
+    )
 
 
-def sha512_file(path: Path, context: str = "file", *, reject_hardlink: bool = False) -> str:
-    return hash_file(path, "sha512", context, reject_hardlink=reject_hardlink)
+def sha512_file(
+    path: Path,
+    context: str = "file",
+    *,
+    reject_hardlink: bool = False,
+    ticker_mode: str = "auto",
+    ticker_label: str | None = None,
+) -> str:
+    return hash_file(
+        path,
+        "sha512",
+        context,
+        reject_hardlink=reject_hardlink,
+        ticker_mode=ticker_mode,
+        ticker_label=ticker_label,
+    )
 
 
 def sha512_path(path: Path, context: str) -> str:
@@ -283,7 +318,10 @@ def manifest_path_for_binary(bin_path: Path) -> str:
         return str(bin_path)
 
 
-def manifest_fields_for_binary(bin_path: Path) -> dict[str, str]:
+def manifest_fields_for_binary(
+    bin_path: Path,
+    ticker_mode: str = "auto",
+) -> dict[str, str]:
     policy()
     return {
         "schema": MANIFEST_SCHEMA,
@@ -292,10 +330,26 @@ def manifest_fields_for_binary(bin_path: Path) -> dict[str, str]:
         "version": VERSION,
         "platform": PLATFORM,
         "binary-path": manifest_path_for_binary(bin_path),
-        "binary-sha256": sha256_file(bin_path, "candidate binary"),
-        "binary-sha384": sha384_file(bin_path, "candidate binary"),
-        "binary-sha512": sha512_file(bin_path, "candidate binary"),
-        "install-policy-sha512": sha512_file(DEFAULT_POLICY, "install policy"),
+        "binary-sha256": sha256_file(
+            bin_path,
+            "candidate binary",
+            ticker_mode=ticker_mode,
+        ),
+        "binary-sha384": sha384_file(
+            bin_path,
+            "candidate binary",
+            ticker_mode=ticker_mode,
+        ),
+        "binary-sha512": sha512_file(
+            bin_path,
+            "candidate binary",
+            ticker_mode=ticker_mode,
+        ),
+        "install-policy-sha512": sha512_file(
+            DEFAULT_POLICY,
+            "install policy",
+            ticker_mode=ticker_mode,
+        ),
         "witness-bundle-sha512": ZERO_SHA512,
         "cage-attestation-sha512": ZERO_SHA512,
         "qcage-attestation-sha512": ZERO_SHA512,
@@ -498,8 +552,14 @@ def sign_manifest_signature(
     return manifest
 
 
-def start_ticker(label: str) -> tuple[threading.Event, threading.Thread] | None:
-    if not sys.stderr.isatty():
+def start_ticker(
+    label: str,
+    ticker_mode: str = "auto",
+) -> tuple[threading.Event, threading.Thread] | str | None:
+    mode = wuci_progress.resolve_mode(ticker_mode)
+    if mode == "never":
+        return "disabled"
+    if mode == "auto" and not sys.stderr.isatty():
         print(f"WUCI-INSTALL // START // {label}", file=sys.stderr, flush=True)
         return None
     stop = threading.Event()
@@ -509,10 +569,12 @@ def start_ticker(label: str) -> tuple[threading.Event, threading.Thread] | None:
         started = time.monotonic()
         while not stop.is_set():
             elapsed = time.monotonic() - started
-            frame = TICKER_FRAMES[tick % len(TICKER_FRAMES)]
+            frame = wuci_progress.TRIANGLE_FRAMES[tick % len(wuci_progress.TRIANGLE_FRAMES)]
+            color = wuci_progress.TICKER_COLORS[tick % len(wuci_progress.TICKER_COLORS)]
             signal = TICKER_SIGNALS[tick % len(TICKER_SIGNALS)]
             sys.stderr.write(
-                f"\rWUCI-INSTALL // {frame} // SIG:{signal} // CYCLE:{tick:04d} // {label} // T+{elapsed:05.1f}s"
+                f"\rWUCI-INSTALL // \x1b[{color}m{frame}\x1b[0m // SIG:{signal} "
+                f"// CYCLE:{tick:04d} // {label} // T+{elapsed:05.1f}s"
             )
             sys.stderr.flush()
             tick += 1
@@ -523,7 +585,14 @@ def start_ticker(label: str) -> tuple[threading.Event, threading.Thread] | None:
     return stop, thread
 
 
-def stop_ticker(handle: tuple[threading.Event, threading.Thread] | None, label: str, *, ok: bool) -> None:
+def stop_ticker(
+    handle: tuple[threading.Event, threading.Thread] | str | None,
+    label: str,
+    *,
+    ok: bool,
+) -> None:
+    if handle == "disabled":
+        return
     state = "PASS" if ok else "FAIL"
     if handle is None:
         print(f"WUCI-INSTALL // {state} // {label}", file=sys.stderr, flush=True)
@@ -542,12 +611,13 @@ def run_checked(
     *,
     cwd: Path | None = None,
     ticker_label: str | None = None,
+    ticker_mode: str = "auto",
 ) -> subprocess.CompletedProcess[bytes]:
     if not isinstance(argv, list) or not argv:
         fail(f"{context} argv must be a non-empty list")
     for item in argv:
         reject_nul(item, context)
-    ticker = start_ticker(ticker_label) if ticker_label else None
+    ticker = start_ticker(ticker_label, ticker_mode) if ticker_label else None
     try:
         proc = subprocess.run(
             argv,
@@ -570,10 +640,14 @@ def run_checked(
     return proc
 
 
-def verify_digest_vector(bin_path: Path, manifest: dict[str, str]) -> tuple[str, str, str]:
-    sha256 = sha256_file(bin_path, "candidate binary")
-    sha384 = sha384_file(bin_path, "candidate binary")
-    sha512 = sha512_file(bin_path, "candidate binary")
+def verify_digest_vector(
+    bin_path: Path,
+    manifest: dict[str, str],
+    ticker_mode: str = "auto",
+) -> tuple[str, str, str]:
+    sha256 = sha256_file(bin_path, "candidate binary", ticker_mode=ticker_mode)
+    sha384 = sha384_file(bin_path, "candidate binary", ticker_mode=ticker_mode)
+    sha512 = sha512_file(bin_path, "candidate binary", ticker_mode=ticker_mode)
     if sha256 != manifest["binary-sha256"]:
         fail("candidate binary SHA-256 does not match install manifest")
     if sha384 != manifest["binary-sha384"]:
@@ -818,8 +892,9 @@ def run_trust_key_check(args: argparse.Namespace) -> int:
 
 def run_manifest(args: argparse.Namespace) -> int:
     emit_json = getattr(args, "json", False)
+    ticker_mode = getattr(args, "ticker", "auto")
     bin_path = Path(args.bin)
-    fields = manifest_fields_for_binary(bin_path)
+    fields = manifest_fields_for_binary(bin_path, ticker_mode)
     text = canonical_manifest(fields)
     out = Path(args.out)
     try:
@@ -841,6 +916,7 @@ def run_manifest(args: argparse.Namespace) -> int:
 
 def run_verify_manifest(args: argparse.Namespace) -> int:
     emit_json = getattr(args, "json", False)
+    ticker_mode = getattr(args, "ticker", "auto")
     bin_path = Path(args.bin)
     manifest = verify_manifest_signature(
         install_root_key=Path(args.install_root_key).expanduser(),
@@ -849,7 +925,7 @@ def run_verify_manifest(args: argparse.Namespace) -> int:
         ssh_keygen=args.ssh_keygen,
         quiet=True,
     )
-    binary_hashes = verify_digest_vector(bin_path, manifest)
+    binary_hashes = verify_digest_vector(bin_path, manifest, ticker_mode)
     if emit_json:
         print_json(
             {
@@ -901,10 +977,17 @@ def run_sign_manifest(args: argparse.Namespace) -> int:
 def run_install(args: argparse.Namespace) -> int:
     if args.version != VERSION:
         fail("unsupported install version")
+    ticker_mode = getattr(args, "ticker", "auto")
     prefix = prefix_path(args.prefix, allow_prefix=args.allow_prefix)
     bin_path = DEFAULT_BIN
     if not bin_path.exists():
-        run_checked(["make", "all"], "make all", cwd=REPO_ROOT, ticker_label="build native verifier")
+        run_checked(
+            ["make", "all"],
+            "make all",
+            cwd=REPO_ROOT,
+            ticker_label="build native verifier",
+            ticker_mode=ticker_mode,
+        )
     install_key = Path(args.install_root_key).expanduser()
     key_sha256 = trust_key_check(install_key, quiet=True)
     manifest = verify_manifest_signature(
@@ -914,24 +997,49 @@ def run_install(args: argparse.Namespace) -> int:
         ssh_keygen=args.ssh_keygen,
         quiet=True,
     )
-    binary_hashes = verify_digest_vector(bin_path, manifest)
+    binary_hashes = verify_digest_vector(bin_path, manifest, ticker_mode)
     wuci_verifier_identity.require_trusted_verifier(bin_path, binary_hashes[0], "", strict=True)
-    run_checked([str(bin_path), "selftest"], "wuci-ji selftest", ticker_label="selftest verifier core")
+    run_checked(
+        [str(bin_path), "selftest"],
+        "wuci-ji selftest",
+        ticker_label="selftest verifier core",
+        ticker_mode=ticker_mode,
+    )
 
-    run_checked(["make", "harden-proof"], "harden proof", cwd=REPO_ROOT, ticker_label="HARDEN perimeter proof")
-    run_checked(["make", "cage-proof"], "cage proof", cwd=REPO_ROOT, ticker_label="CAGE airlock proof")
-    run_checked(["make", "qcage-proof"], "qcage proof", cwd=REPO_ROOT, ticker_label="QCAGE digest-vector proof")
+    run_checked(
+        ["make", "harden-proof"],
+        "harden proof",
+        cwd=REPO_ROOT,
+        ticker_label="HARDEN perimeter proof",
+        ticker_mode=ticker_mode,
+    )
+    run_checked(
+        ["make", "cage-proof"],
+        "cage proof",
+        cwd=REPO_ROOT,
+        ticker_label="CAGE airlock proof",
+        ticker_mode=ticker_mode,
+    )
+    run_checked(
+        ["make", "qcage-proof"],
+        "qcage proof",
+        cwd=REPO_ROOT,
+        ticker_label="QCAGE digest-vector proof",
+        ticker_mode=ticker_mode,
+    )
     run_checked(
         ["make", "self-release-witness-bundle"],
         "witness bundle proof",
         cwd=REPO_ROOT,
         ticker_label="WITNESS public bundle proof",
+        ticker_mode=ticker_mode,
     )
     run_checked(
         ["make", "self-release-ledger-bundle"],
         "ledger proof",
         cwd=REPO_ROOT,
         ticker_label="LEDGER append-only proof",
+        ticker_mode=ticker_mode,
     )
 
     install_files(
@@ -961,14 +1069,24 @@ def run_install(args: argparse.Namespace) -> int:
 
 
 def run_audit(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     prefix = prefix_path(args.prefix, allow_prefix=True)
     receipt = load_receipt(prefix)
     binary = Path(receipt["binary_path"])
-    if sha256_file(binary, "installed binary") != receipt["binary_sha256"]:
+    if (
+        sha256_file(binary, "installed binary", ticker_mode=ticker_mode)
+        != receipt["binary_sha256"]
+    ):
         fail("installed binary SHA-256 does not match receipt")
-    if sha384_file(binary, "installed binary") != receipt["binary_sha384"]:
+    if (
+        sha384_file(binary, "installed binary", ticker_mode=ticker_mode)
+        != receipt["binary_sha384"]
+    ):
         fail("installed binary SHA-384 does not match receipt")
-    if sha512_file(binary, "installed binary") != receipt["binary_sha512"]:
+    if (
+        sha512_file(binary, "installed binary", ticker_mode=ticker_mode)
+        != receipt["binary_sha512"]
+    ):
         fail("installed binary SHA-512 does not match receipt")
     key = prefix / "share" / "wuci-ji" / "install-root.pub"
     if (
@@ -985,7 +1103,12 @@ def run_audit(args: argparse.Namespace) -> int:
         ssh_keygen=args.ssh_keygen,
         quiet=True,
     )
-    run_checked([str(binary), "selftest"], "installed selftest")
+    run_checked(
+        [str(binary), "selftest"],
+        "installed selftest",
+        ticker_label="installed selftest",
+        ticker_mode=ticker_mode,
+    )
     if getattr(args, "json", False):
         print_json(
             {
@@ -1012,6 +1135,7 @@ def build_parser() -> argparse.ArgumentParser:
     manifest.add_argument("--bin", default=str(DEFAULT_BIN))
     manifest.add_argument("--out", default=str(DEFAULT_MANIFEST))
     manifest.add_argument("--json", action="store_true")
+    wuci_progress.add_ticker_arg(manifest)
     manifest.set_defaults(func=run_manifest)
 
     verify = subparsers.add_parser("verify-manifest")
@@ -1021,6 +1145,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--signature", default=str(DEFAULT_SIGNATURE))
     verify.add_argument("--ssh-keygen")
     verify.add_argument("--json", action="store_true")
+    wuci_progress.add_ticker_arg(verify)
     verify.set_defaults(func=run_verify_manifest)
 
     sign = subparsers.add_parser("sign-manifest")
@@ -1041,12 +1166,14 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--ssh-keygen")
     install.add_argument("--allow-prefix", action="store_true")
     install.add_argument("--json", action="store_true")
+    wuci_progress.add_ticker_arg(install)
     install.set_defaults(func=run_install)
 
     audit = subparsers.add_parser("audit")
     audit.add_argument("--prefix", default=str(DEFAULT_PREFIX))
     audit.add_argument("--ssh-keygen")
     audit.add_argument("--json", action="store_true")
+    wuci_progress.add_ticker_arg(audit)
     audit.set_defaults(func=run_audit)
 
     return parser

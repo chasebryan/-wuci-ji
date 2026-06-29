@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import wuci_cage
+import wuci_progress
+import wuci_safeio
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -103,33 +105,38 @@ def digest_bytes(value: bytes, algorithm: str) -> str:
     return hasher.hexdigest()
 
 
-def digest_file(path: Path, algorithm: str) -> str:
-    hasher = hashlib.new(algorithm)
+def digest_file(
+    path: Path,
+    algorithm: str,
+    ticker_mode: str = "auto",
+    label: str | None = None,
+) -> str:
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                hasher.update(chunk)
-    except OSError as exc:
+        return wuci_progress.digest_file(
+            path,
+            algorithm,
+            f"QCAGE {algorithm} file",
+            ticker_mode=ticker_mode,
+            label=label or f"QCAGE {algorithm} {path.name}",
+            reject_symlink=True,
+        )
+    except wuci_safeio.SafeIOError as exc:
         raise QCageError(f"could not hash file: {path}") from exc
-    return hasher.hexdigest()
 
 
-def digest_vector_for_file(path: Path) -> dict[str, Any]:
+def digest_vector_for_file(path: Path, ticker_mode: str = "auto") -> dict[str, Any]:
     return {
-        "sha256": digest_file(path, "sha256"),
-        "sha384": digest_file(path, "sha384"),
-        "sha512": digest_file(path, "sha512"),
+        "sha256": digest_file(path, "sha256", ticker_mode),
+        "sha384": digest_file(path, "sha384", ticker_mode),
+        "sha512": digest_file(path, "sha512", ticker_mode),
     }
 
 
-def digest_vector_document(path: Path) -> dict[str, Any]:
+def digest_vector_document(path: Path, ticker_mode: str = "auto") -> dict[str, Any]:
     return {
         "schema": DIGEST_VECTOR_SCHEMA,
         "path": path.name,
-        **digest_vector_for_file(path),
+        **digest_vector_for_file(path, ticker_mode),
         "quantum_preimage_bits": {
             "sha256": quantum_preimage_bits(256),
             "sha384": quantum_preimage_bits(384),
@@ -370,43 +377,58 @@ def validate_crypto_inventory(value: Any) -> dict[str, Any]:
     return value
 
 
-def repo_file_digest(repo: Path, relative: Path) -> dict[str, str]:
+def repo_file_digest(
+    repo: Path,
+    relative: Path,
+    ticker_mode: str = "auto",
+) -> dict[str, str]:
     path = repo / relative
-    return {"path": relative.as_posix(), "sha512": digest_file(path, "sha512")}
+    return {
+        "path": relative.as_posix(),
+        "sha512": digest_file(path, "sha512", ticker_mode, f"QCAGE graph {relative.as_posix()}"),
+    }
 
 
-def sorted_digest_entries(repo: Path, pattern: str) -> list[dict[str, str]]:
+def sorted_digest_entries(
+    repo: Path,
+    pattern: str,
+    ticker_mode: str = "auto",
+) -> list[dict[str, str]]:
     return [
-        repo_file_digest(repo, path.relative_to(repo))
+        repo_file_digest(repo, path.relative_to(repo), ticker_mode)
         for path in sorted(repo.glob(pattern), key=lambda p: p.as_posix())
         if path.is_file()
     ]
 
 
-def build_graph(repo: Path) -> dict[str, Any]:
+def build_graph(repo: Path, ticker_mode: str = "auto") -> dict[str, Any]:
     repo = repo.resolve()
     top_level = []
     for filename in REQUIRED_TOP_LEVEL_FILES:
         path = repo / filename
         if path.is_file():
-            top_level.append(repo_file_digest(repo, Path(filename)))
+            top_level.append(repo_file_digest(repo, Path(filename), ticker_mode))
     return {
         "schema": BUILD_GRAPH_SCHEMA,
         "repo": repo.name,
         "python_version": sys.version.split()[0],
         "top_level_files": top_level,
-        "src_asm": sorted_digest_entries(repo, "src/*.s"),
-        "tools_python": sorted_digest_entries(repo, "tools/wuci_*.py"),
-        "tests_python": sorted_digest_entries(repo, "tests/wuci_*.py"),
+        "src_asm": sorted_digest_entries(repo, "src/*.s", ticker_mode),
+        "tools_python": sorted_digest_entries(repo, "tools/wuci_*.py", ticker_mode),
+        "tests_python": sorted_digest_entries(repo, "tests/wuci_*.py", ticker_mode),
     }
 
 
-def validate_build_graph(value: Any, repo: Path = REPO_ROOT) -> dict[str, Any]:
+def validate_build_graph(
+    value: Any,
+    repo: Path = REPO_ROOT,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise QCageError("build graph must be a JSON object")
     if value.get("schema") != BUILD_GRAPH_SCHEMA:
         raise QCageError("build graph has unsupported schema")
-    expected = build_graph(repo)
+    expected = build_graph(repo, ticker_mode)
     if value != expected:
         raise QCageError("build graph does not match current repository state")
     if not value.get("src_asm"):
@@ -416,11 +438,20 @@ def validate_build_graph(value: Any, repo: Path = REPO_ROOT) -> dict[str, Any]:
     return value
 
 
-def load_valid_cage_attestation(bin_path: Path, bundle: Path, path: Path) -> dict[str, Any]:
+def load_valid_cage_attestation(
+    bin_path: Path,
+    bundle: Path,
+    path: Path,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
     observed = wuci_cage.validate_attestation_shape(
         wuci_cage.load_json(path, "CAGE attestation")
     )
-    expected = wuci_cage.build_attestation(bin_path=bin_path, bundle=bundle)
+    expected = wuci_cage.build_attestation(
+        bin_path=bin_path,
+        bundle=bundle,
+        ticker_mode=ticker_mode,
+    )
     if observed != expected:
         raise QCageError("CAGE attestation does not match bundle state")
     if observed["cage_decision"] != "allow-publish":
@@ -428,13 +459,16 @@ def load_valid_cage_attestation(bin_path: Path, bundle: Path, path: Path) -> dic
     return observed
 
 
-def public_evidence_digest_vectors(bundle: Path) -> dict[str, dict[str, str]]:
+def public_evidence_digest_vectors(
+    bundle: Path,
+    ticker_mode: str = "auto",
+) -> dict[str, dict[str, str]]:
     vectors: dict[str, dict[str, str]] = {}
     for label, filename in PUBLIC_EVIDENCE_FILES.items():
         path = bundle / filename
         if not path.is_file():
             raise QCageError(f"missing public evidence file: {filename}")
-        vectors[label] = digest_vector_for_file(path)
+        vectors[label] = digest_vector_for_file(path, ticker_mode)
     return vectors
 
 
@@ -467,18 +501,27 @@ def build_attestation(
     t_migrate: int,
     t_trust: int,
     t_crqc: int,
+    ticker_mode: str = "auto",
 ) -> dict[str, Any]:
     load_policy()
     validate_mode(mode)
-    cage_attestation = load_valid_cage_attestation(bin_path, bundle, cage_attestation_path)
+    cage_attestation = load_valid_cage_attestation(
+        bin_path,
+        bundle,
+        cage_attestation_path,
+        ticker_mode,
+    )
     validate_crypto_inventory(
         load_json(crypto_inventory_path, "QCAGE crypto inventory")
     )
-    graph = validate_build_graph(load_json(build_graph_path, "QCAGE build graph"))
-    evidence_vectors = public_evidence_digest_vectors(bundle)
-    cage_vector = digest_vector_for_file(cage_attestation_path)
-    inventory_vector = digest_vector_for_file(crypto_inventory_path)
-    build_graph_vector = digest_vector_for_file(build_graph_path)
+    graph = validate_build_graph(
+        load_json(build_graph_path, "QCAGE build graph"),
+        ticker_mode=ticker_mode,
+    )
+    evidence_vectors = public_evidence_digest_vectors(bundle, ticker_mode)
+    cage_vector = digest_vector_for_file(cage_attestation_path, ticker_mode)
+    inventory_vector = digest_vector_for_file(crypto_inventory_path, ticker_mode)
+    build_graph_vector = digest_vector_for_file(build_graph_path, ticker_mode)
     qmd = quantum_migration_debt(t_migrate, t_trust, t_crqc)
 
     return {
@@ -695,10 +738,11 @@ def run_policy(args: argparse.Namespace) -> int:
 
 
 def run_digest_vector(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     path = Path(args.file)
     if not path.is_file():
         raise QCageError(f"digest-vector input is not a file: {path}")
-    write_json(Path(args.out), digest_vector_document(path), "QCAGE digest vector")
+    write_json(Path(args.out), digest_vector_document(path, ticker_mode), "QCAGE digest vector")
     print(f"wrote QCAGE digest vector: {display_path(Path(args.out))}")
     return 0
 
@@ -711,15 +755,17 @@ def run_crypto_inventory(args: argparse.Namespace) -> int:
 
 
 def run_build_graph(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     repo = Path(args.repo)
     if not repo.is_dir():
         raise QCageError(f"build graph repo is not a directory: {repo}")
-    write_json(Path(args.out), build_graph(repo), "QCAGE build graph")
+    write_json(Path(args.out), build_graph(repo, ticker_mode), "QCAGE build graph")
     print(f"wrote QCAGE build graph: {display_path(Path(args.out))}")
     return 0
 
 
 def run_attest(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     attestation = build_attestation(
         bin_path=Path(args.bin),
         cage_attestation_path=Path(args.cage_attestation),
@@ -730,6 +776,7 @@ def run_attest(args: argparse.Namespace) -> int:
         t_migrate=args.t_migrate,
         t_trust=args.t_trust,
         t_crqc=args.t_crqc,
+        ticker_mode=ticker_mode,
     )
     write_json(Path(args.out), attestation, "QCAGE attestation")
     print(f"wrote QCAGE attestation: {display_path(Path(args.out))}")
@@ -737,6 +784,7 @@ def run_attest(args: argparse.Namespace) -> int:
 
 
 def run_verify(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     observed = validate_attestation_shape(
         load_json(Path(args.attestation), "QCAGE attestation")
     )
@@ -752,6 +800,7 @@ def run_verify(args: argparse.Namespace) -> int:
         t_migrate=observed["qmd_inputs"]["T_migrate"],
         t_trust=observed["qmd_inputs"]["T_trust"],
         t_crqc=observed["qmd_inputs"]["T_CRQC"],
+        ticker_mode=ticker_mode,
     )
     if observed != expected:
         raise QCageError("QCAGE attestation does not match current evidence")
@@ -800,6 +849,7 @@ def main() -> int:
     digest_parser = subparsers.add_parser("digest-vector", help="write digest vector")
     digest_parser.add_argument("--file", required=True)
     digest_parser.add_argument("--out", required=True)
+    wuci_progress.add_ticker_arg(digest_parser)
     digest_parser.set_defaults(func=run_digest_vector)
 
     inventory_parser = subparsers.add_parser(
@@ -813,6 +863,7 @@ def main() -> int:
     graph_parser = subparsers.add_parser("build-graph", help="write build graph evidence")
     graph_parser.add_argument("--repo", default=".")
     graph_parser.add_argument("--out", required=True)
+    wuci_progress.add_ticker_arg(graph_parser)
     graph_parser.set_defaults(func=run_build_graph)
 
     attest_parser = subparsers.add_parser("attest", help="write QCAGE attestation")
@@ -824,6 +875,7 @@ def main() -> int:
     attest_parser.add_argument("--mode", choices=sorted(MODES), required=True)
     add_qmd_args(attest_parser)
     attest_parser.add_argument("--out", required=True)
+    wuci_progress.add_ticker_arg(attest_parser)
     attest_parser.set_defaults(func=run_attest)
 
     verify_parser = subparsers.add_parser("verify", help="verify QCAGE attestation")
@@ -833,6 +885,7 @@ def main() -> int:
     verify_parser.add_argument("--witness-bundle", default=str(DEFAULT_BUNDLE_DIR))
     verify_parser.add_argument("--crypto-inventory", required=True)
     verify_parser.add_argument("--build-graph", required=True)
+    wuci_progress.add_ticker_arg(verify_parser)
     verify_parser.set_defaults(func=run_verify)
 
     risk_parser = subparsers.add_parser("risk", help="print QCAGE migration risk")

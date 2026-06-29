@@ -139,8 +139,11 @@ Wuci-Prism emits `wuci-prism-report-v1` public evidence for visible WJSEAL
 structure, artifact hashes, and Gate-required status. It does not decrypt,
 unlock, recover, accept secret keys, verify AEAD tags, or release plaintext.
 The progress ticker is a stderr-only rainbow triangle display; it is automatic
-on interactive terminals, can be forced with `--ticker always`, and stays out
-of JSON and manifest stdout.
+on interactive terminals, can be forced with `--ticker always` or
+`WUCI_TICKER=always`, and can be disabled with `--ticker never`. It stays out
+of JSON and manifest stdout. The same ticker switch is available on key Python
+wait lanes for Gate, CAGE, QCAGE, parser corpus replay, and INSTALL hashing or
+proof subprocess stages.
 
 Run defensive perimeter proof lanes:
 

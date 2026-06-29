@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_progress
 import wuci_safeio
 import wuci_witness
 
@@ -95,20 +96,19 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
+def sha256_file(path: Path, ticker_mode: str = "auto", label: str | None = None) -> str:
     try:
-        digest.update(
-            wuci_safeio.read_regular_bytes(
-                path,
-                str(path),
-                reject_symlink=True,
-                reject_hardlink=True,
-            )
+        return wuci_progress.digest_file(
+            path,
+            "sha256",
+            str(path),
+            ticker_mode=ticker_mode,
+            label=label or f"CAGE hash {path.name}",
+            reject_symlink=True,
+            reject_hardlink=True,
         )
     except wuci_safeio.SafeIOError as exc:
         raise CageError(str(exc)) from exc
-    return digest.hexdigest()
 
 
 def read_bytes(path: Path, context: str) -> bytes:
@@ -263,9 +263,13 @@ def parse_release_decision(path: Path) -> dict[str, str]:
     return fields
 
 
-def bundle_hashes(bundle: Path) -> dict[str, str]:
+def bundle_hashes(bundle: Path, ticker_mode: str = "auto") -> dict[str, str]:
     return {
-        field: sha256_file(bundle_file(bundle, filename))
+        field: sha256_file(
+            bundle_file(bundle, filename),
+            ticker_mode,
+            f"CAGE hash {filename}",
+        )
         for field, filename in HASH_FIELDS.items()
     }
 
@@ -284,33 +288,43 @@ def verify_publish_index(bundle: Path, hashes: dict[str, str]) -> None:
             raise CageError(f"publish-index.txt does not match {HASH_FIELDS[cage_field]}")
 
 
-def verify_witness_bundle(bin_path: Path, bundle: Path) -> None:
+def verify_witness_bundle(
+    bin_path: Path,
+    bundle: Path,
+    ticker_mode: str = "auto",
+) -> None:
     try:
-        observed, _ = wuci_witness.build_witness_attestation(
-            bin_path=bin_path,
-            bundle_dir=bundle,
-            require_index=True,
-            require_attestation=True,
-        )
-        expected = wuci_witness.load_json_file(
-            bundle_file(bundle, "attestation.json"),
-            "witness attestation",
-        )
-        wuci_witness.compare_attestations(expected, observed)
+        with wuci_progress.stage("CAGE witness attestation comparison", ticker_mode):
+            observed, _ = wuci_witness.build_witness_attestation(
+                bin_path=bin_path,
+                bundle_dir=bundle,
+                require_index=True,
+                require_attestation=True,
+            )
+            expected = wuci_witness.load_json_file(
+                bundle_file(bundle, "attestation.json"),
+                "witness attestation",
+            )
+            wuci_witness.compare_attestations(expected, observed)
     except wuci_witness.WitnessError as exc:
         raise CageError(f"witness verification failed: {exc}") from exc
 
 
-def build_attestation(*, bin_path: Path, bundle: Path) -> dict[str, Any]:
+def build_attestation(
+    *,
+    bin_path: Path,
+    bundle: Path,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
     load_policy()
     assert_public_bundle_shape(bundle)
     reject_private_material(bundle)
-    hashes = bundle_hashes(bundle)
+    hashes = bundle_hashes(bundle, ticker_mode)
     decision = parse_release_decision(bundle_file(bundle, "release-decision.txt"))
     if decision["artifact-sha256"] != hashes["artifact_sha256"]:
         raise CageError("release-decision.txt artifact hash does not match artifact")
     verify_publish_index(bundle, hashes)
-    verify_witness_bundle(bin_path, bundle)
+    verify_witness_bundle(bin_path, bundle, ticker_mode)
     return {
         "schema": ATTESTATION_SCHEMA,
         "profile": PROFILE,
@@ -374,14 +388,24 @@ def run_policy(args: argparse.Namespace) -> int:
 
 
 def run_attest(args: argparse.Namespace) -> int:
-    attestation = build_attestation(bin_path=Path(args.bin), bundle=Path(args.bundle))
+    ticker_mode = getattr(args, "ticker", "auto")
+    attestation = build_attestation(
+        bin_path=Path(args.bin),
+        bundle=Path(args.bundle),
+        ticker_mode=ticker_mode,
+    )
     write_new_json(Path(args.out), attestation, "CAGE attestation")
     print(f"wrote CAGE attestation: {display_path(Path(args.out))}")
     return 0
 
 
 def run_verify(args: argparse.Namespace) -> int:
-    expected = build_attestation(bin_path=Path(args.bin), bundle=Path(args.bundle))
+    ticker_mode = getattr(args, "ticker", "auto")
+    expected = build_attestation(
+        bin_path=Path(args.bin),
+        bundle=Path(args.bundle),
+        ticker_mode=ticker_mode,
+    )
     observed = validate_attestation_shape(
         load_json(Path(args.attestation), "CAGE attestation")
     )
@@ -405,6 +429,7 @@ def run_deny_run(args: argparse.Namespace) -> int:
 
 
 def run_ledger_entry(args: argparse.Namespace) -> int:
+    ticker_mode = getattr(args, "ticker", "auto")
     attestation_path = Path(args.attestation)
     attestation = validate_attestation_shape(
         load_json(attestation_path, "CAGE attestation")
@@ -415,7 +440,8 @@ def run_ledger_entry(args: argparse.Namespace) -> int:
         f"schema: {LEDGER_ENTRY_SCHEMA}\n"
         f"profile: {PROFILE}\n"
         f"artifact-sha256: {attestation['artifact_sha256']}\n"
-        f"cage-attestation-sha256: {sha256_file(attestation_path)}\n"
+        "cage-attestation-sha256: "
+        f"{sha256_file(attestation_path, ticker_mode, 'CAGE hash attestation')}\n"
         f"cage-decision: {attestation['cage_decision']}\n"
         "runtime-sandbox-enforced: false\n"
     )
@@ -446,12 +472,14 @@ def main() -> int:
     add_bin_arg(attest_parser)
     attest_parser.add_argument("--bundle", default=str(DEFAULT_BUNDLE_DIR))
     attest_parser.add_argument("--out", required=True)
+    wuci_progress.add_ticker_arg(attest_parser)
     attest_parser.set_defaults(func=run_attest)
 
     verify_parser = subparsers.add_parser("verify", help="verify a CAGE attestation")
     add_bin_arg(verify_parser)
     verify_parser.add_argument("--bundle", default=str(DEFAULT_BUNDLE_DIR))
     verify_parser.add_argument("--attestation", required=True)
+    wuci_progress.add_ticker_arg(verify_parser)
     verify_parser.set_defaults(func=run_verify)
 
     deny_parser = subparsers.add_parser("deny-run", help="deny general runtime execution")
@@ -465,6 +493,7 @@ def main() -> int:
     )
     ledger_parser.add_argument("--attestation", required=True)
     ledger_parser.add_argument("--out", required=True)
+    wuci_progress.add_ticker_arg(ledger_parser)
     ledger_parser.set_defaults(func=run_ledger_entry)
 
     args = parser.parse_args()

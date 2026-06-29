@@ -4,13 +4,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
-import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import wuci_progress
 import wuci_safeio
 
 
@@ -28,43 +27,10 @@ WJSEAL_NONCE_LEN = 12
 WJSEAL_TAG_LEN = 16
 ALGORITHM_ID = 1
 ALGORITHM_NAME = "ChaCha20-Poly1305"
-READ_CHUNK_SIZE = 1024 * 1024
-TICKER_COLORS = ("31", "33", "32", "36", "34", "35")
-TRIANGLE_FRAMES = tuple(chr(value) for value in (0x25B2, 0x25B6, 0x25BC, 0x25C0))
 
 
 class PrismError(RuntimeError):
     pass
-
-
-class TriangleTicker:
-    def __init__(self, mode: str, total: int) -> None:
-        self.enabled = mode == "always" or (mode == "auto" and sys.stderr.isatty())
-        self.total = max(total, 0)
-        self.frame_index = 0
-        self.last_percent = -1
-
-    def tick(self, read_bytes: int) -> None:
-        if not self.enabled:
-            return
-        percent = 100 if self.total == 0 else min(100, (read_bytes * 100) // self.total)
-        if percent == self.last_percent and read_bytes < self.total:
-            return
-        self.last_percent = percent
-        frame = TRIANGLE_FRAMES[self.frame_index % len(TRIANGLE_FRAMES)]
-        color = TICKER_COLORS[self.frame_index % len(TICKER_COLORS)]
-        self.frame_index += 1
-        sys.stderr.write(
-            f"\r\x1b[{color}m{frame}\x1b[0m wuci-prism {percent:3d}% "
-            f"{read_bytes}/{self.total} bytes"
-        )
-        sys.stderr.flush()
-
-    def finish(self) -> None:
-        if not self.enabled:
-            return
-        sys.stderr.write("\n")
-        sys.stderr.flush()
 
 
 @dataclass(frozen=True)
@@ -135,38 +101,15 @@ def classify_wjseal(artifact: bytes) -> Layout:
 
 def read_artifact_bytes(path: Path, ticker_mode: str) -> bytes:
     try:
-        info = wuci_safeio.lstat_regular_file(
+        return wuci_progress.read_regular_bytes(
             path,
             "WJSEAL artifact",
+            ticker_mode=ticker_mode,
+            label="wuci-prism",
             reject_symlink=True,
         )
     except wuci_safeio.SafeIOError as exc:
         raise PrismError(str(exc)) from exc
-
-    ticker = TriangleTicker(ticker_mode, info.st_size)
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    try:
-        fd = os.open(path, flags)
-    except OSError as exc:
-        raise PrismError(f"could not open WJSEAL artifact: {path}") from exc
-    try:
-        opened_info = os.fstat(fd)
-        if not stat.S_ISREG(opened_info.st_mode):
-            raise PrismError(f"WJSEAL artifact must be a regular file: {path}")
-        chunks: list[bytes] = []
-        total = 0
-        ticker.tick(0)
-        while True:
-            chunk = os.read(fd, READ_CHUNK_SIZE)
-            if not chunk:
-                break
-            chunks.append(chunk)
-            total += len(chunk)
-            ticker.tick(total)
-        ticker.finish()
-        return b"".join(chunks)
-    finally:
-        os.close(fd)
 
 
 def parse_artifact(path: Path, ticker_mode: str = "auto") -> dict[str, Any]:
@@ -468,12 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     ticker_parent = argparse.ArgumentParser(add_help=False)
-    ticker_parent.add_argument(
-        "--ticker",
-        choices=("auto", "always", "never"),
-        default="auto",
-        help="show a rainbow triangle progress ticker on stderr",
-    )
+    wuci_progress.add_ticker_arg(ticker_parent)
 
     inspect = subparsers.add_parser(
         "inspect",
