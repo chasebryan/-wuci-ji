@@ -1,0 +1,486 @@
+{
+  "schema": "wuci-kaiju-catalog-v1",
+  "name": "WUCI-KAIJU",
+  "generated_utc": "2026-06-29T00:00:00Z",
+  "purpose": "Map Kali Linux tool purposes into WUCI-NOXFRAME as a defensive, metadata-only substrate catalog.",
+  "source_urls": [
+    "https://www.kali.org/docs/",
+    "https://www.kali.org/docs/general-use/metapackages/",
+    "https://www.kali.org/tools/"
+  ],
+  "boundary": {
+    "mode": "metadata-only Kali purpose catalog",
+    "host_execution": "unavailable",
+    "network_access": "unavailable",
+    "shell": "unavailable",
+    "runtime_sandbox_claim": "none",
+    "production_authority_claim": "none",
+    "quantum_safety_claim": "none",
+    "substrate_use": "future NOXFRAME substrates may read and verify this catalog; they must not launch host Kali tools without a separate reviewed boundary"
+  },
+  "boot_bridge": {
+    "mode": "operator-supplied local ISO only",
+    "launcher": "QEMU",
+    "graphics": "none",
+    "console": "serial stdio",
+    "default_network": "none",
+    "host_execution": "explicit --allow-kaiju-boot only",
+    "workspace": "build/noxframe/kaiju",
+    "non_claim": "local VM launch bridge, not NOXFRAME kernel containment"
+  },
+  "selection_rule": "Select one primary Kali tool per purpose unless one purpose needs a small companion set to avoid conflating offline evidence types.",
+  "global_denials": [
+    "no exploit generation",
+    "no vulnerability reproduction",
+    "no offensive scanning",
+    "no network attack logic",
+    "no host shell passthrough",
+    "no runtime containment claim",
+    "no quantum-safe claim from classical evidence"
+  ],
+  "purposes": [
+    {
+      "id": "top10-anchor",
+      "kali_metapackage": "kali-tools-top10",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Canonical high-signal Kali entry point for authorized inventory planning.",
+      "selected_tools": [
+        {
+          "name": "Nmap",
+          "package": "nmap",
+          "kali_url": "https://www.kali.org/tools/nmap/",
+          "role": "network inventory and service metadata purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME does not send packets or run scans."
+        }
+      ]
+    },
+    {
+      "id": "information-gathering",
+      "kali_metapackage": "kali-tools-information-gathering",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Asset and public-surface inventory planning without host probes.",
+      "selected_tools": [
+        {
+          "name": "theHarvester",
+          "package": "theharvester",
+          "kali_url": "https://www.kali.org/tools/theharvester/",
+          "role": "OSINT collection purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "External lookups are not performed inside NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "vulnerability-analysis",
+      "kali_metapackage": "kali-tools-vulnerability",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Local defensive posture review planning.",
+      "selected_tools": [
+        {
+          "name": "Lynis",
+          "package": "lynis",
+          "kali_url": "https://www.kali.org/tools/lynis/",
+          "role": "local system audit purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "No host audit is launched from the substrate."
+        }
+      ]
+    },
+    {
+      "id": "web-applications",
+      "kali_metapackage": "kali-tools-web",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Authorized web application review planning.",
+      "selected_tools": [
+        {
+          "name": "OWASP ZAP",
+          "package": "zaproxy",
+          "kali_url": "https://www.kali.org/tools/zaproxy/",
+          "role": "web proxy and review purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "Active web testing is not exposed through NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "database-assessment",
+      "kali_metapackage": "kali-tools-database",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Database exposure review classification only.",
+      "selected_tools": [
+        {
+          "name": "sqlmap",
+          "package": "sqlmap",
+          "kali_url": "https://www.kali.org/tools/sqlmap/",
+          "role": "database testing purpose marker",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "Automated database testing is blocked in NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "password-audit",
+      "kali_metapackage": "kali-tools-passwords",
+      "risk_gate": "metadata-only",
+      "summary": "Offline authorized credential-strength review planning.",
+      "selected_tools": [
+        {
+          "name": "Hashcat",
+          "package": "hashcat",
+          "kali_url": "https://www.kali.org/tools/hashcat/",
+          "role": "offline hash audit purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "No cracking job is launched from NOXFRAME."
+        },
+        {
+          "name": "John the Ripper",
+          "package": "john",
+          "kali_url": "https://www.kali.org/tools/john/",
+          "role": "offline hash-format companion",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "Included as a companion because format handling differs from Hashcat."
+        }
+      ]
+    },
+    {
+      "id": "wireless-analysis",
+      "kali_metapackage": "kali-tools-wireless",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Wireless environment review classification.",
+      "selected_tools": [
+        {
+          "name": "Kismet",
+          "package": "kismet",
+          "kali_url": "https://www.kali.org/tools/kismet/",
+          "role": "wireless inventory purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "No radio, capture, or injection route is opened."
+        }
+      ]
+    },
+    {
+      "id": "reverse-engineering",
+      "kali_metapackage": "kali-tools-reverse-engineering",
+      "risk_gate": "metadata-only",
+      "summary": "Static binary review planning.",
+      "selected_tools": [
+        {
+          "name": "Ghidra",
+          "package": "ghidra",
+          "kali_url": "https://www.kali.org/tools/ghidra/",
+          "role": "static reverse engineering purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME only records the review purpose."
+        }
+      ]
+    },
+    {
+      "id": "exploitation-frameworks",
+      "kali_metapackage": "kali-tools-exploitation",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Exploit-framework awareness for defensive inventory only.",
+      "selected_tools": [
+        {
+          "name": "Metasploit Framework",
+          "package": "metasploit-framework",
+          "kali_url": "https://www.kali.org/tools/metasploit-framework/",
+          "role": "framework catalog marker",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "Modules are not listed or launched from NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "social-engineering-awareness",
+      "kali_metapackage": "kali-tools-social-engineering",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Awareness-training classification only.",
+      "selected_tools": [
+        {
+          "name": "Social-Engineer Toolkit",
+          "package": "set",
+          "kali_url": "https://www.kali.org/tools/set/",
+          "role": "awareness-training purpose marker",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "Campaign tooling is not exposed through NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "sniffing-spoofing",
+      "kali_metapackage": "kali-tools-sniffing-spoofing",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Packet evidence review without live capture or injection.",
+      "selected_tools": [
+        {
+          "name": "Wireshark",
+          "package": "wireshark",
+          "kali_url": "https://www.kali.org/tools/wireshark/",
+          "role": "packet evidence review purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "Live capture and spoofing are unavailable inside NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "post-exploitation-review",
+      "kali_metapackage": "kali-tools-post-exploitation",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Defensive identity-exposure graph review planning.",
+      "selected_tools": [
+        {
+          "name": "BloodHound",
+          "package": "bloodhound",
+          "kali_url": "https://www.kali.org/tools/bloodhound/",
+          "role": "offline identity-path graph purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "Collectors and host queries are not launched."
+        }
+      ]
+    },
+    {
+      "id": "forensics",
+      "kali_metapackage": "kali-tools-forensics",
+      "risk_gate": "metadata-only",
+      "summary": "Offline disk and memory evidence review planning.",
+      "selected_tools": [
+        {
+          "name": "Autopsy",
+          "package": "autopsy",
+          "kali_url": "https://www.kali.org/tools/autopsy/",
+          "role": "disk image review purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME does not mount or inspect host media."
+        },
+        {
+          "name": "Volatility 3",
+          "package": "volatility3",
+          "kali_url": "https://www.kali.org/tools/volatility3/",
+          "role": "memory image review companion",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "Included because disk and memory evidence need separate tools."
+        }
+      ]
+    },
+    {
+      "id": "reporting",
+      "kali_metapackage": "kali-tools-reporting",
+      "risk_gate": "metadata-only",
+      "summary": "Assessment evidence organization planning.",
+      "selected_tools": [
+        {
+          "name": "Dradis",
+          "package": "dradis",
+          "kali_url": "https://www.kali.org/tools/dradis/",
+          "role": "reporting workflow purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME exposes only the reporting purpose metadata."
+        }
+      ]
+    },
+    {
+      "id": "802-11",
+      "kali_metapackage": "kali-tools-802-11",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "802.11 review classification without radio access.",
+      "selected_tools": [
+        {
+          "name": "Kismet",
+          "package": "kismet",
+          "kali_url": "https://www.kali.org/tools/kismet/",
+          "role": "802.11 inventory purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "Shared with wireless-analysis to avoid duplicating radio routes."
+        }
+      ]
+    },
+    {
+      "id": "bluetooth",
+      "kali_metapackage": "kali-tools-bluetooth",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Bluetooth review classification without adapter access.",
+      "selected_tools": [
+        {
+          "name": "Bluelog",
+          "package": "bluelog",
+          "kali_url": "https://www.kali.org/tools/bluelog/",
+          "role": "Bluetooth device logging purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME does not open host Bluetooth adapters."
+        }
+      ]
+    },
+    {
+      "id": "rfid",
+      "kali_metapackage": "kali-tools-rfid",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "RFID hardware review classification only.",
+      "selected_tools": [
+        {
+          "name": "Proxmark3",
+          "package": "proxmark3",
+          "kali_url": "https://www.kali.org/tools/proxmark3/",
+          "role": "RFID hardware purpose anchor",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "Hardware routes are not exposed through NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "sdr",
+      "kali_metapackage": "kali-tools-sdr",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Software-defined radio review classification only.",
+      "selected_tools": [
+        {
+          "name": "Gqrx",
+          "package": "gqrx",
+          "kali_url": "https://www.kali.org/tools/gqrx/",
+          "role": "SDR observation purpose anchor",
+          "disposition": "catalog-only",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME does not open radio hardware."
+        }
+      ]
+    },
+    {
+      "id": "voip",
+      "kali_metapackage": "kali-tools-voip",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "VoIP trace review without live probing.",
+      "selected_tools": [
+        {
+          "name": "sngrep",
+          "package": "sngrep",
+          "kali_url": "https://www.kali.org/tools/sngrep/",
+          "role": "SIP trace review purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "Live SIP traffic capture is unavailable inside NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "windows-resources",
+      "kali_metapackage": "kali-tools-windows-resources",
+      "risk_gate": "metadata-only",
+      "summary": "Windows artifact handling and evidence orientation.",
+      "selected_tools": [
+        {
+          "name": "YARA",
+          "package": "yara",
+          "kali_url": "https://www.kali.org/tools/yara/",
+          "role": "offline artifact classification purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "Rules and artifact scans are not run from NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "gpu",
+      "kali_metapackage": "kali-tools-gpu",
+      "risk_gate": "metadata-only",
+      "summary": "GPU-assisted offline audit classification.",
+      "selected_tools": [
+        {
+          "name": "Hashcat",
+          "package": "hashcat",
+          "kali_url": "https://www.kali.org/tools/hashcat/",
+          "role": "GPU offline audit purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "GPU jobs are not launched from NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "crypto-stego",
+      "kali_metapackage": "kali-tools-crypto-stego",
+      "risk_gate": "metadata-only",
+      "summary": "Offline cryptography and steganography evidence triage planning.",
+      "selected_tools": [
+        {
+          "name": "Steghide",
+          "package": "steghide",
+          "kali_url": "https://www.kali.org/tools/steghide/",
+          "role": "steganography evidence purpose anchor",
+          "disposition": "offline-evidence-catalog",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME does not extract or transform evidence files."
+        }
+      ]
+    },
+    {
+      "id": "fuzzing",
+      "kali_metapackage": "kali-tools-fuzzing",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Parser-hardening corpus planning without vulnerability reproduction.",
+      "selected_tools": [
+        {
+          "name": "Radamsa",
+          "package": "radamsa",
+          "kali_url": "https://www.kali.org/tools/radamsa/",
+          "role": "deterministic parser fixture purpose marker",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "No fuzzing campaign or crashing target is run from NOXFRAME."
+        }
+      ]
+    },
+    {
+      "id": "hardware",
+      "kali_metapackage": "kali-tools-hardware",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Hardware interface review classification only.",
+      "selected_tools": [
+        {
+          "name": "OpenOCD",
+          "package": "openocd",
+          "kali_url": "https://www.kali.org/tools/openocd/",
+          "role": "hardware debug-interface purpose anchor",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "NOXFRAME does not open hardware debug interfaces."
+        }
+      ]
+    },
+    {
+      "id": "labs",
+      "kali_metapackage": "kali-linux-labs",
+      "risk_gate": "blocked-by-noxframe",
+      "summary": "Training-lab orientation without embedded exploit labs.",
+      "selected_tools": [
+        {
+          "name": "DVWA",
+          "package": "dvwa",
+          "kali_url": "https://www.kali.org/tools/dvwa/",
+          "role": "lab awareness marker",
+          "disposition": "blocked-catalog",
+          "host_execution": "unavailable",
+          "notes": "Vulnerable lab apps are not vendored, started, or reproduced."
+        }
+      ]
+    }
+  ]
+}

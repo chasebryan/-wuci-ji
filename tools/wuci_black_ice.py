@@ -28,6 +28,8 @@ try:
 except ImportError:  # pragma: no cover - platform fallback
     readline = None
 
+import wuci_kaiju
+
 
 @dataclass(frozen=True)
 class ConsoleCommandSpec:
@@ -113,12 +115,17 @@ SUBSTRATE_STATE_SCHEMA = "wuci-noxframe-state-v1"
 SUBSTRATE_SEAL_SCHEMA = "wuci-noxframe-substrate-seal-v1"
 DAYLIGHT_WRAP_SCHEMA = "wuci-noxframe-daylight-wrap-v1"
 DAYLIGHT_WRAP_BUNDLE_SCHEMA = "wuci-noxframe-daylight-wrap-bundle-v1"
+SUBSTRATE_MEMORY_SCHEMA = "wuci-noxframe-substrate-memory-v1"
+SUBSTRATE_LOCK_POLICY_SCHEMA = "wuci-noxframe-substrate-lock-policy-v1"
 DEFAULT_REPORT = "docs/noxframe/WUCI_NOXFRAME_LAUNCH_REPORT.md"
 DEFAULT_SEAL = "docs/noxframe/WUCI_NOXFRAME_SELF_SEAL.json"
 DEFAULT_CLOCK = "build/noxframe/WUCI_NOXFRAME_CLOCK.json"
 DEFAULT_STATE = "build/noxframe/WUCI_NOXFRAME_STATE.json"
 DEFAULT_SUBSTRATE_SEAL = "build/noxframe/WUCI_NOXFRAME_SUBSTRATE_SEAL.json"
 DEFAULT_DAYLIGHT_WRAP_DIR = "build/noxframe/daylight-wrap"
+DEFAULT_SUBSTRATE_MEMORY_ROOT = "build/noxframe/substrate-memory"
+DEFAULT_SUBSTRATE_LOCK_DEPTH = 9
+KAIJU_MANIFEST_PATH = "docs/noxframe/wuci_kaiju_manifest.json"
 DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
 XFRAME_MAX = 4
 XFRAME_SWITCH_INPUTS = ("\x1b[Z", "\x1b\x1b[Z")
@@ -140,6 +147,7 @@ ANCHOR_PATHS = (
     "docs/wuci_cage_policy.json",
     "docs/wuci_qcage_policy.json",
     "docs/wuci_high_attestation_profile.json",
+    KAIJU_MANIFEST_PATH,
     "daylight-equation/SCORECARD.v1.json",
     "daylight-equation/specs/daylight-minimal-core-v0.4.md",
     "daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs",
@@ -150,6 +158,7 @@ ANCHOR_ROLES = {
     "docs/wuci_cage_policy.json": "CAGE policy",
     "docs/wuci_qcage_policy.json": "QCAGE policy",
     "docs/wuci_high_attestation_profile.json": "high attestation profile",
+    KAIJU_MANIFEST_PATH: "WUCI-KAIJU Kali purpose catalog",
     "daylight-equation/SCORECARD.v1.json": "Daylight score boundary",
     "daylight-equation/specs/daylight-minimal-core-v0.4.md": "Daylight core spec",
     "daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs": "Daylight bridge source",
@@ -167,6 +176,7 @@ SUBSTRATE_CELLS = (
     ("cage", "public-evidence airlock context", ("status", "seal")),
     ("qcage", "quantum-claim discipline context", ("status", "seal")),
     ("install", "signed local install proof context", ("status", "seal")),
+    ("kaiju", "defensive Kali ISO and tool purpose-catalog context", ("status", "iso", "disk", "boot", "verify")),
     ("codex", "opt-in Codex host bridge context", ("status", "handoff", "start", "exec", "resume")),
 )
 NON_CLAIMS = (
@@ -230,6 +240,7 @@ PLUGIN_CATALOG = (
     ("wasi-lite", "Phase1-compatible plugin lane", "catalog only; module execution unavailable"),
     ("prism", "Wuci-Prism proof inspector", "available through launch matrix, not as host shell"),
     ("noxframe-self-release", "self-release evidence lane", "explicit self-release run writes under build/noxframe"),
+    ("wuci-kaiju", "Kali purpose catalog for future substrates", "metadata only; host Kali tools unavailable"),
 )
 WIKI_TOPICS = {
     "phase1": (
@@ -244,6 +255,7 @@ WIKI_TOPICS = {
     "cage": "CAGE verifies artifact legitimacy around public evidence; it is not OS containment.",
     "qcage": "QCAGE labels quantum risk and digest evidence; classical signatures are not quantum-safe.",
     "install": "INSTALL is noninteractive and signed; it requires a local copied root key.",
+    "kaiju": "WUCI-KAIJU maps Kali tool purposes into a verified metadata catalog; it does not run Kali tools.",
 }
 
 
@@ -268,6 +280,8 @@ def default_console_env() -> dict[str, str]:
         "NOXFRAME_SELF_RELEASE": "ready",
         "NOXFRAME_SELF_RELEASE_ROOT": "/wuci/self-release",
         "NOXFRAME_DAYLIGHT_WRAP_ROOT": "/wuci/daylight-wrap",
+        "NOXFRAME_SUBSTRATE_MEMORY_ROOT": DEFAULT_SUBSTRATE_MEMORY_ROOT,
+        "NOXFRAME_SUBSTRATE_LOCK_FROM_DEPTH": str(DEFAULT_SUBSTRATE_LOCK_DEPTH),
         "NOXFRAME_CR3": "0x0000000000002000",
         "NOXFRAME_PCIDE": "off",
     }
@@ -383,7 +397,7 @@ CONSOLE_COMMANDS = (
     console_cmd("iwconfig", (), "net", "iwconfig", "Show virtual wireless policy.", "net.read", "metadata-only"),
     console_cmd("wifi-scan", (), "net", "wifi-scan", "Show deterministic no-scan Wi-Fi status.", "net.read", "metadata-only"),
     console_cmd("wifi-connect", (), "net", "wifi-connect <ssid>", "Record a denied virtual Wi-Fi connection decision.", "net.admin", "metadata-only"),
-    console_cmd("ping", (), "net", "ping <host>", "Show a no-network ping decision without sending packets.", "net.read", "metadata-only"),
+    console_cmd("ping", (), "net", "ping <host>", "Show a metadata-deny ping decision without sending packets.", "net.read", "metadata-only"),
     console_cmd("nmcli", (), "net", "nmcli", "Show virtual NetworkManager policy.", "net.read", "metadata-only"),
     console_cmd("browser", (), "host", "browser <url|about>", "Show browser route metadata without fetching URLs.", "host.net", "metadata-only"),
     console_cmd("git", (), "host", "git <args...>", "Show repository metadata without host git passthrough.", "host.exec", "metadata-only"),
@@ -396,6 +410,7 @@ CONSOLE_COMMANDS = (
     console_cmd("gcc", ("cc",), "host", "gcc <file.c>", "Show C compiler route metadata without executing gcc.", "host.exec", "metadata-only"),
     console_cmd("plugins", ("plugin",), "plugin", "plugins [list|status|policy]", "Show metadata-only plugin catalog.", "plugin.read", "metadata-only"),
     console_cmd("wasm", ("wasi",), "plugin", "wasm [list|inspect|policy|run]", "Show WASI-lite plugin catalog while keeping execution unavailable.", "wasm.read", "metadata-only"),
+    console_cmd("kaiju", ("wuci-kaiju",), "plugin", "kaiju [status|list|purpose|policy|verify|manifest|iso|disk|boot]", "Show WUCI-KAIJU catalog and non-graphical Kali ISO boot controls.", "kaiju.read", "metadata-only"),
     console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
     console_cmd("codex", ("agent",), "dev", "codex [status|handoff|version|doctor|start|exec|resume]", "Use the opt-in Codex bridge pinned to this Wuci-Ji checkout.", "host.exec", "explicit-opt-in"),
     console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Open a virtual read-only editor preview.", "fs.read", "metadata-only"),
@@ -420,7 +435,7 @@ CONSOLE_COMMANDS = (
     console_cmd("version", ("ver",), "misc", "version", "Show NOXFRAME version metadata.", "none", "open"),
     console_cmd("roadmap", ("map",), "misc", "roadmap", "Show NOXFRAME continuation path.", "none", "metadata-only"),
     console_cmd("sandbox", ("nsinfo",), "misc", "sandbox", "Show command-boundary summary.", "none", "metadata-only"),
-    console_cmd("nest", ("nests",), "misc", "nest [status|list|enter|inspect|tree|info]", "Show or move through metadata-only nested contexts.", "none", "metadata-only"),
+    console_cmd("nest", ("nests",), "misc", "nest [status|list|enter|inspect|tree|memory|lock-policy|info]", "Show or move through metadata-only nested contexts.", "none", "metadata-only"),
     console_cmd("multi", ("batch", "script"), "misc", "multi <cmd> ; <cmd> ...", "Run multiple NOXFRAME commands from one console line.", "none", "local"),
     console_cmd("exit", ("quit", "shutdown", "poweroff"), "misc", "exit [all]", "Leave the current NOXFRAME level, or all levels with exit all.", "none", "open"),
 )
@@ -1446,6 +1461,122 @@ def context_record(context: str) -> tuple[str, str, tuple[str, ...]] | None:
     return None
 
 
+def substrate_memory_path(context: str, depth: int) -> str:
+    return f"{DEFAULT_SUBSTRATE_MEMORY_ROOT}/depth-{depth:02d}/{context}/memory.wj"
+
+
+def substrate_memory_manifest_path(context: str, depth: int) -> str:
+    return f"{DEFAULT_SUBSTRATE_MEMORY_ROOT}/depth-{depth:02d}/{context}/manifest.json"
+
+
+def substrate_lock_policy() -> dict[str, object]:
+    return {
+        "schema": SUBSTRATE_LOCK_POLICY_SCHEMA,
+        "default_lock_from_depth": DEFAULT_SUBSTRATE_LOCK_DEPTH,
+        "warning_required_before_lock": True,
+        "lock_gate": {
+            "mode": "operator-keyfile-or-reviewed-password-gate",
+            "password_storage": "plaintext password must never be stored",
+            "recovery": "unavailable by design; destroy the locked substrate depth and recreate it",
+            "destroy_scope": "the locked depth and descendants, not unrelated substrate depths",
+        },
+        "non_claims": [
+            "not host-proof isolation",
+            "not runtime containment",
+            "not quantum-safe unless a real pinned PQ verifier lane is added",
+        ],
+    }
+
+
+def substrate_memory_contract(active_context: str = "root", depth: int = 0) -> dict[str, object]:
+    if context_record(active_context) is None:
+        active_context = "root"
+    depth = max(0, depth)
+    contexts = []
+    for cell_id, role, actions in SUBSTRATE_CELLS:
+        record = {
+            "context": cell_id,
+            "role": role,
+            "depth": depth,
+            "store_path": substrate_memory_path(cell_id, depth),
+            "manifest_path": substrate_memory_manifest_path(cell_id, depth),
+            "allowed_actions": list(actions),
+            "envelope": "WJSEAL-v2 via NOXFRAME daylight-wrap",
+        }
+        record["digest_vector"] = digest_vector_json(record)
+        contexts.append(record)
+    return {
+        "schema": SUBSTRATE_MEMORY_SCHEMA,
+        "active_context": active_context,
+        "active_depth": depth,
+        "memory_root": DEFAULT_SUBSTRATE_MEMORY_ROOT,
+        "store_template": f"{DEFAULT_SUBSTRATE_MEMORY_ROOT}/depth-{{depth:02d}}/{{context}}/memory.wj",
+        "manifest_template": f"{DEFAULT_SUBSTRATE_MEMORY_ROOT}/depth-{{depth:02d}}/{{context}}/manifest.json",
+        "active_store_path": substrate_memory_path(active_context, depth),
+        "active_manifest_path": substrate_memory_manifest_path(active_context, depth),
+        "persistence": {
+            "mechanism": "sealed local artifacts bound by Daylight/WJSEAL evidence",
+            "plain_session_memory": "session-local only until explicitly sealed",
+            "reboot_behavior": "re-entering a depth points at the same sealed memory path",
+        },
+        "lock_policy": substrate_lock_policy(),
+        "network_policy": {
+            "default": "metadata-deny in the console registry",
+            "future_bridge": "must be explicit opt-in, allowlisted, transcripted, and non-scanning by default",
+        },
+        "host_boundary": {
+            "protects": "at-rest confidentiality/integrity only after a real sealed artifact is written",
+            "does_not_protect": "a running substrate from a compromised host kernel, root account, debugger, or disk deletion",
+            "required_for_host_compromise_resistance": "separate host, VM/hypervisor boundary, kernel sandbox, TEE, or hardware-backed key release",
+        },
+        "contexts": contexts,
+        "non_claims": list(NON_CLAIMS),
+    }
+
+
+def substrate_memory_text(session: ConsoleSession) -> str:
+    context = session.env.get("NOXFRAME_CONTEXT", "root")
+    depth = console_depth(session)
+    memory = substrate_memory_contract(context, depth)
+    lock_policy = memory["lock_policy"]
+    assert isinstance(lock_policy, dict)
+    return "\n".join(
+        [
+            f"schema: {memory['schema']}",
+            f"active_context: {memory['active_context']}",
+            f"active_depth: {memory['active_depth']}",
+            f"memory_root: {memory['memory_root']}",
+            f"active_store: {memory['active_store_path']}",
+            f"active_manifest: {memory['active_manifest_path']}",
+            f"default_lock_from_depth: {lock_policy['default_lock_from_depth']}",
+            "envelope: WJSEAL-v2 via NOXFRAME daylight-wrap",
+            "recovery: password/key loss requires destroying that locked depth and descendants",
+            "host_boundary: encrypted-at-rest policy only; not host-compromise containment",
+            "network: default metadata-deny; explicit future bridge must be allowlisted and transcripted",
+            "",
+        ]
+    )
+
+
+def substrate_lock_policy_text() -> str:
+    policy = substrate_lock_policy()
+    gate = policy["lock_gate"]
+    assert isinstance(gate, dict)
+    return "\n".join(
+        [
+            f"schema: {policy['schema']}",
+            f"default_lock_from_depth: {policy['default_lock_from_depth']}",
+            f"warning_required_before_lock: {policy['warning_required_before_lock']}",
+            f"mode: {gate['mode']}",
+            f"password_storage: {gate['password_storage']}",
+            f"recovery: {gate['recovery']}",
+            f"destroy_scope: {gate['destroy_scope']}",
+            "non_claim: not host-proof isolation",
+            "",
+        ]
+    )
+
+
 def nest_status_text(session: ConsoleSession) -> str:
     context = session.env.get("NOXFRAME_CONTEXT", "root")
     depth = console_depth(session)
@@ -1457,8 +1588,9 @@ def nest_status_text(session: ConsoleSession) -> str:
             f"cwd: {session.cwd}",
             f"substratisphere_depth: {depth}",
             f"lattice: {theme.name}",
+            f"memory_store: {substrate_memory_path(context, depth)}",
             "mode: single-session metadata nesting",
-            "commands: nest list | nest enter <context> | nest inspect <context> | nest tree",
+            "commands: nest list | nest enter <context> | nest inspect <context> | nest tree | nest memory | nest lock-policy",
             "mutation: spawn/destroy remain blocked for fixed metadata cells",
             "",
         ]
@@ -1485,10 +1617,11 @@ def nest_inspect_text(context: str) -> str:
     )
 
 
-def nest_tree_text() -> str:
+def nest_tree_text(session: ConsoleSession | None = None) -> str:
+    depth = console_depth(session) if session is not None else 0
     rows = ["root"]
     for cell_id in context_ids():
-        rows.append(f"  {cell_id}/")
+        rows.append(f"  {cell_id}/ memory={substrate_memory_path(cell_id, depth)}")
     return "\n".join(rows) + "\n"
 
 
@@ -1518,6 +1651,196 @@ def plugin_policy_text() -> str:
             "",
         ]
     )
+
+
+def kaiju_catalog(root: Path) -> dict[str, object]:
+    try:
+        return wuci_kaiju.load_manifest(wuci_kaiju.default_manifest_path(root))
+    except wuci_kaiju.KaijuError as exc:
+        raise NoxframeError(str(exc)) from exc
+
+
+def kaiju_verify_text(root: Path) -> str:
+    try:
+        result = wuci_kaiju.verify_manifest(wuci_kaiju.default_manifest_path(root))
+    except wuci_kaiju.KaijuError as exc:
+        raise NoxframeError(str(exc)) from exc
+    rows = [
+        "schema: wuci-kaiju-verification-v1",
+        f"status: {result['status']}",
+        f"manifest: {display_repo_path(root, Path(str(result['manifest'])))}",
+        f"purposes: {result['purpose_count']}",
+        f"selected_tools: {result['selected_tool_count']}",
+    ]
+    problems = result.get("problems", [])
+    if isinstance(problems, list) and problems:
+        rows.extend(f"problem: {problem}" for problem in problems)
+    rows.append("")
+    return "\n".join(rows)
+
+
+def kaiju_iso_root(root: Path, args: argparse.Namespace) -> Path:
+    return repo_path(root, getattr(args, "kaiju_iso_root", str(wuci_kaiju.DEFAULT_ISO_ROOT)))
+
+
+def kaiju_disk_root(root: Path, args: argparse.Namespace) -> Path:
+    return repo_path(root, getattr(args, "kaiju_disk_root", str(wuci_kaiju.DEFAULT_DISK_ROOT)))
+
+
+def has_console_flag(parts: list[str], flag: str) -> bool:
+    return flag in parts
+
+
+def console_option_value(parts: list[str], option: str) -> str | None:
+    if option not in parts:
+        return None
+    index = parts.index(option)
+    if index + 1 >= len(parts):
+        raise NoxframeError(f"{option} requires a value")
+    return parts[index + 1]
+
+
+def console_int_option(parts: list[str], option: str, default: int) -> int:
+    value = console_option_value(parts, option)
+    if value is None:
+        return default
+    try:
+        return int(value, 10)
+    except ValueError as exc:
+        raise NoxframeError(f"{option} must be an integer") from exc
+
+
+def kaiju_boot_plan_text(root: Path, args: argparse.Namespace, parts: list[str]) -> str:
+    plan = wuci_kaiju.boot_plan(
+        iso_root=kaiju_iso_root(root, args),
+        disk_root=kaiju_disk_root(root, args),
+        qemu_bin=getattr(args, "kaiju_qemu_bin", wuci_kaiju.DEFAULT_QEMU_BIN),
+        memory_mib=console_int_option(parts, "--memory-mib", wuci_kaiju.DEFAULT_MEMORY_MIB),
+        cpus=console_int_option(parts, "--cpus", wuci_kaiju.DEFAULT_CPUS),
+        network=has_console_flag(parts, "--allow-network"),
+    )
+    return json.dumps(plan, indent=2, sort_keys=True) + "\n"
+
+
+def handle_kaiju_iso_command(root: Path, args: argparse.Namespace, parts: list[str]) -> None:
+    action = parts[2].lower() if len(parts) > 2 else "status"
+    iso_root = kaiju_iso_root(root, args)
+    if action == "status":
+        print(wuci_kaiju.iso_status_text(iso_root), end="")
+        return
+    if action == "verify":
+        result = wuci_kaiju.verify_iso_install(iso_root)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    if action == "install":
+        if len(parts) < 4:
+            print("usage: kaiju iso install <local-iso> [--name kali.iso] [--force]")
+            return
+        source = Path(parts[3])
+        name = console_option_value(parts, "--name")
+        force = has_console_flag(parts, "--force")
+        manifest = wuci_kaiju.install_iso(source, iso_root=iso_root, name=name, force=force)
+        print(f"kaiju iso: installed {manifest['image_path']}")
+        print(f"bytes: {manifest['image_bytes']}")
+        print(f"sha256: {manifest['digest_vector']['sha256']}")
+        return
+    print("usage: kaiju iso [status|verify|install <local-iso>]")
+
+
+def handle_kaiju_disk_command(root: Path, args: argparse.Namespace, parts: list[str]) -> None:
+    action = parts[2].lower() if len(parts) > 2 else "status"
+    disk_root = kaiju_disk_root(root, args)
+    if action == "status":
+        print(wuci_kaiju.disk_status_text(disk_root), end="")
+        return
+    if action == "verify":
+        result = wuci_kaiju.verify_disk(disk_root)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    if action == "create":
+        size_mib = console_int_option(parts, "--size-mib", 32768)
+        name = console_option_value(parts, "--name") or "kali.raw"
+        manifest = wuci_kaiju.create_disk(
+            disk_root=disk_root,
+            size_mib=size_mib,
+            name=name,
+            force=has_console_flag(parts, "--force"),
+        )
+        print(f"kaiju disk: created {manifest['disk_path']}")
+        print(f"size-mib: {manifest['size_mib']}")
+        return
+    print("usage: kaiju disk [status|verify|create --size-mib N]")
+
+
+def handle_kaiju_boot_command(root: Path, args: argparse.Namespace, parts: list[str]) -> None:
+    try:
+        plan_text = kaiju_boot_plan_text(root, args, parts)
+    except wuci_kaiju.KaijuError as exc:
+        raise NoxframeError(str(exc)) from exc
+    if has_console_flag(parts, "--dry-run") or has_console_flag(parts, "--json"):
+        print(plan_text, end="")
+        return
+    if not getattr(args, "allow_kaiju_boot", False):
+        print("kaiju boot: bridge disabled")
+        print("restart NOXFRAME with --allow-kaiju-boot to launch non-graphical QEMU")
+        print("use: kaiju boot --dry-run")
+        return
+    plan = json.loads(plan_text)
+    if plan.get("qemu_discovered") == "not found on PATH":
+        print(f"kaiju boot: QEMU executable not found: {getattr(args, 'kaiju_qemu_bin', wuci_kaiju.DEFAULT_QEMU_BIN)}")
+        return
+    argv = plan["argv"]
+    print("kaiju boot: launching non-graphical QEMU")
+    print("network: " + str(plan.get("network", "none")))
+    print("graphics: none")
+    print("argv: " + shlex.join(str(part) for part in argv))
+    result = subprocess.run([str(part) for part in argv], cwd=root, check=False, shell=False)
+    print(f"kaiju-boot-result: {result.returncode}")
+
+
+def handle_kaiju_command(root: Path, args: argparse.Namespace, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "status"
+    if action in {"run", "exec", "scan"}:
+        print(f"kaiju {action}: unavailable in NOXFRAME")
+        print("scope: WUCI-KAIJU is a read-only Kali purpose catalog")
+        return
+    if action == "iso":
+        handle_kaiju_iso_command(root, args, parts)
+        return
+    if action == "disk":
+        handle_kaiju_disk_command(root, args, parts)
+        return
+    if action == "boot":
+        handle_kaiju_boot_command(root, args, parts)
+        return
+    manifest = None if action == "verify" else kaiju_catalog(root)
+    if action == "status":
+        assert manifest is not None
+        print(wuci_kaiju.manifest_status_text(manifest), end="")
+        return
+    if action in {"list", "ls"}:
+        assert manifest is not None
+        print(wuci_kaiju.manifest_list_text(manifest), end="")
+        return
+    if action == "purpose":
+        if len(parts) < 3:
+            print("usage: kaiju purpose <purpose-id>")
+            return
+        assert manifest is not None
+        print(wuci_kaiju.manifest_list_text(manifest, parts[2]), end="")
+        return
+    if action == "policy":
+        assert manifest is not None
+        print(wuci_kaiju.manifest_policy_text(manifest), end="")
+        return
+    if action == "verify":
+        print(kaiju_verify_text(root), end="")
+        return
+    if action == "manifest":
+        assert manifest is not None
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+        return
+    print("usage: kaiju [status|list|purpose <id>|policy|verify|manifest|iso|disk|boot]")
 
 
 def wiki_text(topic: str | None) -> str:
@@ -1592,7 +1915,7 @@ def doctor_text(root: Path, args: argparse.Namespace, session: ConsoleSession) -
             f"notes: {len(session.notes)}",
             f"problems: {len(problems)}",
             *(f"problem: {problem}" for problem in problems),
-            "boundary: no host shell, no network route, no runtime-containment claim",
+            "boundary: no host shell, metadata-deny network route, no runtime-containment claim",
             "",
         ]
     )
@@ -1714,6 +2037,18 @@ def command_argument_completion_plan(
         choices = ("status", "list", "show", "add", "clear")
     elif command == "codex":
         choices = ("status", "handoff", "version", "doctor", "start", "exec", "resume")
+    elif command == "kaiju":
+        choices = (
+            "status",
+            "list",
+            "purpose",
+            "policy",
+            "verify",
+            "manifest",
+            "iso",
+            "disk",
+            "boot",
+        )
     elif command in {"plugins", "wasm"}:
         choices = ("list", "status", "inspect", "policy", "run")
     elif command == "wiki":
@@ -1740,7 +2075,17 @@ def command_argument_completion_plan(
     elif command == "bootcfg":
         choices = ("show", "path")
     elif command == "nest":
-        choices = ("status", "list", "enter", "inspect", "tree", "info", *context_ids())
+        choices = (
+            "status",
+            "list",
+            "enter",
+            "inspect",
+            "tree",
+            "memory",
+            "lock-policy",
+            "info",
+            *context_ids(),
+        )
     elif command == "repo":
         choices = ("status",)
     elif command == "fyr":
@@ -2065,6 +2410,7 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "cage/",
             "qcage/",
             "install/",
+            "kaiju/",
             "codex/",
             "dev/",
             "phase/",
@@ -2075,11 +2421,12 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "var/",
             "docs/",
         ),
-        "/dev": ("codex", "plugins", "wasi"),
+        "/dev": ("codex", "kaiju", "plugins", "wasi"),
         "/env": ("aliases", "profile", "security", "self-release", "variables"),
+        "/kaiju": ("boot-plan", "disk", "iso", "manifest", "policy", "purposes", "status", "verify"),
         "/phase": ("compass", "features", "map", "path", "whereami"),
         "/learn": ("notes", "status"),
-        "/nests": ("contexts", "stack", "tree"),
+        "/nests": ("contexts", "lock-policy", "memory-map", "stack", "tree"),
         "/proc": ("version", "route", "cells", "processes"),
         "/var": ("log/",),
         "/var/log": ("audit",),
@@ -2089,6 +2436,7 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "state.json",
             "seal.json",
             "launch-report.md",
+            "wuci-kaiju.json",
             "wiki",
         ),
     }
@@ -2257,16 +2605,49 @@ def virtual_file_text(
         )
     if path == "/env/self-release":
         return self_release_status_text(root)
+    if path == "/kaiju/status":
+        return wuci_kaiju.manifest_status_text(kaiju_catalog(root))
+    if path == "/kaiju/policy":
+        return wuci_kaiju.manifest_policy_text(kaiju_catalog(root))
+    if path == "/kaiju/purposes":
+        return wuci_kaiju.manifest_list_text(kaiju_catalog(root))
+    if path == "/kaiju/verify":
+        return kaiju_verify_text(root)
+    if path == "/kaiju/iso":
+        return wuci_kaiju.iso_status_text(kaiju_iso_root(root, args))
+    if path == "/kaiju/disk":
+        return wuci_kaiju.disk_status_text(kaiju_disk_root(root, args))
+    if path == "/kaiju/boot-plan":
+        try:
+            return kaiju_boot_plan_text(root, args, ["kaiju", "boot", "--dry-run"])
+        except wuci_kaiju.KaijuError as exc:
+            return f"kaiju boot-plan: unavailable: {exc}\n"
+    if path == "/kaiju/manifest":
+        return json.dumps(kaiju_catalog(root), indent=2, sort_keys=True) + "\n"
     if path == "/learn/status":
         return learn_status_text(session)
     if path == "/learn/notes":
         return learn_notes_text(session)
     if path == "/nests/contexts":
         return nest_list_text()
+    if path == "/nests/memory-map":
+        return (
+            json.dumps(
+                substrate_memory_contract(
+                    session.env.get("NOXFRAME_CONTEXT", "root"),
+                    console_depth(session),
+                ),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
+    if path == "/nests/lock-policy":
+        return substrate_lock_policy_text()
     if path == "/nests/stack":
         return nest_status_text(session)
     if path == "/nests/tree":
-        return nest_tree_text()
+        return nest_tree_text(session)
     if path == "/proc/version":
         return f"{TOOL_NAME} substrate console\nschema={SUBSTRATE_STATE_SCHEMA}\n"
     if path == "/proc/route":
@@ -2280,6 +2661,8 @@ def virtual_file_text(
         return console_process_table(session)
     if path == "/dev/codex":
         return codex_bridge_status_text(root, args)
+    if path == "/dev/kaiju":
+        return wuci_kaiju.manifest_status_text(kaiju_catalog(root))
     if path == "/dev/plugins":
         return plugin_catalog_text()
     if path == "/dev/wasi":
@@ -2303,6 +2686,8 @@ def virtual_file_text(
         if not report_path.exists():
             return "launch report not written\n"
         return report_path.read_text(encoding="utf-8")
+    if path == "/docs/wuci-kaiju.json":
+        return json.dumps(kaiju_catalog(root), indent=2, sort_keys=True) + "\n"
     if path == "/docs/wiki":
         return wiki_text(None)
     raise NoxframeError(f"not a virtual file: {path}")
@@ -2500,6 +2885,7 @@ def substrate_contract() -> dict[str, object]:
                 "local status and audit surfaces",
                 "Phase Compass and Optics rails",
                 "metadata-only nesting",
+                "sealed depth memory path map",
                 "session-local learning notes",
                 "plugin and WASI-lite catalogs without execution",
                 "Base1/B1/B2 dry-run metadata",
@@ -2512,6 +2898,8 @@ def substrate_contract() -> dict[str, object]:
                 "network command surface",
                 "plugin execution",
                 "persistent learning database",
+                "host-proof substrate isolation",
+                "password recovery backdoor",
                 "simulated kernel claims as enforcement",
             ],
         },
@@ -2535,16 +2923,21 @@ def substrate_contract() -> dict[str, object]:
             for cell_id, role, actions in SUBSTRATE_CELLS
         ],
         "anchor_paths": list(ANCHOR_PATHS),
+        "substrate_memory": substrate_memory_contract(),
         "daylight_wrap": {
             "schema": DAYLIGHT_WRAP_SCHEMA,
             "artifact_envelope": "WJSEAL-v2 via seal-file-keyfile-v2",
-            "key_source": "operator-supplied local keyfile",
-            "scope": "NOXFRAME substrate state, seal, cells, virtual dimensions, and Daylight anchors",
+            "key_source": "operator-supplied local keyfile; password-derived gates require a reviewed implementation",
+            "scope": "NOXFRAME substrate state, seal, cells, substrate memory map, virtual dimensions, and Daylight anchors",
             "non_claim": "local artifact sealing only; not runtime containment or whole-system PQ safety",
+        },
+        "network_bridge": {
+            "default": "metadata-deny in the NOXFRAME console",
+            "future_opt_in": "explicit allowlisted bridge with transcripted egress; no scanning by default",
         },
         "rules": {
             "stdlib_only": True,
-            "network": "unused",
+            "network": "metadata-deny unless a future explicit bridge is added",
             "shell": "disabled",
             "writes": "state and seal files only unless launch profile is explicitly run",
             "host_access": "public repository files through symlink and hardlink rejecting reads",
@@ -2576,13 +2969,14 @@ def build_substrate_state(root: Path, *, now_utc: str) -> dict[str, object]:
             for cell_id, role, actions in SUBSTRATE_CELLS
         ],
         "guards": {
-            "network": "unused",
+            "network": "metadata-deny unless a future explicit bridge is added",
             "shell": "disabled",
             "host_mutation": "state-and-seal-files-only",
             "artifact_release": "requires existing Gate proof lanes",
             "plugin_execution": "unavailable",
             "learning": "session-local only",
         },
+        "substrate_memory": substrate_memory_contract(),
         "non_claims": list(NON_CLAIMS),
     }
 
@@ -2607,7 +3001,7 @@ def build_substrate_seal(root: Path, state: dict[str, object], *, now_utc: str) 
         "anchors": anchors,
         "substrate_digest_vector": digest_vector_json(seal_material),
         "guards": {
-            "network": "unused",
+            "network": "metadata-deny in the console registry",
             "shell": "disabled",
             "host_effect": "public-read plus local state/seal write",
         },
@@ -2741,6 +3135,7 @@ def noxframe_inner_dimension_records(state: dict[str, object]) -> list[dict[str,
             "role": role,
             "allowed_actions": list(actions),
             "state": state_cell.get("state", "sealed-metadata-ready"),
+            "memory_store_path": substrate_memory_path(cell_id, 0),
             "wrap_surface": "substrate-cell",
         }
         record["digest_vector"] = digest_vector_json(record)
@@ -2783,11 +3178,12 @@ def build_daylight_wrap_bundle(
             "artifact_envelope": "WJSEAL-v2 via seal-file-keyfile-v2",
             "daylight_binding": "Daylight public anchors and WUCI-Daylight bridge source digests",
             "key_source": "operator-supplied local keyfile",
-            "plaintext_persistence": "temporary bundle only; not retained unless the caller opens the artifact",
+            "plaintext_persistence": "temporary bundle only; depth memory is represented by sealed path records",
         },
         "contract": substrate_contract(),
         "state": state,
         "substrate_seal": seal,
+        "substrate_memory": substrate_memory_contract(),
         "inner_dimensions": dimensions,
         "virtual_dimensions": virtual_dimensions,
         "daylight_anchors": daylight_anchors,
@@ -2796,6 +3192,7 @@ def build_daylight_wrap_bundle(
             {
                 "inner_dimensions": dimensions,
                 "virtual_dimensions": virtual_dimensions,
+                "substrate_memory": substrate_memory_contract(),
             }
         ),
         "non_claims": list(NON_CLAIMS),
@@ -2907,6 +3304,7 @@ def command_daylight_wrap(root: Path, args: argparse.Namespace) -> int:
         "key_source": "operator-supplied local keyfile; key material is not embedded",
         "bundle_digest_vector": digest_vector(bundle_file_bytes),
         "dimension_digest_vector": bundle["dimension_digest_vector"],
+        "substrate_memory_digest_vector": digest_vector_json(bundle["substrate_memory"]),
         "state_digest_vector": digest_vector_json(state),
         "substrate_seal_digest_vector": digest_vector_json(seal),
         "sealed_artifact": {
@@ -2927,7 +3325,7 @@ def command_daylight_wrap(root: Path, args: argparse.Namespace) -> int:
         "virtual_dimension_count": len(bundle["virtual_dimensions"]),
         "daylight_anchors": bundle["daylight_anchors"],
         "guards": {
-            "network": "unused",
+            "network": "metadata-deny in the console registry",
             "shell": "disabled; subprocess invoked with shell=False",
             "keyfile": (
                 "operator keyfile read through no-follow regular-file check; "
@@ -4781,6 +5179,26 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_CODEX_BIN,
         help="Codex executable for the opt-in console bridge",
     )
+    parser.add_argument(
+        "--allow-kaiju-boot",
+        action="store_true",
+        help="allow the NOXFRAME console kaiju boot command to launch non-graphical QEMU",
+    )
+    parser.add_argument(
+        "--kaiju-qemu-bin",
+        default=wuci_kaiju.DEFAULT_QEMU_BIN,
+        help="QEMU executable for the opt-in WUCI-KAIJU non-graphical boot bridge",
+    )
+    parser.add_argument(
+        "--kaiju-iso-root",
+        default=str(wuci_kaiju.DEFAULT_ISO_ROOT),
+        help="WUCI-KAIJU ISO workspace, relative to repository root unless absolute",
+    )
+    parser.add_argument(
+        "--kaiju-disk-root",
+        default=str(wuci_kaiju.DEFAULT_DISK_ROOT),
+        help="WUCI-KAIJU disk workspace, relative to repository root unless absolute",
+    )
     return parser.parse_args()
 
 
@@ -5165,7 +5583,13 @@ def handle_nest_command(session: ConsoleSession, parts: list[str]) -> None:
         print(nest_list_text(), end="")
         return
     if action == "tree":
-        print(nest_tree_text(), end="")
+        print(nest_tree_text(session), end="")
+        return
+    if action in {"memory", "memory-map"}:
+        print(substrate_memory_text(session), end="")
+        return
+    if action in {"lock-policy", "locks"}:
+        print(substrate_lock_policy_text(), end="")
         return
     if action == "inspect":
         context = parts[2].lower() if len(parts) > 2 else session.env.get("NOXFRAME_CONTEXT", "root")
@@ -5188,7 +5612,7 @@ def handle_nest_command(session: ConsoleSession, parts: list[str]) -> None:
         print(f"nest {action}: unavailable in NOXFRAME console")
         print("scope: nested contexts are fixed metadata cells")
         return
-    print("usage: nest [status|list|enter <context>|inspect <context>|tree|info]")
+    print("usage: nest [status|list|enter <context>|inspect <context>|tree|memory|lock-policy|info]")
 
 
 def vfs_mutation_target(session: ConsoleSession, cwd: str, value: str) -> str:
@@ -5749,7 +6173,7 @@ def handle_network_command(command: str, parts: list[str]) -> None:
     if command == "ifconfig":
         print("ifconfig: nox0 flags=UP,LOOPBACK,METADATA mtu 65536")
         print("        inet 127.0.0.1  netmask 255.0.0.0")
-        print("        policy no host network interface is opened")
+        print("        policy metadata-deny; no host network interface is opened by this command")
         return
     if command == "iwconfig":
         print("iwconfig: no wireless extensions in NOXFRAME metadata console")
@@ -5769,11 +6193,11 @@ def handle_network_command(command: str, parts: list[str]) -> None:
         if host == "(missing)":
             print("usage: ping <host>")
             return
-        print(f"ping: no packets sent; host={fit_display(host, 120)}; policy=no-network")
+        print(f"ping: no packets sent; host={fit_display(host, 120)}; policy=metadata-deny")
         return
     if command == "nmcli":
         print("nmcli: virtual NetworkManager state disconnected")
-        print("policy: metadata-only; no host network mutation")
+        print("policy: metadata-only; no host network mutation by this command")
         return
 
 
@@ -6039,7 +6463,10 @@ def dispatch_console_command(
     elif spec.category == "learn":
         handle_learn_command(session, parts)
     elif spec.category == "plugin":
-        handle_plugin_command(command, parts)
+        if command == "kaiju":
+            handle_kaiju_command(root, args, parts)
+        else:
+            handle_plugin_command(command, parts)
     elif spec.category == "net":
         handle_network_command(command, parts)
     elif spec.category in {"host", "dev"}:

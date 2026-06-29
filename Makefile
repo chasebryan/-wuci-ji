@@ -119,6 +119,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: install-local wuci-install
 .PHONY: wuci-prism-test wuci-progress-test
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
+.PHONY: wuci-kaiju-test
 
 all: check-native $(TARGET)
 
@@ -877,7 +878,11 @@ noxframe-launch:
 	$(PYTHON) tools/wuci_black_ice.py
 
 noxframe-launch-test:
+	$(PYTHON) tests/wuci_kaiju.py --quiet
 	$(PYTHON) tests/wuci_noxframe.py --quiet
+
+wuci-kaiju-test:
+	$(PYTHON) tests/wuci_kaiju.py --quiet
 
 noxframe-self-release: check-native $(TARGET)
 	$(MAKE) self-release-bundle SELF_RELEASE_DEMO_DIR=$(NOXFRAME_SELF_RELEASE_DEMO_DIR) SELF_RELEASE_ATTESTATION=$(NOXFRAME_SELF_RELEASE_ATTESTATION)
