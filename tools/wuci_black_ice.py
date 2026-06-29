@@ -1540,7 +1540,6 @@ def print_banner(palette: Palette) -> None:
         (space_line(0), palette.dim),
         (space_line(9), palette.dim),
         *[(frame_line(line), palette.red) for line in logo],
-        (frame_line("WUCI-JI"), palette.red),
         (space_line(17), palette.dim),
         (orbit_line("无   此   机   系   统"), palette.yellow),
         (frame_line("wu   ci   ji   xi   tong"), palette.cyan),
