@@ -9,24 +9,58 @@ import json
 import os
 import re
 import shlex
+import shutil
 import stat
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import unicodedata
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+
+@dataclass(frozen=True)
+class ConsoleCommandSpec:
+    name: str
+    aliases: tuple[str, ...]
+    category: str
+    usage: str
+    description: str
+    capability: str
+    guard: str
+
+
+@dataclass
+class ConsoleSession:
+    cwd: str = "/"
+    started_monotonic: float = field(default_factory=time.monotonic)
+    history: list[str] = field(default_factory=list)
+    audit: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(
+        default_factory=lambda: {
+            "USER": "operator",
+            "HOME": "/wuci",
+            "SHELL": "noxframe",
+            "TERM": "xterm-256color",
+        }
+    )
 
 
 TOOL_NAME = "WUCI-NOXFRAME"
 LEGACY_TOOL_NAME = "WUCI-BLACK-ICE"
 REPORT_SCHEMA = "wuci-noxframe-launch-report-v1"
 SEAL_SCHEMA = "wuci-noxframe-seal-v1"
+SUBSTRATE_SPEC_SCHEMA = "wuci-noxframe-substrate-contract-v1"
+SUBSTRATE_STATE_SCHEMA = "wuci-noxframe-state-v1"
+SUBSTRATE_SEAL_SCHEMA = "wuci-noxframe-substrate-seal-v1"
 DEFAULT_REPORT = "docs/noxframe/WUCI_NOXFRAME_LAUNCH_REPORT.md"
 DEFAULT_SEAL = "docs/noxframe/WUCI_NOXFRAME_SELF_SEAL.json"
 DEFAULT_CLOCK = "build/noxframe/WUCI_NOXFRAME_CLOCK.json"
+DEFAULT_STATE = "build/noxframe/WUCI_NOXFRAME_STATE.json"
+DEFAULT_SUBSTRATE_SEAL = "build/noxframe/WUCI_NOXFRAME_SUBSTRATE_SEAL.json"
 DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
 GATE_DEMO_DIRNAME = "gate-demo"
 WEEK_SECONDS = 7 * 24 * 60 * 60
@@ -40,6 +74,47 @@ ANCHOR_PATHS = (
     "daylight-equation/specs/daylight-minimal-core-v0.4.md",
     "daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs",
 )
+ANCHOR_ROLES = {
+    "docs/SECURITY_BOUNDARY.md": "claim boundary",
+    "docs/wuci_gate_boundary.json": "Gate boundary",
+    "docs/wuci_cage_policy.json": "CAGE policy",
+    "docs/wuci_qcage_policy.json": "QCAGE policy",
+    "docs/wuci_high_attestation_profile.json": "high attestation profile",
+    "daylight-equation/SCORECARD.v1.json": "Daylight score boundary",
+    "daylight-equation/specs/daylight-minimal-core-v0.4.md": "Daylight core spec",
+    "daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs": "Daylight bridge source",
+}
+SUBSTRATE_CELLS = (
+    ("root", "NOXFRAME root context", ("status", "seal", "verify", "launch")),
+    ("wuci-ji", "assembly artifact and proof-lane context", ("status", "seal")),
+    ("daylight", "Daylight evidence and score-boundary context", ("status", "seal")),
+    ("gate", "Gate contract and release-boundary context", ("status", "seal")),
+    ("witness", "public witness evidence context", ("status", "seal")),
+    ("ledger", "local public-history evidence context", ("status", "seal")),
+    ("cage", "public-evidence airlock context", ("status", "seal")),
+    ("qcage", "quantum-claim discipline context", ("status", "seal")),
+    ("install", "signed local install proof context", ("status", "seal")),
+)
+NON_CLAIMS = (
+    "not a kernel",
+    "not OS runtime containment",
+    "not hostile-code sandboxing",
+    "not production authority",
+    "not independent audit status",
+    "not whole-system post-quantum safety",
+)
+CONSOLE_CATEGORIES = (
+    "substrate",
+    "fs",
+    "text",
+    "proc",
+    "sys",
+    "user",
+    "net",
+    "host",
+    "dev",
+    "misc",
+)
 BOOT_LINES = (
     "SYSTEMS BOOTING...",
     "ENTROPY BUS WARMING...",
@@ -49,6 +124,119 @@ BOOT_LINES = (
 )
 FRAMES = ("[////]", "[////]", "[\\\\\\\\]", "[||||]", "[====]", "[####]")
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+DEFAULT_TERMINAL_COLUMNS = 96
+MIN_BANNER_INNER_WIDTH = 38
+MAX_BANNER_INNER_WIDTH = 112
+
+
+def console_cmd(
+    name: str,
+    aliases: tuple[str, ...],
+    category: str,
+    usage: str,
+    description: str,
+    capability: str,
+    guard: str,
+) -> ConsoleCommandSpec:
+    return ConsoleCommandSpec(name, aliases, category, usage, description, capability, guard)
+
+
+CONSOLE_COMMANDS = (
+    console_cmd("status", (), "substrate", "status", "Show substrate state and seal status.", "substrate.read", "local"),
+    console_cmd("seal", (), "substrate", "seal", "Refresh the NOXFRAME substrate seal.", "substrate.write", "local"),
+    console_cmd("verify", (), "substrate", "verify", "Verify current substrate state and seal.", "substrate.read", "local"),
+    console_cmd("contract", (), "substrate", "contract", "Print the canonical substrate contract.", "substrate.read", "local"),
+    console_cmd("launch", (), "substrate", "launch [auto|smoke|full]", "Run the Wuci-Ji launch matrix.", "proof.run", "explicit"),
+    console_cmd("pwd", (), "fs", "pwd", "Print the current virtual substrate path.", "fs.read", "metadata-only"),
+    console_cmd("ls", (), "fs", "ls [path]", "List virtual substrate files and directories.", "fs.read", "metadata-only"),
+    console_cmd("cd", (), "fs", "cd [dir]", "Change virtual substrate directory.", "fs.read", "metadata-only"),
+    console_cmd("cat", (), "fs", "cat <file>", "Read a virtual substrate file.", "fs.read", "metadata-only"),
+    console_cmd("tree", (), "fs", "tree [path]", "Show a virtual substrate tree.", "fs.read", "metadata-only"),
+    console_cmd("echo", (), "fs", "echo <text>", "Print text in the console.", "none", "local"),
+    console_cmd("mkdir", (), "fs", "mkdir <dir>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
+    console_cmd("touch", (), "fs", "touch <file>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
+    console_cmd("rm", (), "fs", "rm <path>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
+    console_cmd("cp", (), "fs", "cp <src> <dst>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
+    console_cmd("mv", (), "fs", "mv <src> <dst>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
+    console_cmd("grep", (), "text", "grep <pattern> <file>...", "Search virtual file text.", "fs.read", "metadata-only"),
+    console_cmd("wc", (), "text", "wc <file>...", "Count lines, words, and bytes in virtual files.", "fs.read", "metadata-only"),
+    console_cmd("head", (), "text", "head [-n count] <file>", "Show first lines from a virtual file.", "fs.read", "metadata-only"),
+    console_cmd("tail", (), "text", "tail [-n count] <file>", "Show last lines from a virtual file.", "fs.read", "metadata-only"),
+    console_cmd("find", (), "text", "find [path] [-name text]", "Search virtual substrate paths.", "fs.read", "metadata-only"),
+    console_cmd("pipeline", ("pipes",), "text", "pipeline", "Show supported text-command composition.", "none", "metadata-only"),
+    console_cmd("ps", (), "proc", "ps", "Show simulated substrate processes.", "proc.read", "metadata-only"),
+    console_cmd("top", (), "proc", "top", "Show a compact simulated process summary.", "proc.read", "metadata-only"),
+    console_cmd("jobs", (), "proc", "jobs", "List console-local background jobs.", "proc.read", "metadata-only"),
+    console_cmd("spawn", (), "proc", "spawn <name>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.spawn", "unavailable"),
+    console_cmd("fg", (), "proc", "fg <pid>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.manage", "unavailable"),
+    console_cmd("bg", (), "proc", "bg <pid>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.manage", "unavailable"),
+    console_cmd("kill", (), "proc", "kill <pid>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.kill", "unavailable"),
+    console_cmd("nice", (), "proc", "nice <pid> <priority>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.manage", "unavailable"),
+    console_cmd("sysinfo", ("fetch", "neofetch"), "sys", "sysinfo", "Show a one-screen NOXFRAME system summary.", "sys.read", "metadata-only"),
+    console_cmd("dash", ("dashboard",), "sys", "dash", "Show a compact operator dashboard.", "sys.read", "metadata-only"),
+    console_cmd("free", ("mem",), "sys", "free", "Show virtual memory model.", "sys.read", "metadata-only"),
+    console_cmd("df", (), "sys", "df", "Show virtual substrate storage model.", "sys.read", "metadata-only"),
+    console_cmd("dmesg", (), "sys", "dmesg", "Show boot and substrate messages.", "sys.log", "metadata-only"),
+    console_cmd("vmstat", (), "sys", "vmstat", "Show compact virtual system stats.", "sys.read", "metadata-only"),
+    console_cmd("uname", (), "sys", "uname", "Show NOXFRAME kernel-profile identity.", "sys.read", "metadata-only"),
+    console_cmd("date", (), "sys", "date", "Show current UTC time.", "sys.read", "local"),
+    console_cmd("uptime", (), "sys", "uptime", "Show console session uptime.", "sys.read", "local"),
+    console_cmd("hostname", (), "sys", "hostname", "Show virtual substrate hostname.", "sys.read", "metadata-only"),
+    console_cmd("audit", (), "sys", "audit", "Show console audit events.", "sys.audit", "local"),
+    console_cmd("opslog", (), "sys", "opslog [status|tail]", "Show local operator log status or tail.", "sys.audit", "local"),
+    console_cmd("env", (), "user", "env", "Print console-local environment.", "user.read", "local"),
+    console_cmd("export", (), "user", "export KEY=value", "Set a console-local environment value.", "user.env", "local"),
+    console_cmd("unset", (), "user", "unset KEY", "Remove a console-local environment value.", "user.env", "local"),
+    console_cmd("whoami", (), "user", "whoami", "Show the simulated operator identity.", "user.read", "metadata-only"),
+    console_cmd("id", (), "user", "id", "Show simulated operator uid/gid.", "user.read", "metadata-only"),
+    console_cmd("accounts", ("users",), "user", "accounts", "Show privacy-safe account model.", "user.read", "metadata-only"),
+    console_cmd("history", (), "user", "history", "Show console command history.", "user.read", "local"),
+    console_cmd("security", ("sec", "policy"), "user", "security", "Show NOXFRAME command-surface posture.", "user.read", "metadata-only"),
+    console_cmd("theme", ("style",), "user", "theme [show|list]", "Inspect available console palettes.", "user.env", "metadata-only"),
+    console_cmd("banner", ("splash",), "user", "banner", "Describe the active responsive boot banner.", "user.read", "metadata-only"),
+    console_cmd("tips", ("hint", "hints"), "user", "tips", "Show concise operator tips.", "user.read", "metadata-only"),
+    console_cmd("ifconfig", (), "net", "ifconfig", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
+    console_cmd("iwconfig", (), "net", "iwconfig", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
+    console_cmd("wifi-scan", (), "net", "wifi-scan", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
+    console_cmd("wifi-connect", (), "net", "wifi-connect <ssid>", "Phase1-compatible network route retained as non-executing metadata.", "net.admin", "unavailable"),
+    console_cmd("ping", (), "net", "ping <host>", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
+    console_cmd("nmcli", (), "net", "nmcli", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
+    console_cmd("browser", (), "host", "browser <url|about>", "Phase1 browser route retained without network fetching.", "host.net", "unavailable"),
+    console_cmd("git", (), "host", "git <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("gh", ("github",), "host", "gh <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("cargo", (), "host", "cargo <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("rustc", (), "host", "rustc <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("python3", (), "host", "python3 <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("go", ("golang",), "host", "go <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("python", ("py",), "host", "python <file.py>", "Host language route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("gcc", ("cc",), "host", "gcc <file.c>", "Host compiler route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("plugins", ("plugin",), "host", "plugins", "Plugin route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("wasm", ("wasi",), "host", "wasm [list|inspect|run]", "WASI route retained as unavailable inside NOXFRAME console.", "wasm.exec", "unavailable"),
+    console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
+    console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Editor route retained as unavailable inside NOXFRAME console.", "fs.write", "unavailable"),
+    console_cmd("dev", ("dock", "selfdev"), "dev", "dev [status]", "Self-development route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("repo", ("channels", "branches", "doctrine"), "dev", "repo [status]", "Show repository channel metadata.", "none", "metadata-only"),
+    console_cmd("fyr", ("phase1lang", "forge"), "dev", "fyr [status]", "Show Fyr lineage metadata.", "none", "metadata-only"),
+    console_cmd("lang", ("language", "runlang"), "dev", "lang [support|security]", "Language runtime route retained as non-executing metadata.", "host.exec", "metadata-only"),
+    console_cmd("lspci", (), "sys", "lspci", "Show virtual hardware anchors.", "hw.read", "metadata-only"),
+    console_cmd("pcie", (), "sys", "pcie", "Show virtual PCIe model.", "hw.read", "metadata-only"),
+    console_cmd("cr3", (), "sys", "cr3", "Show virtual CR3 value.", "hw.read", "metadata-only"),
+    console_cmd("loadcr3", (), "sys", "loadcr3 <value>", "Hardware mutation route retained as unavailable.", "hw.write", "unavailable"),
+    console_cmd("cr4", (), "sys", "cr4", "Show virtual CR4 flags.", "hw.read", "metadata-only"),
+    console_cmd("pcide", (), "sys", "pcide on|off", "Hardware mutation route retained as unavailable.", "hw.write", "unavailable"),
+    console_cmd("help", ("commands",), "misc", "help [--compact|category|command]", "Show registry-backed command help.", "none", "open"),
+    console_cmd("man", (), "misc", "man <command>", "Show command manual card.", "none", "open"),
+    console_cmd("complete", (), "misc", "complete [prefix]", "Show registry-backed completions.", "none", "open"),
+    console_cmd("capabilities", ("caps",), "misc", "capabilities", "Show command capabilities and guards.", "none", "open"),
+    console_cmd("matrix", ("rain",), "misc", "matrix", "Matrix-style animation route retained as static banner guidance.", "none", "metadata-only"),
+    console_cmd("bootcfg", ("bootconfig",), "misc", "bootcfg [show|path]", "Show boot profile metadata.", "none", "metadata-only"),
+    console_cmd("clear", (), "misc", "clear", "Clear and redraw the console.", "none", "open"),
+    console_cmd("version", ("ver",), "misc", "version", "Show NOXFRAME version metadata.", "none", "open"),
+    console_cmd("roadmap", ("map",), "misc", "roadmap", "Show NOXFRAME continuation path.", "none", "metadata-only"),
+    console_cmd("sandbox", ("nsinfo",), "misc", "sandbox", "Show command-boundary summary.", "none", "metadata-only"),
+    console_cmd("nest", ("nests",), "misc", "nest [status]", "Show nested-context metadata.", "none", "metadata-only"),
+    console_cmd("exit", ("quit", "shutdown", "poweroff"), "misc", "exit", "Leave NOXFRAME console.", "none", "open"),
+)
 
 
 @dataclass(frozen=True)
@@ -114,6 +302,10 @@ class Palette:
     @property
     def red(self) -> str:
         return "31"
+
+    @property
+    def blue(self) -> str:
+        return "34"
 
     @property
     def yellow(self) -> str:
@@ -222,6 +414,343 @@ def sanitize_output(value: str) -> str:
     return "".join(ch for ch in cleaned if ch == "\n" or ch == "\t" or ord(ch) >= 32)
 
 
+def display_width(text: str) -> int:
+    width = 0
+    for char in text:
+        if unicodedata.combining(char):
+            continue
+        width += 2 if unicodedata.east_asian_width(char) in {"F", "W"} else 1
+    return width
+
+
+def terminal_columns(default: int = DEFAULT_TERMINAL_COLUMNS) -> int:
+    return max(40, shutil.get_terminal_size(fallback=(default, 24)).columns)
+
+
+def fit_display(text: str, width: int) -> str:
+    if display_width(text) <= width:
+        return text
+    if width <= 3:
+        return "." * max(width, 0)
+    kept: list[str] = []
+    used = 0
+    target = width - 3
+    for char in text:
+        char_width = 0 if unicodedata.combining(char) else (
+            2 if unicodedata.east_asian_width(char) in {"F", "W"} else 1
+        )
+        if used + char_width > target:
+            break
+        kept.append(char)
+        used += char_width
+    return "".join(kept) + "..."
+
+
+def console_lookup(name: str) -> ConsoleCommandSpec | None:
+    lowered = name.lower()
+    return next(
+        (
+            spec
+            for spec in CONSOLE_COMMANDS
+            if spec.name == lowered or lowered in spec.aliases
+        ),
+        None,
+    )
+
+
+def console_canonical_name(name: str) -> str | None:
+    spec = console_lookup(name)
+    return spec.name if spec else None
+
+
+def console_command_names(category: str) -> str:
+    return " ".join(spec.name for spec in CONSOLE_COMMANDS if spec.category == category)
+
+
+def console_help_text(args: list[str]) -> str:
+    topic = args[0].lower() if args else ""
+    if topic in {"--compact", "-c", "compact"}:
+        rows = ["noxframe help // compact", ""]
+        for category in CONSOLE_CATEGORIES:
+            rows.append(f"{category:<9}: {console_command_names(category)}")
+        rows.append("")
+        rows.append("try: help substrate | help fs | help sys | man status | complete se")
+        return "\n".join(rows)
+    if topic in CONSOLE_CATEGORIES:
+        rows = [f"noxframe help // {topic}", "", "command        usage                         summary"]
+        for spec in CONSOLE_COMMANDS:
+            if spec.category == topic:
+                rows.append(f"{spec.name:<14} {spec.usage:<29} {spec.description}")
+        return "\n".join(rows)
+    if topic:
+        manual = console_man_text(topic)
+        if manual is not None:
+            return f"noxframe help // {topic}\n\n{manual}"
+        return f"noxframe help // no match\n\nunknown topic: {topic}\ntry: help --compact"
+
+    rows = [
+        "noxframe help // operator console",
+        "",
+        "substrate : status seal verify contract launch",
+        "fs        : pwd ls cd cat tree echo mkdir touch rm cp mv",
+        "text      : grep wc head tail find pipeline",
+        "proc      : ps top jobs spawn fg bg kill nice",
+        "sys       : sysinfo dash free df dmesg vmstat uname date uptime hostname audit opslog",
+        "user      : env export unset whoami id accounts history security theme banner tips",
+        "misc      : help man complete capabilities clear version roadmap sandbox nest exit",
+        "",
+        "Phase1-compatible host, network, dev, and hardware routes are discoverable through help",
+        "and capabilities. Host passthrough and network execution are not enabled in this console.",
+        "",
+        "routes",
+        "  help --compact       compact command map",
+        "  help <category>      category deck",
+        "  man <command>        command card",
+        "  complete <prefix>    registry completions",
+        "  capabilities         guard map",
+    ]
+    return "\n".join(rows)
+
+
+def console_man_text(name: str) -> str | None:
+    spec = console_lookup(name)
+    if spec is None:
+        return None
+    aliases = ", ".join(spec.aliases) if spec.aliases else "none"
+    return "\n".join(
+        [
+            spec.name,
+            "",
+            f"usage      : {spec.usage}",
+            f"category   : {spec.category}",
+            f"aliases    : {aliases}",
+            f"capability : {spec.capability}",
+            f"guard      : {spec.guard}",
+            "",
+            spec.description,
+        ]
+    )
+
+
+def console_completions(prefix: str) -> list[str]:
+    lowered = prefix.lower()
+    matches: list[str] = []
+    for spec in CONSOLE_COMMANDS:
+        if spec.name.startswith(lowered):
+            matches.append(spec.name)
+        for alias in spec.aliases:
+            if alias.startswith(lowered):
+                matches.append(alias)
+    return sorted(set(matches))
+
+
+def console_capabilities_text() -> str:
+    rows = ["noxframe capabilities", "", "command        category   capability       guard"]
+    for spec in CONSOLE_COMMANDS:
+        rows.append(f"{spec.name:<14} {spec.category:<10} {spec.capability:<16} {spec.guard}")
+    return "\n".join(rows)
+
+
+def record_console_event(session: ConsoleSession, line: str) -> None:
+    event = f"{utc_now()} command={line}"
+    session.audit.append(event)
+    if len(session.audit) > 128:
+        del session.audit[:-128]
+
+
+def vfs_normalize(cwd: str, target: str | None) -> str:
+    value = target or cwd
+    if value.startswith("/"):
+        path = value
+    else:
+        path = f"{cwd.rstrip('/')}/{value}" if cwd != "/" else f"/{value}"
+    normalized = os.path.normpath(path)
+    if normalized in {".", ""}:
+        return "/"
+    if not normalized.startswith("/"):
+        normalized = "/" + normalized
+    return normalized
+
+
+def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
+    cell_dirs = {f"/{cell_id}": ("status", "role") for cell_id, _, _ in SUBSTRATE_CELLS}
+    dirs: dict[str, tuple[str, ...]] = {
+        "/": (
+            "README",
+            "wuci-ji/",
+            "daylight/",
+            "gate/",
+            "witness/",
+            "ledger/",
+            "cage/",
+            "qcage/",
+            "install/",
+            "proc/",
+            "var/",
+            "docs/",
+        ),
+        "/proc": ("version", "route", "cells", "processes"),
+        "/var": ("log/",),
+        "/var/log": ("audit",),
+        "/docs": ("contract.json", "status.json", "state.json", "seal.json", "launch-report.md"),
+    }
+    dirs.update(cell_dirs)
+    return dirs
+
+
+def vfs_is_dir(path: str) -> bool:
+    return path in vfs_static_dirs()
+
+
+def vfs_all_paths() -> list[str]:
+    paths: set[str] = set(vfs_static_dirs())
+    for base, entries in vfs_static_dirs().items():
+        for entry in entries:
+            clean = entry.rstrip("/")
+            child = f"{base.rstrip('/')}/{clean}" if base != "/" else f"/{clean}"
+            paths.add(child)
+    return sorted(paths)
+
+
+def vfs_list(path: str) -> tuple[bool, list[str]]:
+    dirs = vfs_static_dirs()
+    if path in dirs:
+        return True, sorted(dirs[path])
+    if path in vfs_all_paths():
+        return False, [path.rsplit("/", 1)[-1]]
+    raise NoxframeError(f"no such virtual path: {path}")
+
+
+def cell_for_path(path: str) -> tuple[str, str, tuple[str, ...]] | None:
+    parts = path.strip("/").split("/")
+    if len(parts) != 2 or parts[1] not in {"status", "role"}:
+        return None
+    for cell_id, role, actions in SUBSTRATE_CELLS:
+        if parts[0] == cell_id:
+            return cell_id, role, actions
+    return None
+
+
+def virtual_status_payload(root: Path, args: argparse.Namespace) -> dict[str, object]:
+    state_path, seal_path = substrate_paths(root, args)
+    if not state_path.exists() or not seal_path.exists():
+        return {
+            "schema": "wuci-noxframe-status-v1",
+            "status": "uninitialized",
+            "state": str(state_path),
+            "seal": str(seal_path),
+        }
+    ok, problems = verify_substrate_seal(root, state_path=state_path, seal_path=seal_path)
+    state = safe_read_json_file(state_path, "NOXFRAME state")
+    return {
+        "schema": "wuci-noxframe-status-v1",
+        "status": "sealed" if ok else "drifted",
+        "state": str(state_path),
+        "seal": str(seal_path),
+        "active_context": state.get("active_context"),
+        "route": state.get("route"),
+        "cell_count": len(state.get("cells", [])) if isinstance(state.get("cells"), list) else 0,
+        "problems": problems,
+    }
+
+
+def virtual_file_text(
+    root: Path,
+    args: argparse.Namespace,
+    session: ConsoleSession,
+    path: str,
+) -> str:
+    state_path, seal_path = substrate_paths(root, args)
+    cell = cell_for_path(path)
+    if cell is not None:
+        cell_id, role, actions = cell
+        if path.endswith("/role"):
+            return f"{cell_id}: {role}\n"
+        return f"{cell_id}: sealed-metadata-ready actions={','.join(actions)}\n"
+    if path == "/README":
+        return "\n".join(
+            [
+                "WUCI-NOXFRAME virtual substrate",
+                "root route: /proc /docs /var/log and Wuci-Ji proof cells",
+                "try: help --compact, sysinfo, ls /proc, cat /proc/cells",
+                "",
+            ]
+        )
+    if path == "/proc/version":
+        return f"{TOOL_NAME} substrate console\nschema={SUBSTRATE_STATE_SCHEMA}\n"
+    if path == "/proc/route":
+        return "root > wuci-ji > daylight\n"
+    if path == "/proc/cells":
+        return "".join(
+            f"{cell_id:<10} {role} actions={','.join(actions)}\n"
+            for cell_id, role, actions in SUBSTRATE_CELLS
+        )
+    if path == "/proc/processes":
+        return console_process_table()
+    if path == "/var/log/audit":
+        return "\n".join(session.audit[-40:]) + ("\n" if session.audit else "audit log empty\n")
+    if path == "/docs/contract.json":
+        return json.dumps(substrate_contract(), indent=2, sort_keys=True) + "\n"
+    if path == "/docs/status.json":
+        return json.dumps(virtual_status_payload(root, args), indent=2, sort_keys=True) + "\n"
+    if path == "/docs/state.json":
+        if not state_path.exists():
+            return "state not initialized\n"
+        return json.dumps(safe_read_json_file(state_path, "NOXFRAME state"), indent=2, sort_keys=True) + "\n"
+    if path == "/docs/seal.json":
+        if not seal_path.exists():
+            return "substrate seal not initialized\n"
+        return json.dumps(safe_read_json_file(seal_path, "NOXFRAME substrate seal"), indent=2, sort_keys=True) + "\n"
+    if path == "/docs/launch-report.md":
+        report_path = repo_path(root, args.report)
+        if not report_path.exists():
+            return "launch report not written\n"
+        return report_path.read_text(encoding="utf-8")
+    raise NoxframeError(f"not a virtual file: {path}")
+
+
+def console_process_table() -> str:
+    return "\n".join(
+        [
+            "PID  STATE   NAME",
+            "1    ready   noxframe-console",
+            "2    ready   substrate-seal",
+            "3    idle    daylight-anchor",
+            "",
+        ]
+    )
+
+
+def print_vfs_tree(start: str) -> None:
+    dirs = vfs_static_dirs()
+    if start not in dirs:
+        print(start)
+        return
+    print(start)
+    for path in vfs_all_paths():
+        if path == start or not path.startswith(start.rstrip("/") + "/"):
+            continue
+        rel = path[len(start.rstrip("/")) + 1 :] if start != "/" else path[1:]
+        depth = rel.count("/")
+        if depth > 2:
+            continue
+        marker = "/" if path in dirs else ""
+        print(f"{'  ' * depth}{rel.rsplit('/', 1)[-1]}{marker}")
+
+
+def console_text_files(
+    root: Path,
+    args: argparse.Namespace,
+    session: ConsoleSession,
+    files: list[str],
+) -> list[tuple[str, str]]:
+    out: list[tuple[str, str]] = []
+    for value in files:
+        path = vfs_normalize(session.cwd, value)
+        out.append((path, virtual_file_text(root, args, session, path)))
+    return out
+
+
 def missing_python_modules(step: Step) -> tuple[str, ...]:
     return tuple(
         module
@@ -236,6 +765,16 @@ def digest_vector(data: bytes) -> dict[str, str]:
         "sha384": hashlib.sha384(data).hexdigest(),
         "sha512": hashlib.sha512(data).hexdigest(),
     }
+
+
+def canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
+        "ascii"
+    )
+
+
+def digest_vector_json(value: object) -> dict[str, str]:
+    return digest_vector(canonical_json_bytes(value))
 
 
 def read_public_anchor(root: Path, relative_path: str) -> tuple[bytes, os.stat_result]:
@@ -279,10 +818,201 @@ def anchor_record(root: Path, relative_path: str) -> dict[str, object]:
     data, info = read_public_anchor(root, relative_path)
     return {
         "path": relative_path,
+        "role": ANCHOR_ROLES.get(relative_path, "public anchor"),
         "bytes": len(data),
         "mode": oct(stat.S_IMODE(info.st_mode)),
         "digest_vector": digest_vector(data),
     }
+
+
+def safe_read_json_file(path: Path, label: str) -> dict[str, object]:
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise NoxframeError(f"missing {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise NoxframeError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise NoxframeError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise NoxframeError(f"{label} must not be hardlinked: {path}")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise NoxframeError(f"could not open {label}: {path}") from exc
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise NoxframeError(f"{label} changed type while opening: {path}")
+        if opened.st_ino != info.st_ino or opened.st_dev != info.st_dev:
+            raise NoxframeError(f"{label} changed while opening: {path}")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+    finally:
+        os.close(fd)
+    try:
+        value = json.loads(b"".join(chunks).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise NoxframeError(f"{label} is not valid UTF-8 JSON: {path}") from exc
+    if not isinstance(value, dict):
+        raise NoxframeError(f"{label} must be a JSON object: {path}")
+    return dict(value)
+
+
+def substrate_contract() -> dict[str, object]:
+    return {
+        "schema": SUBSTRATE_SPEC_SCHEMA,
+        "name": TOOL_NAME,
+        "working_title_alias": LEGACY_TOOL_NAME,
+        "purpose": (
+            "minimal metadata system that binds Wuci-Ji and Daylight public "
+            "evidence into a local operator-owned state and seal"
+        ),
+        "phase1_continuation": {
+            "source_repository": "https://github.com/Bryforge/phase1",
+            "ideas_carried_forward": [
+                "operator console",
+                "virtual system model",
+                "command metadata",
+                "guarded host access",
+                "local status and audit surfaces",
+                "metadata-only nesting",
+                "conservative OS-track claims",
+            ],
+            "ideas_not_imported": [
+                "Phase1 code",
+                "host shell passthrough",
+                "network command surface",
+                "simulated kernel claims as enforcement",
+            ],
+        },
+        "project_lineage": [
+            "Wuci-Ji proof lanes",
+            "Daylight evidence boundary",
+            "Latticra-style receipt portability discipline",
+            "Fyr-style small language and command-surface lessons",
+        ],
+        "cells": [
+            {
+                "id": cell_id,
+                "role": role,
+                "allowed_actions": list(actions),
+                "host_effect": "metadata-only",
+            }
+            for cell_id, role, actions in SUBSTRATE_CELLS
+        ],
+        "anchor_paths": list(ANCHOR_PATHS),
+        "rules": {
+            "stdlib_only": True,
+            "network": "unused",
+            "shell": "disabled",
+            "writes": "state and seal files only unless launch profile is explicitly run",
+            "host_access": "public repository files through symlink and hardlink rejecting reads",
+        },
+        "non_claims": list(NON_CLAIMS),
+    }
+
+
+def build_substrate_state(root: Path, *, now_utc: str) -> dict[str, object]:
+    return {
+        "schema": SUBSTRATE_STATE_SCHEMA,
+        "name": TOOL_NAME,
+        "created_utc": now_utc,
+        "updated_utc": now_utc,
+        "active_context": "root",
+        "route": ["root", "wuci-ji", "daylight"],
+        "status": "initialized",
+        "git": {
+            "branch": git_value(root, "branch", "--show-current"),
+            "commit": git_value(root, "rev-parse", "HEAD"),
+        },
+        "cells": [
+            {
+                "id": cell_id,
+                "role": role,
+                "state": "sealed-metadata-ready",
+                "allowed_actions": list(actions),
+            }
+            for cell_id, role, actions in SUBSTRATE_CELLS
+        ],
+        "guards": {
+            "network": "unused",
+            "shell": "disabled",
+            "host_mutation": "state-and-seal-files-only",
+            "artifact_release": "requires existing Gate proof lanes",
+        },
+        "non_claims": list(NON_CLAIMS),
+    }
+
+
+def build_substrate_seal(root: Path, state: dict[str, object], *, now_utc: str) -> dict[str, object]:
+    contract = substrate_contract()
+    anchors = [anchor_record(root, relative_path) for relative_path in ANCHOR_PATHS]
+    seal_material = {
+        "contract_digest_vector": digest_vector_json(contract),
+        "state_digest_vector": digest_vector_json(state),
+        "anchors": anchors,
+    }
+    return {
+        "schema": SUBSTRATE_SEAL_SCHEMA,
+        "name": TOOL_NAME,
+        "sealed_utc": now_utc,
+        "status": "sealed",
+        "contract": contract,
+        "contract_digest_vector": seal_material["contract_digest_vector"],
+        "state_schema": state.get("schema"),
+        "state_digest_vector": seal_material["state_digest_vector"],
+        "anchors": anchors,
+        "substrate_digest_vector": digest_vector_json(seal_material),
+        "guards": {
+            "network": "unused",
+            "shell": "disabled",
+            "host_effect": "public-read plus local state/seal write",
+        },
+        "non_claims": list(NON_CLAIMS),
+    }
+
+
+def verify_substrate_seal(
+    root: Path,
+    *,
+    state_path: Path,
+    seal_path: Path,
+) -> tuple[bool, list[str]]:
+    problems: list[str] = []
+    try:
+        state = safe_read_json_file(state_path, "NOXFRAME state")
+        seal = safe_read_json_file(seal_path, "NOXFRAME substrate seal")
+    except NoxframeError as exc:
+        return False, [str(exc)]
+
+    if seal.get("schema") != SUBSTRATE_SEAL_SCHEMA:
+        problems.append("seal schema mismatch")
+    if state.get("schema") != SUBSTRATE_STATE_SCHEMA:
+        problems.append("state schema mismatch")
+    if seal.get("contract_digest_vector") != digest_vector_json(substrate_contract()):
+        problems.append("contract digest mismatch")
+    if seal.get("state_digest_vector") != digest_vector_json(state):
+        problems.append("state digest mismatch")
+
+    current_anchors = [anchor_record(root, relative_path) for relative_path in ANCHOR_PATHS]
+    sealed_anchors = seal.get("anchors")
+    if sealed_anchors != current_anchors:
+        problems.append("anchor digest mismatch")
+
+    expected_material = {
+        "contract_digest_vector": digest_vector_json(substrate_contract()),
+        "state_digest_vector": digest_vector_json(state),
+        "anchors": current_anchors,
+    }
+    if seal.get("substrate_digest_vector") != digest_vector_json(expected_material):
+        problems.append("substrate digest mismatch")
+    return not problems, problems
 
 
 def read_clock_state(clock_path: Path) -> dict[str, object]:
@@ -416,11 +1146,86 @@ def resolve_profile(
 
 def write_json_atomic(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        pass
+    else:
+        if stat.S_ISLNK(info.st_mode):
+            raise NoxframeError(f"refusing to replace symlink JSON path: {path}")
+        if not stat.S_ISREG(info.st_mode):
+            raise NoxframeError(f"refusing to replace non-regular JSON path: {path}")
+        if info.st_nlink != 1:
+            raise NoxframeError(f"refusing to replace hardlinked JSON path: {path}")
     tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent), text=True)
     with os.fdopen(tmp_fd, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
         handle.write("\n")
     os.replace(tmp_name, path)
+
+
+def repo_path(root: Path, value: str) -> Path:
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return root / path
+
+
+def substrate_paths(root: Path, args: argparse.Namespace) -> tuple[Path, Path]:
+    return (
+        repo_path(root, args.substrate_state),
+        repo_path(root, args.substrate_seal),
+    )
+
+
+def init_substrate(
+    root: Path,
+    *,
+    state_path: Path,
+    seal_path: Path,
+    force: bool,
+    now_utc: str,
+) -> tuple[dict[str, object], dict[str, object], bool]:
+    created = False
+    if state_path.exists() and not force:
+        state = safe_read_json_file(state_path, "NOXFRAME state")
+        if state.get("schema") != SUBSTRATE_STATE_SCHEMA:
+            raise NoxframeError(f"existing NOXFRAME state schema mismatch: {state_path}")
+    else:
+        state = build_substrate_state(root, now_utc=now_utc)
+        write_json_atomic(state_path, state)
+        created = True
+    seal = build_substrate_seal(root, state, now_utc=now_utc)
+    write_json_atomic(seal_path, seal)
+    return state, seal, created
+
+
+def ensure_substrate(root: Path, *, state_path: Path, seal_path: Path) -> None:
+    if state_path.exists() and seal_path.exists():
+        return
+    init_substrate(
+        root,
+        state_path=state_path,
+        seal_path=seal_path,
+        force=False,
+        now_utc=utc_now(),
+    )
+
+
+def boot_answer_allows(value: str) -> bool:
+    return value.strip().lower() in {"y", "yes"}
+
+
+def confirm_boot(args: argparse.Namespace, palette: Palette) -> bool:
+    if args.yes or args.no_boot_prompt:
+        return True
+    if not args.force_boot_prompt and (not sys.stdin.isatty() or not sys.stderr.isatty()):
+        return True
+    prompt = "Would you like to boot the Wuci-Ji substrate? [y/N] "
+    sys.stderr.write(palette.paint(prompt, palette.red))
+    sys.stderr.flush()
+    answer = sys.stdin.readline()
+    return boot_answer_allows(answer)
 
 
 def update_clock_state(
@@ -643,16 +1448,111 @@ def skipped_lanes(include_local_install: bool) -> list[SkippedLane]:
     return lanes
 
 
+def banner_inner_width(columns: int | None = None) -> int:
+    columns = terminal_columns() if columns is None else max(40, columns)
+    usable = max(MIN_BANNER_INNER_WIDTH, columns - 2)
+    return min(MAX_BANNER_INNER_WIDTH, usable)
+
+
 def print_banner(palette: Palette) -> None:
-    lines = [
-        " _   _  _____  __  __ _____ ____      _    __  __ _____ ",
-        "| \\ | |/ _ \\ \\/ / |  ___|  _ \\    / \\  |  \\/  | ____|",
-        "|  \\| | | | \\  /  | |_  | |_) |  / _ \\ | |\\/| |  _|  ",
-        "| |\\  | |_| /  \\  |  _| |  _ <  / ___ \\| |  | | |___ ",
-        "|_| \\_|\\___/_/\\_\\ |_|   |_| \\_\\/_/   \\_\\_|  |_|_____|",
+    inner_width = banner_inner_width()
+
+    def frame_line(text: str = "", *, align: str = "center", width: int = inner_width) -> str:
+        if align == "left":
+            preferred_left = min(3, max(1, width))
+            text = fit_display(text, max(0, width - preferred_left))
+        else:
+            preferred_left = 0
+            text = fit_display(text, width)
+        text_width = display_width(text)
+        if align == "left":
+            left = min(preferred_left, max(0, width - text_width))
+        else:
+            left = (width - text_width) // 2
+        right = width - text_width - left
+        return f"|{' ' * left}{text}{' ' * right}|"
+
+    def space_line(seed: int, width: int = inner_width) -> str:
+        marks = {3: ".", 11: "'", 19: "*", 31: ".", 43: "+", 59: ".", 71: "*", 83: "'"}
+        chars = [" "] * width
+        for index, mark in marks.items():
+            chars[(index + seed) % width] = mark
+        return "|" + "".join(chars) + "|"
+
+    def orbit_line(text: str, *, width: int = inner_width) -> str:
+        text = fit_display(text, max(1, width - 8))
+        text_width = display_width(text)
+        if width < 58:
+            left_marks = " . "
+            right_marks = " . "
+        else:
+            left_marks = " .  *    .     '   "
+            right_marks = "   '     .    *  . "
+        fixed_width = display_width(left_marks) + display_width(right_marks) + text_width
+        if fixed_width > width:
+            return frame_line(text, width=width)
+        spacer = width - fixed_width
+        left_pad = spacer // 2
+        right_pad = spacer - left_pad
+        return f"|{' ' * left_pad}{left_marks}{text}{right_marks}{' ' * right_pad}|"
+
+    block_logo = [
+        "██╗    ██╗██╗   ██╗ ██████╗██╗      ██╗        ██╗██╗",
+        "██║    ██║██║   ██║██╔════╝██║      ██║        ██║██║",
+        "██║ █╗ ██║██║   ██║██║     ██║█████╗██║        ██║██║",
+        "██║███╗██║██║   ██║██║     ██║╚════╝██║   ██   ██║██║",
+        "╚███╔███╔╝╚██████╔╝╚██████╗██║      ██║   ╚█████╔╝██║",
+        " ╚══╝╚══╝  ╚═════╝  ╚═════╝╚═╝      ╚═╝    ╚════╝ ╚═╝",
     ]
-    for line in lines:
-        sys.stderr.write(palette.paint(line, palette.cyan) + "\n")
+    compact_logo = [
+        "╔════════════════════╗",
+        "║      WUCI-JI       ║",
+        "╚════════════════════╝",
+    ]
+    logo = block_logo if max(display_width(line) for line in block_logo) <= inner_width else compact_logo
+    detail_rows = (
+        [
+            (frame_line("NOXFRAME / DAYLIGHT / GATE", align="left"), palette.cyan),
+            (
+                frame_line(
+                    "public anchors only  |  receipt-bound release  |  local proof substrate",
+                    align="left",
+                ),
+                palette.dim,
+            ),
+            (
+                frame_line(
+                    "sealed locally  |  clear record  |  standard quick boot between full cycles",
+                    align="left",
+                ),
+                palette.dim,
+            ),
+        ]
+        if inner_width >= 78
+        else [
+            (frame_line("NOXFRAME / DAYLIGHT / GATE", align="left"), palette.cyan),
+            (frame_line("local proof substrate  |  quick boot / full cycle", align="left"), palette.dim),
+        ]
+    )
+    edge = "+" + "-" * inner_width + "+"
+    lines = [
+        (edge, palette.dim),
+        (space_line(0), palette.dim),
+        (space_line(9), palette.dim),
+        *[(frame_line(line), palette.red) for line in logo],
+        (space_line(17), palette.dim),
+        (orbit_line("无   此   机   系   统"), palette.yellow),
+        (frame_line("wu   ci   ji   xi   tong"), palette.cyan),
+        (frame_line("Wuci-Ji Systems"), palette.cyan),
+        (space_line(26), palette.dim),
+        *detail_rows,
+        (space_line(34), palette.dim),
+        (frame_line("无此机  ::  无授权  ::  无许可"), palette.yellow),
+        (space_line(43), palette.dim),
+        (edge, palette.dim),
+    ]
+    for line, color in lines:
+        sys.stderr.write(palette.paint(line, color) + "\n")
     sys.stderr.write(
         palette.paint(
             "WUCI-JI + Daylight defensive proof launch\n",
@@ -935,10 +1835,141 @@ def write_self_seal(
     os.replace(tmp_name, seal_path)
 
 
+def print_json(value: object) -> None:
+    json.dump(value, sys.stdout, indent=2, sort_keys=True)
+    sys.stdout.write("\n")
+
+
+def command_contract() -> int:
+    print_json(substrate_contract())
+    return 0
+
+
+def command_init(root: Path, args: argparse.Namespace) -> int:
+    state_path, seal_path = substrate_paths(root, args)
+    state, seal, created = init_substrate(
+        root,
+        state_path=state_path,
+        seal_path=seal_path,
+        force=args.force,
+        now_utc=utc_now(),
+    )
+    if args.json:
+        print_json(
+            {
+                "schema": "wuci-noxframe-init-result-v1",
+                "created": created,
+                "state": str(state_path),
+                "seal": str(seal_path),
+                "state_digest_vector": digest_vector_json(state),
+                "substrate_digest_vector": seal["substrate_digest_vector"],
+            }
+        )
+    else:
+        action = "initialized" if created else "refreshed"
+        print(f"noxframe: {action}")
+        print(f"state: {state_path}")
+        print(f"seal: {seal_path}")
+    return 0
+
+
+def command_status(root: Path, args: argparse.Namespace) -> int:
+    state_path, seal_path = substrate_paths(root, args)
+    if not state_path.exists() or not seal_path.exists():
+        payload = {
+            "schema": "wuci-noxframe-status-v1",
+            "status": "uninitialized",
+            "state": str(state_path),
+            "seal": str(seal_path),
+        }
+        if args.json:
+            print_json(payload)
+        else:
+            print("noxframe: uninitialized")
+            print(f"state: {state_path}")
+            print(f"seal: {seal_path}")
+        return 2
+
+    ok, problems = verify_substrate_seal(root, state_path=state_path, seal_path=seal_path)
+    state = safe_read_json_file(state_path, "NOXFRAME state")
+    payload = {
+        "schema": "wuci-noxframe-status-v1",
+        "status": "sealed" if ok else "drifted",
+        "state": str(state_path),
+        "seal": str(seal_path),
+        "active_context": state.get("active_context"),
+        "route": state.get("route"),
+        "cell_count": len(state.get("cells", [])) if isinstance(state.get("cells"), list) else 0,
+        "problems": problems,
+    }
+    if args.json:
+        print_json(payload)
+    else:
+        print(f"noxframe: {payload['status']}")
+        print(f"active-context: {payload['active_context']}")
+        print(f"route: {' > '.join(str(part) for part in payload['route']) if isinstance(payload['route'], list) else 'unknown'}")
+        print(f"state: {state_path}")
+        print(f"seal: {seal_path}")
+        for problem in problems:
+            print(f"problem: {problem}")
+    return 0 if ok else 1
+
+
+def command_seal(root: Path, args: argparse.Namespace) -> int:
+    state_path, seal_path = substrate_paths(root, args)
+    ensure_substrate(root, state_path=state_path, seal_path=seal_path)
+    state = safe_read_json_file(state_path, "NOXFRAME state")
+    state["updated_utc"] = utc_now()
+    write_json_atomic(state_path, state)
+    seal = build_substrate_seal(root, state, now_utc=utc_now())
+    write_json_atomic(seal_path, seal)
+    if args.json:
+        print_json(
+            {
+                "schema": "wuci-noxframe-seal-result-v1",
+                "status": "sealed",
+                "state": str(state_path),
+                "seal": str(seal_path),
+                "substrate_digest_vector": seal["substrate_digest_vector"],
+            }
+        )
+    else:
+        print("noxframe: sealed")
+        print(f"state: {state_path}")
+        print(f"seal: {seal_path}")
+    return 0
+
+
+def command_verify(root: Path, args: argparse.Namespace) -> int:
+    state_path, seal_path = substrate_paths(root, args)
+    ok, problems = verify_substrate_seal(root, state_path=state_path, seal_path=seal_path)
+    payload = {
+        "schema": "wuci-noxframe-verify-result-v1",
+        "status": "pass" if ok else "fail",
+        "state": str(state_path),
+        "seal": str(seal_path),
+        "problems": problems,
+    }
+    if args.json:
+        print_json(payload)
+    else:
+        print(f"noxframe verify: {payload['status']}")
+        for problem in problems:
+            print(f"problem: {problem}")
+    return 0 if ok else 1
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="wuci-noxframe",
         description="NOXFRAME launcher for Wuci-Ji and Daylight proof lanes.",
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=("launch", "contract", "init", "status", "seal", "verify"),
+        default="launch",
+        help="command to run; default is launch",
     )
     parser.add_argument(
         "--profile",
@@ -964,6 +1995,39 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_CLOCK,
         help="internal NOXFRAME clock path, relative to the repository root unless absolute",
     )
+    parser.add_argument(
+        "--substrate-state",
+        default=DEFAULT_STATE,
+        help="NOXFRAME substrate state path, relative to the repository root unless absolute",
+    )
+    parser.add_argument(
+        "--substrate-seal",
+        default=DEFAULT_SUBSTRATE_SEAL,
+        help="NOXFRAME substrate seal path, relative to the repository root unless absolute",
+    )
+    parser.add_argument("--force", action="store_true", help="replace existing substrate state during init")
+    parser.add_argument("--json", action="store_true", help="emit command result as JSON")
+    parser.add_argument("-y", "--yes", action="store_true", help="answer yes to the interactive boot prompt")
+    parser.add_argument(
+        "--no-boot-prompt",
+        action="store_true",
+        help="skip the interactive Wuci-Ji substrate boot prompt",
+    )
+    parser.add_argument(
+        "--force-boot-prompt",
+        action="store_true",
+        help="ask the boot prompt even when stdio is not a TTY",
+    )
+    parser.add_argument(
+        "--console",
+        action="store_true",
+        help="enter the NOXFRAME operator console after boot",
+    )
+    parser.add_argument(
+        "--no-console",
+        action="store_true",
+        help="run the launch matrix directly instead of entering the operator console",
+    )
     parser.add_argument("--countdown", type=int, default=5, help="slow boot countdown seconds")
     parser.add_argument("--no-countdown", action="store_true", help="skip the boot countdown")
     parser.add_argument(
@@ -985,23 +2049,15 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
-    args = parse_args()
-    root = repo_root()
-    report_path = Path(args.report)
-    if not report_path.is_absolute():
-        report_path = root / report_path
-    seal_path = Path(args.seal)
-    if not seal_path.is_absolute():
-        seal_path = root / seal_path
-    clock_path = Path(args.clock)
-    if not clock_path.is_absolute():
-        clock_path = root / clock_path
-    palette = Palette(args.color)
-    print_banner(palette)
-    if not args.no_countdown:
-        countdown(max(args.countdown, 0), palette)
-
+def run_launch_matrix(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    *,
+    report_path: Path,
+    seal_path: Path,
+    clock_path: Path,
+) -> int:
     started_utc = utc_now()
     demo_dir = run_demo_dir()
     clock_state = read_clock_state(clock_path)
@@ -1099,6 +2155,561 @@ def main() -> int:
         return 0
     sys.stderr.write(palette.paint("WUCI-JI NOXFRAME LAUNCH FAILED\n", palette.red))
     return 1
+
+
+def clear_screen() -> None:
+    sys.stderr.write("\033[2J\033[H")
+    sys.stderr.flush()
+
+
+def display_repo_path(root: Path, path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(root.resolve()))
+    except ValueError:
+        return str(path)
+
+
+def print_console_line(text: str, *, color: str | None = None, palette: Palette | None = None) -> None:
+    width = max(20, terminal_columns() - 1)
+    rendered = fit_display(text, width)
+    if color is not None and palette is not None:
+        rendered = palette.paint(rendered, color)
+    print(rendered)
+
+
+def print_console_header(root: Path, args: argparse.Namespace, palette: Palette) -> None:
+    clock_path = repo_path(root, args.clock)
+    state_path, seal_path = substrate_paths(root, args)
+    clock_state = read_clock_state(clock_path)
+    decision = resolve_profile(
+        args.profile,
+        clock_path=clock_path,
+        state=clock_state,
+        now=dt.datetime.now(dt.UTC),
+    )
+    print_console_line("WUCI-JI SYSTEMS / NOXFRAME CONSOLE", color=palette.red, palette=palette)
+    print_console_line("bounded metadata console")
+    print_console_line("route: root > wuci-ji > daylight")
+    print_console_line(
+        f"profile: requested={decision.requested_profile} effective={decision.effective_profile}"
+    )
+    print_console_line(f"state: {display_repo_path(root, state_path)}")
+    print_console_line(f"seal: {display_repo_path(root, seal_path)}")
+    if terminal_columns() >= 88:
+        print_console_line(
+            "commands: help --compact, man <cmd>, complete <prefix>, status, launch, clear, exit"
+        )
+    else:
+        print_console_line("commands: help --compact, man <cmd>, complete")
+        print_console_line("          status, launch, clear, exit")
+
+
+def print_goodbye(palette: Palette) -> None:
+    print(palette.paint("再见，黑客。", palette.yellow))
+    print(palette.paint("Goodbye, Hacker.", palette.cyan))
+
+
+def print_unavailable(spec: ConsoleCommandSpec) -> None:
+    print(f"{spec.name}: route unavailable in NOXFRAME console")
+    print("scope: command is discoverable for compatibility; no host passthrough is opened here")
+
+
+def handle_launch_command(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    parts: list[str],
+) -> None:
+    old_profile = args.profile
+    old_no_countdown = args.no_countdown
+    if len(parts) > 1:
+        requested = parts[1].lower()
+        if requested not in {"auto", "smoke", "full"}:
+            print("usage: launch [auto|smoke|full]")
+            return
+        args.profile = requested
+    args.no_countdown = True
+    rc = run_launch_matrix(
+        root,
+        args,
+        palette,
+        report_path=repo_path(root, args.report),
+        seal_path=repo_path(root, args.seal),
+        clock_path=repo_path(root, args.clock),
+    )
+    args.profile = old_profile
+    args.no_countdown = old_no_countdown
+    print(f"launch-result: {rc}")
+
+
+def handle_vfs_command(
+    root: Path,
+    args: argparse.Namespace,
+    session: ConsoleSession,
+    command: str,
+    parts: list[str],
+) -> None:
+    if command == "pwd":
+        print(session.cwd)
+        return
+    if command == "ls":
+        path = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 else None)
+        is_dir, entries = vfs_list(path)
+        if is_dir:
+            print("\n".join(entries))
+        else:
+            print(entries[0])
+        return
+    if command == "cd":
+        path = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 else "/")
+        if not vfs_is_dir(path):
+            print(f"cd: not a virtual directory: {path}")
+            return
+        session.cwd = path
+        return
+    if command == "cat":
+        if len(parts) < 2:
+            print("usage: cat <file>")
+            return
+        for file_arg in parts[1:]:
+            path = vfs_normalize(session.cwd, file_arg)
+            print(virtual_file_text(root, args, session, path), end="")
+        return
+    if command == "tree":
+        path = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 else None)
+        print_vfs_tree(path)
+        return
+    if command == "echo":
+        if ">" in parts or ">>" in parts:
+            print("echo: redirect writes are not available in the NOXFRAME VFS")
+            return
+        print(" ".join(parts[1:]))
+        return
+    print(f"{command}: virtual filesystem mutation is unavailable")
+
+
+def parse_count_option(parts: list[str], default: int = 10) -> tuple[int, list[str]]:
+    count = default
+    rest = parts[:]
+    if len(rest) >= 2 and rest[0] in {"-n", "--lines"}:
+        try:
+            count = max(0, int(rest[1]))
+        except ValueError:
+            count = default
+        rest = rest[2:]
+    elif rest and rest[0].startswith("-") and rest[0][1:].isdigit():
+        count = int(rest[0][1:])
+        rest = rest[1:]
+    return count, rest
+
+
+def handle_text_command(
+    root: Path,
+    args: argparse.Namespace,
+    session: ConsoleSession,
+    command: str,
+    parts: list[str],
+) -> None:
+    if command == "pipeline":
+        print("pipeline: grep/head/tail/wc/find are available as direct virtual-file commands")
+        return
+    if command == "find":
+        start = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 and not parts[1].startswith("-") else None)
+        needle = ""
+        if "-name" in parts:
+            index = parts.index("-name")
+            if index + 1 < len(parts):
+                needle = parts[index + 1].strip("*")
+        for path in vfs_all_paths():
+            if not path.startswith(start.rstrip("/") + "/") and path != start:
+                continue
+            if needle and needle not in path.rsplit("/", 1)[-1]:
+                continue
+            print(path)
+        return
+    if command == "grep":
+        if len(parts) < 3:
+            print("usage: grep <pattern> <file>...")
+            return
+        pattern = parts[1]
+        for path, text in console_text_files(root, args, session, parts[2:]):
+            for line_no, line in enumerate(text.splitlines(), start=1):
+                if pattern in line:
+                    print(f"{path}:{line_no}:{line}")
+        return
+    if command == "wc":
+        if len(parts) < 2:
+            print("usage: wc <file>...")
+            return
+        for path, text in console_text_files(root, args, session, parts[1:]):
+            lines = len(text.splitlines())
+            words = len(text.split())
+            chars = len(text.encode("utf-8"))
+            print(f"{lines:5d} {words:5d} {chars:6d} {path}")
+        return
+    if command in {"head", "tail"}:
+        count, files = parse_count_option(parts[1:])
+        if not files:
+            print(f"usage: {command} [-n count] <file>")
+            return
+        for path, text in console_text_files(root, args, session, files):
+            lines = text.splitlines()
+            selected = lines[:count] if command == "head" else lines[-count:]
+            if len(files) > 1:
+                print(f"==> {path} <==")
+            print("\n".join(selected))
+        return
+
+
+def handle_proc_command(command: str) -> None:
+    if command == "ps":
+        print(console_process_table(), end="")
+    elif command == "top":
+        print("tasks: 3 total, 2 ready, 1 idle")
+        print("load: metadata-only  memory: virtual")
+    elif command == "jobs":
+        print("jobs: no console background jobs")
+    else:
+        print(f"{command}: simulated process mutation is unavailable")
+
+
+def handle_sys_command(
+    root: Path,
+    args: argparse.Namespace,
+    session: ConsoleSession,
+    command: str,
+    parts: list[str],
+) -> None:
+    if command == "sysinfo":
+        status = virtual_status_payload(root, args)
+        print(f"name: {TOOL_NAME}")
+        print("route: root > wuci-ji > daylight")
+        print(f"status: {status.get('status')}")
+        print(f"cells: {len(SUBSTRATE_CELLS)}")
+        print(f"columns: {terminal_columns()}")
+        return
+    if command == "dash":
+        status = virtual_status_payload(root, args)
+        print(f"[substrate] {status.get('status')}  [profile] {args.profile}  [route] root>wuci-ji>daylight")
+        return
+    if command == "free":
+        print("              total        used        free")
+        print("substrate      9 cells     3 active    6 sealed")
+        return
+    if command == "df":
+        print("Filesystem        Files  Mounted")
+        print("noxframe-vfs      18     /")
+        print("noxframe-docs      5     /docs")
+        return
+    if command == "dmesg":
+        print("noxframe: responsive Wuci-Ji Systems banner initialized")
+        print("noxframe: substrate state/seal paths loaded")
+        print("noxframe: Phase1 command registry mapped into bounded console")
+        return
+    if command == "vmstat":
+        print("cells active sealed drift")
+        print(f"{len(SUBSTRATE_CELLS):5d} {3:6d} {len(SUBSTRATE_CELLS):6d} {0:5d}")
+        return
+    if command == "uname":
+        print("WUCI-NOXFRAME metadata-console substrate-v1")
+        return
+    if command == "date":
+        print(utc_now())
+        return
+    if command == "uptime":
+        elapsed = int(time.monotonic() - session.started_monotonic)
+        print(f"up {elapsed}s")
+        return
+    if command == "hostname":
+        print("wuci-ji-substrate")
+        return
+    if command == "audit":
+        print(virtual_file_text(root, args, session, "/var/log/audit"), end="")
+        return
+    if command == "opslog":
+        sub = parts[1].lower() if len(parts) > 1 else "status"
+        if sub == "tail":
+            print(virtual_file_text(root, args, session, "/var/log/audit"), end="")
+        else:
+            print(f"opslog: {len(session.audit)} console events")
+        return
+    if command in {"lspci", "pcie"}:
+        print("00:00.0 Wuci-Ji substrate bridge")
+        print("00:01.0 Daylight evidence adapter")
+        return
+    if command == "cr3":
+        print("cr3: 0x0000000000002000 (virtual)")
+        return
+    if command == "cr4":
+        print("cr4: pcide=off pae=on pse=on (virtual)")
+        return
+    print(f"{command}: virtual hardware mutation is unavailable")
+
+
+def handle_user_command(session: ConsoleSession, command: str, parts: list[str]) -> None:
+    if command == "env":
+        for key in sorted(session.env):
+            print(f"{key}={session.env[key]}")
+        return
+    if command == "export":
+        if len(parts) != 2 or "=" not in parts[1]:
+            print("usage: export KEY=value")
+            return
+        key, value = parts[1].split("=", 1)
+        if not key or not key.replace("_", "").isalnum():
+            print("export: invalid key")
+            return
+        session.env[key] = value
+        return
+    if command == "unset":
+        if len(parts) != 2:
+            print("usage: unset KEY")
+            return
+        session.env.pop(parts[1], None)
+        return
+    if command == "whoami":
+        print(session.env.get("USER", "operator"))
+        return
+    if command == "id":
+        print("uid=1000(operator) gid=1000(wuci) groups=1000(wuci)")
+        return
+    if command == "accounts":
+        print("operator   uid=1000   role=local-console")
+        print("system     uid=0      role=substrate-metadata")
+        return
+    if command == "history":
+        for index, item in enumerate(session.history[-50:], start=max(1, len(session.history) - 49)):
+            print(f"{index:4d}  {item}")
+        return
+    if command == "security":
+        print("console: bounded command registry")
+        print("host: no passthrough commands")
+        print("network: no fetch or scan commands")
+        print("writes: substrate state/seal and launch evidence only")
+        return
+    if command == "theme":
+        if len(parts) > 1 and parts[1] == "list":
+            print("crimson ice amber mono")
+        else:
+            print("theme: crimson")
+        return
+    if command == "banner":
+        print("banner: responsive Wuci-Ji Systems starfield")
+        print(f"inner-width: {banner_inner_width()}")
+        return
+    if command == "tips":
+        print("try: help --compact")
+        print("try: ls /proc && cat /proc/cells")
+        print("try: status && verify")
+        return
+
+
+def handle_dev_or_host_command(command: str, parts: list[str]) -> None:
+    if command == "update":
+        print("update: use repository proof lanes outside the console")
+        print("protocol: plan, validate, commit, push")
+        return
+    if command == "repo":
+        print("repo: main line with NOXFRAME as Wuci-Ji substrate surface")
+        print("channels: main, proof lanes, generated build evidence")
+        return
+    if command == "fyr":
+        print("fyr: lineage carried as small-language and command-surface discipline")
+        print("runtime: not embedded in NOXFRAME")
+        return
+    if command == "lang":
+        print("lang: host language runtimes are not executed from this console")
+        print("support: metadata only")
+        return
+    spec = console_lookup(command)
+    if spec is not None:
+        print_unavailable(spec)
+
+
+def handle_misc_command(
+    root: Path,
+    args: argparse.Namespace,
+    session: ConsoleSession,
+    command: str,
+    parts: list[str],
+) -> bool:
+    if command == "help":
+        print(console_help_text(parts[1:]))
+        return True
+    if command == "man":
+        if len(parts) < 2:
+            print("usage: man <command>")
+            return True
+        manual = console_man_text(parts[1])
+        print(manual if manual is not None else f"no manual entry for {parts[1]}")
+        return True
+    if command == "complete":
+        prefix = parts[1] if len(parts) > 1 else ""
+        matches = console_completions(prefix)
+        print("\n".join(matches) if matches else f"complete: no matches for {prefix!r}")
+        return True
+    if command == "capabilities":
+        print(console_capabilities_text())
+        return True
+    if command == "matrix":
+        print("matrix: use the responsive boot starfield; animation is not run inside tests")
+        return True
+    if command == "bootcfg":
+        print(f"profile: {args.profile}")
+        print(f"clock: {repo_path(root, args.clock)}")
+        return True
+    if command == "version":
+        print(f"{TOOL_NAME} substrate-contract={SUBSTRATE_SPEC_SCHEMA}")
+        print(f"git: {git_value(root, 'rev-parse', 'HEAD')}")
+        return True
+    if command == "roadmap":
+        print("1. substrate command registry")
+        print("2. responsive console UX")
+        print("3. proof-lane launch matrix")
+        print("4. future native boundaries stay explicit")
+        return True
+    if command == "sandbox":
+        print("boundary: metadata console with no host shell route")
+        print("proof: public anchors plus local state/seal verification")
+        return True
+    if command == "nest":
+        print("nest: root > wuci-ji > daylight")
+        print("stack: single active NOXFRAME session")
+        return True
+    if command == "exit":
+        return False
+    return True
+
+
+def dispatch_console_command(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    session: ConsoleSession,
+    parts: list[str],
+) -> bool:
+    spec = console_lookup(parts[0])
+    if spec is None:
+        print(f"unknown command: {parts[0]}")
+        print("try: help --compact")
+        return True
+    command = spec.name
+    if command == "clear":
+        clear_screen()
+        print_console_header(root, args, palette)
+        return True
+    if command == "exit":
+        print_goodbye(palette)
+        return False
+    if command in {"status", "seal", "verify", "contract", "launch"}:
+        if command == "status":
+            command_status(root, args)
+        elif command == "seal":
+            command_seal(root, args)
+        elif command == "verify":
+            command_verify(root, args)
+        elif command == "contract":
+            command_contract()
+        else:
+            handle_launch_command(root, args, palette, parts)
+        return True
+    if spec.guard == "unavailable":
+        print_unavailable(spec)
+        return True
+    if spec.category == "fs":
+        handle_vfs_command(root, args, session, command, parts)
+    elif spec.category == "text":
+        handle_text_command(root, args, session, command, parts)
+    elif spec.category == "proc":
+        handle_proc_command(command)
+    elif spec.category == "sys":
+        handle_sys_command(root, args, session, command, parts)
+    elif spec.category == "user":
+        handle_user_command(session, command, parts)
+    elif spec.category in {"host", "dev", "net"}:
+        handle_dev_or_host_command(command, parts)
+    elif spec.category == "misc":
+        return handle_misc_command(root, args, session, command, parts)
+    return True
+
+
+def run_operator_console(root: Path, args: argparse.Namespace, palette: Palette) -> int:
+    state_path, seal_path = substrate_paths(root, args)
+    ensure_substrate(root, state_path=state_path, seal_path=seal_path)
+    session = ConsoleSession()
+    clear_screen()
+    print_console_header(root, args, palette)
+    while True:
+        try:
+            line = input(palette.paint("noxframe> ", palette.red))
+        except EOFError:
+            print()
+            print_goodbye(palette)
+            return 0
+        raw = line.strip()
+        if not raw:
+            continue
+        session.history.append(raw)
+        if len(session.history) > 512:
+            del session.history[:-512]
+        record_console_event(session, raw)
+        try:
+            parts = shlex.split(raw)
+        except ValueError as exc:
+            print(f"parse error: {exc}")
+            continue
+        if not parts:
+            continue
+        try:
+            keep_running = dispatch_console_command(root, args, palette, session, parts)
+        except NoxframeError as exc:
+            print(str(exc))
+            continue
+        if not keep_running:
+            return 0
+
+
+def main() -> int:
+    args = parse_args()
+    root = repo_root()
+    report_path = repo_path(root, args.report)
+    seal_path = repo_path(root, args.seal)
+    clock_path = repo_path(root, args.clock)
+    palette = Palette(args.color)
+
+    if args.command == "contract":
+        return command_contract()
+    if args.command == "init":
+        return command_init(root, args)
+    if args.command == "status":
+        return command_status(root, args)
+    if args.command == "seal":
+        return command_seal(root, args)
+    if args.command == "verify":
+        return command_verify(root, args)
+
+    print_banner(palette)
+    if not confirm_boot(args, palette):
+        sys.stderr.write(palette.paint("WUCI-JI substrate boot declined\n", palette.red))
+        return 130
+    state_path, substrate_seal_path = substrate_paths(root, args)
+    ensure_substrate(root, state_path=state_path, seal_path=substrate_seal_path)
+    interactive_console = args.console or (
+        not args.no_console and sys.stdin.isatty() and sys.stdout.isatty()
+    )
+    if interactive_console:
+        return run_operator_console(root, args, palette)
+
+    if not args.no_countdown:
+        countdown(max(args.countdown, 0), palette)
+    return run_launch_matrix(
+        root,
+        args,
+        palette,
+        report_path=report_path,
+        seal_path=seal_path,
+        clock_path=clock_path,
+    )
 
 
 if __name__ == "__main__":

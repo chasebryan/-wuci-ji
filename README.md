@@ -188,14 +188,23 @@ Run NOXFRAME:
 make noxframe-launch
 ```
 
-By default, `WUCI-NOXFRAME` uses its local 7-day clock. It boots in quick mode
-between weekly checks, then runs the full proof matrix when the clock is due.
-The full matrix covers Wuci-Ji, Wuci-Prism, Daylight, Nightlight, Gate, HARDEN,
-CAGE, QCAGE, install verification, release-bundle verification, and
-high-attestation lanes. It writes a readable launch report and
-SHA-256/SHA-384/SHA-512 self-seal to [docs/noxframe/](docs/noxframe/).
-Operator-supplied or optional-dependency lanes are recorded in the report
-instead of being faked. `wuci-black-ice` remains a compatibility alias for the
+`WUCI-NOXFRAME` boots through a Wuci-Ji Systems splash, asks whether to boot the
+Wuci-Ji substrate, then clears into a bounded operator console in interactive
+terminals. Use `tools/wuci-noxframe --no-console` to run the launch matrix
+directly.
+
+The console carries Phase1-style discovery commands: `help --compact`,
+`man <command>`, `complete <prefix>`, and `capabilities`. It implements local
+substrate, virtual filesystem, text, process, system, history, and session
+commands while keeping host/network passthrough routes non-executing.
+
+By default, it uses its local 7-day clock. It boots in quick mode between
+weekly checks, then runs the full proof matrix when the clock is due. The full
+matrix covers Wuci-Ji, Wuci-Prism, Daylight, Nightlight, Gate, HARDEN, CAGE,
+QCAGE, install verification, release-bundle verification, and high-attestation
+lanes. It writes a readable launch report and SHA-256/SHA-384/SHA-512 self-seal
+to [docs/noxframe/](docs/noxframe/), with substrate state and seal files under
+`build/noxframe/`. `wuci-black-ice` remains a compatibility alias for the
 working-title boot lander.
 
 ## Daylight
