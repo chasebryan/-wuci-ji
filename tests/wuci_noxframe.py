@@ -258,6 +258,8 @@ def assert_boot_prompt_and_banner(launcher: Path, tmp: Path) -> None:
     assert "Would you like to boot the Wuci-Ji substrate?" in declined.stderr
     assert "\x1b[31m" in declined.stderr
     assert "WUCI-JI" in declined.stderr
+    assert "━━━━━" in declined.stderr
+    assert "WUCI-I JI" not in declined.stderr
     assert "无   此   机   系   统" in declined.stderr
     assert "wu   ci   ji   xi   tong" in declined.stderr
     assert "Wuci-Ji Systems" in declined.stderr
