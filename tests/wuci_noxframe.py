@@ -999,6 +999,9 @@ def console_command_matrix() -> dict[str, str]:
         "theme": "theme list",
         "banner": "banner",
         "tips": "tips",
+        "xframe-split": "xframe-split 2",
+        "xframe-next": "xframe-next",
+        "xframe-drop": "xframe-drop all",
         "learn": "learn status",
         "ifconfig": "ifconfig",
         "iwconfig": "iwconfig",
@@ -1159,6 +1162,76 @@ def assert_console_completion_logic() -> None:
     assert plugins.matches == ("policy",)
     assert plugins.append_space is True
 
+    split = wuci_black_ice.console_completion_plan(session, "xframe-split ")
+    assert split.matches == ("2", "3", "4")
+    assert split.append_space is False
+
+    drop = wuci_black_ice.console_completion_plan(session, "xframe-drop ")
+    assert drop.matches == ("1", "all")
+    assert drop.append_space is False
+
+
+def assert_xframe_split_drop_logic() -> None:
+    session = wuci_black_ice.ConsoleSession()
+    args = noxframe_args(profile="smoke")
+    palette = wuci_black_ice.Palette("never")
+
+    def run(*lines: str) -> str:
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            for line in lines:
+                keep_running = wuci_black_ice.dispatch_console_line(REPO, args, palette, session, line)
+                assert keep_running
+        return buffer.getvalue()
+
+    split = run("xframe-split 2")
+    assert "schema: wuci-noxframe-xframe-v1" in split
+    assert "action: split" in split
+    assert "frames: 2" in split
+    assert "layout: left-right" in split
+    assert "switch: Alt+Shift+Tab" in split
+    assert "1: left cwd=/" in split
+    assert "2: right cwd=/" in split
+    assert session.xframe_count == 2
+    assert session.active_xframe == 1
+    assert wuci_black_ice.prompt_for_session(session) == "noxframe:L0/root[x1/2]> "
+
+    run("cd /env")
+    assert session.cwd == "/env"
+    switched = run("\x1b[Z")
+    assert "action: switch" in switched
+    assert "active: 2" in switched
+    assert session.active_xframe == 2
+    assert session.cwd == "/"
+    assert session.env["PWD"] == "/"
+
+    run("mkdir /tmp", "touch /tmp/frame2")
+    assert "/tmp/frame2" in session.vfs_files
+    back = run("xframe-next")
+    assert "active: 1" in back
+    assert session.cwd == "/env"
+    assert session.env["PWD"] == "/env"
+    assert "/tmp/frame2" not in session.vfs_files
+
+    quad = run("xframe-split 4")
+    assert "frames: 4" in quad
+    assert "layout: quadrant" in quad
+    assert "4: bottom-right" in quad
+    dropped_one = run("xframe-drop 1")
+    assert "action: drop" in dropped_one
+    assert "dropped: 4" in dropped_one
+    assert "frames: 3" in dropped_one
+    assert "3: bottom" in dropped_one
+    assert session.xframe_count == 3
+
+    collapsed = run("xframe-drop all")
+    assert "dropped: 2 3" in collapsed
+    assert "frames: 1" in collapsed
+    assert "layout: single" in collapsed
+    assert session.xframe_count == 1
+    assert session.active_xframe == 1
+    assert wuci_black_ice.prompt_for_session(session) == "noxframe:L0/root> "
+
 
 def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
     samples = console_command_matrix()
@@ -1312,6 +1385,7 @@ def assert_launcher(launcher: Path) -> None:
         assert_clock_decisions(tmp)
         assert_no_unavailable_command_markers()
         assert_console_completion_logic()
+        assert_xframe_split_drop_logic()
         assert_substrate_commands(launcher, tmp)
         assert_boot_prompt_and_banner(launcher, tmp)
         assert_boot_animation_frame()

@@ -41,6 +41,22 @@ class ConsoleCommandSpec:
 
 
 @dataclass
+class ConsoleXFrameState:
+    frame_id: int
+    cwd: str = "/"
+    started_monotonic: float = field(default_factory=time.monotonic)
+    history: list[str] = field(default_factory=list)
+    audit: list[str] = field(default_factory=list)
+    aliases: dict[str, str] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
+    vfs_dirs: set[str] = field(default_factory=set)
+    vfs_files: dict[str, str] = field(default_factory=dict)
+    jobs: dict[int, dict[str, str]] = field(default_factory=dict)
+    next_pid: int = 100
+    env: dict[str, str] = field(default_factory=lambda: default_console_env())
+
+
+@dataclass
 class ConsoleSession:
     cwd: str = "/"
     started_monotonic: float = field(default_factory=time.monotonic)
@@ -53,6 +69,9 @@ class ConsoleSession:
     jobs: dict[int, dict[str, str]] = field(default_factory=dict)
     next_pid: int = 100
     env: dict[str, str] = field(default_factory=lambda: default_console_env())
+    xframe_count: int = 1
+    active_xframe: int = 1
+    xframes: dict[int, ConsoleXFrameState] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -101,6 +120,9 @@ DEFAULT_STATE = "build/noxframe/WUCI_NOXFRAME_STATE.json"
 DEFAULT_SUBSTRATE_SEAL = "build/noxframe/WUCI_NOXFRAME_SUBSTRATE_SEAL.json"
 DEFAULT_DAYLIGHT_WRAP_DIR = "build/noxframe/daylight-wrap"
 DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
+XFRAME_MAX = 4
+XFRAME_SWITCH_INPUTS = ("\x1b[Z", "\x1b\x1b[Z")
+XFRAME_SWITCH_HINT = "Alt+Shift+Tab"
 NOXFRAME_SELF_RELEASE_DEMO_DIR = "build/noxframe/self-release"
 NOXFRAME_SELF_RELEASE_ATTESTATION = f"{NOXFRAME_SELF_RELEASE_DEMO_DIR}/attestation.json"
 NOXFRAME_WITNESS_BUNDLE_DIR = "build/noxframe/self-release-witness"
@@ -353,6 +375,9 @@ CONSOLE_COMMANDS = (
     console_cmd("theme", ("style",), "user", "theme [show|list]", "Inspect available console palettes.", "user.env", "metadata-only"),
     console_cmd("banner", ("splash",), "user", "banner", "Describe the active responsive boot banner.", "user.read", "metadata-only"),
     console_cmd("tips", ("hint", "hints"), "user", "tips", "Show concise operator tips.", "user.read", "metadata-only"),
+    console_cmd("xframe-split", ("xsplit",), "user", "xframe-split <2|3|4>", "Split one NOXFRAME launch into up to four session-local xframes.", "user.frame", "local"),
+    console_cmd("xframe-next", ("xnext", "xframe-cycle"), "user", "xframe-next", "Switch to the next open xframe; bound to Alt+Shift+Tab in interactive readline.", "user.frame", "local"),
+    console_cmd("xframe-drop", ("xdrop",), "user", "xframe-drop <1|all>", "Drop the last xframe slot or collapse back to the original frame.", "user.frame", "local"),
     console_cmd("learn", ("memory", "notes"), "learn", "learn [status|list|show|add <text>|clear]", "Maintain session-local learning notes.", "learn.local", "local"),
     console_cmd("ifconfig", (), "net", "ifconfig", "Show virtual network interface policy.", "net.read", "metadata-only"),
     console_cmd("iwconfig", (), "net", "iwconfig", "Show virtual wireless policy.", "net.read", "metadata-only"),
@@ -529,7 +554,254 @@ def depth_label(session: ConsoleSession) -> str:
     return f"L{depth}/{context}"
 
 
+def display_pad(text: str, width: int) -> str:
+    fitted = fit_display(text, width)
+    return fitted + (" " * max(0, width - display_width(fitted)))
+
+
+def xframe_layout_name(count: int) -> str:
+    return {
+        1: "single",
+        2: "left-right",
+        3: "top-two-bottom",
+        4: "quadrant",
+    }.get(count, "single")
+
+
+def xframe_slot_label(count: int, frame_id: int) -> str:
+    labels = {
+        1: {1: "full"},
+        2: {1: "left", 2: "right"},
+        3: {1: "top-left", 2: "top-right", 3: "bottom"},
+        4: {1: "top-left", 2: "top-right", 3: "bottom-left", 4: "bottom-right"},
+    }
+    return labels.get(count, labels[1]).get(frame_id, f"slot-{frame_id}")
+
+
+def xframe_env_mark(env: dict[str, str], frame_id: int, count: int) -> None:
+    env["NOXFRAME_XFRAME_ID"] = str(frame_id)
+    env["NOXFRAME_XFRAME_COUNT"] = str(count)
+    env["NOXFRAME_XFRAME_LAYOUT"] = xframe_layout_name(count)
+
+
+def xframe_snapshot(session: ConsoleSession, frame_id: int) -> ConsoleXFrameState:
+    env = dict(session.env)
+    env["PWD"] = session.cwd
+    xframe_env_mark(env, frame_id, session.xframe_count)
+    return ConsoleXFrameState(
+        frame_id=frame_id,
+        cwd=session.cwd,
+        started_monotonic=session.started_monotonic,
+        history=list(session.history),
+        audit=list(session.audit),
+        aliases=dict(session.aliases),
+        notes=list(session.notes),
+        vfs_dirs=set(session.vfs_dirs),
+        vfs_files=dict(session.vfs_files),
+        jobs={pid: dict(job) for pid, job in session.jobs.items()},
+        next_pid=session.next_pid,
+        env=env,
+    )
+
+
+def xframe_new_state(frame_id: int, count: int, env_template: dict[str, str]) -> ConsoleXFrameState:
+    env = dict(env_template)
+    env["PWD"] = "/"
+    xframe_env_mark(env, frame_id, count)
+    return ConsoleXFrameState(frame_id=frame_id, env=env)
+
+
+def xframe_apply_state(session: ConsoleSession, state: ConsoleXFrameState) -> None:
+    session.cwd = state.cwd
+    session.started_monotonic = state.started_monotonic
+    session.history = list(state.history)
+    session.audit = list(state.audit)
+    session.aliases = dict(state.aliases)
+    session.notes = list(state.notes)
+    session.vfs_dirs = set(state.vfs_dirs)
+    session.vfs_files = dict(state.vfs_files)
+    session.jobs = {pid: dict(job) for pid, job in state.jobs.items()}
+    session.next_pid = state.next_pid
+    session.env = dict(state.env)
+    session.env["PWD"] = session.cwd
+    xframe_env_mark(session.env, session.active_xframe, session.xframe_count)
+
+
+def xframe_save_active(session: ConsoleSession) -> None:
+    session.active_xframe = max(1, min(session.active_xframe, max(1, session.xframe_count)))
+    session.xframes[session.active_xframe] = xframe_snapshot(session, session.active_xframe)
+
+
+def xframe_ensure_deck(session: ConsoleSession) -> None:
+    session.xframe_count = max(1, min(XFRAME_MAX, session.xframe_count))
+    session.active_xframe = max(1, min(session.active_xframe, session.xframe_count))
+    if not session.xframes:
+        session.xframes[session.active_xframe] = xframe_snapshot(session, session.active_xframe)
+    for frame_id in range(1, session.xframe_count + 1):
+        if frame_id not in session.xframes:
+            session.xframes[frame_id] = xframe_new_state(frame_id, session.xframe_count, session.env)
+
+
+def xframe_resize(session: ConsoleSession, count: int) -> list[int]:
+    if not 1 <= count <= XFRAME_MAX:
+        raise NoxframeError(f"xframe-split: frame count must be between 1 and {XFRAME_MAX}")
+    xframe_ensure_deck(session)
+    xframe_save_active(session)
+    old_count = session.xframe_count
+    env_template = dict(session.env)
+    dropped = [frame_id for frame_id in range(count + 1, old_count + 1)]
+    session.xframe_count = count
+    for frame_id in range(1, count + 1):
+        if frame_id not in session.xframes:
+            session.xframes[frame_id] = xframe_new_state(frame_id, count, env_template)
+        xframe_env_mark(session.xframes[frame_id].env, frame_id, count)
+    for frame_id in dropped:
+        session.xframes.pop(frame_id, None)
+    if count == 1:
+        session.active_xframe = 1
+    elif session.active_xframe > count:
+        session.active_xframe = count
+    xframe_apply_state(session, session.xframes[session.active_xframe])
+    return dropped
+
+
+def xframe_switch(session: ConsoleSession, frame_id: int) -> None:
+    xframe_ensure_deck(session)
+    if not 1 <= frame_id <= session.xframe_count:
+        raise NoxframeError(f"xframe: no open frame {frame_id}")
+    xframe_save_active(session)
+    session.active_xframe = frame_id
+    xframe_apply_state(session, session.xframes[frame_id])
+
+
+def xframe_next(session: ConsoleSession) -> None:
+    target = 1 if session.active_xframe >= session.xframe_count else session.active_xframe + 1
+    xframe_switch(session, target)
+
+
+def xframe_drop(session: ConsoleSession, value: str) -> list[int]:
+    xframe_ensure_deck(session)
+    xframe_save_active(session)
+    if value.lower() in {"all", "--all", "-a"}:
+        target_count = 1
+    else:
+        try:
+            drop_count = int(value, 10)
+        except ValueError as exc:
+            raise NoxframeError("xframe-drop: use a positive count or all") from exc
+        if drop_count < 1:
+            raise NoxframeError("xframe-drop: count must be positive")
+        target_count = max(1, session.xframe_count - drop_count)
+    return xframe_resize(session, target_count)
+
+
+def xframe_state_depth(state: ConsoleXFrameState) -> int:
+    try:
+        return max(0, int(state.env.get("NOXFRAME_DEPTH", "0")))
+    except ValueError:
+        return 0
+
+
+def xframe_box_lines(
+    state: ConsoleXFrameState,
+    *,
+    active: bool,
+    slot_label: str,
+    width: int,
+) -> list[str]:
+    inner = max(10, width - 2)
+    theme = depth_theme(xframe_state_depth(state))
+    title = f"{'*' if active else ' '} xframe {state.frame_id} {slot_label}"
+    return [
+        "┌" + display_pad(title, inner) + "┐",
+        "│" + display_pad(f"cwd={state.cwd}", inner) + "│",
+        "│" + display_pad(f"hist={len(state.history)} jobs={len(state.jobs)} notes={len(state.notes)}", inner) + "│",
+        "│" + display_pad(theme.name, inner) + "│",
+        "└" + ("─" * inner) + "┘",
+    ]
+
+
+def xframe_join_boxes(left: list[str], right: list[str]) -> list[str]:
+    return [f"{a}  {b}" for a, b in zip(left, right)]
+
+
+def xframe_layout_lines(session: ConsoleSession) -> list[str]:
+    xframe_save_active(session)
+    width = max(42, terminal_columns() - 1)
+    count = session.xframe_count
+    gap = 2
+    pair_width = max(24, min(42, (width - gap) // 2))
+    wide_width = min(width, pair_width * 2 + gap)
+
+    def box(frame_id: int, box_width: int) -> list[str]:
+        state = session.xframes[frame_id]
+        return xframe_box_lines(
+            state,
+            active=frame_id == session.active_xframe,
+            slot_label=xframe_slot_label(count, frame_id),
+            width=box_width,
+        )
+
+    if count == 1:
+        return box(1, wide_width)
+    if count == 2:
+        return xframe_join_boxes(box(1, pair_width), box(2, pair_width))
+    if count == 3:
+        return [
+            *xframe_join_boxes(box(1, pair_width), box(2, pair_width)),
+            *box(3, wide_width),
+        ]
+    return [
+        *xframe_join_boxes(box(1, pair_width), box(2, pair_width)),
+        *xframe_join_boxes(box(3, pair_width), box(4, pair_width)),
+    ]
+
+
+def xframe_status_line(session: ConsoleSession) -> str:
+    return (
+        f"xframe: active={session.active_xframe}/{session.xframe_count} "
+        f"layout={xframe_layout_name(session.xframe_count)} switch={XFRAME_SWITCH_HINT}"
+    )
+
+
+def xframe_status_text(
+    session: ConsoleSession,
+    *,
+    action: str = "status",
+    dropped: list[int] | None = None,
+) -> str:
+    xframe_save_active(session)
+    rows = [
+        "schema: wuci-noxframe-xframe-v1",
+        f"action: {action}",
+        f"frames: {session.xframe_count}",
+        f"active: {session.active_xframe}",
+        f"layout: {xframe_layout_name(session.xframe_count)}",
+        f"switch: {XFRAME_SWITCH_HINT}",
+    ]
+    if dropped is not None:
+        rows.append("dropped: " + (" ".join(str(frame_id) for frame_id in dropped) if dropped else "none"))
+    rows.append("slots:")
+    for frame_id in range(1, session.xframe_count + 1):
+        state = session.xframes[frame_id]
+        marker = "*" if frame_id == session.active_xframe else "-"
+        rows.append(
+            f"{marker} {frame_id}: {xframe_slot_label(session.xframe_count, frame_id)} "
+            f"cwd={state.cwd} history={len(state.history)} jobs={len(state.jobs)}"
+        )
+    rows.append("")
+    rows.extend(xframe_layout_lines(session))
+    rows.append("")
+    return "\n".join(rows)
+
+
+def normalize_xframe_switch_input(raw: str) -> str:
+    return "xframe-next" if raw in XFRAME_SWITCH_INPUTS else raw
+
+
 def prompt_for_session(session: ConsoleSession) -> str:
+    if session.xframe_count > 1:
+        return f"noxframe:{depth_label(session)}[x{session.active_xframe}/{session.xframe_count}]> "
     return f"noxframe:{depth_label(session)}> "
 
 
@@ -1071,6 +1343,7 @@ def console_profile_text(session: ConsoleSession, args: argparse.Namespace) -> s
             f"notes: {len(session.notes)} session-local note(s)",
             f"history: {len(session.history)} command(s)",
             f"audit: {len(session.audit)} event(s)",
+            f"xframes: active={session.active_xframe}/{session.xframe_count} layout={xframe_layout_name(session.xframe_count)}",
             "boundary: metadata console; no host shell or runtime-containment claim",
             "",
         ]
@@ -1447,6 +1720,10 @@ def command_argument_completion_plan(
         choices = tuple(sorted(WIKI_TOPICS))
     elif command == "theme":
         choices = ("show", "list")
+    elif command == "xframe-split":
+        choices = ("2", "3", "4")
+    elif command == "xframe-drop":
+        choices = ("1", "all")
     elif command == "set":
         if token.startswith("-"):
             choices = ("-o",)
@@ -1574,6 +1851,14 @@ def install_console_readline(session: ConsoleSession) -> tuple[object, str] | No
     readline.set_completer(completer)
     readline.set_completer_delims(" \t\n")
     readline.parse_and_bind("tab: complete")
+    for binding in (
+        '"\\e[Z": "xframe-next\\n"',
+        '"\\e\\e[Z": "xframe-next\\n"',
+    ):
+        try:
+            readline.parse_and_bind(binding)
+        except (ValueError, OSError):
+            pass
     return old_completer, old_delims
 
 
@@ -4648,6 +4933,8 @@ def print_console_header(
     print_console_line("route: root > wuci-ji > daylight")
     if session is not None:
         print_console_line(lattice_status_line(session), color=theme.accent_color, palette=palette)
+        if session.xframe_count > 1:
+            print_console_line(xframe_status_line(session), color=theme.accent_color, palette=palette)
     print_console_line(
         f"profile: requested={decision.requested_profile} effective={decision.effective_profile}"
     )
@@ -5323,12 +5610,45 @@ def handle_sys_command(
     print(f"{command}: virtual hardware mutation is unavailable")
 
 
+def handle_xframe_command(session: ConsoleSession, command: str, parts: list[str]) -> None:
+    if command == "xframe-split":
+        if len(parts) == 1:
+            print(xframe_status_text(session), end="")
+            return
+        try:
+            count = int(parts[1], 10)
+        except ValueError:
+            print("usage: xframe-split <2|3|4>")
+            return
+        if count == 1:
+            dropped = xframe_resize(session, 1)
+            print(xframe_status_text(session, action="split", dropped=dropped), end="")
+            return
+        if not 2 <= count <= XFRAME_MAX:
+            print(f"xframe-split: count must be 2, 3, or {XFRAME_MAX}")
+            return
+        xframe_resize(session, count)
+        print(xframe_status_text(session, action="split"), end="")
+        return
+    if command == "xframe-next":
+        xframe_next(session)
+        print(xframe_status_text(session, action="switch"), end="")
+        return
+    if command == "xframe-drop":
+        dropped = xframe_drop(session, parts[1] if len(parts) > 1 else "1")
+        print(xframe_status_text(session, action="drop", dropped=dropped), end="")
+        return
+
+
 def handle_user_command(
     session: ConsoleSession,
     args: argparse.Namespace,
     command: str,
     parts: list[str],
 ) -> None:
+    if command in {"xframe-split", "xframe-next", "xframe-drop"}:
+        handle_xframe_command(session, command, parts)
+        return
     if command == "env":
         sync_session_env(session, args)
         print(console_env_text(session), end="")
@@ -5639,7 +5959,7 @@ def dispatch_console_line(
     session: ConsoleSession,
     raw: str,
 ) -> bool:
-    normalized_raw = normalize_console_input_markers(raw)
+    normalized_raw = normalize_console_input_markers(normalize_xframe_switch_input(raw))
     for segment in split_console_multicommands(normalized_raw):
         try:
             parts = shlex.split(segment)
@@ -5746,7 +6066,7 @@ def run_operator_console(root: Path, args: argparse.Namespace, palette: Palette)
                 print()
                 print_goodbye(palette)
                 return 0
-            raw = line.strip()
+            raw = normalize_xframe_switch_input(line.strip())
             if not raw:
                 continue
             session.history.append(raw)

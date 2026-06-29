@@ -252,6 +252,14 @@ available through `phase`, `whereami`, `nest`, `learn`, `plugins`, `wasm`,
 `base1`, `doctor`, `selftest`, and `quality`, with virtual paths under
 `/phase`, `/learn`, `/nests`, and `/dev`.
 
+`xframe-split 2`, `xframe-split 3`, and `xframe-split 4` open a session-local
+xframe deck inside one `make noxframe-launch` console. Two frames render
+left/right, three render top-left/top-right/bottom, and four render a quadrant
+layout. `xframe-next` cycles frames and is bound to Alt+Shift+Tab in interactive
+readline terminals. `xframe-drop 1` removes the last slot (right, bottom, or
+bottom-right depending on the current layout), and `xframe-drop all` returns to
+the original single NOXFRAME frame.
+
 `learn` stores notes only in the current console session. Plugin/WASI commands
 are catalogs and policy views, not module execution. `version --compare`
 reports the Phase1 idea map and confirms that NOXFRAME imports no Phase1 code.

@@ -53,10 +53,11 @@ commands (`phase`, `whereami`, `compass`), virtual filesystem commands (`pwd`,
 `find`, `wiki`), process/system views (`ps`, `top`, `sysinfo`, `dash`,
 `dmesg`, `doctor`, `selftest`, `quality`, `audit`, `opslog`), user/session
 commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
-`profile`, `history`, `security`, `theme`, `banner`, `tips`, `exit`), local
-learning notes (`learn`), nested metadata contexts (`nest`), metadata-only
-plugin/WASI catalogs (`plugins`, `wasm`), guarded Base1/B1/B2 metadata
-(`base1`), and the bounded Codex bridge command (`codex`).
+`profile`, `history`, `security`, `theme`, `banner`, `tips`, `xframe-split`,
+`xframe-next`, `xframe-drop`, `exit`), local learning notes (`learn`), nested
+metadata contexts (`nest`), metadata-only plugin/WASI catalogs (`plugins`,
+`wasm`), guarded Base1/B1/B2 metadata (`base1`), and the bounded Codex bridge
+command (`codex`).
 
 Phase1 host, network, dev, hardware-mutation, and plugin route names are
 discoverable through `help` and `capabilities`, but they do not execute host
@@ -65,6 +66,17 @@ default. Formerly reserved names now resolve to bounded local handlers or
 metadata-only dry-run outputs.
 Plugin and WASI routes are catalogs and policy views only; `wasm run` and host
 plugin execution remain unavailable.
+
+`xframe-split` divides one NOXFRAME console session into session-local frame
+boxes without starting host shells or subprocess terminals. `xframe-split 2`
+renders left/right frames, `xframe-split 3` renders top-left/top-right/bottom,
+and `xframe-split 4` renders the maximum quadrant layout. Each xframe carries
+its own cwd, history, aliases, notes, virtual files, and simulated jobs.
+`xframe-next` cycles through open frames in a circular order; interactive
+readline terminals bind the same action to Alt+Shift+Tab. `xframe-drop 1`
+removes the last frame slot: right when two are open, bottom when three are open,
+and bottom-right when four are open. `xframe-drop all` collapses back to the
+original single NOXFRAME frame.
 
 Codex is the explicit opt-in bridge. Inside the console, `codex status`,
 `codex handoff`, and `cat /dev/codex` are metadata-only and always available.
