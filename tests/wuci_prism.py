@@ -106,12 +106,14 @@ def expected_manifest(payload: bytes, version: int) -> str:
 def assert_manifest_matches(path: Path, payload: bytes, version: int) -> None:
     proc = run(["manifest", str(path)])
     assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+    assert proc.stderr == b""
     assert proc.stdout.decode("ascii") == expected_manifest(payload, version)
 
 
 def assert_inspect_json(path: Path, payload: bytes) -> None:
     proc = run(["inspect", str(path), "--json"])
     assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+    assert proc.stderr == b""
     report = json.loads(proc.stdout.decode("utf-8"))
     manifest = expected_manifest(payload, 3)
 
@@ -139,9 +141,27 @@ def assert_inspect_json(path: Path, payload: bytes) -> None:
     assert report["boundary"]["tag_verified"] is False
 
 
+def assert_ticker_stays_on_stderr(path: Path) -> None:
+    inspect_proc = run(["inspect", str(path), "--ticker", "always"])
+    assert inspect_proc.returncode == 0, inspect_proc.stderr.decode("utf-8", "replace")
+    assert b"schema: wuci-prism-report-v1\n" in inspect_proc.stdout
+    assert b"\x1b[" in inspect_proc.stderr
+    assert chr(0x25B2).encode("utf-8") in inspect_proc.stderr
+    assert b"wuci-prism 100%" in inspect_proc.stderr
+    assert b"schema:" not in inspect_proc.stderr
+
+    json_proc = run(["inspect", str(path), "--json", "--ticker", "always"])
+    assert json_proc.returncode == 0, json_proc.stderr.decode("utf-8", "replace")
+    report = json.loads(json_proc.stdout.decode("utf-8"))
+    assert report["schema"] == "wuci-prism-report-v1"
+    assert b"\x1b[" in json_proc.stderr
+    assert b'"schema"' not in json_proc.stderr
+
+
 def assert_text_commands(path: Path) -> None:
     inspect_proc = run(["inspect", str(path)])
     assert inspect_proc.returncode == 0, inspect_proc.stderr.decode("utf-8", "replace")
+    assert inspect_proc.stderr == b""
     inspect_text = inspect_proc.stdout.decode("ascii")
     assert "schema: wuci-prism-report-v1\n" in inspect_text
     assert "tool: Wuci-Prism\n" in inspect_text
@@ -153,6 +173,7 @@ def assert_text_commands(path: Path) -> None:
 
     boundary_proc = run(["boundary", str(path)])
     assert boundary_proc.returncode == 0, boundary_proc.stderr.decode("utf-8", "replace")
+    assert boundary_proc.stderr == b""
     boundary_text = boundary_proc.stdout.decode("ascii")
     assert "mode: keyless-public-artifact-inspection\n" in boundary_text
     assert "decrypts: false\n" in boundary_text
@@ -161,6 +182,7 @@ def assert_text_commands(path: Path) -> None:
 
     explain_proc = run(["explain", str(path)])
     assert explain_proc.returncode == 0, explain_proc.stderr.decode("utf-8", "replace")
+    assert explain_proc.stderr == b""
     explain_text = explain_proc.stdout.decode("ascii")
     assert "Wuci-Prism refracts sealed WJSEAL artifacts" in explain_text
     assert "plaintext release: WUCI-GATE required\n" in explain_text
@@ -214,6 +236,7 @@ def main() -> None:
         assert_manifest_matches(v2_path, v2, 2)
         assert_manifest_matches(v3_path, v3, 3)
         assert_inspect_json(v3_path, v3)
+        assert_ticker_stays_on_stderr(v3_path)
         assert_text_commands(v3_path)
         assert_rejections(tmp, v3_path)
 

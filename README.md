@@ -132,11 +132,15 @@ tools/wuci-prism inspect sealed.wj --json
 tools/wuci-prism manifest sealed.wj
 tools/wuci-prism explain sealed.wj
 tools/wuci-prism boundary sealed.wj
+tools/wuci-prism inspect sealed.wj --ticker always
 ```
 
 Wuci-Prism emits `wuci-prism-report-v1` public evidence for visible WJSEAL
 structure, artifact hashes, and Gate-required status. It does not decrypt,
 unlock, recover, accept secret keys, verify AEAD tags, or release plaintext.
+The progress ticker is a stderr-only rainbow triangle display; it is automatic
+on interactive terminals, can be forced with `--ticker always`, and stays out
+of JSON and manifest stdout.
 
 Run defensive perimeter proof lanes:
 
