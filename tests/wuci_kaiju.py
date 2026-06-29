@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -80,6 +81,196 @@ def assert_public_manifest_rejections(tmp: Path) -> None:
         except OSError:
             return
         assert_rejects("hardlinked manifest", lambda: wuci_kaiju.load_manifest(hardlink))
+
+
+def _dirent(ino: int, name: str, rec_len: int, file_type: int) -> bytes:
+    raw = name.encode("utf-8")
+    return struct.pack("<IHBb", ino, rec_len, len(raw), file_type) + raw + b"\0" * (rec_len - 8 - len(raw))
+
+
+def _dir_block(entries: list[tuple[int, str, int]]) -> bytes:
+    block_size = 1024
+    out = bytearray()
+    for idx, (ino, name, file_type) in enumerate(entries):
+        raw_len = 8 + len(name.encode("utf-8"))
+        rec_len = (raw_len + 3) & ~3
+        if idx == len(entries) - 1:
+            rec_len = block_size - len(out)
+        out.extend(_dirent(ino, name, rec_len, file_type))
+    return bytes(out)
+
+
+def _newc_record(name: str, payload: bytes = b"") -> bytes:
+    name_bytes = name.encode("utf-8") + b"\0"
+    fields = [
+        1,
+        0o100644,
+        0,
+        0,
+        1,
+        0,
+        len(payload),
+        0,
+        0,
+        0,
+        0,
+        len(name_bytes),
+        0,
+    ]
+    header = b"070701" + "".join(f"{value:08x}" for value in fields).encode("ascii")
+    out = bytearray(header + name_bytes)
+    while len(out) % 4:
+        out.append(0)
+    out.extend(payload)
+    while len(out) % 4:
+        out.append(0)
+    return bytes(out)
+
+
+def _minimal_initrd() -> bytes:
+    return _newc_record("TRAILER!!!")
+
+
+def _inode(mode: int, size: int, block: int) -> bytes:
+    raw = bytearray(128)
+    struct.pack_into("<H", raw, 0, mode)
+    struct.pack_into("<I", raw, 4, size)
+    struct.pack_into("<I", raw, 32, 0)
+    struct.pack_into("<I", raw, 40, block)
+    return bytes(raw)
+
+
+def _write_inode(table: bytearray, ino: int, raw: bytes) -> None:
+    start = (ino - 1) * 128
+    table[start : start + 128] = raw
+
+
+def _write_block(image: bytearray, ext_offset: int, block: int, data: bytes) -> None:
+    start = ext_offset + block * 1024
+    image[start : start + len(data)] = data
+
+
+def _write_minimal_installed_disk(path: Path) -> tuple[bytes, bytes]:
+    disk_bytes = 4 * 1024 * 1024
+    ext_offset = 2048 * 512
+    image = bytearray(disk_bytes)
+    partition_sectors = (disk_bytes - ext_offset) // 512
+    image[446] = 0x80
+    image[450] = 0x83
+    struct.pack_into("<I", image, 454, 2048)
+    struct.pack_into("<I", image, 458, partition_sectors)
+    image[510:512] = b"\x55\xaa"
+
+    superblock = bytearray(1024)
+    struct.pack_into("<I", superblock, 0, 16)
+    struct.pack_into("<I", superblock, 4, (disk_bytes - ext_offset) // 1024)
+    struct.pack_into("<I", superblock, 20, 1)
+    struct.pack_into("<I", superblock, 24, 0)
+    struct.pack_into("<I", superblock, 32, (disk_bytes - ext_offset) // 1024)
+    struct.pack_into("<I", superblock, 40, 16)
+    struct.pack_into("<H", superblock, 56, 0xEF53)
+    struct.pack_into("<H", superblock, 88, 128)
+    image[ext_offset + 1024 : ext_offset + 2048] = superblock
+
+    group = bytearray(32)
+    struct.pack_into("<I", group, 8, 5)
+    _write_block(image, ext_offset, 2, group)
+
+    kernel = b"test kernel bytes\n"
+    initrd = _minimal_initrd()
+    table = bytearray(16 * 128)
+    _write_inode(table, 2, _inode(0x41ED, 1024, 10))
+    _write_inode(table, 12, _inode(0x41ED, 1024, 11))
+    _write_inode(table, 13, _inode(0x81A4, len(kernel), 12))
+    _write_inode(table, 14, _inode(0x81A4, len(initrd), 13))
+    _write_block(image, ext_offset, 5, table[:1024])
+    _write_block(image, ext_offset, 6, table[1024:2048])
+    _write_block(image, ext_offset, 10, _dir_block([(2, ".", 2), (2, "..", 2), (12, "boot", 2)]))
+    _write_block(
+        image,
+        ext_offset,
+        11,
+        _dir_block([(12, ".", 2), (2, "..", 2), (13, "vmlinuz-1", 1), (14, "initrd.img-1", 1)]),
+    )
+    _write_block(image, ext_offset, 12, kernel)
+    _write_block(image, ext_offset, 13, initrd)
+    path.write_bytes(image)
+    return kernel, initrd
+
+
+def assert_installed_boot_direct_path(tmp: Path) -> None:
+    disk_root = tmp / "installed-disk"
+    disk_root.mkdir()
+    disk_path = disk_root / "kali.raw"
+    kernel, initrd = _write_minimal_installed_disk(disk_path)
+    wuci_kaiju.write_json_atomic(
+        disk_root / wuci_kaiju.DISK_MANIFEST_NAME,
+        {
+            "schema": wuci_kaiju.DISK_SCHEMA,
+            "created_utc": "2026-06-29T00:00:00Z",
+            "disk_path": str(disk_path),
+            "format": "raw",
+            "size_mib": disk_path.stat().st_size // (1024 * 1024),
+            "mutable": True,
+        },
+    )
+
+    probe = wuci_kaiju._probe_installed_boot(disk_path)
+    assert probe["status"] == "pass", probe
+    assert probe["root_device"] == "/dev/vda1"
+    assert probe["kernel_path"] == "/boot/vmlinuz-1"
+    assert probe["initrd_path"] == "/boot/initrd.img-1"
+    assert wuci_kaiju._select_installed_boot_pair(
+        [
+            "vmlinuz-6.9-amd64",
+            "initrd.img-6.9-amd64",
+            "vmlinuz-6.18-amd64",
+            "initrd.img-6.18-amd64",
+        ]
+    ) == ("vmlinuz-6.18-amd64", "initrd.img-6.18-amd64")
+    extent_node = (
+        struct.pack("<HHHHI", wuci_kaiju.EXTENT_HEADER_MAGIC, 1, 4, 0, 0)
+        + struct.pack("<IHHI", 0, 0x8000, 0, 7)
+    )
+    assert wuci_kaiju._ExtReader._extents_from_node(object(), extent_node) == [(0, 7, 32768)]
+    wuci_kaiju._validate_installed_initrd(initrd)
+
+    plan = wuci_kaiju.boot_plan(
+        disk_root=disk_root,
+        qemu_bin="/bin/true",
+        memory_mib=512,
+        cpus=1,
+        network=True,
+        boot_disk=True,
+    )
+    assert plan["launch_mode"] == "direct-installed-kernel+serial"
+    assert plan["installed_boot"]["status"] == "pass"
+    assert "-kernel" in plan["argv"]
+    assert "-initrd" in plan["argv"]
+    assert any("root=/dev/vda1" in item for item in plan["argv"])
+    assert "user,model=virtio-net-pci" in plan["argv"]
+
+    blocked_share = wuci_kaiju.boot_plan(
+        disk_root=disk_root,
+        qemu_bin="/bin/true",
+        memory_mib=512,
+        cpus=1,
+        network=True,
+        boot_disk=True,
+        share_repo=tmp,
+    )
+    assert blocked_share["status"] == "blocked"
+    assert blocked_share["argv"] == []
+    assert blocked_share["share_status"] == "unsupported"
+    assert "virtio-9p-pci" in blocked_share["share_problem"]
+
+    argv = wuci_kaiju.build_live_boot_argv(plan)
+    work = disk_root / wuci_kaiju.INSTALLED_BOOT_ROOT
+    assert (work / "vmlinuz").read_bytes() == kernel
+    assert (work / "initrd.img").read_bytes() == initrd
+    assert "-boot" not in argv
+    wuci_kaiju._cleanup_installed_boot_artifacts(disk_root)
+    assert not work.exists()
 
 
 def assert_iso_disk_boot(tmp: Path) -> None:
@@ -272,6 +463,7 @@ def main() -> int:
         tmp = Path(tmp_name)
         assert_manifest_validation()
         assert_public_manifest_rejections(tmp)
+        assert_installed_boot_direct_path(tmp)
         assert_iso_disk_boot(tmp)
         assert_cli()
     if not args.quiet:

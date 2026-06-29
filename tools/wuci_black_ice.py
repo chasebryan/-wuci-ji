@@ -14,6 +14,8 @@ import shutil
 import stat
 import subprocess
 import sys
+import fcntl
+import struct
 import tempfile
 import termios
 import threading
@@ -410,7 +412,7 @@ CONSOLE_COMMANDS = (
     console_cmd("gcc", ("cc",), "host", "gcc <file.c>", "Show C compiler route metadata without executing gcc.", "host.exec", "metadata-only"),
     console_cmd("plugins", ("plugin",), "plugin", "plugins [list|status|policy]", "Show metadata-only plugin catalog.", "plugin.read", "metadata-only"),
     console_cmd("wasm", ("wasi",), "plugin", "wasm [list|inspect|policy|run]", "Show WASI-lite plugin catalog while keeping execution unavailable.", "wasm.read", "metadata-only"),
-    console_cmd("kaiju", ("wuci-kaiju",), "plugin", "kaiju [status|list|purpose|policy|verify|manifest|iso|disk|boot]", "Show WUCI-KAIJU catalog and non-graphical Kali ISO boot controls.", "kaiju.read", "metadata-only"),
+    console_cmd("kaiju", ("wuci-kaiju",), "plugin", "kaiju [status|...|clean|boot [--boot-disk] [--allow-network] [--share-repo]]", "WUCI-KAIJU catalog + boot bridge (clean for fresh recording; supports nesting noxframe in guest Kali).", "kaiju.read", "metadata-only"),
     console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
     console_cmd("codex", ("agent",), "dev", "codex [status|handoff|version|doctor|start|exec|resume]", "Use the opt-in Codex bridge pinned to this Wuci-Ji checkout.", "host.exec", "explicit-opt-in"),
     console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Open a virtual read-only editor preview.", "fs.read", "metadata-only"),
@@ -1718,6 +1720,8 @@ def kaiju_boot_plan_text(root: Path, args: argparse.Namespace, parts: list[str])
         memory_mib=console_int_option(parts, "--memory-mib", wuci_kaiju.DEFAULT_MEMORY_MIB),
         cpus=console_int_option(parts, "--cpus", wuci_kaiju.DEFAULT_CPUS),
         network=has_console_flag(parts, "--allow-network"),
+        boot_disk=has_console_flag(parts, "--boot-disk") or has_console_flag(parts, "--from-disk"),
+        share_repo=root if (has_console_flag(parts, "--share-repo") or has_console_flag(parts, "--allow-share")) else None,
     )
     return json.dumps(plan, indent=2, sort_keys=True) + "\n"
 
@@ -1786,17 +1790,103 @@ def handle_kaiju_boot_command(root: Path, args: argparse.Namespace, parts: list[
         print("use: kaiju boot --dry-run")
         return
     plan = json.loads(plan_text)
-    if plan.get("qemu_discovered") == "not found on PATH":
+    disc = plan.get("qemu_discovered")
+    if not disc or disc == "not found on PATH":
         print(f"kaiju boot: QEMU executable not found: {getattr(args, 'kaiju_qemu_bin', wuci_kaiju.DEFAULT_QEMU_BIN)}")
         print(wuci_kaiju.QEMU_INSTALL_HINT)
         return
-    argv = plan["argv"]
+    if plan.get("status") != "ready":
+        print(f"kaiju boot: boot plan {plan.get('status')}")
+        if plan.get("share_problem"):
+            print("problem: " + str(plan["share_problem"]))
+        for problem in plan.get("installed_boot", {}).get("problems", []):
+            print("problem: " + str(problem))
+        return
+    try:
+        argv = wuci_kaiju.build_live_boot_argv(plan)
+    except Exception as exc:
+        print(f"kaiju boot: live argv error: {exc}")
+        return
     print("kaiju boot: launching non-graphical QEMU")
     print("network: " + str(plan.get("network", "none")))
     print("graphics: none")
+    print("boot_disk: " + str(plan.get("boot_disk", False)))
+    print("launch_mode: " + str(plan.get("launch_mode", "cdrom")))
+    if plan.get("share"):
+        print("share_repo: " + str(plan.get("share_path")))
+        print("guest: " + str(plan.get("guest_mount_hint")))
     print("argv: " + shlex.join(str(part) for part in argv))
-    result = subprocess.run([str(part) for part in argv], cwd=root, check=False, shell=False)
+    if plan.get("boot_disk"):
+        print("note: this boots installed Kali by direct kernel/initrd serial path; GRUB is bypassed.")
+    if plan.get("share"):
+        print("note: inside the guest you can access the outer tree and start another noxframe: cd /mnt/wuci && python3 tools/wuci-noxframe")
+    print("      (use Ctrl-a x to exit qemu from serial; git clone works if --allow-network was given)")
+
+    # Full terminal takeover for smooth operation:
+    # - Use alternate screen buffer so the QEMU serial session (Kali) occupies the
+    #   entire real terminal (no "tiny box" inside noxframe lattice/xframes).
+    # - Save/restore termios attributes so QEMU's raw mode / monitor keys / size
+    #   changes don't leave graphical glitches (bad echo, colors, cursor, input)
+    #   when we return to the noxframe console.
+    # - Reset attributes + cursor on exit for a clean hand-back.
+    is_tty = sys.stdout.isatty() and sys.stdin.isatty()
+    old_attrs = None
+    fd = None
+    env = os.environ.copy()
+    env.setdefault("TERM", "xterm-256color")
+    if is_tty:
+        fd = sys.stdin.fileno()
+        try:
+            old_attrs = termios.tcgetattr(fd)
+        except (OSError, termios.error):
+            old_attrs = None
+        # Enter alt screen + clear + hide cursor
+        sys.stdout.write("\033[?1049h\033[H\033[2J\033[?25l")
+        sys.stdout.flush()
+
+        # Explicitly set the real terminal size via ioctl so the guest (Kali
+        # serial console / installer TUI) starts with full correct dimensions.
+        # This helps avoid graphical glitches from wrong winsize.
+        try:
+            size = shutil.get_terminal_size(fallback=(80, 24))
+            rows, cols = size.lines, size.columns
+            winsz = struct.pack("HHHH", rows, cols, 0, 0)
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, winsz)
+        except Exception:
+            pass
+
+    try:
+        result = subprocess.run([str(part) for part in argv], cwd=root, check=False, shell=False, env=env)
+    finally:
+        if is_tty:
+            # Pop alt screen, show cursor, reset SGR colors/attrs
+            sys.stdout.write("\033[?1049l\033[?25h\033[0m")
+            sys.stdout.flush()
+            if old_attrs is not None:
+                try:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
+                except (OSError, termios.error):
+                    pass
+            # Extra line reset to eat any leftover sequences or partial lines
+            sys.stdout.write("\033[0m\r\n")
+            sys.stdout.flush()
+        # Always force full sane reset on exit from the guest. This ensures
+        # the noxframe console (lattice, prompts, input) returns without
+        # graphical glitches. The initial boot splash is protected because
+        # reset_terminal_to_sane() is called at noxframe startup.
+        reset_terminal_to_sane()
+
     print(f"kaiju-boot-result: {result.returncode}")
+    try:
+        wuci_kaiju._cleanup_boot_artifacts(plan.get("iso", {}).get("image_path", ""))
+        wuci_kaiju._cleanup_installed_boot_artifacts(plan.get("disk", {}).get("disk_root", wuci_kaiju.default_disk_root(root)))
+    except Exception:
+        pass
+
+    # Note: we intentionally do *not* force a clear or re-draw of the noxframe
+    # chrome / lattice / header here. The alt-screen restore + termios restore
+    # should pop back to the exact previous display state. Explicit redraws
+    # were messing with the intended boot splash / console aesthetics.
 
 
 def handle_kaiju_command(root: Path, args: argparse.Namespace, parts: list[str]) -> None:
@@ -1810,6 +1900,15 @@ def handle_kaiju_command(root: Path, args: argparse.Namespace, parts: list[str])
         return
     if action == "disk":
         handle_kaiju_disk_command(root, args, parts)
+        return
+    if action == "clean":
+        res = wuci_kaiju.clean(
+            iso_root=kaiju_iso_root(root, args),
+            disk_root=kaiju_disk_root(root, args),
+        )
+        print("kaiju clean:", res.get("status", "done"))
+        for p in res.get("removed", []):
+            print("  removed:", p)
         return
     if action == "boot":
         handle_kaiju_boot_command(root, args, parts)
@@ -1841,7 +1940,9 @@ def handle_kaiju_command(root: Path, args: argparse.Namespace, parts: list[str])
         assert manifest is not None
         print(json.dumps(manifest, indent=2, sort_keys=True))
         return
-    print("usage: kaiju [status|list|purpose <id>|policy|verify|manifest|iso|disk|boot]")
+    print("usage: kaiju [status|list|...|iso|disk|clean|boot]")
+    print("  kaiju clean   : wipe iso/disk state for clean from-scratch flow (good for recordings)")
+    print("  boot options: --dry-run | --boot-disk | --allow-network | --share-repo")
 
 
 def wiki_text(topic: str | None) -> str:
@@ -2048,6 +2149,7 @@ def command_argument_completion_plan(
             "manifest",
             "iso",
             "disk",
+            "clean",
             "boot",
         )
     elif command in {"plugins", "wasm"}:
@@ -5317,6 +5419,30 @@ def clear_screen() -> None:
     sys.stderr.flush()
 
 
+def reset_terminal_to_sane() -> None:
+    """Force the terminal back to a sane state.
+    This protects the boot splash aesthetic and console lattice from
+    leftover modes, alt screens, hidden cursor, or raw mode left by
+    takeovers like kaiju boot. Call early and on returns from full-screen
+    guests.
+    Does nothing (no output) if not attached to a tty.
+    """
+    if not sys.stdout.isatty() or not sys.stdin.isatty():
+        return
+    sys.stdout.write("\033[?1049l\033[?25h\033[0m\033[?7h\033[r")
+    sys.stdout.flush()
+    try:
+        fd = sys.stdin.fileno()
+        attrs = termios.tcgetattr(fd)
+        # Force canonical input + echo (sane for readline and our UI)
+        attrs[3] |= (termios.ICANON | termios.ECHO)
+        # Make sure ISIG is on for ctrl-c etc.
+        attrs[3] |= termios.ISIG
+        termios.tcsetattr(fd, termios.TCSADRAIN, attrs)
+    except (OSError, termios.error):
+        pass
+
+
 def display_repo_path(root: Path, path: Path) -> str:
     try:
         return str(path.resolve().relative_to(root.resolve()))
@@ -6484,6 +6610,10 @@ def run_operator_console(root: Path, args: argparse.Namespace, palette: Palette)
     session = ConsoleSession()
     sync_session_env(session, args)
     readline_state = install_console_readline(session)
+    # Extra reset on entering the console to guarantee clean state for
+    # the lattice, prompts, and any re-entries after guest sessions.
+    # Does not affect the initial boot splash (which happens before this).
+    reset_terminal_to_sane()
     clear_screen()
     print_console_header(root, args, palette, session)
     try:
@@ -6516,6 +6646,12 @@ def main() -> int:
     seal_path = repo_path(root, args.seal)
     clock_path = repo_path(root, args.clock)
     palette = Palette(args.color)
+
+    # Always reset terminal state at the very start. This ensures the
+    # beloved boot splash (animation, lattice, voice, banners, cursor, modes)
+    # always looks pristine, even if a previous kaiju guest session or
+    # other takeover left the tty in a weird state.
+    reset_terminal_to_sane()
 
     if args.command == "contract":
         return command_contract()

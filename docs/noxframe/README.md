@@ -118,18 +118,37 @@ Then run:
 kaiju boot
 ```
 
-`kaiju boot` launches QEMU with `-nographic`, `-serial mon:stdio`, and
-`-net none` by default. Use `kaiju boot --dry-run` or `cat /kaiju/boot-plan` to
-inspect the exact argv without starting QEMU. On RHEL, install `qemu-kvm-core`;
-the bridge auto-detects `/usr/libexec/qemu-kvm`. The bridge requires a local
-operator-supplied ISO; ISO reads reject symlinks and hardlinks, the installed
-ISO gets SHA-256/SHA-384/SHA-512 evidence, and the mutable raw disk is recorded
-separately. WUCI-KAIJU does not expose Kali tools as NOXFRAME commands, perform
-scans, open radios, launch browser/proxy tooling, start vulnerable lab targets,
-or provide host shell passthrough. Its catalog manifest is a public anchor in
-the NOXFRAME state/seal path. Future substrates can use it as a verified catalog
-and VM boot boundary, not as a runtime-containment or offensive-tool permission
-claim.
+`kaiju boot` (and `kaiju boot --boot-disk`) launches QEMU with `-nographic`,
+`-serial mon:stdio`, and `-net none` by default.
+
+Intended multi-stage flow toward nested substrates:
+
+1. `kaiju iso install ... && kaiju disk create --size-mib 32768`
+2. `tools/wuci-noxframe --allow-kaiju-boot`
+3. Inside noxframe: `kaiju boot --allow-network`
+   - This starts the installer (direct kernel for serial visibility after SeaBIOS).
+   - Complete the Kali install onto the attached virtio disk.
+4. Quit qemu (Ctrl-a x), then `kaiju boot --boot-disk --allow-network`
+   - Boots the installed system by reading `/boot/vmlinuz-*` and
+     `/boot/initrd.img-*` from the raw disk and passing `console=ttyS0`; GRUB is
+     bypassed when that pair is discoverable.
+5. Inside the running Kali guest (serial console):
+   - `git clone https://github.com/chasebryan/-wuci-ji ./-wuci-ji`
+   - `cd ./-wuci-ji && python3 tools/wuci-noxframe --console`
+   - For a FYR hello artifact, keep it as source text unless a real FYR runner is
+     added: `printf 'print "hello, hacker!"\n' > hello.fyr`
+
+Use `kaiju boot --dry-run`, `kaiju boot --boot-disk --dry-run`, or `cat /kaiju/boot-plan`
+to inspect. Network is opt-in and is required for the `git clone` demo path.
+`--share-repo` is only available when the local QEMU build advertises
+`virtio-9p-pci`; otherwise the boot plan blocks before launch and reports that
+the demo should use `--allow-network` plus `git clone`.
+
+On RHEL, install `qemu-kvm-core`; the bridge auto-detects `/usr/libexec/qemu-kvm`.
+The bridge requires a local operator-supplied ISO for installer mode; all reads
+reject symlinks/hardlinks and produce digest evidence. WUCI-KAIJU does not expose
+Kali tools as NOXFRAME commands, perform scans, or provide host shell passthrough
+or runtime containment. It is a local QEMU launch bridge + verified metadata catalog.
 
 Codex is the explicit opt-in bridge. Inside the console, `codex status`,
 `codex handoff`, and `cat /dev/codex` are metadata-only and always available.
