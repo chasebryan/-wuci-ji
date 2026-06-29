@@ -110,6 +110,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-demo
 .PHONY: harden0-ledger-mutation-test
 .PHONY: install-local
+.PHONY: wuci-prism-test
 
 all: check-native $(TARGET)
 
@@ -858,6 +859,9 @@ production-readiness-gates:
 machine-passoff-test:
 	$(PYTHON) tests/machine_passoff.py --quiet
 
+wuci-prism-test:
+	$(PYTHON) tests/wuci_prism.py --quiet
+
 crypto-self-audit:
 	$(PYTHON) tools/wuci_crypto_audit.py emit --repo . --out $(CRYPTO_SELF_AUDIT) --quiet
 	$(PYTHON) tools/wuci_crypto_audit.py verify --repo . --audit $(CRYPTO_SELF_AUDIT) --quiet
@@ -1103,7 +1107,7 @@ pythonless-public-verify: $(ZIG_WITNESS) $(ZIG_LEDGER)
 	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
 	@printf 'WUCI Pythonless public verification complete\n'
 
-test: check-native-x25519 $(TARGET) asm-smoke authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract parser-adversarial-test authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test secret-path-isolation-test aead-boundary-test self-release-attestation-test publish-attestation-test
+test: check-native-x25519 $(TARGET) asm-smoke authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract parser-adversarial-test authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test secret-path-isolation-test wuci-prism-test aead-boundary-test self-release-attestation-test publish-attestation-test
 	$(PYTHON) tests/test_wuci_ji.py
 
 test-pypy: check-pypy

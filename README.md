@@ -124,6 +124,20 @@ make gate-contract-asm
 make gate-contract-zig
 ```
 
+Inspect sealed WJSEAL artifacts without keys or plaintext release:
+
+```sh
+tools/wuci-prism inspect sealed.wj
+tools/wuci-prism inspect sealed.wj --json
+tools/wuci-prism manifest sealed.wj
+tools/wuci-prism explain sealed.wj
+tools/wuci-prism boundary sealed.wj
+```
+
+Wuci-Prism emits `wuci-prism-report-v1` public evidence for visible WJSEAL
+structure, artifact hashes, and Gate-required status. It does not decrypt,
+unlock, recover, accept secret keys, verify AEAD tags, or release plaintext.
+
 Run defensive perimeter proof lanes:
 
 ```sh
