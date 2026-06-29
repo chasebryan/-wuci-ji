@@ -5,3 +5,4 @@ tools/wuci-pq-fips204-verify/target/
 docs/noxframe/WUCI_NOXFRAME_LAUNCH_REPORT.md
 docs/noxframe/WUCI_NOXFRAME_SELF_SEAL.json
 kali-linux-*.iso
+void-live-*.iso

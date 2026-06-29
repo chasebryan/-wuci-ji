@@ -721,10 +721,15 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             "ls /proc\n"
             "cat /proc/cells\n"
             "cat /dev/codex\n"
+            "cat /dev/wuci-os\n"
             "cat /dev/plugins\n"
             "cat /kaiju/iso\n"
             "cat /kaiju/disk\n"
             "cat /kaiju/boot-plan\n"
+            "cat /wuci-os/status\n"
+            "cat /wuci-os/boundary\n"
+            "cat /wuci-os/boot\n"
+            "cat /docs/wuci-os.md\n"
             "cat /phase/features\n"
             "cat /nests/contexts\n"
             "cat /nests/memory-map\n"
@@ -749,6 +754,9 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             "kaiju disk status\n"
             "kaiju boot --dry-run --memory-mib 512 --cpus 1\n"
             "kaiju boot --memory-mib 512 --cpus 1\n"
+            "wuci-os status\n"
+            "wuci-os boot\n"
+            "wuci-os run\n"
             "wiki qcage\n"
             "base1 b1\n"
             "doctor\n"
@@ -829,6 +837,7 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     assert "/proc" in proc.stdout or "cells" in proc.stdout
     assert "NOXFRAME root context" in proc.stdout
     assert "opt-in Codex host bridge context" in proc.stdout
+    assert "musl image evidence and boot-planning context" in proc.stdout
     assert "codex bridge: disabled" in proc.stdout
     assert "restart NOXFRAME with --allow-codex" in proc.stdout
     assert "codex-bridge" in proc.stdout
@@ -839,6 +848,12 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     assert "schema: wuci-kaiju-iso-status-v1" in proc.stdout
     assert "schema: wuci-kaiju-disk-status-v1" in proc.stdout
     assert "schema\": \"wuci-kaiju-boot-plan-v1" in proc.stdout
+    assert "schema: wuci-noxframe-wuci-os-status-v1" in proc.stdout
+    assert "schema: wuci-noxframe-wuci-os-boundary-v1" in proc.stdout
+    assert "schema: wuci-noxframe-wuci-os-command-plan-v1" in proc.stdout
+    assert "command: tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo" in proc.stdout
+    assert "wuci-os run: unavailable in NOXFRAME" in proc.stdout
+    assert "scope: metadata adapter only; use tools/wuci-os from the host shell" in proc.stdout
     assert "-nographic" in proc.stdout
     assert "\"network\": \"none\"" in proc.stdout
     assert "kaiju boot: bridge disabled" in proc.stdout
@@ -1154,6 +1169,7 @@ def console_command_matrix() -> dict[str, str]:
         "plugins": "plugins status",
         "wasm": "wasm list",
         "kaiju": "kaiju status",
+        "wuci-os": "wuci-os status",
         "codex": "codex status",
         "avim": "avim /proc/version",
         "dev": "dev status",
@@ -1433,6 +1449,7 @@ def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
     assert "git: metadata-only; host git argv not executed" in proc.stdout
     assert "gh: metadata-only; GitHub CLI argv not executed" in proc.stdout
     assert "cargo: dry-run route; host executable not launched" in proc.stdout
+    assert "schema: wuci-noxframe-wuci-os-status-v1" in proc.stdout
     assert "avim: read-only virtual preview /proc/version" in proc.stdout
     assert "dev: self-development lane metadata" in proc.stdout
     assert "loadcr3: 0x4000" in proc.stdout

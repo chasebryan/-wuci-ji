@@ -57,7 +57,8 @@ commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
 `xframe-next`, `xframe-drop`, `exit`), local learning notes (`learn`), nested
 metadata contexts (`nest`), metadata-only plugin/WASI catalogs (`plugins`,
 `wasm`), the WUCI-KAIJU Kali purpose catalog (`kaiju`), guarded Base1/B1/B2
-metadata (`base1`), and the bounded Codex bridge command (`codex`).
+metadata (`base1`), the Wuci-OS image-lane metadata adapter (`wuci-os`), and
+the bounded Codex bridge command (`codex`).
 
 Phase1 host, network, dev, hardware-mutation, and plugin route names are
 discoverable through `help` and `capabilities`, but they do not execute host
@@ -149,6 +150,26 @@ The bridge requires a local operator-supplied ISO for installer mode; all reads
 reject symlinks/hardlinks and produce digest evidence. WUCI-KAIJU does not expose
 Kali tools as NOXFRAME commands, perform scans, or provide host shell passthrough
 or runtime containment. It is a local QEMU launch bridge + verified metadata catalog.
+
+`wuci-os` is the NOXFRAME metadata adapter for the Wuci-OS musl image lane. It
+shows source, overlay, seal, boot-plan, and boundary status without hashing full
+ISO media, installing packages, launching QEMU, or mutating host state from
+inside the console. The standalone `tools/wuci-os` command remains the place for
+source verification, overlay generation, Daylight/WJSEAL sealing, and live boot
+planning.
+
+```text
+wuci-os status
+wuci-os source
+wuci-os plan
+wuci-os iso-plan
+wuci-os overlay
+wuci-os seal
+wuci-os boot
+cat /wuci-os/status
+cat /wuci-os/boundary
+cat /dev/wuci-os
+```
 
 Codex is the explicit opt-in bridge. Inside the console, `codex status`,
 `codex handoff`, and `cat /dev/codex` are metadata-only and always available.

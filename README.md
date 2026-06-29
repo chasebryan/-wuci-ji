@@ -295,6 +295,42 @@ Nested substrate prompts show their substratisphere depth, rotate through
 lattice color themes, and support `exit` for one level or `exit all` for every
 nested NOXFRAME level.
 
+`Wuci-OS` is the `x86_64-musl` image lane for future NOXFRAME-native systems.
+It starts from an operator-supplied musl live ISO, records digest evidence,
+verifies the expected live layout, and emits a serial-friendly QEMU boot plan.
+Base attribution stays in source evidence and license metadata; the operator
+surface is Wuci-OS.
+
+```sh
+tools/wuci-os source install ./void-live-x86_64-musl-20250202-base.iso --force
+tools/wuci-os source verify
+tools/wuci-os plan
+tools/wuci-os iso-plan
+tools/wuci-os demo-commands
+tools/wuci-os source-kit
+tools/wuci-os overlay --force
+tools/wuci-os keygen --force
+tools/wuci-os seal-overlay --force --ticker always
+tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo
+```
+
+The boot payload carries both the Wuci-OS overlay and a deterministic source-kit
+tar that uses fixed archive metadata and extracts the current Wuci-Ji checkout
+into `/opt/wuci-os/source/wuci-ji` inside the guest. The overlay defaults to XFCE4, kitty with xfce4-terminal
+fallback, ratpoison, emacs, vim, developer package groups, Wuci-OS wallpaper
+setup, a plan-only Codex/Copilot/Grok Build setup guide, guided `wuci-guide` /
+`wuci-auto` operation, and a live/demo `wj` login whose prompt identity is
+`WJ>_`. The security profile is SELinux-first, targeted/enforcing,
+LUKS-required for installed high-assurance systems, and includes
+Kicksecure-inspired hardening ideas. Daylight/WJSEAL evidence is required for
+generated components; the current implemented seal covers the overlay, while the
+planned finished ISO lane will seal the final bootable ISO and release metadata.
+Package operations use
+`sudo wj install <packages...>` on top of the current package repository. See
+[docs/WUCI_OS.md](docs/WUCI_OS.md). Wuci-OS v0 is image evidence, overlay
+sealing, source payload, and boot-planning work; it does not claim runtime
+sandboxing, host containment, quantum safety, or independent OS authority.
+
 Wrap the NOXFRAME substrate and its inner dimensions into a local WJSEAL v2
 artifact bound to Daylight public anchors:
 

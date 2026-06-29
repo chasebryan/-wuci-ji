@@ -1,0 +1,70 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+OVERLAY=${WUCI_OS_OVERLAY:-"$REPO_ROOT/build/wuci-os/overlay"}
+TARGET=${WUCI_OS_TARGET:-/}
+
+if [ "$(id -u)" != "0" ]; then
+    printf 'wuci-os-live-activate: run as root inside the live system\n' >&2
+    exit 1
+fi
+
+if [ ! -d "$OVERLAY" ]; then
+    cat >&2 <<TEXT
+wuci-os-live-activate: overlay not found: $OVERLAY
+
+On the host, run:
+  tools/wuci-os overlay --force
+Then boot with:
+  tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo --run
+Inside the guest, mount the shared repo and rerun this script:
+  mkdir -p /mnt/wuci
+  mount -t 9p -o trans=virtio,version=9p2000.L wuci-src /mnt/wuci
+If 9p is unavailable and QEMU used the overlay tar-drive fallback:
+  for dev in /dev/vd? /dev/sd?; do tar -tf "\$dev" >/dev/null 2>&1 && tar -xf "\$dev" -C /; done
+Then:
+  wuci-users-apply
+TEXT
+    exit 1
+fi
+
+cp -Rp "$OVERLAY"/. "$TARGET"/
+chmod 755 "$TARGET"/usr/local/bin/wuci-status \
+    "$TARGET"/usr/local/bin/wuci-attest \
+    "$TARGET"/usr/local/bin/wuci-live-banner \
+    "$TARGET"/usr/local/bin/wuci-source-status \
+    "$TARGET"/usr/local/bin/wuci-enter \
+    "$TARGET"/usr/local/bin/wuci-guide \
+    "$TARGET"/usr/local/bin/wuci-auto \
+    "$TARGET"/usr/local/bin/wuci-install \
+    "$TARGET"/usr/local/bin/wuci-wallpaper \
+    "$TARGET"/usr/local/bin/wuci-wait-run \
+    "$TARGET"/usr/local/bin/wj \
+    "$TARGET"/usr/local/bin/wuci-users-apply \
+    "$TARGET"/usr/local/bin/wuci-users-status \
+    "$TARGET"/usr/local/bin/wuci-dev-install \
+    "$TARGET"/usr/local/bin/wuci-security-apply \
+    "$TARGET"/usr/local/bin/wuci-security-status \
+    "$TARGET"/usr/local/bin/wuci-selinux-status \
+    "$TARGET"/usr/local/bin/wuci-daylight-status \
+    "$TARGET"/usr/local/bin/wuci-ai-status \
+    "$TARGET"/usr/local/bin/wuci-ai-setup \
+    "$TARGET"/usr/local/bin/wuci-grok-build 2>/dev/null || true
+chmod 644 "$TARGET"/etc/issue "$TARGET"/etc/motd 2>/dev/null || true
+
+printf 'Wuci-OS live profile activated.\n'
+printf 'Commands now available: wj, wuci-guide, wuci-auto, wuci-status, wuci-live-banner, wuci-source-status, wuci-attest, wuci-enter, wuci-install, wuci-wallpaper, wuci-users-apply, wuci-security-status\n'
+if [ -x "$TARGET"/usr/local/bin/wuci-live-banner ]; then
+    "$TARGET"/usr/local/bin/wuci-live-banner || true
+fi
+if [ -x "$TARGET"/usr/local/bin/wuci-users-apply ]; then
+    WUCI_TICKER="${WUCI_TICKER:-auto}" "$TARGET"/usr/local/bin/wuci-users-apply || true
+fi
+if [ -x "$TARGET"/usr/local/bin/wuci-status ]; then
+    "$TARGET"/usr/local/bin/wuci-status || true
+fi
+if [ -x "$TARGET"/usr/local/bin/wuci-users-status ]; then
+    "$TARGET"/usr/local/bin/wuci-users-status || true
+fi
