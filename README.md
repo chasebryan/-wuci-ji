@@ -255,10 +255,12 @@ available through `phase`, `whereami`, `nest`, `learn`, `plugins`, `wasm`,
 `xframe-split 2`, `xframe-split 3`, and `xframe-split 4` open a session-local
 xframe deck inside one `make noxframe-launch` console. Two frames render
 left/right, three render top-left/top-right/bottom, and four render a quadrant
-layout. `xframe-next` cycles frames and is bound to Alt+Shift+Tab in interactive
-readline terminals. `xframe-drop 1` removes the last slot (right, bottom, or
-bottom-right depending on the current layout), and `xframe-drop all` returns to
-the original single NOXFRAME frame.
+layout. `xframe-next` cycles frames and is bound to Shift+Tab and F6 in
+interactive readline terminals. Desktop-level Alt+Shift+Tab is not used because
+window managers usually intercept it before the terminal can deliver it to
+NOXFRAME. `xframe-drop 1` removes the last slot (right, bottom, or bottom-right
+depending on the current layout), and `xframe-drop all` returns to the original
+single NOXFRAME frame.
 
 `wuci-kaiju` maps Kali Linux metapackage/menu purposes into a checked-in
 metadata catalog at `docs/noxframe/wuci_kaiju_manifest.json`. It selects one
@@ -279,14 +281,6 @@ Inside NOXFRAME, use `kaiju boot` to launch the text VM, or `kaiju boot
 uses `-net none`; network is not enabled unless explicitly requested. WUCI-KAIJU
 does not expose Kali tools as NOXFRAME commands, scan networks, open radios,
 start vulnerable lab targets, or claim runtime containment.
-
-`xframe-split 2`, `xframe-split 3`, and `xframe-split 4` open a session-local
-xframe deck inside one `make noxframe-launch` console. Two frames render
-left/right, three render top-left/top-right/bottom, and four render a quadrant
-layout. `xframe-next` cycles frames and is bound to Alt+Shift+Tab in interactive
-readline terminals. `xframe-drop 1` removes the last slot (right, bottom, or
-bottom-right depending on the current layout), and `xframe-drop all` returns to
-the original single NOXFRAME frame.
 
 `learn` stores notes only in the current console session. Plugin/WASI commands
 are catalogs and policy views, not module execution. `version --compare`

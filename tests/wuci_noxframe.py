@@ -1295,12 +1295,15 @@ def assert_xframe_split_drop_logic() -> None:
     assert "action: split" in split
     assert "frames: 2" in split
     assert "layout: left-right" in split
-    assert "switch: Alt+Shift+Tab" in split
+    assert "switch: Shift+Tab/F6" in split
     assert "1: left cwd=/" in split
     assert "2: right cwd=/" in split
     assert session.xframe_count == 2
     assert session.active_xframe == 1
     assert wuci_black_ice.prompt_for_session(session) == "noxframe:L0/root[x1/2]> "
+    assert wuci_black_ice.normalize_xframe_switch_input("\x1b[Z") == "xframe-next"
+    assert wuci_black_ice.normalize_xframe_switch_input("\x1b\x1b[Z") == "xframe-next"
+    assert wuci_black_ice.normalize_xframe_switch_input("\x1b[17~") == "xframe-next"
 
     run("cd /env")
     assert session.cwd == "/env"
@@ -1313,7 +1316,7 @@ def assert_xframe_split_drop_logic() -> None:
 
     run("mkdir /tmp", "touch /tmp/frame2")
     assert "/tmp/frame2" in session.vfs_files
-    back = run("xframe-next")
+    back = run("\x1b[17~")
     assert "active: 1" in back
     assert session.cwd == "/env"
     assert session.env["PWD"] == "/env"
