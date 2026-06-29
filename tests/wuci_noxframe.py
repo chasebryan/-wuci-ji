@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
+import io
 import json
 import os
 import subprocess
@@ -297,6 +299,30 @@ def assert_boot_prompt_and_banner(launcher: Path, tmp: Path) -> None:
     assert "WUCI-JI" in narrow.stderr
 
 
+def assert_boot_animation_frame() -> None:
+    prompt = "Would you like to boot the Wuci-Ji substrate? [y/N] "
+    buffer = io.StringIO()
+    with contextlib.redirect_stderr(buffer):
+        wuci_black_ice.print_banner(
+            wuci_black_ice.Palette("never"),
+            frame=3,
+            full_screen=True,
+            prompt=prompt,
+            answer="y",
+        )
+    text = buffer.getvalue()
+    assert text.startswith("\033[2J\033[H")
+    assert "awaiting operator boot decision" in text
+    assert prompt + "y" in text
+    assert "WUCI-JI" in text
+    assert "WUCI-I JI" not in text
+    assert "无   此   机   系   统" in text
+    plain = strip_ansi(text.replace("\033[2J\033[H", ""))
+    framed = [line for line in plain.splitlines() if line.startswith("|") or line.startswith("+")]
+    assert framed
+    assert len({display_width(line) for line in framed}) == 1
+
+
 def assert_console_exit(launcher: Path, tmp: Path) -> None:
     proc = subprocess.run(
         [
@@ -320,8 +346,12 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             "pwd\n"
             "ls /proc\n"
             "cat /proc/cells\n"
+            "cat /dev/codex\n"
             "sysinfo\n"
             "ps\n"
+            "man codex\n"
+            "codex status\n"
+            "codex version\n"
             "browser about\n"
             "history\n"
             "exit\n"
@@ -335,16 +365,249 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     assert "noxframe help // compact" in proc.stdout
     assert "substrate: status seal verify contract launch" in proc.stdout
     assert "usage      : sysinfo" in proc.stdout
+    assert "usage      : codex" in proc.stdout
+    assert "guard      : explicit-opt-in" in proc.stdout
     assert "security" in proc.stdout
     assert "selfdev" in proc.stdout
+    assert "codex" in proc.stdout
     assert "/proc" in proc.stdout or "cells" in proc.stdout
     assert "NOXFRAME root context" in proc.stdout
+    assert "opt-in Codex host bridge context" in proc.stdout
+    assert "codex bridge: disabled" in proc.stdout
+    assert "restart NOXFRAME with --allow-codex" in proc.stdout
+    assert "codex-bridge" in proc.stdout
     assert "PID  STATE   NAME" in proc.stdout
     assert "browser: route unavailable in NOXFRAME console" in proc.stdout
     assert "history" in proc.stdout
     assert "再见，黑客。" in proc.stdout
     assert "Goodbye, Hacker." in proc.stdout
     assert not wuci_black_ice.boot_answer_allows("no")
+
+
+def assert_codex_bridge_process(launcher: Path, tmp: Path) -> None:
+    proc = subprocess.run(
+        [
+            str(launcher),
+            "--console",
+            "--yes",
+            "--color",
+            "never",
+            "--allow-codex",
+            "--codex-bin",
+            sys.executable,
+            "--clock",
+            str(tmp / "codex-console-clock.json"),
+            "--substrate-state",
+            str(tmp / "codex-console-state.json"),
+            "--substrate-seal",
+            str(tmp / "codex-console-seal.json"),
+        ],
+        cwd=REPO,
+        input="codex version\nexit\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "codex: launching explicit host bridge" in proc.stdout
+    assert "boundary: Codex uses host/API configuration" in proc.stdout
+    assert "argv:" in proc.stdout
+    assert "--version" in proc.stdout
+    assert "codex-result: 0" in proc.stdout
+
+
+def console_command_matrix() -> dict[str, str]:
+    samples = {
+        "status": "status",
+        "seal": "seal",
+        "verify": "verify",
+        "contract": "contract",
+        "launch": "launch smoke",
+        "pwd": "pwd",
+        "ls": "ls /",
+        "cd": "cd /docs",
+        "cat": "cat /proc/version",
+        "tree": "tree /",
+        "echo": "echo noxframe command matrix",
+        "grep": "grep NOXFRAME /proc/version",
+        "wc": "wc /proc/version",
+        "head": "head -n 1 /proc/version",
+        "tail": "tail -n 1 /proc/version",
+        "find": "find / -name status",
+        "pipeline": "pipeline",
+        "ps": "ps",
+        "top": "top",
+        "jobs": "jobs",
+        "sysinfo": "sysinfo",
+        "dash": "dash",
+        "free": "free",
+        "df": "df",
+        "dmesg": "dmesg",
+        "vmstat": "vmstat",
+        "uname": "uname",
+        "date": "date",
+        "uptime": "uptime",
+        "hostname": "hostname",
+        "audit": "audit",
+        "opslog": "opslog tail",
+        "env": "env",
+        "export": "export MATRIX=pass",
+        "unset": "unset MATRIX",
+        "whoami": "whoami",
+        "id": "id",
+        "accounts": "accounts",
+        "history": "history",
+        "security": "security",
+        "theme": "theme list",
+        "banner": "banner",
+        "tips": "tips",
+        "update": "update plan",
+        "codex": "codex status",
+        "repo": "repo status",
+        "fyr": "fyr status",
+        "lang": "lang support",
+        "lspci": "lspci",
+        "pcie": "pcie",
+        "cr3": "cr3",
+        "cr4": "cr4",
+        "help": "help --compact",
+        "man": "man status",
+        "complete": "complete se",
+        "capabilities": "capabilities",
+        "matrix": "matrix",
+        "bootcfg": "bootcfg show",
+        "clear": "clear",
+        "version": "version",
+        "roadmap": "roadmap",
+        "sandbox": "sandbox",
+        "nest": "nest status",
+        "exit": "exit",
+    }
+    for spec in wuci_black_ice.CONSOLE_COMMANDS:
+        if spec.guard == "unavailable":
+            samples.setdefault(spec.name, f"{spec.name} demo")
+    missing = sorted(spec.name for spec in wuci_black_ice.CONSOLE_COMMANDS if spec.name not in samples)
+    assert not missing, f"missing NOXFRAME console matrix sample(s): {missing}"
+    return samples
+
+
+def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
+    samples = console_command_matrix()
+    commands = [
+        samples[spec.name]
+        for spec in wuci_black_ice.CONSOLE_COMMANDS
+        if spec.name != "exit"
+    ]
+    commands.append(samples["exit"])
+    proc = subprocess.run(
+        [
+            str(launcher),
+            "--console",
+            "--yes",
+            "--color",
+            "never",
+            "--profile",
+            "smoke",
+            "--no-countdown",
+            "--report",
+            str(tmp / "matrix-report.md"),
+            "--seal",
+            str(tmp / "matrix-seal.json"),
+            "--clock",
+            str(tmp / "matrix-clock.json"),
+            "--substrate-state",
+            str(tmp / "matrix-state.json"),
+            "--substrate-seal",
+            str(tmp / "matrix-substrate-seal.json"),
+        ],
+        cwd=REPO,
+        input="\n".join(commands) + "\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    combined = proc.stdout + "\n" + proc.stderr
+    assert proc.returncode == 0, combined
+    assert "unknown command:" not in combined
+    assert "parse error:" not in combined
+    assert "Traceback" not in combined
+    assert "launch-result: 0" in proc.stdout
+    assert "root/" in proc.stdout
+    assert "noxframe help // compact" in proc.stdout
+    assert "loadcr3: route unavailable in NOXFRAME console" in proc.stdout
+    assert "pcide: route unavailable in NOXFRAME console" in proc.stdout
+    assert (tmp / "matrix-report.md").exists()
+    assert (tmp / "matrix-seal.json").exists()
+
+
+def assert_console_alias_matrix(launcher: Path, tmp: Path) -> None:
+    samples = console_command_matrix()
+    alias_commands = []
+    exit_aliases = []
+    for spec in wuci_black_ice.CONSOLE_COMMANDS:
+        for alias in spec.aliases:
+            if spec.name == "exit":
+                exit_aliases.append(alias)
+                continue
+            sample = samples[spec.name]
+            parts = sample.split(maxsplit=1)
+            alias_commands.append(alias if len(parts) == 1 else f"{alias} {parts[1]}")
+    assert alias_commands
+    proc = subprocess.run(
+        [
+            str(launcher),
+            "--console",
+            "--yes",
+            "--color",
+            "never",
+            "--clock",
+            str(tmp / "alias-clock.json"),
+            "--substrate-state",
+            str(tmp / "alias-state.json"),
+            "--substrate-seal",
+            str(tmp / "alias-substrate-seal.json"),
+        ],
+        cwd=REPO,
+        input="\n".join(alias_commands + ["exit"]) + "\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    combined = proc.stdout + "\n" + proc.stderr
+    assert proc.returncode == 0, combined
+    assert "unknown command:" not in combined
+    assert "parse error:" not in combined
+    assert "Traceback" not in combined
+    assert "codex bridge: disabled" in proc.stdout
+    assert "gh: route unavailable in NOXFRAME console" in proc.stdout
+
+    for index, alias in enumerate(exit_aliases):
+        exit_proc = subprocess.run(
+            [
+                str(launcher),
+                "--console",
+                "--yes",
+                "--color",
+                "never",
+                "--clock",
+                str(tmp / f"exit-alias-{index}-clock.json"),
+                "--substrate-state",
+                str(tmp / f"exit-alias-{index}-state.json"),
+                "--substrate-seal",
+                str(tmp / f"exit-alias-{index}-seal.json"),
+            ],
+            cwd=REPO,
+            input=f"{alias}\n",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        assert exit_proc.returncode == 0, exit_proc.stderr + exit_proc.stdout
+        assert "Goodbye, Hacker." in exit_proc.stdout
 
 
 def assert_launcher(launcher: Path) -> None:
@@ -360,7 +623,11 @@ def assert_launcher(launcher: Path) -> None:
         assert_clock_decisions(tmp)
         assert_substrate_commands(launcher, tmp)
         assert_boot_prompt_and_banner(launcher, tmp)
+        assert_boot_animation_frame()
         assert_console_exit(launcher, tmp)
+        assert_codex_bridge_process(launcher, tmp)
+        assert_console_command_matrix(launcher, tmp)
+        assert_console_alias_matrix(launcher, tmp)
         proc = subprocess.run(
             [
                 str(launcher),

@@ -20,6 +20,11 @@ In an interactive terminal, the boot screen asks:
 Would you like to boot the Wuci-Ji substrate?
 ```
 
+When stdin and stderr are both attached to a TTY, that prompt is shown inside a
+full-screen animated NOXFRAME boot frame. The animation only runs while waiting
+for the operator's answer and can be disabled with `--no-boot-animation`.
+Noninteractive runs, pipes, and tests keep the plain banner and prompt.
+
 Accepting clears the splash and opens a bounded NOXFRAME console. The console is
 not a host shell. It uses a Phase1-style command registry with `help`,
 `help --compact`, `man <command>`, `complete <prefix>`, and `capabilities`.
@@ -28,12 +33,35 @@ Implemented local command families include substrate commands (`status`, `seal`,
 `verify`, `contract`, `launch [auto|smoke|full]`), virtual filesystem commands
 (`pwd`, `ls`, `cd`, `cat`, `tree`), text commands (`grep`, `wc`, `head`,
 `tail`, `find`), process/system views (`ps`, `top`, `sysinfo`, `dash`,
-`dmesg`, `audit`, `opslog`), and user/session commands (`env`, `history`,
-`security`, `theme`, `banner`, `tips`, `exit`).
+`dmesg`, `audit`, `opslog`), user/session commands (`env`, `history`,
+`security`, `theme`, `banner`, `tips`, `exit`), and the bounded Codex bridge
+command (`codex`).
 
 Phase1 host, network, dev, hardware-mutation, and plugin route names are
 discoverable through `help` and `capabilities`, but they do not execute host
-tools, perform network fetches, or open a shell from inside NOXFRAME.
+tools, perform network fetches, or open a shell from inside NOXFRAME by
+default.
+
+Codex is the explicit opt-in bridge. Inside the console, `codex status`,
+`codex handoff`, and `cat /dev/codex` are metadata-only and always available.
+To let NOXFRAME launch Codex as a host process, start the console with:
+
+```sh
+tools/wuci-noxframe --console --allow-codex
+```
+
+Then use:
+
+```text
+codex start
+codex exec tighten the NOXFRAME docs without expanding security claims
+codex resume --last
+```
+
+The bridge invokes Codex with `shell=False`, pins the working checkout with
+`--cd`, uses `--sandbox workspace-write`, and requests
+`--ask-for-approval on-request`. Codex may use its own host/API configuration.
+This bridge is not a NOXFRAME runtime sandbox or no-network guarantee.
 
 Run the launch matrix directly instead of entering the console:
 

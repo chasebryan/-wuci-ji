@@ -189,14 +189,25 @@ make noxframe-launch
 ```
 
 `WUCI-NOXFRAME` boots through a Wuci-Ji Systems splash, asks whether to boot the
-Wuci-Ji substrate, then clears into a bounded operator console in interactive
-terminals. Use `tools/wuci-noxframe --no-console` to run the launch matrix
-directly.
+Wuci-Ji substrate, and uses an animated full-screen boot frame while waiting for
+that answer on real TTYs. It then clears into a bounded operator console in
+interactive terminals. Use `tools/wuci-noxframe --no-console` to run the launch
+matrix directly.
 
 The console carries Phase1-style discovery commands: `help --compact`,
 `man <command>`, `complete <prefix>`, and `capabilities`. It implements local
 substrate, virtual filesystem, text, process, system, history, and session
-commands while keeping host/network passthrough routes non-executing.
+commands while keeping host/network passthrough routes non-executing by
+default. The `codex` command is the explicit opt-in bridge: `codex status` and
+`codex handoff` are metadata-only. Start the console with:
+
+```sh
+tools/wuci-noxframe --console --allow-codex
+```
+
+Then use `codex start`, `codex exec <prompt>`, or `codex resume` with Codex
+pinned to this checkout. That bridge uses Codex's own host/API configuration
+and is not a NOXFRAME no-network or runtime-containment claim.
 
 By default, it uses its local 7-day clock. It boots in quick mode between
 weekly checks, then runs the full proof matrix when the clock is due. The full

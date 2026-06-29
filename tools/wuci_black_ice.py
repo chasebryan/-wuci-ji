@@ -8,12 +8,14 @@ import importlib.util
 import json
 import os
 import re
+import select
 import shlex
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
+import termios
 import threading
 import time
 import unicodedata
@@ -62,6 +64,7 @@ DEFAULT_CLOCK = "build/noxframe/WUCI_NOXFRAME_CLOCK.json"
 DEFAULT_STATE = "build/noxframe/WUCI_NOXFRAME_STATE.json"
 DEFAULT_SUBSTRATE_SEAL = "build/noxframe/WUCI_NOXFRAME_SUBSTRATE_SEAL.json"
 DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
+DEFAULT_CODEX_BIN = "codex"
 GATE_DEMO_DIRNAME = "gate-demo"
 WEEK_SECONDS = 7 * 24 * 60 * 60
 ANCHOR_PATHS = (
@@ -94,6 +97,7 @@ SUBSTRATE_CELLS = (
     ("cage", "public-evidence airlock context", ("status", "seal")),
     ("qcage", "quantum-claim discipline context", ("status", "seal")),
     ("install", "signed local install proof context", ("status", "seal")),
+    ("codex", "opt-in Codex host bridge context", ("status", "handoff", "start", "exec", "resume")),
 )
 NON_CLAIMS = (
     "not a kernel",
@@ -213,6 +217,7 @@ CONSOLE_COMMANDS = (
     console_cmd("plugins", ("plugin",), "host", "plugins", "Plugin route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
     console_cmd("wasm", ("wasi",), "host", "wasm [list|inspect|run]", "WASI route retained as unavailable inside NOXFRAME console.", "wasm.exec", "unavailable"),
     console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
+    console_cmd("codex", ("agent",), "dev", "codex [status|handoff|version|doctor|start|exec|resume]", "Use the opt-in Codex bridge pinned to this Wuci-Ji checkout.", "host.exec", "explicit-opt-in"),
     console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Editor route retained as unavailable inside NOXFRAME console.", "fs.write", "unavailable"),
     console_cmd("dev", ("dock", "selfdev"), "dev", "dev [status]", "Self-development route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
     console_cmd("repo", ("channels", "branches", "doctrine"), "dev", "repo [status]", "Show repository channel metadata.", "none", "metadata-only"),
@@ -427,6 +432,10 @@ def terminal_columns(default: int = DEFAULT_TERMINAL_COLUMNS) -> int:
     return max(40, shutil.get_terminal_size(fallback=(default, 24)).columns)
 
 
+def terminal_lines(default: int = 32) -> int:
+    return max(12, shutil.get_terminal_size(fallback=(DEFAULT_TERMINAL_COLUMNS, default)).lines)
+
+
 def fit_display(text: str, width: int) -> str:
     if display_width(text) <= width:
         return text
@@ -497,10 +506,12 @@ def console_help_text(args: list[str]) -> str:
         "proc      : ps top jobs spawn fg bg kill nice",
         "sys       : sysinfo dash free df dmesg vmstat uname date uptime hostname audit opslog",
         "user      : env export unset whoami id accounts history security theme banner tips",
+        "dev       : codex repo fyr lang avim dev",
         "misc      : help man complete capabilities clear version roadmap sandbox nest exit",
         "",
         "Phase1-compatible host, network, dev, and hardware routes are discoverable through help",
-        "and capabilities. Host passthrough and network execution are not enabled in this console.",
+        "and capabilities. Host passthrough and network execution are not enabled by default.",
+        "Codex is the explicit opt-in bridge: use codex status, codex handoff, and --allow-codex.",
         "",
         "routes",
         "  help --compact       compact command map",
@@ -551,6 +562,164 @@ def console_capabilities_text() -> str:
     return "\n".join(rows)
 
 
+def codex_executable_status(args: argparse.Namespace) -> str:
+    codex_bin = getattr(args, "codex_bin", DEFAULT_CODEX_BIN)
+    if os.sep in codex_bin or (os.altsep is not None and os.altsep in codex_bin):
+        path = Path(codex_bin)
+        return str(path) if path.exists() else "not found"
+    return shutil.which(codex_bin) or "not found on PATH"
+
+
+def codex_common_options(root: Path) -> list[str]:
+    return [
+        "--cd",
+        str(root),
+        "--sandbox",
+        "workspace-write",
+        "--ask-for-approval",
+        "on-request",
+        "--no-alt-screen",
+    ]
+
+
+def codex_handoff_prompt(user_prompt: str) -> str:
+    prefix = (
+        "NOXFRAME Codex handoff for WUCI-JI. Work in this repository. "
+        "Follow AGENTS.md and docs/SECURITY_BOUNDARY.md. Keep CAGE, QCAGE, "
+        "HARDEN, and INSTALL claims conservative. Do not add offensive tooling, "
+        "runtime sandbox claims, or quantum-safety claims unless enforcement and "
+        "evidence exist."
+    )
+    if not user_prompt:
+        return prefix
+    return f"{prefix}\n\nOperator request: {user_prompt}"
+
+
+def codex_bridge_usage() -> str:
+    return "\n".join(
+        [
+            "usage: codex [status|handoff|version|doctor|start|exec|resume]",
+            "  codex status           show bridge posture and executable discovery",
+            "  codex handoff          print the WUCI-JI handoff guardrails",
+            "  codex version          run: codex --version",
+            "  codex doctor           run: codex doctor --summary --ascii",
+            "  codex start [prompt]   start interactive Codex in this checkout",
+            "  codex exec <prompt>    run non-interactive Codex in this checkout",
+            "  codex resume [args]    resume Codex in this checkout; defaults to --last",
+        ]
+    )
+
+
+def codex_bridge_status_text(root: Path, args: argparse.Namespace) -> str:
+    enabled = bool(getattr(args, "allow_codex", False))
+    lines = [
+        "codex bridge: " + ("enabled" if enabled else "disabled"),
+        f"schema: wuci-noxframe-codex-bridge-v1",
+        f"workspace: {root}",
+        f"codex-bin: {getattr(args, 'codex_bin', DEFAULT_CODEX_BIN)}",
+        f"discovered: {codex_executable_status(args)}",
+        "default guard: metadata-only unless --allow-codex was passed",
+        "launch guard: --cd <repo>, --sandbox workspace-write, --ask-for-approval on-request",
+        "boundary: Codex uses host/API configuration when launched; NOXFRAME makes no no-network or runtime-containment claim for that bridge",
+        "shell: disabled; NOXFRAME invokes Codex with shell=False",
+        "",
+        codex_bridge_usage(),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def codex_handoff_text(root: Path) -> str:
+    prompt = codex_handoff_prompt("")
+    return "\n".join(
+        [
+            "codex handoff // WUCI-JI within NOXFRAME",
+            "",
+            f"workspace: {root}",
+            "operator command examples:",
+            "  tools/wuci-noxframe --console --allow-codex",
+            "  codex start",
+            "  codex exec tighten the NOXFRAME docs without expanding security claims",
+            "  codex resume --last",
+            "",
+            "handoff prompt:",
+            prompt,
+            "",
+            "NOXFRAME bridge rules:",
+            "  - no shell=True, eval, or remote-code shell pipeline is used by the launcher",
+            "  - Codex is pinned to this checkout with --cd",
+            "  - Codex uses workspace-write sandboxing and on-request approvals",
+            "  - host/API network behavior belongs to Codex, not to a NOXFRAME sandbox claim",
+            "",
+        ]
+    )
+
+
+def codex_bridge_command(
+    root: Path,
+    args: argparse.Namespace,
+    action: str,
+    rest: list[str],
+) -> list[str]:
+    codex_bin = getattr(args, "codex_bin", DEFAULT_CODEX_BIN)
+    if action == "version":
+        return [codex_bin, "--version"]
+    if action == "doctor":
+        return [codex_bin, "doctor", "--summary", "--ascii"]
+    if action == "start":
+        command = [codex_bin, *codex_common_options(root)]
+        if rest:
+            command.append(codex_handoff_prompt(" ".join(rest)))
+        return command
+    if action == "exec":
+        if not rest:
+            raise NoxframeError("codex exec requires a prompt")
+        return [
+            codex_bin,
+            *codex_common_options(root),
+            "exec",
+            codex_handoff_prompt(" ".join(rest)),
+        ]
+    if action == "resume":
+        return [codex_bin, *codex_common_options(root), "resume", *(rest or ["--last"])]
+    raise NoxframeError(f"unsupported codex bridge action: {action}")
+
+
+def handle_codex_command(root: Path, args: argparse.Namespace, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "status"
+    rest = parts[2:]
+    if action == "status":
+        print(codex_bridge_status_text(root, args), end="")
+        return
+    if action == "handoff":
+        print(codex_handoff_text(root), end="")
+        return
+    if action not in {"version", "doctor", "start", "exec", "resume"}:
+        print(codex_bridge_usage())
+        return
+    if not getattr(args, "allow_codex", False):
+        print("codex: bridge disabled")
+        print("restart NOXFRAME with --allow-codex to launch a host Codex process")
+        print("use: codex status | codex handoff")
+        return
+    try:
+        command = codex_bridge_command(root, args, action, rest)
+    except NoxframeError as exc:
+        print(str(exc))
+        return
+    print("codex: launching explicit host bridge")
+    print(f"cwd: {root}")
+    print("boundary: Codex uses host/API configuration; NOXFRAME is not runtime containment")
+    print(f"argv: {shlex.join(command)}")
+    sys.stdout.flush()
+    try:
+        result = subprocess.run(command, cwd=root, check=False)
+    except FileNotFoundError:
+        print(f"codex: executable not found: {getattr(args, 'codex_bin', DEFAULT_CODEX_BIN)}")
+        return
+    print(f"codex-result: {result.returncode}")
+
+
 def record_console_event(session: ConsoleSession, line: str) -> None:
     event = f"{utc_now()} command={line}"
     session.audit.append(event)
@@ -577,6 +746,7 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
     dirs: dict[str, tuple[str, ...]] = {
         "/": (
             "README",
+            "root/",
             "wuci-ji/",
             "daylight/",
             "gate/",
@@ -585,10 +755,13 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "cage/",
             "qcage/",
             "install/",
+            "codex/",
+            "dev/",
             "proc/",
             "var/",
             "docs/",
         ),
+        "/dev": ("codex",),
         "/proc": ("version", "route", "cells", "processes"),
         "/var": ("log/",),
         "/var/log": ("audit",),
@@ -671,8 +844,8 @@ def virtual_file_text(
         return "\n".join(
             [
                 "WUCI-NOXFRAME virtual substrate",
-                "root route: /proc /docs /var/log and Wuci-Ji proof cells",
-                "try: help --compact, sysinfo, ls /proc, cat /proc/cells",
+                "root route: /proc /docs /dev /var/log and Wuci-Ji proof cells",
+                "try: help --compact, sysinfo, ls /proc, cat /proc/cells, cat /dev/codex",
                 "",
             ]
         )
@@ -687,6 +860,8 @@ def virtual_file_text(
         )
     if path == "/proc/processes":
         return console_process_table()
+    if path == "/dev/codex":
+        return codex_bridge_status_text(root, args)
     if path == "/var/log/audit":
         return "\n".join(session.audit[-40:]) + ("\n" if session.audit else "audit log empty\n")
     if path == "/docs/contract.json":
@@ -716,6 +891,7 @@ def console_process_table() -> str:
             "1    ready   noxframe-console",
             "2    ready   substrate-seal",
             "3    idle    daylight-anchor",
+            "4    idle    codex-bridge",
             "",
         ]
     )
@@ -1216,16 +1392,78 @@ def boot_answer_allows(value: str) -> bool:
     return value.strip().lower() in {"y", "yes"}
 
 
+def boot_animation_active(args: argparse.Namespace) -> bool:
+    if args.yes or args.no_boot_prompt or getattr(args, "no_boot_animation", False):
+        return False
+    return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def prompt_boot_plain(prompt: str, palette: Palette) -> bool:
+    sys.stderr.write(palette.paint(prompt, palette.red))
+    sys.stderr.flush()
+    answer = sys.stdin.readline()
+    return boot_answer_allows(answer)
+
+
+def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
+    try:
+        fd = sys.stdin.fileno()
+        old_attrs = termios.tcgetattr(fd)
+    except (OSError, termios.error):
+        return prompt_boot_plain(prompt, palette)
+
+    new_attrs = old_attrs[:]
+    new_attrs[6] = old_attrs[6][:]
+    new_attrs[3] = new_attrs[3] & ~(termios.ICANON | termios.ECHO)
+    new_attrs[6][termios.VMIN] = 0
+    new_attrs[6][termios.VTIME] = 0
+    answer = ""
+    frame = 0
+    try:
+        termios.tcsetattr(fd, termios.TCSADRAIN, new_attrs)
+    except termios.error:
+        return prompt_boot_plain(prompt, palette)
+    sys.stderr.write("\033[?25l")
+    sys.stderr.flush()
+    try:
+        while True:
+            print_banner(
+                palette,
+                frame=frame,
+                full_screen=True,
+                prompt=prompt,
+                answer=answer,
+            )
+            ready, _, _ = select.select([sys.stdin], [], [], 0.14)
+            if ready:
+                chunk = os.read(fd, 32).decode("utf-8", errors="ignore")
+                for char in chunk:
+                    if char in {"\r", "\n"}:
+                        return boot_answer_allows(answer)
+                    if char == "\x03":
+                        raise KeyboardInterrupt
+                    if char == "\x04":
+                        return False
+                    if char in {"\x7f", "\b"}:
+                        answer = answer[:-1]
+                    elif char.isprintable() and len(answer) < 12:
+                        answer += char
+            frame += 1
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
+        sys.stderr.write("\033[?25h")
+        sys.stderr.flush()
+
+
 def confirm_boot(args: argparse.Namespace, palette: Palette) -> bool:
     if args.yes or args.no_boot_prompt:
         return True
     if not args.force_boot_prompt and (not sys.stdin.isatty() or not sys.stderr.isatty()):
         return True
     prompt = "Would you like to boot the Wuci-Ji substrate? [y/N] "
-    sys.stderr.write(palette.paint(prompt, palette.red))
-    sys.stderr.flush()
-    answer = sys.stdin.readline()
-    return boot_answer_allows(answer)
+    if boot_animation_active(args):
+        return prompt_boot_animated(prompt, palette)
+    return prompt_boot_plain(prompt, palette)
 
 
 def update_clock_state(
@@ -1448,14 +1686,23 @@ def skipped_lanes(include_local_install: bool) -> list[SkippedLane]:
     return lanes
 
 
-def banner_inner_width(columns: int | None = None) -> int:
+def banner_inner_width(columns: int | None = None, *, full_width: bool = False) -> int:
     columns = terminal_columns() if columns is None else max(40, columns)
     usable = max(MIN_BANNER_INNER_WIDTH, columns - 2)
+    if full_width:
+        return usable
     return min(MAX_BANNER_INNER_WIDTH, usable)
 
 
-def print_banner(palette: Palette) -> None:
-    inner_width = banner_inner_width()
+def print_banner(
+    palette: Palette,
+    *,
+    frame: int = 0,
+    full_screen: bool = False,
+    prompt: str | None = None,
+    answer: str = "",
+) -> None:
+    inner_width = banner_inner_width(full_width=full_screen)
 
     def frame_line(text: str = "", *, align: str = "center", width: int = inner_width) -> str:
         if align == "left":
@@ -1472,11 +1719,11 @@ def print_banner(palette: Palette) -> None:
         right = width - text_width - left
         return f"|{' ' * left}{text}{' ' * right}|"
 
-    def space_line(seed: int, width: int = inner_width) -> str:
+    def space_line(seed: int, *, drift: int = 1, width: int = inner_width) -> str:
         marks = {3: ".", 11: "'", 19: "*", 31: ".", 43: "+", 59: ".", 71: "*", 83: "'"}
         chars = [" "] * width
         for index, mark in marks.items():
-            chars[(index + seed) % width] = mark
+            chars[(index + seed + (frame * drift)) % width] = mark
         return "|" + "".join(chars) + "|"
 
     def orbit_line(text: str, *, width: int = inner_width) -> str:
@@ -1492,9 +1739,18 @@ def print_banner(palette: Palette) -> None:
         if fixed_width > width:
             return frame_line(text, width=width)
         spacer = width - fixed_width
-        left_pad = spacer // 2
+        wobble = (frame % 5) - 2 if full_screen else 0
+        left_pad = max(0, min(spacer, (spacer // 2) + wobble))
         right_pad = spacer - left_pad
         return f"|{' ' * left_pad}{left_marks}{text}{right_marks}{' ' * right_pad}|"
+
+    def sky_line(seed: int, width: int = inner_width) -> str:
+        marks = (".", "'", "*", "+", ".", "*")
+        chars = [" "] * width
+        for offset, mark in enumerate(marks):
+            pos = (seed + frame * (offset + 1) * 3 + offset * 17) % width
+            chars[pos] = mark
+        return "|" + "".join(chars) + "|"
 
     block_logo = [
         "██╗    ██╗ ██╗   ██╗  ██████╗ ██╗              ██╗ ██╗",
@@ -1535,22 +1791,59 @@ def print_banner(palette: Palette) -> None:
         ]
     )
     edge = "+" + "-" * inner_width + "+"
+    pulse = FRAMES[frame % len(FRAMES)]
     lines = [
         (edge, palette.dim),
-        (space_line(0), palette.dim),
-        (space_line(9), palette.dim),
+        (space_line(0, drift=1), palette.dim),
+        (space_line(9, drift=2), palette.dim),
         *[(frame_line(line), palette.red) for line in logo],
-        (space_line(17), palette.dim),
+        (space_line(17, drift=3), palette.dim),
         (orbit_line("无   此   机   系   统"), palette.yellow),
         (frame_line("wu   ci   ji   xi   tong"), palette.cyan),
         (frame_line("Wuci-Ji Systems"), palette.cyan),
-        (space_line(26), palette.dim),
+        (space_line(26, drift=2), palette.dim),
         *detail_rows,
-        (space_line(34), palette.dim),
+        *(
+            [
+                (
+                    frame_line(
+                        f"{pulse} awaiting operator boot decision  |  enter y to boot, enter for no",
+                        align="left",
+                    ),
+                    palette.green,
+                )
+            ]
+            if full_screen
+            else []
+        ),
+        (space_line(34, drift=3), palette.dim),
         (frame_line("无此机  ::  无授权  ::  无许可"), palette.yellow),
-        (space_line(43), palette.dim),
+        (space_line(43, drift=1), palette.dim),
         (edge, palette.dim),
     ]
+    if full_screen:
+        footer = [
+            (frame_line("WUCI-JI + Daylight defensive proof launch", align="left"), palette.dim),
+            (frame_line(f"legacy alias: {LEGACY_TOOL_NAME}", align="left"), palette.dim),
+        ]
+        prompt_rows = []
+        if prompt is not None:
+            prompt_rows.append((frame_line(f"{prompt}{answer}", align="left"), palette.yellow))
+        body = [*lines, *footer, *prompt_rows]
+        extra_rows = max(0, terminal_lines() - len(body))
+        top_rows = extra_rows // 3
+        bottom_rows = extra_rows - top_rows
+        full_lines = (
+            [(sky_line(101 + index * 11), palette.dim) for index in range(top_rows)]
+            + body
+            + [(sky_line(211 + index * 13), palette.dim) for index in range(bottom_rows)]
+        )
+        sys.stderr.write("\033[2J\033[H")
+        for line, color in full_lines:
+            sys.stderr.write(palette.paint(line, color) + "\n")
+        sys.stderr.flush()
+        return
+
     for line, color in lines:
         sys.stderr.write(palette.paint(line, color) + "\n")
     sys.stderr.write(
@@ -2019,6 +2312,11 @@ def parse_args() -> argparse.Namespace:
         help="ask the boot prompt even when stdio is not a TTY",
     )
     parser.add_argument(
+        "--no-boot-animation",
+        action="store_true",
+        help="disable the TTY-only animated full-screen boot prompt",
+    )
+    parser.add_argument(
         "--console",
         action="store_true",
         help="enter the NOXFRAME operator console after boot",
@@ -2045,6 +2343,16 @@ def parse_args() -> argparse.Namespace:
         "--include-local-install",
         action="store_true",
         help="include make install-local, which writes to the configured local install prefix",
+    )
+    parser.add_argument(
+        "--allow-codex",
+        action="store_true",
+        help="allow the NOXFRAME console codex command to launch a host Codex process",
+    )
+    parser.add_argument(
+        "--codex-bin",
+        default=DEFAULT_CODEX_BIN,
+        help="Codex executable for the opt-in console bridge",
     )
     return parser.parse_args()
 
@@ -2394,11 +2702,11 @@ def handle_sys_command(
         return
     if command == "free":
         print("              total        used        free")
-        print("substrate      9 cells     3 active    6 sealed")
+        print(f"substrate      {len(SUBSTRATE_CELLS)} cells    3 active    {len(SUBSTRATE_CELLS) - 3} sealed")
         return
     if command == "df":
         print("Filesystem        Files  Mounted")
-        print("noxframe-vfs      18     /")
+        print(f"noxframe-vfs      {len(vfs_all_paths())}     /")
         print("noxframe-docs      5     /docs")
         return
     if command == "dmesg":
@@ -2504,7 +2812,15 @@ def handle_user_command(session: ConsoleSession, command: str, parts: list[str])
         return
 
 
-def handle_dev_or_host_command(command: str, parts: list[str]) -> None:
+def handle_dev_or_host_command(
+    root: Path,
+    args: argparse.Namespace,
+    command: str,
+    parts: list[str],
+) -> None:
+    if command == "codex":
+        handle_codex_command(root, args, parts)
+        return
     if command == "update":
         print("update: use repository proof lanes outside the console")
         print("protocol: plan, validate, commit, push")
@@ -2627,7 +2943,7 @@ def dispatch_console_command(
     elif spec.category == "user":
         handle_user_command(session, command, parts)
     elif spec.category in {"host", "dev", "net"}:
-        handle_dev_or_host_command(command, parts)
+        handle_dev_or_host_command(root, args, command, parts)
     elif spec.category == "misc":
         return handle_misc_command(root, args, session, command, parts)
     return True
@@ -2688,7 +3004,8 @@ def main() -> int:
     if args.command == "verify":
         return command_verify(root, args)
 
-    print_banner(palette)
+    if not boot_animation_active(args):
+        print_banner(palette)
     if not confirm_boot(args, palette):
         sys.stderr.write(palette.paint("WUCI-JI substrate boot declined\n", palette.red))
         return 130
