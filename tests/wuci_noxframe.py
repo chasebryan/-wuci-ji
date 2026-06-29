@@ -1032,6 +1032,37 @@ def assert_kaiju_boot_bridge_process(launcher: Path, tmp: Path) -> None:
     assert "-nographic" in proc.stdout
     assert "-net none" in proc.stdout
     assert "kaiju-boot-result: 0" in proc.stdout
+    missing = subprocess.run(
+        [
+            str(launcher),
+            "--console",
+            "--yes",
+            "--color",
+            "never",
+            "--allow-kaiju-boot",
+            "--kaiju-qemu-bin",
+            str(tmp / "missing-qemu"),
+            "--kaiju-iso-root",
+            str(kaiju_iso_root),
+            "--kaiju-disk-root",
+            str(kaiju_disk_root),
+            "--clock",
+            str(tmp / "kaiju-missing-console-clock.json"),
+            "--substrate-state",
+            str(tmp / "kaiju-missing-console-state.json"),
+            "--substrate-seal",
+            str(tmp / "kaiju-missing-console-seal.json"),
+        ],
+        cwd=REPO,
+        input="kaiju boot --memory-mib 512 --cpus 1\nexit\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode == 0, missing.stderr + missing.stdout
+    assert "kaiju boot: QEMU executable not found:" in missing.stdout
+    assert "install qemu-kvm-core on RHEL" in missing.stdout
 
 
 def console_command_matrix() -> dict[str, str]:

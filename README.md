@@ -276,9 +276,15 @@ tools/wuci-kaiju disk create --size-mib 32768
 tools/wuci-noxframe --console --allow-kaiju-boot
 ```
 
-Inside NOXFRAME, use `kaiju boot` to launch the text VM, or `kaiju boot
---dry-run` to inspect the exact `-nographic` QEMU argv. The default boot plan
-uses `-net none`; network is not enabled unless explicitly requested. WUCI-KAIJU
+Inside NOXFRAME, use `kaiju boot` for installer mode and `kaiju boot
+--boot-disk --allow-network` for the installed Kali disk. Installed
+disk mode reads the kernel/initrd pair from the raw disk and passes a serial
+console command line so the terminal path bypasses GRUB when possible. Use
+`kaiju boot --dry-run`, `kaiju boot --boot-disk --dry-run`, or `cat
+/kaiju/boot-plan` to inspect the exact QEMU argv. The default boot plan uses
+`-net none`; network is not enabled unless explicitly requested. `--share-repo`
+is optional and only works on QEMU builds with `virtio-9p-pci`, so the portable
+inner-NOXFRAME demo path uses `--allow-network` plus `git clone`. WUCI-KAIJU
 does not expose Kali tools as NOXFRAME commands, scan networks, open radios,
 start vulnerable lab targets, or claim runtime containment.
 
