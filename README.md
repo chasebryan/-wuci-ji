@@ -182,6 +182,22 @@ High-attestation output is local evidence strengthening only. It is not a claim
 of general runtime sandboxing, production authority, quantum safety, government
 validation, or absence of vulnerabilities.
 
+Run NOXFRAME:
+
+```sh
+make noxframe-launch
+```
+
+By default, `WUCI-NOXFRAME` uses its local 7-day clock. It boots in quick mode
+between weekly checks, then runs the full proof matrix when the clock is due.
+The full matrix covers Wuci-Ji, Wuci-Prism, Daylight, Nightlight, Gate, HARDEN,
+CAGE, QCAGE, install verification, release-bundle verification, and
+high-attestation lanes. It writes a readable launch report and
+SHA-256/SHA-384/SHA-512 self-seal to [docs/noxframe/](docs/noxframe/).
+Operator-supplied or optional-dependency lanes are recorded in the report
+instead of being faked. `wuci-black-ice` remains a compatibility alias for the
+working-title boot lander.
+
 ## Daylight
 
 Daylight lives in [daylight-equation/](daylight-equation/). It keeps Wuci-Ji's
