@@ -218,6 +218,8 @@ def main() -> None:
         "anchored_authority_policy_mismatch",
         "wrong_release_action",
         "wrong_rooted_release_action",
+        "wrong_rooted_publish_action",
+        "wrong_rooted_trust_action",
         "publish_bundle_tamper",
         "witness_private_file_present",
         "witness_publish_index_missing",
