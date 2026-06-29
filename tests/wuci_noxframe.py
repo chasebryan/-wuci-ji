@@ -349,6 +349,11 @@ def assert_substrate_commands(launcher: Path, tmp: Path) -> None:
     assert "Phase1 code" in contract_payload["phase1_continuation"]["ideas_not_imported"]
     feature_ids = {item["id"] for item in contract_payload["phase1_feature_map"]}
     assert {"optics", "nest", "learn", "wasi", "base1", "quality"} <= feature_ids
+    memory_contract = contract_payload["substrate_memory"]
+    assert memory_contract["schema"] == "wuci-noxframe-substrate-memory-v1"
+    assert memory_contract["memory_root"] == "build/noxframe/substrate-memory"
+    assert memory_contract["lock_policy"]["default_lock_from_depth"] == 9
+    assert "host kernel" in memory_contract["host_boundary"]["does_not_protect"]
 
     init = subprocess.run(
         [str(launcher), "init", *common],
@@ -364,6 +369,10 @@ def assert_substrate_commands(launcher: Path, tmp: Path) -> None:
     assert init_payload["created"] is True
     assert state.exists()
     assert substrate_seal.exists()
+    state_payload = json.loads(state.read_text(encoding="utf-8"))
+    assert state_payload["substrate_memory"]["active_store_path"] == (
+        "build/noxframe/substrate-memory/depth-00/root/memory.wj"
+    )
 
     status = subprocess.run(
         [str(launcher), "status", *common],
@@ -442,8 +451,9 @@ def assert_daylight_wrap(launcher: Path, tmp: Path) -> None:
     assert manifest["status"] == "sealed"
     assert manifest["wrap_scheme"]["artifact_envelope"] == "WJSEAL-v2 via seal-file-keyfile-v2"
     assert manifest["guards"]["shell"] == "disabled; subprocess invoked with shell=False"
-    assert manifest["guards"]["network"] == "unused"
+    assert manifest["guards"]["network"] == "metadata-deny in the console registry"
     assert len(manifest["key_id"]) == 32
+    assert manifest["substrate_memory_digest_vector"]["sha384"]
     assert "not OS runtime containment" in manifest["non_claims"]
     assert "not whole-system post-quantum safety" in manifest["non_claims"]
     dimension_ids = {record["id"] for record in manifest["inner_dimensions"]}
@@ -476,6 +486,10 @@ def assert_daylight_wrap(launcher: Path, tmp: Path) -> None:
     bundle = json.loads(opened_bytes.decode("utf-8"))
     assert bundle["schema"] == "wuci-noxframe-daylight-wrap-bundle-v1"
     assert bundle["dimension_digest_vector"] == manifest["dimension_digest_vector"]
+    assert bundle["substrate_memory"]["active_store_path"] == (
+        "build/noxframe/substrate-memory/depth-00/root/memory.wj"
+    )
+    assert bundle["substrate_memory"]["lock_policy"]["default_lock_from_depth"] == 9
     assert not (out_dir / "noxframe-inner-dimensions.bundle.json").exists()
 
     if hasattr(os, "symlink"):
@@ -668,6 +682,16 @@ def assert_boot_animation_frame() -> None:
 
 
 def assert_console_exit(launcher: Path, tmp: Path) -> None:
+    kaiju_iso_source = tmp / "kali-noxframe.iso"
+    kaiju_iso_source.write_bytes(b"KAIJU NOXFRAME ISO\n")
+    kaiju_iso_root = tmp / "kaiju-iso"
+    kaiju_disk_root = tmp / "kaiju-disk"
+    wuci_black_ice.wuci_kaiju.install_iso(
+        kaiju_iso_source,
+        iso_root=kaiju_iso_root,
+        name="kali-noxframe.iso",
+    )
+    wuci_black_ice.wuci_kaiju.create_disk(disk_root=kaiju_disk_root, size_mib=1)
     proc = subprocess.run(
         [
             str(launcher),
@@ -681,6 +705,12 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             str(tmp / "console-state.json"),
             "--substrate-seal",
             str(tmp / "console-seal.json"),
+            "--kaiju-iso-root",
+            str(kaiju_iso_root),
+            "--kaiju-disk-root",
+            str(kaiju_disk_root),
+            "--kaiju-qemu-bin",
+            "/bin/true",
         ],
         cwd=REPO,
         input=(
@@ -692,8 +722,13 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             "cat /proc/cells\n"
             "cat /dev/codex\n"
             "cat /dev/plugins\n"
+            "cat /kaiju/iso\n"
+            "cat /kaiju/disk\n"
+            "cat /kaiju/boot-plan\n"
             "cat /phase/features\n"
             "cat /nests/contexts\n"
+            "cat /nests/memory-map\n"
+            "cat /nests/lock-policy\n"
             "cat /learn/status\n"
             "cat /env/profile\n"
             "cat /env/variables\n"
@@ -702,12 +737,18 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             "whereami\n"
             "nest list\n"
             "nest inspect daylight\n"
+            "nest memory\n"
+            "nest lock-policy\n"
             "nest enter gate\n"
             "phase whereami\n"
             "learn add Gate notes stay local\n"
             "learn list\n"
             "plugins list\n"
             "wasm policy\n"
+            "kaiju iso status\n"
+            "kaiju disk status\n"
+            "kaiju boot --dry-run --memory-mib 512 --cpus 1\n"
+            "kaiju boot --memory-mib 512 --cpus 1\n"
             "wiki qcage\n"
             "base1 b1\n"
             "doctor\n"
@@ -795,7 +836,18 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     assert "schema: wuci-noxframe-phase-whereami-v1" in proc.stdout
     assert "schema: wuci-noxframe-plugin-catalog-v1" in proc.stdout
     assert "schema: wuci-noxframe-plugin-policy-v1" in proc.stdout
+    assert "schema: wuci-kaiju-iso-status-v1" in proc.stdout
+    assert "schema: wuci-kaiju-disk-status-v1" in proc.stdout
+    assert "schema\": \"wuci-kaiju-boot-plan-v1" in proc.stdout
+    assert "-nographic" in proc.stdout
+    assert "\"network\": \"none\"" in proc.stdout
+    assert "kaiju boot: bridge disabled" in proc.stdout
+    assert "restart NOXFRAME with --allow-kaiju-boot" in proc.stdout
     assert "schema: wuci-noxframe-learn-status-v1" in proc.stdout
+    assert "wuci-noxframe-substrate-memory-v1" in proc.stdout
+    assert "schema: wuci-noxframe-substrate-lock-policy-v1" in proc.stdout
+    assert "active_store: build/noxframe/substrate-memory/depth-00/root/memory.wj" in proc.stdout
+    assert "recovery: password/key loss requires destroying that locked depth and descendants" in proc.stdout
     assert "schema: wuci-noxframe-base1-dry-run-v1" in proc.stdout
     assert "schema: wuci-noxframe-doctor-v1" in proc.stdout
     assert "schema: wuci-noxframe-selftest-v1" in proc.stdout
@@ -832,7 +884,7 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     assert "iwconfig: no wireless extensions" in proc.stdout
     assert "wifi-scan: skipped" in proc.stdout
     assert "wifi-connect: denied by NOXFRAME policy; ssid=lab" in proc.stdout
-    assert "ping: no packets sent; host=example.invalid; policy=no-network" in proc.stdout
+    assert "ping: no packets sent; host=example.invalid; policy=metadata-deny" in proc.stdout
     assert "nmcli: virtual NetworkManager state disconnected" in proc.stdout
     assert "browser: metadata-only local route" in proc.stdout
     assert "git: metadata-only; host git argv not executed" in proc.stdout
@@ -933,6 +985,55 @@ def assert_codex_bridge_process(launcher: Path, tmp: Path) -> None:
     assert "codex-result: 0" in proc.stdout
 
 
+def assert_kaiju_boot_bridge_process(launcher: Path, tmp: Path) -> None:
+    kaiju_iso_source = tmp / "kali-boot.iso"
+    kaiju_iso_source.write_bytes(b"KAIJU BOOT ISO\n")
+    kaiju_iso_root = tmp / "kaiju-boot-iso"
+    kaiju_disk_root = tmp / "kaiju-boot-disk"
+    wuci_black_ice.wuci_kaiju.install_iso(
+        kaiju_iso_source,
+        iso_root=kaiju_iso_root,
+        name="kali-boot.iso",
+    )
+    wuci_black_ice.wuci_kaiju.create_disk(disk_root=kaiju_disk_root, size_mib=1)
+    proc = subprocess.run(
+        [
+            str(launcher),
+            "--console",
+            "--yes",
+            "--color",
+            "never",
+            "--allow-kaiju-boot",
+            "--kaiju-qemu-bin",
+            "/bin/true",
+            "--kaiju-iso-root",
+            str(kaiju_iso_root),
+            "--kaiju-disk-root",
+            str(kaiju_disk_root),
+            "--clock",
+            str(tmp / "kaiju-console-clock.json"),
+            "--substrate-state",
+            str(tmp / "kaiju-console-state.json"),
+            "--substrate-seal",
+            str(tmp / "kaiju-console-seal.json"),
+        ],
+        cwd=REPO,
+        input="kaiju boot --memory-mib 512 --cpus 1\nexit\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    assert "kaiju boot: launching non-graphical QEMU" in proc.stdout
+    assert "graphics: none" in proc.stdout
+    assert "network: none" in proc.stdout
+    assert "argv: /bin/true" in proc.stdout
+    assert "-nographic" in proc.stdout
+    assert "-net none" in proc.stdout
+    assert "kaiju-boot-result: 0" in proc.stdout
+
+
 def console_command_matrix() -> dict[str, str]:
     samples = {
         "status": "status",
@@ -999,6 +1100,9 @@ def console_command_matrix() -> dict[str, str]:
         "theme": "theme list",
         "banner": "banner",
         "tips": "tips",
+        "xframe-split": "xframe-split 2",
+        "xframe-next": "xframe-next",
+        "xframe-drop": "xframe-drop all",
         "learn": "learn status",
         "ifconfig": "ifconfig",
         "iwconfig": "iwconfig",
@@ -1018,6 +1122,7 @@ def console_command_matrix() -> dict[str, str]:
         "update": "update plan",
         "plugins": "plugins status",
         "wasm": "wasm list",
+        "kaiju": "kaiju status",
         "codex": "codex status",
         "avim": "avim /proc/version",
         "dev": "dev status",
@@ -1151,6 +1256,10 @@ def assert_console_completion_logic() -> None:
     assert nest.matches == ("gate",)
     assert nest.append_space is True
 
+    nest_memory = wuci_black_ice.console_completion_plan(session, "nest mem")
+    assert nest_memory.matches == ("memory",)
+    assert nest_memory.append_space is True
+
     wiki = wuci_black_ice.console_completion_plan(session, "wiki q")
     assert wiki.matches == ("qcage",)
     assert wiki.append_space is True
@@ -1158,6 +1267,76 @@ def assert_console_completion_logic() -> None:
     plugins = wuci_black_ice.console_completion_plan(session, "plugins po")
     assert plugins.matches == ("policy",)
     assert plugins.append_space is True
+
+    split = wuci_black_ice.console_completion_plan(session, "xframe-split ")
+    assert split.matches == ("2", "3", "4")
+    assert split.append_space is False
+
+    drop = wuci_black_ice.console_completion_plan(session, "xframe-drop ")
+    assert drop.matches == ("1", "all")
+    assert drop.append_space is False
+
+
+def assert_xframe_split_drop_logic() -> None:
+    session = wuci_black_ice.ConsoleSession()
+    args = noxframe_args(profile="smoke")
+    palette = wuci_black_ice.Palette("never")
+
+    def run(*lines: str) -> str:
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            for line in lines:
+                keep_running = wuci_black_ice.dispatch_console_line(REPO, args, palette, session, line)
+                assert keep_running
+        return buffer.getvalue()
+
+    split = run("xframe-split 2")
+    assert "schema: wuci-noxframe-xframe-v1" in split
+    assert "action: split" in split
+    assert "frames: 2" in split
+    assert "layout: left-right" in split
+    assert "switch: Alt+Shift+Tab" in split
+    assert "1: left cwd=/" in split
+    assert "2: right cwd=/" in split
+    assert session.xframe_count == 2
+    assert session.active_xframe == 1
+    assert wuci_black_ice.prompt_for_session(session) == "noxframe:L0/root[x1/2]> "
+
+    run("cd /env")
+    assert session.cwd == "/env"
+    switched = run("\x1b[Z")
+    assert "action: switch" in switched
+    assert "active: 2" in switched
+    assert session.active_xframe == 2
+    assert session.cwd == "/"
+    assert session.env["PWD"] == "/"
+
+    run("mkdir /tmp", "touch /tmp/frame2")
+    assert "/tmp/frame2" in session.vfs_files
+    back = run("xframe-next")
+    assert "active: 1" in back
+    assert session.cwd == "/env"
+    assert session.env["PWD"] == "/env"
+    assert "/tmp/frame2" not in session.vfs_files
+
+    quad = run("xframe-split 4")
+    assert "frames: 4" in quad
+    assert "layout: quadrant" in quad
+    assert "4: bottom-right" in quad
+    dropped_one = run("xframe-drop 1")
+    assert "action: drop" in dropped_one
+    assert "dropped: 4" in dropped_one
+    assert "frames: 3" in dropped_one
+    assert "3: bottom" in dropped_one
+    assert session.xframe_count == 3
+
+    collapsed = run("xframe-drop all")
+    assert "dropped: 2 3" in collapsed
+    assert "frames: 1" in collapsed
+    assert "layout: single" in collapsed
+    assert session.xframe_count == 1
+    assert session.active_xframe == 1
+    assert wuci_black_ice.prompt_for_session(session) == "noxframe:L0/root> "
 
 
 def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
@@ -1224,6 +1403,10 @@ def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
     assert "dev: self-development lane metadata" in proc.stdout
     assert "loadcr3: 0x4000" in proc.stdout
     assert "pcide: on" in proc.stdout
+    assert "schema: wuci-noxframe-xframe-v1" in proc.stdout
+    assert "action: split" in proc.stdout
+    assert "action: switch" in proc.stdout
+    assert "action: drop" in proc.stdout
     assert (tmp / "matrix-report.md").exists()
     assert (tmp / "matrix-seal.json").exists()
 
@@ -1312,12 +1495,14 @@ def assert_launcher(launcher: Path) -> None:
         assert_clock_decisions(tmp)
         assert_no_unavailable_command_markers()
         assert_console_completion_logic()
+        assert_xframe_split_drop_logic()
         assert_substrate_commands(launcher, tmp)
         assert_boot_prompt_and_banner(launcher, tmp)
         assert_boot_animation_frame()
         assert_console_exit(launcher, tmp)
         assert_console_multicommand_depth_exit_all(launcher, tmp)
         assert_codex_bridge_process(launcher, tmp)
+        assert_kaiju_boot_bridge_process(launcher, tmp)
         assert_console_command_matrix(launcher, tmp)
         assert_console_alias_matrix(launcher, tmp)
         proc = subprocess.run(

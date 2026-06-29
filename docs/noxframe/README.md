@@ -53,18 +53,81 @@ commands (`phase`, `whereami`, `compass`), virtual filesystem commands (`pwd`,
 `find`, `wiki`), process/system views (`ps`, `top`, `sysinfo`, `dash`,
 `dmesg`, `doctor`, `selftest`, `quality`, `audit`, `opslog`), user/session
 commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
-`profile`, `history`, `security`, `theme`, `banner`, `tips`, `exit`), local
-learning notes (`learn`), nested metadata contexts (`nest`), metadata-only
-plugin/WASI catalogs (`plugins`, `wasm`), guarded Base1/B1/B2 metadata
-(`base1`), and the bounded Codex bridge command (`codex`).
+`profile`, `history`, `security`, `theme`, `banner`, `tips`, `xframe-split`,
+`xframe-next`, `xframe-drop`, `exit`), local learning notes (`learn`), nested
+metadata contexts (`nest`), metadata-only plugin/WASI catalogs (`plugins`,
+`wasm`), the WUCI-KAIJU Kali purpose catalog (`kaiju`), guarded Base1/B1/B2
+metadata (`base1`), and the bounded Codex bridge command (`codex`).
 
 Phase1 host, network, dev, hardware-mutation, and plugin route names are
 discoverable through `help` and `capabilities`, but they do not execute host
 tools, perform network fetches, or open a shell from inside NOXFRAME by
-default. Formerly reserved names now resolve to bounded local handlers or
-metadata-only dry-run outputs.
+default. The console policy is metadata-deny for network commands unless a
+future explicit, allowlisted, transcripted bridge is added. Formerly reserved
+names now resolve to bounded local handlers or metadata-only dry-run outputs.
 Plugin and WASI routes are catalogs and policy views only; `wasm run` and host
 plugin execution remain unavailable.
+
+`xframe-split` divides one NOXFRAME console session into session-local frame
+boxes without starting host shells or subprocess terminals. `xframe-split 2`
+renders left/right frames, `xframe-split 3` renders top-left/top-right/bottom,
+and `xframe-split 4` renders the maximum quadrant layout. Each xframe carries
+its own cwd, history, aliases, notes, virtual files, and simulated jobs.
+`xframe-next` cycles through open frames in a circular order; interactive
+readline terminals bind the same action to Alt+Shift+Tab. `xframe-drop 1`
+removes the last frame slot: right when two are open, bottom when three are open,
+and bottom-right when four are open. `xframe-drop all` collapses back to the
+original single NOXFRAME frame.
+
+`wuci-kaiju` is the NOXFRAME Kali-purpose adapter. It reads the checked-in
+catalog at `docs/noxframe/wuci_kaiju_manifest.json` and maps the Kali
+metapackage/menu purposes into one selected representative tool, or a small
+companion set where a single tool would conflate different offline evidence
+types. The console command forms are:
+
+```text
+kaiju status
+kaiju list
+kaiju purpose forensics
+kaiju policy
+kaiju verify
+kaiju manifest
+kaiju iso status
+kaiju iso install /path/to/kali-linux.iso
+kaiju disk create --size-mib 32768
+kaiju boot --dry-run
+```
+
+The virtual filesystem exposes the same surface under `/kaiju/status`,
+`/kaiju/purposes`, `/kaiju/policy`, `/kaiju/verify`, `/kaiju/manifest`,
+`/kaiju/iso`, `/kaiju/disk`, `/kaiju/boot-plan`, `/dev/kaiju`, and
+`/docs/wuci-kaiju.json`.
+
+The non-graphical Kali boot lane is explicit:
+
+```sh
+tools/wuci-kaiju iso install /path/to/kali-linux.iso
+tools/wuci-kaiju disk create --size-mib 32768
+tools/wuci-noxframe --console --allow-kaiju-boot
+```
+
+Then run:
+
+```text
+kaiju boot
+```
+
+`kaiju boot` launches QEMU with `-nographic`, `-serial mon:stdio`, and
+`-net none` by default. Use `kaiju boot --dry-run` or `cat /kaiju/boot-plan` to
+inspect the exact argv without starting QEMU. The bridge requires a local
+operator-supplied ISO; ISO reads reject symlinks and hardlinks, the installed
+ISO gets SHA-256/SHA-384/SHA-512 evidence, and the mutable raw disk is recorded
+separately. WUCI-KAIJU does not expose Kali tools as NOXFRAME commands, perform
+scans, open radios, launch browser/proxy tooling, start vulnerable lab targets,
+or provide host shell passthrough. Its catalog manifest is a public anchor in
+the NOXFRAME state/seal path. Future substrates can use it as a verified catalog
+and VM boot boundary, not as a runtime-containment or offensive-tool permission
+claim.
 
 Codex is the explicit opt-in bridge. Inside the console, `codex status`,
 `codex handoff`, and `cat /dev/codex` are metadata-only and always available.
@@ -105,8 +168,28 @@ execution, host network routes, or runtime containment claims.
 
 `learn add <text>` stores session-local notes only. `nest enter <context>`
 moves the console context to a fixed metadata cell such as `gate` or `qcage`;
-`nest spawn` and `nest destroy` are blocked. `version --compare` prints the
-Phase1 idea map and confirms that NOXFRAME imports no Phase1 code.
+`nest spawn` and `nest destroy` are blocked. `nest memory`, `nest lock-policy`,
+`cat /nests/memory-map`, and `cat /nests/lock-policy` expose the deterministic
+substrate-memory contract. Depth memory is addressed as:
+
+```text
+build/noxframe/substrate-memory/depth-{depth:02d}/{context}/memory.wj
+build/noxframe/substrate-memory/depth-{depth:02d}/{context}/manifest.json
+```
+
+The intended persistence mechanism is WJSEAL v2 through `daylight-wrap`, using
+an operator-supplied local keyfile. Re-entering the same depth and context
+points at the same sealed memory path. The default lock policy starts at depth
+9: a future real lock gate must warn the operator before enabling the lock,
+must not store plaintext passwords, and has no recovery backdoor. If the
+operator loses the password or key for a locked depth, the bounded recovery path
+is destroying that locked depth and descendants, then creating new substrate
+depths. This is encrypted-at-rest and integrity policy only; it is not a claim
+that NOXFRAME can survive a compromised host kernel, root account, debugger, or
+disk deletion. Host-compromise resistance requires a real boundary such as a
+separate host, VM/hypervisor isolation, kernel sandbox, TEE, or hardware-backed
+key release. `version --compare` prints the Phase1 idea map and confirms that
+NOXFRAME imports no Phase1 code.
 
 Inside the console, `self-release plan` and `self-release status` are metadata
 views. `self-release run bundle|witness|ledger|all` runs the existing make
@@ -120,7 +203,8 @@ and the console header. `exit` leaves one level; `exit all` unwinds every
 nested NOXFRAME level.
 
 `daylight-wrap` seals the NOXFRAME substrate state, substrate seal, cell map,
-virtual dimensions, and Daylight anchor records into a local WJSEAL v2 artifact:
+substrate-memory map, virtual dimensions, and Daylight anchor records into a
+local WJSEAL v2 artifact:
 
 ```sh
 mkdir -p build/noxframe
@@ -134,9 +218,10 @@ through a no-follow safe path, and invokes the existing assembly
 `seal-file-keyfile-v2` command with `shell=False` using a temporary key copy. It
 writes `build/noxframe/daylight-wrap/noxframe-inner-dimensions.wj` and
 `build/noxframe/daylight-wrap/manifest.json`. The manifest binds the sealed
-artifact to SHA-256/SHA-384/SHA-512 digest vectors for the inner dimensions and
-Daylight anchors. It does not claim runtime sandboxing, production authority,
-independent audit status, or whole-system post-quantum safety.
+artifact to SHA-256/SHA-384/SHA-512 digest vectors for the inner dimensions,
+substrate-memory map, and Daylight anchors. It does not claim runtime
+sandboxing, production authority, independent audit status, host-compromise
+containment, or whole-system post-quantum safety.
 
 The default launch profile is `--profile auto`. Auto mode initializes into
 quick mode and keeps using quick mode until the local NOXFRAME clock reaches
