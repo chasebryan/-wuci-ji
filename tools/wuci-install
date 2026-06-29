@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import sys
+
+from wuci_install import main
+
+
+COMMANDS = {
+    "audit",
+    "bootstrap",
+    "install",
+    "manifest",
+    "sign-manifest",
+    "trust-key-check",
+    "verify-manifest",
+}
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1 or sys.argv[1] not in COMMANDS:
+        sys.argv.insert(1, "bootstrap")
+    raise SystemExit(main())

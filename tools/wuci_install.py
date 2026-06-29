@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
+import platform
 import shutil
 import stat
 import subprocess
@@ -30,10 +32,13 @@ DEFAULT_REPO_ROOT_KEY = INSTALL_DIR / "wuci-install-root.v1.pub"
 DEFAULT_REPO_ROOT_KEY_SHA256 = INSTALL_DIR / "wuci-install-root.v1.pub.sha256"
 DEFAULT_POLICY = INSTALL_DIR / "wuci-install-policy.json"
 DEFAULT_PREFIX = Path.home() / ".local"
+DEFAULT_LOCAL_ROOT_KEY = Path.home() / ".config" / "wuci-ji" / "install-root.pub"
 
 MANIFEST_SCHEMA = "wuci-install-manifest-v1"
 RECEIPT_SCHEMA = "wuci-install-receipt-v1"
 POLICY_SCHEMA = "wuci-install-policy-v1"
+BOOTSTRAP_SCHEMA = "wuci-install-bootstrap-v1"
+TERMINAL_SETUP_SCHEMA = "wuci-terminal-setup-v1"
 VERSION = "0.1"
 PLATFORM = "linux-x86_64"
 SIGNATURE_NAMESPACE = "wuci-install-v1"
@@ -41,6 +46,7 @@ SIGNATURE_IDENTITY = "wuci-install"
 ZERO_SHA512 = "0" * 128
 PRODUCT_UTF8_SHA256 = hashlib.sha256("无此机".encode("utf-8")).hexdigest()
 TICKER_SIGNALS = ("AUTH", "SEAL", "GATE", "ROOT", "CAGE", "QBIT", "WITN", "LEDG")
+TERMINAL_CHOICES = ("kitty", "ghostty")
 
 MANIFEST_FIELDS = (
     "schema",
@@ -727,6 +733,114 @@ def print_json(value: dict[str, Any]) -> None:
     print(json.dumps(value, sort_keys=True, ensure_ascii=False))
 
 
+def host_system_id() -> str:
+    system = platform.system().lower()
+    if system == "darwin":
+        return "macos"
+    if system == "windows":
+        return "windows"
+    if system == "linux":
+        os_release = Path("/etc/os-release")
+        try:
+            text = os_release.read_text(encoding="utf-8")
+        except OSError:
+            return "linux"
+        fields: dict[str, str] = {}
+        for line in text.splitlines():
+            if "=" not in line or line.startswith("#"):
+                continue
+            key, value = line.split("=", 1)
+            fields[key] = value.strip().strip('"')
+        distro = fields.get("ID", "linux").lower()
+        return f"linux:{distro}"
+    return system or "unknown"
+
+
+def resolve_command(name: str, command_paths: dict[str, str | None] | None = None) -> str | None:
+    if command_paths is not None:
+        return command_paths.get(name)
+    return shutil.which(name)
+
+
+def terminal_install_commands(
+    host_id: str,
+    command_paths: dict[str, str | None] | None = None,
+) -> list[dict[str, Any]]:
+    commands: list[dict[str, Any]] = []
+
+    def add(manager: str, argv: list[str], terminals: list[str]) -> None:
+        commands.append({"manager": manager, "argv": argv, "terminals": terminals})
+
+    if host_id == "macos":
+        if resolve_command("brew", command_paths):
+            add("homebrew", ["brew", "install", "--cask", "kitty", "ghostty"], list(TERMINAL_CHOICES))
+        if resolve_command("port", command_paths):
+            add("macports", ["sudo", "port", "install", "kitty"], ["kitty"])
+        return commands
+
+    if host_id == "windows":
+        if resolve_command("winget", command_paths):
+            add("winget", ["winget", "install", "--id", "kovidgoyal.Kitty"], ["kitty"])
+            add("winget", ["winget", "install", "--id", "Ghostty.Ghostty"], ["ghostty"])
+        if resolve_command("scoop", command_paths):
+            add("scoop", ["scoop", "install", "kitty"], ["kitty"])
+        if resolve_command("choco", command_paths):
+            add("chocolatey", ["choco", "install", "kitty", "-y"], ["kitty"])
+        return commands
+
+    if host_id.startswith("linux"):
+        if resolve_command("flatpak", command_paths):
+            add("flatpak", ["flatpak", "install", "-y", "flathub", "com.mitchellh.ghostty"], ["ghostty"])
+        if resolve_command("apt-get", command_paths):
+            add("apt", ["sudo", "apt-get", "install", "-y", "kitty"], ["kitty"])
+        if resolve_command("dnf", command_paths):
+            add("dnf", ["sudo", "dnf", "install", "-y", "kitty", "ghostty"], list(TERMINAL_CHOICES))
+        if resolve_command("pacman", command_paths):
+            add("pacman", ["sudo", "pacman", "-S", "--needed", "kitty", "ghostty"], list(TERMINAL_CHOICES))
+        if resolve_command("zypper", command_paths):
+            add("zypper", ["sudo", "zypper", "--non-interactive", "install", "kitty", "ghostty"], list(TERMINAL_CHOICES))
+        if resolve_command("brew", command_paths):
+            add("linuxbrew", ["brew", "install", "kitty", "ghostty"], list(TERMINAL_CHOICES))
+        return commands
+
+    if resolve_command("pkg", command_paths):
+        add("pkg", ["pkg", "install", "kitty"], ["kitty"])
+    if resolve_command("pkgin", command_paths):
+        add("pkgin", ["pkgin", "install", "kitty"], ["kitty"])
+    return commands
+
+
+def terminal_setup_plan(
+    *,
+    command_paths: dict[str, str | None] | None = None,
+    host_id: str | None = None,
+) -> dict[str, Any]:
+    host = host_id or host_system_id()
+    found = {
+        name: path
+        for name in TERMINAL_CHOICES
+        if (path := resolve_command(name, command_paths))
+    }
+    ready = bool(found)
+    return {
+        "schema": TERMINAL_SETUP_SCHEMA,
+        "host": host,
+        "required": "one-of",
+        "acceptable_terminals": list(TERMINAL_CHOICES),
+        "ready": ready,
+        "status": "ready" if ready else "missing-terminal",
+        "found": found,
+        "selected": next(iter(found), None),
+        "package_manager_commands": [] if ready else terminal_install_commands(host, command_paths),
+        "commands_executed": [],
+        "notes": [
+            "wuci-install does not execute package managers, sudo, or remote installers.",
+            "Run one package-manager argv from this plan outside WUCI-INSTALL if no terminal is present.",
+            "NOXFRAME still falls back to the reduced terminal renderer when Kitty/Ghostty are absent.",
+        ],
+    }
+
+
 def proof_hashes() -> dict[str, str]:
     return {
         "witness_bundle_sha512": hash_tree_sha512(REPO_ROOT / "build" / "wuci-witness-bundle", "witness bundle"),
@@ -774,6 +888,7 @@ def install_files(
 
     copy_regular(TOOL_PATH, tools_dir / "wuci_install.py", mode=0o644, context="installer tool")
     copy_regular(REPO_ROOT / "tools" / "wuci_safeio.py", tools_dir / "wuci_safeio.py", mode=0o644, context="safe I/O helper")
+    copy_regular(REPO_ROOT / "tools" / "wuci_progress.py", tools_dir / "wuci_progress.py", mode=0o644, context="progress helper")
     copy_regular(REPO_ROOT / "tools" / "wuci_verifier_identity.py", tools_dir / "wuci_verifier_identity.py", mode=0o644, context="verifier identity helper")
     copy_regular(manifest_path, share / "wuci-install-manifest.v1", mode=0o644, context="install manifest")
     copy_regular(signature_path, share / "wuci-install-manifest.v1.sig", mode=0o644, context="install manifest signature")
@@ -974,7 +1089,36 @@ def run_sign_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
-def run_install(args: argparse.Namespace) -> int:
+def reject_existing_unsafe_target(path: Path, context: str) -> None:
+    if not path.exists() and not path.is_symlink():
+        return
+    info = os.lstat(path)
+    if stat.S_ISLNK(info.st_mode):
+        fail(f"{context} target must not be a symlink: {path}")
+    if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
+        fail(f"{context} target must not be hardlinked: {path}")
+
+
+def copy_local_install_root_key(local_key: Path) -> str:
+    reject_nul(str(local_key), "local install root key")
+    local_key = local_key.expanduser()
+    validate_repo_key_sidecar()
+    reject_existing_unsafe_target(local_key, "local install root key")
+    atomic_install_bytes(
+        local_key,
+        read_bytes(
+            DEFAULT_REPO_ROOT_KEY,
+            "repository install root key",
+            max_bytes=8192,
+            reject_hardlink=True,
+        ),
+        mode=0o644,
+        context="local install root key",
+    )
+    return trust_key_check(local_key, quiet=True)
+
+
+def perform_install(args: argparse.Namespace) -> dict[str, Any]:
     if args.version != VERSION:
         fail("unsupported install version")
     ticker_mode = getattr(args, "ticker", "auto")
@@ -1042,7 +1186,7 @@ def run_install(args: argparse.Namespace) -> int:
         ticker_mode=ticker_mode,
     )
 
-    install_files(
+    receipt = install_files(
         prefix=prefix,
         bin_path=bin_path,
         install_root_key=install_key,
@@ -1052,19 +1196,86 @@ def run_install(args: argparse.Namespace) -> int:
         key_sha256=key_sha256,
         binary_hashes=binary_hashes,
     )
+    return {
+        "schema": "wuci-install-install-v1",
+        "installed": True,
+        "prefix": str(prefix),
+        "binary_sha256": binary_hashes[0],
+        "binary_sha384": binary_hashes[1],
+        "binary_sha512": binary_hashes[2],
+        "receipt": receipt,
+    }
+
+
+def run_install(args: argparse.Namespace) -> int:
+    result = perform_install(args)
     if getattr(args, "json", False):
-        print_json(
-            {
-                "schema": "wuci-install-install-v1",
-                "installed": True,
-                "prefix": str(prefix),
-                "binary_sha256": binary_hashes[0],
-                "binary_sha384": binary_hashes[1],
-                "binary_sha512": binary_hashes[2],
-            }
-        )
+        print_json({key: value for key, value in result.items() if key != "receipt"})
     else:
         print("无此机 / Wuci-ji systems nominal. Version 0.1 installed.")
+    return 0
+
+
+def run_bootstrap(args: argparse.Namespace) -> int:
+    prefix = prefix_path(args.prefix, allow_prefix=args.allow_prefix)
+    install_key = Path(args.install_root_key).expanduser()
+    key_sha256 = copy_local_install_root_key(install_key)
+    terminal_plan = terminal_setup_plan()
+    if args.require_terminal and not terminal_plan["ready"]:
+        setup_path = prefix / "share" / "wuci-ji" / "terminal-setup.json"
+        write_json_atomic(setup_path, terminal_plan, mode=0o644)
+        fail(f"missing Kitty/Ghostty terminal; setup plan written to {setup_path}")
+
+    install_args = argparse.Namespace(
+        install_root_key=str(install_key),
+        prefix=str(prefix),
+        version=args.version,
+        manifest=args.manifest,
+        signature=args.signature,
+        ssh_keygen=args.ssh_keygen,
+        allow_prefix=args.allow_prefix,
+        json=False,
+        ticker=args.ticker,
+    )
+    if args.json:
+        with contextlib.redirect_stdout(sys.stderr):
+            install_result = perform_install(install_args)
+    else:
+        install_result = perform_install(install_args)
+
+    setup_path = prefix / "share" / "wuci-ji" / "terminal-setup.json"
+    write_json_atomic(setup_path, terminal_plan, mode=0o644)
+    payload = {
+        "schema": BOOTSTRAP_SCHEMA,
+        "installed": True,
+        "prefix": str(prefix),
+        "install_root_key": str(install_key),
+        "install_root_key_sha256": key_sha256,
+        "binary_sha256": install_result["binary_sha256"],
+        "binary_sha384": install_result["binary_sha384"],
+        "binary_sha512": install_result["binary_sha512"],
+        "terminal_setup_path": str(setup_path),
+        "terminal_setup": terminal_plan,
+        "package_manager_commands_executed": [],
+        "non_claims": {
+            "runtime_sandbox": False,
+            "quantum_safe": False,
+            "universal_package_manager_install": False,
+        },
+    }
+    if args.json:
+        print_json(payload)
+    else:
+        print("wuci-install: Wuci-Ji installed")
+        print(f"prefix: {prefix}")
+        print(f"install-root-key: {install_key}")
+        if terminal_plan["ready"]:
+            selected = terminal_plan["selected"]
+            print(f"terminal: PASS ({selected}={terminal_plan['found'][selected]})")
+        else:
+            print("terminal: setup plan written; install Kitty or Ghostty using one listed argv")
+        print(f"terminal-setup: {setup_path}")
+        print("package-manager-commands-executed: 0")
     return 0
 
 
@@ -1125,6 +1336,19 @@ def run_audit(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="WUCI-INSTALL zero-prompt signed installer.")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    bootstrap = subparsers.add_parser("bootstrap")
+    bootstrap.add_argument("--install-root-key", default=str(DEFAULT_LOCAL_ROOT_KEY))
+    bootstrap.add_argument("--prefix", default=str(DEFAULT_PREFIX))
+    bootstrap.add_argument("--version", default=VERSION)
+    bootstrap.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
+    bootstrap.add_argument("--signature", default=str(DEFAULT_SIGNATURE))
+    bootstrap.add_argument("--ssh-keygen")
+    bootstrap.add_argument("--allow-prefix", action="store_true")
+    bootstrap.add_argument("--require-terminal", action="store_true")
+    bootstrap.add_argument("--json", action="store_true")
+    wuci_progress.add_ticker_arg(bootstrap)
+    bootstrap.set_defaults(func=run_bootstrap)
 
     trust = subparsers.add_parser("trust-key-check")
     trust.add_argument("--install-root-key", required=True)

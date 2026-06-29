@@ -71,6 +71,24 @@ binary.
 
 ## Install And Audit
 
+Single-command local install:
+
+```sh
+tools/wuci-install
+~/.local/bin/wuci-ji-audit
+```
+
+`tools/wuci-install` copies the repository install root key to the local trust
+path, verifies the signed manifest and candidate binary digest vector, runs the
+install proof lanes, installs under `$HOME/.local`, and writes
+`$HOME/.local/share/wuci-ji/terminal-setup.json`. That terminal setup file
+records whether `kitty` or `ghostty` is already present and, if neither is
+available, gives platform-specific package-manager argv suggestions. The command
+does not run package managers, `sudo`, network fetches, or remote installer
+pipelines.
+
+Manual lower-level install path:
+
 ```sh
 mkdir -p ~/.config/wuci-ji
 cp install/wuci-install-root.v1.pub ~/.config/wuci-ji/install-root.pub

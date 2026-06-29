@@ -34,6 +34,13 @@ SELF_RELEASE_DEMO_DIR ?= build/wuci-self-release-demo
 SELF_RELEASE_ATTESTATION ?= $(SELF_RELEASE_DEMO_DIR)/attestation.json
 SELF_RELEASE_CONTRACT ?= $(SELF_RELEASE_DEMO_DIR)/receipt-contract.txt
 SELF_RELEASE_AUTHORITY ?= $(SELF_RELEASE_DEMO_DIR)/authority-root.txt
+NOXFRAME_SELF_RELEASE_DEMO_DIR ?= build/noxframe/self-release
+NOXFRAME_SELF_RELEASE_ATTESTATION ?= $(NOXFRAME_SELF_RELEASE_DEMO_DIR)/attestation.json
+NOXFRAME_WITNESS_BUNDLE_DIR ?= build/noxframe/self-release-witness
+NOXFRAME_WITNESS_WORK_DIR ?= $(NOXFRAME_WITNESS_BUNDLE_DIR).work
+NOXFRAME_LEDGER_DIR ?= build/noxframe/self-release-ledger
+NOXFRAME_LEDGER_INCLUSION_PROOF ?= $(NOXFRAME_LEDGER_DIR)/inclusion-proof.txt
+NOXFRAME_LEDGER_CONSISTENCY_PROOF ?= $(NOXFRAME_LEDGER_DIR)/consistency-proof.txt
 WITNESS_BUNDLE_DIR ?= build/wuci-witness-bundle
 WITNESS_WORK_DIR ?= $(WITNESS_BUNDLE_DIR).work
 WITNESS_ARCHIVE ?= $(WITNESS_BUNDLE_DIR).tar
@@ -109,9 +116,9 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v6-nightlight-deep-assessment-test
 .PHONY: self-release-asm-contract-proof self-release-attestation-test self-release-bundle self-release-contract-bundle self-release-demo
 .PHONY: harden0-ledger-mutation-test
-.PHONY: install-local
+.PHONY: install-local wuci-install
 .PHONY: wuci-prism-test wuci-progress-test
-.PHONY: noxframe-launch noxframe-launch-test black-ice-launch black-ice-launch-test
+.PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 
 all: check-native $(TARGET)
 
@@ -872,6 +879,13 @@ noxframe-launch:
 noxframe-launch-test:
 	$(PYTHON) tests/wuci_noxframe.py --quiet
 
+noxframe-self-release: check-native $(TARGET)
+	$(MAKE) self-release-bundle SELF_RELEASE_DEMO_DIR=$(NOXFRAME_SELF_RELEASE_DEMO_DIR) SELF_RELEASE_ATTESTATION=$(NOXFRAME_SELF_RELEASE_ATTESTATION)
+	$(MAKE) self-release-witness-bundle WITNESS_BUNDLE_DIR=$(NOXFRAME_WITNESS_BUNDLE_DIR) WITNESS_WORK_DIR=$(NOXFRAME_WITNESS_WORK_DIR)
+	$(MAKE) self-release-ledger-bundle WITNESS_BUNDLE_DIR=$(NOXFRAME_WITNESS_BUNDLE_DIR) WITNESS_WORK_DIR=$(NOXFRAME_WITNESS_WORK_DIR) LEDGER_DIR=$(NOXFRAME_LEDGER_DIR) LEDGER_INCLUSION_PROOF=$(NOXFRAME_LEDGER_INCLUSION_PROOF) LEDGER_CONSISTENCY_PROOF=$(NOXFRAME_LEDGER_CONSISTENCY_PROOF)
+	@printf 'NOXFRAME self-release workspace: %s\n' "build/noxframe"
+	@printf 'enter with: tools/wuci-noxframe --console --yes, then self-release shell\n'
+
 black-ice-launch: noxframe-launch
 
 black-ice-launch-test: noxframe-launch-test
@@ -1026,6 +1040,9 @@ install-local:
 	$(MAKE) install-proof INSTALL_ROOT_KEY="$(INSTALL_ROOT_KEY)" INSTALL_PREFIX="$(INSTALL_PREFIX)"
 	$(MAKE) install-audit INSTALL_PREFIX="$(INSTALL_PREFIX)"
 
+wuci-install:
+	tools/wuci-install --prefix "$(INSTALL_PREFIX)"
+
 install-key-check:
 	$(PYTHON) tools/wuci_install.py trust-key-check --install-root-key $(INSTALL_ROOT_KEY)
 
@@ -1068,6 +1085,7 @@ install-test: check-native $(TARGET)
 	$(PYTHON) tests/wuci_install_no_shell.py --quiet
 	$(PYTHON) tests/wuci_install_audit.py --quiet
 	$(PYTHON) tests/wuci_install_atomic.py --quiet
+	$(PYTHON) tests/wuci_install_bootstrap.py --quiet
 
 verify-self-release-bundle: $(RELEASE_BIN)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify

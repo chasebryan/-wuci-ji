@@ -154,15 +154,26 @@ make cage-proof
 make qcage-proof
 ```
 
-Run the signed local install proof lane from a checked-out release:
+Install from a checked-out release with one atomic command:
+
+```sh
+tools/wuci-install
+```
+
+This copies the repository install root key into the local trust path, verifies
+the signed install manifest and binary digest vector, runs the install proof
+lanes, installs to `$HOME/.local`, writes an audit receipt, and records a
+Kitty/Ghostty terminal setup plan. It detects `kitty` or `ghostty` when already
+present. If neither terminal is present, it writes
+`$HOME/.local/share/wuci-ji/terminal-setup.json` with platform-specific
+package-manager argv suggestions, but it does not run package managers, `sudo`,
+or remote installers from inside WUCI-INSTALL.
+
+The lower-level install target is still available:
 
 ```sh
 make install-local
 ```
-
-This single command copies the repository install root key into the local trust
-path, verifies the signed install manifest and binary digest vector, installs
-to `$HOME/.local`, and runs the install audit.
 
 Build local self-release evidence:
 
@@ -170,6 +181,22 @@ Build local self-release evidence:
 make self-release-bundle
 make self-release-witness-bundle
 make self-release-ledger-bundle
+```
+
+NOXFRAME exposes the same self-release lane inside its bounded console:
+
+```text
+self-release plan
+self-release status
+self-release run all
+self-release shell
+```
+
+The convenience target writes the self-release, witness, and ledger artifacts
+under `build/noxframe/`:
+
+```sh
+make noxframe-self-release
 ```
 
 Run the composed high-attestation lane:
@@ -188,17 +215,71 @@ Run NOXFRAME:
 make noxframe-launch
 ```
 
-`WUCI-NOXFRAME` boots through a Wuci-Ji Systems splash, asks whether to boot the
-Wuci-Ji substrate, and uses an animated full-screen boot frame while waiting for
-that answer on real TTYs. It then clears into a bounded operator console in
-interactive terminals. Use `tools/wuci-noxframe --no-console` to run the launch
-matrix directly.
+`WUCI-NOXFRAME` boots through a quiet Wuci-Ji Systems Substrate splash with the
+prompt: "Welcome to the Wuci-Ji system substrate, hacker. Would you like to
+enter your system?" The default boot renderer profiles the terminal first:
+the rich mechanics-terminal boot requires Kitty, WezTerm, Ghostty, iTerm2, or a
+similar terminal. If the launch starts from a generic local terminal and `kitty`
+is installed, NOXFRAME opens a Kitty window and continues there. Generic, tmux,
+SSH, dumb, and unknown terminals otherwise use a reduced-motion screen that
+avoids rapid full-screen clearing and prints an install hint instead of forcing
+the rich renderer. Pass `--no-terminal-handoff` to stay in the current terminal,
+`--boot-renderer gui` to open the explicit stdlib graphical canvas with a
+black/crimson Wuci-Ji Systems console, box-grid lattice, modular motion
+matrices, data rails, strategic pink/purple signal accents, and the
+`无此机系统` identity line, `--boot-renderer terminal` to force the current
+terminal, `--no-boot-voice` for visual-only boot, or
+`--no-boot-animation` for the plain prompt. It then clears into a bounded
+operator console in interactive terminals. Use `tools/wuci-noxframe
+--no-console` to run the launch matrix directly.
 
 The console carries Phase1-style discovery commands: `help --compact`,
-`man <command>`, `complete <prefix>`, and `capabilities`. It implements local
-substrate, virtual filesystem, text, process, system, history, and session
-commands while keeping host/network passthrough routes non-executing by
-default. The `codex` command is the explicit opt-in bridge: `codex status` and
+`man <command>`, `complete <prefix>`, `capabilities`, and bash-style `TAB`
+completion in interactive TTYs. One entered line can contain multiple NOXFRAME
+commands separated by semicolons, or it can start with `multi`; semicolons
+inside quotes stay inside the command. It implements local
+substrate, Phase/Optics, virtual filesystem, text, process, system, history,
+session, learning, nesting, plugin/WASI catalog, Base1/B1/B2 metadata, and
+quality-check commands while keeping host/network passthrough routes
+non-executing by default. Formerly reserved host, network, dev, and hardware
+names now resolve to bounded local handlers or metadata-only dry-runs.
+
+The NOXFRAME environment is session-local. `env`, `set`, `export`, `unset`,
+`alias`, `unalias`, `which`, and `profile` operate inside the console only, and
+the VFS exposes `/env/profile`, `/env/variables`, `/env/aliases`, and
+`/env/security` for read-only inspection. Phase1-style metadata surfaces are
+available through `phase`, `whereami`, `nest`, `learn`, `plugins`, `wasm`,
+`base1`, `doctor`, `selftest`, and `quality`, with virtual paths under
+`/phase`, `/learn`, `/nests`, and `/dev`.
+
+`learn` stores notes only in the current console session. Plugin/WASI commands
+are catalogs and policy views, not module execution. `version --compare`
+reports the Phase1 idea map and confirms that NOXFRAME imports no Phase1 code.
+Nested substrate prompts show their substratisphere depth, rotate through
+lattice color themes, and support `exit` for one level or `exit all` for every
+nested NOXFRAME level.
+
+Wrap the NOXFRAME substrate and its inner dimensions into a local WJSEAL v2
+artifact bound to Daylight public anchors:
+
+```sh
+mkdir -p build/noxframe
+build/wuci-ji keygen > build/noxframe/daylight-wrap.key
+tools/wuci-noxframe daylight-wrap --daylight-wrap-keyfile build/noxframe/daylight-wrap.key
+```
+
+`daylight-wrap` refuses symlinked or hardlinked keyfiles, rejects drifted
+substrate state, reads the keyfile through a no-follow safe path, invokes the
+existing assembly `seal-file-keyfile-v2` path with `shell=False` using a
+temporary key copy, and writes `build/noxframe/daylight-wrap/manifest.json` plus
+a sealed `noxframe-inner-dimensions.wj` artifact. The manifest records
+SHA-256/SHA-384/SHA-512 digest vectors for the sealed artifact, the wrapped
+NOXFRAME cells, virtual dimensions, substrate state/seal, and Daylight anchors.
+This is local artifact sealing and public evidence binding; it is not a
+runtime-containment, production-authority, independent-audit, or
+whole-system post-quantum safety claim.
+
+The `codex` command is the explicit opt-in bridge: `codex status` and
 `codex handoff` are metadata-only. Start the console with:
 
 ```sh

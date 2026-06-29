@@ -17,30 +17,54 @@ make noxframe-launch
 In an interactive terminal, the boot screen asks:
 
 ```text
-Would you like to boot the Wuci-Ji substrate?
+Welcome to the Wuci-Ji system substrate, hacker. Would you like to enter your system?
 ```
 
 When stdin and stderr are both attached to a TTY, that prompt is shown inside a
-full-screen animated NOXFRAME boot frame. The animation only runs while waiting
-for the operator's answer and can be disabled with `--no-boot-animation`.
-Noninteractive runs, pipes, and tests keep the plain banner and prompt.
+NOXFRAME boot frame. `--boot-renderer auto` profiles the terminal first:
+the rich mechanics-terminal boot requires Kitty, WezTerm, Ghostty, iTerm2, or a
+similar terminal. If the launch starts from a generic local terminal and `kitty`
+is installed, NOXFRAME opens a Kitty window and continues there. Tmux, SSH,
+dumb, unknown, and generic terminals otherwise use a reduced-motion screen that
+avoids rapid full-screen clearing and prints an install hint instead of forcing
+the rich renderer. `--no-terminal-handoff` keeps the current terminal.
+`--boot-renderer gui` explicitly opens a stdlib graphical canvas with a
+black/crimson Wuci-Ji Systems console, box-grid lattice, modular motion
+matrices, data rails, strategic pink/purple signal accents, and the
+`无此机系统` identity line. The animation can be disabled with
+`--no-boot-animation`, or forced with `--boot-renderer terminal`. If a local
+host text-to-speech tool is available, NOXFRAME speaks only that quoted
+sentence once during interactive boot; pass `--no-boot-voice` to keep boot
+visual-only. Noninteractive runs, pipes, and tests keep the plain banner and
+prompt and do not start voice output.
 
 Accepting clears the splash and opens a bounded NOXFRAME console. The console is
 not a host shell. It uses a Phase1-style command registry with `help`,
-`help --compact`, `man <command>`, `complete <prefix>`, and `capabilities`.
+`help --compact`, `man <command>`, `complete <prefix>`, `capabilities`, and
+bash-style `TAB` completion in interactive TTYs. One entered line can contain
+multiple NOXFRAME commands separated by semicolons, or it can start with
+`multi`; semicolons inside quotes stay inside the command. These are still
+registry commands, not host shell pipelines.
 
 Implemented local command families include substrate commands (`status`, `seal`,
-`verify`, `contract`, `launch [auto|smoke|full]`), virtual filesystem commands
-(`pwd`, `ls`, `cd`, `cat`, `tree`), text commands (`grep`, `wc`, `head`,
-`tail`, `find`), process/system views (`ps`, `top`, `sysinfo`, `dash`,
-`dmesg`, `audit`, `opslog`), user/session commands (`env`, `history`,
-`security`, `theme`, `banner`, `tips`, `exit`), and the bounded Codex bridge
-command (`codex`).
+`verify`, `contract`, `launch [auto|smoke|full]`, `self-release`), Phase/Optics
+commands (`phase`, `whereami`, `compass`), virtual filesystem commands (`pwd`,
+`ls`, `cd`, `cat`, `tree`), text commands (`grep`, `wc`, `head`, `tail`,
+`find`, `wiki`), process/system views (`ps`, `top`, `sysinfo`, `dash`,
+`dmesg`, `doctor`, `selftest`, `quality`, `audit`, `opslog`), user/session
+commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
+`profile`, `history`, `security`, `theme`, `banner`, `tips`, `exit`), local
+learning notes (`learn`), nested metadata contexts (`nest`), metadata-only
+plugin/WASI catalogs (`plugins`, `wasm`), guarded Base1/B1/B2 metadata
+(`base1`), and the bounded Codex bridge command (`codex`).
 
 Phase1 host, network, dev, hardware-mutation, and plugin route names are
 discoverable through `help` and `capabilities`, but they do not execute host
 tools, perform network fetches, or open a shell from inside NOXFRAME by
-default.
+default. Formerly reserved names now resolve to bounded local handlers or
+metadata-only dry-run outputs.
+Plugin and WASI routes are catalogs and policy views only; `wasm run` and host
+plugin execution remain unavailable.
 
 Codex is the explicit opt-in bridge. Inside the console, `codex status`,
 `codex handoff`, and `cat /dev/codex` are metadata-only and always available.
@@ -68,6 +92,51 @@ Run the launch matrix directly instead of entering the console:
 ```sh
 tools/wuci-noxframe --no-console
 ```
+
+The console environment is session-local. `env`, `set KEY=value`, `set -o`,
+`alias NAME=COMMAND`, `unalias NAME`, `which <command>`, and `profile` inspect
+or update only the NOXFRAME console state. The virtual filesystem mirrors this
+state under `/env/profile`, `/env/variables`, `/env/aliases`, and
+`/env/security`, with `/env/self-release` showing the noxframe-scoped
+self-release workspace status. Phase, learning, and nesting metadata are
+available under `/phase`, `/learn`, and `/nests`; plugin policy is exposed under
+`/dev/plugins` and `/dev/wasi`. These commands do not open host shell
+execution, host network routes, or runtime containment claims.
+
+`learn add <text>` stores session-local notes only. `nest enter <context>`
+moves the console context to a fixed metadata cell such as `gate` or `qcage`;
+`nest spawn` and `nest destroy` are blocked. `version --compare` prints the
+Phase1 idea map and confirms that NOXFRAME imports no Phase1 code.
+
+Inside the console, `self-release plan` and `self-release status` are metadata
+views. `self-release run bundle|witness|ledger|all` runs the existing make
+targets with subprocess argument vectors and `shell=False`, writing under
+`build/noxframe/`. `self-release shell` enters a nested NOXFRAME metadata prompt
+for that context; it is not a host shell. Nested substrate prompts carry a
+substratisphere depth label such as `L0/root`, `L1/wuci-ji/self-release`, and
+`L2/wuci-ji/self-release`. Each depth rotates through a lattice color theme and
+prints the active lattice in `phase compass`, `phase whereami`, `nest status`,
+and the console header. `exit` leaves one level; `exit all` unwinds every
+nested NOXFRAME level.
+
+`daylight-wrap` seals the NOXFRAME substrate state, substrate seal, cell map,
+virtual dimensions, and Daylight anchor records into a local WJSEAL v2 artifact:
+
+```sh
+mkdir -p build/noxframe
+build/wuci-ji keygen > build/noxframe/daylight-wrap.key
+tools/wuci-noxframe daylight-wrap --daylight-wrap-keyfile build/noxframe/daylight-wrap.key
+```
+
+The command requires an operator-supplied local keyfile, rejects symlinks and
+hardlinks before sealing, refuses drifted substrate state, reads the keyfile
+through a no-follow safe path, and invokes the existing assembly
+`seal-file-keyfile-v2` command with `shell=False` using a temporary key copy. It
+writes `build/noxframe/daylight-wrap/noxframe-inner-dimensions.wj` and
+`build/noxframe/daylight-wrap/manifest.json`. The manifest binds the sealed
+artifact to SHA-256/SHA-384/SHA-512 digest vectors for the inner dimensions and
+Daylight anchors. It does not claim runtime sandboxing, production authority,
+independent audit status, or whole-system post-quantum safety.
 
 The default launch profile is `--profile auto`. Auto mode initializes into
 quick mode and keeps using quick mode until the local NOXFRAME clock reaches
@@ -116,6 +185,13 @@ tools/wuci-noxframe init
 tools/wuci-noxframe status
 tools/wuci-noxframe seal
 tools/wuci-noxframe verify
+tools/wuci-noxframe daylight-wrap --daylight-wrap-keyfile build/noxframe/daylight-wrap.key
+```
+
+NOXFRAME-scoped self-release convenience target:
+
+```sh
+make noxframe-self-release
 ```
 
 The self-seal binds fixed public anchors from Wuci-Ji and Daylight with

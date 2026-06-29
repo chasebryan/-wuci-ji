@@ -81,6 +81,173 @@ def assert_optional_dependency_preflight() -> None:
     )
 
 
+def assert_boot_voice_selection() -> None:
+    text = wuci_black_ice.BOOT_VOICE_TEXT
+    assert wuci_black_ice.boot_voice_command(text, {}) is None
+    assert wuci_black_ice.boot_voice_command(
+        text,
+        {"espeak-ng": "/usr/bin/espeak-ng"},
+    ) == ("/usr/bin/espeak-ng", "-v", "en+f3", "-s", "145", text)
+    assert wuci_black_ice.boot_voice_command(
+        text,
+        {"spd-say": "/usr/bin/spd-say", "espeak-ng": "/usr/bin/espeak-ng"},
+    ) == ("/usr/bin/spd-say", "-t", "female1", "-r", "-20", text)
+    no_voice = argparse.Namespace(yes=False, no_boot_prompt=False, no_boot_voice=True)
+    assert not wuci_black_ice.boot_voice_active(no_voice)
+    terminal_renderer = argparse.Namespace(
+        yes=False,
+        no_boot_prompt=False,
+        no_boot_animation=False,
+        boot_renderer="terminal",
+    )
+    assert not wuci_black_ice.boot_gui_candidate(terminal_renderer)
+    gui_renderer = argparse.Namespace(
+        yes=False,
+        no_boot_prompt=False,
+        no_boot_animation=False,
+        boot_renderer="gui",
+    )
+    assert wuci_black_ice.boot_gui_candidate(gui_renderer) == sys.stdin.isatty()
+
+    kitty = wuci_black_ice.detect_boot_terminal({"TERM": "xterm-kitty", "KITTY_WINDOW_ID": "1"})
+    assert kitty.name == "kitty"
+    assert kitty.rich_animation
+    tmux = wuci_black_ice.detect_boot_terminal({"TERM": "screen-256color", "TMUX": "/tmp/tmux"})
+    assert tmux.name == "tmux"
+    assert tmux.reduced_motion
+    remote = wuci_black_ice.detect_boot_terminal({"TERM": "xterm-256color", "SSH_CONNECTION": "1"})
+    assert remote.name == "remote"
+    assert remote.reduced_motion
+    dumb = wuci_black_ice.detect_boot_terminal({"TERM": "dumb"})
+    assert dumb.name == "dumb"
+    assert dumb.reduced_motion
+
+
+def noxframe_args(**overrides: object) -> argparse.Namespace:
+    values: dict[str, object] = {
+        "command": "launch",
+        "no_console": False,
+        "boot_renderer": "auto",
+        "no_terminal_handoff": False,
+    }
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+def assert_mechanics_terminal_handoff() -> None:
+    generic_env = {"TERM": "xterm-256color", "DISPLAY": ":0"}
+    kitty_env = {"TERM": "xterm-kitty", "KITTY_WINDOW_ID": "1", "DISPLAY": ":0"}
+    ghostty = wuci_black_ice.detect_boot_terminal(
+        {"TERM": "xterm-256color", "TERM_PROGRAM": "ghostty", "DISPLAY": ":0"}
+    )
+    assert ghostty.name == "ghostty"
+    assert ghostty.rich_animation
+
+    assert wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env=generic_env,
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env=kitty_env,
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(boot_renderer="terminal"),
+        env=generic_env,
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(no_console=True),
+        env=generic_env,
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env=generic_env,
+        stdin_tty=False,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env={"TERM": "xterm-256color"},
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env={"TERM": "screen-256color", "TMUX": "/tmp/tmux", "DISPLAY": ":0"},
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env={"TERM": "xterm-256color", "SSH_CONNECTION": "1", "DISPLAY": ":0"},
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert not wuci_black_ice.should_handoff_to_mechanics_terminal(
+        noxframe_args(),
+        env={**generic_env, wuci_black_ice.TERMINAL_HANDOFF_ENV: "1"},
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+
+    argv = (str(DEFAULT_LAUNCHER), "--console")
+    command = wuci_black_ice.mechanics_terminal_handoff_command(
+        REPO,
+        noxframe_args(),
+        env=generic_env,
+        command_paths={"kitty": "/usr/bin/kitty"},
+        argv=argv,
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    )
+    assert command == (
+        "/usr/bin/kitty",
+        "--title",
+        "WUCI-NOXFRAME",
+        "--working-directory",
+        str(REPO),
+        str(DEFAULT_LAUNCHER),
+        "--console",
+    )
+    assert wuci_black_ice.mechanics_terminal_handoff_command(
+        REPO,
+        noxframe_args(),
+        env=generic_env,
+        command_paths={"kitty": None},
+        argv=argv,
+        stdin_tty=True,
+        stdout_tty=True,
+        stderr_tty=True,
+    ) is None
+
+
+def assert_console_multicommand_logic() -> None:
+    assert wuci_black_ice.split_console_multicommands(
+        "phase compass ; nest tree ; nest enter gate"
+    ) == ["phase compass", "nest tree", "nest enter gate"]
+    assert wuci_black_ice.split_console_multicommands(
+        "echo 'a; b' ; phase whereami"
+    ) == ["echo 'a; b'", "phase whereami"]
+
+
 def assert_clock_decisions(tmp: Path) -> None:
     clock = tmp / "clock.json"
     now = dt.datetime(2026, 6, 29, 12, 0, 0, tzinfo=dt.UTC)
@@ -180,6 +347,8 @@ def assert_substrate_commands(launcher: Path, tmp: Path) -> None:
     assert contract_payload["schema"] == "wuci-noxframe-substrate-contract-v1"
     assert contract_payload["phase1_continuation"]["source_repository"] == "https://github.com/Bryforge/phase1"
     assert "Phase1 code" in contract_payload["phase1_continuation"]["ideas_not_imported"]
+    feature_ids = {item["id"] for item in contract_payload["phase1_feature_map"]}
+    assert {"optics", "nest", "learn", "wasi", "base1", "quality"} <= feature_ids
 
     init = subprocess.run(
         [str(launcher), "init", *common],
@@ -237,6 +406,163 @@ def assert_substrate_commands(launcher: Path, tmp: Path) -> None:
     assert verify_payload["status"] == "pass"
 
 
+def assert_daylight_wrap(launcher: Path, tmp: Path) -> None:
+    bin_path = REPO / "build" / "wuci-ji"
+    assert bin_path.exists()
+    keyfile = tmp / "daylight-wrap.key"
+    keyfile.write_text(("11" * 32) + "\n", encoding="ascii")
+    state = tmp / "wrap-state.json"
+    substrate_seal = tmp / "wrap-substrate-seal.json"
+    out_dir = tmp / "daylight-wrap"
+    wrap = subprocess.run(
+        [
+            str(launcher),
+            "daylight-wrap",
+            "--bin",
+            str(bin_path),
+            "--substrate-state",
+            str(state),
+            "--substrate-seal",
+            str(substrate_seal),
+            "--daylight-wrap-keyfile",
+            str(keyfile),
+            "--daylight-wrap-out",
+            str(out_dir),
+            "--json",
+        ],
+        cwd=REPO,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert wrap.returncode == 0, wrap.stderr + wrap.stdout
+    manifest = json.loads(wrap.stdout)
+    assert manifest["schema"] == "wuci-noxframe-daylight-wrap-v1"
+    assert manifest["status"] == "sealed"
+    assert manifest["wrap_scheme"]["artifact_envelope"] == "WJSEAL-v2 via seal-file-keyfile-v2"
+    assert manifest["guards"]["shell"] == "disabled; subprocess invoked with shell=False"
+    assert manifest["guards"]["network"] == "unused"
+    assert len(manifest["key_id"]) == 32
+    assert "not OS runtime containment" in manifest["non_claims"]
+    assert "not whole-system post-quantum safety" in manifest["non_claims"]
+    dimension_ids = {record["id"] for record in manifest["inner_dimensions"]}
+    assert {"root", "wuci-ji", "daylight", "cage", "qcage", "install", "codex"} <= dimension_ids
+    daylight_anchor_paths = {record["path"] for record in manifest["daylight_anchors"]}
+    assert "daylight-equation/SCORECARD.v1.json" in daylight_anchor_paths
+    assert "daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs" in daylight_anchor_paths
+
+    artifact = Path(manifest["sealed_artifact"]["path"])
+    assert artifact.exists()
+    assert artifact.read_bytes()
+    opened = tmp / "daylight-wrap-opened.json"
+    opened_proc = subprocess.run(
+        [
+            str(bin_path),
+            "open-file-keyfile",
+            str(keyfile),
+            str(artifact),
+            str(opened),
+        ],
+        cwd=REPO,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert opened_proc.returncode == 0, opened_proc.stderr + opened_proc.stdout
+    opened_bytes = opened.read_bytes()
+    assert wuci_black_ice.digest_vector(opened_bytes) == manifest["bundle_digest_vector"]
+    bundle = json.loads(opened_bytes.decode("utf-8"))
+    assert bundle["schema"] == "wuci-noxframe-daylight-wrap-bundle-v1"
+    assert bundle["dimension_digest_vector"] == manifest["dimension_digest_vector"]
+    assert not (out_dir / "noxframe-inner-dimensions.bundle.json").exists()
+
+    if hasattr(os, "symlink"):
+        link_key = tmp / "daylight-wrap-link.key"
+        link_key.symlink_to(keyfile)
+        link_proc = subprocess.run(
+            [
+                str(launcher),
+                "daylight-wrap",
+                "--bin",
+                str(bin_path),
+                "--substrate-state",
+                str(state),
+                "--substrate-seal",
+                str(substrate_seal),
+                "--daylight-wrap-keyfile",
+                str(link_key),
+                "--daylight-wrap-out",
+                str(tmp / "daylight-wrap-link"),
+            ],
+            cwd=REPO,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        assert link_proc.returncode != 0
+        assert "symlink" in link_proc.stderr
+
+    if hasattr(os, "link"):
+        hard_source = tmp / "daylight-wrap-hard-source.key"
+        hard_key = tmp / "daylight-wrap-hard.key"
+        hard_source.write_text(("22" * 32) + "\n", encoding="ascii")
+        try:
+            os.link(hard_source, hard_key)
+        except OSError:
+            pass
+        else:
+            hard_proc = subprocess.run(
+                [
+                    str(launcher),
+                    "daylight-wrap",
+                    "--bin",
+                    str(bin_path),
+                    "--substrate-state",
+                    str(state),
+                    "--substrate-seal",
+                    str(substrate_seal),
+                    "--daylight-wrap-keyfile",
+                    str(hard_source),
+                    "--daylight-wrap-out",
+                    str(tmp / "daylight-wrap-hard"),
+                ],
+                cwd=REPO,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            assert hard_proc.returncode != 0
+            assert "hardlinked" in hard_proc.stderr
+
+    second = subprocess.run(
+        [
+            str(launcher),
+            "daylight-wrap",
+            "--bin",
+            str(bin_path),
+            "--substrate-state",
+            str(state),
+            "--substrate-seal",
+            str(substrate_seal),
+            "--daylight-wrap-keyfile",
+            str(keyfile),
+            "--daylight-wrap-out",
+            str(out_dir),
+        ],
+        cwd=REPO,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert second.returncode != 0
+    assert "overwrite" in second.stderr
+
+
 def assert_boot_prompt_and_banner(launcher: Path, tmp: Path) -> None:
     declined = subprocess.run(
         [
@@ -257,19 +583,20 @@ def assert_boot_prompt_and_banner(launcher: Path, tmp: Path) -> None:
         check=False,
     )
     assert declined.returncode == 130
-    assert "Would you like to boot the Wuci-Ji substrate?" in declined.stderr
+    assert wuci_black_ice.BOOT_VOICE_TEXT in declined.stderr
     assert "\x1b[31m" in declined.stderr
     assert "WUCI-JI" in declined.stderr
-    assert "█████╗" in declined.stderr
     assert "WUCI-I JI" not in declined.stderr
-    assert "无   此   机   系   统" in declined.stderr
-    assert "wu   ci   ji   xi   tong" in declined.stderr
-    assert "Wuci-Ji Systems" in declined.stderr
+    assert "proof trace" not in declined.stderr
+    assert "operator gate" not in declined.stderr
     assert "no production authority" not in declined.stderr
     plain = strip_ansi(declined.stderr)
-    framed = [line for line in plain.splitlines() if line.startswith("|")]
-    assert framed
-    assert len({display_width(line) for line in framed}) == 1
+    assert "Wuci-Ji Systems Substrate" in plain
+    assert "NOXFRAME" in plain
+    assert wuci_black_ice.BOOT_IDEOGRAPH_TEXT in plain
+    scene = [line for line in plain.splitlines() if line and not line.startswith(wuci_black_ice.BOOT_VOICE_TEXT)]
+    assert scene
+    assert len({display_width(line) for line in scene[:-1]}) <= 2
 
     env = dict(os.environ)
     env["COLUMNS"] = "46"
@@ -293,34 +620,47 @@ def assert_boot_prompt_and_banner(launcher: Path, tmp: Path) -> None:
         check=False,
     )
     assert narrow.returncode == 130
-    narrow_framed = [line for line in narrow.stderr.splitlines() if line.startswith("|")]
-    assert narrow_framed
-    assert max(display_width(line) for line in narrow_framed) <= 46
+    narrow_scene = [
+        line for line in narrow.stderr.splitlines()
+        if line and "Welcome to the Wuci-Ji" not in line
+    ]
+    assert narrow_scene
+    assert max(display_width(line) for line in narrow_scene[:-1]) <= 46
     assert "WUCI-JI" in narrow.stderr
 
 
 def assert_boot_animation_frame() -> None:
-    prompt = "Would you like to boot the Wuci-Ji substrate? [y/N] "
     buffer = io.StringIO()
     with contextlib.redirect_stderr(buffer):
         wuci_black_ice.print_banner(
             wuci_black_ice.Palette("never"),
             frame=3,
             full_screen=True,
-            prompt=prompt,
+            prompt=wuci_black_ice.BOOT_PROMPT,
             answer="y",
-        )
+    )
     text = buffer.getvalue()
     assert text.startswith("\033[2J\033[H")
-    assert "awaiting operator boot decision" in text
-    assert prompt + "y" in text
+    assert "Welcome to the Wuci-Ji system substrate" in text
+    assert "enter your system" in text
+    assert "[y/N] y" in text
+    assert "awaiting operator boot decision" not in text
+    assert "operator gate" not in text
+    assert "proof trace" not in text
     assert "WUCI-JI" in text
     assert "WUCI-I JI" not in text
-    assert "无   此   机   系   统" in text
+    assert "Wuci-Ji Systems Substrate" in text
+    assert "NOXFRAME" in text
+    assert wuci_black_ice.BOOT_IDEOGRAPH_TEXT in text
+    assert "[2 1; 1 1]" in text
+    assert "┌" in text
+    assert "┼" in text
+    assert "SEAL" not in text
+    assert "BUS" not in text
     plain = strip_ansi(text.replace("\033[2J\033[H", ""))
-    framed = [line for line in plain.splitlines() if line.startswith("|") or line.startswith("+")]
-    assert framed
-    assert len({display_width(line) for line in framed}) == 1
+    scene = [line for line in plain.splitlines() if line]
+    assert scene
+    assert len({display_width(line) for line in scene}) == 1
 
 
 def assert_console_exit(launcher: Path, tmp: Path) -> None:
@@ -347,12 +687,83 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
             "ls /proc\n"
             "cat /proc/cells\n"
             "cat /dev/codex\n"
+            "cat /dev/plugins\n"
+            "cat /phase/features\n"
+            "cat /nests/contexts\n"
+            "cat /learn/status\n"
+            "cat /env/profile\n"
+            "cat /env/variables\n"
+            "cat /env/self-release\n"
+            "phase map\n"
+            "whereami\n"
+            "nest list\n"
+            "nest inspect daylight\n"
+            "nest enter gate\n"
+            "phase whereami\n"
+            "learn add Gate notes stay local\n"
+            "learn list\n"
+            "plugins list\n"
+            "wasm policy\n"
+            "wiki qcage\n"
+            "base1 b1\n"
+            "doctor\n"
+            "selftest\n"
+            "quality\n"
+            "version --compare\n"
             "sysinfo\n"
             "ps\n"
+            "self-release plan\n"
+            "self-release status\n"
+            "self-release shell\n"
+            "profile\n"
+            "exit\n"
             "man codex\n"
             "codex status\n"
             "codex version\n"
+            "profile\n"
+            "set -o\n"
+            "set FRAME=ready\n"
+            "env\n"
+            "which browser\n"
+            "alias ep='cat /env/profile'\n"
+            "alias\n"
+            "ep\n"
+            "unalias ep\n"
+            "mkdir /tmp\n"
+            "touch /tmp/a\n"
+            "ls /tmp\n"
+            "cp /proc/version /tmp/version\n"
+            "cat /tmp/version\n"
+            "mv /tmp/version /tmp/version2\n"
+            "rm /tmp/version2\n"
+            "spawn worker\n"
+            "jobs\n"
+            "bg 100\n"
+            "fg 100\n"
+            "nice 100 5\n"
+            "kill 100\n"
+            "ps\n"
+            "ifconfig\n"
+            "iwconfig\n"
+            "wifi-scan\n"
+            "wifi-connect lab\n"
+            "ping example.invalid\n"
+            "nmcli\n"
             "browser about\n"
+            "git status\n"
+            "gh status\n"
+            "cargo build\n"
+            "rustc --version\n"
+            "python3 --version\n"
+            "go version\n"
+            "python --version\n"
+            "gcc --version\n"
+            "avim /proc/version\n"
+            "dev status\n"
+            "loadcr3 0x3000\n"
+            "pcide on\n"
+            "cr3\n"
+            "cr4\n"
             "history\n"
             "exit\n"
         ),
@@ -363,7 +774,7 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     )
     assert proc.returncode == 0, proc.stderr + proc.stdout
     assert "noxframe help // compact" in proc.stdout
-    assert "substrate: status seal verify contract launch" in proc.stdout
+    assert "substrate: status seal verify contract launch self-release" in proc.stdout
     assert "usage      : sysinfo" in proc.stdout
     assert "usage      : codex" in proc.stdout
     assert "guard      : explicit-opt-in" in proc.stdout
@@ -376,12 +787,113 @@ def assert_console_exit(launcher: Path, tmp: Path) -> None:
     assert "codex bridge: disabled" in proc.stdout
     assert "restart NOXFRAME with --allow-codex" in proc.stdout
     assert "codex-bridge" in proc.stdout
-    assert "PID  STATE   NAME" in proc.stdout
-    assert "browser: route unavailable in NOXFRAME console" in proc.stdout
+    assert "schema: wuci-noxframe-phase-map-v1" in proc.stdout
+    assert "schema: wuci-noxframe-phase-whereami-v1" in proc.stdout
+    assert "schema: wuci-noxframe-plugin-catalog-v1" in proc.stdout
+    assert "schema: wuci-noxframe-plugin-policy-v1" in proc.stdout
+    assert "schema: wuci-noxframe-learn-status-v1" in proc.stdout
+    assert "schema: wuci-noxframe-base1-dry-run-v1" in proc.stdout
+    assert "schema: wuci-noxframe-doctor-v1" in proc.stdout
+    assert "schema: wuci-noxframe-selftest-v1" in proc.stdout
+    assert "schema: wuci-noxframe-quality-scorecard-v1" in proc.stdout
+    assert "implemented-ideas: terminal, vfs, proc, optics, nest, learn, fyr, wasi, base1, quality" in proc.stdout
+    assert "context: gate" in proc.stdout
+    assert "learn: stored session note 1" in proc.stdout
+    assert "1. Gate notes stay local" in proc.stdout
+    assert "qcage: QCAGE labels quantum risk" in proc.stdout
+    assert "schema: wuci-noxframe-session-profile-v1" in proc.stdout
+    assert "schema: wuci-noxframe-self-release-plan-v1" in proc.stdout
+    assert "schema: wuci-noxframe-self-release-status-v1" in proc.stdout
+    assert "WUCI-JI / NOXFRAME self-release shell" in proc.stdout
+    assert "context: wuci-ji/self-release" in proc.stdout
+    assert "NOXFRAME_PROFILE=auto" in proc.stdout
+    assert "FRAME=ready" in proc.stdout
+    assert "set -o no_host_passthrough=on" in proc.stdout
+    assert "which: browser" in proc.stdout
+    assert "ep='cat /env/profile'" in proc.stdout
+    assert "mkdir: created /tmp/" in proc.stdout
+    assert "touch: /tmp/a" in proc.stdout
+    assert "cp: /proc/version -> /tmp/version" in proc.stdout
+    assert "WUCI-NOXFRAME substrate console" in proc.stdout
+    assert "mv: /tmp/version -> /tmp/version2" in proc.stdout
+    assert "rm: removed /tmp/version2" in proc.stdout
+    assert "spawn: pid=100 name=worker" in proc.stdout
+    assert "bg: pid=100 state=background" in proc.stdout
+    assert "fg: pid=100 state=foreground" in proc.stdout
+    assert "nice: pid=100 priority=5" in proc.stdout
+    assert "kill: pid=100 state=terminated" in proc.stdout
+    assert "PID  STATE       PRI  NAME" in proc.stdout
+    assert "worker" in proc.stdout
+    assert "ifconfig: nox0" in proc.stdout
+    assert "iwconfig: no wireless extensions" in proc.stdout
+    assert "wifi-scan: skipped" in proc.stdout
+    assert "wifi-connect: denied by NOXFRAME policy; ssid=lab" in proc.stdout
+    assert "ping: no packets sent; host=example.invalid; policy=no-network" in proc.stdout
+    assert "nmcli: virtual NetworkManager state disconnected" in proc.stdout
+    assert "browser: metadata-only local route" in proc.stdout
+    assert "git: metadata-only; host git argv not executed" in proc.stdout
+    assert "gh: metadata-only; GitHub CLI argv not executed" in proc.stdout
+    assert "cargo: dry-run route; host executable not launched" in proc.stdout
+    assert "rustc: dry-run route; host executable not launched" in proc.stdout
+    assert "python3: dry-run route; host executable not launched" in proc.stdout
+    assert "go: dry-run route; host executable not launched" in proc.stdout
+    assert "python: dry-run route; host executable not launched" in proc.stdout
+    assert "gcc: dry-run route; host executable not launched" in proc.stdout
+    assert "avim: read-only virtual preview /proc/version" in proc.stdout
+    assert "dev: self-development lane metadata" in proc.stdout
+    assert "loadcr3: 0x3000" in proc.stdout
+    assert "pcide: on" in proc.stdout
+    assert "cr3: 0x3000 (virtual)" in proc.stdout
+    assert "cr4: pcide=on pae=on pse=on (virtual)" in proc.stdout
     assert "history" in proc.stdout
     assert "再见，黑客。" in proc.stdout
     assert "Goodbye, Hacker." in proc.stdout
     assert not wuci_black_ice.boot_answer_allows("no")
+
+
+def assert_console_multicommand_depth_exit_all(launcher: Path, tmp: Path) -> None:
+    proc = subprocess.run(
+        [
+            str(launcher),
+            "--console",
+            "--yes",
+            "--color",
+            "always",
+            "--clock",
+            str(tmp / "multi-depth-clock.json"),
+            "--substrate-state",
+            str(tmp / "multi-depth-state.json"),
+            "--substrate-seal",
+            str(tmp / "multi-depth-seal.json"),
+        ],
+        cwd=REPO,
+        input=(
+            "multi phase compass ; nest enter gate ; phase whereami\n"
+            "self-release shell\n"
+            "multi nest enter witness ; phase whereami ; self-release shell\n"
+            "multi nest enter ledger ; phase whereami ; exit all\n"
+        ),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    combined = proc.stderr + proc.stdout
+    assert proc.returncode == 0, combined
+    assert "substratisphere: depth=0 lattice=root-red-lattice" in combined
+    assert "substratisphere_depth: 0" in combined
+    assert "substratisphere_depth: 1" in combined
+    assert "substratisphere_depth: 2" in combined
+    assert "lattice: amber-gate-lattice" in combined
+    assert "lattice: green-witness-lattice" in combined
+    assert "context: gate" in combined
+    assert "context: witness" in combined
+    assert "context: ledger" in combined
+    assert "exit: all NOXFRAME levels requested" in combined
+    assert "self-release shell: exit all requested" in combined
+    assert "\x1b[31m" in combined
+    assert "\x1b[33m" in combined
+    assert "\x1b[32m" in combined
 
 
 def assert_codex_bridge_process(launcher: Path, tmp: Path) -> None:
@@ -424,21 +936,34 @@ def console_command_matrix() -> dict[str, str]:
         "verify": "verify",
         "contract": "contract",
         "launch": "launch smoke",
+        "self-release": "self-release status",
+        "phase": "phase whereami",
         "pwd": "pwd",
         "ls": "ls /",
         "cd": "cd /docs",
         "cat": "cat /proc/version",
         "tree": "tree /",
         "echo": "echo noxframe command matrix",
+        "mkdir": "mkdir /tmp",
+        "touch": "touch /tmp/matrix",
+        "rm": "rm /tmp/matrix",
+        "cp": "cp /proc/version /tmp/version",
+        "mv": "mv /tmp/version /tmp/version2",
         "grep": "grep NOXFRAME /proc/version",
         "wc": "wc /proc/version",
         "head": "head -n 1 /proc/version",
         "tail": "tail -n 1 /proc/version",
         "find": "find / -name status",
         "pipeline": "pipeline",
+        "wiki": "wiki phase1",
         "ps": "ps",
         "top": "top",
         "jobs": "jobs",
+        "spawn": "spawn worker",
+        "fg": "fg 100",
+        "bg": "bg 100",
+        "kill": "kill 100",
+        "nice": "nice 100 5",
         "sysinfo": "sysinfo",
         "dash": "dash",
         "free": "free",
@@ -449,11 +974,19 @@ def console_command_matrix() -> dict[str, str]:
         "date": "date",
         "uptime": "uptime",
         "hostname": "hostname",
+        "doctor": "doctor",
+        "selftest": "selftest",
+        "quality": "quality",
         "audit": "audit",
         "opslog": "opslog tail",
         "env": "env",
+        "set": "set -o",
         "export": "export MATRIX=pass",
         "unset": "unset MATRIX",
+        "alias": "alias st=status",
+        "unalias": "unalias st",
+        "which": "which status",
+        "profile": "profile",
         "whoami": "whoami",
         "id": "id",
         "accounts": "accounts",
@@ -462,15 +995,38 @@ def console_command_matrix() -> dict[str, str]:
         "theme": "theme list",
         "banner": "banner",
         "tips": "tips",
+        "learn": "learn status",
+        "ifconfig": "ifconfig",
+        "iwconfig": "iwconfig",
+        "wifi-scan": "wifi-scan",
+        "wifi-connect": "wifi-connect lab",
+        "ping": "ping example.invalid",
+        "nmcli": "nmcli",
+        "browser": "browser about",
+        "git": "git status",
+        "gh": "gh status",
+        "cargo": "cargo build",
+        "rustc": "rustc --version",
+        "python3": "python3 --version",
+        "go": "go version",
+        "python": "python --version",
+        "gcc": "gcc --version",
         "update": "update plan",
+        "plugins": "plugins status",
+        "wasm": "wasm list",
         "codex": "codex status",
+        "avim": "avim /proc/version",
+        "dev": "dev status",
         "repo": "repo status",
         "fyr": "fyr status",
+        "base1": "base1 status",
         "lang": "lang support",
         "lspci": "lspci",
         "pcie": "pcie",
         "cr3": "cr3",
+        "loadcr3": "loadcr3 0x4000",
         "cr4": "cr4",
+        "pcide": "pcide on",
         "help": "help --compact",
         "man": "man status",
         "complete": "complete se",
@@ -478,18 +1034,126 @@ def console_command_matrix() -> dict[str, str]:
         "matrix": "matrix",
         "bootcfg": "bootcfg show",
         "clear": "clear",
-        "version": "version",
+        "version": "version --compare",
         "roadmap": "roadmap",
         "sandbox": "sandbox",
-        "nest": "nest status",
+        "nest": "nest tree",
+        "multi": "multi phase compass ; nest status",
         "exit": "exit",
     }
-    for spec in wuci_black_ice.CONSOLE_COMMANDS:
-        if spec.guard == "unavailable":
-            samples.setdefault(spec.name, f"{spec.name} demo")
     missing = sorted(spec.name for spec in wuci_black_ice.CONSOLE_COMMANDS if spec.name not in samples)
     assert not missing, f"missing NOXFRAME console matrix sample(s): {missing}"
     return samples
+
+
+def assert_no_unavailable_command_markers() -> None:
+    marker = wuci_black_ice.UNAVAILABLE_COMMAND_PREFIX
+    unavailable = [
+        spec for spec in wuci_black_ice.CONSOLE_COMMANDS if spec.guard == "unavailable"
+    ]
+    assert not unavailable, [spec.name for spec in unavailable]
+
+    for spec in wuci_black_ice.CONSOLE_COMMANDS:
+        display_name = wuci_black_ice.command_display_name(spec)
+        display_usage = wuci_black_ice.command_display_usage(spec)
+        assert not display_name.startswith(marker), spec.name
+        assert not display_usage.startswith(marker), spec.name
+        assert wuci_black_ice.console_lookup(f"/{spec.name}") is None
+
+    compact = wuci_black_ice.console_help_text(["--compact"])
+    assert marker not in compact
+
+    fs_help = wuci_black_ice.console_help_text(["fs"])
+    assert marker not in fs_help
+    assert "mkdir <dir>" in fs_help
+
+    manual = wuci_black_ice.console_man_text("mkdir")
+    assert manual is not None
+    assert manual.startswith("mkdir\n")
+    assert "usage      : mkdir <dir>" in manual
+
+    completions = wuci_black_ice.console_completions("/")
+    assert not completions
+
+    capabilities = wuci_black_ice.console_capabilities_text()
+    assert marker not in capabilities
+
+
+def assert_console_completion_logic() -> None:
+    session = wuci_black_ice.ConsoleSession()
+
+    status = wuci_black_ice.console_completion_plan(session, "sta")
+    assert status.matches == ("status",)
+    assert status.append_space is True
+
+    browser = wuci_black_ice.console_completion_plan(session, "bro")
+    assert browser.matches == ("browser",)
+    assert browser.append_space is True
+
+    slash_browser = wuci_black_ice.console_completion_plan(session, "/bro")
+    assert slash_browser.matches == ()
+    assert slash_browser.append_space is False
+
+    root_path = wuci_black_ice.console_completion_plan(session, "cat /pr")
+    assert root_path.matches == ("/proc/",)
+    assert root_path.append_space is False
+
+    proc_file = wuci_black_ice.console_completion_plan(session, "cat /proc/ce")
+    assert proc_file.matches == ("/proc/cells",)
+    assert proc_file.append_space is True
+
+    session.cwd = "/docs"
+    docs_file = wuci_black_ice.console_completion_plan(session, "cat st")
+    assert docs_file.matches == ("state.json", "status.json")
+    assert docs_file.append_space is False
+
+    docs_dir = wuci_black_ice.console_completion_plan(session, "cd /do")
+    assert docs_dir.matches == ("/docs/",)
+    assert docs_dir.append_space is False
+
+    launch = wuci_black_ice.console_completion_plan(session, "launch f")
+    assert launch.matches == ("full",)
+    assert launch.append_space is True
+
+    phase = wuci_black_ice.console_completion_plan(session, "phase fea")
+    assert phase.matches == ("features",)
+    assert phase.append_space is True
+
+    self_release = wuci_black_ice.console_completion_plan(session, "self-release sta")
+    assert self_release.matches == ("status",)
+    assert self_release.append_space is True
+
+    man_reserved = wuci_black_ice.console_completion_plan(session, "man /mk")
+    assert man_reserved.matches == ()
+    assert man_reserved.append_space is False
+
+    which_alias = wuci_black_ice.console_completion_plan(session, "which git")
+    assert which_alias.matches == ("git", "github")
+
+    session.env["NOXFRAME_EXTRA"] = "1"
+    unset_env = wuci_black_ice.console_completion_plan(session, "unset NOXF")
+    assert "NOXFRAME" in unset_env.matches
+    assert "NOXFRAME_EXTRA" in unset_env.matches
+
+    export_env = wuci_black_ice.console_completion_plan(session, "export NOXFRAME_M")
+    assert export_env.matches == ("NOXFRAME_MODE=",)
+
+    session.aliases["st"] = "status"
+    unalias = wuci_black_ice.console_completion_plan(session, "unalias s")
+    assert unalias.matches == ("st",)
+    assert unalias.append_space is True
+
+    nest = wuci_black_ice.console_completion_plan(session, "nest enter ga")
+    assert nest.matches == ("gate",)
+    assert nest.append_space is True
+
+    wiki = wuci_black_ice.console_completion_plan(session, "wiki q")
+    assert wiki.matches == ("qcage",)
+    assert wiki.append_space is True
+
+    plugins = wuci_black_ice.console_completion_plan(session, "plugins po")
+    assert plugins.matches == ("policy",)
+    assert plugins.append_space is True
 
 
 def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
@@ -536,8 +1200,26 @@ def assert_console_command_matrix(launcher: Path, tmp: Path) -> None:
     assert "launch-result: 0" in proc.stdout
     assert "root/" in proc.stdout
     assert "noxframe help // compact" in proc.stdout
-    assert "loadcr3: route unavailable in NOXFRAME console" in proc.stdout
-    assert "pcide: route unavailable in NOXFRAME console" in proc.stdout
+    assert "mkdir: created /tmp/" in proc.stdout
+    assert "touch: /tmp/matrix" in proc.stdout
+    assert "rm: removed /tmp/matrix" in proc.stdout
+    assert "cp: /proc/version -> /tmp/version" in proc.stdout
+    assert "mv: /tmp/version -> /tmp/version2" in proc.stdout
+    assert "spawn: pid=100 name=worker" in proc.stdout
+    assert "fg: pid=100 state=foreground" in proc.stdout
+    assert "bg: pid=100 state=background" in proc.stdout
+    assert "kill: pid=100 state=terminated" in proc.stdout
+    assert "nice: pid=100 priority=5" in proc.stdout
+    assert "ifconfig: nox0" in proc.stdout
+    assert "wifi-scan: skipped" in proc.stdout
+    assert "browser: metadata-only local route" in proc.stdout
+    assert "git: metadata-only; host git argv not executed" in proc.stdout
+    assert "gh: metadata-only; GitHub CLI argv not executed" in proc.stdout
+    assert "cargo: dry-run route; host executable not launched" in proc.stdout
+    assert "avim: read-only virtual preview /proc/version" in proc.stdout
+    assert "dev: self-development lane metadata" in proc.stdout
+    assert "loadcr3: 0x4000" in proc.stdout
+    assert "pcide: on" in proc.stdout
     assert (tmp / "matrix-report.md").exists()
     assert (tmp / "matrix-seal.json").exists()
 
@@ -582,7 +1264,7 @@ def assert_console_alias_matrix(launcher: Path, tmp: Path) -> None:
     assert "parse error:" not in combined
     assert "Traceback" not in combined
     assert "codex bridge: disabled" in proc.stdout
-    assert "gh: route unavailable in NOXFRAME console" in proc.stdout
+    assert "gh: metadata-only; GitHub CLI argv not executed" in proc.stdout
 
     for index, alias in enumerate(exit_aliases):
         exit_proc = subprocess.run(
@@ -620,11 +1302,17 @@ def assert_launcher(launcher: Path) -> None:
         clock = tmp / "clock.json"
         assert_public_anchor_rejections(tmp)
         assert_optional_dependency_preflight()
+        assert_boot_voice_selection()
+        assert_mechanics_terminal_handoff()
+        assert_console_multicommand_logic()
         assert_clock_decisions(tmp)
+        assert_no_unavailable_command_markers()
+        assert_console_completion_logic()
         assert_substrate_commands(launcher, tmp)
         assert_boot_prompt_and_banner(launcher, tmp)
         assert_boot_animation_frame()
         assert_console_exit(launcher, tmp)
+        assert_console_multicommand_depth_exit_all(launcher, tmp)
         assert_codex_bridge_process(launcher, tmp)
         assert_console_command_matrix(launcher, tmp)
         assert_console_alias_matrix(launcher, tmp)
@@ -687,6 +1375,7 @@ def assert_launcher(launcher: Path) -> None:
         clock_state = json.loads(clock.read_text(encoding="utf-8"))
         assert clock_state["last_effective_profile"] == "smoke"
         assert clock_state["last_requested_profile"] == "smoke"
+        assert_daylight_wrap(launcher, tmp)
 
 
 def main() -> None:

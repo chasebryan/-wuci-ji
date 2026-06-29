@@ -6,6 +6,7 @@ import datetime as dt
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import select
@@ -22,6 +23,11 @@ import unicodedata
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+
+try:
+    import readline
+except ImportError:  # pragma: no cover - platform fallback
+    readline = None
 
 
 @dataclass(frozen=True)
@@ -41,14 +47,43 @@ class ConsoleSession:
     started_monotonic: float = field(default_factory=time.monotonic)
     history: list[str] = field(default_factory=list)
     audit: list[str] = field(default_factory=list)
-    env: dict[str, str] = field(
-        default_factory=lambda: {
-            "USER": "operator",
-            "HOME": "/wuci",
-            "SHELL": "noxframe",
-            "TERM": "xterm-256color",
-        }
-    )
+    aliases: dict[str, str] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
+    vfs_dirs: set[str] = field(default_factory=set)
+    vfs_files: dict[str, str] = field(default_factory=dict)
+    jobs: dict[int, dict[str, str]] = field(default_factory=dict)
+    next_pid: int = 100
+    env: dict[str, str] = field(default_factory=lambda: default_console_env())
+
+
+@dataclass(frozen=True)
+class BootTerminalProfile:
+    name: str
+    rich_animation: bool
+    reduced_motion: bool
+    frame_delay: float
+
+
+@dataclass(frozen=True)
+class ConsoleDepthTheme:
+    name: str
+    prompt_color: str
+    header_color: str
+    accent_color: str
+    rail: str
+
+
+TERMINAL_HANDOFF_ENV = "NOXFRAME_TERMINAL_HANDOFF"
+MECHANICS_TERMINAL_NAMES = ("kitty", "wezterm", "ghostty", "iterm")
+MECHANICS_TERMINAL_HINT = "kitty, WezTerm, Ghostty, or iTerm2"
+DEPTH_THEMES = (
+    ConsoleDepthTheme("root-red-lattice", "31", "31", "35", "◇─◇─◇"),
+    ConsoleDepthTheme("amber-gate-lattice", "33", "33", "31", "◆═◆═◆"),
+    ConsoleDepthTheme("green-witness-lattice", "32", "32", "36", "✦─✦─✦"),
+    ConsoleDepthTheme("cyan-ledger-lattice", "36", "36", "34", "▣═▣═▣"),
+    ConsoleDepthTheme("blue-cage-lattice", "34", "34", "35", "◈─◈─◈"),
+    ConsoleDepthTheme("magenta-qcage-lattice", "35", "35", "33", "⬢═⬢═⬢"),
+)
 
 
 TOOL_NAME = "WUCI-NOXFRAME"
@@ -58,13 +93,24 @@ SEAL_SCHEMA = "wuci-noxframe-seal-v1"
 SUBSTRATE_SPEC_SCHEMA = "wuci-noxframe-substrate-contract-v1"
 SUBSTRATE_STATE_SCHEMA = "wuci-noxframe-state-v1"
 SUBSTRATE_SEAL_SCHEMA = "wuci-noxframe-substrate-seal-v1"
+DAYLIGHT_WRAP_SCHEMA = "wuci-noxframe-daylight-wrap-v1"
+DAYLIGHT_WRAP_BUNDLE_SCHEMA = "wuci-noxframe-daylight-wrap-bundle-v1"
 DEFAULT_REPORT = "docs/noxframe/WUCI_NOXFRAME_LAUNCH_REPORT.md"
 DEFAULT_SEAL = "docs/noxframe/WUCI_NOXFRAME_SELF_SEAL.json"
 DEFAULT_CLOCK = "build/noxframe/WUCI_NOXFRAME_CLOCK.json"
 DEFAULT_STATE = "build/noxframe/WUCI_NOXFRAME_STATE.json"
 DEFAULT_SUBSTRATE_SEAL = "build/noxframe/WUCI_NOXFRAME_SUBSTRATE_SEAL.json"
+DEFAULT_DAYLIGHT_WRAP_DIR = "build/noxframe/daylight-wrap"
 DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
+NOXFRAME_SELF_RELEASE_DEMO_DIR = "build/noxframe/self-release"
+NOXFRAME_SELF_RELEASE_ATTESTATION = f"{NOXFRAME_SELF_RELEASE_DEMO_DIR}/attestation.json"
+NOXFRAME_WITNESS_BUNDLE_DIR = "build/noxframe/self-release-witness"
+NOXFRAME_WITNESS_WORK_DIR = f"{NOXFRAME_WITNESS_BUNDLE_DIR}.work"
+NOXFRAME_LEDGER_DIR = "build/noxframe/self-release-ledger"
+NOXFRAME_LEDGER_INCLUSION_PROOF = f"{NOXFRAME_LEDGER_DIR}/inclusion-proof.txt"
+NOXFRAME_LEDGER_CONSISTENCY_PROOF = f"{NOXFRAME_LEDGER_DIR}/consistency-proof.txt"
 DEFAULT_CODEX_BIN = "codex"
+DEFAULT_WUCI_BIN = "build/wuci-ji"
 GATE_DEMO_DIRNAME = "gate-demo"
 WEEK_SECONDS = 7 * 24 * 60 * 60
 ANCHOR_PATHS = (
@@ -87,6 +133,9 @@ ANCHOR_ROLES = {
     "daylight-equation/specs/daylight-minimal-core-v0.4.md": "Daylight core spec",
     "daylight-equation/rust/daylight-crypto/src/wuci_daylight.rs": "Daylight bridge source",
 }
+DAYLIGHT_ANCHOR_PATHS = tuple(
+    path for path in ANCHOR_PATHS if path.startswith("daylight-equation/")
+)
 SUBSTRATE_CELLS = (
     ("root", "NOXFRAME root context", ("status", "seal", "verify", "launch")),
     ("wuci-ji", "assembly artifact and proof-lane context", ("status", "seal")),
@@ -109,28 +158,98 @@ NON_CLAIMS = (
 )
 CONSOLE_CATEGORIES = (
     "substrate",
+    "phase",
     "fs",
     "text",
     "proc",
     "sys",
     "user",
+    "learn",
     "net",
     "host",
     "dev",
+    "plugin",
     "misc",
 )
 BOOT_LINES = (
     "SYSTEMS BOOTING...",
-    "ENTROPY BUS WARMING...",
+    "ENTROPY LATTICE WARMING...",
     "GATE MATRIX LOCKING...",
     "PRISM TICKERS ARMED...",
     "WUCI-JI SYSTEM INITIALIZED...",
 )
+BOOT_VOICE_TEXT = (
+    "Welcome to the Wuci-Ji system substrate, hacker. "
+    "Would you like to enter your system?"
+)
+BOOT_PROMPT = f"{BOOT_VOICE_TEXT} [y/N] "
+BOOT_IDEOGRAPH_TEXT = "无此机系统"
 FRAMES = ("[////]", "[////]", "[\\\\\\\\]", "[||||]", "[====]", "[####]")
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 DEFAULT_TERMINAL_COLUMNS = 96
 MIN_BANNER_INNER_WIDTH = 38
 MAX_BANNER_INNER_WIDTH = 112
+UNAVAILABLE_COMMAND_PREFIX = "'/"
+VFS_COMPLETION_COMMANDS = {"cat", "find", "grep", "head", "ls", "tail", "tree", "wc"}
+VFS_DIRECTORY_COMPLETION_COMMANDS = {"cd"}
+PHASE1_FEATURES = (
+    ("terminal", "operator console, help, completion, history, audit"),
+    ("vfs", "virtual filesystem and read-only text tools"),
+    ("proc", "process and system metadata views"),
+    ("optics", "Phase Compass whereami/path/map surfaces"),
+    ("nest", "metadata-only nested contexts"),
+    ("learn", "session-local learning notes"),
+    ("fyr", "Fyr lineage metadata"),
+    ("wasi", "plugin/WASI catalog without execution"),
+    ("base1", "guarded B1/B2 workflow metadata"),
+    ("quality", "selftest, doctor, and scorecard gates"),
+)
+PLUGIN_CATALOG = (
+    ("codex", "explicit opt-in host bridge", "metadata by default; host launch requires --allow-codex"),
+    ("wasi-lite", "Phase1-compatible plugin lane", "catalog only; module execution unavailable"),
+    ("prism", "Wuci-Prism proof inspector", "available through launch matrix, not as host shell"),
+    ("noxframe-self-release", "self-release evidence lane", "explicit self-release run writes under build/noxframe"),
+)
+WIKI_TOPICS = {
+    "phase1": (
+        "Phase1 carried forward: terminal UX, VFS, proc/sys views, Optics/Compass, "
+        "nests, local learning, plugins, and quality gates. NOXFRAME imports ideas, not code."
+    ),
+    "noxframe": (
+        "NOXFRAME is a bounded Wuci-Ji metadata substrate and proof launcher. "
+        "It is not a kernel, host shell, runtime sandbox, or production authority."
+    ),
+    "gate": "Gate remains the release/open decision boundary; plaintext is not produced before Gate approval.",
+    "cage": "CAGE verifies artifact legitimacy around public evidence; it is not OS containment.",
+    "qcage": "QCAGE labels quantum risk and digest evidence; classical signatures are not quantum-safe.",
+    "install": "INSTALL is noninteractive and signed; it requires a local copied root key.",
+}
+
+
+def default_console_env() -> dict[str, str]:
+    return {
+        "USER": "operator",
+        "HOME": "/wuci",
+        "SHELL": "noxframe",
+        "TERM": "xterm-256color",
+        "LANG": "C.UTF-8",
+        "PATH": "/bin:/usr/bin:/wuci/bin:/noxframe/bin",
+        "PWD": "/",
+        "NOXFRAME": TOOL_NAME,
+        "NOXFRAME_CONTEXT": "root",
+        "NOXFRAME_GUARD": "bounded-command-registry",
+        "NOXFRAME_HOST_ROUTES": "metadata-only-by-default",
+        "NOXFRAME_MODE": "metadata-console",
+        "NOXFRAME_PROFILE": "auto",
+        "NOXFRAME_ROUTE": "root>wuci-ji>daylight",
+        "NOXFRAME_DEPTH": "0",
+        "NOXFRAME_LATTICE": DEPTH_THEMES[0].name,
+        "NOXFRAME_SELF_RELEASE": "ready",
+        "NOXFRAME_SELF_RELEASE_ROOT": "/wuci/self-release",
+        "NOXFRAME_DAYLIGHT_WRAP_ROOT": "/wuci/daylight-wrap",
+        "NOXFRAME_CR3": "0x0000000000002000",
+        "NOXFRAME_PCIDE": "off",
+    }
 
 
 def console_cmd(
@@ -145,37 +264,65 @@ def console_cmd(
     return ConsoleCommandSpec(name, aliases, category, usage, description, capability, guard)
 
 
+def command_is_unavailable(spec: ConsoleCommandSpec) -> bool:
+    return spec.guard == "unavailable"
+
+
+def command_display_token(spec: ConsoleCommandSpec, token: str) -> str:
+    if command_is_unavailable(spec):
+        return f"{UNAVAILABLE_COMMAND_PREFIX}{token}"
+    return token
+
+
+def command_display_name(spec: ConsoleCommandSpec) -> str:
+    return command_display_token(spec, spec.name)
+
+
+def command_display_usage(spec: ConsoleCommandSpec) -> str:
+    if not command_is_unavailable(spec):
+        return spec.usage
+    if spec.usage == spec.name:
+        return command_display_name(spec)
+    prefix = f"{spec.name} "
+    if spec.usage.startswith(prefix):
+        return f"{command_display_name(spec)} {spec.usage[len(prefix):]}"
+    return spec.usage
+
+
 CONSOLE_COMMANDS = (
     console_cmd("status", (), "substrate", "status", "Show substrate state and seal status.", "substrate.read", "local"),
     console_cmd("seal", (), "substrate", "seal", "Refresh the NOXFRAME substrate seal.", "substrate.write", "local"),
     console_cmd("verify", (), "substrate", "verify", "Verify current substrate state and seal.", "substrate.read", "local"),
     console_cmd("contract", (), "substrate", "contract", "Print the canonical substrate contract.", "substrate.read", "local"),
     console_cmd("launch", (), "substrate", "launch [auto|smoke|full]", "Run the Wuci-Ji launch matrix.", "proof.run", "explicit"),
+    console_cmd("self-release", ("selfrelease", "release"), "substrate", "self-release [plan|status|run|shell]", "Build and inspect NOXFRAME-scoped Wuci-Ji self-release evidence.", "proof.run", "explicit"),
+    console_cmd("phase", ("whereami", "compass", "optics"), "phase", "phase [whereami|compass|path|map|features|help]", "Show Phase1-style Optics and Phase Compass state.", "phase.read", "metadata-only"),
     console_cmd("pwd", (), "fs", "pwd", "Print the current virtual substrate path.", "fs.read", "metadata-only"),
     console_cmd("ls", (), "fs", "ls [path]", "List virtual substrate files and directories.", "fs.read", "metadata-only"),
     console_cmd("cd", (), "fs", "cd [dir]", "Change virtual substrate directory.", "fs.read", "metadata-only"),
     console_cmd("cat", (), "fs", "cat <file>", "Read a virtual substrate file.", "fs.read", "metadata-only"),
     console_cmd("tree", (), "fs", "tree [path]", "Show a virtual substrate tree.", "fs.read", "metadata-only"),
     console_cmd("echo", (), "fs", "echo <text>", "Print text in the console.", "none", "local"),
-    console_cmd("mkdir", (), "fs", "mkdir <dir>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
-    console_cmd("touch", (), "fs", "touch <file>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
-    console_cmd("rm", (), "fs", "rm <path>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
-    console_cmd("cp", (), "fs", "cp <src> <dst>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
-    console_cmd("mv", (), "fs", "mv <src> <dst>", "VFS mutation route retained as a blocked Phase1-compatible command.", "fs.write", "unavailable"),
+    console_cmd("mkdir", (), "fs", "mkdir <dir>", "Create a session-local virtual directory.", "fs.write", "local"),
+    console_cmd("touch", (), "fs", "touch <file>", "Create or update a session-local virtual file.", "fs.write", "local"),
+    console_cmd("rm", (), "fs", "rm <path>", "Remove a session-local virtual file or empty directory.", "fs.write", "local"),
+    console_cmd("cp", (), "fs", "cp <src> <dst>", "Copy virtual file text into a session-local destination.", "fs.write", "local"),
+    console_cmd("mv", (), "fs", "mv <src> <dst>", "Move a session-local virtual file or directory.", "fs.write", "local"),
     console_cmd("grep", (), "text", "grep <pattern> <file>...", "Search virtual file text.", "fs.read", "metadata-only"),
     console_cmd("wc", (), "text", "wc <file>...", "Count lines, words, and bytes in virtual files.", "fs.read", "metadata-only"),
     console_cmd("head", (), "text", "head [-n count] <file>", "Show first lines from a virtual file.", "fs.read", "metadata-only"),
     console_cmd("tail", (), "text", "tail [-n count] <file>", "Show last lines from a virtual file.", "fs.read", "metadata-only"),
     console_cmd("find", (), "text", "find [path] [-name text]", "Search virtual substrate paths.", "fs.read", "metadata-only"),
     console_cmd("pipeline", ("pipes",), "text", "pipeline", "Show supported text-command composition.", "none", "metadata-only"),
+    console_cmd("wiki", ("quickref",), "text", "wiki [topic]", "Read local quick-reference topics without network access.", "fs.read", "metadata-only"),
     console_cmd("ps", (), "proc", "ps", "Show simulated substrate processes.", "proc.read", "metadata-only"),
     console_cmd("top", (), "proc", "top", "Show a compact simulated process summary.", "proc.read", "metadata-only"),
     console_cmd("jobs", (), "proc", "jobs", "List console-local background jobs.", "proc.read", "metadata-only"),
-    console_cmd("spawn", (), "proc", "spawn <name>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.spawn", "unavailable"),
-    console_cmd("fg", (), "proc", "fg <pid>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.manage", "unavailable"),
-    console_cmd("bg", (), "proc", "bg <pid>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.manage", "unavailable"),
-    console_cmd("kill", (), "proc", "kill <pid>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.kill", "unavailable"),
-    console_cmd("nice", (), "proc", "nice <pid> <priority>", "Process mutation route retained as a blocked Phase1-compatible command.", "proc.manage", "unavailable"),
+    console_cmd("spawn", (), "proc", "spawn <name>", "Create a simulated session-local process record.", "proc.spawn", "local"),
+    console_cmd("fg", (), "proc", "fg <pid>", "Mark a simulated process foreground.", "proc.manage", "local"),
+    console_cmd("bg", (), "proc", "bg <pid>", "Mark a simulated process background.", "proc.manage", "local"),
+    console_cmd("kill", (), "proc", "kill <pid>", "Terminate a simulated process record.", "proc.kill", "local"),
+    console_cmd("nice", (), "proc", "nice <pid> <priority>", "Set simulated process priority.", "proc.manage", "local"),
     console_cmd("sysinfo", ("fetch", "neofetch"), "sys", "sysinfo", "Show a one-screen NOXFRAME system summary.", "sys.read", "metadata-only"),
     console_cmd("dash", ("dashboard",), "sys", "dash", "Show a compact operator dashboard.", "sys.read", "metadata-only"),
     console_cmd("free", ("mem",), "sys", "free", "Show virtual memory model.", "sys.read", "metadata-only"),
@@ -186,11 +333,19 @@ CONSOLE_COMMANDS = (
     console_cmd("date", (), "sys", "date", "Show current UTC time.", "sys.read", "local"),
     console_cmd("uptime", (), "sys", "uptime", "Show console session uptime.", "sys.read", "local"),
     console_cmd("hostname", (), "sys", "hostname", "Show virtual substrate hostname.", "sys.read", "metadata-only"),
+    console_cmd("doctor", ("health",), "sys", "doctor", "Run bounded NOXFRAME health checks without host mutation.", "sys.read", "metadata-only"),
+    console_cmd("selftest", ("check",), "sys", "selftest", "Run internal command-surface invariants.", "sys.read", "metadata-only"),
+    console_cmd("quality", ("scorecard",), "sys", "quality", "Show command-surface quality and guard coverage.", "sys.read", "metadata-only"),
     console_cmd("audit", (), "sys", "audit", "Show console audit events.", "sys.audit", "local"),
     console_cmd("opslog", (), "sys", "opslog [status|tail]", "Show local operator log status or tail.", "sys.audit", "local"),
     console_cmd("env", (), "user", "env", "Print console-local environment.", "user.read", "local"),
+    console_cmd("set", (), "user", "set [KEY=value|-o]", "Inspect or set console-local environment options.", "user.env", "local"),
     console_cmd("export", (), "user", "export KEY=value", "Set a console-local environment value.", "user.env", "local"),
     console_cmd("unset", (), "user", "unset KEY", "Remove a console-local environment value.", "user.env", "local"),
+    console_cmd("alias", (), "user", "alias [NAME=COMMAND]", "List or set console-local command aliases.", "user.env", "local"),
+    console_cmd("unalias", (), "user", "unalias NAME", "Remove a console-local command alias.", "user.env", "local"),
+    console_cmd("which", (), "user", "which <command>", "Show registry metadata for a command.", "user.read", "metadata-only"),
+    console_cmd("profile", ("session",), "user", "profile", "Show the active NOXFRAME session profile.", "user.read", "metadata-only"),
     console_cmd("whoami", (), "user", "whoami", "Show the simulated operator identity.", "user.read", "metadata-only"),
     console_cmd("id", (), "user", "id", "Show simulated operator uid/gid.", "user.read", "metadata-only"),
     console_cmd("accounts", ("users",), "user", "accounts", "Show privacy-safe account model.", "user.read", "metadata-only"),
@@ -199,36 +354,38 @@ CONSOLE_COMMANDS = (
     console_cmd("theme", ("style",), "user", "theme [show|list]", "Inspect available console palettes.", "user.env", "metadata-only"),
     console_cmd("banner", ("splash",), "user", "banner", "Describe the active responsive boot banner.", "user.read", "metadata-only"),
     console_cmd("tips", ("hint", "hints"), "user", "tips", "Show concise operator tips.", "user.read", "metadata-only"),
-    console_cmd("ifconfig", (), "net", "ifconfig", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
-    console_cmd("iwconfig", (), "net", "iwconfig", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
-    console_cmd("wifi-scan", (), "net", "wifi-scan", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
-    console_cmd("wifi-connect", (), "net", "wifi-connect <ssid>", "Phase1-compatible network route retained as non-executing metadata.", "net.admin", "unavailable"),
-    console_cmd("ping", (), "net", "ping <host>", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
-    console_cmd("nmcli", (), "net", "nmcli", "Phase1-compatible network route retained as non-executing metadata.", "net.read", "unavailable"),
-    console_cmd("browser", (), "host", "browser <url|about>", "Phase1 browser route retained without network fetching.", "host.net", "unavailable"),
-    console_cmd("git", (), "host", "git <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("gh", ("github",), "host", "gh <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("cargo", (), "host", "cargo <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("rustc", (), "host", "rustc <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("python3", (), "host", "python3 <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("go", ("golang",), "host", "go <args...>", "Host passthrough route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("python", ("py",), "host", "python <file.py>", "Host language route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("gcc", ("cc",), "host", "gcc <file.c>", "Host compiler route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("plugins", ("plugin",), "host", "plugins", "Plugin route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
-    console_cmd("wasm", ("wasi",), "host", "wasm [list|inspect|run]", "WASI route retained as unavailable inside NOXFRAME console.", "wasm.exec", "unavailable"),
+    console_cmd("learn", ("memory", "notes"), "learn", "learn [status|list|show|add <text>|clear]", "Maintain session-local learning notes.", "learn.local", "local"),
+    console_cmd("ifconfig", (), "net", "ifconfig", "Show virtual network interface policy.", "net.read", "metadata-only"),
+    console_cmd("iwconfig", (), "net", "iwconfig", "Show virtual wireless policy.", "net.read", "metadata-only"),
+    console_cmd("wifi-scan", (), "net", "wifi-scan", "Show deterministic no-scan Wi-Fi status.", "net.read", "metadata-only"),
+    console_cmd("wifi-connect", (), "net", "wifi-connect <ssid>", "Record a denied virtual Wi-Fi connection decision.", "net.admin", "metadata-only"),
+    console_cmd("ping", (), "net", "ping <host>", "Show a no-network ping decision without sending packets.", "net.read", "metadata-only"),
+    console_cmd("nmcli", (), "net", "nmcli", "Show virtual NetworkManager policy.", "net.read", "metadata-only"),
+    console_cmd("browser", (), "host", "browser <url|about>", "Show browser route metadata without fetching URLs.", "host.net", "metadata-only"),
+    console_cmd("git", (), "host", "git <args...>", "Show repository metadata without host git passthrough.", "host.exec", "metadata-only"),
+    console_cmd("gh", ("github",), "host", "gh <args...>", "Show GitHub route metadata without host CLI passthrough.", "host.exec", "metadata-only"),
+    console_cmd("cargo", (), "host", "cargo <args...>", "Show Cargo route metadata without executing cargo.", "host.exec", "metadata-only"),
+    console_cmd("rustc", (), "host", "rustc <args...>", "Show Rust compiler route metadata without executing rustc.", "host.exec", "metadata-only"),
+    console_cmd("python3", (), "host", "python3 <args...>", "Show Python route metadata without executing Python.", "host.exec", "metadata-only"),
+    console_cmd("go", ("golang",), "host", "go <args...>", "Show Go route metadata without executing go.", "host.exec", "metadata-only"),
+    console_cmd("python", ("py",), "host", "python <file.py>", "Show Python route metadata without executing Python.", "host.exec", "metadata-only"),
+    console_cmd("gcc", ("cc",), "host", "gcc <file.c>", "Show C compiler route metadata without executing gcc.", "host.exec", "metadata-only"),
+    console_cmd("plugins", ("plugin",), "plugin", "plugins [list|status|policy]", "Show metadata-only plugin catalog.", "plugin.read", "metadata-only"),
+    console_cmd("wasm", ("wasi",), "plugin", "wasm [list|inspect|policy|run]", "Show WASI-lite plugin catalog while keeping execution unavailable.", "wasm.read", "metadata-only"),
     console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
     console_cmd("codex", ("agent",), "dev", "codex [status|handoff|version|doctor|start|exec|resume]", "Use the opt-in Codex bridge pinned to this Wuci-Ji checkout.", "host.exec", "explicit-opt-in"),
-    console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Editor route retained as unavailable inside NOXFRAME console.", "fs.write", "unavailable"),
-    console_cmd("dev", ("dock", "selfdev"), "dev", "dev [status]", "Self-development route retained as unavailable inside NOXFRAME console.", "host.exec", "unavailable"),
+    console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Open a virtual read-only editor preview.", "fs.read", "metadata-only"),
+    console_cmd("dev", ("dock", "selfdev"), "dev", "dev [status]", "Show self-development lane metadata.", "host.exec", "metadata-only"),
     console_cmd("repo", ("channels", "branches", "doctrine"), "dev", "repo [status]", "Show repository channel metadata.", "none", "metadata-only"),
     console_cmd("fyr", ("phase1lang", "forge"), "dev", "fyr [status]", "Show Fyr lineage metadata.", "none", "metadata-only"),
+    console_cmd("base1", ("b1", "b2"), "dev", "base1 [status|b1|b2|dry-run]", "Show guarded Base1/B1/B2 workflow metadata.", "none", "metadata-only"),
     console_cmd("lang", ("language", "runlang"), "dev", "lang [support|security]", "Language runtime route retained as non-executing metadata.", "host.exec", "metadata-only"),
     console_cmd("lspci", (), "sys", "lspci", "Show virtual hardware anchors.", "hw.read", "metadata-only"),
     console_cmd("pcie", (), "sys", "pcie", "Show virtual PCIe model.", "hw.read", "metadata-only"),
     console_cmd("cr3", (), "sys", "cr3", "Show virtual CR3 value.", "hw.read", "metadata-only"),
-    console_cmd("loadcr3", (), "sys", "loadcr3 <value>", "Hardware mutation route retained as unavailable.", "hw.write", "unavailable"),
+    console_cmd("loadcr3", (), "sys", "loadcr3 <value>", "Set the session-local virtual CR3 value.", "hw.write", "local"),
     console_cmd("cr4", (), "sys", "cr4", "Show virtual CR4 flags.", "hw.read", "metadata-only"),
-    console_cmd("pcide", (), "sys", "pcide on|off", "Hardware mutation route retained as unavailable.", "hw.write", "unavailable"),
+    console_cmd("pcide", (), "sys", "pcide on|off", "Set the session-local virtual PCIDE flag.", "hw.write", "local"),
     console_cmd("help", ("commands",), "misc", "help [--compact|category|command]", "Show registry-backed command help.", "none", "open"),
     console_cmd("man", (), "misc", "man <command>", "Show command manual card.", "none", "open"),
     console_cmd("complete", (), "misc", "complete [prefix]", "Show registry-backed completions.", "none", "open"),
@@ -239,8 +396,9 @@ CONSOLE_COMMANDS = (
     console_cmd("version", ("ver",), "misc", "version", "Show NOXFRAME version metadata.", "none", "open"),
     console_cmd("roadmap", ("map",), "misc", "roadmap", "Show NOXFRAME continuation path.", "none", "metadata-only"),
     console_cmd("sandbox", ("nsinfo",), "misc", "sandbox", "Show command-boundary summary.", "none", "metadata-only"),
-    console_cmd("nest", ("nests",), "misc", "nest [status]", "Show nested-context metadata.", "none", "metadata-only"),
-    console_cmd("exit", ("quit", "shutdown", "poweroff"), "misc", "exit", "Leave NOXFRAME console.", "none", "open"),
+    console_cmd("nest", ("nests",), "misc", "nest [status|list|enter|inspect|tree|info]", "Show or move through metadata-only nested contexts.", "none", "metadata-only"),
+    console_cmd("multi", ("batch", "script"), "misc", "multi <cmd> ; <cmd> ...", "Run multiple NOXFRAME commands from one console line.", "none", "local"),
+    console_cmd("exit", ("quit", "shutdown", "poweroff"), "misc", "exit [all]", "Leave the current NOXFRAME level, or all levels with exit all.", "none", "open"),
 )
 
 
@@ -251,6 +409,15 @@ class Step:
     command: tuple[str, ...]
     note: str
     requires_python_modules: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SelfReleaseLane:
+    name: str
+    label: str
+    target: str
+    make_args: tuple[str, ...]
+    outputs: tuple[str, ...]
 
 
 @dataclass
@@ -281,6 +448,12 @@ class ClockDecision:
     next_full_due_utc: str | None
     seconds_until_full: int
     state: dict[str, object]
+
+
+@dataclass(frozen=True)
+class ConsoleCompletionPlan:
+    matches: tuple[str, ...]
+    append_space: bool
 
 
 class NoxframeError(RuntimeError):
@@ -327,6 +500,44 @@ class Palette:
     @property
     def bold(self) -> str:
         return "1"
+
+
+def console_depth(session: ConsoleSession) -> int:
+    try:
+        return max(0, int(session.env.get("NOXFRAME_DEPTH", "0")))
+    except ValueError:
+        return 0
+
+
+def depth_theme(depth: int) -> ConsoleDepthTheme:
+    return DEPTH_THEMES[max(0, depth) % len(DEPTH_THEMES)]
+
+
+def sync_session_lattice(session: ConsoleSession) -> ConsoleDepthTheme:
+    theme = depth_theme(console_depth(session))
+    session.env["NOXFRAME_LATTICE"] = theme.name
+    return theme
+
+
+def set_session_depth(session: ConsoleSession, depth: int) -> None:
+    session.env["NOXFRAME_DEPTH"] = str(max(0, depth))
+    sync_session_lattice(session)
+
+
+def depth_label(session: ConsoleSession) -> str:
+    depth = console_depth(session)
+    context = session.env.get("NOXFRAME_CONTEXT", "root")
+    return f"L{depth}/{context}"
+
+
+def prompt_for_session(session: ConsoleSession) -> str:
+    return f"noxframe:{depth_label(session)}> "
+
+
+def lattice_status_line(session: ConsoleSession) -> str:
+    depth = console_depth(session)
+    theme = sync_session_lattice(session)
+    return f"substratisphere: depth={depth} lattice={theme.name} rail={theme.rail}"
 
 
 class LiveTicker:
@@ -413,6 +624,135 @@ def command_text(command: tuple[str, ...]) -> str:
     return " ".join(shlex.quote(part) for part in command)
 
 
+def self_release_lanes() -> tuple[SelfReleaseLane, ...]:
+    return (
+        SelfReleaseLane(
+            name="bundle",
+            label="NOXFRAME self-release bundle",
+            target="self-release-bundle",
+            make_args=(
+                f"SELF_RELEASE_DEMO_DIR={NOXFRAME_SELF_RELEASE_DEMO_DIR}",
+                f"SELF_RELEASE_ATTESTATION={NOXFRAME_SELF_RELEASE_ATTESTATION}",
+            ),
+            outputs=(
+                f"{NOXFRAME_SELF_RELEASE_DEMO_DIR}/wuci-ji.self.wj",
+                NOXFRAME_SELF_RELEASE_ATTESTATION,
+            ),
+        ),
+        SelfReleaseLane(
+            name="witness",
+            label="NOXFRAME self-release witness bundle",
+            target="self-release-witness-bundle",
+            make_args=(
+                f"WITNESS_BUNDLE_DIR={NOXFRAME_WITNESS_BUNDLE_DIR}",
+                f"WITNESS_WORK_DIR={NOXFRAME_WITNESS_WORK_DIR}",
+            ),
+            outputs=(
+                f"{NOXFRAME_WITNESS_BUNDLE_DIR}/wuci-ji.self.wj",
+                f"{NOXFRAME_WITNESS_BUNDLE_DIR}/publish-index.txt",
+                f"{NOXFRAME_WITNESS_BUNDLE_DIR}/attestation.json",
+            ),
+        ),
+        SelfReleaseLane(
+            name="ledger",
+            label="NOXFRAME self-release ledger bundle",
+            target="self-release-ledger-bundle",
+            make_args=(
+                f"WITNESS_BUNDLE_DIR={NOXFRAME_WITNESS_BUNDLE_DIR}",
+                f"WITNESS_WORK_DIR={NOXFRAME_WITNESS_WORK_DIR}",
+                f"LEDGER_DIR={NOXFRAME_LEDGER_DIR}",
+                f"LEDGER_INCLUSION_PROOF={NOXFRAME_LEDGER_INCLUSION_PROOF}",
+                f"LEDGER_CONSISTENCY_PROOF={NOXFRAME_LEDGER_CONSISTENCY_PROOF}",
+            ),
+            outputs=(
+                f"{NOXFRAME_LEDGER_DIR}/ledger-entry.txt",
+                f"{NOXFRAME_LEDGER_DIR}/ledger-head.txt",
+                NOXFRAME_LEDGER_INCLUSION_PROOF,
+                NOXFRAME_LEDGER_CONSISTENCY_PROOF,
+            ),
+        ),
+    )
+
+
+def self_release_lane_map() -> dict[str, SelfReleaseLane]:
+    return {lane.name: lane for lane in self_release_lanes()}
+
+
+def self_release_lane_command(lane: SelfReleaseLane) -> tuple[str, ...]:
+    return ("make", lane.target, *lane.make_args)
+
+
+def self_release_lane_selection(value: str) -> tuple[SelfReleaseLane, ...] | None:
+    lanes = self_release_lanes()
+    if value == "all":
+        return lanes
+    lane = self_release_lane_map().get(value)
+    if lane is None:
+        return None
+    return (lane,)
+
+
+def path_state(root: Path, relative_path: str) -> str:
+    path = repo_path(root, relative_path)
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return "missing"
+    except OSError as exc:
+        return f"error:{exc.__class__.__name__}"
+    if stat.S_ISLNK(info.st_mode):
+        return "symlink-refused"
+    if stat.S_ISDIR(info.st_mode):
+        return "dir"
+    if stat.S_ISREG(info.st_mode):
+        if info.st_nlink != 1:
+            return "hardlink-refused"
+        return f"file:{info.st_size}"
+    return "unsupported"
+
+
+def self_release_plan_text() -> str:
+    rows = [
+        "schema: wuci-noxframe-self-release-plan-v1",
+        "scope: NOXFRAME-scoped Wuci-Ji self-release evidence",
+        "execution: explicit run only; subprocess argv with shell=False",
+        "non_claim: not a host shell, not OS runtime containment, not production authority",
+        "",
+        "lanes:",
+    ]
+    for lane in self_release_lanes():
+        rows.append(f"- {lane.name}: {command_text(self_release_lane_command(lane))}")
+    rows.extend(
+        [
+            "",
+            "commands:",
+            "  self-release plan",
+            "  self-release status",
+            "  self-release run bundle|witness|ledger|all",
+            "  self-release shell",
+            "",
+        ]
+    )
+    return "\n".join(rows)
+
+
+def self_release_status_text(root: Path) -> str:
+    rows = [
+        "schema: wuci-noxframe-self-release-status-v1",
+        "scope: NOXFRAME-scoped Wuci-Ji self-release evidence",
+        "root: build/noxframe",
+        "",
+    ]
+    for lane in self_release_lanes():
+        rows.append(f"[{lane.name}]")
+        rows.append(f"target: {lane.target}")
+        rows.append(f"command: {command_text(self_release_lane_command(lane))}")
+        for output in lane.outputs:
+            rows.append(f"{output}: {path_state(root, output)}")
+        rows.append("")
+    return "\n".join(rows)
+
+
 def sanitize_output(value: str) -> str:
     cleaned = ANSI_RE.sub("", value)
     cleaned = cleaned.replace("\r", "\n")
@@ -456,7 +796,7 @@ def fit_display(text: str, width: int) -> str:
 
 
 def console_lookup(name: str) -> ConsoleCommandSpec | None:
-    lowered = name.lower()
+    lowered = normalize_console_lookup_name(name)
     return next(
         (
             spec
@@ -467,13 +807,30 @@ def console_lookup(name: str) -> ConsoleCommandSpec | None:
     )
 
 
+def normalize_console_lookup_name(name: str) -> str:
+    lowered = name.lower()
+    marker_prefixes = (UNAVAILABLE_COMMAND_PREFIX, UNAVAILABLE_COMMAND_PREFIX[1:])
+    for marker in marker_prefixes:
+        if lowered.startswith(marker):
+            candidate = lowered[len(marker) :]
+            if any(
+                command_is_unavailable(spec)
+                and (spec.name == candidate or candidate in spec.aliases)
+                for spec in CONSOLE_COMMANDS
+            ):
+                return candidate
+    return lowered
+
+
 def console_canonical_name(name: str) -> str | None:
     spec = console_lookup(name)
     return spec.name if spec else None
 
 
 def console_command_names(category: str) -> str:
-    return " ".join(spec.name for spec in CONSOLE_COMMANDS if spec.category == category)
+    return " ".join(
+        command_display_name(spec) for spec in CONSOLE_COMMANDS if spec.category == category
+    )
 
 
 def console_help_text(args: list[str]) -> str:
@@ -489,7 +846,10 @@ def console_help_text(args: list[str]) -> str:
         rows = [f"noxframe help // {topic}", "", "command        usage                         summary"]
         for spec in CONSOLE_COMMANDS:
             if spec.category == topic:
-                rows.append(f"{spec.name:<14} {spec.usage:<29} {spec.description}")
+                rows.append(
+                    f"{command_display_name(spec):<14} "
+                    f"{command_display_usage(spec):<29} {spec.description}"
+                )
         return "\n".join(rows)
     if topic:
         manual = console_man_text(topic)
@@ -500,17 +860,11 @@ def console_help_text(args: list[str]) -> str:
     rows = [
         "noxframe help // operator console",
         "",
-        "substrate : status seal verify contract launch",
-        "fs        : pwd ls cd cat tree echo mkdir touch rm cp mv",
-        "text      : grep wc head tail find pipeline",
-        "proc      : ps top jobs spawn fg bg kill nice",
-        "sys       : sysinfo dash free df dmesg vmstat uname date uptime hostname audit opslog",
-        "user      : env export unset whoami id accounts history security theme banner tips",
-        "dev       : codex repo fyr lang avim dev",
-        "misc      : help man complete capabilities clear version roadmap sandbox nest exit",
+        *(f"{category:<9}: {console_command_names(category)}" for category in CONSOLE_CATEGORIES),
         "",
         "Phase1-compatible host, network, dev, and hardware routes are discoverable through help",
-        "and capabilities. Host passthrough and network execution are not enabled by default.",
+        "and capabilities. They resolve to bounded local or metadata-only handlers.",
+        "Host passthrough and network execution are not enabled by default.",
         "Codex is the explicit opt-in bridge: use codex status, codex handoff, and --allow-codex.",
         "",
         "routes",
@@ -527,12 +881,12 @@ def console_man_text(name: str) -> str | None:
     spec = console_lookup(name)
     if spec is None:
         return None
-    aliases = ", ".join(spec.aliases) if spec.aliases else "none"
+    aliases = ", ".join(command_display_token(spec, alias) for alias in spec.aliases) if spec.aliases else "none"
     return "\n".join(
         [
-            spec.name,
+            command_display_name(spec),
             "",
-            f"usage      : {spec.usage}",
+            f"usage      : {command_display_usage(spec)}",
             f"category   : {spec.category}",
             f"aliases    : {aliases}",
             f"capability : {spec.capability}",
@@ -548,18 +902,690 @@ def console_completions(prefix: str) -> list[str]:
     matches: list[str] = []
     for spec in CONSOLE_COMMANDS:
         if spec.name.startswith(lowered):
-            matches.append(spec.name)
+            matches.append(command_display_name(spec))
+        display_name = command_display_name(spec)
+        slash_display_name = display_name.removeprefix("'")
+        if display_name.startswith(lowered) or (
+            command_is_unavailable(spec) and slash_display_name.startswith(lowered)
+        ):
+            matches.append(display_name)
         for alias in spec.aliases:
             if alias.startswith(lowered):
-                matches.append(alias)
+                matches.append(command_display_token(spec, alias))
+            display_alias = command_display_token(spec, alias)
+            slash_display_alias = display_alias.removeprefix("'")
+            if display_alias.startswith(lowered) or (
+                command_is_unavailable(spec) and slash_display_alias.startswith(lowered)
+            ):
+                matches.append(display_alias)
     return sorted(set(matches))
 
 
 def console_capabilities_text() -> str:
     rows = ["noxframe capabilities", "", "command        category   capability       guard"]
     for spec in CONSOLE_COMMANDS:
-        rows.append(f"{spec.name:<14} {spec.category:<10} {spec.capability:<16} {spec.guard}")
+        rows.append(
+            f"{command_display_name(spec):<14} {spec.category:<10} "
+            f"{spec.capability:<16} {spec.guard}"
+        )
     return "\n".join(rows)
+
+
+def valid_env_key(key: str) -> bool:
+    return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,63}", key) is not None
+
+
+def parse_assignment(tokens: list[str]) -> tuple[str, str] | None:
+    if not tokens:
+        return None
+    text = " ".join(tokens)
+    if "=" not in text:
+        return None
+    key, value = text.split("=", 1)
+    if not valid_env_key(key):
+        return None
+    return key, value
+
+
+def set_session_env(session: ConsoleSession, key: str, value: str) -> None:
+    session.env[key] = value
+    if key == "PWD":
+        normalized = vfs_normalize("/", value)
+        if vfs_is_dir(normalized, session):
+            session.cwd = normalized
+
+
+def sync_session_env(session: ConsoleSession, args: argparse.Namespace) -> None:
+    session.env["PWD"] = session.cwd
+    session.env["NOXFRAME_PROFILE"] = getattr(args, "profile", "auto")
+    sync_session_lattice(session)
+
+
+def console_env_text(session: ConsoleSession) -> str:
+    return "\n".join(f"{key}={session.env[key]}" for key in sorted(session.env)) + "\n"
+
+
+def console_option_text() -> str:
+    rows = [
+        "set -o no_host_passthrough=on",
+        "set -o shell_exec=off",
+        "set -o network_routes=metadata-deny",
+        "set -o runtime_containment_claim=off",
+        "set -o quantum_safe_claim=off",
+        "set -o alias_expansion=session-local",
+    ]
+    return "\n".join(rows) + "\n"
+
+
+def built_in_alias_rows() -> list[str]:
+    rows: list[str] = []
+    for spec in CONSOLE_COMMANDS:
+        for alias in spec.aliases:
+            rows.append(f"{command_display_token(spec, alias)} -> {command_display_name(spec)}")
+    return sorted(rows)
+
+
+def console_alias_text(session: ConsoleSession) -> str:
+    rows = ["session aliases:"]
+    if session.aliases:
+        rows.extend(f"{name}='{value}'" for name, value in sorted(session.aliases.items()))
+    else:
+        rows.append("(none)")
+    rows.extend(["", "built-in aliases:"])
+    rows.extend(built_in_alias_rows() or ["(none)"])
+    return "\n".join(rows) + "\n"
+
+
+def valid_alias_name(name: str) -> bool:
+    return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]{0,31}", name) is not None
+
+
+def set_session_alias(session: ConsoleSession, assignment: str) -> str | None:
+    if "=" not in assignment:
+        return "usage: alias NAME=COMMAND"
+    name, target = assignment.split("=", 1)
+    target = target.strip()
+    if not valid_alias_name(name):
+        return "alias: invalid name"
+    if console_lookup(name) is not None:
+        return "alias: refusing to shadow registry command"
+    if not target:
+        return "alias: empty target"
+    try:
+        target_parts = shlex.split(normalize_console_input_markers(target))
+    except ValueError as exc:
+        return f"alias: parse error: {exc}"
+    if not target_parts:
+        return "alias: empty target"
+    if console_lookup(target_parts[0]) is None:
+        return "alias: target must start with a known NOXFRAME command"
+    session.aliases[name] = target
+    return None
+
+
+def expand_session_alias(session: ConsoleSession, parts: list[str]) -> list[str]:
+    target = session.aliases.get(parts[0])
+    if target is None:
+        return parts
+    try:
+        target_parts = shlex.split(normalize_console_input_markers(target))
+    except ValueError:
+        return parts
+    if not target_parts:
+        return parts
+    return [*target_parts, *parts[1:]]
+
+
+def command_which_text(name: str) -> str:
+    spec = console_lookup(name)
+    if spec is None:
+        return f"which: no NOXFRAME command named {name}\n"
+    aliases = ", ".join(command_display_token(spec, alias) for alias in spec.aliases) if spec.aliases else "none"
+    return "\n".join(
+        [
+            f"which: {command_display_name(spec)}",
+            f"canonical: {spec.name}",
+            f"usage: {command_display_usage(spec)}",
+            f"category: {spec.category}",
+            f"aliases: {aliases}",
+            f"capability: {spec.capability}",
+            f"guard: {spec.guard}",
+            "",
+        ]
+    )
+
+
+def console_profile_text(session: ConsoleSession, args: argparse.Namespace) -> str:
+    sync_session_env(session, args)
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-session-profile-v1",
+            f"user: {session.env.get('USER', 'operator')}",
+            f"cwd: {session.cwd}",
+            f"profile: {session.env.get('NOXFRAME_PROFILE', 'auto')}",
+            f"route: {session.env.get('NOXFRAME_ROUTE', 'root>wuci-ji>daylight')}",
+            f"mode: {session.env.get('NOXFRAME_MODE', 'metadata-console')}",
+            f"depth: {console_depth(session)}",
+            f"lattice: {session.env.get('NOXFRAME_LATTICE', depth_theme(0).name)}",
+            f"env: {len(session.env)} variable(s)",
+            f"aliases: {len(session.aliases)} session-local alias(es)",
+            f"notes: {len(session.notes)} session-local note(s)",
+            f"history: {len(session.history)} command(s)",
+            f"audit: {len(session.audit)} event(s)",
+            "boundary: metadata console; no host shell or runtime-containment claim",
+            "",
+        ]
+    )
+
+
+def phase_feature_text() -> str:
+    rows = ["schema: wuci-noxframe-phase1-feature-map-v1", "features:"]
+    rows.extend(f"- {name}: {description}" for name, description in PHASE1_FEATURES)
+    rows.extend(
+        [
+            "",
+            "boundary: Phase1 ideas are mapped into WUCI-native metadata surfaces; no Phase1 code is imported.",
+            "",
+        ]
+    )
+    return "\n".join(rows)
+
+
+def phase_text(session: ConsoleSession, args: argparse.Namespace, action: str) -> str:
+    sync_session_env(session, args)
+    route = session.env.get("NOXFRAME_ROUTE", "root>wuci-ji>daylight")
+    context = session.env.get("NOXFRAME_CONTEXT", "root")
+    depth = console_depth(session)
+    theme = sync_session_lattice(session)
+    if action in {"whereami", "status"}:
+        return "\n".join(
+            [
+                "schema: wuci-noxframe-phase-whereami-v1",
+                f"context: {context}",
+                f"cwd: {session.cwd}",
+                f"route: {route}",
+                f"profile: {session.env.get('NOXFRAME_PROFILE', 'auto')}",
+                f"substratisphere_depth: {depth}",
+                f"lattice: {theme.name}",
+                "mode: metadata-only Optics rail",
+                "",
+            ]
+        )
+    if action == "path":
+        return "\n".join(
+            [
+                "schema: wuci-noxframe-phase-path-v1",
+                *(f"{index}: {cell_id}" for index, cell_id in enumerate(route.split(">"), start=1)),
+                "",
+            ]
+        )
+    if action == "map":
+        rows = ["schema: wuci-noxframe-phase-map-v1"]
+        for cell_id, role, actions in SUBSTRATE_CELLS:
+            marker = "*" if cell_id == context else "-"
+            rows.append(f"{marker} {cell_id:<10} {role} actions={','.join(actions)}")
+        rows.append("")
+        return "\n".join(rows)
+    if action in {"features", "feature", "capabilities"}:
+        return phase_feature_text()
+    if action in {"help", "compass", "optics"}:
+        return "\n".join(
+            [
+                "schema: wuci-noxframe-phase-compass-v1",
+                "commands: phase whereami | phase path | phase map | phase features",
+                "aliases: whereami, compass, optics",
+                "rails: terminal, vfs, proc, optics, nest, learn, plugin, quality",
+                f"substratisphere_depth: {depth}",
+                f"lattice: {theme.name} {theme.rail}",
+                "non_claim: not a kernel, not host shell, not runtime containment",
+                "",
+            ]
+        )
+    return "usage: phase [whereami|compass|path|map|features|help]\n"
+
+
+def learn_status_text(session: ConsoleSession) -> str:
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-learn-status-v1",
+            "scope: session-local operator notes",
+            f"notes: {len(session.notes)}",
+            "persistence: none",
+            "network: unused",
+            "",
+        ]
+    )
+
+
+def learn_notes_text(session: ConsoleSession) -> str:
+    if not session.notes:
+        return "learn: no session notes\n"
+    return "\n".join(f"{index}. {note}" for index, note in enumerate(session.notes, start=1)) + "\n"
+
+
+def context_ids() -> tuple[str, ...]:
+    return tuple(cell_id for cell_id, _, _ in SUBSTRATE_CELLS)
+
+
+def context_record(context: str) -> tuple[str, str, tuple[str, ...]] | None:
+    for cell in SUBSTRATE_CELLS:
+        if cell[0] == context:
+            return cell
+    return None
+
+
+def nest_status_text(session: ConsoleSession) -> str:
+    context = session.env.get("NOXFRAME_CONTEXT", "root")
+    depth = console_depth(session)
+    theme = sync_session_lattice(session)
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-nest-status-v1",
+            f"active: {context}",
+            f"cwd: {session.cwd}",
+            f"substratisphere_depth: {depth}",
+            f"lattice: {theme.name}",
+            "mode: single-session metadata nesting",
+            "commands: nest list | nest enter <context> | nest inspect <context> | nest tree",
+            "mutation: spawn/destroy remain blocked for fixed metadata cells",
+            "",
+        ]
+    )
+
+
+def nest_list_text() -> str:
+    return "\n".join(context_ids()) + "\n"
+
+
+def nest_inspect_text(context: str) -> str:
+    cell = context_record(context)
+    if cell is None:
+        return f"nest: unknown context: {context}\n"
+    cell_id, role, actions = cell
+    return "\n".join(
+        [
+            f"context: {cell_id}",
+            f"role: {role}",
+            f"actions: {','.join(actions)}",
+            "host_effect: metadata-only",
+            "",
+        ]
+    )
+
+
+def nest_tree_text() -> str:
+    rows = ["root"]
+    for cell_id in context_ids():
+        rows.append(f"  {cell_id}/")
+    return "\n".join(rows) + "\n"
+
+
+def plugin_catalog_text() -> str:
+    rows = ["schema: wuci-noxframe-plugin-catalog-v1", "plugins:"]
+    rows.extend(f"- {name}: {purpose}; guard={guard}" for name, purpose, guard in PLUGIN_CATALOG)
+    rows.extend(
+        [
+            "",
+            "execution: unavailable through the console except explicit Codex bridge with --allow-codex",
+            "network: unused",
+            "",
+        ]
+    )
+    return "\n".join(rows)
+
+
+def plugin_policy_text() -> str:
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-plugin-policy-v1",
+            "host_shell: disabled",
+            "wasm_run: unavailable",
+            "network_fetch: unavailable",
+            "codex_launch: explicit --allow-codex only",
+            "writes: session metadata or existing proof-lane artifacts only",
+            "",
+        ]
+    )
+
+
+def wiki_text(topic: str | None) -> str:
+    if not topic:
+        return "wiki topics: " + " ".join(sorted(WIKI_TOPICS)) + "\n"
+    key = topic.lower()
+    value = WIKI_TOPICS.get(key)
+    if value is None:
+        return f"wiki: no local topic named {topic}\n"
+    return f"{key}: {value}\n"
+
+
+def guard_counts() -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for spec in CONSOLE_COMMANDS:
+        counts[spec.guard] = counts.get(spec.guard, 0) + 1
+    return counts
+
+
+def quality_text() -> str:
+    counts = guard_counts()
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-quality-scorecard-v1",
+            f"commands: {len(CONSOLE_COMMANDS)}",
+            f"categories: {len(CONSOLE_CATEGORIES)}",
+            f"local: {counts.get('local', 0)}",
+            f"metadata-only: {counts.get('metadata-only', 0)}",
+            f"explicit-opt-in: {counts.get('explicit-opt-in', 0)}",
+            f"unavailable: {counts.get('unavailable', 0)}",
+            f"public-anchors: {len(ANCHOR_PATHS)}",
+            "claims: conservative",
+            "",
+        ]
+    )
+
+
+def selftest_text(session: ConsoleSession) -> str:
+    names = [spec.name for spec in CONSOLE_COMMANDS]
+    duplicate_names = sorted({name for name in names if names.count(name) > 1})
+    missing_categories = sorted({spec.category for spec in CONSOLE_COMMANDS} - set(CONSOLE_CATEGORIES))
+    unavailable_without_marker = [
+        spec.name
+        for spec in CONSOLE_COMMANDS
+        if spec.guard == "unavailable" and not command_display_name(spec).startswith(UNAVAILABLE_COMMAND_PREFIX)
+    ]
+    status = "pass" if not duplicate_names and not missing_categories and not unavailable_without_marker else "fail"
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-selftest-v1",
+            f"status: {status}",
+            f"commands: {len(CONSOLE_COMMANDS)}",
+            f"history: {len(session.history)}",
+            f"duplicates: {','.join(duplicate_names) if duplicate_names else 'none'}",
+            f"missing_categories: {','.join(missing_categories) if missing_categories else 'none'}",
+            f"marker_errors: {','.join(unavailable_without_marker) if unavailable_without_marker else 'none'}",
+            "",
+        ]
+    )
+
+
+def doctor_text(root: Path, args: argparse.Namespace, session: ConsoleSession) -> str:
+    state_path, seal_path = substrate_paths(root, args)
+    ok, problems = verify_substrate_seal(root, state_path=state_path, seal_path=seal_path)
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-doctor-v1",
+            f"substrate: {'sealed' if ok else 'needs-seal'}",
+            f"state: {display_repo_path(root, state_path)}",
+            f"seal: {display_repo_path(root, seal_path)}",
+            f"commands: {len(CONSOLE_COMMANDS)}",
+            f"notes: {len(session.notes)}",
+            f"problems: {len(problems)}",
+            *(f"problem: {problem}" for problem in problems),
+            "boundary: no host shell, no network route, no runtime-containment claim",
+            "",
+        ]
+    )
+
+
+def base1_text(action: str) -> str:
+    if action in {"b1", "b2", "dry-run"}:
+        return "\n".join(
+            [
+                "schema: wuci-noxframe-base1-dry-run-v1",
+                f"lane: {action}",
+                "status: report-only",
+                "host_exec: unavailable",
+                "assembly_preview: existing Wuci-Ji proof lanes only",
+                "boundary: no generated host commands are executed inside NOXFRAME",
+                "",
+            ]
+        )
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-base1-status-v1",
+            "b1: metadata-only",
+            "b2: metadata-only",
+            "dry_run: available",
+            "execution: unavailable inside the console",
+            "",
+        ]
+    )
+
+
+def normalize_console_input_markers(raw: str) -> str:
+    return re.sub(r"(^|\s)'/", r"\1/", raw)
+
+
+def split_console_multicommands(raw: str) -> list[str]:
+    segments: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    escaped = False
+
+    for char in raw:
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        if char == "\\" and quote != "'":
+            current.append(char)
+            escaped = True
+            continue
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            current.append(char)
+            continue
+        if char == ";":
+            segment = "".join(current).strip()
+            if segment:
+                segments.append(segment)
+            current = []
+            continue
+        current.append(char)
+
+    segment = "".join(current).strip()
+    if segment:
+        segments.append(segment)
+    return segments
+
+
+def completion_context(line: str, cursor: int) -> tuple[list[str], str]:
+    before = line[:cursor]
+    starts_new_token = not before or before[-1].isspace()
+    words = before.split()
+    if starts_new_token:
+        return words, ""
+    if not words:
+        return [], before
+    return words[:-1], words[-1]
+
+
+def completion_plan(matches: list[str], *, append_space: bool = True) -> ConsoleCompletionPlan:
+    ordered = tuple(sorted(set(matches)))
+    should_append = append_space and len(ordered) == 1 and not ordered[0].endswith("/")
+    return ConsoleCompletionPlan(ordered, should_append)
+
+
+def completion_choice_matches(choice: str, token: str) -> bool:
+    if choice.startswith(token):
+        return True
+    if choice.startswith(UNAVAILABLE_COMMAND_PREFIX):
+        return choice.removeprefix("'").startswith(token) or choice.removeprefix(
+            UNAVAILABLE_COMMAND_PREFIX
+        ).startswith(token)
+    return False
+
+
+def command_argument_completion_plan(
+    session: ConsoleSession,
+    command: str,
+    token: str,
+) -> ConsoleCompletionPlan:
+    choices: tuple[str, ...]
+    if command == "help":
+        matches = [category for category in CONSOLE_CATEGORIES if category.startswith(token)]
+        matches.extend(console_completions(token))
+        return completion_plan(matches)
+    if command in {"man", "complete", "which"}:
+        return completion_plan(console_completions(token))
+    elif command == "phase":
+        choices = ("whereami", "compass", "path", "map", "features", "help")
+    elif command == "launch":
+        choices = ("auto", "smoke", "full")
+    elif command == "self-release":
+        choices = ("plan", "status", "run", "bundle", "witness", "ledger", "all", "shell")
+    elif command == "learn":
+        choices = ("status", "list", "show", "add", "clear")
+    elif command == "codex":
+        choices = ("status", "handoff", "version", "doctor", "start", "exec", "resume")
+    elif command in {"plugins", "wasm"}:
+        choices = ("list", "status", "inspect", "policy", "run")
+    elif command == "wiki":
+        choices = tuple(sorted(WIKI_TOPICS))
+    elif command == "theme":
+        choices = ("show", "list")
+    elif command == "set":
+        if token.startswith("-"):
+            choices = ("-o",)
+        else:
+            choices = tuple(f"{key}=" for key in sorted(session.env))
+    elif command == "export":
+        choices = tuple(f"{key}=" for key in sorted(session.env))
+    elif command == "unset":
+        choices = tuple(sorted(session.env))
+    elif command == "unalias":
+        choices = tuple(sorted(session.aliases))
+    elif command == "opslog":
+        choices = ("status", "tail")
+    elif command == "bootcfg":
+        choices = ("show", "path")
+    elif command == "nest":
+        choices = ("status", "list", "enter", "inspect", "tree", "info", *context_ids())
+    elif command == "repo":
+        choices = ("status",)
+    elif command == "fyr":
+        choices = ("status",)
+    elif command == "base1":
+        choices = ("status", "b1", "b2", "dry-run")
+    elif command == "lang":
+        choices = ("support", "security")
+    elif command == "update":
+        choices = ("plan", "protocol")
+    elif command == "version":
+        choices = ("--compare",)
+    else:
+        choices = ()
+    return completion_plan([choice for choice in choices if completion_choice_matches(choice, token)])
+
+
+def vfs_completion_plan(session: ConsoleSession, token: str, *, dirs_only: bool) -> ConsoleCompletionPlan:
+    if "/" in token:
+        base_token, fragment = token.rsplit("/", 1)
+        base_path = vfs_normalize(session.cwd, base_token or "/")
+        if base_token == "":
+            display_prefix = "/"
+        else:
+            display_prefix = f"{base_token.rstrip('/')}/"
+    else:
+        base_path = session.cwd
+        fragment = token
+        display_prefix = ""
+    try:
+        is_dir, entries = vfs_list(base_path, session)
+    except NoxframeError:
+        return ConsoleCompletionPlan((), False)
+    if not is_dir:
+        return ConsoleCompletionPlan((), False)
+    matches: list[str] = []
+    for entry in entries:
+        name = entry.rstrip("/")
+        is_entry_dir = entry.endswith("/")
+        if not name.startswith(fragment):
+            continue
+        if dirs_only and not is_entry_dir:
+            continue
+        matches.append(f"{display_prefix}{name}{'/' if is_entry_dir else ''}")
+    return completion_plan(matches, append_space=True)
+
+
+def console_completion_plan(
+    session: ConsoleSession,
+    line: str,
+    cursor: int | None = None,
+) -> ConsoleCompletionPlan:
+    if cursor is None:
+        cursor = len(line)
+    words, token = completion_context(line, cursor)
+    normalized_words = [normalize_console_lookup_name(word) for word in words]
+    if not normalized_words:
+        alias_matches = [name for name in session.aliases if name.startswith(token)]
+        return completion_plan([*console_completions(token), *alias_matches], append_space=True)
+
+    command = console_canonical_name(normalized_words[0])
+    if command is None:
+        return ConsoleCompletionPlan((), False)
+    if command == "unalias":
+        return completion_plan([name for name in session.aliases if name.startswith(token)])
+    if command == "unset":
+        return completion_plan([key for key in session.env if key.startswith(token)])
+    if command in VFS_DIRECTORY_COMPLETION_COMMANDS:
+        return vfs_completion_plan(session, token, dirs_only=True)
+    if command in VFS_COMPLETION_COMMANDS:
+        if command == "find" and len(normalized_words) > 1 and normalized_words[-1] == "-name":
+            return ConsoleCompletionPlan((), False)
+        if command in {"head", "tail"} and token.startswith("-"):
+            return completion_plan([choice for choice in ("-n", "--lines") if choice.startswith(token)])
+        return vfs_completion_plan(session, token, dirs_only=False)
+    return command_argument_completion_plan(session, command, token)
+
+
+def readline_prompt(text: str, color: str, palette: Palette) -> str:
+    if not palette.enabled or readline is None or not sys.stdin.isatty():
+        return palette.paint(text, color)
+    return f"\001\x1b[{color}m\002{text}\001\x1b[0m\002"
+
+
+def install_console_readline(session: ConsoleSession) -> tuple[object, str] | None:
+    if readline is None or not sys.stdin.isatty():
+        return None
+    old_completer = readline.get_completer()
+    old_delims = readline.get_completer_delims()
+    cache: dict[str, object] = {"key": None, "matches": (), "append_space": False}
+
+    def completer(text: str, state: int) -> str | None:
+        buffer = readline.get_line_buffer()
+        cursor = readline.get_endidx()
+        key = (buffer, cursor, text)
+        if state == 0 or cache.get("key") != key:
+            plan = console_completion_plan(session, buffer, cursor)
+            cache["key"] = key
+            cache["matches"] = plan.matches
+            cache["append_space"] = plan.append_space
+            if hasattr(readline, "set_completion_append_character"):
+                readline.set_completion_append_character(" " if plan.append_space else "")
+        matches = cache.get("matches", ())
+        if isinstance(matches, tuple) and state < len(matches):
+            return matches[state]
+        return None
+
+    readline.set_completer(completer)
+    readline.set_completer_delims(" \t\n")
+    readline.parse_and_bind("tab: complete")
+    return old_completer, old_delims
+
+
+def restore_console_readline(state: tuple[object, str] | None) -> None:
+    if state is None or readline is None:
+        return
+    old_completer, old_delims = state
+    readline.set_completer(old_completer)
+    readline.set_completer_delims(old_delims)
+    if hasattr(readline, "set_completion_append_character"):
+        readline.set_completion_append_character(" ")
 
 
 def codex_executable_status(args: argparse.Namespace) -> str:
@@ -757,39 +1783,103 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "install/",
             "codex/",
             "dev/",
+            "phase/",
+            "env/",
+            "learn/",
+            "nests/",
             "proc/",
             "var/",
             "docs/",
         ),
-        "/dev": ("codex",),
+        "/dev": ("codex", "plugins", "wasi"),
+        "/env": ("aliases", "profile", "security", "self-release", "variables"),
+        "/phase": ("compass", "features", "map", "path", "whereami"),
+        "/learn": ("notes", "status"),
+        "/nests": ("contexts", "stack", "tree"),
         "/proc": ("version", "route", "cells", "processes"),
         "/var": ("log/",),
         "/var/log": ("audit",),
-        "/docs": ("contract.json", "status.json", "state.json", "seal.json", "launch-report.md"),
+        "/docs": (
+            "contract.json",
+            "status.json",
+            "state.json",
+            "seal.json",
+            "launch-report.md",
+            "wiki",
+        ),
     }
     dirs.update(cell_dirs)
     return dirs
 
 
-def vfs_is_dir(path: str) -> bool:
-    return path in vfs_static_dirs()
+def vfs_is_dir(path: str, session: ConsoleSession | None = None) -> bool:
+    return path in vfs_static_dirs() or (session is not None and path in session.vfs_dirs)
 
 
-def vfs_all_paths() -> list[str]:
+def vfs_all_paths(session: ConsoleSession | None = None) -> list[str]:
     paths: set[str] = set(vfs_static_dirs())
     for base, entries in vfs_static_dirs().items():
         for entry in entries:
             clean = entry.rstrip("/")
             child = f"{base.rstrip('/')}/{clean}" if base != "/" else f"/{clean}"
             paths.add(child)
+    if session is not None:
+        paths.update(session.vfs_dirs)
+        paths.update(session.vfs_files)
     return sorted(paths)
 
 
-def vfs_list(path: str) -> tuple[bool, list[str]]:
+def vfs_parent(path: str) -> str:
+    parent = os.path.dirname(path.rstrip("/"))
+    return parent or "/"
+
+
+def vfs_name(path: str) -> str:
+    return path.rstrip("/").rsplit("/", 1)[-1]
+
+
+def vfs_static_path(path: str) -> bool:
+    return path in vfs_all_paths(None)
+
+
+def vfs_existing_path(path: str, session: ConsoleSession) -> bool:
+    return vfs_static_path(path) or path in session.vfs_dirs or path in session.vfs_files
+
+
+def vfs_list(path: str, session: ConsoleSession | None = None) -> tuple[bool, list[str]]:
     dirs = vfs_static_dirs()
     if path in dirs:
-        return True, sorted(dirs[path])
-    if path in vfs_all_paths():
+        entries = set(dirs[path])
+        if session is not None:
+            prefix = "/" if path == "/" else f"{path.rstrip('/')}/"
+            for candidate in [*session.vfs_dirs, *session.vfs_files]:
+                if not candidate.startswith(prefix) or candidate == path:
+                    continue
+                rel = candidate[len(prefix) :]
+                if "/" in rel:
+                    entries.add(rel.split("/", 1)[0] + "/")
+                elif candidate in session.vfs_dirs:
+                    entries.add(rel + "/")
+                else:
+                    entries.add(rel)
+        return True, sorted(entries)
+    if session is not None and path in session.vfs_dirs:
+        prefix = f"{path.rstrip('/')}/"
+        entries = set()
+        for candidate in [*session.vfs_dirs, *session.vfs_files]:
+            if not candidate.startswith(prefix) or candidate == path:
+                continue
+            rel = candidate[len(prefix) :]
+            if "/" in rel:
+                entries.add(rel.split("/", 1)[0] + "/")
+            elif candidate in session.vfs_dirs:
+                entries.add(rel + "/")
+            else:
+                entries.add(rel)
+        return True, sorted(entries)
+    if session is not None and path in session.vfs_files:
+        return False, [path.rsplit("/", 1)[-1]]
+    if path in vfs_all_paths(None):
         return False, [path.rsplit("/", 1)[-1]]
     raise NoxframeError(f"no such virtual path: {path}")
 
@@ -834,6 +1924,8 @@ def virtual_file_text(
     path: str,
 ) -> str:
     state_path, seal_path = substrate_paths(root, args)
+    if path in session.vfs_files:
+        return session.vfs_files[path]
     cell = cell_for_path(path)
     if cell is not None:
         cell_id, role, actions = cell
@@ -844,11 +1936,53 @@ def virtual_file_text(
         return "\n".join(
             [
                 "WUCI-NOXFRAME virtual substrate",
-                "root route: /proc /docs /dev /var/log and Wuci-Ji proof cells",
-                "try: help --compact, sysinfo, ls /proc, cat /proc/cells, cat /dev/codex",
+                "root route: /proc /docs /phase /env /learn /nests /dev /var/log and Wuci-Ji proof cells",
+                "try: help --compact, phase map, ls /phase, cat /env/profile, cat /dev/codex",
                 "",
             ]
         )
+    if path == "/phase/whereami":
+        return phase_text(session, args, "whereami")
+    if path == "/phase/compass":
+        return phase_text(session, args, "compass")
+    if path == "/phase/path":
+        return phase_text(session, args, "path")
+    if path == "/phase/map":
+        return phase_text(session, args, "map")
+    if path == "/phase/features":
+        return phase_feature_text()
+    if path == "/env/profile":
+        return console_profile_text(session, args)
+    if path == "/env/variables":
+        sync_session_env(session, args)
+        return console_env_text(session)
+    if path == "/env/aliases":
+        return console_alias_text(session)
+    if path == "/env/security":
+        return "\n".join(
+            [
+                "schema: wuci-noxframe-environment-security-v1",
+                "scope: console-local metadata environment",
+                "host_shell: disabled through the console registry",
+                "host_routes: metadata-only unless an explicit bridge opts in",
+                "network_routes: metadata-deny in the NOXFRAME console",
+                "writes: substrate state/seal, launch evidence, and session-local env only",
+                "non_claim: not OS runtime containment",
+                "",
+            ]
+        )
+    if path == "/env/self-release":
+        return self_release_status_text(root)
+    if path == "/learn/status":
+        return learn_status_text(session)
+    if path == "/learn/notes":
+        return learn_notes_text(session)
+    if path == "/nests/contexts":
+        return nest_list_text()
+    if path == "/nests/stack":
+        return nest_status_text(session)
+    if path == "/nests/tree":
+        return nest_tree_text()
     if path == "/proc/version":
         return f"{TOOL_NAME} substrate console\nschema={SUBSTRATE_STATE_SCHEMA}\n"
     if path == "/proc/route":
@@ -859,9 +1993,13 @@ def virtual_file_text(
             for cell_id, role, actions in SUBSTRATE_CELLS
         )
     if path == "/proc/processes":
-        return console_process_table()
+        return console_process_table(session)
     if path == "/dev/codex":
         return codex_bridge_status_text(root, args)
+    if path == "/dev/plugins":
+        return plugin_catalog_text()
+    if path == "/dev/wasi":
+        return plugin_policy_text()
     if path == "/var/log/audit":
         return "\n".join(session.audit[-40:]) + ("\n" if session.audit else "audit log empty\n")
     if path == "/docs/contract.json":
@@ -881,36 +2019,55 @@ def virtual_file_text(
         if not report_path.exists():
             return "launch report not written\n"
         return report_path.read_text(encoding="utf-8")
+    if path == "/docs/wiki":
+        return wiki_text(None)
     raise NoxframeError(f"not a virtual file: {path}")
 
 
-def console_process_table() -> str:
-    return "\n".join(
-        [
-            "PID  STATE   NAME",
-            "1    ready   noxframe-console",
-            "2    ready   substrate-seal",
-            "3    idle    daylight-anchor",
-            "4    idle    codex-bridge",
-            "",
-        ]
-    )
+def console_process_rows(session: ConsoleSession | None = None) -> list[tuple[int, str, str, str]]:
+    rows = [
+        (1, "ready", "0", "noxframe-console"),
+        (2, "ready", "0", "substrate-seal"),
+        (3, "idle", "0", "daylight-anchor"),
+        (4, "idle", "0", "codex-bridge"),
+    ]
+    if session is not None:
+        for pid in sorted(session.jobs):
+            job = session.jobs[pid]
+            rows.append(
+                (
+                    pid,
+                    job.get("state", "ready"),
+                    job.get("priority", "0"),
+                    job.get("name", "job"),
+                )
+            )
+    return rows
 
 
-def print_vfs_tree(start: str) -> None:
+def console_process_table(session: ConsoleSession | None = None) -> str:
+    lines = ["PID  STATE       PRI  NAME"]
+    for pid, state, priority, name in console_process_rows(session):
+        lines.append(f"{pid:<4} {state:<11} {priority:<4} {name}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def print_vfs_tree(start: str, session: ConsoleSession) -> None:
     dirs = vfs_static_dirs()
-    if start not in dirs:
+    all_paths = vfs_all_paths(session)
+    if start not in dirs and start not in session.vfs_dirs:
         print(start)
         return
     print(start)
-    for path in vfs_all_paths():
+    for path in all_paths:
         if path == start or not path.startswith(start.rstrip("/") + "/"):
             continue
         rel = path[len(start.rstrip("/")) + 1 :] if start != "/" else path[1:]
         depth = rel.count("/")
         if depth > 2:
             continue
-        marker = "/" if path in dirs else ""
+        marker = "/" if path in dirs or path in session.vfs_dirs else ""
         print(f"{'  ' * depth}{rel.rsplit('/', 1)[-1]}{marker}")
 
 
@@ -1057,16 +2214,27 @@ def substrate_contract() -> dict[str, object]:
                 "command metadata",
                 "guarded host access",
                 "local status and audit surfaces",
+                "Phase Compass and Optics rails",
                 "metadata-only nesting",
+                "session-local learning notes",
+                "plugin and WASI-lite catalogs without execution",
+                "Base1/B1/B2 dry-run metadata",
+                "quality gates and selftest surfaces",
                 "conservative OS-track claims",
             ],
             "ideas_not_imported": [
                 "Phase1 code",
                 "host shell passthrough",
                 "network command surface",
+                "plugin execution",
+                "persistent learning database",
                 "simulated kernel claims as enforcement",
             ],
         },
+        "phase1_feature_map": [
+            {"id": name, "mapping": description, "host_effect": "metadata-only"}
+            for name, description in PHASE1_FEATURES
+        ],
         "project_lineage": [
             "Wuci-Ji proof lanes",
             "Daylight evidence boundary",
@@ -1083,6 +2251,13 @@ def substrate_contract() -> dict[str, object]:
             for cell_id, role, actions in SUBSTRATE_CELLS
         ],
         "anchor_paths": list(ANCHOR_PATHS),
+        "daylight_wrap": {
+            "schema": DAYLIGHT_WRAP_SCHEMA,
+            "artifact_envelope": "WJSEAL-v2 via seal-file-keyfile-v2",
+            "key_source": "operator-supplied local keyfile",
+            "scope": "NOXFRAME substrate state, seal, cells, virtual dimensions, and Daylight anchors",
+            "non_claim": "local artifact sealing only; not runtime containment or whole-system PQ safety",
+        },
         "rules": {
             "stdlib_only": True,
             "network": "unused",
@@ -1121,6 +2296,8 @@ def build_substrate_state(root: Path, *, now_utc: str) -> dict[str, object]:
             "shell": "disabled",
             "host_mutation": "state-and-seal-files-only",
             "artifact_release": "requires existing Gate proof lanes",
+            "plugin_execution": "unavailable",
+            "learning": "session-local only",
         },
         "non_claims": list(NON_CLAIMS),
     }
@@ -1189,6 +2366,303 @@ def verify_substrate_seal(
     if seal.get("substrate_digest_vector") != digest_vector_json(expected_material):
         problems.append("substrate digest mismatch")
     return not problems, problems
+
+
+def validate_regular_local_file(path: Path, label: str, *, executable: bool = False) -> None:
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise NoxframeError(f"missing {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise NoxframeError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise NoxframeError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise NoxframeError(f"{label} must not be hardlinked: {path}")
+    if executable and not os.access(path, os.X_OK):
+        raise NoxframeError(f"{label} must be executable: {path}")
+
+
+def read_regular_local_bytes(path: Path, label: str) -> bytes:
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise NoxframeError(f"missing {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise NoxframeError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise NoxframeError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise NoxframeError(f"{label} must not be hardlinked: {path}")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise NoxframeError(f"could not open {label}: {path}") from exc
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise NoxframeError(f"{label} changed type while opening: {path}")
+        if opened.st_ino != info.st_ino or opened.st_dev != info.st_dev:
+            raise NoxframeError(f"{label} changed while opening: {path}")
+        if opened.st_nlink != 1:
+            raise NoxframeError(f"{label} must not be hardlinked: {path}")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
+
+
+def ensure_local_output_dir(path: Path, label: str) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise NoxframeError(f"missing {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise NoxframeError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISDIR(info.st_mode):
+        raise NoxframeError(f"{label} must be a directory: {path}")
+
+
+def require_new_output_path(path: Path, label: str) -> None:
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(info.st_mode):
+        raise NoxframeError(f"refusing to replace symlink {label}: {path}")
+    if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
+        raise NoxframeError(f"refusing to replace hardlinked {label}: {path}")
+    raise NoxframeError(f"refusing to overwrite existing {label}: {path}")
+
+
+def noxframe_inner_dimension_records(state: dict[str, object]) -> list[dict[str, object]]:
+    state_cells = state.get("cells")
+    cell_by_id: dict[str, dict[str, object]] = {}
+    if isinstance(state_cells, list):
+        for cell in state_cells:
+            if isinstance(cell, dict) and isinstance(cell.get("id"), str):
+                cell_by_id[str(cell["id"])] = dict(cell)
+    records: list[dict[str, object]] = []
+    for cell_id, role, actions in SUBSTRATE_CELLS:
+        state_cell = cell_by_id.get(cell_id, {})
+        record = {
+            "id": cell_id,
+            "role": role,
+            "allowed_actions": list(actions),
+            "state": state_cell.get("state", "sealed-metadata-ready"),
+            "wrap_surface": "substrate-cell",
+        }
+        record["digest_vector"] = digest_vector_json(record)
+        records.append(record)
+    return records
+
+
+def noxframe_virtual_dimension_records() -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    for path, entries in sorted(vfs_static_dirs().items()):
+        record = {
+            "path": path,
+            "entries": [entry.rstrip("/") for entry in entries],
+            "wrap_surface": "virtual-filesystem",
+        }
+        record["digest_vector"] = digest_vector_json(record)
+        records.append(record)
+    return records
+
+
+def build_daylight_wrap_bundle(
+    root: Path,
+    *,
+    state: dict[str, object],
+    seal: dict[str, object],
+    now_utc: str,
+) -> dict[str, object]:
+    dimensions = noxframe_inner_dimension_records(state)
+    virtual_dimensions = noxframe_virtual_dimension_records()
+    daylight_anchors = [
+        anchor_record(root, relative_path) for relative_path in DAYLIGHT_ANCHOR_PATHS
+    ]
+    public_anchors = [anchor_record(root, relative_path) for relative_path in ANCHOR_PATHS]
+    bundle = {
+        "schema": DAYLIGHT_WRAP_BUNDLE_SCHEMA,
+        "name": TOOL_NAME,
+        "created_utc": now_utc,
+        "route": ["root", "wuci-ji", "daylight"],
+        "wrap_scheme": {
+            "artifact_envelope": "WJSEAL-v2 via seal-file-keyfile-v2",
+            "daylight_binding": "Daylight public anchors and WUCI-Daylight bridge source digests",
+            "key_source": "operator-supplied local keyfile",
+            "plaintext_persistence": "temporary bundle only; not retained unless the caller opens the artifact",
+        },
+        "contract": substrate_contract(),
+        "state": state,
+        "substrate_seal": seal,
+        "inner_dimensions": dimensions,
+        "virtual_dimensions": virtual_dimensions,
+        "daylight_anchors": daylight_anchors,
+        "public_anchors": public_anchors,
+        "dimension_digest_vector": digest_vector_json(
+            {
+                "inner_dimensions": dimensions,
+                "virtual_dimensions": virtual_dimensions,
+            }
+        ),
+        "non_claims": list(NON_CLAIMS),
+    }
+    bundle["bundle_digest_vector"] = digest_vector_json(bundle)
+    return bundle
+
+
+def daylight_wrap_key_id(bundle: dict[str, object]) -> str:
+    material = {
+        "schema": DAYLIGHT_WRAP_SCHEMA,
+        "bundle_digest_vector": bundle["bundle_digest_vector"],
+        "domain": "wuci-noxframe-daylight-wrap-key-id-v1",
+    }
+    return hashlib.sha256(canonical_json_bytes(material)).hexdigest()[:32]
+
+
+def command_daylight_wrap(root: Path, args: argparse.Namespace) -> int:
+    if not args.daylight_wrap_keyfile:
+        sys.stderr.write("daylight-wrap: --daylight-wrap-keyfile is required\n")
+        return 2
+
+    state_path, seal_path = substrate_paths(root, args)
+    ensure_substrate(root, state_path=state_path, seal_path=seal_path)
+    ok, problems = verify_substrate_seal(root, state_path=state_path, seal_path=seal_path)
+    if not ok:
+        sys.stderr.write("daylight-wrap: refusing to wrap drifted NOXFRAME substrate\n")
+        for problem in problems:
+            sys.stderr.write(f"problem: {problem}\n")
+        return 1
+
+    out_dir = repo_path(root, args.daylight_wrap_out)
+    ensure_local_output_dir(out_dir, "NOXFRAME Daylight wrap output directory")
+    bundle_path = out_dir / "noxframe-inner-dimensions.bundle.json"
+    sealed_path = out_dir / "noxframe-inner-dimensions.wj"
+    manifest_path = out_dir / "manifest.json"
+    require_new_output_path(sealed_path, "NOXFRAME Daylight wrap artifact")
+
+    bin_path = repo_path(root, args.bin)
+    keyfile_path = repo_path(root, args.daylight_wrap_keyfile)
+    validate_regular_local_file(bin_path, "wuci-ji binary", executable=True)
+    keyfile_bytes = read_regular_local_bytes(keyfile_path, "NOXFRAME Daylight wrap keyfile")
+
+    state = safe_read_json_file(state_path, "NOXFRAME state")
+    seal = safe_read_json_file(seal_path, "NOXFRAME substrate seal")
+    bundle = build_daylight_wrap_bundle(root, state=state, seal=seal, now_utc=utc_now())
+    key_id = daylight_wrap_key_id(bundle)
+    bundle_bytes = canonical_json_bytes(bundle)
+    bundle_file_bytes = bundle_bytes + b"\n"
+
+    key_fd, key_tmp_name = tempfile.mkstemp(
+        prefix=".daylight-wrap-key.", dir=str(out_dir), text=False
+    )
+    try:
+        with os.fdopen(key_fd, "wb") as handle:
+            handle.write(keyfile_bytes)
+        tmp_fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{bundle_path.name}.", dir=str(out_dir), text=False
+        )
+        try:
+            with os.fdopen(tmp_fd, "wb") as handle:
+                handle.write(bundle_file_bytes)
+            try:
+                result = subprocess.run(
+                    [
+                        str(bin_path),
+                        "seal-file-keyfile-v2",
+                        key_tmp_name,
+                        key_id,
+                        tmp_name,
+                        str(sealed_path),
+                    ],
+                    cwd=root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False,
+                )
+            except OSError as exc:
+                sys.stderr.write(f"daylight-wrap: could not run seal-file-keyfile-v2: {exc}\n")
+                return 1
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
+    finally:
+        try:
+            os.unlink(key_tmp_name)
+        except FileNotFoundError:
+            pass
+
+    if result.returncode != 0:
+        try:
+            os.unlink(sealed_path)
+        except FileNotFoundError:
+            pass
+        sys.stderr.write(result.stderr or "daylight-wrap: seal-file-keyfile-v2 failed\n")
+        return result.returncode
+
+    sealed_bytes = read_regular_local_bytes(sealed_path, "NOXFRAME Daylight wrap artifact")
+    manifest = {
+        "schema": DAYLIGHT_WRAP_SCHEMA,
+        "name": TOOL_NAME,
+        "status": "sealed",
+        "created_utc": utc_now(),
+        "wrap_scheme": bundle["wrap_scheme"],
+        "key_id": key_id,
+        "key_source": "operator-supplied local keyfile; key material is not embedded",
+        "bundle_digest_vector": digest_vector(bundle_file_bytes),
+        "dimension_digest_vector": bundle["dimension_digest_vector"],
+        "state_digest_vector": digest_vector_json(state),
+        "substrate_seal_digest_vector": digest_vector_json(seal),
+        "sealed_artifact": {
+            "path": str(sealed_path),
+            "bytes": len(sealed_bytes),
+            "digest_vector": digest_vector(sealed_bytes),
+        },
+        "manifest": str(manifest_path),
+        "inner_dimensions": [
+            {
+                "id": record["id"],
+                "role": record["role"],
+                "digest_vector": record["digest_vector"],
+            }
+            for record in bundle["inner_dimensions"]
+            if isinstance(record, dict)
+        ],
+        "virtual_dimension_count": len(bundle["virtual_dimensions"]),
+        "daylight_anchors": bundle["daylight_anchors"],
+        "guards": {
+            "network": "unused",
+            "shell": "disabled; subprocess invoked with shell=False",
+            "keyfile": (
+                "operator keyfile read through no-follow regular-file check; "
+                "temporary key copy removed after sealing"
+            ),
+            "plaintext_bundle": "temporary file removed after seal-file-keyfile-v2 returns",
+        },
+        "non_claims": list(NON_CLAIMS),
+    }
+    write_json_atomic(manifest_path, manifest)
+
+    if args.json:
+        print_json(manifest)
+    else:
+        print("noxframe daylight-wrap: sealed")
+        print(f"artifact: {sealed_path}")
+        print(f"manifest: {manifest_path}")
+        print(f"key-id: {key_id}")
+    return 0
 
 
 def read_clock_state(clock_path: Path) -> dict[str, object]:
@@ -1392,10 +2866,244 @@ def boot_answer_allows(value: str) -> bool:
     return value.strip().lower() in {"y", "yes"}
 
 
+def detect_boot_terminal(env: dict[str, str] | None = None) -> BootTerminalProfile:
+    env = os.environ if env is None else env
+    term = env.get("TERM", "").lower()
+    term_program = env.get("TERM_PROGRAM", "").lower()
+    colorterm = env.get("COLORTERM", "").lower()
+    in_tmux = bool(env.get("TMUX")) or term.startswith("screen")
+    remote = bool(env.get("SSH_CONNECTION") or env.get("SSH_TTY"))
+
+    if term in {"", "dumb"}:
+        return BootTerminalProfile("dumb", False, True, 0.0)
+    if env.get("KITTY_WINDOW_ID") or "kitty" in term:
+        return BootTerminalProfile("kitty", True, False, 0.14)
+    if env.get("WEZTERM_PANE") or "wezterm" in term_program:
+        return BootTerminalProfile("wezterm", True, False, 0.15)
+    if env.get("GHOSTTY_RESOURCES_DIR") or "ghostty" in term_program or "ghostty" in term:
+        return BootTerminalProfile("ghostty", True, False, 0.15)
+    if "iterm" in term_program:
+        return BootTerminalProfile("iterm", True, False, 0.16)
+    if "vscode" in term_program or "vscode" in term:
+        return BootTerminalProfile("vscode", False, True, 0.0)
+    if in_tmux:
+        return BootTerminalProfile("tmux", False, True, 0.0)
+    if remote:
+        return BootTerminalProfile("remote", False, True, 0.0)
+    if "truecolor" in colorterm and any(token in term for token in ("xterm", "alacritty", "ghostty")):
+        return BootTerminalProfile("truecolor", False, True, 0.0)
+    return BootTerminalProfile(term or "generic", False, True, 0.0)
+
+
+def terminal_graphics_available(env: dict[str, str] | None = None) -> bool:
+    env = os.environ if env is None else env
+    if sys.platform == "darwin":
+        return True
+    return bool(env.get("DISPLAY") or env.get("WAYLAND_DISPLAY"))
+
+
+def interactive_terminal_launch(
+    args: argparse.Namespace,
+    *,
+    stdin_tty: bool | None = None,
+    stdout_tty: bool | None = None,
+    stderr_tty: bool | None = None,
+) -> bool:
+    stdin_tty = sys.stdin.isatty() if stdin_tty is None else stdin_tty
+    stdout_tty = sys.stdout.isatty() if stdout_tty is None else stdout_tty
+    stderr_tty = sys.stderr.isatty() if stderr_tty is None else stderr_tty
+    return (
+        getattr(args, "command", "launch") == "launch"
+        and not getattr(args, "no_console", False)
+        and stdin_tty
+        and stdout_tty
+        and stderr_tty
+    )
+
+
+def should_handoff_to_mechanics_terminal(
+    args: argparse.Namespace,
+    *,
+    env: dict[str, str] | None = None,
+    stdin_tty: bool | None = None,
+    stdout_tty: bool | None = None,
+    stderr_tty: bool | None = None,
+) -> bool:
+    env = os.environ if env is None else env
+    if getattr(args, "no_terminal_handoff", False):
+        return False
+    if env.get(TERMINAL_HANDOFF_ENV):
+        return False
+    if getattr(args, "boot_renderer", "auto") != "auto":
+        return False
+    if not interactive_terminal_launch(
+        args,
+        stdin_tty=stdin_tty,
+        stdout_tty=stdout_tty,
+        stderr_tty=stderr_tty,
+    ):
+        return False
+    if not terminal_graphics_available(env):
+        return False
+    profile = detect_boot_terminal(env)
+    if profile.name in {"dumb", "remote", "tmux"}:
+        return False
+    return not profile.rich_animation
+
+
+def resolve_command_path(
+    name: str,
+    command_paths: dict[str, str | None] | None = None,
+) -> str | None:
+    if command_paths is not None:
+        return command_paths.get(name)
+    return shutil.which(name)
+
+
+def noxframe_relaunch_argv(root: Path, argv: tuple[str, ...] | None = None) -> tuple[str, ...]:
+    raw = tuple(sys.argv if argv is None else argv)
+    suffix = raw[1:] if raw else ()
+    if raw:
+        launcher = Path(raw[0])
+        if not launcher.is_absolute():
+            launcher = (Path.cwd() / launcher).resolve()
+        if launcher.exists():
+            return (str(launcher), *suffix)
+    return (str(root / "tools" / "wuci-noxframe"), *suffix)
+
+
+def mechanics_terminal_handoff_command(
+    root: Path,
+    args: argparse.Namespace,
+    *,
+    env: dict[str, str] | None = None,
+    command_paths: dict[str, str | None] | None = None,
+    argv: tuple[str, ...] | None = None,
+    stdin_tty: bool | None = None,
+    stdout_tty: bool | None = None,
+    stderr_tty: bool | None = None,
+) -> tuple[str, ...] | None:
+    if not should_handoff_to_mechanics_terminal(
+        args,
+        env=env,
+        stdin_tty=stdin_tty,
+        stdout_tty=stdout_tty,
+        stderr_tty=stderr_tty,
+    ):
+        return None
+    kitty = resolve_command_path("kitty", command_paths)
+    if not kitty:
+        return None
+    return (
+        kitty,
+        "--title",
+        "WUCI-NOXFRAME",
+        "--working-directory",
+        str(root),
+        *noxframe_relaunch_argv(root, argv),
+    )
+
+
+def maybe_open_mechanics_terminal(root: Path, args: argparse.Namespace, palette: Palette) -> bool:
+    env = os.environ.copy()
+    command = mechanics_terminal_handoff_command(root, args, env=env)
+    if command is None:
+        if should_handoff_to_mechanics_terminal(args, env=env):
+            sys.stderr.write(
+                palette.paint(
+                    "NOXFRAME mechanics terminal not found; install kitty "
+                    f"or use {MECHANICS_TERMINAL_HINT}. "
+                    "Using the reduced terminal profile.\n",
+                    palette.yellow,
+                )
+            )
+            sys.stderr.flush()
+        return False
+    env[TERMINAL_HANDOFF_ENV] = "1"
+    env["NOXFRAME_PARENT_TERMINAL"] = detect_boot_terminal(env).name
+    try:
+        subprocess.Popen(
+            list(command),
+            cwd=root,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    except OSError as exc:
+        sys.stderr.write(
+            palette.paint(
+                f"NOXFRAME could not open kitty ({exc}); using the reduced terminal profile.\n",
+                palette.yellow,
+            )
+        )
+        sys.stderr.flush()
+        return False
+    sys.stderr.write(
+        palette.paint(
+            "NOXFRAME opening kitty mechanics terminal for the full boot surface.\n",
+            palette.cyan,
+        )
+    )
+    sys.stderr.flush()
+    return True
+
+
 def boot_animation_active(args: argparse.Namespace) -> bool:
     if args.yes or args.no_boot_prompt or getattr(args, "no_boot_animation", False):
         return False
+    return (
+        sys.stdin.isatty()
+        and sys.stderr.isatty()
+        and getattr(args, "boot_renderer", "auto") != "gui"
+        and detect_boot_terminal().rich_animation
+    )
+
+
+def boot_voice_active(args: argparse.Namespace) -> bool:
+    if args.yes or args.no_boot_prompt or getattr(args, "no_boot_voice", False):
+        return False
     return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def boot_voice_command(
+    text: str,
+    command_paths: dict[str, str | None] | None = None,
+) -> tuple[str, ...] | None:
+    def resolved(name: str) -> str | None:
+        if command_paths is not None:
+            return command_paths.get(name)
+        return shutil.which(name)
+
+    candidates = (
+        ("spd-say", ("-t", "female1", "-r", "-20", text)),
+        ("espeak-ng", ("-v", "en+f3", "-s", "145", text)),
+        ("espeak", ("-v", "en+f3", "-s", "145", text)),
+        ("say", ("-v", "Samantha", "-r", "145", text)),
+    )
+    for name, args in candidates:
+        path = resolved(name)
+        if path:
+            return (path, *args)
+    return None
+
+
+def speak_boot_prompt_once(text: str = BOOT_VOICE_TEXT) -> bool:
+    command = boot_voice_command(text)
+    if command is None:
+        return False
+    try:
+        subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    except OSError:
+        return False
+    return True
 
 
 def prompt_boot_plain(prompt: str, palette: Palette) -> bool:
@@ -1406,6 +3114,9 @@ def prompt_boot_plain(prompt: str, palette: Palette) -> bool:
 
 
 def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
+    terminal_profile = detect_boot_terminal()
+    if not terminal_profile.rich_animation:
+        return prompt_boot_plain(prompt, palette)
     try:
         fd = sys.stdin.fileno()
         old_attrs = termios.tcgetattr(fd)
@@ -1433,8 +3144,9 @@ def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
                 full_screen=True,
                 prompt=prompt,
                 answer=answer,
+                clear_screen=frame == 0,
             )
-            ready, _, _ = select.select([sys.stdin], [], [], 0.14)
+            ready, _, _ = select.select([sys.stdin], [], [], terminal_profile.frame_delay)
             if ready:
                 chunk = os.read(fd, 32).decode("utf-8", errors="ignore")
                 for char in chunk:
@@ -1455,12 +3167,328 @@ def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
         sys.stderr.flush()
 
 
+def boot_gui_candidate(args: argparse.Namespace) -> bool:
+    renderer = getattr(args, "boot_renderer", "auto")
+    if args.yes or args.no_boot_prompt or getattr(args, "no_boot_animation", False):
+        return False
+    return renderer == "gui" and sys.stdin.isatty()
+
+
+def prompt_boot_graphical(prompt: str) -> bool | None:
+    try:
+        import tkinter as tk
+        from tkinter import font as tkfont
+    except Exception:
+        return None
+
+    try:
+        root = tk.Tk()
+    except Exception:
+        return None
+
+    decision: dict[str, bool | None] = {"value": None}
+    frame_state = {"frame": 0, "after": None}
+    petals: list[dict[str, float]] = []
+
+    def finish(value: bool) -> None:
+        decision["value"] = value
+        after_id = frame_state.get("after")
+        if after_id is not None:
+            try:
+                root.after_cancel(after_id)
+            except tk.TclError:
+                pass
+        root.destroy()
+
+    def on_key(event: object) -> None:
+        keysym = getattr(event, "keysym", "")
+        char = getattr(event, "char", "")
+        lowered = char.lower()
+        if keysym in {"Return", "KP_Enter", "space"} or lowered in {"y"}:
+            finish(True)
+        elif keysym in {"Escape"} or lowered in {"n", "q"}:
+            finish(False)
+
+    def on_close() -> None:
+        finish(False)
+
+    def hex_color(rgb: tuple[int, int, int]) -> str:
+        return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+    def mix(a: tuple[int, int, int], b: tuple[int, int, int], amount: float) -> tuple[int, int, int]:
+        amount = max(0.0, min(1.0, amount))
+        return (
+            int(a[0] + (b[0] - a[0]) * amount),
+            int(a[1] + (b[1] - a[1]) * amount),
+            int(a[2] + (b[2] - a[2]) * amount),
+        )
+
+    def rebuild_particles(width: int, height: int) -> None:
+        petals.clear()
+        petal_count = max(90, min(260, (width * height) // 11000))
+        for seed in range(petal_count):
+            petals.append(
+                {
+                    "x": float((seed * 389 + 37) % max(width, 1)),
+                    "y": float((seed * 233 + 19) % max(height, 1)),
+                    "r": 2.0 + (seed % 7) * 0.55,
+                    "speed": 0.18 + (seed % 11) * 0.026,
+                    "sway": 14.0 + (seed % 9) * 2.7,
+                    "phase": seed * 0.73,
+                    "depth": float(seed % 4),
+                }
+            )
+
+    def draw_gradient(canvas: object, width: int, height: int) -> None:
+        bands = 72
+        for index in range(bands):
+            t0 = index / bands
+            t1 = (index + 1) / bands
+            base = mix((3, 1, 4), (23, 2, 8), t0)
+            crimson = mix(base, (101, 4, 21), max(0.0, 1.0 - abs(t0 - 0.58) * 3.2))
+            violet = mix(crimson, (42, 11, 61), max(0.0, t0 - 0.74) * 0.9)
+            ember = mix(violet, (139, 10, 34), max(0.0, 1.0 - abs(t0 - 0.86) * 5.0) * 0.22)
+            canvas.create_rectangle(
+                0,
+                int(height * t0),
+                width,
+                int(height * t1) + 1,
+                fill=hex_color(ember),
+                outline="",
+                tags="frame",
+            )
+
+    def draw_static_scene(canvas: object, width: int, height: int, frame: int) -> None:
+        draw_gradient(canvas, width, height)
+        grid_color = "#3c0711"
+        grid_step = max(34, min(72, width // 22))
+        for x in range(0, width + grid_step, grid_step):
+            canvas.create_line(x, 0, x, height, fill=grid_color, width=1, tags="frame")
+        for y in range(0, height + grid_step, grid_step):
+            canvas.create_line(0, y, width, y, fill=grid_color, width=1, tags="frame")
+        for seed in range(34):
+            x = (seed * 263 + 91) % max(width, 1)
+            y = (seed * 149 + 41) % max(int(height * 0.62), 1)
+            shimmer = 0.5 + 0.5 * math.sin(frame * 0.035 + seed)
+            color = mix((122, 26, 48), (255, 192, 215), shimmer)
+            size = 1 + (seed % 3)
+            canvas.create_oval(x, y, x + size, y + size, fill=hex_color(color), outline="", tags="frame")
+
+        panel_x = width * 0.58
+        panel_y = height * 0.18
+        panel_w = width * 0.36
+        panel_h = height * 0.58
+        cols = 8
+        grid_rows = 6
+        cell_w = panel_w / cols
+        cell_h = panel_h / grid_rows
+        canvas.create_rectangle(
+            panel_x,
+            panel_y,
+            panel_x + panel_w,
+            panel_y + panel_h,
+            outline="#e3345d",
+            width=max(1, width // 480),
+            tags="frame",
+        )
+        for col in range(1, cols):
+            x = panel_x + col * cell_w
+            canvas.create_line(x, panel_y, x, panel_y + panel_h, fill="#651123", width=1, tags="frame")
+        for row in range(1, grid_rows):
+            y = panel_y + row * cell_h
+            canvas.create_line(panel_x, y, panel_x + panel_w, y, fill="#651123", width=1, tags="frame")
+
+        matrix_font = tkfont.Font(family="Courier", size=max(10, width // 108), weight="bold")
+        small_font = tkfont.Font(family="Courier", size=max(8, width // 150))
+        canvas.create_text(panel_x + 18, panel_y - 22, anchor=tk.W, text="[2 1; 1 1]", fill="#ff7b9a", font=small_font, tags="frame")
+        canvas.create_text(panel_x + panel_w - 18, panel_y - 22, anchor=tk.E, text=BOOT_IDEOGRAPH_TEXT, fill="#b875ff", font=small_font, tags="frame")
+
+        active_cells: set[tuple[int, int]] = set()
+        for seed in range(18):
+            u = (seed * 3 + frame // 5) % cols
+            v = (seed * 5 + frame // 8) % grid_rows
+            x_cell = (2 * u + v + frame // 11) % cols
+            y_cell = (u + v + frame // 13) % grid_rows
+            active_cells.add((x_cell, y_cell))
+
+        for row in range(grid_rows):
+            for col in range(cols):
+                x0 = panel_x + col * cell_w
+                y0 = panel_y + row * cell_h
+                token = ((col * 7 + row * 11 + frame // 4) % 16)
+                if (col, row) in active_cells:
+                    canvas.create_rectangle(
+                        x0 + 3,
+                        y0 + 3,
+                        x0 + cell_w - 3,
+                        y0 + cell_h - 3,
+                        fill="#2a020b",
+                        outline="#ff4d73",
+                        width=2,
+                        tags="frame",
+                    )
+                    canvas.create_text(
+                        x0 + cell_w / 2,
+                        y0 + cell_h / 2,
+                        text=f"{token:X}",
+                        fill="#ffe9f1",
+                        font=matrix_font,
+                        tags="frame",
+                    )
+                elif (col + row + frame // 10) % 5 == 0:
+                    canvas.create_text(
+                        x0 + cell_w / 2,
+                        y0 + cell_h / 2,
+                        text=f"{token:X}",
+                        fill="#9c2444",
+                        font=small_font,
+                        tags="frame",
+                    )
+
+        for index in range(5):
+            rail_y = panel_y + panel_h + 24 + index * max(10, height * 0.018)
+            canvas.create_line(panel_x, rail_y, panel_x + panel_w, rail_y, fill="#6b1530", width=1, tags="frame")
+            packet_x = panel_x + ((frame * (1.2 + index * 0.25) + index * 61) % panel_w)
+            canvas.create_rectangle(packet_x, rail_y - 2, packet_x + cell_w * 0.62, rail_y + 2, fill="#ff4f84", outline="", tags="frame")
+
+    def draw_petals(canvas: object, width: int, height: int, frame: int) -> None:
+        colors = ("#ffe8f0", "#ff9fbd", "#e15688", "#9a55da")
+        for item in petals:
+            depth = int(item["depth"])
+            x = (item["x"] + math.sin(frame * 0.023 + item["phase"]) * item["sway"] + frame * (0.05 + depth * 0.02)) % width
+            y = (item["y"] + frame * item["speed"]) % (height + 40) - 20
+            if x >= width * 0.55 and height * 0.14 <= y <= height * 0.84:
+                continue
+            r = item["r"] + depth * 0.35
+            tilt = math.sin(frame * 0.05 + item["phase"]) * r
+            canvas.create_oval(
+                x - r + tilt * 0.25,
+                y - r * 0.55,
+                x + r + tilt,
+                y + r * 0.55,
+                fill=colors[depth],
+                outline="",
+                tags="frame",
+            )
+
+    def draw_text(canvas: object, width: int, height: int) -> None:
+        title_size = max(44, min(112, width // 13))
+        subtitle_size = max(16, min(30, width // 48))
+        prompt_size = max(15, min(24, width // 62))
+        center_x = int(width * (0.42 if width >= 900 else 0.50))
+        title_y = int(height * 0.46)
+        title_font = tkfont.Font(family="Helvetica", size=title_size, weight="bold")
+        subtitle_font = tkfont.Font(family="Helvetica", size=subtitle_size)
+        prompt_font = tkfont.Font(family="Helvetica", size=prompt_size)
+        canvas.create_text(
+            center_x + 3,
+            title_y + 4,
+            text="WUCI-JI",
+            fill="#4d0010",
+            font=title_font,
+            tags="frame",
+        )
+        canvas.create_text(center_x, title_y, text="WUCI-JI", fill="#fff0f5", font=title_font, tags="frame")
+        canvas.create_text(
+            center_x,
+            title_y + title_size * 0.82,
+            text="Wuci-Ji Systems Substrate",
+            fill="#ff6b8f",
+            font=subtitle_font,
+            tags="frame",
+        )
+        canvas.create_text(
+            center_x,
+            title_y + title_size * 1.12,
+            text=BOOT_IDEOGRAPH_TEXT,
+            fill="#b875ff",
+            font=tkfont.Font(family="Helvetica", size=max(18, min(36, width // 42)), weight="bold"),
+            tags="frame",
+        )
+        question = BOOT_VOICE_TEXT if prompt == BOOT_PROMPT else prompt.strip()
+        wrap = min(int(width * 0.54), 720)
+        canvas.create_text(
+            center_x,
+            int(height * 0.72),
+            text=question,
+            fill="#ffd7e2",
+            font=prompt_font,
+            width=wrap,
+            justify=tk.CENTER,
+            tags="frame",
+        )
+        canvas.create_text(
+            center_x,
+            int(height * 0.82),
+            text="[ Enter / Y ]",
+            fill="#ff4f74",
+            font=tkfont.Font(family="Helvetica", size=max(13, prompt_size - 2), weight="bold"),
+            tags="frame",
+        )
+        canvas.create_text(
+            center_x,
+            int(height * 0.875),
+            text="N / Esc declines",
+            fill="#b875ff",
+            font=tkfont.Font(family="Helvetica", size=max(10, prompt_size - 7)),
+            tags="frame",
+        )
+
+    root.title("WUCI-JI Systems Substrate")
+    root.configure(bg="#030104")
+    root.protocol("WM_DELETE_WINDOW", on_close)
+    root.bind("<Key>", on_key)
+    root.bind("<Button-1>", lambda _event: finish(True))
+    try:
+        root.attributes("-fullscreen", True)
+    except tk.TclError:
+        root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
+    canvas = tk.Canvas(root, highlightthickness=0, bd=0, bg="#030104")
+    canvas.pack(fill=tk.BOTH, expand=True)
+    width = max(800, root.winfo_screenwidth())
+    height = max(480, root.winfo_screenheight())
+    rebuild_particles(width, height)
+
+    def render() -> None:
+        try:
+            current_width = max(640, canvas.winfo_width() or width)
+            current_height = max(420, canvas.winfo_height() or height)
+            if not petals or abs(current_width - width) > 80 or abs(current_height - height) > 80:
+                rebuild_particles(current_width, current_height)
+            canvas.delete("frame")
+            frame = frame_state["frame"]
+            draw_static_scene(canvas, current_width, current_height, frame)
+            draw_petals(canvas, current_width, current_height, frame)
+            draw_text(canvas, current_width, current_height)
+            frame_state["frame"] = frame + 1
+            frame_state["after"] = root.after(33, render)
+        except tk.TclError:
+            return
+
+    try:
+        root.after(0, render)
+        root.mainloop()
+    except Exception:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        return None
+    return bool(decision["value"])
+
+
 def confirm_boot(args: argparse.Namespace, palette: Palette) -> bool:
     if args.yes or args.no_boot_prompt:
         return True
     if not args.force_boot_prompt and (not sys.stdin.isatty() or not sys.stderr.isatty()):
         return True
-    prompt = "Would you like to boot the Wuci-Ji substrate? [y/N] "
+    prompt = BOOT_PROMPT
+    if boot_voice_active(args):
+        speak_boot_prompt_once()
+    if boot_gui_candidate(args):
+        graphical_answer = prompt_boot_graphical(prompt)
+        if graphical_answer is not None:
+            return graphical_answer
     if boot_animation_active(args):
         return prompt_boot_animated(prompt, palette)
     return prompt_boot_plain(prompt, palette)
@@ -1701,158 +3729,307 @@ def print_banner(
     full_screen: bool = False,
     prompt: str | None = None,
     answer: str = "",
+    clear_screen: bool = True,
 ) -> None:
-    inner_width = banner_inner_width(full_width=full_screen)
-
-    def frame_line(text: str = "", *, align: str = "center", width: int = inner_width) -> str:
-        if align == "left":
-            preferred_left = min(3, max(1, width))
-            text = fit_display(text, max(0, width - preferred_left))
-        else:
-            preferred_left = 0
-            text = fit_display(text, width)
-        text_width = display_width(text)
-        if align == "left":
-            left = min(preferred_left, max(0, width - text_width))
-        else:
-            left = (width - text_width) // 2
-        right = width - text_width - left
-        return f"|{' ' * left}{text}{' ' * right}|"
-
-    def space_line(seed: int, *, drift: int = 1, width: int = inner_width) -> str:
-        marks = {3: ".", 11: "'", 19: "*", 31: ".", 43: "+", 59: ".", 71: "*", 83: "'"}
-        chars = [" "] * width
-        for index, mark in marks.items():
-            chars[(index + seed + (frame * drift)) % width] = mark
-        return "|" + "".join(chars) + "|"
-
-    def orbit_line(text: str, *, width: int = inner_width) -> str:
-        text = fit_display(text, max(1, width - 8))
-        text_width = display_width(text)
-        if width < 58:
-            left_marks = " . "
-            right_marks = " . "
-        else:
-            left_marks = " .  *    .     '   "
-            right_marks = "   '     .    *  . "
-        fixed_width = display_width(left_marks) + display_width(right_marks) + text_width
-        if fixed_width > width:
-            return frame_line(text, width=width)
-        spacer = width - fixed_width
-        wobble = (frame % 5) - 2 if full_screen else 0
-        left_pad = max(0, min(spacer, (spacer // 2) + wobble))
-        right_pad = spacer - left_pad
-        return f"|{' ' * left_pad}{left_marks}{text}{right_marks}{' ' * right_pad}|"
-
-    def sky_line(seed: int, width: int = inner_width) -> str:
-        marks = (".", "'", "*", "+", ".", "*")
-        chars = [" "] * width
-        for offset, mark in enumerate(marks):
-            pos = (seed + frame * (offset + 1) * 3 + offset * 17) % width
-            chars[pos] = mark
-        return "|" + "".join(chars) + "|"
-
-    block_logo = [
-        "██╗    ██╗ ██╗   ██╗  ██████╗ ██╗              ██╗ ██╗",
-        "██║    ██║ ██║   ██║ ██╔════╝ ██║              ██║ ██║",
-        "██║ █╗ ██║ ██║   ██║ ██║      ██║ █████╗       ██║ ██║",
-        "██║███╗██║ ██║   ██║ ██║      ██║ ╚════╝  ██   ██║ ██║",
-        "╚███╔███╔╝ ╚██████╔╝ ╚██████╗ ██║         ╚█████╔╝ ██║",
-        " ╚══╝╚══╝   ╚═════╝   ╚═════╝ ╚═╝          ╚════╝  ╚═╝",
-    ]
-    compact_logo = [
-        "╔════════════════════╗",
-        "║      WUCI-JI       ║",
-        "╚════════════════════╝",
-    ]
-    logo = block_logo if max(display_width(line) for line in block_logo) <= inner_width else compact_logo
-    detail_rows = (
-        [
-            (frame_line("NOXFRAME / DAYLIGHT / GATE", align="left"), palette.cyan),
-            (
-                frame_line(
-                    "public anchors only  |  receipt-bound release  |  local proof substrate",
-                    align="left",
-                ),
-                palette.dim,
-            ),
-            (
-                frame_line(
-                    "sealed locally  |  clear record  |  standard quick boot between full cycles",
-                    align="left",
-                ),
-                palette.dim,
-            ),
-        ]
-        if inner_width >= 78
-        else [
-            (frame_line("NOXFRAME / DAYLIGHT / GATE", align="left"), palette.cyan),
-            (frame_line("local proof substrate  |  quick boot / full cycle", align="left"), palette.dim),
-        ]
+    width = max(
+        MIN_BANNER_INNER_WIDTH,
+        terminal_columns() - 1 if full_screen else banner_inner_width(full_width=False),
     )
-    edge = "+" + "-" * inner_width + "+"
-    pulse = FRAMES[frame % len(FRAMES)]
-    lines = [
-        (edge, palette.dim),
-        (space_line(0, drift=1), palette.dim),
-        (space_line(9, drift=2), palette.dim),
-        *[(frame_line(line), palette.red) for line in logo],
-        (space_line(17, drift=3), palette.dim),
-        (orbit_line("无   此   机   系   统"), palette.yellow),
-        (frame_line("wu   ci   ji   xi   tong"), palette.cyan),
-        (frame_line("Wuci-Ji Systems"), palette.cyan),
-        (space_line(26, drift=2), palette.dim),
-        *detail_rows,
-        *(
-            [
-                (
-                    frame_line(
-                        f"{pulse} awaiting operator boot decision  |  enter y to boot, enter for no",
-                        align="left",
-                    ),
-                    palette.green,
-                )
-            ]
-            if full_screen
-            else []
-        ),
-        (space_line(34, drift=3), palette.dim),
-        (frame_line("无此机  ::  无授权  ::  无许可"), palette.yellow),
-        (space_line(43, drift=1), palette.dim),
-        (edge, palette.dim),
-    ]
-    if full_screen:
-        footer = [
-            (frame_line("WUCI-JI + Daylight defensive proof launch", align="left"), palette.dim),
-            (frame_line(f"legacy alias: {LEGACY_TOOL_NAME}", align="left"), palette.dim),
-        ]
-        prompt_rows = []
-        if prompt is not None:
-            prompt_rows.append((frame_line(f"{prompt}{answer}", align="left"), palette.yellow))
-        body = [*lines, *footer, *prompt_rows]
-        extra_rows = max(0, terminal_lines() - len(body))
-        top_rows = extra_rows // 3
-        bottom_rows = extra_rows - top_rows
-        full_lines = (
-            [(sky_line(101 + index * 11), palette.dim) for index in range(top_rows)]
-            + body
-            + [(sky_line(211 + index * 13), palette.dim) for index in range(bottom_rows)]
+    rows = (
+        max(14, terminal_lines() - 1)
+        if full_screen
+        else (24 if width >= 82 else 20)
+    )
+    if not full_screen:
+        rows = min(rows, 26)
+
+    Cell = tuple[str, tuple[int, int, int] | None, tuple[int, int, int] | None, bool]
+
+    def blend(a: tuple[int, int, int], b: tuple[int, int, int], amount: float) -> tuple[int, int, int]:
+        amount = max(0.0, min(1.0, amount))
+        return (
+            int(a[0] + (b[0] - a[0]) * amount),
+            int(a[1] + (b[1] - a[1]) * amount),
+            int(a[2] + (b[2] - a[2]) * amount),
         )
-        sys.stderr.write("\033[2J\033[H")
-        for line, color in full_lines:
-            sys.stderr.write(palette.paint(line, color) + "\n")
+
+    def bg_at(x: int, y: int) -> tuple[int, int, int]:
+        x_t = x / max(1, width - 1)
+        y_t = y / max(1, rows - 1)
+        void = blend((3, 1, 4), (17, 1, 7), y_t)
+        crimson = blend(void, (74, 4, 17), max(0.0, 1.0 - abs(y_t - 0.58) * 3.6))
+        lower = blend(crimson, (18, 0, 6), max(0.0, y_t - 0.72) * 1.5)
+        red_haze = max(0.0, x_t - 0.56) * max(0.0, 0.88 - y_t) * 0.62
+        purple_haze = max(0.0, 0.50 - x_t) * max(0.0, y_t - 0.18) * 0.22
+        return blend(blend(lower, (132, 6, 31), red_haze), (66, 18, 91), purple_haze)
+
+    canvas: list[list[Cell]] = [
+        [(" ", None, bg_at(x, y), False) for x in range(width)]
+        for y in range(rows)
+    ]
+
+    def ansi_prefix(
+        fg: tuple[int, int, int] | None,
+        bg: tuple[int, int, int] | None,
+        bold: bool,
+    ) -> str:
+        if not palette.enabled:
+            return ""
+        codes = []
+        if bold:
+            codes.append("1")
+        if fg is not None:
+            codes.append(f"38;2;{fg[0]};{fg[1]};{fg[2]}")
+        if bg is not None:
+            codes.append(f"48;2;{bg[0]};{bg[1]};{bg[2]}")
+        return f"\x1b[{';'.join(codes)}m" if codes else ""
+
+    def put(
+        x: int,
+        y: int,
+        char: str,
+        *,
+        fg: tuple[int, int, int] | None = None,
+        bg: tuple[int, int, int] | None = None,
+        bold: bool = False,
+    ) -> None:
+        if 0 <= x < width and 0 <= y < rows and display_width(char) == 1:
+            old = canvas[y][x]
+            canvas[y][x] = (char, fg, bg if bg is not None else old[2], bold)
+
+    def put_text(
+        text: str,
+        x: int,
+        y: int,
+        *,
+        fg: tuple[int, int, int],
+        bold: bool = False,
+        max_width: int | None = None,
+    ) -> None:
+        if not 0 <= y < rows:
+            return
+        limit = max(0, min(width - x, max_width if max_width is not None else width - x))
+        rendered = fit_display(text, limit)
+        cursor = x
+        for char in rendered:
+            char_width = display_width(char)
+            if char_width == 1:
+                put(cursor, y, char, fg=fg, bold=bold)
+            elif char_width == 2 and cursor + 1 < width:
+                old = canvas[y][cursor]
+                canvas[y][cursor] = (char, fg, old[2], bold)
+                canvas[y][cursor + 1] = ("", fg, old[2], bold)
+            cursor += max(char_width, 1)
+            if cursor >= width:
+                break
+
+    def clear_span(x: int, y: int, span: int) -> None:
+        if not 0 <= y < rows:
+            return
+        for xx in range(max(0, x), min(width, x + span)):
+            canvas[y][xx] = (" ", None, blend(bg_at(xx, y), (44, 2, 13), 0.18), False)
+
+    def centered_x(text: str, center: int, padding: int = 2) -> int:
+        text_width = display_width(text)
+        return max(padding, min(width - text_width - padding, center - text_width // 2))
+
+    def wrap_words(text: str, limit: int) -> list[str]:
+        words = text.split()
+        lines: list[str] = []
+        current = ""
+        for word in words:
+            candidate = word if not current else f"{current} {word}"
+            if display_width(candidate) <= limit:
+                current = candidate
+                continue
+            if current:
+                lines.append(current)
+            current = word
+        if current:
+            lines.append(current)
+        return lines or [""]
+
+    def draw_line(
+        x0: int,
+        y0: int,
+        x1: int,
+        y1: int,
+        *,
+        fg: tuple[int, int, int],
+        char: str | None = None,
+        bold: bool = False,
+    ) -> None:
+        steps = max(abs(x1 - x0), abs(y1 - y0), 1)
+        for step in range(steps + 1):
+            t = step / steps
+            x = round(x0 + (x1 - x0) * t)
+            y = round(y0 + (y1 - y0) * t)
+            if char is None:
+                mark = "╲" if (x1 - x0) * (y1 - y0) >= 0 else "╱"
+            else:
+                mark = char
+            put(x, y, mark, fg=fg, bold=bold)
+
+    grid_left = int(width * (0.61 if width >= 74 else 0.54))
+    grid_top = max(1, int(rows * 0.18))
+    grid_width = max(18, width - grid_left - 2)
+    grid_rows = max(4, min(6, (rows - grid_top - 5) // 2))
+    grid_cols = max(4, min(8, grid_width // 6))
+    cell_w = max(4, grid_width // grid_cols)
+    cell_h = 2
+    grid_right = min(width - 2, grid_left + grid_cols * cell_w)
+    grid_bottom = min(rows - 2, grid_top + grid_rows * cell_h)
+    grid_color = (214, 42, 76)
+    hot_color = (255, 80, 122)
+    dim_grid = (101, 18, 42)
+
+    for row in range(grid_rows + 1):
+        y = grid_top + row * cell_h
+        if y > grid_bottom:
+            continue
+        for x in range(grid_left, grid_right + 1):
+            if x == grid_left:
+                char = "├" if 0 < row < grid_rows else ("┌" if row == 0 else "└")
+            elif x == grid_right:
+                char = "┤" if 0 < row < grid_rows else ("┐" if row == 0 else "┘")
+            elif (x - grid_left) % cell_w == 0:
+                char = "┼" if 0 < row < grid_rows else ("┬" if row == 0 else "┴")
+            else:
+                char = "─"
+            put(x, y, char, fg=grid_color if row in {0, grid_rows} else dim_grid)
+
+    for col in range(grid_cols + 1):
+        x = grid_left + col * cell_w
+        if x > grid_right:
+            continue
+        for y in range(grid_top + 1, grid_bottom):
+            if (y - grid_top) % cell_h == 0:
+                continue
+            put(x, y, "│", fg=dim_grid)
+
+    if width >= 74:
+        put_text("[2 1; 1 1]", grid_left, max(0, grid_top - 1), fg=(255, 126, 154), max_width=16)
+        put_text(BOOT_IDEOGRAPH_TEXT, max(grid_left + 16, grid_right - 12), max(0, grid_top - 1), fg=(184, 117, 255), max_width=12)
+
+    active_cells: set[tuple[int, int]] = set()
+    for seed in range(14):
+        u = (seed * 3 + frame // 5) % grid_cols
+        v = (seed * 5 + frame // 8) % grid_rows
+        active_cells.add(((2 * u + v + frame // 11) % grid_cols, (u + v + frame // 13) % grid_rows))
+
+    for row in range(grid_rows):
+        for col in range(grid_cols):
+            x0 = grid_left + col * cell_w + 1
+            y0 = grid_top + row * cell_h + 1
+            token = f"{(col * 7 + row * 11 + frame // 4) % 16:X}"
+            if (col, row) in active_cells:
+                put(x0, y0, "■", fg=hot_color, bold=True)
+                if x0 + 1 < grid_right:
+                    put(x0 + 1, y0, token, fg=(255, 232, 238), bold=True)
+            elif (col + row + frame // 10) % 5 == 0:
+                put(x0, y0, token, fg=(158, 36, 68))
+
+    rail_start = min(rows - 2, grid_bottom + 2)
+    for index in range(3):
+        y = rail_start + index
+        if y >= rows:
+            continue
+        for x in range(grid_left, grid_right + 1):
+            mark = "─" if (x + index) % 2 == 0 else " "
+            if mark != " ":
+                put(x, y, mark, fg=dim_grid)
+        packet = grid_left + int((frame * (0.2 + index * 0.07) + index * 5) % max(1, grid_right - grid_left))
+        for x in range(packet, min(grid_right, packet + max(2, cell_w // 2))):
+            put(x, y, "━", fg=hot_color, bold=True)
+
+    petal_count = max(28, min(180, (width * rows) // (35 if full_screen else 48)))
+    petal_chars = ("·", "∙", "✦", "✧", "'", ".")
+    for seed in range(petal_count):
+        depth = seed % 3
+        speed = 0.055 + depth * 0.034 + (seed % 5) * 0.006
+        base_y = (seed * 17 + 5) % rows
+        y = int((base_y + frame * speed) % rows)
+        wind = math.sin(frame * 0.045 + seed * 0.73 + y * 0.19) * (2.2 + depth * 1.7)
+        long_drift = frame * (0.013 + depth * 0.008)
+        x = int((seed * 29 + 13 + wind + long_drift) % width)
+        if x >= grid_left - 1 and grid_top - 1 <= y <= min(rows - 1, rail_start + 4):
+            continue
+        color = ((255, 224, 234), (255, 155, 190), (173, 92, 218))[depth]
+        put(x, y, petal_chars[(seed + frame // 5) % len(petal_chars)], fg=color, bold=depth == 0)
+
+    title_center = int(width * (0.38 if width >= 74 else 0.50))
+    title_y = max(2, int(rows * 0.44))
+    title = "WUCI-JI"
+    title_x = centered_x(title, title_center)
+    clear_span(title_x - 3, title_y, display_width(title) + 6)
+    put_text(title, title_x, title_y, fg=(255, 238, 245), bold=True)
+    subtitle = "Wuci-Ji Systems Substrate"
+    subtitle_x = centered_x(subtitle, title_center)
+    clear_span(subtitle_x - 3, min(rows - 1, title_y + 2), display_width(subtitle) + 6)
+    put_text(subtitle, subtitle_x, min(rows - 1, title_y + 2), fg=(255, 111, 143))
+
+    if width >= 74:
+        mode = f"NOXFRAME // {BOOT_IDEOGRAPH_TEXT}"
+        mode_x = centered_x(mode, title_center)
+        clear_span(mode_x - 2, min(rows - 1, title_y + 4), display_width(mode) + 4)
+        put_text(mode, mode_x, min(rows - 1, title_y + 4), fg=(184, 117, 255), bold=True)
+    else:
+        ideograph_x = centered_x(BOOT_IDEOGRAPH_TEXT, title_center)
+        clear_span(ideograph_x - 2, min(rows - 1, title_y + 4), display_width(BOOT_IDEOGRAPH_TEXT) + 4)
+        put_text(BOOT_IDEOGRAPH_TEXT, ideograph_x, min(rows - 1, title_y + 4), fg=(184, 117, 255), bold=True)
+
+    if prompt is not None:
+        question = BOOT_VOICE_TEXT if prompt == BOOT_PROMPT else prompt.strip()
+        prompt_field = int(width * 0.70) if width >= 74 else width
+        prompt_width = min(prompt_field - 6, 56)
+        prompt_lines = wrap_words(question, prompt_width)
+        prompt_start = min(rows - len(prompt_lines) - 2, max(title_y + 6, int(rows * 0.70)))
+        for index, line in enumerate(prompt_lines):
+            line_x = centered_x(line, title_center)
+            clear_span(line_x - 2, prompt_start + index, display_width(line) + 4)
+            put_text(
+                line,
+                line_x,
+                prompt_start + index,
+                fg=(255, 215, 226),
+            )
+        input_text = f"[y/N] {answer}"
+        input_x = centered_x(input_text, title_center)
+        clear_span(input_x - 2, prompt_start + len(prompt_lines) + 1, display_width(input_text) + 4)
+        put_text(
+            input_text,
+            input_x,
+            prompt_start + len(prompt_lines) + 1,
+            fg=(255, 80, 122),
+            bold=True,
+        )
+
+    def render_line(row: list[Cell]) -> str:
+        rendered: list[str] = []
+        active: tuple[tuple[int, int, int] | None, tuple[int, int, int] | None, bool] | None = None
+        for char, fg, bg, bold in row:
+            style = (fg, bg, bold)
+            if palette.enabled and style != active:
+                if active is not None:
+                    rendered.append("\x1b[0m")
+                rendered.append(ansi_prefix(fg, bg, bold))
+                active = style
+            rendered.append(char)
+        if palette.enabled and active is not None:
+            rendered.append("\x1b[0m")
+        return "".join(rendered)
+
+    lines = [render_line(row) for row in canvas]
+
+    if full_screen:
+        sys.stderr.write("\033[2J\033[H" if clear_screen else "\033[H")
+        for line in lines:
+            sys.stderr.write(line + "\n")
         sys.stderr.flush()
         return
 
-    for line, color in lines:
-        sys.stderr.write(palette.paint(line, color) + "\n")
-    sys.stderr.write(
-        palette.paint(
-            "WUCI-JI + Daylight defensive proof launch\n",
-            palette.dim,
-        )
-    )
-    sys.stderr.write(palette.paint(f"legacy alias: {LEGACY_TOOL_NAME}\n", palette.dim))
+    for line in lines:
+        sys.stderr.write(line + "\n")
     sys.stderr.flush()
 
 
@@ -2260,7 +4437,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("launch", "contract", "init", "status", "seal", "verify"),
+        choices=("launch", "contract", "init", "status", "seal", "verify", "daylight-wrap"),
         default="launch",
         help="command to run; default is launch",
     )
@@ -2298,6 +4475,20 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_SUBSTRATE_SEAL,
         help="NOXFRAME substrate seal path, relative to the repository root unless absolute",
     )
+    parser.add_argument(
+        "--daylight-wrap-out",
+        default=DEFAULT_DAYLIGHT_WRAP_DIR,
+        help="NOXFRAME Daylight wrap output directory, relative to the repository root unless absolute",
+    )
+    parser.add_argument(
+        "--daylight-wrap-keyfile",
+        help="local WJSEAL keyfile used by daylight-wrap; symlinks and hardlinks are rejected",
+    )
+    parser.add_argument(
+        "--bin",
+        default=os.environ.get("WUCI_JI_BIN", DEFAULT_WUCI_BIN),
+        help="path to the wuci-ji binary for daylight-wrap; defaults to WUCI_JI_BIN or build/wuci-ji",
+    )
     parser.add_argument("--force", action="store_true", help="replace existing substrate state during init")
     parser.add_argument("--json", action="store_true", help="emit command result as JSON")
     parser.add_argument("-y", "--yes", action="store_true", help="answer yes to the interactive boot prompt")
@@ -2315,6 +4506,22 @@ def parse_args() -> argparse.Namespace:
         "--no-boot-animation",
         action="store_true",
         help="disable the TTY-only animated full-screen boot prompt",
+    )
+    parser.add_argument(
+        "--boot-renderer",
+        choices=("auto", "gui", "terminal"),
+        default="auto",
+        help="boot prompt renderer; auto selects a terminal profile, gui opens the local graphical canvas",
+    )
+    parser.add_argument(
+        "--no-terminal-handoff",
+        action="store_true",
+        help="do not auto-open kitty from a generic interactive terminal",
+    )
+    parser.add_argument(
+        "--no-boot-voice",
+        action="store_true",
+        help="disable the one-shot local voice prompt during interactive boot",
     )
     parser.add_argument(
         "--console",
@@ -2485,7 +4692,12 @@ def print_console_line(text: str, *, color: str | None = None, palette: Palette 
     print(rendered)
 
 
-def print_console_header(root: Path, args: argparse.Namespace, palette: Palette) -> None:
+def print_console_header(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    session: ConsoleSession | None = None,
+) -> None:
     clock_path = repo_path(root, args.clock)
     state_path, seal_path = substrate_paths(root, args)
     clock_state = read_clock_state(clock_path)
@@ -2495,9 +4707,12 @@ def print_console_header(root: Path, args: argparse.Namespace, palette: Palette)
         state=clock_state,
         now=dt.datetime.now(dt.UTC),
     )
-    print_console_line("WUCI-JI SYSTEMS / NOXFRAME CONSOLE", color=palette.red, palette=palette)
+    theme = sync_session_lattice(session) if session is not None else depth_theme(0)
+    print_console_line("WUCI-JI SYSTEMS / NOXFRAME CONSOLE", color=theme.header_color, palette=palette)
     print_console_line("bounded metadata console")
     print_console_line("route: root > wuci-ji > daylight")
+    if session is not None:
+        print_console_line(lattice_status_line(session), color=theme.accent_color, palette=palette)
     print_console_line(
         f"profile: requested={decision.requested_profile} effective={decision.effective_profile}"
     )
@@ -2505,11 +4720,11 @@ def print_console_header(root: Path, args: argparse.Namespace, palette: Palette)
     print_console_line(f"seal: {display_repo_path(root, seal_path)}")
     if terminal_columns() >= 88:
         print_console_line(
-            "commands: help --compact, man <cmd>, complete <prefix>, status, launch, clear, exit"
+            "commands: help --compact, man <cmd>, complete <prefix>, status, launch, self-release, clear, exit"
         )
     else:
         print_console_line("commands: help --compact, man <cmd>, complete")
-        print_console_line("          status, launch, clear, exit")
+        print_console_line("          status, launch, self-release, clear, exit")
 
 
 def print_goodbye(palette: Palette) -> None:
@@ -2518,7 +4733,7 @@ def print_goodbye(palette: Palette) -> None:
 
 
 def print_unavailable(spec: ConsoleCommandSpec) -> None:
-    print(f"{spec.name}: route unavailable in NOXFRAME console")
+    print(f"{command_display_name(spec)}: route disabled in NOXFRAME console")
     print("scope: command is discoverable for compatibility; no host passthrough is opened here")
 
 
@@ -2550,6 +4765,281 @@ def handle_launch_command(
     print(f"launch-result: {rc}")
 
 
+def print_self_release_shell_header(session: ConsoleSession, palette: Palette) -> None:
+    theme = sync_session_lattice(session)
+    print(palette.paint("WUCI-JI / NOXFRAME self-release shell", theme.header_color))
+    print("context: wuci-ji/self-release")
+    print(f"cwd: {session.cwd}")
+    print(palette.paint(lattice_status_line(session), theme.accent_color))
+    print("commands: self-release plan, self-release status, self-release run all, exit")
+    print("boundary: nested metadata console; no host shell route")
+
+
+def run_self_release_shell(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    parent: ConsoleSession,
+) -> bool:
+    nested = ConsoleSession(cwd="/wuci-ji")
+    nested.env.update(parent.env)
+    nested.env["NOXFRAME_PARENT_CONTEXT"] = parent.env.get("NOXFRAME_CONTEXT", "root")
+    nested.env["NOXFRAME_CONTEXT"] = "wuci-ji/self-release"
+    nested.env["NOXFRAME_MODE"] = "self-release-metadata-console"
+    nested.env["SHELL"] = "noxframe:self-release"
+    nested.env["PWD"] = nested.cwd
+    set_session_depth(nested, console_depth(parent) + 1)
+    nested.aliases.update(parent.aliases)
+    readline_state = install_console_readline(nested)
+    print_self_release_shell_header(nested, palette)
+    try:
+        while True:
+            try:
+                theme = sync_session_lattice(nested)
+                line = input(readline_prompt(prompt_for_session(nested), theme.prompt_color, palette))
+            except EOFError:
+                print()
+                print("self-release shell: return to parent")
+                return False
+            raw = line.strip()
+            if not raw:
+                continue
+            nested.history.append(raw)
+            if len(nested.history) > 512:
+                del nested.history[:-512]
+            record_console_event(nested, raw)
+            keep_running = dispatch_console_line(root, args, palette, nested, raw)
+            if not keep_running:
+                if nested.env.get("NOXFRAME_EXIT_ALL") == "1":
+                    print("self-release shell: exit all requested")
+                    return True
+                print("self-release shell: return to parent")
+                return False
+    finally:
+        restore_console_readline(readline_state)
+
+
+def handle_self_release_command(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    session: ConsoleSession,
+    parts: list[str],
+) -> None:
+    subcommand = parts[1].lower() if len(parts) > 1 else "plan"
+    if subcommand == "plan":
+        print(self_release_plan_text(), end="")
+        return
+    if subcommand == "status":
+        print(self_release_status_text(root), end="")
+        return
+    if subcommand == "shell":
+        old_context = session.env.get("NOXFRAME_CONTEXT", "root")
+        old_self_release = session.env.get("NOXFRAME_SELF_RELEASE", "ready")
+        old_cwd = session.cwd
+        session.env["NOXFRAME_SELF_RELEASE"] = "shell"
+        exit_all = run_self_release_shell(root, args, palette, session)
+        session.env["NOXFRAME_CONTEXT"] = old_context
+        session.env["NOXFRAME_SELF_RELEASE"] = old_self_release
+        session.cwd = old_cwd
+        session.env["PWD"] = session.cwd
+        sync_session_lattice(session)
+        if exit_all:
+            session.env["NOXFRAME_EXIT_ALL"] = "1"
+        return
+    if subcommand in {"bundle", "witness", "ledger", "all"}:
+        selection_name = subcommand
+    elif subcommand == "run":
+        selection_name = parts[2].lower() if len(parts) > 2 else "all"
+    else:
+        print("usage: self-release [plan|status|run bundle|run witness|run ledger|run all|shell]")
+        return
+
+    selected = self_release_lane_selection(selection_name)
+    if selected is None:
+        print("usage: self-release run bundle|witness|ledger|all")
+        return
+
+    session.env["NOXFRAME_CONTEXT"] = "wuci-ji/self-release"
+    session.env["NOXFRAME_SELF_RELEASE"] = "running"
+    results: list[StepResult] = []
+    for lane in selected:
+        step = Step(
+            signal="SELF RELEASE...",
+            label=lane.label,
+            command=self_release_lane_command(lane),
+            note="Run the existing Wuci-Ji self-release proof lane in the NOXFRAME workspace.",
+        )
+        result = run_step(step, root, palette)
+        results.append(result)
+        if result.returncode != 0:
+            break
+
+    ok = bool(results) and all(result.returncode == 0 for result in results)
+    session.env["NOXFRAME_SELF_RELEASE"] = "pass" if ok else "fail"
+    print(f"self-release-result: {0 if ok else 1}")
+    print(self_release_status_text(root), end="")
+
+
+def handle_phase_command(
+    session: ConsoleSession,
+    args: argparse.Namespace,
+    parts: list[str],
+) -> None:
+    invoked = parts[0].lower()
+    if invoked in {"whereami", "compass", "optics"} and len(parts) == 1:
+        action = {"whereami": "whereami", "compass": "compass", "optics": "compass"}[invoked]
+    else:
+        action = parts[1].lower() if len(parts) > 1 else "whereami"
+    print(phase_text(session, args, action), end="")
+
+
+def handle_learn_command(session: ConsoleSession, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "status"
+    if action == "status":
+        print(learn_status_text(session), end="")
+        return
+    if action in {"list", "show"}:
+        print(learn_notes_text(session), end="")
+        return
+    if action == "add":
+        note = " ".join(parts[2:]).strip()
+        if not note:
+            print("usage: learn add <text>")
+            return
+        session.notes.append(fit_display(note, 240))
+        if len(session.notes) > 64:
+            del session.notes[:-64]
+        print(f"learn: stored session note {len(session.notes)}")
+        return
+    if action == "clear":
+        session.notes.clear()
+        print("learn: cleared session notes")
+        return
+    print("usage: learn [status|list|show|add <text>|clear]")
+
+
+def handle_plugin_command(command: str, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "list"
+    if action in {"list", "status", "inspect"}:
+        print(plugin_catalog_text(), end="")
+        return
+    if action == "policy":
+        print(plugin_policy_text(), end="")
+        return
+    if action == "run":
+        print(f"{command}: plugin execution is unavailable in NOXFRAME console")
+        print("scope: catalog and policy metadata only; no host module runtime is opened")
+        return
+    print(f"usage: {command} [list|status|inspect|policy|run]")
+
+
+def handle_nest_command(session: ConsoleSession, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "status"
+    if action in {"status", "info"}:
+        print(nest_status_text(session), end="")
+        return
+    if action == "list":
+        print(nest_list_text(), end="")
+        return
+    if action == "tree":
+        print(nest_tree_text(), end="")
+        return
+    if action == "inspect":
+        context = parts[2].lower() if len(parts) > 2 else session.env.get("NOXFRAME_CONTEXT", "root")
+        print(nest_inspect_text(context), end="")
+        return
+    if action == "enter":
+        if len(parts) < 3:
+            print("usage: nest enter <context>")
+            return
+        context = parts[2].lower()
+        if context_record(context) is None:
+            print(f"nest: unknown context: {context}")
+            return
+        session.env["NOXFRAME_CONTEXT"] = context
+        session.cwd = f"/{context}"
+        session.env["PWD"] = session.cwd
+        print(f"nest: entered {context}")
+        return
+    if action in {"spawn", "destroy"}:
+        print(f"nest {action}: unavailable in NOXFRAME console")
+        print("scope: nested contexts are fixed metadata cells")
+        return
+    print("usage: nest [status|list|enter <context>|inspect <context>|tree|info]")
+
+
+def vfs_mutation_target(session: ConsoleSession, cwd: str, value: str) -> str:
+    path = vfs_normalize(cwd, value)
+    if path == "/":
+        raise NoxframeError("vfs: refusing to mutate root")
+    if path.endswith("/"):
+        path = path.rstrip("/")
+    if vfs_static_path(path):
+        raise NoxframeError(f"vfs: refusing to mutate static path: {path}")
+    parent = vfs_parent(path)
+    if not vfs_is_dir(parent, session):
+        raise NoxframeError(f"vfs: parent is not a virtual directory: {parent}")
+    return path
+
+
+def vfs_destination_path(session: ConsoleSession, cwd: str, source: str, dest: str) -> str:
+    dest_path = vfs_normalize(cwd, dest)
+    if vfs_is_dir(dest_path, session):
+        dest_path = f"{dest_path.rstrip('/')}/{vfs_name(source)}"
+    return vfs_mutation_target(session, "/", dest_path)
+
+
+def vfs_rm_session_path(session: ConsoleSession, path: str) -> None:
+    if vfs_static_path(path):
+        raise NoxframeError(f"rm: refusing static virtual path: {path}")
+    if path in session.vfs_files:
+        del session.vfs_files[path]
+        print(f"rm: removed {path}")
+        return
+    if path in session.vfs_dirs:
+        prefix = f"{path.rstrip('/')}/"
+        if any(candidate.startswith(prefix) for candidate in session.vfs_dirs | set(session.vfs_files)):
+            raise NoxframeError(f"rm: virtual directory not empty: {path}")
+        session.vfs_dirs.remove(path)
+        print(f"rm: removed {path}/")
+        return
+    raise NoxframeError(f"rm: no session-local virtual path: {path}")
+
+
+def vfs_move_session_path(session: ConsoleSession, source: str, dest: str) -> None:
+    if vfs_static_path(source):
+        raise NoxframeError(f"mv: refusing static virtual source: {source}")
+    if vfs_static_path(dest) or dest in session.vfs_files or dest in session.vfs_dirs:
+        raise NoxframeError(f"mv: refusing to overwrite existing virtual path: {dest}")
+    if source in session.vfs_files:
+        session.vfs_files[dest] = session.vfs_files.pop(source)
+        print(f"mv: {source} -> {dest}")
+        return
+    if source in session.vfs_dirs:
+        if dest.startswith(f"{source.rstrip('/')}/"):
+            raise NoxframeError("mv: refusing to move a directory into itself")
+        moved_dirs: dict[str, str] = {}
+        moved_files: dict[str, tuple[str, str]] = {}
+        prefix = f"{source.rstrip('/')}/"
+        for directory in sorted(session.vfs_dirs):
+            if directory == source or directory.startswith(prefix):
+                moved_dirs[directory] = dest + directory[len(source) :]
+        for file_path, text in list(session.vfs_files.items()):
+            if file_path.startswith(prefix):
+                moved_files[file_path] = (dest + file_path[len(source) :], text)
+        for old in moved_dirs:
+            session.vfs_dirs.remove(old)
+        for old in moved_files:
+            del session.vfs_files[old]
+        session.vfs_dirs.update(moved_dirs.values())
+        for new, text in moved_files.values():
+            session.vfs_files[new] = text
+        print(f"mv: {source}/ -> {dest}/")
+        return
+    raise NoxframeError(f"mv: no session-local virtual path: {source}")
+
+
 def handle_vfs_command(
     root: Path,
     args: argparse.Namespace,
@@ -2562,7 +5052,7 @@ def handle_vfs_command(
         return
     if command == "ls":
         path = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 else None)
-        is_dir, entries = vfs_list(path)
+        is_dir, entries = vfs_list(path, session)
         if is_dir:
             print("\n".join(entries))
         else:
@@ -2570,10 +5060,11 @@ def handle_vfs_command(
         return
     if command == "cd":
         path = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 else "/")
-        if not vfs_is_dir(path):
+        if not vfs_is_dir(path, session):
             print(f"cd: not a virtual directory: {path}")
             return
         session.cwd = path
+        session.env["PWD"] = path
         return
     if command == "cat":
         if len(parts) < 2:
@@ -2585,7 +5076,7 @@ def handle_vfs_command(
         return
     if command == "tree":
         path = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 else None)
-        print_vfs_tree(path)
+        print_vfs_tree(path, session)
         return
     if command == "echo":
         if ">" in parts or ">>" in parts:
@@ -2593,7 +5084,59 @@ def handle_vfs_command(
             return
         print(" ".join(parts[1:]))
         return
-    print(f"{command}: virtual filesystem mutation is unavailable")
+    if command == "mkdir":
+        if len(parts) != 2:
+            print("usage: mkdir <dir>")
+            return
+        path = vfs_mutation_target(session, session.cwd, parts[1])
+        if path in session.vfs_files:
+            print(f"mkdir: virtual file exists: {path}")
+            return
+        session.vfs_dirs.add(path)
+        print(f"mkdir: created {path}/")
+        return
+    if command == "touch":
+        if len(parts) != 2:
+            print("usage: touch <file>")
+            return
+        path = vfs_mutation_target(session, session.cwd, parts[1])
+        if path in session.vfs_dirs:
+            print(f"touch: virtual directory exists: {path}")
+            return
+        session.vfs_files.setdefault(path, "")
+        print(f"touch: {path}")
+        return
+    if command == "rm":
+        if len(parts) != 2:
+            print("usage: rm <path>")
+            return
+        path = vfs_normalize(session.cwd, parts[1])
+        vfs_rm_session_path(session, path)
+        return
+    if command == "cp":
+        if len(parts) != 3:
+            print("usage: cp <src> <dst>")
+            return
+        src = vfs_normalize(session.cwd, parts[1])
+        if vfs_is_dir(src, session):
+            print(f"cp: refusing directory source: {src}")
+            return
+        text = virtual_file_text(root, args, session, src)
+        dest = vfs_destination_path(session, session.cwd, src, parts[2])
+        if dest in session.vfs_dirs:
+            print(f"cp: destination is a directory: {dest}")
+            return
+        session.vfs_files[dest] = text
+        print(f"cp: {src} -> {dest}")
+        return
+    if command == "mv":
+        if len(parts) != 3:
+            print("usage: mv <src> <dst>")
+            return
+        src = vfs_normalize(session.cwd, parts[1])
+        dest = vfs_destination_path(session, session.cwd, src, parts[2])
+        vfs_move_session_path(session, src, dest)
+        return
 
 
 def parse_count_option(parts: list[str], default: int = 10) -> tuple[int, list[str]]:
@@ -2621,6 +5164,9 @@ def handle_text_command(
     if command == "pipeline":
         print("pipeline: grep/head/tail/wc/find are available as direct virtual-file commands")
         return
+    if command == "wiki":
+        print(wiki_text(parts[1] if len(parts) > 1 else None), end="")
+        return
     if command == "find":
         start = vfs_normalize(session.cwd, parts[1] if len(parts) > 1 and not parts[1].startswith("-") else None)
         needle = ""
@@ -2628,7 +5174,7 @@ def handle_text_command(
             index = parts.index("-name")
             if index + 1 < len(parts):
                 needle = parts[index + 1].strip("*")
-        for path in vfs_all_paths():
+        for path in vfs_all_paths(session):
             if not path.startswith(start.rstrip("/") + "/") and path != start:
                 continue
             if needle and needle not in path.rsplit("/", 1)[-1]:
@@ -2669,16 +5215,66 @@ def handle_text_command(
         return
 
 
-def handle_proc_command(command: str) -> None:
+def parse_virtual_pid(value: str) -> int | None:
+    try:
+        pid = int(value, 10)
+    except ValueError:
+        return None
+    return pid if pid > 0 else None
+
+
+def handle_proc_command(session: ConsoleSession, command: str, parts: list[str]) -> None:
     if command == "ps":
-        print(console_process_table(), end="")
+        print(console_process_table(session), end="")
     elif command == "top":
-        print("tasks: 3 total, 2 ready, 1 idle")
+        rows = console_process_rows(session)
+        ready = sum(1 for _, state, _, _ in rows if state in {"ready", "foreground", "background"})
+        idle = sum(1 for _, state, _, _ in rows if state == "idle")
+        print(f"tasks: {len(rows)} total, {ready} ready, {idle} idle")
         print("load: metadata-only  memory: virtual")
     elif command == "jobs":
-        print("jobs: no console background jobs")
-    else:
-        print(f"{command}: simulated process mutation is unavailable")
+        if not session.jobs:
+            print("jobs: no console background jobs")
+            return
+        for pid in sorted(session.jobs):
+            job = session.jobs[pid]
+            print(f"{pid:<4} {job.get('state', 'ready'):<11} {job.get('name', 'job')}")
+    elif command == "spawn":
+        name = fit_display(" ".join(parts[1:]).strip() or "job", 64)
+        if not re.fullmatch(r"[A-Za-z0-9_.:@/+ -]{1,64}", name):
+            print("spawn: invalid virtual process name")
+            return
+        pid = session.next_pid
+        session.next_pid += 1
+        session.jobs[pid] = {"state": "ready", "name": name, "priority": "0"}
+        print(f"spawn: pid={pid} name={name}")
+    elif command in {"fg", "bg", "kill"}:
+        if len(parts) != 2:
+            print(f"usage: {command} <pid>")
+            return
+        pid = parse_virtual_pid(parts[1])
+        if pid is None or pid not in session.jobs:
+            print(f"{command}: no session-local process: {parts[1]}")
+            return
+        state = {"fg": "foreground", "bg": "background", "kill": "terminated"}[command]
+        session.jobs[pid]["state"] = state
+        print(f"{command}: pid={pid} state={state}")
+    elif command == "nice":
+        if len(parts) != 3:
+            print("usage: nice <pid> <priority>")
+            return
+        pid = parse_virtual_pid(parts[1])
+        try:
+            priority = int(parts[2], 10)
+        except ValueError:
+            print("nice: priority must be an integer")
+            return
+        if pid is None or pid not in session.jobs:
+            print(f"nice: no session-local process: {parts[1]}")
+            return
+        priority = max(-20, min(19, priority))
+        session.jobs[pid]["priority"] = str(priority)
+        print(f"nice: pid={pid} priority={priority}")
 
 
 def handle_sys_command(
@@ -2706,13 +5302,18 @@ def handle_sys_command(
         return
     if command == "df":
         print("Filesystem        Files  Mounted")
-        print(f"noxframe-vfs      {len(vfs_all_paths())}     /")
-        print("noxframe-docs      5     /docs")
+        print(f"noxframe-vfs      {len(vfs_all_paths(session))}     /")
+        print("noxframe-docs      6     /docs")
+        print("noxframe-env       5     /env")
+        print("noxframe-phase     5     /phase")
+        print("noxframe-learn     2     /learn")
+        print("noxframe-nests     3     /nests")
         return
     if command == "dmesg":
         print("noxframe: responsive Wuci-Ji Systems banner initialized")
         print("noxframe: substrate state/seal paths loaded")
         print("noxframe: Phase1 command registry mapped into bounded console")
+        print("noxframe: Optics, nests, learn, plugins, and quality rails loaded")
         return
     if command == "vmstat":
         print("cells active sealed drift")
@@ -2731,6 +5332,15 @@ def handle_sys_command(
     if command == "hostname":
         print("wuci-ji-substrate")
         return
+    if command == "doctor":
+        print(doctor_text(root, args, session), end="")
+        return
+    if command == "selftest":
+        print(selftest_text(session), end="")
+        return
+    if command == "quality":
+        print(quality_text(), end="")
+        return
     if command == "audit":
         print(virtual_file_text(root, args, session, "/var/log/audit"), end="")
         return
@@ -2746,34 +5356,102 @@ def handle_sys_command(
         print("00:01.0 Daylight evidence adapter")
         return
     if command == "cr3":
-        print("cr3: 0x0000000000002000 (virtual)")
+        print(f"cr3: {session.env.get('NOXFRAME_CR3', '0x0000000000002000')} (virtual)")
+        return
+    if command == "loadcr3":
+        if len(parts) != 2:
+            print("usage: loadcr3 <value>")
+            return
+        value = parts[1].lower()
+        if value.startswith("0x"):
+            digits = value[2:]
+        else:
+            digits = value
+            value = f"0x{value}"
+        if not digits or not re.fullmatch(r"[0-9a-f]+", digits):
+            print("loadcr3: value must be hexadecimal")
+            return
+        session.env["NOXFRAME_CR3"] = value
+        print(f"loadcr3: {value}")
         return
     if command == "cr4":
-        print("cr4: pcide=off pae=on pse=on (virtual)")
+        pcide = session.env.get("NOXFRAME_PCIDE", "off")
+        print(f"cr4: pcide={pcide} pae=on pse=on (virtual)")
+        return
+    if command == "pcide":
+        if len(parts) != 2 or parts[1].lower() not in {"on", "off"}:
+            print("usage: pcide on|off")
+            return
+        session.env["NOXFRAME_PCIDE"] = parts[1].lower()
+        print(f"pcide: {parts[1].lower()}")
         return
     print(f"{command}: virtual hardware mutation is unavailable")
 
 
-def handle_user_command(session: ConsoleSession, command: str, parts: list[str]) -> None:
+def handle_user_command(
+    session: ConsoleSession,
+    args: argparse.Namespace,
+    command: str,
+    parts: list[str],
+) -> None:
     if command == "env":
-        for key in sorted(session.env):
-            print(f"{key}={session.env[key]}")
+        sync_session_env(session, args)
+        print(console_env_text(session), end="")
+        return
+    if command == "set":
+        if len(parts) == 1:
+            sync_session_env(session, args)
+            print(console_env_text(session), end="")
+            return
+        if parts[1] == "-o":
+            print(console_option_text(), end="")
+            return
+        assignment = parse_assignment(parts[1:])
+        if assignment is None:
+            print("usage: set [KEY=value|-o]")
+            return
+        key, value = assignment
+        set_session_env(session, key, value)
         return
     if command == "export":
-        if len(parts) != 2 or "=" not in parts[1]:
+        assignment = parse_assignment(parts[1:])
+        if assignment is None:
             print("usage: export KEY=value")
             return
-        key, value = parts[1].split("=", 1)
-        if not key or not key.replace("_", "").isalnum():
-            print("export: invalid key")
-            return
-        session.env[key] = value
+        key, value = assignment
+        set_session_env(session, key, value)
         return
     if command == "unset":
         if len(parts) != 2:
             print("usage: unset KEY")
             return
+        if not valid_env_key(parts[1]):
+            print("unset: invalid key")
+            return
         session.env.pop(parts[1], None)
+        return
+    if command == "alias":
+        if len(parts) == 1:
+            print(console_alias_text(session), end="")
+            return
+        error = set_session_alias(session, " ".join(parts[1:]))
+        if error is not None:
+            print(error)
+        return
+    if command == "unalias":
+        if len(parts) != 2:
+            print("usage: unalias NAME")
+            return
+        session.aliases.pop(parts[1], None)
+        return
+    if command == "which":
+        if len(parts) != 2:
+            print("usage: which <command>")
+            return
+        print(command_which_text(parts[1]), end="")
+        return
+    if command == "profile":
+        print(console_profile_text(session, args), end="")
         return
     if command == "whoami":
         print(session.env.get("USER", "operator"))
@@ -2802,7 +5480,7 @@ def handle_user_command(session: ConsoleSession, command: str, parts: list[str])
             print("theme: crimson")
         return
     if command == "banner":
-        print("banner: responsive Wuci-Ji Systems starfield")
+        print("banner: responsive Wuci-Ji blossom boot frame")
         print(f"inner-width: {banner_inner_width()}")
         return
     if command == "tips":
@@ -2812,9 +5490,82 @@ def handle_user_command(session: ConsoleSession, command: str, parts: list[str])
         return
 
 
+def handle_network_command(command: str, parts: list[str]) -> None:
+    if command == "ifconfig":
+        print("ifconfig: nox0 flags=UP,LOOPBACK,METADATA mtu 65536")
+        print("        inet 127.0.0.1  netmask 255.0.0.0")
+        print("        policy no host network interface is opened")
+        return
+    if command == "iwconfig":
+        print("iwconfig: no wireless extensions in NOXFRAME metadata console")
+        return
+    if command == "wifi-scan":
+        print("wifi-scan: skipped; no host radio access")
+        return
+    if command == "wifi-connect":
+        ssid = " ".join(parts[1:]).strip() or "(missing)"
+        if ssid == "(missing)":
+            print("usage: wifi-connect <ssid>")
+            return
+        print(f"wifi-connect: denied by NOXFRAME policy; ssid={fit_display(ssid, 80)}")
+        return
+    if command == "ping":
+        host = parts[1] if len(parts) > 1 else "(missing)"
+        if host == "(missing)":
+            print("usage: ping <host>")
+            return
+        print(f"ping: no packets sent; host={fit_display(host, 120)}; policy=no-network")
+        return
+    if command == "nmcli":
+        print("nmcli: virtual NetworkManager state disconnected")
+        print("policy: metadata-only; no host network mutation")
+        return
+
+
+def host_dry_run_text(root: Path, command: str, parts: list[str]) -> str:
+    argv = " ".join(shlex.quote(part) for part in parts[1:]) or "(none)"
+    if command == "git":
+        return "\n".join(
+            [
+                "git: metadata-only; host git argv not executed",
+                f"repo: {root}",
+                f"branch: {git_value(root, 'branch', '--show-current')}",
+                f"commit: {git_value(root, 'rev-parse', '--short', 'HEAD')}",
+                f"requested-args: {argv}",
+                "",
+            ]
+        )
+    if command == "gh":
+        return "\n".join(
+            [
+                "gh: metadata-only; GitHub CLI argv not executed",
+                "network: no API request made",
+                f"requested-args: {argv}",
+                "",
+            ]
+        )
+    recommendations = {
+        "cargo": "use repository Rust/Daylight make targets outside NOXFRAME when needed",
+        "rustc": "use make targets or cargo outside NOXFRAME when needed",
+        "python3": "use make noxframe-launch-test or python3 from the host shell outside NOXFRAME",
+        "python": "use make noxframe-launch-test or python3 from the host shell outside NOXFRAME",
+        "go": "use host Go tooling outside NOXFRAME when a reviewed lane needs it",
+        "gcc": "use existing assembly/C build lanes outside NOXFRAME when needed",
+    }
+    return "\n".join(
+        [
+            f"{command}: dry-run route; host executable not launched",
+            f"requested-args: {argv}",
+            f"guidance: {recommendations.get(command, 'run from the host shell outside NOXFRAME when needed')}",
+            "",
+        ]
+    )
+
+
 def handle_dev_or_host_command(
     root: Path,
     args: argparse.Namespace,
+    session: ConsoleSession,
     command: str,
     parts: list[str],
 ) -> None:
@@ -2825,6 +5576,40 @@ def handle_dev_or_host_command(
         print("update: use repository proof lanes outside the console")
         print("protocol: plan, validate, commit, push")
         return
+    if command == "browser":
+        target = parts[1] if len(parts) > 1 else "about"
+        if target == "about":
+            print("browser: metadata-only local route")
+            print("home: /docs/wiki")
+            print("network: no URL fetch")
+        else:
+            print(f"browser: metadata-only URL route target={fit_display(target, 160)}")
+            print("network: fetch skipped by NOXFRAME policy")
+        return
+    if command in {"git", "gh", "cargo", "rustc", "python3", "go", "python", "gcc"}:
+        print(host_dry_run_text(root, command, parts), end="")
+        return
+    if command == "avim":
+        if len(parts) != 2:
+            print("usage: avim <file>")
+            return
+        path = vfs_normalize(session.cwd, parts[1])
+        try:
+            text = virtual_file_text(root, args, session, path)
+        except NoxframeError as exc:
+            print(f"avim: {exc}")
+            return
+        print(f"avim: read-only virtual preview {path}")
+        for line_no, line in enumerate(text.splitlines()[:20], start=1):
+            print(f"{line_no:4d}  {line}")
+        if len(text.splitlines()) > 20:
+            print("... truncated")
+        return
+    if command == "dev":
+        print("dev: self-development lane metadata")
+        print(f"workspace: {root}")
+        print("host_exec: disabled; use explicit proof lanes or Codex bridge")
+        return
     if command == "repo":
         print("repo: main line with NOXFRAME as Wuci-Ji substrate surface")
         print("channels: main, proof lanes, generated build evidence")
@@ -2832,6 +5617,10 @@ def handle_dev_or_host_command(
     if command == "fyr":
         print("fyr: lineage carried as small-language and command-surface discipline")
         print("runtime: not embedded in NOXFRAME")
+        return
+    if command == "base1":
+        action = parts[1].lower() if len(parts) > 1 else "status"
+        print(base1_text(action), end="")
         return
     if command == "lang":
         print("lang: host language runtimes are not executed from this console")
@@ -2868,13 +5657,20 @@ def handle_misc_command(
         print(console_capabilities_text())
         return True
     if command == "matrix":
-        print("matrix: use the responsive boot starfield; animation is not run inside tests")
+        print("matrix: use the responsive blossom boot frame; animation is not run inside tests")
         return True
     if command == "bootcfg":
         print(f"profile: {args.profile}")
         print(f"clock: {repo_path(root, args.clock)}")
         return True
     if command == "version":
+        if len(parts) > 1 and parts[1] == "--compare":
+            print(f"{TOOL_NAME} substrate-contract={SUBSTRATE_SPEC_SCHEMA}")
+            print("phase1-source: https://github.com/Bryforge/phase1")
+            print("phase1-code-import: no")
+            print("implemented-ideas: " + ", ".join(name for name, _ in PHASE1_FEATURES))
+            print("boundary: WUCI-native metadata substrate, not Phase1 kernel code")
+            return True
         print(f"{TOOL_NAME} substrate-contract={SUBSTRATE_SPEC_SCHEMA}")
         print(f"git: {git_value(root, 'rev-parse', 'HEAD')}")
         return True
@@ -2889,11 +5685,44 @@ def handle_misc_command(
         print("proof: public anchors plus local state/seal verification")
         return True
     if command == "nest":
-        print("nest: root > wuci-ji > daylight")
-        print("stack: single active NOXFRAME session")
+        handle_nest_command(session, parts)
+        return True
+    if command == "multi":
+        print("usage: multi <command> ; <command> ...")
+        print("example: multi phase compass ; nest tree ; nest enter gate ; phase whereami")
+        print("separator: semicolon outside quotes; commands remain NOXFRAME registry commands")
         return True
     if command == "exit":
         return False
+    return True
+
+
+def dispatch_console_line(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    session: ConsoleSession,
+    raw: str,
+) -> bool:
+    normalized_raw = normalize_console_input_markers(raw)
+    for segment in split_console_multicommands(normalized_raw):
+        try:
+            parts = shlex.split(segment)
+        except ValueError as exc:
+            print(f"parse error: {exc}")
+            continue
+        if not parts:
+            continue
+        parts = expand_session_alias(session, parts)
+        if parts and parts[0] in {"multi", "batch", "script"} and len(parts) > 1:
+            parts = parts[1:]
+        try:
+            keep_running = dispatch_console_command(root, args, palette, session, parts)
+        except NoxframeError as exc:
+            print(str(exc))
+            continue
+        if not keep_running:
+            return False
     return True
 
 
@@ -2912,12 +5741,15 @@ def dispatch_console_command(
     command = spec.name
     if command == "clear":
         clear_screen()
-        print_console_header(root, args, palette)
+        print_console_header(root, args, palette, session)
         return True
     if command == "exit":
+        if len(parts) > 1 and parts[1].lower() in {"all", "--all", "-a"}:
+            session.env["NOXFRAME_EXIT_ALL"] = "1"
+            print("exit: all NOXFRAME levels requested")
         print_goodbye(palette)
         return False
-    if command in {"status", "seal", "verify", "contract", "launch"}:
+    if command in {"status", "seal", "verify", "contract", "launch", "self-release"}:
         if command == "status":
             command_status(root, args)
         elif command == "seal":
@@ -2926,8 +5758,15 @@ def dispatch_console_command(
             command_verify(root, args)
         elif command == "contract":
             command_contract()
-        else:
+        elif command == "launch":
             handle_launch_command(root, args, palette, parts)
+        else:
+            handle_self_release_command(root, args, palette, session, parts)
+            if session.env.get("NOXFRAME_EXIT_ALL") == "1":
+                return False
+        return True
+    if spec.category == "phase":
+        handle_phase_command(session, args, parts)
         return True
     if spec.guard == "unavailable":
         print_unavailable(spec)
@@ -2937,13 +5776,19 @@ def dispatch_console_command(
     elif spec.category == "text":
         handle_text_command(root, args, session, command, parts)
     elif spec.category == "proc":
-        handle_proc_command(command)
+        handle_proc_command(session, command, parts)
     elif spec.category == "sys":
         handle_sys_command(root, args, session, command, parts)
     elif spec.category == "user":
-        handle_user_command(session, command, parts)
-    elif spec.category in {"host", "dev", "net"}:
-        handle_dev_or_host_command(root, args, command, parts)
+        handle_user_command(session, args, command, parts)
+    elif spec.category == "learn":
+        handle_learn_command(session, parts)
+    elif spec.category == "plugin":
+        handle_plugin_command(command, parts)
+    elif spec.category == "net":
+        handle_network_command(command, parts)
+    elif spec.category in {"host", "dev"}:
+        handle_dev_or_host_command(root, args, session, command, parts)
     elif spec.category == "misc":
         return handle_misc_command(root, args, session, command, parts)
     return True
@@ -2953,36 +5798,31 @@ def run_operator_console(root: Path, args: argparse.Namespace, palette: Palette)
     state_path, seal_path = substrate_paths(root, args)
     ensure_substrate(root, state_path=state_path, seal_path=seal_path)
     session = ConsoleSession()
+    sync_session_env(session, args)
+    readline_state = install_console_readline(session)
     clear_screen()
-    print_console_header(root, args, palette)
-    while True:
-        try:
-            line = input(palette.paint("noxframe> ", palette.red))
-        except EOFError:
-            print()
-            print_goodbye(palette)
-            return 0
-        raw = line.strip()
-        if not raw:
-            continue
-        session.history.append(raw)
-        if len(session.history) > 512:
-            del session.history[:-512]
-        record_console_event(session, raw)
-        try:
-            parts = shlex.split(raw)
-        except ValueError as exc:
-            print(f"parse error: {exc}")
-            continue
-        if not parts:
-            continue
-        try:
-            keep_running = dispatch_console_command(root, args, palette, session, parts)
-        except NoxframeError as exc:
-            print(str(exc))
-            continue
-        if not keep_running:
-            return 0
+    print_console_header(root, args, palette, session)
+    try:
+        while True:
+            try:
+                theme = sync_session_lattice(session)
+                line = input(readline_prompt(prompt_for_session(session), theme.prompt_color, palette))
+            except EOFError:
+                print()
+                print_goodbye(palette)
+                return 0
+            raw = line.strip()
+            if not raw:
+                continue
+            session.history.append(raw)
+            if len(session.history) > 512:
+                del session.history[:-512]
+            record_console_event(session, raw)
+            keep_running = dispatch_console_line(root, args, palette, session, raw)
+            if not keep_running:
+                return 0
+    finally:
+        restore_console_readline(readline_state)
 
 
 def main() -> int:
@@ -3003,6 +5843,15 @@ def main() -> int:
         return command_seal(root, args)
     if args.command == "verify":
         return command_verify(root, args)
+    if args.command == "daylight-wrap":
+        try:
+            return command_daylight_wrap(root, args)
+        except NoxframeError as exc:
+            sys.stderr.write(f"{exc}\n")
+            return 1
+
+    if maybe_open_mechanics_terminal(root, args, palette):
+        return 0
 
     if not boot_animation_active(args):
         print_banner(palette)
