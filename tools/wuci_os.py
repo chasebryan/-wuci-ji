@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import hashlib
 import json
 import os
 import re
-import shutil
 import shlex
 import stat
 import subprocess
@@ -43,6 +43,7 @@ SOURCE_KIT_PREFIX = Path("opt/wuci-os/source/wuci-ji")
 UPSTREAM_SOURCE_PREFIX = Path("opt/wuci-os/source/upstream")
 SOURCE_KIT_GUEST_MANIFEST = Path("usr/share/wuci-os/source-kit.json")
 SOURCE_KIT_TAR_NAME = "wuci-os-source-kit.tar"
+SOURCE_KIT_DETERMINISTIC_CREATED_UTC = "1970-01-01T00:00:00Z"
 DEFAULT_UPSTREAM_ROOT = Path("build/wuci-os/upstream")
 SOURCE_MANIFEST_NAME = "source.json"
 VOID_LIVE_LABEL = "VOID_LIVE"
@@ -451,7 +452,7 @@ def install_source(
     force: bool = False,
 ) -> dict[str, Any]:
     root = DEFAULT_SOURCE_ROOT if source_root is None else source_root
-    root.mkdir(parents=True, exist_ok=True)
+    _prepare_output_directory(root, "Wuci-OS source workspace")
     try:
         source_info = wuci_kaiju.require_regular_local_file(source, "Void musl ISO source")
     except wuci_kaiju.KaijuError as exc:
@@ -460,13 +461,15 @@ def install_source(
     dest = root / iso_name
     if source.resolve() == dest.resolve():
         raise WuciOSError("Void ISO source and destination must differ")
-    try:
-        wuci_kaiju.prepare_output_path(dest, "Wuci-OS source ISO", force=force)
-    except wuci_kaiju.KaijuError as exc:
-        raise WuciOSError(str(exc)) from exc
+    _prepare_replacement_output_path(dest, "Wuci-OS source ISO", force=force)
 
     tmp_fd = -1
     tmp_name = ""
+    dest_installed = False
+    dest_backup_name = ""
+    manifest_backup_name = ""
+    manifest_write_started = False
+    manifest_path = source_manifest_path(root)
     try:
         tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{iso_name}.", dir=str(root))
         digests = {
@@ -478,8 +481,14 @@ def install_source(
         total = 0
         try:
             opened = os.fstat(source_fd)
+            if not stat.S_ISREG(opened.st_mode):
+                raise WuciOSError(f"Void ISO source changed type while opening: {source}")
             if opened.st_ino != source_info.st_ino or opened.st_dev != source_info.st_dev:
                 raise WuciOSError(f"Void ISO source changed while opening: {source}")
+            if opened.st_size != source_info.st_size or stat.S_IMODE(opened.st_mode) != stat.S_IMODE(source_info.st_mode):
+                raise WuciOSError(f"Void ISO source changed while opening: {source}")
+            if opened.st_nlink != 1:
+                raise WuciOSError(f"Void ISO source must not be hardlinked: {source}")
             with os.fdopen(tmp_fd, "wb") as out_handle:
                 tmp_fd = -1
                 while True:
@@ -496,15 +505,36 @@ def install_source(
             os.close(source_fd)
         if total == 0:
             raise WuciOSError("Void ISO source is empty")
-        os.replace(tmp_name, dest)
-        layout = inspect_void_iso(dest)
+        if total != opened.st_size:
+            raise WuciOSError(f"Void ISO source changed while reading: {source}")
+        copied_digest_vector = {digest_name: digest.hexdigest() for digest_name, digest in digests.items()}
+        tmp_path = Path(tmp_name)
+        try:
+            tmp_digest_vector, tmp_size = wuci_kaiju.file_digest_vector(tmp_path, "Wuci-OS source ISO candidate")
+        except wuci_kaiju.KaijuError as exc:
+            raise WuciOSError(str(exc)) from exc
+        if tmp_size != total or tmp_digest_vector != copied_digest_vector:
+            raise WuciOSError("Wuci-OS source ISO digest changed before install")
+        layout = inspect_void_iso(tmp_path)
         if layout.get("status") != "pass":
-            try:
-                dest.unlink()
-            except OSError:
-                pass
             problems = "; ".join(str(problem) for problem in layout.get("problems", []))
             raise WuciOSError(f"Void musl ISO layout verification failed: {problems}")
+        try:
+            wuci_kaiju.reject_unsafe_existing_path(manifest_path, "Wuci-OS source manifest")
+        except wuci_kaiju.KaijuError as exc:
+            raise WuciOSError(str(exc)) from exc
+        dest_backup_name = _backup_existing_regular_file(dest, "Wuci-OS source ISO")
+        manifest_backup_name = _backup_existing_regular_file(manifest_path, "Wuci-OS source manifest")
+        os.replace(tmp_name, dest)
+        dest_installed = True
+        tmp_name = ""
+        _fsync_parent(dest)
+        try:
+            dest_digest_vector, dest_size = wuci_kaiju.file_digest_vector(dest, "Wuci-OS source ISO")
+        except wuci_kaiju.KaijuError as exc:
+            raise WuciOSError(str(exc)) from exc
+        if dest_size != total or dest_digest_vector != copied_digest_vector:
+            raise WuciOSError("Wuci-OS source ISO digest changed after copy")
         manifest: dict[str, Any] = {
             "schema": SOURCE_SCHEMA,
             "created_utc": utc_now(),
@@ -521,14 +551,20 @@ def install_source(
             "source_path": str(source),
             "image_name": iso_name,
             "image_path": str(dest),
-            "image_bytes": total,
-            "digest_vector": {name: digest.hexdigest() for name, digest in digests.items()},
+            "image_bytes": dest_size,
+            "digest_vector": dest_digest_vector,
             "layout": layout,
             "boundary_denials": list(BOUNDARY_DENIALS),
         }
-        wuci_kaiju.write_json_atomic(source_manifest_path(root), manifest)
+        manifest_write_started = True
+        wuci_kaiju.write_json_atomic(manifest_path, manifest)
+        _fsync_parent(manifest_path)
+        _discard_temporary_path(dest_backup_name)
+        dest_backup_name = ""
+        _discard_temporary_path(manifest_backup_name)
+        manifest_backup_name = ""
         return manifest
-    except Exception:
+    except Exception as exc:
         if tmp_fd >= 0:
             os.close(tmp_fd)
         if tmp_name:
@@ -536,12 +572,60 @@ def install_source(
                 os.unlink(tmp_name)
             except OSError:
                 pass
+        rollback_errors = []
+        try:
+            if dest_backup_name:
+                _restore_backup_file(dest, dest_backup_name, "Wuci-OS source ISO")
+            elif dest_installed:
+                _unlink_existing_path(str(dest))
+        except WuciOSError as rollback_exc:
+            rollback_errors.append(str(rollback_exc))
+        try:
+            if manifest_backup_name:
+                _restore_backup_file(manifest_path, manifest_backup_name, "Wuci-OS source manifest")
+            elif manifest_write_started:
+                _unlink_existing_path(str(manifest_path))
+        except WuciOSError as rollback_exc:
+            rollback_errors.append(str(rollback_exc))
+        if rollback_errors:
+            raise WuciOSError(
+                f"source install failed and rollback failed: {exc}; {'; '.join(rollback_errors)}"
+            ) from exc
         raise
 
 
 def verify_source(source_root: Path | None = None, *, require_layout: bool = True) -> dict[str, Any]:
     root = DEFAULT_SOURCE_ROOT if source_root is None else source_root
     problems: list[str] = []
+    try:
+        root_info = os.lstat(root)
+    except FileNotFoundError:
+        root_info = None
+    except OSError as exc:
+        return {
+            "schema": SOURCE_VERIFY_SCHEMA,
+            "status": "fail",
+            "source_root": str(root),
+            "problems": [f"could not inspect source root: {exc}"],
+            "non_claims": list(BOUNDARY_DENIALS),
+        }
+    if root_info is not None:
+        if stat.S_ISLNK(root_info.st_mode):
+            return {
+                "schema": SOURCE_VERIFY_SCHEMA,
+                "status": "fail",
+                "source_root": str(root),
+                "problems": [f"source root must not be a symlink: {root}"],
+                "non_claims": list(BOUNDARY_DENIALS),
+            }
+        if not stat.S_ISDIR(root_info.st_mode):
+            return {
+                "schema": SOURCE_VERIFY_SCHEMA,
+                "status": "fail",
+                "source_root": str(root),
+                "problems": [f"source root must be a directory: {root}"],
+                "non_claims": list(BOUNDARY_DENIALS),
+            }
     try:
         manifest = read_source_manifest(root)
     except WuciOSError as exc:
@@ -553,13 +637,65 @@ def verify_source(source_root: Path | None = None, *, require_layout: bool = Tru
         }
     if manifest.get("schema") != SOURCE_SCHEMA:
         problems.append("source manifest schema mismatch")
+    if manifest.get("product") != PRODUCT_NAME:
+        problems.append("source manifest product mismatch")
+    if manifest.get("image_id") != IMAGE_ID:
+        problems.append("source manifest image_id mismatch")
+    if manifest.get("operator_supplied") is not True:
+        problems.append("operator_supplied must be true")
+    if manifest.get("boundary_denials") != list(BOUNDARY_DENIALS):
+        problems.append("boundary_denials mismatch")
     image_path_value = manifest.get("image_path")
     image_path = Path(str(image_path_value)) if isinstance(image_path_value, str) else root / "missing.iso"
+    if not isinstance(image_path_value, str):
+        problems.append("image_path missing")
+    image_name_value = manifest.get("image_name")
+    expected_image_name = ""
+    if isinstance(image_name_value, str):
+        try:
+            expected_image_name = safe_iso_name(image_name_value)
+        except WuciOSError as exc:
+            problems.append(f"image_name invalid: {exc}")
+    else:
+        problems.append("image_name must be a plain .iso filename")
+    base = manifest.get("base")
+    if not isinstance(base, dict):
+        problems.append("source base metadata missing")
+    else:
+        expected_base = {
+            "distribution": "Void Linux",
+            "libc": "musl",
+            "image_kind": "live base ISO",
+            "upstream_label": VOID_LIVE_LABEL,
+        }
+        for key, expected_value in expected_base.items():
+            if base.get(key) != expected_value:
+                problems.append(f"source base {key} mismatch")
+        if expected_image_name and base.get("release_stamp") != release_stamp_from_name(expected_image_name):
+            problems.append("source base release_stamp mismatch")
+    root_resolved = root.resolve(strict=False)
+    image_resolved = image_path.resolve(strict=False)
+    image_path_safe = True
     try:
-        digest_vector, size = wuci_kaiju.file_digest_vector(image_path, "Wuci-OS source ISO")
-    except wuci_kaiju.KaijuError as exc:
+        image_relative = image_resolved.relative_to(root_resolved)
+    except ValueError:
+        image_path_safe = False
+        problems.append("image_path must stay under source_root")
+        image_relative = Path()
+    if image_path_safe and (len(image_relative.parts) != 1 or image_relative.suffix != ".iso"):
+        image_path_safe = False
+        problems.append("image_path must name one direct source_root ISO")
+    if image_path_safe and expected_image_name and image_relative.as_posix() != expected_image_name:
+        image_path_safe = False
+        problems.append("image_path must match image_name")
+    if image_path_safe:
+        try:
+            digest_vector, size = wuci_kaiju.file_digest_vector(image_path, "Wuci-OS source ISO")
+        except wuci_kaiju.KaijuError as exc:
+            digest_vector, size = {}, -1
+            problems.append(str(exc))
+    else:
         digest_vector, size = {}, -1
-        problems.append(str(exc))
     expected = manifest.get("digest_vector", {})
     if isinstance(expected, dict):
         for key in ("sha256", "sha384", "sha512"):
@@ -570,6 +706,11 @@ def verify_source(source_root: Path | None = None, *, require_layout: bool = Tru
     if size >= 0 and manifest.get("image_bytes") != size:
         problems.append("image_bytes mismatch")
     layout = inspect_void_iso(image_path) if size >= 0 else {"status": "fail", "problems": ["image unavailable"]}
+    manifest_layout = manifest.get("layout")
+    if not isinstance(manifest_layout, dict):
+        problems.append("layout missing")
+    elif manifest_layout != layout:
+        problems.append("source manifest layout mismatch")
     if require_layout and layout.get("status") != "pass":
         for problem in layout.get("problems", []):
             problems.append(str(problem))
@@ -776,14 +917,16 @@ def developer_package_manifest() -> dict[str, Any]:
         "all_developer_packages": sorted(set(BASE_DEV_PACKAGES + tuple(all_dev_packages))),
         "ai_tools": {
             "codex": {
-                "installer": "https://chatgpt.com/codex/install.sh",
+                "setup": "operator-reviewed official installer or local package only",
                 "npm_fallback": "@openai/codex",
                 "credential": "OPENAI_API_KEY or interactive login",
+                "automation_boundary": "wuci-ai-setup prints a plan; it does not download or execute remote installers",
             },
             "github_copilot": {
-                "installer": "https://gh.io/copilot-install",
+                "setup": "operator-reviewed GitHub CLI/Copilot install flow or local package only",
                 "npm_fallback": "@github/copilot",
                 "credential": "GH_TOKEN, GITHUB_TOKEN, or interactive login",
+                "automation_boundary": "wuci-ai-setup prints a plan; it does not download or execute remote installers",
             },
             "grok_build": {
                 "api": "https://api.x.ai/v1/responses",
@@ -866,17 +1009,67 @@ def _read_regular_bytes(path: Path, label: str) -> bytes:
         raise WuciOSError(f"could not open {label}: {path}") from exc
     try:
         opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise WuciOSError(f"{label} changed type while opening: {path}")
         if opened.st_ino != info.st_ino or opened.st_dev != info.st_dev:
             raise WuciOSError(f"{label} changed while opening: {path}")
+        if opened.st_size != info.st_size or stat.S_IMODE(opened.st_mode) != stat.S_IMODE(info.st_mode):
+            raise WuciOSError(f"{label} changed while opening: {path}")
+        if opened.st_nlink != 1:
+            raise WuciOSError(f"{label} must not be hardlinked: {path}")
         chunks: list[bytes] = []
+        total = 0
         while True:
             chunk = os.read(fd, wuci_kaiju.READ_CHUNK)
             if not chunk:
                 break
+            total += len(chunk)
             chunks.append(chunk)
+        if total != opened.st_size:
+            raise WuciOSError(f"{label} changed while reading: {path}")
     finally:
         os.close(fd)
     return b"".join(chunks)
+
+
+def _verified_regular_file_info(path: Path, label: str) -> os.stat_result:
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise WuciOSError(f"missing {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise WuciOSError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise WuciOSError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise WuciOSError(f"{label} must not be hardlinked: {path}")
+    return info
+
+
+@contextlib.contextmanager
+def _open_verified_regular_file(path: Path, label: str, *, expected_info: os.stat_result | None = None) -> Any:
+    info = _verified_regular_file_info(path, label) if expected_info is None else expected_info
+    flags = os.O_RDONLY | wuci_kaiju._cloexec() | wuci_kaiju._nofollow()
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise WuciOSError(f"could not open {label}: {path}") from exc
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise WuciOSError(f"{label} changed type while opening: {path}")
+        if opened.st_ino != info.st_ino or opened.st_dev != info.st_dev:
+            raise WuciOSError(f"{label} changed while opening: {path}")
+        if opened.st_size != info.st_size or stat.S_IMODE(opened.st_mode) != stat.S_IMODE(info.st_mode):
+            raise WuciOSError(f"{label} changed while opening: {path}")
+        if opened.st_nlink != 1:
+            raise WuciOSError(f"{label} must not be hardlinked: {path}")
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            yield handle
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
 def overlay_manifest_path(overlay_root: Path) -> Path:
@@ -884,8 +1077,16 @@ def overlay_manifest_path(overlay_root: Path) -> Path:
 
 
 def overlay_file_records(overlay_root: Path, *, ticker_mode: str = "auto") -> list[dict[str, Any]]:
-    if not overlay_root.is_dir():
-        raise WuciOSError(f"overlay root is missing: {overlay_root}")
+    try:
+        root_info = os.lstat(overlay_root)
+    except FileNotFoundError as exc:
+        raise WuciOSError(f"overlay root is missing: {overlay_root}") from exc
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect overlay root: {overlay_root}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        raise WuciOSError(f"overlay root must not be a symlink: {overlay_root}")
+    if not stat.S_ISDIR(root_info.st_mode):
+        raise WuciOSError(f"overlay root must be a directory: {overlay_root}")
     records: list[dict[str, Any]] = []
     paths = sorted(overlay_root.rglob("*"), key=lambda path: path.relative_to(overlay_root).as_posix())
     ticker = wuci_progress.TriangleTicker(ticker_mode, label="wuci-os overlay")
@@ -922,42 +1123,584 @@ def overlay_file_records(overlay_root: Path, *, ticker_mode: str = "auto") -> li
     return records
 
 
+def _overlay_content_records(records: list[dict[str, Any]], manifest_relative: str) -> list[dict[str, Any]]:
+    return [
+        record
+        for record in records
+        if record.get("type") == "file" and record.get("path") != manifest_relative
+    ]
+
+
+def _manifest_string_list(value: object, label: str) -> list[str]:
+    if not isinstance(value, list):
+        raise WuciOSError(f"Wuci-OS overlay manifest {label} must be a list")
+    items: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, str):
+            raise WuciOSError(f"Wuci-OS overlay manifest {label} entries must be strings")
+        if item in seen:
+            raise WuciOSError(f"Wuci-OS overlay manifest {label} contains duplicate path: {item}")
+        seen.add(item)
+        items.append(item)
+    return items
+
+
+def validate_overlay_manifest_current(
+    overlay_root: Path,
+    manifest: dict[str, Any],
+    *,
+    records: list[dict[str, Any]] | None = None,
+    ticker_mode: str = "auto",
+) -> list[dict[str, Any]]:
+    if manifest.get("schema") != OVERLAY_SCHEMA:
+        raise WuciOSError("Wuci-OS overlay manifest schema mismatch")
+    manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
+    if manifest.get("manifest_path") != manifest_relative:
+        raise WuciOSError("Wuci-OS overlay manifest_path mismatch")
+    if records is None:
+        records = overlay_file_records(overlay_root, ticker_mode=ticker_mode)
+    current_paths = [str(record.get("path")) for record in records]
+    current_files = {str(record.get("path")) for record in records if record.get("type") == "file"}
+    manifest_paths = _manifest_string_list(manifest.get("recorded_paths"), "recorded_paths")
+    manifest_files = _manifest_string_list(manifest.get("files"), "files")
+    if manifest_paths != current_paths:
+        raise WuciOSError("Wuci-OS overlay manifest recorded_paths mismatch")
+    if set(manifest_files) != current_files:
+        raise WuciOSError("Wuci-OS overlay manifest files mismatch")
+    manifest_records = manifest.get("content_records")
+    current_content_records = _overlay_content_records(records, manifest_relative)
+    if not isinstance(manifest_records, list) or manifest_records != current_content_records:
+        raise WuciOSError("Wuci-OS overlay manifest content_records mismatch")
+    return records
+
+
+def clear_overlay_root_for_rebuild(overlay_root: Path) -> None:
+    resolved = overlay_root.resolve(strict=False)
+    repo = repo_root().resolve(strict=False)
+    if resolved in {Path("/"), repo}:
+        raise WuciOSError(f"refusing to clear unsafe overlay root: {overlay_root}")
+    if not overlay_root.exists():
+        return
+    try:
+        root_info = os.lstat(overlay_root)
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect overlay root: {overlay_root}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        raise WuciOSError(f"overlay root must not be a symlink: {overlay_root}")
+    if not stat.S_ISDIR(root_info.st_mode):
+        raise WuciOSError(f"overlay root must be a directory: {overlay_root}")
+
+    entries: list[tuple[Path, int]] = []
+    for path in sorted(overlay_root.rglob("*"), key=lambda item: len(item.relative_to(overlay_root).parts), reverse=True):
+        rel = path.relative_to(overlay_root).as_posix()
+        try:
+            info = os.lstat(path)
+        except OSError as exc:
+            raise WuciOSError(f"overlay rebuild path disappeared: {rel}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise WuciOSError(f"overlay rebuild refuses symlink: {rel}")
+        if stat.S_ISREG(info.st_mode):
+            if info.st_nlink != 1:
+                raise WuciOSError(f"overlay rebuild refuses hardlinked file: {rel}")
+        elif not stat.S_ISDIR(info.st_mode):
+            raise WuciOSError(f"overlay rebuild refuses unsupported file type: {rel}")
+        entries.append((path, info.st_mode))
+
+    for path, mode in entries:
+        try:
+            if stat.S_ISDIR(mode):
+                path.rmdir()
+            else:
+                path.unlink()
+        except OSError as exc:
+            rel = path.relative_to(overlay_root).as_posix()
+            raise WuciOSError(f"could not clear overlay rebuild path: {rel}") from exc
+
+
+def _fsync_parent(path: Path) -> None:
+    try:
+        fd = os.open(str(path.parent), os.O_RDONLY | wuci_kaiju._cloexec())
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _unlink_existing_path(path_name: str) -> None:
+    if not path_name:
+        return
+    try:
+        os.unlink(path_name)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise WuciOSError(f"could not remove temporary path: {path_name}") from exc
+
+
+def _discard_temporary_path(path_name: str) -> None:
+    if not path_name:
+        return
+    try:
+        os.unlink(path_name)
+    except OSError:
+        pass
+
+
+def _backup_existing_regular_file(path: Path, label: str) -> str:
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return ""
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect existing {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise WuciOSError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise WuciOSError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise WuciOSError(f"{label} must not be hardlinked: {path}")
+
+    flags = os.O_RDONLY | wuci_kaiju._cloexec() | wuci_kaiju._nofollow()
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise WuciOSError(f"could not open existing {label} for rollback: {path}") from exc
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise WuciOSError(f"{label} changed type while staging rollback: {path}")
+        if opened.st_ino != info.st_ino or opened.st_dev != info.st_dev:
+            raise WuciOSError(f"{label} changed while staging rollback: {path}")
+        if opened.st_size != info.st_size or stat.S_IMODE(opened.st_mode) != stat.S_IMODE(info.st_mode):
+            raise WuciOSError(f"{label} changed while staging rollback: {path}")
+        if opened.st_nlink != 1:
+            raise WuciOSError(f"{label} must not be hardlinked while staging rollback: {path}")
+    finally:
+        os.close(fd)
+
+    tmp_fd, backup_name = tempfile.mkstemp(prefix=f".{path.name}.old.", dir=str(path.parent))
+    os.close(tmp_fd)
+    try:
+        os.unlink(backup_name)
+        os.replace(path, backup_name)
+        backup_info = os.lstat(backup_name)
+        if stat.S_ISLNK(backup_info.st_mode):
+            raise WuciOSError(f"rollback copy of {label} must not be a symlink: {backup_name}")
+        if not stat.S_ISREG(backup_info.st_mode):
+            raise WuciOSError(f"rollback copy of {label} must be a regular file: {backup_name}")
+        if backup_info.st_nlink != 1:
+            raise WuciOSError(f"rollback copy of {label} must not be hardlinked: {backup_name}")
+        if (
+            backup_info.st_ino != info.st_ino
+            or backup_info.st_dev != info.st_dev
+            or backup_info.st_size != info.st_size
+            or stat.S_IMODE(backup_info.st_mode) != stat.S_IMODE(info.st_mode)
+        ):
+            raise WuciOSError(f"{label} changed while staging rollback: {path}")
+        _fsync_parent(path)
+    except (OSError, WuciOSError) as exc:
+        try:
+            os.unlink(backup_name)
+        except OSError:
+            pass
+        if isinstance(exc, WuciOSError):
+            raise
+        raise WuciOSError(f"could not stage previous {label} for rollback: {path}") from exc
+    return backup_name
+
+
+def _restore_backup_file(path: Path, backup_name: str, label: str) -> None:
+    backup = Path(backup_name)
+    _verified_regular_file_info(backup, f"previous {label}")
+    _reject_symlink_output_parents(path, label)
+    try:
+        os.replace(backup, path)
+        _fsync_parent(path)
+    except OSError as exc:
+        raise WuciOSError(f"could not restore previous {label}: {path}") from exc
+
+
+def _reject_symlink_output_parents(path: Path, label: str) -> None:
+    parents: list[Path] = []
+    current = path.parent
+    while True:
+        parents.append(current)
+        if current == current.parent:
+            break
+        current = current.parent
+    for parent in reversed(parents):
+        try:
+            info = os.lstat(parent)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise WuciOSError(f"could not inspect {label} parent: {parent}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise WuciOSError(f"{label} parent must not be a symlink: {parent}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise WuciOSError(f"{label} parent must be a directory: {parent}")
+
+
+def _prepare_atomic_tar_output_path(tar_path: Path, label: str) -> None:
+    _reject_symlink_output_parents(tar_path, label)
+    tar_path.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(tar_path, label)
+    try:
+        wuci_kaiju.reject_unsafe_existing_path(tar_path, label)
+    except wuci_kaiju.KaijuError as exc:
+        raise WuciOSError(str(exc)) from exc
+
+
+def _prepare_atomic_tar_path(tar_path: Path, label: str) -> Path:
+    _prepare_atomic_tar_output_path(tar_path, label)
+    tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{tar_path.name}.", suffix=".tmp", dir=str(tar_path.parent))
+    os.close(tmp_fd)
+    return Path(tmp_name)
+
+
+def _prepare_output_directory(path: Path, label: str) -> None:
+    marker = path / ".wuci-output-check"
+    _reject_symlink_output_parents(marker, label)
+    path.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(marker, label)
+
+
+def _prepare_replacement_output_path(path: Path, label: str, *, force: bool) -> None:
+    _reject_symlink_output_parents(path, label)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(path, label)
+    try:
+        wuci_kaiju.prepare_output_path(path, label, force=force)
+    except wuci_kaiju.KaijuError as exc:
+        raise WuciOSError(str(exc)) from exc
+
+
+def _prepare_exclusive_output_path(path: Path, label: str, *, force: bool) -> None:
+    _prepare_replacement_output_path(path, label, force=force)
+    if force:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _finish_atomic_tar_path(tmp_path: Path, tar_path: Path, label: str) -> dict[str, Any]:
+    validate_tar_member_policy(tmp_path, label)
+    os.replace(tmp_path, tar_path)
+    _fsync_parent(tar_path)
+    return validate_tar_member_policy(tar_path, label)
+
+
+def _copy_verified_regular_file(
+    source: Path,
+    dest: Path,
+    label: str,
+    *,
+    expected_info: os.stat_result | None = None,
+    mode: int = 0o644,
+) -> tuple[dict[str, str], int]:
+    info = _verified_regular_file_info(source, label) if expected_info is None else expected_info
+    _reject_symlink_output_parents(dest, label)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(dest, label)
+    try:
+        wuci_kaiju.reject_unsafe_existing_path(dest, label)
+    except wuci_kaiju.KaijuError as exc:
+        raise WuciOSError(str(exc)) from exc
+    tmp_fd = -1
+    tmp_name = ""
+    dest_installed = False
+    digests = {
+        "sha256": hashlib.sha256(),
+        "sha384": hashlib.sha384(),
+        "sha512": hashlib.sha512(),
+    }
+    total = 0
+    try:
+        tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{dest.name}.", dir=str(dest.parent))
+        with _open_verified_regular_file(source, label, expected_info=info) as source_handle:
+            with os.fdopen(tmp_fd, "wb") as out_handle:
+                tmp_fd = -1
+                while True:
+                    chunk = source_handle.read(wuci_kaiju.READ_CHUNK)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    for digest in digests.values():
+                        digest.update(chunk)
+                    out_handle.write(chunk)
+                out_handle.flush()
+                os.fsync(out_handle.fileno())
+        if total != info.st_size:
+            raise WuciOSError(f"{label} changed while reading: {source}")
+        tmp_path = Path(tmp_name)
+        os.chmod(tmp_path, mode)
+        os.replace(tmp_path, dest)
+        dest_installed = True
+        _fsync_parent(dest)
+        expected_digest = {name: digest.hexdigest() for name, digest in digests.items()}
+        final_digest, final_bytes = wuci_kaiju.file_digest_vector(dest, label)
+        if final_bytes != total or final_digest != expected_digest:
+            raise WuciOSError(f"{label} digest changed after copy: {dest}")
+        return final_digest, final_bytes
+    except Exception:
+        if tmp_fd >= 0:
+            os.close(tmp_fd)
+        if tmp_name:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+        if dest_installed:
+            try:
+                dest.unlink()
+            except OSError:
+                pass
+        raise
+
+
+def _write_verified_new_file(path: Path, data: bytes, label: str, *, mode: int) -> tuple[dict[str, str], int]:
+    _reject_symlink_output_parents(path, label)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(path, label)
+    try:
+        wuci_kaiju.reject_unsafe_existing_path(path, label)
+    except wuci_kaiju.KaijuError as exc:
+        raise WuciOSError(str(exc)) from exc
+    fd = -1
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | wuci_kaiju._cloexec() | wuci_kaiju._nofollow(), mode)
+        with os.fdopen(fd, "wb") as handle:
+            fd = -1
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(path, mode)
+        _fsync_parent(path)
+        info = _verified_regular_file_info(path, label)
+        if stat.S_IMODE(info.st_mode) != mode:
+            raise WuciOSError(f"{label} mode drift after write: {path}")
+        digest, size = wuci_kaiju.file_digest_vector(path, label)
+        expected_digest = digest_vector(data)
+        if size != len(data) or digest != expected_digest:
+            raise WuciOSError(f"{label} digest changed after write: {path}")
+        return digest, size
+    except Exception:
+        if fd >= 0:
+            os.close(fd)
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
 def write_deterministic_overlay_tar(
     overlay_root: Path,
     tar_path: Path,
     *,
     ticker_mode: str = "auto",
-) -> None:
+) -> dict[str, Any]:
     paths = sorted(overlay_root.rglob("*"), key=lambda path: path.relative_to(overlay_root).as_posix())
     ticker = wuci_progress.TriangleTicker(ticker_mode, label="wuci-os tar")
-    with tarfile.open(tar_path, "w", format=tarfile.PAX_FORMAT) as archive:
-        for index, path in enumerate(paths):
-            rel = path.relative_to(overlay_root).as_posix()
-            info = os.lstat(path)
-            ticker.tick(index, len(paths), detail=rel)
-            if stat.S_ISLNK(info.st_mode):
-                raise WuciOSError(f"overlay must not contain symlinks: {rel}")
-            tar_info = tarfile.TarInfo(rel)
-            tar_info.mtime = 0
-            tar_info.uid = 0
-            tar_info.gid = 0
-            tar_info.uname = "root"
-            tar_info.gname = "root"
-            tar_info.mode = stat.S_IMODE(info.st_mode)
-            if stat.S_ISDIR(info.st_mode):
-                tar_info.type = tarfile.DIRTYPE
-                tar_info.size = 0
-                archive.addfile(tar_info)
-            elif stat.S_ISREG(info.st_mode):
-                if info.st_nlink != 1:
-                    raise WuciOSError(f"overlay file must not be hardlinked: {rel}")
-                tar_info.type = tarfile.REGTYPE
-                tar_info.size = info.st_size
-                with path.open("rb") as handle:
-                    archive.addfile(tar_info, handle)
-            else:
-                raise WuciOSError(f"overlay contains unsupported file type: {rel}")
+    tmp_path = _prepare_atomic_tar_path(tar_path, "Wuci-OS overlay tar")
+    try:
+        with tarfile.open(tmp_path, "w", format=tarfile.PAX_FORMAT) as archive:
+            for index, path in enumerate(paths):
+                rel = path.relative_to(overlay_root).as_posix()
+                info = os.lstat(path)
+                ticker.tick(index, len(paths), detail=rel)
+                if stat.S_ISLNK(info.st_mode):
+                    raise WuciOSError(f"overlay must not contain symlinks: {rel}")
+                tar_info = tarfile.TarInfo(rel)
+                tar_info.mtime = 0
+                tar_info.uid = 0
+                tar_info.gid = 0
+                tar_info.uname = "root"
+                tar_info.gname = "root"
+                tar_info.mode = stat.S_IMODE(info.st_mode)
+                if stat.S_ISDIR(info.st_mode):
+                    tar_info.type = tarfile.DIRTYPE
+                    tar_info.size = 0
+                    archive.addfile(tar_info)
+                elif stat.S_ISREG(info.st_mode):
+                    if info.st_nlink != 1:
+                        raise WuciOSError(f"overlay file must not be hardlinked: {rel}")
+                    tar_info.type = tarfile.REGTYPE
+                    tar_info.size = info.st_size
+                    with _open_verified_regular_file(path, f"Wuci-OS overlay tar file {rel}", expected_info=info) as handle:
+                        archive.addfile(tar_info, handle)
+                else:
+                    raise WuciOSError(f"overlay contains unsupported file type: {rel}")
+        validation = _finish_atomic_tar_path(tmp_path, tar_path, "Wuci-OS overlay tar")
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        ticker.finish(ok=False)
+        raise
     ticker.finish(ok=True)
+    return validation
+
+
+def tar_extraction_policy() -> dict[str, Any]:
+    return {
+        "schema": "wuci-os-tar-extraction-policy-v1",
+        "allowed_member_types": ["directory", "regular-file"],
+        "forbidden_member_types": ["symlink", "hardlink", "device", "fifo", "sparse", "unknown"],
+        "forbidden_paths": ["absolute", "parent-directory-segment", "empty-component", "duplicate-member"],
+        "required_metadata": {
+            "mtime": 0,
+            "uid": 0,
+            "gid": 0,
+            "uname": "root",
+            "gname": "root",
+        },
+        "claim": "locally generated payload archive member policy; not runtime sandboxing or host containment",
+    }
+
+
+def validate_tar_member_policy(tar_path: Path, label: str) -> dict[str, Any]:
+    policy = tar_extraction_policy()
+    members = 0
+    files = 0
+    directories = 0
+    seen: set[str] = set()
+    try:
+        with _open_verified_regular_file(tar_path, label) as handle:
+            with tarfile.open(fileobj=handle, mode="r:") as archive:
+                for member in archive:
+                    raw_name = member.name
+                    if "\\" in raw_name:
+                        raise WuciOSError(f"{label} contains unsafe tar member path: {raw_name}")
+                    parts = raw_name.split("/")
+                    if raw_name.startswith("/") or raw_name == "" or any(part in {"", ".", ".."} for part in parts):
+                        raise WuciOSError(f"{label} contains unsafe tar member path: {raw_name}")
+                    if raw_name in seen:
+                        raise WuciOSError(f"{label} contains duplicate tar member: {raw_name}")
+                    seen.add(raw_name)
+                    if member.mtime != 0:
+                        raise WuciOSError(f"{label} contains nondeterministic mtime: {raw_name}")
+                    if member.uid != 0 or member.gid != 0:
+                        raise WuciOSError(f"{label} contains non-root numeric owner: {raw_name}")
+                    if member.uname != "root" or member.gname != "root":
+                        raise WuciOSError(f"{label} contains non-root named owner: {raw_name}")
+                    if member.isdir():
+                        directories += 1
+                    elif member.isfile():
+                        files += 1
+                    else:
+                        raise WuciOSError(f"{label} contains unsupported tar member type: {raw_name}")
+                    members += 1
+    except tarfile.TarError as exc:
+        raise WuciOSError(f"{label} is not a readable tar archive: {tar_path}") from exc
+    return {
+        "schema": "wuci-os-tar-validation-v1",
+        "status": "pass",
+        "tar_path": str(tar_path),
+        "members": members,
+        "regular_files": files,
+        "directories": directories,
+        "extraction_policy": policy,
+    }
+
+
+def _tar_member_bytes_and_digest(
+    archive: tarfile.TarFile,
+    member: tarfile.TarInfo,
+    label: str,
+) -> tuple[dict[str, str], int]:
+    handle = archive.extractfile(member)
+    if handle is None:
+        raise WuciOSError(f"{label} could not read tar member: {member.name}")
+    digests = {
+        "sha256": hashlib.sha256(),
+        "sha384": hashlib.sha384(),
+        "sha512": hashlib.sha512(),
+    }
+    total = 0
+    with handle:
+        while True:
+            chunk = handle.read(wuci_kaiju.READ_CHUNK)
+            if not chunk:
+                break
+            total += len(chunk)
+            for digest in digests.values():
+                digest.update(chunk)
+    return {digest_name: digest.hexdigest() for digest_name, digest in digests.items()}, total
+
+
+def _tar_member_bytes(archive: tarfile.TarFile, member: tarfile.TarInfo, label: str) -> bytes:
+    handle = archive.extractfile(member)
+    if handle is None:
+        raise WuciOSError(f"{label} could not read tar member: {member.name}")
+    with handle:
+        return handle.read()
+
+
+def validate_source_kit_tar_manifest(
+    tar_path: Path,
+    manifest: dict[str, Any],
+    *,
+    label: str = "Wuci-OS source-kit tar",
+) -> dict[str, Any]:
+    tar_validation = validate_tar_member_policy(tar_path, label)
+    expected_manifest_bytes = canonical_json_bytes(manifest) + b"\n"
+    expected_manifest_paths = [
+        (SOURCE_KIT_PREFIX / ".wuci-os-source-kit.json").as_posix(),
+        SOURCE_KIT_GUEST_MANIFEST.as_posix(),
+    ]
+    expected_file_members = set(expected_manifest_paths)
+    records = manifest.get("files")
+    if not isinstance(records, list):
+        raise WuciOSError(f"{label} manifest files must be a list")
+    for record in records:
+        if not isinstance(record, dict) or not isinstance(record.get("target_path"), str):
+            raise WuciOSError(f"{label} manifest file record missing target_path")
+        expected_file_members.add(str(record["target_path"]))
+
+    try:
+        with _open_verified_regular_file(tar_path, label) as handle:
+            with tarfile.open(fileobj=handle, mode="r:") as archive:
+                members = {member.name: member for member in archive.getmembers()}
+                actual_file_members = {name for name, member in members.items() if member.isfile()}
+                if actual_file_members != expected_file_members:
+                    raise WuciOSError(f"{label} regular file members do not match manifest records")
+                for manifest_path in expected_manifest_paths:
+                    member = members.get(manifest_path)
+                    if member is None or not member.isfile():
+                        raise WuciOSError(f"{label} missing manifest member: {manifest_path}")
+                    if _tar_member_bytes(archive, member, label) != expected_manifest_bytes:
+                        raise WuciOSError(f"{label} manifest member mismatch: {manifest_path}")
+                for record in records:
+                    target = str(record["target_path"])
+                    member = members.get(target)
+                    if member is None or not member.isfile():
+                        raise WuciOSError(f"{label} missing source member: {target}")
+                    if member.size != record.get("bytes"):
+                        raise WuciOSError(f"{label} member byte count mismatch: {target}")
+                    if oct(stat.S_IMODE(member.mode)) != record.get("mode"):
+                        raise WuciOSError(f"{label} member mode mismatch: {target}")
+                    digest, size = _tar_member_bytes_and_digest(archive, member, label)
+                    if size != record.get("bytes"):
+                        raise WuciOSError(f"{label} member byte count mismatch: {target}")
+                    if digest != record.get("digest_vector"):
+                        raise WuciOSError(f"{label} member digest mismatch: {target}")
+    except tarfile.TarError as exc:
+        raise WuciOSError(f"{label} is not a readable tar archive: {tar_path}") from exc
+    return {
+        "schema": "wuci-os-source-kit-tar-validation-v1",
+        "status": "pass",
+        "tar_path": str(tar_path),
+        "regular_file_members": len(expected_file_members),
+        "manifest_member_paths": expected_manifest_paths,
+        "manifest_digest_vector": digest_vector(expected_manifest_bytes),
+        "tar_validation": tar_validation,
+    }
 
 
 def _git_source_paths() -> list[Path]:
@@ -991,7 +1734,30 @@ def _git_source_paths() -> list[Path]:
     return paths
 
 
-def source_kit_records(*, ticker_mode: str = "auto") -> list[dict[str, Any]]:
+def _source_kit_output_relative(tar_path: Path) -> Path | None:
+    root_resolved = repo_root().resolve(strict=False)
+    tar_resolved = tar_path.resolve(strict=False)
+    try:
+        return tar_resolved.relative_to(root_resolved)
+    except ValueError:
+        return None
+
+
+def _reserved_source_kit_output_problem(rel: Path, output_rel: Path | None) -> str:
+    if output_rel is None:
+        return ""
+    if rel == output_rel:
+        return f"source-kit output path must not be part of source evidence: {rel.as_posix()}"
+    if rel.parent == output_rel.parent and rel.name.startswith(f".{output_rel.name}.") and rel.name.endswith(".tmp"):
+        return f"source-kit temporary output artifact must not be part of source evidence: {rel.as_posix()}"
+    return ""
+
+
+def source_kit_records(
+    *,
+    ticker_mode: str = "auto",
+    reserved_output_rel: Path | None = None,
+) -> list[dict[str, Any]]:
     root = repo_root()
     paths = _git_source_paths()
     records: list[dict[str, Any]] = []
@@ -1034,6 +1800,9 @@ def source_kit_records(*, ticker_mode: str = "auto") -> list[dict[str, Any]]:
         ticker.tick(index, len(paths), detail=rel_text)
         if rel.is_absolute() or ".." in rel.parts or rel_text.startswith("/"):
             raise WuciOSError(f"unsafe source-kit path: {rel_text}")
+        reserved_problem = _reserved_source_kit_output_problem(rel, reserved_output_rel)
+        if reserved_problem:
+            raise WuciOSError(reserved_problem)
         add_record(root / rel, display_path=rel_text, target_path=SOURCE_KIT_PREFIX / rel, source_kind="wuci-ji", strict=True)
 
     upstream_root = root / DEFAULT_UPSTREAM_ROOT
@@ -1063,14 +1832,15 @@ def write_deterministic_source_kit_tar(
     ticker_mode: str = "auto",
 ) -> dict[str, Any]:
     root = repo_root()
-    tar_path.parent.mkdir(parents=True, exist_ok=True)
-    if tar_path.exists():
-        wuci_kaiju.reject_unsafe_existing_path(tar_path, "Wuci-OS source-kit tar")
-        tar_path.unlink()
-    records = source_kit_records(ticker_mode=ticker_mode)
+    _prepare_atomic_tar_output_path(tar_path, "Wuci-OS source-kit tar")
+    records = source_kit_records(
+        ticker_mode=ticker_mode,
+        reserved_output_rel=_source_kit_output_relative(tar_path),
+    )
+    tmp_path = _prepare_atomic_tar_path(tar_path, "Wuci-OS source-kit tar")
     manifest = {
         "schema": SOURCE_KIT_SCHEMA,
-        "created_utc": utc_now(),
+        "created_utc": SOURCE_KIT_DETERMINISTIC_CREATED_UTC,
         "product": PRODUCT_NAME,
         "image_id": IMAGE_ID,
         "source_root": str(root),
@@ -1079,6 +1849,11 @@ def write_deterministic_source_kit_tar(
         "guest_upstream_source_root": UPSTREAM_SOURCE_PREFIX.as_posix(),
         "guest_manifest": SOURCE_KIT_GUEST_MANIFEST.as_posix(),
         "files": records,
+        "extraction_policy": tar_extraction_policy(),
+        "timestamp_policy": {
+            "created_utc": "fixed archive epoch for byte-reproducible source-kit payloads",
+            "wall_clock_time": "intentionally omitted from deterministic source-kit tar members",
+        },
         "non_claims": list(BOUNDARY_DENIALS),
     }
 
@@ -1097,64 +1872,78 @@ def write_deterministic_source_kit_tar(
             handle.seek(0)
             archive.addfile(tar_info, handle)
 
-    with tarfile.open(tar_path, "w", format=tarfile.PAX_FORMAT) as archive:
-        for directory in (
-            Path("opt"),
-            Path("opt/wuci-os"),
-            Path("opt/wuci-os/source"),
-            SOURCE_KIT_PREFIX,
-            UPSTREAM_SOURCE_PREFIX,
-            Path("usr"),
-            Path("usr/share"),
-            Path("usr/share/wuci-os"),
-        ):
-            tar_info = tarfile.TarInfo(directory.as_posix())
-            tar_info.mtime = 0
-            tar_info.uid = 0
-            tar_info.gid = 0
-            tar_info.uname = "root"
-            tar_info.gname = "root"
-            tar_info.mode = 0o755
-            tar_info.type = tarfile.DIRTYPE
-            tar_info.size = 0
-            archive.addfile(tar_info)
+    try:
+        with tarfile.open(tmp_path, "w", format=tarfile.PAX_FORMAT) as archive:
+            for directory in (
+                Path("opt"),
+                Path("opt/wuci-os"),
+                Path("opt/wuci-os/source"),
+                SOURCE_KIT_PREFIX,
+                UPSTREAM_SOURCE_PREFIX,
+                Path("usr"),
+                Path("usr/share"),
+                Path("usr/share/wuci-os"),
+            ):
+                tar_info = tarfile.TarInfo(directory.as_posix())
+                tar_info.mtime = 0
+                tar_info.uid = 0
+                tar_info.gid = 0
+                tar_info.uname = "root"
+                tar_info.gname = "root"
+                tar_info.mode = 0o755
+                tar_info.type = tarfile.DIRTYPE
+                tar_info.size = 0
+                archive.addfile(tar_info)
 
-        for record in records:
-            path = Path(str(record["source_path"]))
-            info = os.lstat(path)
-            tar_info = tarfile.TarInfo(str(record["target_path"]))
-            tar_info.mtime = 0
-            tar_info.uid = 0
-            tar_info.gid = 0
-            tar_info.uname = "root"
-            tar_info.gname = "root"
-            tar_info.mode = stat.S_IMODE(info.st_mode)
-            tar_info.type = tarfile.REGTYPE
-            tar_info.size = info.st_size
-            with path.open("rb") as handle:
-                archive.addfile(tar_info, handle)
+            for record in records:
+                path = Path(str(record["source_path"]))
+                info = os.lstat(path)
+                label = f"Wuci-OS source-kit file {record['path']}"
+                if stat.S_ISLNK(info.st_mode):
+                    raise WuciOSError(f"{label} must not be a symlink: {path}")
+                if not stat.S_ISREG(info.st_mode):
+                    raise WuciOSError(f"{label} must be a regular file: {path}")
+                if info.st_nlink != 1:
+                    raise WuciOSError(f"{label} must not be hardlinked: {path}")
+                tar_info = tarfile.TarInfo(str(record["target_path"]))
+                tar_info.mtime = 0
+                tar_info.uid = 0
+                tar_info.gid = 0
+                tar_info.uname = "root"
+                tar_info.gname = "root"
+                tar_info.mode = stat.S_IMODE(info.st_mode)
+                tar_info.type = tarfile.REGTYPE
+                tar_info.size = info.st_size
+                with _open_verified_regular_file(path, label, expected_info=info) as handle:
+                    archive.addfile(tar_info, handle)
 
-        manifest_bytes = canonical_json_bytes(manifest) + b"\n"
-        add_data(archive, SOURCE_KIT_PREFIX / ".wuci-os-source-kit.json", manifest_bytes)
-        add_data(archive, SOURCE_KIT_GUEST_MANIFEST, manifest_bytes)
+            manifest_bytes = canonical_json_bytes(manifest) + b"\n"
+            add_data(archive, SOURCE_KIT_PREFIX / ".wuci-os-source-kit.json", manifest_bytes)
+            add_data(archive, SOURCE_KIT_GUEST_MANIFEST, manifest_bytes)
+        validate_source_kit_tar_manifest(tmp_path, manifest, label="Wuci-OS source-kit tar candidate")
+        tar_validation = _finish_atomic_tar_path(tmp_path, tar_path, "Wuci-OS source-kit tar")
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
+    source_kit_validation = validate_source_kit_tar_manifest(tar_path, manifest, label="Wuci-OS source-kit tar")
     tar_digest, tar_bytes = wuci_kaiju.file_digest_vector(tar_path, "Wuci-OS source-kit tar")
     return manifest | {
         "tar_path": str(tar_path),
         "tar_bytes": tar_bytes,
         "tar_digest_vector": tar_digest,
+        "tar_validation": tar_validation,
+        "source_kit_validation": source_kit_validation,
     }
 
 
 def generate_keyfile(path: Path, *, force: bool = False) -> dict[str, Any]:
-    if path.exists() and force:
-        wuci_kaiju.reject_unsafe_existing_path(path, "Wuci-OS Daylight keyfile")
-        path.unlink()
-    else:
-        wuci_kaiju.prepare_output_path(path, "Wuci-OS Daylight keyfile", force=force)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _prepare_exclusive_output_path(path, "Wuci-OS Daylight keyfile", force=force)
     key = base64.b16encode(os.urandom(32)).lower() + b"\n"
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | wuci_kaiju._cloexec(), 0o600)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | wuci_kaiju._cloexec() | wuci_kaiju._nofollow(), 0o600)
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(key)
@@ -1166,6 +1955,17 @@ def generate_keyfile(path: Path, *, force: bool = False) -> dict[str, Any]:
         except OSError:
             pass
         raise
+    _fsync_parent(path)
+    try:
+        written = os.lstat(path)
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect Wuci-OS Daylight keyfile after creation: {path}") from exc
+    if not stat.S_ISREG(written.st_mode):
+        raise WuciOSError(f"Wuci-OS Daylight keyfile changed type after creation: {path}")
+    if written.st_nlink != 1:
+        raise WuciOSError(f"Wuci-OS Daylight keyfile must not be hardlinked after creation: {path}")
+    if stat.S_IMODE(written.st_mode) != 0o600:
+        raise WuciOSError(f"Wuci-OS Daylight keyfile mode drift after creation: {path}")
     digest = digest_vector(key)
     return {
         "schema": "wuci-os-daylight-keyfile-v1",
@@ -1193,22 +1993,29 @@ def seal_overlay(
     if not os.access(bin_candidate, os.X_OK):
         raise WuciOSError(f"wuci-ji binary is not executable: {bin_candidate}")
     wuci_kaiju.require_regular_local_file(bin_candidate, "wuci-ji binary")
+    _reject_symlink_output_parents(out / "manifest.json", "Wuci-OS Daylight seal output")
     key_bytes = _read_regular_bytes(keyfile, "Wuci-OS Daylight keyfile")
     if not re.fullmatch(rb"[0-9a-fA-F]{64}\n?", key_bytes):
         raise WuciOSError("Wuci-OS Daylight keyfile must contain one 32-byte hex key")
     manifest = wuci_kaiju.read_public_json(overlay_manifest_path(root), "Wuci-OS overlay manifest")
-    if manifest.get("schema") != OVERLAY_SCHEMA:
-        raise WuciOSError("Wuci-OS overlay manifest schema mismatch")
-    out.mkdir(parents=True, exist_ok=True)
+    file_records = overlay_file_records(root, ticker_mode=ticker_mode)
+    validate_overlay_manifest_current(root, manifest, records=file_records, ticker_mode=ticker_mode)
+    _prepare_output_directory(out, "Wuci-OS Daylight seal output")
     sealed_path = out / "wuci-os-overlay.wj"
     manifest_path = out / "manifest.json"
-    wuci_kaiju.prepare_output_path(sealed_path, "Wuci-OS Daylight sealed overlay", force=force)
-    wuci_kaiju.prepare_output_path(manifest_path, "Wuci-OS Daylight seal manifest", force=force)
-    if force and sealed_path.exists():
-        sealed_path.unlink()
-    file_records = overlay_file_records(root, ticker_mode=ticker_mode)
+    try:
+        wuci_kaiju.prepare_output_path(sealed_path, "Wuci-OS Daylight sealed overlay", force=force)
+        wuci_kaiju.prepare_output_path(manifest_path, "Wuci-OS Daylight seal manifest", force=force)
+    except wuci_kaiju.KaijuError as exc:
+        raise WuciOSError(str(exc)) from exc
     tar_fd, tar_name = tempfile.mkstemp(prefix=".wuci-os-overlay.", suffix=".tar", dir=str(out))
     key_fd, key_tmp_name = tempfile.mkstemp(prefix=".wuci-os-key.", dir=str(out), text=False)
+    seal_tmp_dir = Path(tempfile.mkdtemp(prefix=".wuci-os-seal.", dir=str(out)))
+    sealed_tmp_path = seal_tmp_dir / "wuci-os-overlay.wj"
+    sealed_backup_name = ""
+    manifest_backup_name = ""
+    sealed_installed = False
+    manifest_write_started = False
     result: subprocess.CompletedProcess[str] | None = None
     try:
         os.close(tar_fd)
@@ -1217,7 +2024,7 @@ def seal_overlay(
             key_handle.flush()
             os.fsync(key_handle.fileno())
         os.chmod(key_tmp_name, 0o600)
-        write_deterministic_overlay_tar(root, Path(tar_name), ticker_mode=ticker_mode)
+        tar_validation = write_deterministic_overlay_tar(root, Path(tar_name), ticker_mode=ticker_mode)
         tar_digest, tar_bytes = wuci_kaiju.file_digest_vector(Path(tar_name), "Wuci-OS deterministic overlay tar")
         bundle = {
             "schema": OVERLAY_SEAL_BUNDLE_SCHEMA,
@@ -1230,6 +2037,7 @@ def seal_overlay(
                 "bytes": tar_bytes,
                 "digest_vector": tar_digest,
                 "format": "deterministic tar with mtime=0 and root/root metadata",
+                "validation": tar_validation,
             },
             "security_profile": security_profile_manifest(),
             "wrap_scheme": {
@@ -1257,7 +2065,7 @@ def seal_overlay(
                     key_tmp_name,
                     key_id,
                     tar_name,
-                    str(sealed_path),
+                    str(sealed_tmp_path),
                 ],
                 cwd=repo_root(),
                 stdout=subprocess.PIPE,
@@ -1272,36 +2080,104 @@ def seal_overlay(
                 os.unlink(name)
             except FileNotFoundError:
                 pass
+        if result is None or result.returncode != 0:
+            try:
+                sealed_tmp_path.unlink()
+            except FileNotFoundError:
+                pass
+            try:
+                seal_tmp_dir.rmdir()
+            except OSError:
+                pass
     if result is None or result.returncode != 0:
-        try:
-            sealed_path.unlink()
-        except FileNotFoundError:
-            pass
         stderr = "" if result is None else result.stderr
         raise WuciOSError(stderr.strip() or "seal-file-keyfile-v2 failed")
-    sealed_digest, sealed_bytes = wuci_kaiju.file_digest_vector(sealed_path, "Wuci-OS Daylight sealed overlay")
-    seal_manifest = {
-        "schema": OVERLAY_SEAL_SCHEMA,
-        "status": "sealed",
-        "created_utc": utc_now(),
-        "product": PRODUCT_NAME,
-        "image_id": IMAGE_ID,
-        "overlay_root": str(root),
-        "key_id": key_id,
-        "key_source": "operator-supplied local keyfile; key material is not embedded",
-        "sealed_artifact": {
-            "path": str(sealed_path),
-            "bytes": sealed_bytes,
-            "digest_vector": sealed_digest,
-        },
-        "bundle_digest_vector": bundle_digest,
-        "overlay_manifest_digest_vector": digest_vector(canonical_json_bytes(manifest)),
-        "security_profile": security_profile_manifest(),
-        "wrap_scheme": bundle["wrap_scheme"],
-        "non_claims": list(BOUNDARY_DENIALS),
-    }
-    wuci_kaiju.write_json_atomic(manifest_path, seal_manifest)
-    return seal_manifest
+    if not sealed_tmp_path.is_file():
+        try:
+            seal_tmp_dir.rmdir()
+        except OSError:
+            pass
+        raise WuciOSError("seal-file-keyfile-v2 did not produce a sealed overlay")
+    try:
+        wuci_kaiju.file_digest_vector(sealed_tmp_path, "Wuci-OS Daylight sealed overlay")
+    except wuci_kaiju.KaijuError as exc:
+        try:
+            sealed_tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        try:
+            seal_tmp_dir.rmdir()
+        except OSError:
+            pass
+        raise WuciOSError(str(exc)) from exc
+    try:
+        sealed_backup_name = _backup_existing_regular_file(sealed_path, "Wuci-OS Daylight sealed overlay")
+        manifest_backup_name = _backup_existing_regular_file(manifest_path, "Wuci-OS Daylight seal manifest")
+        os.replace(sealed_tmp_path, sealed_path)
+        sealed_installed = True
+        _fsync_parent(sealed_path)
+        try:
+            seal_tmp_dir.rmdir()
+        except OSError:
+            pass
+        sealed_digest, sealed_bytes = wuci_kaiju.file_digest_vector(sealed_path, "Wuci-OS Daylight sealed overlay")
+        seal_manifest = {
+            "schema": OVERLAY_SEAL_SCHEMA,
+            "status": "sealed",
+            "created_utc": utc_now(),
+            "product": PRODUCT_NAME,
+            "image_id": IMAGE_ID,
+            "overlay_root": str(root),
+            "key_id": key_id,
+            "key_source": "operator-supplied local keyfile; key material is not embedded",
+            "sealed_artifact": {
+                "path": str(sealed_path),
+                "bytes": sealed_bytes,
+                "digest_vector": sealed_digest,
+            },
+            "bundle_digest_vector": bundle_digest,
+            "overlay_manifest_digest_vector": digest_vector(canonical_json_bytes(manifest)),
+            "security_profile": security_profile_manifest(),
+            "wrap_scheme": bundle["wrap_scheme"],
+            "non_claims": list(BOUNDARY_DENIALS),
+        }
+        manifest_write_started = True
+        wuci_kaiju.write_json_atomic(manifest_path, seal_manifest)
+        _fsync_parent(manifest_path)
+        _discard_temporary_path(sealed_backup_name)
+        sealed_backup_name = ""
+        _discard_temporary_path(manifest_backup_name)
+        manifest_backup_name = ""
+        return seal_manifest
+    except Exception as exc:
+        try:
+            sealed_tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        try:
+            seal_tmp_dir.rmdir()
+        except OSError:
+            pass
+        rollback_errors = []
+        try:
+            if sealed_backup_name:
+                _restore_backup_file(sealed_path, sealed_backup_name, "Wuci-OS Daylight sealed overlay")
+            elif sealed_installed:
+                _unlink_existing_path(str(sealed_path))
+        except WuciOSError as rollback_exc:
+            rollback_errors.append(str(rollback_exc))
+        try:
+            if manifest_backup_name:
+                _restore_backup_file(manifest_path, manifest_backup_name, "Wuci-OS Daylight seal manifest")
+            elif manifest_write_started:
+                _unlink_existing_path(str(manifest_path))
+        except WuciOSError as rollback_exc:
+            rollback_errors.append(str(rollback_exc))
+        if rollback_errors:
+            raise WuciOSError(
+                f"seal-overlay failed and rollback failed: {exc}; {'; '.join(rollback_errors)}"
+            ) from exc
+        raise
 
 
 def overlay_files() -> dict[str, str]:
@@ -1325,7 +2201,7 @@ def overlay_files() -> dict[str, str]:
             "  wuci-dev-install       install desktop, editor, and developer packages",
             "  wuci-security-apply    apply SELinux-first high-assurance settings",
             "  wuci-security-status   verify SELinux/LUKS/firewall/hardening state",
-            "  wuci-ai-setup          install Codex, Copilot, and Grok Build helpers",
+            "  wuci-ai-setup          print Codex, Copilot, and Grok Build setup plan",
             "",
             "Boundary:",
             "  This profile defaults to high-assurance configuration goals, but claims",
@@ -1604,8 +2480,8 @@ if ask 'Install developer workstation packages? This can take time.' Y; then
     run_step 'install developer workstation packages' wuci-dev-install || true
 fi
 
-if ask 'Prepare Codex, Copilot, and Grok Build tool hooks? This can take time.' Y; then
-    run_step 'prepare AI tool hooks' wuci-ai-setup || true
+if ask 'Print Codex, Copilot, and Grok Build setup plan?' Y; then
+    run_step 'prepare AI tool setup plan' wuci-ai-setup || true
 fi
 
 if ask 'Apply SELinux-first high-assurance hardening profile?' Y; then
@@ -2388,91 +3264,25 @@ fi
     ai_setup_script = """#!/bin/sh
 set -eu
 
-as_root() {
-    if [ "$(id -u)" = "0" ]; then
-        "$@"
-    elif command -v sudo >/dev/null 2>&1; then
-        sudo "$@"
-    else
-        printf 'wuci-ai-setup: need root or sudo for: %s\\n' "$*" >&2
-        return 1
-    fi
-}
-
-install_xbps_baseline() {
-    if ! command -v xbps-install >/dev/null 2>&1; then
-        printf 'wuci-ai-setup: xbps-install not found; skipping Wuci-OS package setup\\n' >&2
-        return 0
-    fi
-    if [ "$(id -u)" = "0" ]; then
-        wuci-wait-run "xbps ai refresh" xbps-install -Sy xbps || xbps-install -u xbps || true
-        wuci-wait-run "xbps ai base" xbps-install -Sy ca-certificates curl git bash tar gzip xz unzip || true
-        wuci-wait-run "xbps nodejs" xbps-install -Sy nodejs || true
-        wuci-wait-run "xbps npm" xbps-install -Sy npm || true
-    elif command -v sudo >/dev/null 2>&1; then
-        wuci-wait-run "xbps ai refresh" sudo xbps-install -Sy xbps || sudo xbps-install -u xbps || true
-        wuci-wait-run "xbps ai base" sudo xbps-install -Sy ca-certificates curl git bash tar gzip xz unzip || true
-        wuci-wait-run "xbps nodejs" sudo xbps-install -Sy nodejs || true
-        wuci-wait-run "xbps npm" sudo xbps-install -Sy npm || true
-    fi
-}
-
-install_codex() {
-    if command -v codex >/dev/null 2>&1; then
-        printf 'codex already installed: %s\\n' "$(command -v codex)"
-        return 0
-    fi
-    if command -v curl >/dev/null 2>&1; then
-        printf 'installing Codex CLI with OpenAI standalone installer\\n'
-        tmp=$(mktemp)
-        wuci-wait-run "download Codex CLI" curl -fsSL https://chatgpt.com/codex/install.sh -o "$tmp" || true
-        if [ -s "$tmp" ]; then
-            CODEX_NON_INTERACTIVE=1 wuci-wait-run "install Codex CLI" sh "$tmp" || true
-        fi
-        rm -f "$tmp"
-    fi
-    if ! command -v codex >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-        printf 'Codex standalone install unavailable; trying npm package\\n'
-        npm install -g @openai/codex || true
-    fi
-}
-
-install_copilot() {
-    if command -v copilot >/dev/null 2>&1; then
-        printf 'copilot already installed: %s\\n' "$(command -v copilot)"
-        return 0
-    fi
-    if command -v curl >/dev/null 2>&1 && command -v bash >/dev/null 2>&1; then
-        printf 'installing GitHub Copilot CLI with GitHub installer\\n'
-        tmp=$(mktemp)
-        wuci-wait-run "download Copilot CLI" curl -fsSL https://gh.io/copilot-install -o "$tmp" || true
-        if [ -s "$tmp" ]; then
-            PREFIX="${PREFIX:-/usr/local}" wuci-wait-run "install Copilot CLI" bash "$tmp" || true
-        fi
-        rm -f "$tmp"
-    fi
-    if ! command -v copilot >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-        printf 'Copilot installer unavailable; trying npm package\\n'
-        npm install -g @github/copilot || true
-    fi
-}
-
-install_xbps_baseline
-install_codex
-install_copilot
-
 cat <<'TEXT'
+Wuci-OS AI setup plan
 
-Wuci-OS AI tool setup complete.
+This command is plan-only. It does not download installer scripts, run remote
+code, install global npm packages, or write credentials.
 
-Next:
-  codex
-  copilot
+Review current upstream installation instructions from the tool vendors, then
+install through a local package, pinned package manager transaction, or manually
+reviewed installer:
+
+  sudo wj install ca-certificates curl git bash tar gzip xz unzip nodejs npm
+  codex        # after operator-reviewed Codex CLI installation or login setup
+  copilot      # after operator-reviewed GitHub Copilot CLI installation
   export XAI_API_KEY=...
-  wuci-grok-build "write a small C hello world"
+  wuci-grok-build "write a defensive Wuci-OS task checklist"
 
-No credentials were written by this script.
+Credentials remain operator-supplied. Do not bake API keys into the image.
 TEXT
+
 wuci-ai-status || true
 """
     grok_build_script = """#!/bin/sh
@@ -2670,10 +3480,11 @@ exec startxfce4
             [
                 "Wuci-OS AI tools",
                 "",
-                "Codex CLI: install with https://chatgpt.com/codex/install.sh or npm @openai/codex.",
-                "GitHub Copilot CLI: install with https://gh.io/copilot-install or npm @github/copilot.",
+                "Codex CLI: install only through an operator-reviewed official flow or local package.",
+                "GitHub Copilot CLI: install only through an operator-reviewed GitHub flow or local package.",
                 "Grok Build: call xAI Responses API with model grok-build-0.1 and XAI_API_KEY.",
                 "",
+                "wuci-ai-setup is plan-only: it does not download or execute remote installers.",
                 "No credentials are baked into Wuci-OS. Use environment variables or each tool's login flow.",
                 "",
             ]
@@ -2688,37 +3499,59 @@ def create_overlay(
     force: bool = False,
 ) -> dict[str, Any]:
     root = DEFAULT_OVERLAY_ROOT if overlay_root is None else overlay_root
-    if root.exists() and any(root.iterdir()) and not force:
-        raise WuciOSError(f"overlay root already exists and is not empty: {root}")
+    _reject_symlink_output_parents(root / ".wuci-output-check", "Wuci-OS overlay root")
+    wallpaper = DEFAULT_WALLPAPER_SOURCE if wallpaper_source is None else wallpaper_source
+    wallpaper_info = _verified_regular_file_info(wallpaper, "Wuci-OS wallpaper")
+    try:
+        root_info = os.lstat(root)
+    except FileNotFoundError:
+        root_info = None
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect overlay root: {root}") from exc
+    if root_info is not None:
+        if stat.S_ISLNK(root_info.st_mode):
+            raise WuciOSError(f"overlay root must not be a symlink: {root}")
+        if not stat.S_ISDIR(root_info.st_mode):
+            raise WuciOSError(f"overlay root must be a directory: {root}")
+        if any(root.iterdir()) and not force:
+            raise WuciOSError(f"overlay root already exists and is not empty: {root}")
+        if force:
+            clear_overlay_root_for_rebuild(root)
     root.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(root / ".wuci-output-check", "Wuci-OS overlay root")
+    _fsync_parent(root)
     written: list[str] = []
     for relative, text in overlay_files().items():
         path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-        if relative.startswith("usr/local/bin/"):
-            path.chmod(0o755)
-        else:
-            path.chmod(0o644)
+        mode = 0o755 if relative.startswith("usr/local/bin/") else 0o644
+        _write_verified_new_file(
+            path,
+            text.encode("utf-8"),
+            f"Wuci-OS overlay generated file {relative}",
+            mode=mode,
+        )
         written.append(relative)
-    wallpaper = DEFAULT_WALLPAPER_SOURCE if wallpaper_source is None else wallpaper_source
     wallpaper_dest = root / OVERLAY_WALLPAPER_PATH
-    wallpaper_dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        wuci_kaiju.require_regular_local_file(wallpaper, "Wuci-OS wallpaper")
-    except wuci_kaiju.KaijuError as exc:
-        raise WuciOSError(str(exc)) from exc
-    shutil.copy2(wallpaper, wallpaper_dest)
-    wallpaper_dest.chmod(0o644)
-    wallpaper_digest, wallpaper_bytes = wuci_kaiju.file_digest_vector(wallpaper_dest, "Wuci-OS overlay wallpaper")
+    wallpaper_digest, wallpaper_bytes = _copy_verified_regular_file(
+        wallpaper,
+        wallpaper_dest,
+        "Wuci-OS overlay wallpaper",
+        expected_info=wallpaper_info,
+        mode=0o644,
+    )
     written.append(str(OVERLAY_WALLPAPER_PATH))
+    manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
+    manifest_files = written + [manifest_relative]
     manifest = {
         "schema": OVERLAY_SCHEMA,
         "created_utc": utc_now(),
         "product": PRODUCT_NAME,
         "image_id": IMAGE_ID,
         "overlay_root": str(root),
-        "files": written,
+        "files": manifest_files,
+        "manifest_path": manifest_relative,
+        "recorded_paths": [],
+        "content_records": [],
         "wallpaper": {
             "path": str(OVERLAY_WALLPAPER_PATH),
             "source_path": str(wallpaper),
@@ -2728,9 +3561,15 @@ def create_overlay(
         },
         "boundary_denials": list(BOUNDARY_DENIALS),
     }
-    wuci_kaiju.write_json_atomic(root / "usr/share/wuci-os/overlay-manifest.json", manifest)
-    written.append("usr/share/wuci-os/overlay-manifest.json")
-    return manifest | {"files": written}
+    wuci_kaiju.write_json_atomic(root / manifest_relative, manifest)
+    _fsync_parent(root / manifest_relative)
+    records = overlay_file_records(root, ticker_mode="never")
+    manifest["recorded_paths"] = [record["path"] for record in records]
+    manifest["content_records"] = _overlay_content_records(records, manifest_relative)
+    wuci_kaiju.write_json_atomic(root / manifest_relative, manifest)
+    _fsync_parent(root / manifest_relative)
+    validate_overlay_manifest_current(root, manifest, ticker_mode="never")
+    return manifest
 
 
 def _build_qemu_argv(
@@ -2895,11 +3734,56 @@ def boot_plan(
 
 
 def _write_transient(path: Path, data: bytes) -> None:
+    _reject_symlink_output_parents(path, "Wuci-OS transient boot artifact")
     path.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_output_parents(path, "Wuci-OS transient boot artifact")
     try:
         wuci_kaiju._write_transient_file(path, data)
     except wuci_kaiju.KaijuError as exc:
         raise WuciOSError(str(exc)) from exc
+
+
+def _regular_artifact_evidence(path: Path, label: str) -> dict[str, Any]:
+    try:
+        digest, size = wuci_kaiju.file_digest_vector(path, label)
+    except wuci_kaiju.KaijuError as exc:
+        raise WuciOSError(str(exc)) from exc
+    return {
+        "path": str(path),
+        "bytes": size,
+        "digest_vector": digest,
+    }
+
+
+def _direct_boot_artifact_path(boot_root: Path, path: Path, label: str) -> Path:
+    root_resolved = boot_root.resolve(strict=False)
+    path_resolved = path.resolve(strict=False)
+    try:
+        relative = path_resolved.relative_to(root_resolved)
+    except ValueError as exc:
+        raise WuciOSError(f"{label} must stay under boot_root") from exc
+    if len(relative.parts) != 1:
+        raise WuciOSError(f"{label} must be a direct boot_root artifact")
+    return path
+
+
+def _remove_boot_artifact_file(path: Path, label: str) -> None:
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect {label}: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise WuciOSError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise WuciOSError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise WuciOSError(f"{label} must not be hardlinked: {path}")
+    try:
+        path.unlink()
+    except OSError as exc:
+        raise WuciOSError(f"could not remove {label}: {path}") from exc
 
 
 def build_live_boot_argv(plan: dict[str, Any]) -> list[str]:
@@ -2907,35 +3791,102 @@ def build_live_boot_argv(plan: dict[str, Any]) -> list[str]:
         raise WuciOSError("invalid Wuci-OS boot plan")
     if plan.get("status") != "ready":
         raise WuciOSError("Wuci-OS boot plan is blocked")
+    plan.pop("generated_artifacts", None)
     image_path = Path(str(plan["source"]["image_path"]))
     boot_root = Path(str(plan["boot_root"]))
-    kernel_data = wuci_kaiju._extract_iso_file_content(image_path, "boot/vmlinuz")
-    initrd_data = wuci_kaiju._extract_iso_file_content(image_path, "boot/initrd")
-    if not kernel_data or not initrd_data:
-        raise WuciOSError("could not extract live source kernel/initrd")
-    _write_transient(boot_root / "vmlinuz", kernel_data)
-    _write_transient(boot_root / "initrd", initrd_data)
-    if plan.get("share_mode") == "tar-drive":
-        overlay_root = Path(str(plan.get("overlay_root", repo_root() / DEFAULT_OVERLAY_ROOT)))
-        if not overlay_manifest_path(overlay_root).is_file():
-            create_overlay(overlay_root, wallpaper_source=repo_root() / DEFAULT_WALLPAPER_SOURCE, force=True)
-        write_deterministic_overlay_tar(overlay_root, boot_root / "wuci-os-overlay.tar", ticker_mode="auto")
-    source_kit_path = str(plan.get("source_kit_path", ""))
-    if source_kit_path:
-        write_deterministic_source_kit_tar(Path(source_kit_path), ticker_mode="auto")
+    created_paths: list[Path] = []
+
+    def cleanup_created_paths(exc: BaseException) -> None:
+        cleanup_errors: list[str] = []
+        for path in reversed(created_paths):
+            try:
+                _remove_boot_artifact_file(path, "Wuci-OS boot cleanup artifact")
+            except WuciOSError as cleanup_exc:
+                cleanup_errors.append(str(cleanup_exc))
+        try:
+            boot_root.rmdir()
+        except OSError:
+            pass
+        if cleanup_errors:
+            raise WuciOSError(
+                f"Wuci-OS boot payload build failed and cleanup failed: {exc}; {'; '.join(cleanup_errors)}"
+            ) from exc
+
+    overlay_root: Path | None = None
+    try:
+        if plan.get("share_mode") == "tar-drive":
+            overlay_root = Path(str(plan.get("overlay_root", repo_root() / DEFAULT_OVERLAY_ROOT)))
+            if not overlay_manifest_path(overlay_root).is_file():
+                create_overlay(overlay_root, wallpaper_source=repo_root() / DEFAULT_WALLPAPER_SOURCE, force=True)
+            else:
+                try:
+                    manifest = wuci_kaiju.read_public_json(overlay_manifest_path(overlay_root), "Wuci-OS overlay manifest")
+                except wuci_kaiju.KaijuError as exc:
+                    raise WuciOSError(str(exc)) from exc
+                validate_overlay_manifest_current(overlay_root, manifest, ticker_mode="auto")
+        kernel_data = wuci_kaiju._extract_iso_file_content(image_path, "boot/vmlinuz")
+        initrd_data = wuci_kaiju._extract_iso_file_content(image_path, "boot/initrd")
+        if not kernel_data or not initrd_data:
+            raise WuciOSError("could not extract live source kernel/initrd")
+        kernel_path = boot_root / "vmlinuz"
+        initrd_path = boot_root / "initrd"
+        _write_transient(kernel_path, kernel_data)
+        created_paths.append(kernel_path)
+        _write_transient(initrd_path, initrd_data)
+        created_paths.append(initrd_path)
+        generated_artifacts: dict[str, Any] = {
+            "schema": "wuci-os-live-boot-generated-artifacts-v1",
+            "kernel": _regular_artifact_evidence(kernel_path, "Wuci-OS transient kernel"),
+            "initrd": _regular_artifact_evidence(initrd_path, "Wuci-OS transient initrd"),
+        }
+        if plan.get("share_mode") == "tar-drive":
+            if overlay_root is None:
+                raise WuciOSError("overlay root was not prepared for tar-drive share mode")
+            overlay_tar_path = boot_root / "wuci-os-overlay.tar"
+            overlay_validation = write_deterministic_overlay_tar(overlay_root, overlay_tar_path, ticker_mode="auto")
+            created_paths.append(overlay_tar_path)
+            generated_artifacts["overlay_tar"] = _regular_artifact_evidence(
+                overlay_tar_path,
+                "Wuci-OS transient overlay tar",
+            ) | {"validation": overlay_validation}
+        source_kit_path = str(plan.get("source_kit_path", ""))
+        if source_kit_path:
+            source_kit_target = _direct_boot_artifact_path(
+                boot_root,
+                Path(source_kit_path),
+                "Wuci-OS source-kit boot payload",
+            )
+            source_kit_result = write_deterministic_source_kit_tar(source_kit_target, ticker_mode="auto")
+            created_paths.append(source_kit_target)
+            generated_artifacts["source_kit_tar"] = {
+                "path": source_kit_result["tar_path"],
+                "bytes": source_kit_result["tar_bytes"],
+                "digest_vector": source_kit_result["tar_digest_vector"],
+                "validation": source_kit_result["source_kit_validation"],
+            }
+        plan["generated_artifacts"] = generated_artifacts
+    except Exception as exc:
+        plan.pop("generated_artifacts", None)
+        cleanup_created_paths(exc)
+        raise
     argv = list(plan["argv"])
     return argv
 
 
 def cleanup_boot_artifacts(boot_root: Path | str) -> None:
     root = Path(boot_root)
+    try:
+        root_info = os.lstat(root)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect Wuci-OS boot cleanup root: {root}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        raise WuciOSError(f"Wuci-OS boot cleanup root must not be a symlink: {root}")
+    if not stat.S_ISDIR(root_info.st_mode):
+        raise WuciOSError(f"Wuci-OS boot cleanup root must be a directory: {root}")
     for name in ("vmlinuz", "initrd", "wuci-os-overlay.tar", SOURCE_KIT_TAR_NAME):
-        path = root / name
-        try:
-            if path.exists() and path.is_file():
-                path.unlink()
-        except OSError:
-            pass
+        _remove_boot_artifact_file(root / name, "Wuci-OS boot cleanup artifact")
     try:
         root.rmdir()
     except OSError:

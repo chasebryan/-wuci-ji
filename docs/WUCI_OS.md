@@ -71,9 +71,10 @@ Kicksecure packages.
 
 The developer profile includes package groups for C/C++, Python,
 JavaScript/TypeScript, Rust, Go, JVM languages, Ruby, PHP, Perl/Lua, databases,
-containers/VMs, and systems languages. The AI setup command prepares Codex CLI,
-GitHub Copilot CLI, and the Wuci-OS Grok Build helper without embedding
-credentials.
+containers/VMs, and systems languages. The AI setup command is plan-only: it
+prints a reviewed setup checklist for Codex CLI, GitHub Copilot CLI, and the
+Wuci-OS Grok Build helper without downloading remote installers, running global
+package installs, or embedding credentials.
 
 ```sh
 wuci-ai-status
@@ -102,9 +103,9 @@ wuci-auto
 ```
 
 The guide applies users, checks Daylight evidence, applies the wallpaper, offers
-developer and AI tool setup, applies the SELinux-first hardening profile, and
-shows final verification. Destructive disk actions remain outside `wuci-auto`
-and must be operator-confirmed.
+developer setup, prints the AI tool setup plan, applies the SELinux-first
+hardening profile, and shows final verification. Destructive disk actions remain
+outside `wuci-auto` and must be operator-confirmed.
 
 Package operations use the Wuci command surface. The backend packages come from
 the current package repository, but users should not need to learn the backend
@@ -140,7 +141,67 @@ tools/wuci-os seal-overlay --force --ticker always
 ```
 
 The source ISO is copied under `build/wuci-os/source/`, which is ignored by Git.
-The source ISO is an operator-supplied input, not repository source.
+The source ISO is an operator-supplied input, not repository source. Source ISO
+install rejects symlinked output parents, rejects symlink/hardlinked source
+inputs, copies through a same-directory temporary file, fsyncs the destination
+parent, re-reads the installed artifact digest vector, and only then writes the
+source manifest. Forced source replacement verifies the temporary candidate
+layout before replacing an existing installed source, so a bad candidate leaves
+the prior source evidence in place. If replacement reaches the manifest update
+and then fails, the installer restores the previous ISO and source manifest from
+same-directory rollback copies. Source verification rejects symlinked source
+roots, refuses manifest `image_path` values outside the source workspace, and
+requires a valid plain `.iso` `image_name`; the recorded path must name that
+direct ISO under the source workspace. Verification also requires Wuci-OS
+product identity, `operator_supplied: true`, and the current boundary-denial
+vector. Upstream base attribution must remain Void Linux, musl, live base ISO,
+and `VOID_LIVE`, with a release stamp derived from the installed ISO filename.
+Verification recomputes the Void live layout and requires it to match the layout
+evidence stored in the source manifest. Rollback staging re-opens existing files
+with no-follow semantics and verifies the staged same-directory backup still
+matches the inspected file identity before it can be used for restore.
+`tools/wuci-os overlay --force` performs a deterministic rebuild of the overlay
+tree: it rejects symlinked overlay output parents, validates the existing tree,
+rejects stale symlinks or hardlinked files, clears regular stale
+files/directories, and then writes the current overlay profile. The wallpaper
+asset is copied with a no-follow, fstat-verified, single-link streaming copy.
+Generated overlay scripts and configuration files are created with no-follow,
+exclusive writes and verified against their expected digest before they are
+recorded.
+The overlay manifest records both the generated regular-file set and the full
+overlay path walk, including the manifest path itself, so command output and
+durable JSON describe the same tree. Manifest path lists must be string-only and
+duplicate-free; the full path walk is checked in deterministic path order. It
+also records current content records for regular files other than the manifest
+itself, and the Daylight/WJSEAL seal lane rejects stale overlay manifests before
+writing seal outputs.
+Deterministic overlay and source-kit tar payload reads use no-follow,
+fstat-verified opens and reject hardlinked files. The
+Daylight/WJSEAL overlay keyfile is read through the same no-follow,
+fstat-verified single-link discipline before a temporary sealing copy is made;
+keyfile creation and seal output directories reject symlinked output parents.
+Forced overlay reseals write the new sealed artifact in a private temporary
+directory first and only replace the previous artifact and manifest after the
+seal command succeeds; if the seal manifest update fails after artifact
+replacement begins, the previous sealed artifact and manifest are restored from
+same-directory rollback copies.
+Generated overlay and source-kit tar archives reject symlink output parents,
+write to same-directory temporary files, validate, atomically move into place,
+fsync through the parent directory, re-open, and validate again before use.
+Validation requires relative member paths, directory/regular-file-only entries,
+root/root deterministic metadata, and no duplicate, symlink, hardlink, device, or
+FIFO members. The source-kit tar manifest uses a fixed archive epoch rather than
+wall-clock time so unchanged source input produces byte-reproducible payloads.
+Source-kit tar validation also re-reads the archived manifest copies and every
+regular file member, requiring target paths, modes, byte counts, and digest
+vectors to match the recorded source-kit manifest before and after the atomic
+archive move.
+The source-kit file list is collected before any output tar temporary file is
+created, so repo-local output paths cannot capture the in-progress archive as
+source evidence. Stale same-directory source-kit output temporary files are
+rejected if they are visible in the source snapshot, because generated archive
+state is not onboard source evidence.
+This is archive evidence discipline, not a runtime containment claim.
 
 ## Live Boot
 
@@ -162,7 +223,16 @@ media, and appends `console=ttyS0,115200n8` for the terminal demo path. Wuci-OS
 also generates a deterministic source-kit tar so the current checkout is present
 inside the live system under `/opt/wuci-os/source/wuci-ji`. If QEMU does not
 support `virtio-9p-pci`, Wuci-OS attaches the generated overlay and source kit as
-read-only tar block devices.
+read-only tar block devices. Existing overlay tar-drive payloads are only built
+after the overlay manifest passes the same current-content check used by the
+Daylight/WJSEAL seal lane. During `--run`, the mutable boot plan records digest
+evidence for the generated kernel/initrd files and validation evidence for the
+generated overlay/source-kit tar payloads. If payload generation fails after
+transient files have been written, Wuci-OS removes the artifacts created during
+that failed build and clears stale generated-artifact evidence from the plan.
+Boot artifact cleanup refuses symlinked cleanup roots and only removes the known
+single-link regular transient artifact files; failed-build cleanup reports
+symlink or hardlink drift instead of silently unlinking suspicious artifacts.
 
 Inside the guest, if the tar-drive fallback is used:
 

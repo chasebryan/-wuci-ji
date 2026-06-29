@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover - platform fallback
     readline = None
 
 import wuci_kaiju
+import wuci_os
 
 
 @dataclass(frozen=True)
@@ -142,6 +143,7 @@ NOXFRAME_LEDGER_CONSISTENCY_PROOF = f"{NOXFRAME_LEDGER_DIR}/consistency-proof.tx
 DEFAULT_CODEX_BIN = "codex"
 DEFAULT_WUCI_BIN = "build/wuci-ji"
 GATE_DEMO_DIRNAME = "gate-demo"
+WUCI_OS_DOC_PATH = "docs/WUCI_OS.md"
 WEEK_SECONDS = 7 * 24 * 60 * 60
 ANCHOR_PATHS = (
     "docs/SECURITY_BOUNDARY.md",
@@ -149,6 +151,7 @@ ANCHOR_PATHS = (
     "docs/wuci_cage_policy.json",
     "docs/wuci_qcage_policy.json",
     "docs/wuci_high_attestation_profile.json",
+    WUCI_OS_DOC_PATH,
     KAIJU_MANIFEST_PATH,
     "daylight-equation/SCORECARD.v1.json",
     "daylight-equation/specs/daylight-minimal-core-v0.4.md",
@@ -160,6 +163,7 @@ ANCHOR_ROLES = {
     "docs/wuci_cage_policy.json": "CAGE policy",
     "docs/wuci_qcage_policy.json": "QCAGE policy",
     "docs/wuci_high_attestation_profile.json": "high attestation profile",
+    WUCI_OS_DOC_PATH: "Wuci-OS image lane boundary",
     KAIJU_MANIFEST_PATH: "WUCI-KAIJU Kali purpose catalog",
     "daylight-equation/SCORECARD.v1.json": "Daylight score boundary",
     "daylight-equation/specs/daylight-minimal-core-v0.4.md": "Daylight core spec",
@@ -179,6 +183,7 @@ SUBSTRATE_CELLS = (
     ("qcage", "quantum-claim discipline context", ("status", "seal")),
     ("install", "signed local install proof context", ("status", "seal")),
     ("kaiju", "defensive Kali ISO and tool purpose-catalog context", ("status", "iso", "disk", "boot", "verify")),
+    ("wuci-os", "musl image evidence and boot-planning context", ("status", "source", "plan", "overlay", "seal", "boot")),
     ("codex", "opt-in Codex host bridge context", ("status", "handoff", "start", "exec", "resume")),
 )
 NON_CLAIMS = (
@@ -243,6 +248,7 @@ PLUGIN_CATALOG = (
     ("prism", "Wuci-Prism proof inspector", "available through launch matrix, not as host shell"),
     ("noxframe-self-release", "self-release evidence lane", "explicit self-release run writes under build/noxframe"),
     ("wuci-kaiju", "Kali purpose catalog for future substrates", "metadata only; host Kali tools unavailable"),
+    ("wuci-os", "musl image lane for future NOXFRAME-native systems", "metadata only; boot and source verification stay in tools/wuci-os"),
 )
 WIKI_TOPICS = {
     "phase1": (
@@ -258,6 +264,7 @@ WIKI_TOPICS = {
     "qcage": "QCAGE labels quantum risk and digest evidence; classical signatures are not quantum-safe.",
     "install": "INSTALL is noninteractive and signed; it requires a local copied root key.",
     "kaiju": "WUCI-KAIJU maps Kali tool purposes into a verified metadata catalog; it does not run Kali tools.",
+    "wuci-os": "Wuci-OS is an evidence-first musl image lane; NOXFRAME exposes metadata while QEMU booting stays in tools/wuci-os.",
 }
 
 
@@ -413,6 +420,7 @@ CONSOLE_COMMANDS = (
     console_cmd("plugins", ("plugin",), "plugin", "plugins [list|status|policy]", "Show metadata-only plugin catalog.", "plugin.read", "metadata-only"),
     console_cmd("wasm", ("wasi",), "plugin", "wasm [list|inspect|policy|run]", "Show WASI-lite plugin catalog while keeping execution unavailable.", "wasm.read", "metadata-only"),
     console_cmd("kaiju", ("wuci-kaiju",), "plugin", "kaiju [status|...|clean|boot [--boot-disk] [--allow-network] [--share-repo]]", "WUCI-KAIJU catalog + boot bridge (clean for fresh recording; supports nesting noxframe in guest Kali).", "kaiju.read", "metadata-only"),
+    console_cmd("wuci-os", ("wucios",), "plugin", "wuci-os [status|source|plan|iso-plan|overlay|seal|boot|boundary|commands]", "Show Wuci-OS image-evidence and boot-plan metadata without launching host tools.", "wuci-os.read", "metadata-only"),
     console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
     console_cmd("codex", ("agent",), "dev", "codex [status|handoff|version|doctor|start|exec|resume]", "Use the opt-in Codex bridge pinned to this Wuci-Ji checkout.", "host.exec", "explicit-opt-in"),
     console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Open a virtual read-only editor preview.", "fs.read", "metadata-only"),
@@ -1655,6 +1663,204 @@ def plugin_policy_text() -> str:
     )
 
 
+def noxframe_path_status(root: Path, path: Path, label: str) -> dict[str, object]:
+    display = display_repo_path(root, path)
+    try:
+        info = os.lstat(path)
+    except OSError:
+        return {"label": label, "path": display, "status": "missing"}
+    if stat.S_ISLNK(info.st_mode):
+        return {"label": label, "path": display, "status": "unsafe", "problem": "symlink"}
+    if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
+        return {"label": label, "path": display, "status": "unsafe", "problem": "hardlinked"}
+    if stat.S_ISREG(info.st_mode):
+        kind = "file"
+    elif stat.S_ISDIR(info.st_mode):
+        kind = "directory"
+    else:
+        kind = "unsupported"
+    return {
+        "label": label,
+        "path": display,
+        "status": "present" if kind in {"file", "directory"} else "unsafe",
+        "kind": kind,
+        "mode": oct(stat.S_IMODE(info.st_mode)),
+    }
+
+
+def wuci_os_status_payload(root: Path) -> dict[str, object]:
+    source_root = root / wuci_os.DEFAULT_SOURCE_ROOT
+    overlay_root = root / wuci_os.DEFAULT_OVERLAY_ROOT
+    seal_root = root / wuci_os.DEFAULT_SEAL_ROOT
+    paths = {
+        "tool": noxframe_path_status(root, root / "tools/wuci-os", "Wuci-OS CLI"),
+        "doc": noxframe_path_status(root, root / WUCI_OS_DOC_PATH, "Wuci-OS boundary doc"),
+        "source_manifest": noxframe_path_status(
+            root,
+            wuci_os.source_manifest_path(source_root),
+            "Wuci-OS source manifest",
+        ),
+        "overlay_manifest": noxframe_path_status(
+            root,
+            wuci_os.overlay_manifest_path(overlay_root),
+            "Wuci-OS overlay manifest",
+        ),
+        "daylight_seal_manifest": noxframe_path_status(
+            root,
+            seal_root / "manifest.json",
+            "Wuci-OS Daylight seal manifest",
+        ),
+        "source_kit_tar": noxframe_path_status(
+            root,
+            root / wuci_os.DEFAULT_BOOT_ROOT / wuci_os.SOURCE_KIT_TAR_NAME,
+            "Wuci-OS source-kit tar",
+        ),
+    }
+    source_ready = paths["source_manifest"]["status"] == "present"
+    overlay_ready = paths["overlay_manifest"]["status"] == "present"
+    seal_ready = paths["daylight_seal_manifest"]["status"] == "present"
+    if seal_ready:
+        status = "sealed-overlay"
+    elif overlay_ready:
+        status = "overlay-ready"
+    elif source_ready:
+        status = "source-ready"
+    else:
+        status = "source-missing"
+    return {
+        "schema": "wuci-noxframe-wuci-os-status-v1",
+        "status": status,
+        "product": wuci_os.PRODUCT_NAME,
+        "image_id": wuci_os.IMAGE_ID,
+        "host_effect": "metadata-only; NOXFRAME does not hash ISO media, install packages, or launch QEMU for this command",
+        "paths": paths,
+        "non_claims": list(wuci_os.BOUNDARY_DENIALS),
+    }
+
+
+def wuci_os_status_text(root: Path) -> str:
+    payload = wuci_os_status_payload(root)
+    rows = [
+        f"schema: {payload['schema']}",
+        f"status: {payload['status']}",
+        f"product: {payload['product']}",
+        f"image_id: {payload['image_id']}",
+        f"host_effect: {payload['host_effect']}",
+    ]
+    paths = payload.get("paths", {})
+    if isinstance(paths, dict):
+        for key in sorted(paths):
+            item = paths[key]
+            if not isinstance(item, dict):
+                continue
+            row = f"{key}: {item.get('status')} {item.get('path')}"
+            if item.get("problem"):
+                row += f" problem={item['problem']}"
+            rows.append(row)
+    rows.extend(
+        [
+            "next: tools/wuci-os source verify",
+            "next: tools/wuci-os overlay --force",
+            "next: tools/wuci-os seal-overlay --force --ticker always",
+            "",
+        ]
+    )
+    return "\n".join(rows)
+
+
+def wuci_os_command_plan_text(action: str) -> str:
+    command_sets = {
+        "source": (
+            "tools/wuci-os source status",
+            "tools/wuci-os source verify",
+            "tools/wuci-os source install ./void-live-x86_64-musl-20250202-base.iso --force",
+        ),
+        "plan": ("tools/wuci-os plan",),
+        "iso-plan": ("tools/wuci-os iso-plan",),
+        "overlay": ("tools/wuci-os overlay --force", "tools/wuci-os source-kit"),
+        "seal": ("tools/wuci-os keygen --force", "tools/wuci-os seal-overlay --force --ticker always"),
+        "boot": ("tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo",),
+    }
+    commands = command_sets.get(action, tuple())
+    rows = [
+        "schema: wuci-noxframe-wuci-os-command-plan-v1",
+        f"action: {action}",
+        "host_effect: metadata-only",
+        "boundary: run these commands from the host shell; NOXFRAME does not launch QEMU or mutate Wuci-OS state here",
+    ]
+    rows.extend(f"command: {command}" for command in commands)
+    rows.append("")
+    return "\n".join(rows)
+
+
+def wuci_os_boundary_text() -> str:
+    rows = [
+        "schema: wuci-noxframe-wuci-os-boundary-v1",
+        "scope: Wuci-OS metadata adapter inside NOXFRAME",
+        "host_effect: metadata-only",
+        "standalone_tool: tools/wuci-os",
+    ]
+    rows.extend(f"non_claim: {item}" for item in wuci_os.BOUNDARY_DENIALS)
+    rows.append("")
+    return "\n".join(rows)
+
+
+def wuci_os_doc_text(root: Path) -> str:
+    try:
+        data, _info = read_public_anchor(root, WUCI_OS_DOC_PATH)
+    except NoxframeError as exc:
+        return f"Wuci-OS doc unavailable: {exc}\n"
+    return data.decode("utf-8", "replace")
+
+
+def wuci_os_vfs_text(root: Path, path: str) -> str:
+    if path in {"/wuci-os/status", "/dev/wuci-os"}:
+        return wuci_os_status_text(root)
+    if path == "/wuci-os/source":
+        return wuci_os_command_plan_text("source")
+    if path == "/wuci-os/plan":
+        return wuci_os_command_plan_text("plan")
+    if path == "/wuci-os/iso-plan":
+        return wuci_os_command_plan_text("iso-plan")
+    if path == "/wuci-os/overlay":
+        return wuci_os_command_plan_text("overlay")
+    if path == "/wuci-os/seal":
+        return wuci_os_command_plan_text("seal")
+    if path == "/wuci-os/boot":
+        return wuci_os_command_plan_text("boot")
+    if path == "/wuci-os/boundary":
+        return wuci_os_boundary_text()
+    if path == "/wuci-os/commands":
+        return wuci_os.demo_command_text()
+    if path == "/docs/wuci-os.md":
+        return wuci_os_doc_text(root)
+    raise NoxframeError(f"not a Wuci-OS virtual file: {path}")
+
+
+def handle_wuci_os_command(root: Path, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "status"
+    if action in {"run", "exec", "install", "verify", "boot-run"}:
+        print(f"wuci-os {action}: unavailable in NOXFRAME")
+        print("scope: metadata adapter only; use tools/wuci-os from the host shell")
+        return
+    if action == "status":
+        print(wuci_os_status_text(root), end="")
+        return
+    if action in {"source", "plan", "iso-plan", "overlay", "boot"}:
+        print(wuci_os_command_plan_text(action), end="")
+        return
+    if action in {"seal", "seal-overlay", "daylight"}:
+        print(wuci_os_command_plan_text("seal"), end="")
+        return
+    if action in {"boundary", "policy"}:
+        print(wuci_os_boundary_text(), end="")
+        return
+    if action in {"commands", "demo", "demo-commands"}:
+        print(wuci_os.demo_command_text(), end="")
+        return
+    print("usage: wuci-os [status|source|plan|iso-plan|overlay|seal|boot|boundary|commands]")
+
+
 def kaiju_catalog(root: Path) -> dict[str, object]:
     try:
         return wuci_kaiju.load_manifest(wuci_kaiju.default_manifest_path(root))
@@ -2515,6 +2721,7 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "qcage/",
             "install/",
             "kaiju/",
+            "wuci-os/",
             "codex/",
             "dev/",
             "phase/",
@@ -2525,9 +2732,10 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "var/",
             "docs/",
         ),
-        "/dev": ("codex", "kaiju", "plugins", "wasi"),
+        "/dev": ("codex", "kaiju", "plugins", "wasi", "wuci-os"),
         "/env": ("aliases", "profile", "security", "self-release", "variables"),
         "/kaiju": ("boot-plan", "disk", "iso", "manifest", "policy", "purposes", "status", "verify"),
+        "/wuci-os": ("boot", "boundary", "commands", "iso-plan", "overlay", "plan", "seal", "source", "status"),
         "/phase": ("compass", "features", "map", "path", "whereami"),
         "/learn": ("notes", "status"),
         "/nests": ("contexts", "lock-policy", "memory-map", "stack", "tree"),
@@ -2541,6 +2749,7 @@ def vfs_static_dirs() -> dict[str, tuple[str, ...]]:
             "seal.json",
             "launch-report.md",
             "wuci-kaiju.json",
+            "wuci-os.md",
             "wiki",
         ),
     }
@@ -2728,6 +2937,8 @@ def virtual_file_text(
             return f"kaiju boot-plan: unavailable: {exc}\n"
     if path == "/kaiju/manifest":
         return json.dumps(kaiju_catalog(root), indent=2, sort_keys=True) + "\n"
+    if path.startswith("/wuci-os/") or path == "/dev/wuci-os":
+        return wuci_os_vfs_text(root, path)
     if path == "/learn/status":
         return learn_status_text(session)
     if path == "/learn/notes":
@@ -2792,6 +3003,8 @@ def virtual_file_text(
         return report_path.read_text(encoding="utf-8")
     if path == "/docs/wuci-kaiju.json":
         return json.dumps(kaiju_catalog(root), indent=2, sort_keys=True) + "\n"
+    if path == "/docs/wuci-os.md":
+        return wuci_os_doc_text(root)
     if path == "/docs/wiki":
         return wiki_text(None)
     raise NoxframeError(f"not a virtual file: {path}")
@@ -6593,6 +6806,8 @@ def dispatch_console_command(
     elif spec.category == "plugin":
         if command == "kaiju":
             handle_kaiju_command(root, args, parts)
+        elif command == "wuci-os":
+            handle_wuci_os_command(root, parts)
         else:
             handle_plugin_command(command, parts)
     elif spec.category == "net":

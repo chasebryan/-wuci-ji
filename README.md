@@ -315,16 +315,17 @@ tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo
 ```
 
 The boot payload carries both the Wuci-OS overlay and a deterministic source-kit
-tar that extracts the current Wuci-Ji checkout into `/opt/wuci-os/source/wuci-ji`
-inside the guest. The overlay defaults to XFCE4, kitty with xfce4-terminal
+tar that uses fixed archive metadata and extracts the current Wuci-Ji checkout
+into `/opt/wuci-os/source/wuci-ji` inside the guest. The overlay defaults to XFCE4, kitty with xfce4-terminal
 fallback, ratpoison, emacs, vim, developer package groups, Wuci-OS wallpaper
-setup, Codex/Copilot/Grok Build helpers, guided `wuci-guide` / `wuci-auto`
-operation, and a live/demo `wj` login whose prompt identity is `WJ>_`. The
-security profile is SELinux-first, targeted/enforcing, LUKS-required for
-installed high-assurance systems, and includes Kicksecure-inspired hardening
-ideas. Daylight/WJSEAL evidence is required for generated components; the
-current implemented seal covers the overlay, while the planned finished ISO lane
-will seal the final bootable ISO and release metadata. Package operations use
+setup, a plan-only Codex/Copilot/Grok Build setup guide, guided `wuci-guide` /
+`wuci-auto` operation, and a live/demo `wj` login whose prompt identity is
+`WJ>_`. The security profile is SELinux-first, targeted/enforcing,
+LUKS-required for installed high-assurance systems, and includes
+Kicksecure-inspired hardening ideas. Daylight/WJSEAL evidence is required for
+generated components; the current implemented seal covers the overlay, while the
+planned finished ISO lane will seal the final bootable ISO and release metadata.
+Package operations use
 `sudo wj install <packages...>` on top of the current package repository. See
 [docs/WUCI_OS.md](docs/WUCI_OS.md). Wuci-OS v0 is image evidence, overlay
 sealing, source payload, and boot-planning work; it does not claim runtime
