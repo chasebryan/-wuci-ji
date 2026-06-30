@@ -79,14 +79,11 @@ pre {
 }
 
 .brand-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(121, 200, 140, 0.55);
-  color: var(--green);
-  font-size: 0.76rem;
-  letter-spacing: 0;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28));
+  flex: 0 0 auto;
 }
 
 .site-nav {
@@ -561,6 +558,11 @@ figcaption {
 
   .repo-link {
     padding-inline: 10px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
   }
 
   .hero {
