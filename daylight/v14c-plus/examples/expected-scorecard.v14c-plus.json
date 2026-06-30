@@ -1,0 +1,153 @@
+{
+  "candidate": "DAYLIGHT v14C+ ASCENDANT CANDIDATE",
+  "corpus_snapshot_digest": "ee48e793c91d367181aedf16e51a19265e55b627cf0ae8a8e325ae6ee27e2bca",
+  "final_score_M": 998200,
+  "generated": true,
+  "input_ledger_head": "74e6a30fa3e4dc129df8ce439f188ac08b2644a964d52cc1e27ded7df9385e76",
+  "manual_edit_allowed": false,
+  "manual_override": false,
+  "output_ledger_head": "67f124ebc11f63d8749dfdf27dca5b57431f33f9dd7485027c5d53daccbe5ab4",
+  "q_vector": [
+    [
+      "q1_doctrine_master_law",
+      "1/1"
+    ],
+    [
+      "q2_formalism_mathematical_density",
+      "499/500"
+    ],
+    [
+      "q3_negative_evidence_subtractive_capability",
+      "1/1"
+    ],
+    [
+      "q4_gate_algebra_fail_closed_enforcement",
+      "1/1"
+    ],
+    [
+      "q5_evidence_sheaf_release_engineering",
+      "997/1000"
+    ],
+    [
+      "q6_surface_closure_boundary_semantics",
+      "199/200"
+    ],
+    [
+      "q7_adversarial_survival_model",
+      "199/200"
+    ],
+    [
+      "q8_cryptographic_number_theoretic_margin",
+      "499/500"
+    ],
+    [
+      "q9_statistical_confidence_reproducibility",
+      "997/1000"
+    ],
+    [
+      "q10_implementation_traceability",
+      "997/1000"
+    ],
+    [
+      "q11_external_falsification_readiness",
+      "99/100"
+    ],
+    [
+      "q12_communication_overall",
+      "997/1000"
+    ]
+  ],
+  "reproducibility_receipt_digest": "7ec9344adc050dbe564c4d0f91bf060209a2ef6a8e3b38c95f2428d0d57a7032",
+  "scorecard_digest": "22985838b9bdbc8bcefb751b78c67529f712c33965669c213de5ffc64db858d4",
+  "scorecard_version": "daylight-v14c-plus-scorecard-v0.2",
+  "status": "candidate_score_pending_generated_execution",
+  "term_contributions_M": [
+    {
+      "contribution_M": 160000,
+      "label": "Doctrine & Master Law",
+      "q_id": "q1_doctrine_master_law",
+      "q_value": "1/1",
+      "weight": "4/25"
+    },
+    {
+      "contribution_M": 109780,
+      "label": "Formalism & Mathematical Density",
+      "q_id": "q2_formalism_mathematical_density",
+      "q_value": "499/500",
+      "weight": "11/100"
+    },
+    {
+      "contribution_M": 160000,
+      "label": "Negative Evidence / Subtractive Capability",
+      "q_id": "q3_negative_evidence_subtractive_capability",
+      "q_value": "1/1",
+      "weight": "4/25"
+    },
+    {
+      "contribution_M": 130000,
+      "label": "Gate Algebra & Fail-Closed Enforcement",
+      "q_id": "q4_gate_algebra_fail_closed_enforcement",
+      "q_value": "1/1",
+      "weight": "13/100"
+    },
+    {
+      "contribution_M": 99700,
+      "label": "Evidence Sheaf & Release Engineering",
+      "q_id": "q5_evidence_sheaf_release_engineering",
+      "q_value": "997/1000",
+      "weight": "1/10"
+    },
+    {
+      "contribution_M": 69650,
+      "label": "Surface Closure & Boundary Semantics",
+      "q_id": "q6_surface_closure_boundary_semantics",
+      "q_value": "199/200",
+      "weight": "7/100"
+    },
+    {
+      "contribution_M": 29850,
+      "label": "Adversarial Survival Model",
+      "q_id": "q7_adversarial_survival_model",
+      "q_value": "199/200",
+      "weight": "3/100"
+    },
+    {
+      "contribution_M": 79840,
+      "label": "Cryptographic / Number-Theoretic Margin",
+      "q_id": "q8_cryptographic_number_theoretic_margin",
+      "q_value": "499/500",
+      "weight": "2/25"
+    },
+    {
+      "contribution_M": 49850,
+      "label": "Statistical Confidence & Reproducibility",
+      "q_id": "q9_statistical_confidence_reproducibility",
+      "q_value": "997/1000",
+      "weight": "1/20"
+    },
+    {
+      "contribution_M": 69790,
+      "label": "Implementation Traceability",
+      "q_id": "q10_implementation_traceability",
+      "q_value": "997/1000",
+      "weight": "7/100"
+    },
+    {
+      "contribution_M": 19800,
+      "label": "External Falsification Readiness",
+      "q_id": "q11_external_falsification_readiness",
+      "q_value": "99/100",
+      "weight": "1/50"
+    },
+    {
+      "contribution_M": 19940,
+      "label": "Communication / Overall",
+      "q_id": "q12_communication_overall",
+      "q_value": "997/1000",
+      "weight": "1/50"
+    }
+  ],
+  "unified_score_decimal": "0.9982",
+  "unified_score_rational": "4991/5000",
+  "weight_vector_ref": "daylight-v13-weight-vector"
+}

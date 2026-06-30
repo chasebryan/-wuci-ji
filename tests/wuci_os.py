@@ -129,6 +129,12 @@ def assert_core_policy() -> None:
     assert daylight_v10_png.startswith(wuci_os.PNG_SIGNATURE)
     daylight_v13_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png").read_bytes()
     assert daylight_v13_png.startswith(wuci_os.PNG_SIGNATURE)
+    daylight_v14c_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png").read_bytes()
+    assert daylight_v14c_png.startswith(wuci_os.PNG_SIGNATURE)
+    daylight_v14c_math_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png").read_bytes()
+    assert daylight_v14c_math_png.startswith(wuci_os.PNG_SIGNATURE)
+    daylight_v14c_wide_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png").read_bytes()
+    assert daylight_v14c_wide_png.startswith(wuci_os.PNG_SIGNATURE)
     assert wuci_os.safe_iso_name("void-live-x86_64-musl-20250202-base.iso")
     for bad in ("../void.iso", "/tmp/void.iso", "void.img", ".iso"):
         try:
@@ -1262,6 +1268,9 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v9-spine.svg").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v10-scoreboard.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png").is_file()
     assert 'NAME="Wuci-OS"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
     assert "wj:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
     assert "wj_low:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
@@ -1870,6 +1879,12 @@ def assert_source_kit(tmp: Path) -> None:
     assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v9-spine.svg" for record in result["files"])
     assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v10-scoreboard.png" for record in result["files"])
     assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png" for record in result["files"])
+    assert any(record["path"] == "daylight/v14c-plus/README.md" for record in result["files"])
+    assert any(record["path"] == "daylight/v14c-plus/src/scoring.py" for record in result["files"])
+    assert any(record["path"] == "daylight/v14c-plus/rules/weights.v13.json" for record in result["files"])
     assert result["extraction_policy"]["schema"] == "wuci-os-tar-extraction-policy-v1"
     assert result["tar_validation"]["status"] == "pass"
     assert result["tar_validation"]["members"] >= len(result["files"])
@@ -1893,6 +1908,12 @@ def assert_source_kit(tmp: Path) -> None:
     assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v9-spine.svg" in names
     assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v10-scoreboard.png" in names
     assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png" in names
+    assert "opt/wuci-os/source/wuci-ji/daylight/v14c-plus/README.md" in names
+    assert "opt/wuci-os/source/wuci-ji/daylight/v14c-plus/src/scoring.py" in names
+    assert "opt/wuci-os/source/wuci-ji/daylight/v14c-plus/rules/weights.v13.json" in names
     assert "usr/share/wuci-os/source-kit.json" in names
     assert "opt/wuci-os/source/wuci-ji/.wuci-os-source-kit.json" in names
     assert archived_manifest["created_utc"] == wuci_os.SOURCE_KIT_DETERMINISTIC_CREATED_UTC
@@ -2198,6 +2219,9 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
     assert result["substract_substrate_model"]["daylight_v9_diagram_path"] == "docs/wuci-os/assets/wuci-daylight-v9-spine.svg"
     assert result["substract_substrate_model"]["daylight_v10_scoreboard_path"] == "docs/wuci-os/assets/wuci-daylight-v10-scoreboard.png"
     assert result["substract_substrate_model"]["daylight_v13_math_path"] == "docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png"
+    assert result["substract_substrate_model"]["daylight_v14c_image_path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png"
+    assert result["substract_substrate_model"]["daylight_v14c_math_path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png"
+    assert result["substract_substrate_model"]["daylight_v14c_wide_path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png"
     assert "boot/grub/grub.cfg" in result["payload_policy"]["grub_entries_rewritten"]
     assert result["rootfs_remaster"]["status"] == "not-requested"
     assert "wuci-update" in result["self_host_payloads"]["update_command"]
@@ -2242,6 +2266,9 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
         "wuci-os/wuci-daylight-v9-spine.svg",
         "wuci-os/wuci-daylight-v10-scoreboard.png",
         "wuci-os/wuci-daylight-v13-sovereign-math.png",
+        "wuci-os/wuci-daylight-v14c-plus-ascendant.png",
+        "wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
+        "wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
         "wuci-os/boot-splash.svg",
         "boot/isolinux/wuci-splash.png",
         "boot/grub/wuci-splash.png",

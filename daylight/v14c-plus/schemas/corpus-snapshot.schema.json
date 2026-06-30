@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v14C+ Corpus Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["snapshot_version", "frozen", "entry_count", "categories", "entries", "corpus_snapshot_digest"],
+  "properties": {
+    "snapshot_version": {"type": "string", "const": "daylight-v14c-plus-corpus-snapshot-v0.2"},
+    "frozen": {"type": "boolean", "const": true},
+    "entry_count": {"type": "integer", "minimum": 0},
+    "categories": {"type": "array", "items": {"type": "string"}},
+    "entries": {"type": "array"},
+    "corpus_snapshot_digest": {"type": "string", "minLength": 64}
+  }
+}

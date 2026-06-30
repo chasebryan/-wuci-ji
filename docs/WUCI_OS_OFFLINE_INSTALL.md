@@ -31,7 +31,7 @@ wuci-network-status
 wuci-media-status
 wuci-sdr-status
 wuci-source-status
-ls /usr/share/wuci-os/WUCI_DAYLIGHT_V9.md /usr/share/wuci-os/WUCI_DAYLIGHT_V10.md /usr/share/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md /usr/share/wuci-os/wuci-daylight-v9-sheet.png /usr/share/wuci-os/wuci-daylight-v9-spine.svg /usr/share/wuci-os/wuci-daylight-v10-scoreboard.png /usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png
+ls /usr/share/wuci-os/WUCI_DAYLIGHT_V9.md /usr/share/wuci-os/WUCI_DAYLIGHT_V10.md /usr/share/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md /usr/share/wuci-os/wuci-daylight-v9-sheet.png /usr/share/wuci-os/wuci-daylight-v9-spine.svg /usr/share/wuci-os/wuci-daylight-v10-scoreboard.png /usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png
 ```
 
 Open the preferred terminal with:

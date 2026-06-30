@@ -11,7 +11,7 @@ build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 Current digest:
 
 ```text
-SHA-256: 3a2929187b2076e3123e6d90914c021e806deab790134ac4d8995c7de9159b0f
+SHA-256: d474003903fd5cf93d258a31f3f18d4f4e23505283d233a993e51e6a7a8eff7b
 ```
 
 Label:
@@ -76,6 +76,9 @@ Bound v0 payloads:
 /wuci-os/wuci-daylight-v9-spine.svg
 /wuci-os/wuci-daylight-v10-scoreboard.png
 /wuci-os/wuci-daylight-v13-sovereign-math.png
+/wuci-os/wuci-daylight-v14c-plus-ascendant.png
+/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png
+/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png
 /wuci-os/wuci-daylight-wire-model.png
 /wuci-os/OFFLINE-INSTALL.txt
 ```
@@ -90,6 +93,9 @@ Live rootfs payloads:
 /usr/share/wuci-os/wuci-daylight-v9-spine.svg
 /usr/share/wuci-os/wuci-daylight-v10-scoreboard.png
 /usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png
+/usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png
+/usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png
+/usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png
 ```
 
 Release gate blockers intentionally kept:

@@ -53,6 +53,9 @@ DEFAULT_DAYLIGHT_V9_SHEET_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v9-sh
 DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v9-spine.svg")
 DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v10-scoreboard.png")
 DEFAULT_DAYLIGHT_V13_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png")
+DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png")
+DEFAULT_DAYLIGHT_V14C_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png")
+DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png")
 SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
 DAYLIGHT_V8_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V8.md")
 DAYLIGHT_V9_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V9.md")
@@ -1867,6 +1870,9 @@ def _xorriso_replay_final_iso(
     daylight_v9_diagram_source: Path,
     daylight_v10_scoreboard_source: Path,
     daylight_v13_math_source: Path,
+    daylight_v14c_image_source: Path,
+    daylight_v14c_math_source: Path,
+    daylight_v14c_wide_source: Path,
     readme_bytes: bytes,
     offline_install_bytes: bytes,
     daylight_v8_model_bytes: bytes,
@@ -1937,6 +1943,9 @@ def _xorriso_replay_final_iso(
         ("wuci-os/wuci-daylight-v9-spine.svg", daylight_v9_diagram_source, None, 0o644),
         ("wuci-os/wuci-daylight-v10-scoreboard.png", daylight_v10_scoreboard_source, None, 0o644),
         ("wuci-os/wuci-daylight-v13-sovereign-math.png", daylight_v13_math_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant.png", daylight_v14c_image_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-math.png", daylight_v14c_math_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png", daylight_v14c_wide_source, None, 0o644),
         ("wuci-os/README.txt", None, readme_bytes, 0o644),
         ("wuci-os/OFFLINE-INSTALL.txt", None, offline_install_bytes, 0o644),
         ("wuci-os/WUCI_DAYLIGHT_V8.md", None, daylight_v8_model_bytes, 0o644),
@@ -6178,6 +6187,24 @@ def create_overlay(
         _read_regular_bytes(daylight_v13_math, "Wuci-OS Daylight v13 Sovereign math sheet"),
         "Wuci-OS Daylight v13 Sovereign math sheet",
     )
+    daylight_v14c_image = repo_root() / DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE
+    daylight_v14c_image_info = _verified_regular_file_info(daylight_v14c_image, "Wuci-OS Daylight v14C+ Ascendant candidate sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v14c_image, "Wuci-OS Daylight v14C+ Ascendant candidate sheet"),
+        "Wuci-OS Daylight v14C+ Ascendant candidate sheet",
+    )
+    daylight_v14c_math = repo_root() / DEFAULT_DAYLIGHT_V14C_MATH_SOURCE
+    daylight_v14c_math_info = _verified_regular_file_info(daylight_v14c_math, "Wuci-OS Daylight v14C+ Ascendant math sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v14c_math, "Wuci-OS Daylight v14C+ Ascendant math sheet"),
+        "Wuci-OS Daylight v14C+ Ascendant math sheet",
+    )
+    daylight_v14c_wide = repo_root() / DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE
+    daylight_v14c_wide_info = _verified_regular_file_info(daylight_v14c_wide, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v14c_wide, "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
+        "Wuci-OS Daylight v14C+ Ascendant wide sheet",
+    )
     try:
         root_info = os.lstat(root)
     except FileNotFoundError:
@@ -6270,6 +6297,33 @@ def create_overlay(
         mode=0o644,
     )
     written.append(str(daylight_v13_math_overlay_path))
+    daylight_v14c_image_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png")
+    daylight_v14c_image_digest, daylight_v14c_image_bytes = _copy_verified_regular_file(
+        daylight_v14c_image,
+        root / daylight_v14c_image_overlay_path,
+        "Wuci-OS overlay Daylight v14C+ Ascendant candidate sheet",
+        expected_info=daylight_v14c_image_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v14c_image_overlay_path))
+    daylight_v14c_math_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png")
+    daylight_v14c_math_digest, daylight_v14c_math_bytes = _copy_verified_regular_file(
+        daylight_v14c_math,
+        root / daylight_v14c_math_overlay_path,
+        "Wuci-OS overlay Daylight v14C+ Ascendant math sheet",
+        expected_info=daylight_v14c_math_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v14c_math_overlay_path))
+    daylight_v14c_wide_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png")
+    daylight_v14c_wide_digest, daylight_v14c_wide_bytes = _copy_verified_regular_file(
+        daylight_v14c_wide,
+        root / daylight_v14c_wide_overlay_path,
+        "Wuci-OS overlay Daylight v14C+ Ascendant wide sheet",
+        expected_info=daylight_v14c_wide_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v14c_wide_overlay_path))
     manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
     manifest_files = written + [manifest_relative]
     manifest = {
@@ -6324,6 +6378,24 @@ def create_overlay(
             "source_path": str(daylight_v13_math),
             "bytes": daylight_v13_math_bytes,
             "digest_vector": daylight_v13_math_digest,
+        },
+        "daylight_v14c_image": {
+            "path": str(daylight_v14c_image_overlay_path),
+            "source_path": str(daylight_v14c_image),
+            "bytes": daylight_v14c_image_bytes,
+            "digest_vector": daylight_v14c_image_digest,
+        },
+        "daylight_v14c_math": {
+            "path": str(daylight_v14c_math_overlay_path),
+            "source_path": str(daylight_v14c_math),
+            "bytes": daylight_v14c_math_bytes,
+            "digest_vector": daylight_v14c_math_digest,
+        },
+        "daylight_v14c_wide": {
+            "path": str(daylight_v14c_wide_overlay_path),
+            "source_path": str(daylight_v14c_wide),
+            "bytes": daylight_v14c_wide_bytes,
+            "digest_vector": daylight_v14c_wide_digest,
         },
         "boundary_denials": list(BOUNDARY_DENIALS),
     }
@@ -8689,6 +8761,21 @@ def build_final_iso(
     _validate_png_bytes(daylight_v13_math_data, "Wuci-OS Daylight v13 Sovereign math sheet")
     daylight_v13_math_digest = digest_vector(daylight_v13_math_data)
     daylight_v13_math_bytes = len(daylight_v13_math_data)
+    daylight_v14c_image_source = repo_root() / DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE
+    daylight_v14c_image_data = _read_regular_bytes(daylight_v14c_image_source, "Wuci-OS Daylight v14C+ Ascendant candidate sheet")
+    _validate_png_bytes(daylight_v14c_image_data, "Wuci-OS Daylight v14C+ Ascendant candidate sheet")
+    daylight_v14c_image_digest = digest_vector(daylight_v14c_image_data)
+    daylight_v14c_image_bytes = len(daylight_v14c_image_data)
+    daylight_v14c_math_source = repo_root() / DEFAULT_DAYLIGHT_V14C_MATH_SOURCE
+    daylight_v14c_math_data = _read_regular_bytes(daylight_v14c_math_source, "Wuci-OS Daylight v14C+ Ascendant math sheet")
+    _validate_png_bytes(daylight_v14c_math_data, "Wuci-OS Daylight v14C+ Ascendant math sheet")
+    daylight_v14c_math_digest = digest_vector(daylight_v14c_math_data)
+    daylight_v14c_math_bytes = len(daylight_v14c_math_data)
+    daylight_v14c_wide_source = repo_root() / DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE
+    daylight_v14c_wide_data = _read_regular_bytes(daylight_v14c_wide_source, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
+    _validate_png_bytes(daylight_v14c_wide_data, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
+    daylight_v14c_wide_digest = digest_vector(daylight_v14c_wide_data)
+    daylight_v14c_wide_bytes = len(daylight_v14c_wide_data)
     original_boot_menu = _extract_iso_text(source_iso, "boot/isolinux/isolinux.cfg")
     wuci_boot_menu = rewrite_isolinux_config_for_wuci(original_boot_menu) if original_boot_menu else ""
     grub_rewrites: dict[str, str] = {}
@@ -8854,6 +8941,15 @@ def build_final_iso(
             "daylight_v13_math_path": str(DEFAULT_DAYLIGHT_V13_MATH_SOURCE),
             "daylight_v13_math_bytes": daylight_v13_math_bytes,
             "daylight_v13_math_digest_vector": daylight_v13_math_digest,
+            "daylight_v14c_image_path": str(DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE),
+            "daylight_v14c_image_bytes": daylight_v14c_image_bytes,
+            "daylight_v14c_image_digest_vector": daylight_v14c_image_digest,
+            "daylight_v14c_math_path": str(DEFAULT_DAYLIGHT_V14C_MATH_SOURCE),
+            "daylight_v14c_math_bytes": daylight_v14c_math_bytes,
+            "daylight_v14c_math_digest_vector": daylight_v14c_math_digest,
+            "daylight_v14c_wide_path": str(DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE),
+            "daylight_v14c_wide_bytes": daylight_v14c_wide_bytes,
+            "daylight_v14c_wide_digest_vector": daylight_v14c_wide_digest,
             "iso_paths": [
                 "/wuci-os/WUCI_DAYLIGHT_V8.md",
                 "/wuci-os/WUCI_DAYLIGHT_V9.md",
@@ -8864,6 +8960,9 @@ def build_final_iso(
                 "/wuci-os/wuci-daylight-v9-spine.svg",
                 "/wuci-os/wuci-daylight-v10-scoreboard.png",
                 "/wuci-os/wuci-daylight-v13-sovereign-math.png",
+                "/wuci-os/wuci-daylight-v14c-plus-ascendant.png",
+                "/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
+                "/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
                 "/wuci-os/wuci-daylight-wire-model.png",
                 f"/opt/wuci-os/source/wuci-ji/{SUBSTRACT_MODEL_DOC.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V8_MODEL_DOC.as_posix()}",
@@ -8876,6 +8975,9 @@ def build_final_iso(
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V13_MATH_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_MATH_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE.as_posix()}",
             ],
         },
         "payloads": {
@@ -8937,6 +9039,9 @@ def build_final_iso(
         "  /wuci-os/wuci-daylight-v9-spine.svg\n"
         "  /wuci-os/wuci-daylight-v10-scoreboard.png\n"
         "  /wuci-os/wuci-daylight-v13-sovereign-math.png\n"
+        "  /wuci-os/wuci-daylight-v14c-plus-ascendant.png\n"
+        "  /wuci-os/wuci-daylight-v14c-plus-ascendant-math.png\n"
+        "  /wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png\n"
         "  /wuci-os/wuci-daylight-wire-model.png\n"
         "  /wuci-os/OFFLINE-INSTALL.txt\n"
     ).encode("utf-8")
@@ -9132,6 +9237,36 @@ def build_final_iso(
             )
         )
         payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v14c_image_source,
+                iso_path="/WUCI_OS/D14CPLUS.PNG;1",
+                rr_name="wuci-daylight-v14c-plus-ascendant.png",
+                joliet_path="/wuci-os/wuci-daylight-v14c-plus-ascendant.png",
+                label="Wuci-OS Daylight v14C+ Ascendant candidate sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v14c_math_source,
+                iso_path="/WUCI_OS/D14MATH.PNG;1",
+                rr_name="wuci-daylight-v14c-plus-ascendant-math.png",
+                joliet_path="/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
+                label="Wuci-OS Daylight v14C+ Ascendant math sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v14c_wide_source,
+                iso_path="/WUCI_OS/D14WIDE.PNG;1",
+                rr_name="wuci-daylight-v14c-plus-ascendant-wide.png",
+                joliet_path="/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
+                label="Wuci-OS Daylight v14C+ Ascendant wide sheet",
+            )
+        )
+        payload_records.append(
             _iso_add_bytes(
                 iso,
                 readme_bytes,
@@ -9281,6 +9416,9 @@ def build_final_iso(
                     daylight_v9_diagram_source=daylight_v9_diagram_source,
                     daylight_v10_scoreboard_source=daylight_v10_scoreboard_source,
                     daylight_v13_math_source=daylight_v13_math_source,
+                    daylight_v14c_image_source=daylight_v14c_image_source,
+                    daylight_v14c_math_source=daylight_v14c_math_source,
+                    daylight_v14c_wide_source=daylight_v14c_wide_source,
                     readme_bytes=readme_bytes,
                     offline_install_bytes=offline_install_bytes,
                     daylight_v8_model_bytes=daylight_v8_model_data,
@@ -9334,6 +9472,9 @@ def build_final_iso(
         ("wuci-os/wuci-daylight-v9-spine.svg", "Wuci-OS Daylight v9 formal spine"),
         ("wuci-os/wuci-daylight-v10-scoreboard.png", "Wuci-OS Daylight v10 scoreboard"),
         ("wuci-os/wuci-daylight-v13-sovereign-math.png", "Wuci-OS Daylight v13 Sovereign math sheet"),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant.png", "Wuci-OS Daylight v14C+ Ascendant candidate sheet"),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-math.png", "Wuci-OS Daylight v14C+ Ascendant math sheet"),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png", "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
         ("wuci-os/wuci-daylight-wire-model.png", "Wuci-OS Daylight wire model diagram"),
         ("boot/isolinux/wuci-splash.png", "Wuci-OS ISOLINUX boot splash"),
         ("boot/grub/wuci-splash.png", "Wuci-OS GRUB boot splash"),

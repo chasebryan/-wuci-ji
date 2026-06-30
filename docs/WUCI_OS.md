@@ -74,6 +74,14 @@ sheet is shipped at
 [`docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png`](wuci-os/assets/wuci-daylight-v13-sovereign-math.png)
 and embedded at `/wuci-os/wuci-daylight-v13-sovereign-math.png` and
 `/usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png`.
+The Daylight v14C+ Ascendant Candidate sheets are execution-package visuals, not
+release authority. They are shipped at
+[`docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png`](wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png),
+[`docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png`](wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png),
+and
+[`docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png`](wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png),
+and embedded under `/wuci-os/` and `/usr/share/wuci-os/` with matching
+filenames.
 
 ## Boundary
 
