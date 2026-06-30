@@ -69,6 +69,10 @@ __all__ = [
     "verify_scorecard",
     "frontier_status",
     "frontier_markdown",
+    "make_policy",
+    "seal_envelope",
+    "open_envelope",
+    "inspect_envelope",
 ]
 
 
@@ -294,3 +298,67 @@ def frontier_markdown(report: dict[str, Any]) -> str:
             )
     lines += ["", "> " + report["note"], ""]
     return "\n".join(lines)
+
+
+# --- Meridian Authorized Envelope (encryption governed by Meridian logic) ------
+# Imported lazily because :mod:`src.envelope` depends on this module.
+
+def make_policy(
+    registry: ObligationRegistry,
+    *,
+    min_score_M: int,
+    required_closed_obligations: list[str] | None = None,
+) -> dict[str, Any]:
+    from . import envelope as _envelope
+
+    return _envelope.make_policy(
+        registry, min_score_M=min_score_M, required_closed_obligations=required_closed_obligations
+    )
+
+
+def seal_envelope(
+    *,
+    plaintext: bytes,
+    caller_key: bytes,
+    ledger_path: Path | str,
+    corpus_path: Path | str,
+    policy: dict[str, Any],
+    nonce: bytes | None = None,
+    obligations_path: Path | str = DEFAULT_OBLIGATIONS,
+) -> bytes:
+    from . import envelope as _envelope
+
+    return _envelope.seal(
+        plaintext=plaintext,
+        caller_key=caller_key,
+        ledger_path=ledger_path,
+        corpus_path=corpus_path,
+        policy=policy,
+        nonce=nonce,
+        obligations_path=obligations_path,
+    )
+
+
+def open_envelope(
+    *,
+    envelope: bytes,
+    caller_key: bytes,
+    ledger_path: Path | str,
+    corpus_path: Path | str,
+    obligations_path: Path | str = DEFAULT_OBLIGATIONS,
+) -> bytes:
+    from . import envelope as _envelope
+
+    return _envelope.open_envelope(
+        envelope=envelope,
+        caller_key=caller_key,
+        ledger_path=ledger_path,
+        corpus_path=corpus_path,
+        obligations_path=obligations_path,
+    )
+
+
+def inspect_envelope(envelope: bytes) -> dict[str, Any]:
+    from . import envelope as _envelope
+
+    return _envelope.inspect(envelope)

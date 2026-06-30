@@ -82,15 +82,23 @@ design and [docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md](docs/DAYLIGHT_V15_M
 for the installable CLI, library API, schemas, and release-gate use.
 
 Meridian exposes `score`, `verify-scorecard`, `frontier`, `attestation-template`,
-`explain`, `gate`, `doctor`, and `artifact` commands through its source-tree CLI;
-`make daylight-meridian-package` checks the package metadata and entrypoint
-offline.
+`explain`, `gate`, `doctor`, `artifact`, and the `seal`/`open`/`envelope-inspect`
+encryption commands through its source-tree CLI; `make daylight-meridian-package`
+checks the package metadata and entrypoint offline.
+
+Meridian also encrypts. The Meridian Authorized Envelope binds a vector-checked
+RFC 8439 ChaCha20-Poly1305 AEAD to the obligation logic: `NoEvidence -> NoSeal`
+and `Open = bottom` unless the caller's evidence re-derives a verifying scorecard
+that satisfies the sealed policy. Seal with `--min-score 1000000` and the secret
+opens only under a perfect Meridian state. See
+[docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md](docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md).
 
 ```sh
 make daylight-meridian-test
 make daylight-meridian-frontier
 make daylight-meridian-artifact
 make daylight-meridian-perfect-demo
+make daylight-meridian-envelope-test
 make daylight-meridian-ci
 ```
 

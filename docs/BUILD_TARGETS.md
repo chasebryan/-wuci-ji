@@ -416,15 +416,22 @@ Meridian is the installable evidence-derived scoring artifact under
 [DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md](DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md).
 
 ```sh
-make daylight-meridian-test            # 74-test package suite
+make daylight-meridian-test            # full package suite (scoring + AEAD vectors + envelope)
 make daylight-meridian-verify          # regenerate + evidence-bound verify the example scorecard
 make daylight-meridian-frontier        # print internal ceiling, residue, and external frontier
 make daylight-meridian-perfect-demo    # demonstrate 1,000,000M from external-attestation fixtures
 make daylight-meridian-artifact        # write build/daylight/v15-meridian/ (scorecard, receipt, frontier, manifest, SHA256SUMS)
-make daylight-meridian-smoke           # CLI smoke checks
+make daylight-meridian-envelope-test   # RFC 8439/5869 AEAD vectors + envelope fail-closed matrix
+make daylight-meridian-envelope-demo   # seal -> inspect -> open the committed Meridian Authorized Envelope
+make daylight-meridian-smoke           # CLI smoke checks (incl. seal/open)
 make daylight-meridian-package         # offline package metadata + entrypoint check
 make daylight-meridian-ci              # test + smoke + artifact (GitHub Actions lane)
 ```
+
+The Meridian Authorized Envelope (`seal`/`open`/`envelope-inspect`) encrypts with
+a vector-checked RFC 8439 ChaCha20-Poly1305 AEAD gated by evidence-derived
+obligation logic. See
+[WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md](WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md).
 
 `daylight-meridian-test` and the CI lane stay standalone (not folded into
 `make test`), matching the v14C+ package convention. The lane is Python-only and

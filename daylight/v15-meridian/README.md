@@ -65,13 +65,27 @@ export PYTHONPATH=daylight/v15-meridian && python3 -m src.cli --help
 ```
 
 Commands: `score`, `verify-scorecard`, `frontier`, `attestation-template`,
-`explain`, `gate`, `doctor`, `artifact`, `init-ledger`, `append-entry`,
-`freeze-corpus`, `check-downgrade`. The public library API is `src.api`.
+`explain`, `gate`, `doctor`, `artifact`, `seal`, `open`, `envelope-inspect`,
+`init-ledger`, `append-entry`, `freeze-corpus`, `check-downgrade`. The public
+library API is `src.api`.
 
 ```bash
 daylight-meridian frontier
 daylight-meridian doctor
 daylight-meridian artifact --out-dir build/daylight/v15-meridian
+```
+
+## Encryption (Meridian Authorized Envelope)
+
+Meridian also encrypts. The Meridian Authorized Envelope binds a vector-checked
+RFC 8439 ChaCha20-Poly1305 AEAD (`src/aead.py`) to evidence-derived obligation
+logic: `NoEvidence -> NoSeal`, and `Open = bottom` unless the caller's evidence
+re-derives a verifying scorecard that satisfies the sealed policy. See
+[docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md](../../docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md).
+
+```bash
+make daylight-meridian-envelope-test   # RFC AEAD vectors + fail-closed matrix
+make daylight-meridian-envelope-demo   # seal -> inspect -> open the committed demo
 ```
 
 ## Regenerate the example

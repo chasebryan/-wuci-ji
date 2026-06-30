@@ -67,7 +67,26 @@ daylight-meridian gate --scorecard scorecard.json \
 | `gate` | CI/release gate: verify, enforce `--min-score`, `--require-no-open-internal`, `--allow-external-residue`. |
 | `doctor` | Self-check Python, registry, fixtures, and a seed score. |
 | `artifact` | Build the deterministic release artifact directory. |
+| `seal` | Encrypt: authorize from evidence + policy, then AEAD-seal (`--min-score`, `--require-closed`). |
+| `open` | Decrypt: re-authorize from evidence, then AEAD-open (fail-closed). |
+| `envelope-inspect` | Keyless envelope metadata (no secret, no plaintext). |
 | `init-ledger`, `append-entry`, `freeze-corpus`, `check-downgrade` | Evidence and downgrade-machine utilities. |
+
+## Encryption: the Meridian Authorized Envelope
+
+Meridian is also a real cryptographic system. The Meridian Authorized Envelope
+(`src/envelope.py`) encrypts with a vector-checked RFC 8439 ChaCha20-Poly1305 AEAD
+(`src/aead.py`) whose key and open-gate are bound to evidence-derived obligation
+logic: `NoEvidence -> NoSeal`, and `Open = bottom` unless the caller's evidence
+re-derives a scorecard that verifies and satisfies the sealed policy. Sealing with
+`--min-score 1000000` produces a secret that opens only under a perfect Meridian
+state (every external obligation independently attested). Full details:
+[WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md](WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md).
+
+```bash
+make daylight-meridian-envelope-test   # RFC AEAD vectors + fail-closed matrix
+make daylight-meridian-envelope-demo   # seal -> inspect -> open the committed demo
+```
 
 ## Practical uses
 

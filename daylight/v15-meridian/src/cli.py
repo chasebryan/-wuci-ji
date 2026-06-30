@@ -14,6 +14,7 @@ from . import artifact as artifact_builder
 from . import corpus as corpus_model
 from . import daylight_harness
 from . import downgrade
+from . import envelope as envelope_model
 from . import ledger as ledger_model
 from . import obligations as obligation_model
 from . import scoring
@@ -33,6 +34,8 @@ CLI_ERRORS = (
     scoring.ScoreError,
     ledger_model.LedgerError,
     corpus_model.CorpusError,
+    envelope_model.EnvelopeError,
+    envelope_model.EnvelopeRefused,
     FileNotFoundError,
 )
 
@@ -333,6 +336,24 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             detail = str(exc)
     checks.append(("seed score == 998900M", score_ok, detail))
 
+    # Runtime AEAD known-answer self-test (RFC 8439 section 2.8.2).
+    try:
+        from . import aead
+
+        _, kat_tag = aead.chacha20_poly1305_encrypt(
+            bytes(range(0x80, 0xA0)),
+            bytes.fromhex("070000004041424344454647"),
+            bytes.fromhex("50515253c0c1c2c3c4c5c6c7"),
+            b"Ladies and Gentlemen of the class of '99: If I could offer you only "
+            b"one tip for the future, sunscreen would be it.",
+        )
+        aead_ok = kat_tag.hex() == "1ae10b594f09e26a7e902ecbd0600691"
+        aead_detail = "RFC 8439 tag ok" if aead_ok else f"tag mismatch {kat_tag.hex()}"
+    except Exception as exc:  # noqa: BLE001
+        aead_ok = False
+        aead_detail = str(exc)
+    checks.append(("AEAD RFC 8439 self-test", aead_ok, aead_detail))
+
     all_ok = True
     for label, ok, detail in checks:
         mark = "ok " if ok else "FAIL"
@@ -355,6 +376,78 @@ def cmd_artifact(args: argparse.Namespace) -> int:
     print(f"  final_score_M: {manifest['final_score_M']} / {manifest['perfect_score_M']}")
     print(f"  external_residue_M: {manifest['external_residue_M']}")
     print(f"  scorecard_digest: {manifest['scorecard_digest']}")
+    return 0
+
+
+def _load_caller_key(args: argparse.Namespace) -> bytes:
+    if getattr(args, "keyfile", None):
+        text = Path(args.keyfile).read_text(encoding="utf-8").strip()
+    elif getattr(args, "key", None):
+        text = args.key.strip()
+    else:
+        raise CommandError("provide --key (64 hex chars) or --keyfile")
+    try:
+        key = bytes.fromhex(text)
+    except ValueError as exc:
+        raise CommandError(f"key must be 64 hex characters: {exc}")
+    if len(key) != 32:
+        raise CommandError("key must be 32 bytes (64 hex characters)")
+    return key
+
+
+def cmd_seal(args: argparse.Namespace) -> int:
+    registry = obligation_model.load_registry(DEFAULT_OBLIGATIONS)
+    key = _load_caller_key(args)
+    policy = envelope_model.make_policy(
+        registry, min_score_M=args.min_score, required_closed_obligations=args.require_closed or []
+    )
+    if args.in_path:
+        plaintext = Path(args.in_path).read_bytes()
+    elif args.message is not None:
+        plaintext = args.message.encode("utf-8")
+    else:
+        plaintext = sys.stdin.buffer.read()
+    nonce = bytes.fromhex(args.nonce) if args.nonce else None
+    sealed = envelope_model.seal(
+        plaintext=plaintext,
+        caller_key=key,
+        ledger_path=Path(args.ledger),
+        corpus_path=Path(args.corpus),
+        policy=policy,
+        nonce=nonce,
+        obligations_path=DEFAULT_OBLIGATIONS,
+    )
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_bytes(sealed)
+        print(f"sealed -> {args.out} ({len(sealed)} bytes; min_score_M={args.min_score})")
+    else:
+        sys.stdout.buffer.write(sealed)
+    return 0
+
+
+def cmd_open(args: argparse.Namespace) -> int:
+    key = _load_caller_key(args)
+    sealed = Path(args.in_path).read_bytes() if args.in_path else sys.stdin.buffer.read()
+    plaintext = envelope_model.open_envelope(
+        envelope=sealed,
+        caller_key=key,
+        ledger_path=Path(args.ledger),
+        corpus_path=Path(args.corpus),
+        obligations_path=DEFAULT_OBLIGATIONS,
+    )
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_bytes(plaintext)
+        print(f"opened -> {args.out} ({len(plaintext)} bytes)")
+    else:
+        sys.stdout.buffer.write(plaintext)
+    return 0
+
+
+def cmd_envelope_inspect(args: argparse.Namespace) -> int:
+    sealed = Path(args.in_path).read_bytes() if args.in_path else sys.stdin.buffer.read()
+    _json_dump(envelope_model.inspect(sealed), Path(args.out) if args.out else None)
     return 0
 
 
@@ -451,6 +544,33 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_cmd.add_argument("--out-dir", default=str(DEFAULT_ARTIFACT_DIR))
     artifact_cmd.add_argument("--command-label", default="make daylight-meridian-artifact")
     artifact_cmd.set_defaults(func=cmd_artifact)
+
+    seal = sub.add_parser("seal", help="encrypt: authorize from evidence/policy, then AEAD-seal")
+    seal.add_argument("--key", help="32-byte caller key as 64 hex characters")
+    seal.add_argument("--keyfile", help="file containing the 64-hex caller key")
+    seal.add_argument("--ledger", default=str(DEFAULT_LEDGER))
+    seal.add_argument("--corpus", default=str(DEFAULT_CORPUS))
+    seal.add_argument("--min-score", type=int, required=True, help="policy: minimum final_score_M to seal/open")
+    seal.add_argument("--require-closed", nargs="*", default=[], help="policy: obligation ids that must be closed")
+    seal.add_argument("--in", dest="in_path", help="plaintext input file (default: --message or stdin)")
+    seal.add_argument("--message", help="plaintext as a string")
+    seal.add_argument("--out", help="sealed output path (default: stdout)")
+    seal.add_argument("--nonce", help="12-byte nonce as 24 hex chars (default: random)")
+    seal.set_defaults(func=cmd_seal)
+
+    open_cmd = sub.add_parser("open", help="decrypt: re-authorize from evidence, then AEAD-open (fail-closed)")
+    open_cmd.add_argument("--key", help="32-byte caller key as 64 hex characters")
+    open_cmd.add_argument("--keyfile", help="file containing the 64-hex caller key")
+    open_cmd.add_argument("--ledger", default=str(DEFAULT_LEDGER))
+    open_cmd.add_argument("--corpus", default=str(DEFAULT_CORPUS))
+    open_cmd.add_argument("--in", dest="in_path", help="sealed input file (default: stdin)")
+    open_cmd.add_argument("--out", help="plaintext output path (default: stdout)")
+    open_cmd.set_defaults(func=cmd_open)
+
+    envelope_inspect = sub.add_parser("envelope-inspect", help="keyless envelope metadata (no secret, no plaintext)")
+    envelope_inspect.add_argument("--in", dest="in_path", help="sealed input file (default: stdin)")
+    envelope_inspect.add_argument("--out")
+    envelope_inspect.set_defaults(func=cmd_envelope_inspect)
 
     check = sub.add_parser("check-downgrade", help="evaluate the downgrade machine")
     check.add_argument("--claimed", required=True)

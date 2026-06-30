@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian Authorized Envelope Header",
+  "description": "The public header of a Meridian Authorized Envelope (MAE). It carries the AEAD nonce, the open policy, and the Meridian authorization binding. It contains no secret key and no plaintext.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["magic", "version", "suite", "nonce", "policy", "authorization", "boundary"],
+  "properties": {
+    "magic": {"type": "string", "const": "WUCIMAE1"},
+    "version": {"type": "string", "const": "daylight-v15-meridian-mae-v1"},
+    "suite": {"type": "string", "const": "ChaCha20-Poly1305"},
+    "nonce": {"type": "string", "minLength": 24},
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_score_M", "required_closed_obligations", "obligations_digest"],
+      "properties": {
+        "min_score_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "required_closed_obligations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "obligations_digest": {"type": "string", "minLength": 64}
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligations_version", "obligations_digest", "scorecard_digest", "final_score_M", "authorization_tag"],
+      "properties": {
+        "obligations_version": {"type": "string", "minLength": 1},
+        "obligations_digest": {"type": "string", "minLength": 64},
+        "scorecard_digest": {"type": "string", "minLength": 64},
+        "final_score_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "authorization_tag": {"type": "string", "minLength": 64}
+      }
+    },
+    "boundary": {"type": "string", "minLength": 1}
+  }
+}

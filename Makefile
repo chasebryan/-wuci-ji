@@ -121,7 +121,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 .PHONY: wuci-kaiju-test wuci-os-test
 .PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
-.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci
+.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci daylight-meridian-envelope-demo daylight-meridian-envelope-test
 
 all: check-native $(TARGET)
 
@@ -168,6 +168,18 @@ daylight-meridian-smoke:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli attestation-template --obligation-id o.q7.external_red_team --signer-id ext:red-team >/dev/null
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli explain --scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json >/dev/null
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli gate --scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json --ledger daylight/v15-meridian/examples/ledger.seed.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --min-score 998900 --require-no-open-internal --allow-external-residue
+	mkdir -p build/daylight/v15-meridian
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --message "meridian smoke" --nonce 000000000000000000000000 --out build/daylight/v15-meridian/smoke.mae
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in build/daylight/v15-meridian/smoke.mae >/dev/null
+
+daylight-meridian-envelope-demo:
+	mkdir -p build/daylight/v15-meridian
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --require-closed o.q1.master_law_executable o.q4.fail_closed_tests --message "Daylight v15 Meridian: sealed by evidence, opened by proof." --nonce 000000000000000000000000 --out build/daylight/v15-meridian/demo.mae
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli envelope-inspect --in build/daylight/v15-meridian/demo.mae
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in build/daylight/v15-meridian/demo.mae
+
+daylight-meridian-envelope-test:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest tests.test_aead_vectors tests.test_envelope
 
 daylight-meridian-package:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -c "from src import __version__; print('daylight-meridian', __version__)"
