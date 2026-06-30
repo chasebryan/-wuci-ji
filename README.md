@@ -302,7 +302,7 @@ Base attribution stays in source evidence and license metadata; the operator
 surface is Wuci-OS.
 
 ```sh
-tools/wuci-os source install ./void-live-x86_64-musl-20250202-base.iso --force
+tools/wuci-os source install ./base-live-x86_64-musl-YYYYMMDD.iso --force
 tools/wuci-os source verify
 tools/wuci-os plan
 tools/wuci-os iso-plan
@@ -311,20 +311,37 @@ tools/wuci-os source-kit
 tools/wuci-os overlay --force
 tools/wuci-os keygen --force
 tools/wuci-os seal-overlay --force --ticker always
+tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages
 tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo
 ```
 
+Before installing from the ISO, read
+[docs/WUCI_OS_OFFLINE_INSTALL.md](docs/WUCI_OS_OFFLINE_INSTALL.md). The same
+instructions are embedded in the ISO at `/wuci-os/OFFLINE-INSTALL.txt` and in
+the live system at `/usr/share/wuci-os/OFFLINE-INSTALL.txt`.
+
 The boot payload carries both the Wuci-OS overlay and a deterministic source-kit
 tar that uses fixed archive metadata and extracts the current Wuci-Ji checkout
-into `/opt/wuci-os/source/wuci-ji` inside the guest. The overlay defaults to XFCE4, kitty with xfce4-terminal
-fallback, ratpoison, emacs, vim, developer package groups, Wuci-OS wallpaper
-setup, a plan-only Codex/Copilot/Grok Build setup guide, guided `wuci-guide` /
-`wuci-auto` operation, and a live/demo `wj` login whose prompt identity is
-`WJ>_`. The security profile is SELinux-first, targeted/enforcing,
+into `/opt/wuci-os/source/wuci-ji` inside the guest. `wuci-update` can update
+system packages and fast-forward or clone a live Wuci-Ji checkout from the repo
+when the embedded source is a deterministic snapshot. The overlay defaults to
+terminal-first XFCE4, kitty with Ghostty/xfce4-terminal/xterm fallbacks,
+ratpoison, emacs, vim, Wi-Fi/network firmware tooling, PipeWire/ALSA/Pulse
+audio, Mesa/video helpers, Bluetooth/printing/scanning/portal helpers, an
+SDR/radio software lane for GNU Radio, Gqrx, RTL-SDR, HackRF, Airspy, SoapySDR,
+and USB SDR helpers, an original generated Wuci-OS boot chime, and the Wuci
+splash in ISOLINUX/GRUB menus. It also includes Wuci-OS wallpaper setup, a plan-only
+Codex/Copilot/Grok Build setup guide, guided `wuci-guide` / `wuci-auto`
+operation, and a live/demo `wj` login whose prompt identity is `WJ>_`.
+The security profile is SELinux-first, targeted/enforcing,
 LUKS-required for installed high-assurance systems, and includes
 Kicksecure-inspired hardening ideas. Daylight/WJSEAL evidence is required for
-generated components; the current implemented seal covers the overlay, while the
-planned finished ISO lane will seal the final bootable ISO and release metadata.
+generated components. `tools/wuci-os final-iso --force --remaster-rootfs`
+rewrites the boot menu, embeds the splash, applies the Wuci rootfs identity, and
+records final ISO evidence under `build/wuci-os/final/`. Add
+`--install-suite-packages` when host `xbps-install` or root chroot access is
+available so the Wi-Fi/audio/video/developer suite is baked into
+`LiveOS/squashfs.img`.
 Package operations use
 `sudo wj install <packages...>` on top of the current package repository. See
 [docs/WUCI_OS.md](docs/WUCI_OS.md). Wuci-OS v0 is image evidence, overlay

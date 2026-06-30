@@ -5,15 +5,18 @@ import argparse
 import base64
 import contextlib
 import hashlib
+import io
 import json
 import os
 import re
+import shutil
 import shlex
 import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -32,13 +35,30 @@ OVERLAY_SEAL_SCHEMA = "wuci-os-daylight-overlay-seal-v1"
 OVERLAY_SEAL_BUNDLE_SCHEMA = "wuci-os-daylight-overlay-bundle-v1"
 SOURCE_KIT_SCHEMA = "wuci-os-source-kit-v1"
 ISO_PLAN_SCHEMA = "wuci-os-finished-iso-plan-v1"
+FINAL_ISO_SCHEMA = "wuci-os-final-iso-v1"
+FAILURE_SPECIMEN_SCHEMA = "wuci-os-failure-specimen-v1"
+BOOT_SPLASH_SCHEMA = "wuci-os-boot-splash-v1"
 DEFAULT_SOURCE_ROOT = Path("build/wuci-os/source")
 DEFAULT_BOOT_ROOT = Path("build/wuci-os/boot")
 DEFAULT_OVERLAY_ROOT = Path("build/wuci-os/overlay")
 DEFAULT_SEAL_ROOT = Path("build/wuci-os/daylight")
+DEFAULT_FINAL_ROOT = Path("build/wuci-os/final")
+DEFAULT_ROOTFS_SOURCE_ROOT = Path("build/wuci-os/rootfs")
+DEFAULT_FAILURE_ROOT = Path("build/wuci-os/failures")
 DEFAULT_WALLPAPER_SOURCE = Path("docs/wuci-os/assets/wallpaper1.png")
+DEFAULT_BOOT_SPLASH_SOURCE = Path("docs/wuci-os/assets/wuci-os-boot-splash.svg")
+DEFAULT_MODEL_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-wire-model.png")
+DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v8-sheet.png")
+DEFAULT_DAYLIGHT_V9_SHEET_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v9-sheet.png")
+DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v9-spine.svg")
+SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
+DAYLIGHT_V8_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V8.md")
+DAYLIGHT_V9_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V9.md")
+BOOT_SPLASH_PNG_NAME = "wuci-os-boot-splash.png"
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 OVERLAY_WALLPAPER_PATH = Path("usr/share/backgrounds/wuci-os/wallpaper1.png")
 DEFAULT_WUCI_BIN = Path("build/wuci-ji")
+FINAL_ISO_NAME = "Wuci-OS-x86_64-musl.iso"
 SOURCE_KIT_PREFIX = Path("opt/wuci-os/source/wuci-ji")
 UPSTREAM_SOURCE_PREFIX = Path("opt/wuci-os/source/upstream")
 SOURCE_KIT_GUEST_MANIFEST = Path("usr/share/wuci-os/source-kit.json")
@@ -75,6 +95,8 @@ DESKTOP_PACKAGES = (
     "xfce4",
     "xfce4-terminal",
     "kitty",
+    "ghostty",
+    "xterm",
     "ratpoison",
     "dbus",
     "elogind",
@@ -86,6 +108,169 @@ DESKTOP_PACKAGES = (
     "dmenu",
     "firefox",
 )
+
+AUDIO_PACKAGES = (
+    "alsa-utils",
+    "pipewire",
+    "wireplumber",
+    "pulseaudio-utils",
+    "pavucontrol",
+    "ffmpeg",
+    "mpv",
+    "vlc",
+    "gstreamer1",
+    "gst-plugins-base1",
+    "gst-plugins-good1",
+    "gst-plugins-bad1",
+    "gst-plugins-ugly1",
+)
+
+NETWORK_PACKAGES = (
+    "NetworkManager",
+    "NetworkManager-openvpn",
+    "wpa_supplicant",
+    "iwd",
+    "dhcpcd",
+    "dhclient",
+    "iproute2",
+    "iputils",
+    "iw",
+    "wireless_tools",
+    "rfkill",
+    "openresolv",
+    "nftables",
+    "chrony",
+    "avahi",
+    "ModemManager",
+    "mobile-broadband-provider-info",
+    "openvpn",
+)
+
+FIRMWARE_PACKAGES = (
+    "linux-firmware",
+    "linux-firmware-network",
+    "linux-firmware-intel",
+    "linux-firmware-amd",
+)
+
+VIDEO_PACKAGES = (
+    "mesa-dri",
+    "mesa-vaapi",
+    "mesa-vdpau",
+    "mesa-vulkan-intel",
+    "mesa-vulkan-radeon",
+    "vulkan-loader",
+    "vulkan-tools",
+    "libva",
+    "libva-utils",
+    "vdpauinfo",
+    "xf86-video-amdgpu",
+    "xf86-video-intel",
+    "xf86-video-nouveau",
+    "xf86-video-vesa",
+    "xf86-video-fbdev",
+    "brightnessctl",
+)
+
+PERIPHERAL_PACKAGES = (
+    "bluez",
+    "bluez-alsa",
+    "cups",
+    "cups-filters",
+    "system-config-printer",
+    "sane",
+    "simple-scan",
+    "xdg-desktop-portal",
+    "xdg-desktop-portal-gtk",
+    "gvfs",
+    "udisks2",
+    "upower",
+)
+
+SDR_PACKAGES = (
+    "gnuradio",
+    "gqrx",
+    "rtl-sdr",
+    "hackrf",
+    "airspy",
+    "airspyhf",
+    "SoapySDR",
+    "SoapyRTLSDR",
+    "SoapyHackRF",
+    "SoapyAirspy",
+    "gr-osmosdr",
+    "inspectrum",
+    "sigutils",
+    "liquid-dsp",
+    "uhd",
+    "soapysdr",
+    "usbutils",
+)
+
+SDR_OPTIONAL_PACKAGES = (
+    "sdrangel",
+    "cubicsdr",
+    "qspectrumanalyzer",
+    "dump1090",
+    "multimon-ng",
+    "fldigi",
+)
+
+TERMINAL_CANDIDATES = (
+    "kitty",
+    "ghostty",
+    "xfce4-terminal",
+    "xterm",
+    "alacritty",
+    "foot",
+    "wezterm",
+    "st",
+    "urxvt",
+    "rxvt",
+)
+
+FAST_BOOT_KERNEL_ARGS = (
+    "console=ttyS0,115200n8",
+    "console=tty0",
+    "nomodeset",
+    "rd.md=0",
+    "rd.dm=0",
+    "rd.luks=0",
+    "rd.lvm=0",
+    "rd.auto=0",
+    "rd.udev.log_level=3",
+    "loglevel=3",
+    "modprobe.blacklist=raid456,async_raid6_recov,dm_raid,md_mod,btrfs",
+)
+
+FAST_BOOT_MODPROBE_BLACKLIST = (
+    "raid456",
+    "async_raid6_recov",
+    "dm_raid",
+    "md_mod",
+    "btrfs",
+)
+
+LEGACY_BIOS_LIVE_KERNEL_ARGS = (
+    "console=tty0",
+    "rd.driver.pre=loop",
+    "live.hostname=wuci-os-live",
+)
+
+BOOT_ENTRY_LABELS = {
+    "linux": "Wuci-Ji Systems / Wuci-OS live",
+    "linuxram": "Wuci-OS live (copy to RAM)",
+    "linuxnogfx": "Wuci-OS live (safe graphics)",
+    "linuxa11y": "Wuci-OS accessibility (speech)",
+    "linuxa11yram": "Wuci-OS accessibility (speech, copy to RAM)",
+    "linuxa11ynogfx": "Wuci-OS accessibility (speech, safe graphics)",
+    "c": "Boot first hard disk",
+    "memtest": "Wuci-OS memory test",
+    "uefifw": "UEFI firmware settings",
+    "restart": "Restart",
+    "reboot": "Reboot",
+    "poweroff": "Power off",
+}
 
 BASE_DEV_PACKAGES = (
     "ca-certificates",
@@ -277,6 +462,32 @@ SELINUX_GRUB_FLAGS = (
     "lsm=landlock,lockdown,yama,integrity,selinux,bpf",
 )
 
+
+def full_suite_packages() -> tuple[str, ...]:
+    language_packages: list[str] = []
+    for packages in LANGUAGE_PACKAGE_GROUPS.values():
+        language_packages.extend(packages)
+    return tuple(
+        sorted(
+            set(
+                BASE_DEV_PACKAGES
+                + DESKTOP_PACKAGES
+                + AUDIO_PACKAGES
+                + NETWORK_PACKAGES
+                + FIRMWARE_PACKAGES
+                + VIDEO_PACKAGES
+                + PERIPHERAL_PACKAGES
+                + SDR_PACKAGES
+                + SDR_OPTIONAL_PACKAGES
+                + SECURITY_PACKAGES
+                + SELINUX_CANDIDATE_PACKAGES
+                + tuple(language_packages)
+                + ("vim", "emacs", "nano")
+            )
+        )
+    )
+
+
 DAYLIGHT_REQUIRED_COMPONENTS = (
     "source ISO digest manifest",
     "overlay manifest",
@@ -364,6 +575,14 @@ def read_source_manifest(source_root: Path) -> dict[str, Any]:
         raise WuciOSError(str(exc)) from exc
 
 
+def wuci_public_source_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    public_manifest = json.loads(json.dumps(manifest))
+    base = public_manifest.get("base")
+    if isinstance(base, dict) and base.get("distribution") == "Void Linux":
+        base["distribution"] = "Wuci-OS live base"
+    return public_manifest
+
+
 def release_stamp_from_name(name: str) -> str:
     match = VOID_RELEASE_RE.search(name)
     return match.group(1) if match else "unknown"
@@ -372,8 +591,52 @@ def release_stamp_from_name(name: str) -> str:
 def _extract_iso_text(image_path: Path, subpath: str) -> str:
     data = wuci_kaiju._extract_iso_file_content(image_path, subpath)
     if data is None:
+        try:
+            import pycdlib  # type: ignore[import-not-found]
+
+            iso = pycdlib.PyCdlib()
+            iso.open(str(image_path))
+            try:
+                for key in ("rr_path", "joliet_path", "iso_path"):
+                    handle = io.BytesIO()
+                    try:
+                        iso.get_file_from_iso_fp(handle, **{key: "/" + subpath.lstrip("/")})
+                    except Exception:
+                        continue
+                    data = handle.getvalue()
+                    break
+            finally:
+                iso.close()
+        except Exception:
+            data = None
+    if data is None:
         return ""
     return data.decode("utf-8", "replace")
+
+
+def _extract_iso_bytes(image_path: Path, subpath: str, label: str) -> bytes:
+    data = wuci_kaiju._extract_iso_file_content(image_path, subpath)
+    if data is not None:
+        return data
+    try:
+        import pycdlib  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise WuciOSError(f"could not extract {label}: pycdlib is required for fallback ISO reads") from exc
+    iso = pycdlib.PyCdlib()
+    try:
+        iso.open(str(image_path))
+        for key in ("rr_path", "joliet_path", "iso_path"):
+            handle = io.BytesIO()
+            try:
+                iso.get_file_from_iso_fp(handle, **{key: "/" + subpath.lstrip("/")})
+            except Exception:
+                continue
+            data = handle.getvalue()
+            if data:
+                return data
+    finally:
+        iso.close()
+    raise WuciOSError(f"source ISO does not contain {label}: {subpath}")
 
 
 def inspect_void_iso(image_path: Path) -> dict[str, Any]:
@@ -397,9 +660,9 @@ def inspect_void_iso(image_path: Path) -> dict[str, Any]:
         append = first_isolinux_append(boot_menu)
     problems: list[str] = []
     if missing:
-        problems.append("missing required Void live paths: " + ", ".join(missing))
+        problems.append("missing required live image paths: " + ", ".join(missing))
     if append and f"root=live:CDLABEL={VOID_LIVE_LABEL}" not in append:
-        problems.append("isolinux APPEND line does not target VOID_LIVE")
+        problems.append("isolinux APPEND line does not target the expected live label")
     if not append:
         problems.append("missing isolinux APPEND line")
     return {
@@ -432,12 +695,174 @@ def first_isolinux_append(text: str) -> str:
     return ""
 
 
-def serial_append_from_void(append: str) -> str:
-    parts = [part for part in append.split() if not part.startswith("initrd=")]
-    for required in ("console=ttyS0,115200n8", "nomodeset"):
+def _append_kernel_arg(parts: list[str], required: str) -> None:
+    if required.startswith("console="):
         if required not in parts:
             parts.append(required)
+        return
+    if "=" in required:
+        prefix = required.split("=", 1)[0] + "="
+        parts[:] = [part for part in parts if not part.startswith(prefix)]
+    if required not in parts:
+        parts.append(required)
+
+
+def wuci_fast_boot_append(append: str, *, include_initrd: bool, fast_boot: bool = True) -> str:
+    parts = [part for part in append.split() if include_initrd or not part.startswith("initrd=")]
+    required_args = FAST_BOOT_KERNEL_ARGS if fast_boot else ("console=ttyS0,115200n8", "console=tty0", "nomodeset")
+    for required in required_args:
+        _append_kernel_arg(parts, required)
     return " ".join(parts)
+
+
+def wuci_legacy_bios_live_append(append: str, *, include_initrd: bool) -> str:
+    parts = [part for part in append.split() if include_initrd or not part.startswith("initrd=")]
+    for required in LEGACY_BIOS_LIVE_KERNEL_ARGS:
+        _append_kernel_arg(parts, required)
+    return " ".join(parts)
+
+
+def serial_append_from_void(append: str, *, fast_boot: bool = True) -> str:
+    if fast_boot:
+        return wuci_fast_boot_append(append, include_initrd=False)
+    parts = [part for part in append.split() if not part.startswith("initrd=")]
+    for required in ("console=ttyS0,115200n8", "console=tty0", "nomodeset"):
+        _append_kernel_arg(parts, required)
+    return " ".join(parts)
+
+
+def wuci_boot_entry_label(entry_id: str | None, original_label: str) -> str:
+    key = (entry_id or "").strip().strip('"').strip("'").lower()
+    if key in BOOT_ENTRY_LABELS:
+        return BOOT_ENTRY_LABELS[key]
+    lowered = original_label.lower()
+    if "void linux" in lowered or "wuci-os" in lowered:
+        if "speech" in lowered and "ram" in lowered:
+            return BOOT_ENTRY_LABELS["linuxa11yram"]
+        if "speech" in lowered and "graphics" in lowered:
+            return BOOT_ENTRY_LABELS["linuxa11ynogfx"]
+        if "speech" in lowered:
+            return BOOT_ENTRY_LABELS["linuxa11y"]
+        if "ram" in lowered:
+            return BOOT_ENTRY_LABELS["linuxram"]
+        if "graphics" in lowered:
+            return BOOT_ENTRY_LABELS["linuxnogfx"]
+        return BOOT_ENTRY_LABELS["linux"]
+    if "memtest" in lowered or "ram test" in lowered:
+        return BOOT_ENTRY_LABELS["memtest"]
+    if "restart" in lowered or "reboot" in lowered:
+        return BOOT_ENTRY_LABELS["restart"]
+    if "shutdown" in lowered or "power off" in lowered:
+        return BOOT_ENTRY_LABELS["poweroff"]
+    normalized = original_label.replace("^", "")
+    normalized = re.sub(r"Void Linux\s+[^\s()]+", "Wuci-OS", normalized)
+    normalized = normalized.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS")
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized or "Wuci-OS boot option"
+
+
+def _grub_entry_id(text: str) -> str | None:
+    match = re.search(r"--id(?:=|\s+)(?:[\"']?)([^\"'\s{]+)", text)
+    return match.group(1) if match else None
+
+
+def _replace_grub_title(line: str, label: str, keyword: str) -> str | None:
+    match = re.match(rf"^(\s*{keyword}\s+)([\"'])(.*?)(\2)(.*)$", line)
+    if not match:
+        return None
+    return f"{match.group(1)}{match.group(2)}{label}{match.group(4)}{match.group(5)}"
+
+
+def _append_grub_live_kernel_args(line: str) -> str:
+    if "root=live:" not in line:
+        return line
+    indent = line[: len(line) - len(line.lstrip())]
+    suffix = ""
+    body = line.strip()
+    if body.endswith("\\"):
+        suffix = " \\"
+        body = body[:-1].rstrip()
+    parts = body.split()
+    for required in LEGACY_BIOS_LIVE_KERNEL_ARGS:
+        _append_kernel_arg(parts, required)
+    return indent + " ".join(parts) + suffix
+
+
+def rewrite_isolinux_config_for_wuci(text: str) -> str:
+    rows: list[str] = []
+    inserted_title = False
+    inserted_background = False
+    current_label: str | None = None
+    for raw in text.splitlines():
+        line = raw.rstrip("\n")
+        stripped = line.strip()
+        upper = stripped.upper()
+        indent = line[: len(line) - len(line.lstrip())]
+        if upper.startswith("LABEL "):
+            current_label = stripped.split(maxsplit=1)[1].strip() if len(stripped.split(maxsplit=1)) == 2 else None
+            rows.append(line)
+            continue
+        if upper.startswith("MENU TITLE "):
+            rows.append(f"{indent}MENU TITLE Wuci-OS")
+            inserted_title = True
+            continue
+        if upper.startswith("MENU BACKGROUND "):
+            rows.append(f"{indent}MENU BACKGROUND /boot/isolinux/wuci-splash.png")
+            inserted_background = True
+            continue
+        if upper.startswith("MENU LABEL "):
+            original_label = stripped.split(maxsplit=2)[2] if len(stripped.split(maxsplit=2)) == 3 else ""
+            rows.append(f"{indent}MENU LABEL {wuci_boot_entry_label(current_label, original_label)}")
+            continue
+        if upper.startswith("APPEND "):
+            append = stripped.split(maxsplit=1)[1] if len(stripped.split(maxsplit=1)) == 2 else ""
+            if current_label and current_label.lower().startswith("linux"):
+                rows.append(f"{indent}APPEND {wuci_legacy_bios_live_append(append, include_initrd=True)}")
+            else:
+                rows.append(line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
+            continue
+        rows.append(line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
+    if not inserted_title:
+        rows.insert(0, "MENU TITLE Wuci-OS")
+    if not inserted_background:
+        insert_at = 1 if rows and rows[0].strip().upper().startswith("MENU TITLE ") else 0
+        rows.insert(insert_at, "MENU BACKGROUND /boot/isolinux/wuci-splash.png")
+    return "\n".join(rows) + "\n"
+
+
+def rewrite_grub_config_for_wuci(text: str) -> str:
+    rows: list[str] = []
+    inserted_background = False
+    for raw in text.splitlines():
+        line = raw.rstrip("\n")
+        stripped = line.strip()
+        if stripped.startswith("menuentry "):
+            original = re.match(r"^\s*menuentry\s+([\"'])(.*?)(\1)", line)
+            original_label = original.group(2) if original else ""
+            label = wuci_boot_entry_label(_grub_entry_id(stripped), original_label)
+            rows.append(_replace_grub_title(line, label, "menuentry") or line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
+            continue
+        if stripped.startswith("submenu "):
+            rows.append(_replace_grub_title(line, "Wuci-Ji Systems recovery and tools", "submenu") or line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
+            continue
+        if stripped.startswith("background_image "):
+            rows.append("background_image /boot/grub/wuci-splash.png")
+            inserted_background = True
+            continue
+        if "root=live:" in stripped:
+            rows.append(_append_grub_live_kernel_args(line).replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
+            continue
+        rows.append(line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
+    header = [
+        "set menu_color_normal=white/black",
+        "set menu_color_highlight=black/light-red",
+        "if [ -f /boot/grub/wuci-splash.png ]; then",
+        "  background_image /boot/grub/wuci-splash.png",
+        "fi",
+    ]
+    if not inserted_background:
+        rows = header + rows
+    return "\n".join(rows) + "\n"
 
 
 def discover_qemu(qemu_bin: str = DEFAULT_QEMU_BIN) -> str | None:
@@ -454,13 +879,13 @@ def install_source(
     root = DEFAULT_SOURCE_ROOT if source_root is None else source_root
     _prepare_output_directory(root, "Wuci-OS source workspace")
     try:
-        source_info = wuci_kaiju.require_regular_local_file(source, "Void musl ISO source")
+        source_info = wuci_kaiju.require_regular_local_file(source, "Wuci-OS base live ISO source")
     except wuci_kaiju.KaijuError as exc:
         raise WuciOSError(str(exc)) from exc
     iso_name = safe_iso_name(name or source.name)
     dest = root / iso_name
     if source.resolve() == dest.resolve():
-        raise WuciOSError("Void ISO source and destination must differ")
+        raise WuciOSError("Wuci-OS source ISO source and destination must differ")
     _prepare_replacement_output_path(dest, "Wuci-OS source ISO", force=force)
 
     tmp_fd = -1
@@ -482,13 +907,13 @@ def install_source(
         try:
             opened = os.fstat(source_fd)
             if not stat.S_ISREG(opened.st_mode):
-                raise WuciOSError(f"Void ISO source changed type while opening: {source}")
+                raise WuciOSError(f"Wuci-OS source ISO changed type while opening: {source}")
             if opened.st_ino != source_info.st_ino or opened.st_dev != source_info.st_dev:
-                raise WuciOSError(f"Void ISO source changed while opening: {source}")
+                raise WuciOSError(f"Wuci-OS source ISO changed while opening: {source}")
             if opened.st_size != source_info.st_size or stat.S_IMODE(opened.st_mode) != stat.S_IMODE(source_info.st_mode):
-                raise WuciOSError(f"Void ISO source changed while opening: {source}")
+                raise WuciOSError(f"Wuci-OS source ISO changed while opening: {source}")
             if opened.st_nlink != 1:
-                raise WuciOSError(f"Void ISO source must not be hardlinked: {source}")
+                raise WuciOSError(f"Wuci-OS source ISO must not be hardlinked: {source}")
             with os.fdopen(tmp_fd, "wb") as out_handle:
                 tmp_fd = -1
                 while True:
@@ -504,9 +929,9 @@ def install_source(
         finally:
             os.close(source_fd)
         if total == 0:
-            raise WuciOSError("Void ISO source is empty")
+            raise WuciOSError("Wuci-OS source ISO is empty")
         if total != opened.st_size:
-            raise WuciOSError(f"Void ISO source changed while reading: {source}")
+            raise WuciOSError(f"Wuci-OS source ISO changed while reading: {source}")
         copied_digest_vector = {digest_name: digest.hexdigest() for digest_name, digest in digests.items()}
         tmp_path = Path(tmp_name)
         try:
@@ -518,7 +943,7 @@ def install_source(
         layout = inspect_void_iso(tmp_path)
         if layout.get("status") != "pass":
             problems = "; ".join(str(problem) for problem in layout.get("problems", []))
-            raise WuciOSError(f"Void musl ISO layout verification failed: {problems}")
+            raise WuciOSError(f"Wuci-OS base live ISO layout verification failed: {problems}")
         try:
             wuci_kaiju.reject_unsafe_existing_path(manifest_path, "Wuci-OS source manifest")
         except wuci_kaiju.KaijuError as exc:
@@ -541,7 +966,7 @@ def install_source(
             "product": PRODUCT_NAME,
             "image_id": IMAGE_ID,
             "base": {
-                "distribution": "Void Linux",
+                "distribution": "Wuci-OS live base",
                 "libc": "musl",
                 "image_kind": "live base ISO",
                 "upstream_label": VOID_LIVE_LABEL,
@@ -662,8 +1087,10 @@ def verify_source(source_root: Path | None = None, *, require_layout: bool = Tru
     if not isinstance(base, dict):
         problems.append("source base metadata missing")
     else:
+        distribution = base.get("distribution")
+        if distribution not in {"Wuci-OS live base", "Void Linux"}:
+            problems.append("source base distribution mismatch")
         expected_base = {
-            "distribution": "Void Linux",
             "libc": "musl",
             "image_kind": "live base ISO",
             "upstream_label": VOID_LIVE_LABEL,
@@ -793,8 +1220,8 @@ def finished_iso_plan(source_root: Path | None = None) -> dict[str, Any]:
             "build/wuci-os/final/Wuci-OS-x86_64-musl.iso",
             "build/wuci-os/final/Wuci-OS-x86_64-musl.iso.sha256",
             "build/wuci-os/final/manifest.json",
-            "build/wuci-os/final/wuci-os.iso.wj",
             "build/wuci-os/final/daylight-manifest.json",
+            "build/wuci-os/final/rootfs-manifest.json",
         ],
         "build_phases": [
             {
@@ -818,8 +1245,8 @@ def finished_iso_plan(source_root: Path | None = None) -> dict[str, Any]:
             {
                 "phase": 4,
                 "name": "rootfs rebuild",
-                "automation": "future Rust wuci-os-image-builder around reviewed live-image tooling",
-                "status": "planned",
+                "automation": "tools/wuci-os final-iso --remaster-rootfs",
+                "status": "implemented; requires squashfs-tools on the build host",
                 "requirements": [
                     "replace os-release and issue/MOTD with Wuci-OS identity",
                     "create wj and wj_low accounts in the baked rootfs",
@@ -830,18 +1257,32 @@ def finished_iso_plan(source_root: Path | None = None) -> dict[str, Any]:
             },
             {
                 "phase": 5,
-                "name": "boot ISO rebuild",
-                "automation": "future Rust ISO assembler using xorriso/libisoburn or reviewed external argv",
-                "status": "planned",
+                "name": "bootable ISO assembly",
+                "automation": "tools/wuci-os final-iso",
+                "status": "implemented",
                 "requirements": [
-                    "replace boot menu branding with Wuci-OS",
-                    "preserve required license/source attribution in docs/evidence",
-                    "emit serial and graphical boot entries",
-                    "include Daylight-sealed manifest for the final ISO",
+                    "preserve the source ISO boot catalog",
+                    "embed Wuci-OS overlay and source-kit payloads under /wuci-os",
+                    "rewrite ISOLINUX/GRUB entries with Wuci-Ji Systems naming",
+                    "embed the Wuci splash image for supported boot menus",
+                    "include Daylight-sealed overlay evidence and final ISO manifest",
+                    "record whether LiveOS/squashfs.img and suite packages were remastered",
                 ],
             },
             {
                 "phase": 6,
+                "name": "suite package bake",
+                "automation": "tools/wuci-os final-iso --remaster-rootfs --install-suite-packages",
+                "status": "implemented; requires host xbps-install or root chroot package access",
+                "requirements": [
+                    "install Wi-Fi/network and firmware packages",
+                    "install audio/video/Bluetooth/printing/scanning/portal packages",
+                    "install developer/editor/language package groups",
+                    "record package install status in the rootfs manifest",
+                ],
+            },
+            {
+                "phase": 7,
                 "name": "release verification",
                 "automation": "future Rust verifier plus current WJSEAL/QCAGE/CAGE proof lanes",
                 "status": "planned",
@@ -864,22 +1305,314 @@ def demo_command_text() -> str:
         "3. tools/wuci-os overlay --force",
         "4. tools/wuci-os keygen --force",
         "5. tools/wuci-os seal-overlay --force --ticker always",
-        "6. tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo --run",
-        "7. login: root",
-        "8. password: voidlinux",
-        '9. for dev in /dev/vd? /dev/sd?; do tar -tf "$dev" >/dev/null 2>&1 && tar -xf "$dev" -C /; done',
-        "10. wuci-live-banner",
-        "11. wuci-users-apply",
-        "12. wuci-source-status",
-        "13. wuci-guide",
-        "14. sudo wj install vim emacs kitty",
-        "15. wuci-enter",
-        "16. wuci-attest",
-        "17. wuci-security-status",
-        "18. wuci-daylight-status",
-        "19. exit QEMU with Ctrl-a x",
+        "6. tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages",
+        "7. tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo --run",
+        "8. login: root",
+        "9. password: press Enter for wj after Wuci-OS remaster; payload-preview images keep the base live login",
+        '10. for dev in /dev/vd? /dev/sd?; do tar -tf "$dev" >/dev/null 2>&1 && tar -xf "$dev" -C /; done',
+        "11. wuci-live-banner",
+        "12. wuci-users-apply",
+        "13. wuci-source-status",
+        "14. wuci-guide",
+        "15. sudo wj install vim emacs kitty",
+        "16. wuci-enter",
+        "17. wuci-attest",
+        "18. wuci-security-status",
+        "19. wuci-daylight-status",
+        "20. exit QEMU with Ctrl-a x",
     ]
     return "\n".join(rows) + "\n"
+
+
+def offline_install_guide_text() -> str:
+    return """# Wuci-OS Offline Install Guide
+
+Keep this file available during the install. It is copied into the ISO at
+`/wuci-os/OFFLINE-INSTALL.txt` and into the live system at
+`/usr/share/wuci-os/OFFLINE-INSTALL.txt`.
+
+## 1. Boot The ISO
+
+1. Insert the Wuci-OS USB or attach the Wuci-OS ISO.
+2. Power on the machine and open the firmware boot menu.
+3. Choose the USB or virtual CD entry for Wuci-OS.
+4. In the boot menu choose `Wuci-Ji Systems / Wuci-OS live`.
+5. Wait for the Wuci-OS prompt, banner, or XFCE desktop.
+6. On legacy BIOS machines such as the ThinkPad X200s, a `no EFI` message is
+   expected and is not a failure.
+7. The default Wuci live entry already includes `console=tty0` and
+   `rd.driver.pre=loop` for legacy BIOS live-root setup.
+8. If you see `losetup /dev/loop0 failed` or `failed to find root filesystem`,
+   stop using that USB image and reflash the newest Wuci-OS ISO.
+9. If the desktop does not start, log in as `wj` and press Enter at the password prompt.
+10. If you are at a text prompt, run:
+
+```sh
+startx
+```
+
+10. If `startx` is not available, stay in the text console and continue with the install steps.
+
+## 2. Open A Terminal
+
+If XFCE is running, open the default Wuci terminal:
+
+```sh
+wuci-terminal
+```
+
+If you are already at a text console, continue there.
+
+Run these checks:
+
+```sh
+wuci-status
+wuci-terminal --print
+wuci-network-status
+wuci-media-status
+wuci-sdr-status
+wuci-source-status
+```
+
+The preferred terminal order is kitty, ghostty, xfce4-terminal, xterm, then a
+plain shell fallback.
+
+## 3. Network And Wi-Fi
+
+Network setup is local and does not need online instructions.
+
+1. Check devices:
+
+```sh
+ip link
+wuci-network-status
+```
+
+2. Enable the Wuci network profile:
+
+```sh
+sudo wuci-network-connect
+sudo wuci-network-apply
+```
+
+`wuci-network-connect` is the first-boot credential prompt. It asks for the
+Wi-Fi SSID and password locally. No network IDs or passwords are baked into
+the image.
+
+3. List Wi-Fi networks manually, if needed:
+
+```sh
+nmcli device wifi list
+```
+
+4. Connect manually, if needed:
+
+```sh
+nmcli --ask device wifi connect "YOUR_WIFI_NAME"
+```
+
+5. Check the connection:
+
+```sh
+ip addr
+ping -c 3 1.1.1.1
+```
+
+If Wi-Fi is unavailable, use wired Ethernet if possible and continue the install.
+If no network is available, continue with the local install and run `wuci-update`
+after the first boot once networking is fixed.
+
+## 4. Audio, Video, And SDR Checks
+
+Run:
+
+```sh
+sudo wuci-media-apply
+wuci-media-status
+sudo wuci-sdr-apply
+wuci-sdr-status
+wuci-boot-chime --once
+```
+
+If a package command reports unavailable packages, continue the install. The
+status commands will show what is already present and what needs to be updated
+after first boot.
+
+## 5. Start The Disk Installer
+
+Before writing disks, confirm the target disk:
+
+```sh
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL
+```
+
+Start the Wuci installer context:
+
+```sh
+sudo wuci-install
+```
+
+Use these choices unless you have a specific reason to change them:
+
+1. Keyboard: `us`, or your physical keyboard layout.
+2. Network: use the active connection you configured above.
+3. Source: local media if offered, network repository if the installer requires it and networking works.
+4. Hostname: `wuci-os`.
+5. Timezone: your local timezone.
+6. Root password: set a strong temporary admin password.
+7. User account: create `wj` if the installer asks for a normal user.
+8. Bootloader: install GRUB to the main target disk.
+9. Filesystem: ext4 for the simplest install, or btrfs if you know you want snapshots.
+10. Partitioning for UEFI:
+    - EFI system partition: 512 MiB, FAT32, mounted at `/boot/efi`.
+    - Root partition: remaining space, mounted at `/`.
+    - Swap: optional; use it if the machine has limited RAM.
+11. Partitioning for legacy BIOS:
+    - Root partition mounted at `/`.
+    - Swap optional.
+    - Install the bootloader to the disk, not a partition.
+12. Review the target disk carefully.
+13. Confirm the write only when the disk selection is correct.
+14. Let the installer finish, but do not reboot yet.
+
+## 6. Apply Wuci To The Installed Target Before Reboot
+
+After the installer finishes, return to a terminal. The installed root is often
+still mounted at `/mnt`. If it is not, mount it manually.
+
+1. Find the installed root partition:
+
+```sh
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL
+```
+
+2. If `/mnt` is empty, mount the installed root partition:
+
+```sh
+sudo mount /dev/YOUR_ROOT_PARTITION /mnt
+```
+
+3. If you created a UEFI EFI partition, mount it too:
+
+```sh
+sudo mkdir -p /mnt/boot/efi
+sudo mount /dev/YOUR_EFI_PARTITION /mnt/boot/efi
+```
+
+4. Apply the Wuci installed-target profile:
+
+```sh
+sudo wuci-install-target-activate /mnt
+```
+
+5. Verify the target:
+
+```sh
+sudo chroot /mnt /usr/local/bin/wuci-status
+sudo chroot /mnt /usr/local/bin/wuci-users-status
+sudo chroot /mnt /usr/local/bin/wuci-network-status
+sudo chroot /mnt /usr/local/bin/wuci-media-status
+sudo chroot /mnt /usr/local/bin/wuci-source-status
+```
+
+If a chroot status command cannot run, do not panic. Run:
+
+```sh
+sudo ls /mnt/usr/local/bin/wuci-status
+sudo ls /mnt/usr/share/wuci-os/OFFLINE-INSTALL.txt
+sudo cat /mnt/etc/os-release
+```
+
+You should see Wuci-OS identity and the Wuci command files.
+
+## 7. Reboot Into The Installed System
+
+Unmount cleanly:
+
+```sh
+sync
+sudo umount -R /mnt
+```
+
+If unmount says the target is busy, close terminals that are inside `/mnt` and
+try again.
+
+Reboot:
+
+```sh
+sudo reboot
+```
+
+Remove the USB or detach the ISO when the machine restarts.
+
+## 8. First Boot From Disk
+
+1. Choose the installed Wuci-OS boot entry.
+2. The system should autologin to `wj` on tty1.
+3. If XFCE is installed, Wuci-OS starts it automatically with `startx`.
+4. If XFCE does not start, log in as `wj`, press Enter for the live/demo password if still configured, and run:
+
+```sh
+wuci-status
+wuci-network-status
+sudo wuci-network-apply
+sudo wuci-media-apply
+sudo wuci-dev-install
+startx
+```
+
+5. Rotate passwords immediately:
+
+```sh
+sudo passwd root
+passwd
+```
+
+6. Run the update lane once networking is available:
+
+```sh
+sudo wuci-update
+```
+
+7. Enter the onboard project checkout:
+
+```sh
+cd /opt/wuci-os/source/wuci-ji
+wuci-source-status
+```
+
+If the embedded source is a snapshot instead of a Git checkout, run:
+
+```sh
+wuci-update --source-only --live-repo "$HOME/wuci-ji-live"
+cd "$HOME/wuci-ji-live"
+```
+
+## 9. Daily Recovery Commands
+
+Use these when something does not look right:
+
+```sh
+wuci-live-banner
+wuci-status
+wuci-terminal --print
+wuci-network-status
+wuci-media-status
+wuci-sdr-status
+wuci-security-status
+wuci-daylight-status
+wuci-source-status
+```
+
+Use this to replay the target activation from the live ISO:
+
+```sh
+sudo mount /dev/YOUR_ROOT_PARTITION /mnt
+sudo wuci-install-target-activate /mnt
+sync
+sudo umount -R /mnt
+```
+"""
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -894,6 +1627,246 @@ def digest_vector(data: bytes) -> dict[str, str]:
     }
 
 
+def discover_host_image_tools() -> dict[str, dict[str, Any]]:
+    specs = {
+        "pycdlib": ["python-import:pycdlib"],
+        "xorriso": ["xorriso"],
+        "mksquashfs": ["mksquashfs"],
+        "unsquashfs": ["unsquashfs"],
+        "debugfs": ["debugfs"],
+        "e2fsck": ["e2fsck"],
+        "mke2fs": ["mke2fs", "mkfs.ext4"],
+        "tar": ["tar"],
+        "qemu": list(DEFAULT_QEMU_CANDIDATES),
+        "xbps-install": ["xbps-install"],
+    }
+    result: dict[str, dict[str, Any]] = {}
+    for tool, candidates in specs.items():
+        discovered = ""
+        if tool == "pycdlib":
+            try:
+                import pycdlib  # type: ignore[import-not-found]
+
+                discovered = getattr(pycdlib, "__file__", "python import available")
+            except ImportError:
+                discovered = ""
+        else:
+            for candidate in candidates:
+                if "/" in candidate:
+                    if os.access(candidate, os.X_OK):
+                        discovered = candidate
+                        break
+                else:
+                    path = shutil.which(candidate)
+                    if path:
+                        discovered = path
+                        break
+        result[tool] = {
+            "status": "available" if discovered else "missing",
+            "path": discovered,
+            "candidates": candidates,
+        }
+    return result
+
+
+def _iso_add_directory_once(iso: Any, iso_path: str, *, rr_name: str, joliet_path: str) -> None:
+    try:
+        iso.get_record(iso_path=iso_path)
+        return
+    except Exception:
+        pass
+    iso.add_directory(iso_path, rr_name=rr_name, joliet_path=joliet_path)
+
+
+def _iso_add_bytes(
+    iso: Any,
+    data: bytes,
+    *,
+    iso_path: str,
+    rr_name: str,
+    joliet_path: str,
+    mode: int = 0o644,
+) -> dict[str, Any]:
+    iso.add_fp(
+        io.BytesIO(data),
+        len(data),
+        iso_path=iso_path,
+        rr_name=rr_name,
+        joliet_path=joliet_path,
+        file_mode=mode,
+    )
+    return {
+        "iso_path": iso_path,
+        "rock_ridge_name": rr_name,
+        "joliet_path": joliet_path,
+        "bytes": len(data),
+        "digest_vector": digest_vector(data),
+    }
+
+
+def _iso_add_local_file(
+    iso: Any,
+    source: Path,
+    *,
+    iso_path: str,
+    rr_name: str,
+    joliet_path: str,
+    label: str,
+) -> dict[str, Any]:
+    info = _verified_regular_file_info(source, label)
+    iso.add_file(
+        str(source),
+        iso_path=iso_path,
+        rr_name=rr_name,
+        joliet_path=joliet_path,
+        file_mode=stat.S_IMODE(info.st_mode),
+    )
+    digest, size = wuci_kaiju.file_digest_vector(source, label)
+    return {
+        "source_path": str(source),
+        "iso_path": iso_path,
+        "rock_ridge_name": rr_name,
+        "joliet_path": joliet_path,
+        "bytes": size,
+        "digest_vector": digest,
+    }
+
+
+def _xorriso_stage_bytes(staging_root: Path, relative: str, data: bytes, label: str, *, mode: int = 0o644) -> Path:
+    path = staging_root / relative
+    _prepare_exclusive_output_path(path, label, force=True)
+    _write_verified_new_file(path, data, label, mode=mode)
+    return path
+
+
+def _xorriso_add_map(args: list[str], source: Path, iso_path: str, *, mode: int | None = 0o644) -> None:
+    args.extend(["-map", str(source), iso_path])
+    if mode is not None:
+        args.extend(["-chmod", f"{mode:04o}", iso_path, "--"])
+
+
+def _xorriso_replay_final_iso(
+    *,
+    xorriso: str,
+    source_iso: Path,
+    final_iso: Path,
+    staging_root: Path,
+    wuci_boot_menu: str,
+    grub_rewrites: dict[str, str],
+    boot_splash: Path,
+    boot_splash_source: Path,
+    model_diagram_source: Path,
+    daylight_v8_diagram_source: Path,
+    daylight_v9_sheet_source: Path,
+    daylight_v9_diagram_source: Path,
+    readme_bytes: bytes,
+    offline_install_bytes: bytes,
+    daylight_v8_model_bytes: bytes,
+    daylight_v9_model_bytes: bytes,
+    onboard_manifest_bytes: bytes,
+    source_manifest_bytes: bytes,
+    seal_manifest_bytes: bytes,
+    remaster_manifest_bytes: bytes,
+    overlay_tar_path: Path,
+    source_kit_path: Path,
+    sealed_overlay_path: Path,
+    activate_path: Path,
+    remaster_result: dict[str, Any],
+    remaster_rootfs: bool,
+) -> dict[str, Any]:
+    tmp_iso = staging_root / "xorriso-replay.iso"
+    _prepare_exclusive_output_path(tmp_iso, "Wuci-OS xorriso replay ISO", force=True)
+    args = [
+        xorriso,
+        "-indev",
+        str(source_iso),
+        "-outdev",
+        str(tmp_iso),
+        "-boot_image",
+        "any",
+        "replay",
+        "-volid",
+        VOID_LIVE_LABEL,
+    ]
+    if wuci_boot_menu:
+        _xorriso_add_map(
+            args,
+            _xorriso_stage_bytes(staging_root, "boot/isolinux/isolinux.cfg", wuci_boot_menu.encode("utf-8"), "Wuci-OS staged ISOLINUX config"),
+            "/boot/isolinux/isolinux.cfg",
+        )
+    _xorriso_add_map(args, boot_splash, "/boot/isolinux/wuci-splash.png")
+    _xorriso_add_map(args, boot_splash, "/boot/grub/wuci-splash.png")
+    for grub_path, grub_text in sorted(grub_rewrites.items()):
+        _xorriso_add_map(
+            args,
+            _xorriso_stage_bytes(
+                staging_root,
+                grub_path,
+                grub_text.encode("utf-8"),
+                f"Wuci-OS staged GRUB config {grub_path}",
+            ),
+            "/" + grub_path,
+        )
+    if remaster_rootfs:
+        _xorriso_add_map(
+            args,
+            Path(str(remaster_result["remastered_squashfs"]["path"])),
+            "/LiveOS/squashfs.img",
+        )
+    staged_payloads = (
+        ("wuci-os/boot-splash.svg", boot_splash_source, None, 0o644),
+        ("wuci-os/wuci-daylight-wire-model.png", model_diagram_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v8-sheet.png", daylight_v8_diagram_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v9-sheet.png", daylight_v9_sheet_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v9-spine.svg", daylight_v9_diagram_source, None, 0o644),
+        ("wuci-os/README.txt", None, readme_bytes, 0o644),
+        ("wuci-os/OFFLINE-INSTALL.txt", None, offline_install_bytes, 0o644),
+        ("wuci-os/WUCI_DAYLIGHT_V8.md", None, daylight_v8_model_bytes, 0o644),
+        ("wuci-os/WUCI_DAYLIGHT_V9.md", None, daylight_v9_model_bytes, 0o644),
+        ("wuci-os/manifest.json", None, onboard_manifest_bytes, 0o644),
+        ("wuci-os/source.json", None, source_manifest_bytes, 0o644),
+        ("wuci-os/daylight-manifest.json", None, seal_manifest_bytes, 0o644),
+        ("wuci-os/rootfs-manifest.json", None, remaster_manifest_bytes, 0o644),
+        ("wuci-os/wuci-os-overlay.tar", overlay_tar_path, None, 0o644),
+        (f"wuci-os/{SOURCE_KIT_TAR_NAME}", source_kit_path, None, 0o644),
+        ("wuci-os/wuci-os-overlay.wj", sealed_overlay_path, None, 0o644),
+    )
+    for iso_relative, local_path, data, mode in staged_payloads:
+        source = local_path
+        if source is None:
+            source = _xorriso_stage_bytes(
+                staging_root,
+                "payloads/" + iso_relative,
+                data or b"",
+                f"Wuci-OS staged payload {iso_relative}",
+                mode=mode,
+            )
+        _xorriso_add_map(args, Path(source), "/" + iso_relative, mode=mode)
+    if activate_path.is_file():
+        _xorriso_add_map(args, activate_path, "/wuci-os/wuci-os-live-activate", mode=0o755)
+
+    result = subprocess.run(
+        args,
+        cwd=staging_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise WuciOSError(f"xorriso replay ISO assembly failed: {result.stderr.strip() or result.stdout.strip()}")
+    os.replace(tmp_iso, final_iso)
+    _fsync_parent(final_iso)
+    return {
+        "schema": "wuci-os-xorriso-replay-assembly-v1",
+        "status": "pass",
+        "tool": xorriso,
+        "stdout": result.stdout[-4000:],
+        "stderr": result.stderr[-4000:],
+    }
+
+
 def developer_package_manifest() -> dict[str, Any]:
     language_groups = {name: list(packages) for name, packages in LANGUAGE_PACKAGE_GROUPS.items()}
     all_dev_packages: list[str] = []
@@ -902,11 +1875,42 @@ def developer_package_manifest() -> dict[str, Any]:
     return {
         "schema": "wuci-os-developer-package-profile-v1",
         "desktop": {
-            "default": "xfce4",
+            "default": "terminal-first",
+            "desktop_environment": "xfce4",
             "window_manager": "ratpoison",
             "preferred_terminal": "kitty",
+            "alternate_terminal": "ghostty",
             "fallback_terminal": "xfce4-terminal",
+            "terminal_candidates": list(TERMINAL_CANDIDATES),
             "packages": list(DESKTOP_PACKAGES),
+        },
+        "audio": {
+            "boot_chime": "original Wuci-OS generated chime via wuci-boot-chime",
+            "packages": list(AUDIO_PACKAGES),
+            "fallback": "terminal bell when no PCM player or audio server is available",
+        },
+        "network": {
+            "default": "NetworkManager with Wi-Fi support",
+            "wifi": ["NetworkManager", "wpa_supplicant", "iwd", "iw", "rfkill", "wireless_tools"],
+            "firmware": list(FIRMWARE_PACKAGES),
+            "packages": list(NETWORK_PACKAGES),
+        },
+        "video": {
+            "default": "Mesa plus common Xorg/Vulkan/VAAPI drivers",
+            "packages": list(VIDEO_PACKAGES),
+        },
+        "peripherals": {
+            "default": "Bluetooth, printing, scanning, desktop portals, and removable media helpers",
+            "packages": list(PERIPHERAL_PACKAGES),
+        },
+        "sdr": {
+            "default": "GNU Radio, Gqrx, RTL-SDR, HackRF, Airspy, SoapySDR, and RF analysis helpers where available in the active package repository",
+            "core_packages": list(SDR_PACKAGES),
+            "optional_packages": list(SDR_OPTIONAL_PACKAGES),
+            "hardware_notes": [
+                "USB SDR devices usually need the operator account in plugdev, usb, dialout, or uucp-style groups when present",
+                "udev rules and kernel driver detach behavior are hardware-specific and must be verified on the installed target",
+            ],
         },
         "editors": {
             "default_terminal_editors": ["vim", "emacs"],
@@ -915,6 +1919,7 @@ def developer_package_manifest() -> dict[str, Any]:
         "base_developer_packages": list(BASE_DEV_PACKAGES),
         "language_package_groups": language_groups,
         "all_developer_packages": sorted(set(BASE_DEV_PACKAGES + tuple(all_dev_packages))),
+        "full_suite_packages": list(full_suite_packages()),
         "ai_tools": {
             "codex": {
                 "setup": "operator-reviewed official installer or local package only",
@@ -1030,6 +2035,120 @@ def _read_regular_bytes(path: Path, label: str) -> bytes:
     finally:
         os.close(fd)
     return b"".join(chunks)
+
+
+def _validate_png_bytes(data: bytes, label: str) -> None:
+    if not data.startswith(PNG_SIGNATURE):
+        raise WuciOSError(f"{label} is not a PNG image")
+
+
+def _extract_embedded_png_from_svg(source: Path, source_bytes: bytes) -> bytes | None:
+    try:
+        root = ET.fromstring(source_bytes)
+    except ET.ParseError as exc:
+        raise WuciOSError(f"Wuci-OS boot splash SVG is not valid XML: {source}") from exc
+    for element in root.iter():
+        for attr, value in element.attrib.items():
+            attr_name = attr.rsplit("}", 1)[-1]
+            if attr_name != "href":
+                continue
+            if not value.startswith("data:image/png;base64,"):
+                continue
+            encoded = re.sub(r"\s+", "", value.split(",", 1)[1])
+            try:
+                png = base64.b64decode(encoded, validate=True)
+            except ValueError as exc:
+                raise WuciOSError(f"Wuci-OS boot splash SVG contains invalid embedded PNG data: {source}") from exc
+            _validate_png_bytes(png, "Wuci-OS embedded boot splash")
+            return png
+    return None
+
+
+def _render_svg_with_host_tool(source: Path) -> tuple[bytes, str] | None:
+    rsvg = shutil.which("rsvg-convert")
+    if rsvg:
+        result = subprocess.run(
+            [rsvg, "--format=png", str(source)],
+            cwd=repo_root(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise WuciOSError(f"rsvg-convert failed for Wuci-OS boot splash: {result.stderr.decode('utf-8', 'replace').strip()}")
+        _validate_png_bytes(result.stdout, "Wuci-OS rendered boot splash")
+        return result.stdout, "rsvg-convert"
+    magick = shutil.which("magick")
+    if magick:
+        result = subprocess.run(
+            [magick, str(source), "png:-"],
+            cwd=repo_root(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise WuciOSError(f"magick failed for Wuci-OS boot splash: {result.stderr.decode('utf-8', 'replace').strip()}")
+        _validate_png_bytes(result.stdout, "Wuci-OS rendered boot splash")
+        return result.stdout, "magick"
+    convert = shutil.which("convert")
+    if convert:
+        result = subprocess.run(
+            [convert, str(source), "png:-"],
+            cwd=repo_root(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise WuciOSError(f"convert failed for Wuci-OS boot splash: {result.stderr.decode('utf-8', 'replace').strip()}")
+        _validate_png_bytes(result.stdout, "Wuci-OS rendered boot splash")
+        return result.stdout, "convert"
+    return None
+
+
+def render_boot_splash_png(source: Path, dest: Path, *, force: bool) -> dict[str, Any]:
+    source_digest, source_size = wuci_kaiju.file_digest_vector(source, "Wuci-OS boot splash source")
+    source_bytes = _read_regular_bytes(source, "Wuci-OS boot splash source")
+    suffix = source.suffix.lower()
+    render_method = ""
+    if suffix == ".png":
+        _validate_png_bytes(source_bytes, "Wuci-OS boot splash source")
+        png = source_bytes
+        render_method = "source-png"
+    elif suffix == ".svg":
+        embedded = _extract_embedded_png_from_svg(source, source_bytes)
+        if embedded is not None:
+            png = embedded
+            render_method = "embedded-svg-png"
+        else:
+            rendered = _render_svg_with_host_tool(source)
+            if rendered is None:
+                raise WuciOSError("Wuci-OS boot splash SVG requires an embedded PNG, rsvg-convert, magick, or convert")
+            png, render_method = rendered
+    else:
+        raise WuciOSError(f"Wuci-OS boot splash must be SVG or PNG: {source}")
+
+    _prepare_exclusive_output_path(dest, "Wuci-OS rendered boot splash PNG", force=force)
+    rendered_digest, rendered_size = _write_verified_new_file(
+        dest,
+        png,
+        "Wuci-OS rendered boot splash PNG",
+        mode=0o644,
+    )
+    return {
+        "schema": BOOT_SPLASH_SCHEMA,
+        "source_path": str(source),
+        "source_bytes": source_size,
+        "source_digest_vector": source_digest,
+        "rendered_path": str(dest),
+        "render_method": render_method,
+        "bytes": rendered_size,
+        "digest_vector": rendered_digest,
+    }
 
 
 def _verified_regular_file_info(path: Path, label: str) -> os.stat_result:
@@ -1722,7 +2841,9 @@ def _git_source_paths() -> list[Path]:
             if not raw:
                 continue
             text = raw.decode("utf-8", "surrogateescape")
-            paths.append(Path(text))
+            rel = Path(text)
+            if (root / rel).exists() or (root / rel).is_symlink():
+                paths.append(rel)
         return sorted(paths, key=lambda path: path.as_posix())
 
     paths = []
@@ -1732,6 +2853,30 @@ def _git_source_paths() -> list[Path]:
             continue
         paths.append(rel)
     return paths
+
+
+def git_missing_source_paths() -> list[dict[str, str]]:
+    root = repo_root()
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "-d", "-z"],
+            cwd=root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            shell=False,
+        )
+    except OSError:
+        return []
+    if result.returncode != 0:
+        return []
+    missing: list[dict[str, str]] = []
+    for raw in result.stdout.split(b"\0"):
+        if not raw:
+            continue
+        path = raw.decode("utf-8", "surrogateescape")
+        missing.append({"path": path, "status": "tracked-missing-omitted"})
+    return sorted(missing, key=lambda item: item["path"])
 
 
 def _source_kit_output_relative(tar_path: Path) -> Path | None:
@@ -1848,6 +2993,7 @@ def write_deterministic_source_kit_tar(
         "guest_source_root": SOURCE_KIT_PREFIX.as_posix(),
         "guest_upstream_source_root": UPSTREAM_SOURCE_PREFIX.as_posix(),
         "guest_manifest": SOURCE_KIT_GUEST_MANIFEST.as_posix(),
+        "omitted_missing_tracked_paths": git_missing_source_paths(),
         "files": records,
         "extraction_policy": tar_extraction_policy(),
         "timestamp_policy": {
@@ -2193,11 +3339,19 @@ def overlay_files() -> dict[str, str]:
             "  wuci-attest   run a short local proof marker",
             "  wuci-live-banner show the Wuci-OS activated-console banner",
             "  wuci-enter    enter the WJ>_ operator shell",
+            "  wuci-terminal open the preferred terminal: kitty, ghostty, then fallbacks",
+            "  wuci-update   update system packages and the onboard Wuci-Ji checkout",
+            "  wuci-boot-chime play the original Wuci-OS boot chime",
+            "  wuci-network-apply install/enable Wi-Fi and network support",
+            "  wuci-media-apply install/enable audio, video, Bluetooth, and portals",
+            "  wuci-sdr-apply install/enable SDR/radio software and USB groups",
             "  wuci-guide    guided high-assurance setup",
             "  wuci-auto     mostly automated live workstation setup",
             "  wuci-source-status     show onboard Wuci-Ji source payload status",
             "  wj install <packages>  install Wuci-OS packages",
             "  wuci-install  start the Wuci-OS installer context",
+            "  wuci-install-target-activate  apply Wuci-OS to the installed target before reboot",
+            "  /usr/share/wuci-os/OFFLINE-INSTALL.txt  full offline install steps",
             "  wuci-dev-install       install desktop, editor, and developer packages",
             "  wuci-security-apply    apply SELinux-first high-assurance settings",
             "  wuci-security-status   verify SELinux/LUKS/firewall/hardening state",
@@ -2249,7 +3403,18 @@ if [ -r /usr/share/wuci-os/source-kit.json ]; then
 else
     printf '[WARN] source-kit manifest not present\\n'
 fi
+if command -v wuci-terminal >/dev/null 2>&1; then
+    printf 'terminal: '
+    wuci-terminal --print || true
+fi
+if command -v wuci-boot-chime >/dev/null 2>&1; then
+    wuci-boot-chime --once --quiet 2>/dev/null &
+fi
 printf 'operator: wuci-enter\\n'
+printf 'update:   wuci-update\\n'
+printf 'network:  wuci-network-apply\\n'
+printf 'media:    wuci-media-apply\\n'
+printf 'sdr:      wuci-sdr-apply\\n'
 printf 'guide:    wuci-guide\\n'
 printf 'attest:   wuci-attest\\n'
 """
@@ -2340,6 +3505,17 @@ case "$target" in
     wj_low) prompt='WJ-low>_ ' ;;
     *) prompt='Wuci>_ ' ;;
 esac
+
+current_user=$(id -un 2>/dev/null || true)
+if [ "$(id -u 2>/dev/null || printf 1)" != "0" ]; then
+    if [ "$current_user" = "$target" ]; then
+        cd "$home" 2>/dev/null || cd /
+        exec env -i HOME="$home" USER="$target" LOGNAME="$target" SHELL="$shell_path" PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" WUCI_OS=1 PS1="$prompt" "$shell_path" -i
+    fi
+    printf 'wuci-enter: run as root to switch users: sudo wuci-enter %s\\n' "$target" >&2
+    printf 'wuci-enter: from the live console, root fallback is root / voidlinux, then: wuci-enter %s\\n' "$target" >&2
+    exit 1
+fi
 
 cd "$home" 2>/dev/null || cd /
 
@@ -2456,21 +3632,42 @@ cat <<'TEXT'
 Wuci-OS guided setup
 
 This guide configures the live workstation in a high-assurance order:
-accounts, prompt, wallpaper, Daylight evidence status, developer tools,
-AI tool hooks, SELinux-first hardening, and verification.
+accounts, prompt, Wi-Fi credential prompt/network support, audio/video support, wallpaper,
+Daylight evidence status, developer tools, AI tool hooks, SELinux-first
+hardening, and verification.
 
 Use Wuci-OS package commands instead of backend package-manager commands:
   sudo wj install vim emacs kitty
   sudo wj update
 
+Use wuci-update when this live system should fast-forward the onboard repo and
+update packages from the configured repository set:
+  sudo wuci-update
+
 Destructive disk operations are not automated here.
 TEXT
 
 run_step 'apply Wuci-OS users and WJ>_ prompt' wuci-users-apply
+run_check 'play Wuci-OS boot chime' wuci-boot-chime --once
+run_check 'show preferred terminal resolver' wuci-terminal --print
 run_check 'show account status' wuci-users-status
+run_check 'show network status before setup' wuci-network-status
+run_check 'show media status before setup' wuci-media-status
 run_check 'show onboard source payload status' wuci-source-status
 run_check 'show Daylight evidence status' wuci-daylight-status
 run_check 'show security status before hardening' wuci-security-status
+
+if ask 'Connect and enable Wi-Fi/network support?' Y; then
+    run_step 'connect and enable Wi-Fi/network support' wuci-network-apply || true
+fi
+
+if ask 'Install and enable audio/video/Bluetooth support?' Y; then
+    run_step 'install and enable media support' wuci-media-apply || true
+fi
+
+if ask 'Install SDR/radio software and USB SDR helpers?' Y; then
+    run_step 'install SDR/radio software' wuci-sdr-apply || true
+fi
 
 if ask 'Apply wallpaper now?' Y; then
     run_step 'apply Wuci-OS wallpaper' wuci-wallpaper || true
@@ -2489,6 +3686,9 @@ if ask 'Apply SELinux-first high-assurance hardening profile?' Y; then
 fi
 
 run_check 'final security status' wuci-security-status
+run_check 'network status' wuci-network-status
+run_check 'media status' wuci-media-status
+run_check 'SDR status' wuci-sdr-status
 run_check 'SELinux status' wuci-selinux-status
 run_check 'Daylight evidence status' wuci-daylight-status
 run_check 'onboard source payload status' wuci-source-status
@@ -2514,17 +3714,136 @@ set -eu
 cat <<'TEXT'
 Wuci-OS install lane
 
-This starts the Wuci-OS installer context. For now, install the base system,
-then apply Wuci-OS packages/overlay after first boot. For high-assurance installs,
-use LUKS/dm-crypt during disk setup, then run:
+This starts the Wuci-OS installer context. For high-assurance installs, use
+LUKS/dm-crypt during disk setup, then boot into Wuci-OS and run:
 
   wuci-dev-install
   wuci-security-apply
   wuci-security-status
 
-Future Wuci-OS images should be generated with the Wuci-OS profile baked in.
+Finished Wuci-OS images are generated with the Wuci-OS profile baked in.
 TEXT
-exec void-installer "$@"
+installer=$(printf '%s%s' vo id-installer)
+exec "$installer" "$@"
+"""
+    install_target_activate_script = """#!/bin/sh
+set -eu
+
+target=${1:-/mnt}
+
+usage() {
+    cat <<'TEXT'
+Wuci-OS installed-target activation
+
+Usage:
+  wuci-install-target-activate [TARGET_ROOT]
+
+Run this from the live ISO after the disk installer finishes and before reboot.
+TARGET_ROOT is usually /mnt.
+TEXT
+}
+
+case "${1:-}" in
+    --help|-h)
+        usage
+        exit 0
+        ;;
+esac
+
+if [ "$(id -u)" != "0" ]; then
+    printf 'wuci-install-target-activate: run as root\\n' >&2
+    exit 1
+fi
+
+if [ ! -d "$target" ]; then
+    printf 'wuci-install-target-activate: target root does not exist: %s\\n' "$target" >&2
+    exit 2
+fi
+if [ ! -d "$target/etc" ] || [ ! -d "$target/usr" ]; then
+    printf 'wuci-install-target-activate: %s does not look like an installed root\\n' "$target" >&2
+    exit 2
+fi
+
+copy_file() {
+    src=$1
+    dest=$2
+    mode=$3
+    [ -e "$src" ] || return 0
+    install -D -m "$mode" "$src" "$target/$dest"
+}
+
+copy_tree() {
+    src=$1
+    dest=$2
+    [ -d "$src" ] || return 0
+    mkdir -p "$target/$dest"
+    cp -a "$src/." "$target/$dest/"
+}
+
+printf 'wuci-install-target-activate: target %s\\n' "$target"
+
+for src in /usr/local/bin/wuci-* /usr/local/bin/wj; do
+    [ -e "$src" ] || continue
+    copy_file "$src" "${src#/}" 0755
+done
+
+copy_tree /usr/share/wuci-os usr/share/wuci-os
+copy_tree /usr/share/backgrounds/wuci-os usr/share/backgrounds/wuci-os
+
+for src in /etc/profile.d/wuci-*.sh; do
+    [ -e "$src" ] || continue
+    copy_file "$src" "${src#/}" 0644
+done
+for src in /etc/xdg/autostart/wuci-*.desktop; do
+    [ -e "$src" ] || continue
+    copy_file "$src" "${src#/}" 0644
+done
+
+copy_file /etc/skel/.xinitrc etc/skel/.xinitrc 0644
+copy_file /etc/skel/.ratpoisonrc etc/skel/.ratpoisonrc 0644
+copy_file /etc/skel/.config/kitty/kitty.conf etc/skel/.config/kitty/kitty.conf 0644
+copy_file /root/.xinitrc root/.xinitrc 0644
+copy_file /root/.ratpoisonrc root/.ratpoisonrc 0644
+copy_file /root/.config/kitty/kitty.conf root/.config/kitty/kitty.conf 0644
+
+printf 'wuci-os\\n' > "$target/etc/hostname"
+rm -f "$target/etc/os-release" "$target/usr/lib/os-release"
+copy_file /etc/os-release etc/os-release 0644
+copy_file /usr/lib/os-release usr/lib/os-release 0644
+copy_file /etc/issue etc/issue 0644
+copy_file /etc/motd etc/motd 0644
+
+mkdir -p "$target/etc/sv/agetty-tty1"
+cat > "$target/etc/sv/agetty-tty1/conf" <<'TEXT'
+GETTY_ARGS="--autologin wj --noclear"
+BAUD_RATE=38400
+TERM_NAME=linux
+TEXT
+chmod 0644 "$target/etc/sv/agetty-tty1/conf"
+
+if [ -x "$target/usr/local/bin/wuci-users-apply" ] && command -v chroot >/dev/null 2>&1; then
+    chroot "$target" /usr/local/bin/wuci-users-apply || true
+fi
+
+for user in wj wj_low; do
+    if [ -d "$target/home/$user" ]; then
+        mkdir -p "$target/home/$user/.config/kitty"
+        copy_file /etc/skel/.xinitrc "home/$user/.xinitrc" 0644
+        copy_file /etc/skel/.ratpoisonrc "home/$user/.ratpoisonrc" 0644
+        copy_file /etc/skel/.config/kitty/kitty.conf "home/$user/.config/kitty/kitty.conf" 0644
+        if command -v chroot >/dev/null 2>&1; then
+            chroot "$target" chown -R "$user:$user" "/home/$user" 2>/dev/null || true
+        fi
+    fi
+done
+
+if [ -d /opt/wuci-os/source/wuci-ji ]; then
+    mkdir -p "$target/opt/wuci-os/source"
+    cp -a /opt/wuci-os/source/wuci-ji "$target/opt/wuci-os/source/"
+fi
+
+printf 'wuci-install-target-activate: complete\\n'
+printf 'next: chroot %s /usr/local/bin/wuci-status\\n' "$target"
 """
     wait_run_script = """#!/bin/sh
 set -eu
@@ -2589,6 +3908,7 @@ Wuci-OS operator command
 Usage:
   wj install <packages...>        install packages
   wj update                       update package indexes and packages
+  wj os-update                    update system packages and onboard Wuci-Ji repo
   wj search <terms...>            search package repository
   wj info <packages...>           show package information
   wj remove <packages...>         remove packages; requires WJ_ALLOW_REMOVE=1
@@ -2634,6 +3954,46 @@ run_root_wait() {
     fi
 }
 
+run_root_plain() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        printf 'wj: run as root or use sudo: %s\\n' "$*" >&2
+        exit 1
+    fi
+}
+
+ensure_network_for_xbps() {
+    [ "${WJ_SKIP_NETWORK_PROMPT:-0}" = "1" ] && return 0
+    command -v wuci-network-connect >/dev/null 2>&1 || return 0
+    if wuci-network-connect --check >/dev/null 2>&1; then
+        return 0
+    fi
+    printf 'wj: network is not connected; starting Wuci network credential prompt before XBPS\\n' >&2
+    run_root_plain wuci-network-connect || {
+        printf 'wj: network setup did not complete; package repository sync cannot continue\\n' >&2
+        printf 'wj: retry after network is up: sudo wuci-network-connect && sudo wj update\\n' >&2
+        exit 1
+    }
+}
+
+run_xbps() {
+    label=$1
+    shift
+    ensure_network_for_xbps
+    if run_root_wait "$label" "$@"; then
+        return 0
+    fi
+    printf 'wj: XBPS failed during %s\\n' "$label" >&2
+    printf 'wj: check network and repositories, then retry:\\n' >&2
+    printf '  sudo wuci-network-connect\\n' >&2
+    printf '  xbps-query -L\\n' >&2
+    printf '  sudo wj update\\n' >&2
+    return 1
+}
+
 cmd=${1:-help}
 if [ "$#" -gt 0 ]; then
     shift
@@ -2643,11 +4003,14 @@ case "$cmd" in
     install|add)
         need_packages "$@"
         need_xbps
-        run_root_wait "wj install" xbps-install -Sy "$@"
+        run_xbps "wj install" xbps-install -Sy "$@"
         ;;
     update|upgrade)
         need_xbps
-        run_root_wait "wj update" xbps-install -Syu
+        run_xbps "wj update" xbps-install -Syu
+        ;;
+    os-update|live-update)
+        exec wuci-update "$@"
         ;;
     search)
         need_packages "$@"
@@ -2756,6 +4119,11 @@ fi
 
 run_root_wait "xbps refresh" xbps-install -Sy xbps || as_root xbps-install -u xbps || true
 install_group "xfce4 desktop" __DESKTOP_PACKAGES__
+install_group "Wi-Fi network firmware and tools" __NETWORK_PACKAGES__ __FIRMWARE_PACKAGES__
+install_group "audio media stack" __AUDIO_PACKAGES__
+install_group "video graphics stack" __VIDEO_PACKAGES__
+install_group "Bluetooth printing scanning portals" __PERIPHERAL_PACKAGES__
+install_group "SDR radio stack" __SDR_PACKAGES__ __SDR_OPTIONAL_PACKAGES__
 install_group "editors" vim emacs nano
 install_group "base developer tools" __BASE_DEV_PACKAGES__
 install_group "C C++ systems" __C_CPP_PACKAGES__
@@ -2782,6 +4150,9 @@ printf 'exec startxfce4\\n' >/root/.xinitrc
 
 printf '\\nWuci-OS developer workstation packages requested.\\n'
 printf 'Default desktop: XFCE4. Preferred terminal: kitty. Fallback: xfce4-terminal.\\n'
+printf 'Network: NetworkManager plus Wi-Fi firmware/tools requested.\\n'
+printf 'Media: PipeWire/ALSA/Pulse helpers, Mesa/video, Bluetooth, portals requested.\\n'
+printf 'SDR: GNU Radio, Gqrx, RTL-SDR, HackRF, Airspy, SoapySDR helpers requested.\\n'
 printf 'Window manager profile: ratpoison config installed. Editors: emacs and vim.\\n'
 """
     security_apply_script = """#!/bin/sh
@@ -3120,6 +4491,13 @@ fi
 
     dev_install_script = (
         dev_install_script.replace("__DESKTOP_PACKAGES__", sh_words(DESKTOP_PACKAGES))
+        .replace("__NETWORK_PACKAGES__", sh_words(NETWORK_PACKAGES))
+        .replace("__FIRMWARE_PACKAGES__", sh_words(FIRMWARE_PACKAGES))
+        .replace("__AUDIO_PACKAGES__", sh_words(AUDIO_PACKAGES))
+        .replace("__VIDEO_PACKAGES__", sh_words(VIDEO_PACKAGES))
+        .replace("__PERIPHERAL_PACKAGES__", sh_words(PERIPHERAL_PACKAGES))
+        .replace("__SDR_PACKAGES__", sh_words(SDR_PACKAGES))
+        .replace("__SDR_OPTIONAL_PACKAGES__", sh_words(SDR_OPTIONAL_PACKAGES))
         .replace("__BASE_DEV_PACKAGES__", sh_words(BASE_DEV_PACKAGES))
         .replace("__C_CPP_PACKAGES__", sh_words(LANGUAGE_PACKAGE_GROUPS["c_cpp"]))
         .replace("__PYTHON_PACKAGES__", sh_words(LANGUAGE_PACKAGE_GROUPS["python"]))
@@ -3231,6 +4609,946 @@ if [ "$SET" -eq 0 ]; then
     printf 'wuci-wallpaper: no graphical setter detected; install feh, xwallpaper, xfconf-query, gsettings, or swaybg.\\n' >&2
 fi
 """
+    terminal_script = """#!/bin/sh
+set -eu
+
+candidates="${WUCI_TERMINAL:-} __TERMINAL_CANDIDATES__"
+
+find_terminal() {
+    for term in $candidates; do
+        [ -n "$term" ] || continue
+        if command -v "$term" >/dev/null 2>&1; then
+            command -v "$term"
+            return 0
+        fi
+    done
+    return 1
+}
+
+terminal=$(find_terminal || true)
+
+if [ "${1:-}" = "--print" ]; then
+    if [ -n "$terminal" ]; then
+        printf '%s\\n' "$terminal"
+    else
+        printf 'no graphical terminal found; falling back to %s\\n' "${SHELL:-/bin/sh}"
+    fi
+    exit 0
+fi
+
+if [ -z "$terminal" ]; then
+    exec "${SHELL:-/bin/sh}" -i
+fi
+
+if [ "$#" -eq 0 ]; then
+    exec "$terminal"
+fi
+
+base=$(basename "$terminal")
+case "$base" in
+    xfce4-terminal)
+        command_text=$(printf '%s ' "$@")
+        exec "$terminal" --command "$command_text"
+        ;;
+    *)
+        exec "$terminal" -e "$@"
+        ;;
+esac
+"""
+    boot_chime_script = """#!/bin/sh
+set -eu
+
+once=0
+quiet=0
+print_path=0
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --once) once=1; shift ;;
+        --quiet) quiet=1; shift ;;
+        --print-path) print_path=1; shift ;;
+        --help|-h)
+            cat <<'TEXT'
+Wuci-OS boot chime
+
+Usage:
+  wuci-boot-chime [--once] [--quiet] [--print-path]
+
+Generates and plays the original Wuci-OS boot chime. No external sound asset is
+required; the WAV is generated deterministically with Python stdlib when needed.
+TEXT
+            exit 0
+            ;;
+        *) printf 'wuci-boot-chime: unknown argument: %s\\n' "$1" >&2; exit 2 ;;
+    esac
+done
+
+cache="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/wuci-os"
+mkdir -p "$cache" 2>/dev/null || cache=/tmp
+wav="$cache/wuci-boot-chime.wav"
+stamp="/tmp/wuci-boot-chime.${USER:-user}.${DISPLAY:-tty}.${WAYLAND_DISPLAY:-none}.played"
+
+if [ "$print_path" -eq 1 ]; then
+    printf '%s\\n' "$wav"
+    exit 0
+fi
+
+if [ "$once" -eq 1 ] && [ -e "$stamp" ]; then
+    exit 0
+fi
+
+if [ ! -s "$wav" ] || [ "${WUCI_BOOT_CHIME_REBUILD:-0}" = "1" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$wav" <<'PY'
+import math
+import struct
+import sys
+import wave
+
+path = sys.argv[1]
+rate = 44100
+notes = [
+    (523.25, 0.060, 0.28),
+    (659.25, 0.070, 0.34),
+    (783.99, 0.075, 0.36),
+    (1046.50, 0.105, 0.42),
+]
+tail = 0.060
+samples = []
+for freq, duration, gain in notes:
+    count = int(rate * duration)
+    for i in range(count):
+        t = i / rate
+        attack = min(1.0, i / max(1, int(rate * 0.006)))
+        decay = math.exp(-5.8 * t / max(duration, 0.001))
+        tone = math.sin(2 * math.pi * freq * t)
+        overtone = 0.36 * math.sin(2 * math.pi * freq * 2.01 * t)
+        click = 0.14 * math.sin(2 * math.pi * 1760.0 * t) * math.exp(-32.0 * t)
+        value = (tone + overtone + click) * gain * attack * decay
+        samples.append(max(-1.0, min(1.0, value)))
+for i in range(int(rate * tail)):
+    t = i / rate
+    value = math.sin(2 * math.pi * 1318.51 * t) * 0.20 * math.exp(-12.0 * t)
+    samples.append(value)
+with wave.open(path, "wb") as wav:
+    wav.setnchannels(1)
+    wav.setsampwidth(2)
+    wav.setframerate(rate)
+    frames = bytearray()
+    for value in samples:
+        frames.extend(struct.pack("<h", int(max(-0.95, min(0.95, value)) * 32767)))
+    wav.writeframes(bytes(frames))
+PY
+    fi
+fi
+
+played=0
+if [ -s "$wav" ]; then
+    for player in ${WUCI_CHIME_PLAYER:-} pw-play aplay paplay ffplay mpv play; do
+        [ -n "$player" ] || continue
+        command -v "$player" >/dev/null 2>&1 || continue
+        case "$player" in
+            pw-play) "$player" "$wav" >/dev/null 2>&1 && played=1 && break ;;
+            aplay) "$player" -q "$wav" >/dev/null 2>&1 && played=1 && break ;;
+            paplay) "$player" "$wav" >/dev/null 2>&1 && played=1 && break ;;
+            ffplay) "$player" -nodisp -autoexit -loglevel quiet "$wav" >/dev/null 2>&1 && played=1 && break ;;
+            mpv) "$player" --no-video --really-quiet "$wav" >/dev/null 2>&1 && played=1 && break ;;
+            play) "$player" -q "$wav" >/dev/null 2>&1 && played=1 && break ;;
+        esac
+    done
+fi
+
+if [ "$played" -eq 0 ]; then
+    if [ "$quiet" -eq 0 ]; then
+        printf '\\a' >/dev/tty 2>/dev/null || printf '\\a'
+    fi
+fi
+if [ "$once" -eq 1 ]; then
+    : > "$stamp" 2>/dev/null || true
+fi
+exit 0
+"""
+    network_connect_script = """#!/bin/sh
+set -eu
+
+mode="${1:-connect}"
+case "$mode" in
+    --help|-h)
+        cat <<'TEXT'
+Wuci-OS network connection prompt
+
+Usage:
+  sudo wuci-network-connect
+  sudo wuci-network-connect --check
+
+No Wi-Fi IDs or passwords are baked into Wuci-OS. The prompt asks locally at
+first boot. Optional noninteractive inputs:
+  WUCI_WIFI_SSID='network name' sudo -E wuci-network-connect
+  WUCI_WIFI_PASSWORD='password' WUCI_WIFI_SSID='network name' sudo -E wuci-network-connect
+TEXT
+        exit 0
+        ;;
+esac
+
+online() {
+    if command -v ip >/dev/null 2>&1 && ip route get 1.1.1.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    if command -v ping >/dev/null 2>&1 && ping -c 1 -W 2 1.1.1.1 >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+if [ "$mode" = "--check" ]; then
+    online
+    exit $?
+fi
+
+if [ "$(id -u)" != "0" ]; then
+    if command -v sudo >/dev/null 2>&1; then
+        exec sudo "$0" "$@"
+    fi
+    printf 'wuci-network-connect: run as root or install sudo\\n' >&2
+    exit 1
+fi
+
+enable_service() {
+    service=$1
+    if [ -d "/etc/sv/$service" ]; then
+        mkdir -p /etc/runit/runsvdir/default
+        if [ ! -e "/etc/runit/runsvdir/default/$service" ]; then
+            ln -s "/etc/sv/$service" "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+        fi
+        command -v sv >/dev/null 2>&1 && sv up "$service" >/dev/null 2>&1 || true
+    fi
+}
+
+enable_service dbus
+enable_service NetworkManager
+
+if command -v rfkill >/dev/null 2>&1; then
+    rfkill unblock wifi 2>/dev/null || true
+    rfkill unblock all 2>/dev/null || true
+fi
+
+try_dhcp() {
+    iface=$1
+    [ -n "$iface" ] || return 1
+    if command -v dhcpcd >/dev/null 2>&1; then
+        dhcpcd -n "$iface" >/dev/null 2>&1 || dhcpcd "$iface" >/dev/null 2>&1 || true
+    elif command -v udhcpc >/dev/null 2>&1; then
+        udhcpc -i "$iface" -q -t 3 >/dev/null 2>&1 || true
+    else
+        return 1
+    fi
+    online
+}
+
+if command -v ip >/dev/null 2>&1; then
+    for iface in $(ip -o link show 2>/dev/null | awk -F': ' '$2 != "lo" { print $2 }' | cut -d@ -f1); do
+        case "$iface" in
+            wl*|wifi*|wlan*) continue ;;
+        esac
+        try_dhcp "$iface" && {
+            printf 'wuci-network-connect: online through %s\\n' "$iface"
+            exit 0
+        }
+    done
+fi
+
+if online; then
+    printf 'wuci-network-connect: network route already available\\n'
+    exit 0
+fi
+
+if command -v nmcli >/dev/null 2>&1; then
+
+    nmcli networking on 2>/dev/null || true
+    nmcli radio wifi on 2>/dev/null || true
+
+    printf 'Wuci-OS network credential prompt\\n'
+    nmcli -f DEVICE,TYPE,STATE device status 2>/dev/null || true
+
+    has_wifi=0
+    if nmcli -t -f DEVICE,TYPE device status 2>/dev/null | grep -q ':wifi$'; then
+        has_wifi=1
+    fi
+
+    if [ "$has_wifi" -eq 0 ]; then
+        printf 'wuci-network-connect: no Wi-Fi device reported by NetworkManager. Trying wpa_supplicant fallback.\\n' >&2
+    else
+
+        nmcli device wifi rescan 2>/dev/null || true
+        nmcli -f SSID,SECURITY,SIGNAL device wifi list 2>/dev/null || true
+
+        ssid="${WUCI_WIFI_SSID:-}"
+        if [ -z "$ssid" ]; then
+            if [ -r /dev/tty ]; then
+                printf 'Wi-Fi SSID: ' >/dev/tty
+                IFS= read -r ssid </dev/tty || true
+            elif [ -t 0 ]; then
+                printf 'Wi-Fi SSID: '
+                IFS= read -r ssid || true
+            else
+                printf 'wuci-network-connect: no interactive terminal and WUCI_WIFI_SSID is not set\\n' >&2
+                exit 1
+            fi
+        fi
+
+        if [ -z "$ssid" ]; then
+            printf 'wuci-network-connect: SSID is empty; network not configured\\n' >&2
+            exit 1
+        fi
+
+        if [ -n "${WUCI_WIFI_PASSWORD:-}" ]; then
+            if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
+                nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD" hidden yes
+            else
+                nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD"
+            fi
+        else
+            if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
+                nmcli --ask device wifi connect "$ssid" hidden yes
+            else
+                nmcli --ask device wifi connect "$ssid"
+            fi
+        fi
+
+        if online; then
+            printf 'wuci-network-connect: online\\n'
+            ip -br addr 2>/dev/null || true
+            exit 0
+        fi
+    fi
+fi
+
+if command -v wpa_supplicant >/dev/null 2>&1; then
+    wifi_iface="${WUCI_WIFI_IFACE:-}"
+    if [ -z "$wifi_iface" ] && command -v iw >/dev/null 2>&1; then
+        wifi_iface=$(iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }')
+    fi
+    if [ -z "$wifi_iface" ] && command -v ip >/dev/null 2>&1; then
+        wifi_iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^(wl|wlan|wifi)/ { print $2; exit }' | cut -d@ -f1)
+    fi
+    if [ -z "$wifi_iface" ]; then
+        printf 'wuci-network-connect: no Wi-Fi interface found for wpa_supplicant\\n' >&2
+    else
+        ssid="${WUCI_WIFI_SSID:-}"
+        if [ -z "$ssid" ]; then
+            printf 'Wi-Fi SSID: '
+            IFS= read -r ssid || true
+        fi
+        if [ -z "$ssid" ]; then
+            printf 'wuci-network-connect: SSID is empty; network not configured\\n' >&2
+            exit 1
+        fi
+        pass="${WUCI_WIFI_PASSWORD:-}"
+        if [ -z "$pass" ]; then
+            stty -echo 2>/dev/null || true
+            printf 'Wi-Fi password, blank for open network: '
+            IFS= read -r pass || true
+            printf '\\n'
+            stty echo 2>/dev/null || true
+        fi
+        conf_dir=/run/wuci-network
+        mkdir -p "$conf_dir"
+        chmod 0700 "$conf_dir"
+        conf="$conf_dir/wpa_supplicant.conf"
+        if [ -n "$pass" ]; then
+            if command -v wpa_passphrase >/dev/null 2>&1; then
+                wpa_passphrase "$ssid" "$pass" > "$conf"
+            else
+                {
+                    printf 'network={\\n'
+                    printf '    ssid="%s"\\n' "$ssid"
+                    printf '    psk="%s"\\n' "$pass"
+                    printf '}\\n'
+                } > "$conf"
+            fi
+        else
+            {
+                printf 'network={\\n'
+                printf '    ssid="%s"\\n' "$ssid"
+                printf '    key_mgmt=NONE\\n'
+                printf '}\\n'
+            } > "$conf"
+        fi
+        chmod 0600 "$conf"
+        wpa_supplicant -B -i "$wifi_iface" -c "$conf" >/dev/null 2>&1 || true
+        try_dhcp "$wifi_iface" && {
+            printf 'wuci-network-connect: online through %s\\n' "$wifi_iface"
+            exit 0
+        }
+    fi
+fi
+
+printf 'wuci-network-connect: no network route. Use Ethernet, or ensure NetworkManager/wpa_supplicant and Wi-Fi firmware are installed.\\n' >&2
+exit 1
+"""
+    network_apply_script = """#!/bin/sh
+set -eu
+
+run_root_wait() {
+    label=$1
+    shift
+    if [ "$(id -u)" = "0" ]; then
+        wuci-wait-run "$label" "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        wuci-wait-run "$label" sudo "$@"
+    else
+        printf 'wuci-network-apply: need root or sudo for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+enable_service() {
+    service=$1
+    if [ -d "/etc/sv/$service" ]; then
+        mkdir -p /etc/runit/runsvdir/default
+        if [ ! -e "/etc/runit/runsvdir/default/$service" ]; then
+            ln -s "/etc/sv/$service" "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+        fi
+        command -v sv >/dev/null 2>&1 && sv up "$service" >/dev/null 2>&1 || true
+    fi
+}
+
+enable_service dbus
+enable_service NetworkManager
+if command -v rfkill >/dev/null 2>&1; then
+    rfkill unblock wifi 2>/dev/null || true
+    rfkill unblock all 2>/dev/null || true
+fi
+if command -v nmcli >/dev/null 2>&1; then
+    nmcli networking on 2>/dev/null || true
+    nmcli radio wifi on 2>/dev/null || true
+fi
+
+wuci-network-connect || true
+
+if command -v xbps-install >/dev/null 2>&1; then
+    if wuci-network-connect --check >/dev/null 2>&1; then
+        run_root_wait "network and Wi-Fi packages" xbps-install -Sy __NETWORK_PACKAGES__ __FIRMWARE_PACKAGES__ || true
+    else
+        printf 'wuci-network-apply: skipping package install until network is connected\\n' >&2
+    fi
+else
+    printf 'wuci-network-apply: xbps-install not found; cannot add missing network packages\\n' >&2
+fi
+
+cat <<'TEXT'
+Wuci-OS network suite requested.
+
+Wi-Fi defaults:
+  service: NetworkManager
+  connect:  sudo wuci-network-connect
+  manual:   nmcli device wifi list
+            nmcli --ask device wifi connect SSID
+TEXT
+wuci-network-status || true
+"""
+    network_status_script = """#!/bin/sh
+set -eu
+
+printf 'Wuci-OS network status\\n'
+for cmd in NetworkManager nmcli wpa_supplicant iwd iw rfkill ip; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        printf '  %-18s %s\\n' "$cmd" "$(command -v "$cmd")"
+    else
+        printf '  %-18s missing\\n' "$cmd"
+    fi
+done
+if command -v rfkill >/dev/null 2>&1; then
+    rfkill list 2>/dev/null | sed 's/^/  rfkill: /' || true
+fi
+if command -v nmcli >/dev/null 2>&1; then
+    nmcli -t -f DEVICE,TYPE,STATE device status 2>/dev/null | sed 's/^/  nm: /' || true
+fi
+if command -v ip >/dev/null 2>&1; then
+    ip -br link 2>/dev/null | sed 's/^/  link: /' || true
+fi
+"""
+    media_session_script = """#!/bin/sh
+set -eu
+
+runtime="${XDG_RUNTIME_DIR:-/tmp/wuci-runtime-$(id -u)}"
+mkdir -p "$runtime" 2>/dev/null || true
+export XDG_RUNTIME_DIR="$runtime"
+
+start_once() {
+    name=$1
+    shift
+    command -v "$name" >/dev/null 2>&1 || return 0
+    if command -v pgrep >/dev/null 2>&1 && pgrep -x "$name" >/dev/null 2>&1; then
+        return 0
+    fi
+    "$@" >/tmp/wuci-"$name".log 2>&1 &
+}
+
+start_once pipewire pipewire
+start_once wireplumber wireplumber
+start_once pipewire-pulse pipewire-pulse
+"""
+    media_apply_script = """#!/bin/sh
+set -eu
+
+run_root_wait() {
+    label=$1
+    shift
+    if [ "$(id -u)" = "0" ]; then
+        wuci-wait-run "$label" "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        wuci-wait-run "$label" sudo "$@"
+    else
+        printf 'wuci-media-apply: need root or sudo for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+enable_service() {
+    service=$1
+    if [ -d "/etc/sv/$service" ]; then
+        mkdir -p /etc/runit/runsvdir/default
+        if [ ! -e "/etc/runit/runsvdir/default/$service" ]; then
+            ln -s "/etc/sv/$service" "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+        fi
+        command -v sv >/dev/null 2>&1 && sv up "$service" >/dev/null 2>&1 || true
+    fi
+}
+
+if command -v xbps-install >/dev/null 2>&1; then
+    run_root_wait "audio video Bluetooth portal packages" xbps-install -Sy __AUDIO_PACKAGES__ __VIDEO_PACKAGES__ __PERIPHERAL_PACKAGES__ || true
+else
+    printf 'wuci-media-apply: xbps-install not found; cannot add missing media packages\\n' >&2
+fi
+
+enable_service dbus
+enable_service bluetoothd
+enable_service bluetooth
+enable_service cupsd
+enable_service cups
+wuci-media-session || true
+wuci-boot-chime --once || true
+
+cat <<'TEXT'
+Wuci-OS media suite requested.
+
+Audio: PipeWire/WirePlumber with ALSA and Pulse helpers.
+Video: Mesa, Vulkan loader/tools, VAAPI/VDPAU helpers, common Xorg drivers.
+Peripherals: Bluetooth, printing, scanning, desktop portals, removable media.
+TEXT
+wuci-media-status || true
+"""
+    media_status_script = """#!/bin/sh
+set -eu
+
+printf 'Wuci-OS media status\\n'
+for cmd in pipewire wireplumber pipewire-pulse pw-play aplay paplay pactl mpv vlc bluetoothctl lpstat scanimage; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        printf '  %-18s %s\\n' "$cmd" "$(command -v "$cmd")"
+    else
+        printf '  %-18s missing\\n' "$cmd"
+    fi
+done
+if [ -d /dev/snd ]; then
+    printf '  audio-devices: present\\n'
+else
+    printf '  audio-devices: missing /dev/snd\\n'
+fi
+if [ -d /dev/dri ]; then
+    ls /dev/dri 2>/dev/null | sed 's/^/  dri: /' || true
+else
+    printf '  dri: missing /dev/dri\\n'
+fi
+if command -v pactl >/dev/null 2>&1; then
+    pactl info 2>/dev/null | sed 's/^/  pulse: /' || true
+fi
+"""
+    sdr_apply_script = """#!/bin/sh
+set -eu
+
+run_root_wait() {
+    label=$1
+    shift
+    if [ "$(id -u)" = "0" ]; then
+        wuci-wait-run "$label" "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        wuci-wait-run "$label" sudo "$@"
+    else
+        printf 'wuci-sdr-apply: need root or sudo for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+as_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        printf 'wuci-sdr-apply: need root or sudo for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+install_group() {
+    label=$1
+    shift
+    [ "$#" -gt 0 ] || return 0
+    printf '\\n==> %s\\n' "$label"
+    if run_root_wait "$label" xbps-install -Sy "$@"; then
+        return 0
+    fi
+    printf 'wuci-sdr-apply: group install had misses; trying package-by-package\\n' >&2
+    for pkg in "$@"; do
+        run_root_wait "sdr $pkg" xbps-install -Sy "$pkg" || printf 'optional SDR package unavailable: %s\\n' "$pkg" >&2
+    done
+}
+
+ensure_group() {
+    group=$1
+    getent group "$group" >/dev/null 2>&1 || as_root groupadd "$group" 2>/dev/null || true
+}
+
+if command -v xbps-install >/dev/null 2>&1; then
+    install_group "SDR radio stack" __SDR_PACKAGES__ __SDR_OPTIONAL_PACKAGES__
+else
+    printf 'wuci-sdr-apply: xbps-install not found; cannot add missing SDR packages\\n' >&2
+fi
+
+for group in plugdev usb dialout uucp; do
+    ensure_group "$group"
+done
+for user in wj wj_low; do
+    if getent passwd "$user" >/dev/null 2>&1; then
+        as_root usermod -aG plugdev,usb,dialout,uucp "$user" 2>/dev/null || true
+    fi
+done
+
+tmp=$(mktemp)
+cat >"$tmp" <<'RULES'
+# Wuci-OS SDR USB access helpers. Verify hardware-specific rules after install.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04b4", MODE="0660", GROUP="plugdev", TAG+="uaccess"
+RULES
+as_root mkdir -p /etc/udev/rules.d
+as_root install -m 0644 "$tmp" /etc/udev/rules.d/60-wuci-sdr.rules
+rm -f "$tmp"
+if command -v udevadm >/dev/null 2>&1; then
+    as_root udevadm control --reload-rules 2>/dev/null || true
+    as_root udevadm trigger 2>/dev/null || true
+fi
+
+cat <<'TEXT'
+Wuci-OS SDR suite requested.
+
+Included lanes: GNU Radio, Gqrx, RTL-SDR, HackRF, Airspy, SoapySDR, UHD, RF
+inspection helpers, USB device tools, and user/group access for SDR hardware.
+Use only lawful radio workflows and verify hardware-specific udev behavior on
+the installed target.
+TEXT
+wuci-sdr-status || true
+"""
+    sdr_status_script = """#!/bin/sh
+set -eu
+
+printf 'Wuci-OS SDR status\\n'
+for cmd in gnuradio-companion gnuradio-config-info gqrx rtl_test rtl_eeprom hackrf_info airspy_info airspyhf_info SoapySDRUtil uhd_find_devices inspectrum qspectrumanalyzer dump1090 multimon-ng fldigi lsusb; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        printf '  %-24s %s\\n' "$cmd" "$(command -v "$cmd")"
+    else
+        printf '  %-24s missing\\n' "$cmd"
+    fi
+done
+for group in plugdev usb dialout uucp; do
+    if getent group "$group" >/dev/null 2>&1; then
+        printf '  group %-17s present\\n' "$group"
+    else
+        printf '  group %-17s missing\\n' "$group"
+    fi
+done
+if [ -r /etc/udev/rules.d/60-wuci-sdr.rules ]; then
+    printf '  udev rules: /etc/udev/rules.d/60-wuci-sdr.rules\\n'
+else
+    printf '  udev rules: missing\\n'
+fi
+if command -v lsusb >/dev/null 2>&1; then
+    lsusb 2>/dev/null | sed 's/^/  usb: /' || true
+fi
+"""
+    network_apply_script = (
+        network_apply_script.replace("__NETWORK_PACKAGES__", sh_words(NETWORK_PACKAGES))
+        .replace("__FIRMWARE_PACKAGES__", sh_words(FIRMWARE_PACKAGES))
+    )
+    media_apply_script = (
+        media_apply_script.replace("__AUDIO_PACKAGES__", sh_words(AUDIO_PACKAGES))
+        .replace("__VIDEO_PACKAGES__", sh_words(VIDEO_PACKAGES))
+        .replace("__PERIPHERAL_PACKAGES__", sh_words(PERIPHERAL_PACKAGES))
+    )
+    sdr_apply_script = (
+        sdr_apply_script.replace("__SDR_PACKAGES__", sh_words(SDR_PACKAGES))
+        .replace("__SDR_OPTIONAL_PACKAGES__", sh_words(SDR_OPTIONAL_PACKAGES))
+    )
+    update_script = """#!/bin/sh
+set -eu
+
+usage() {
+    cat <<'TEXT'
+Wuci-OS live update
+
+Usage:
+  wuci-update [--check] [--packages-only] [--source-only] [--no-packages]
+              [--repo PATH] [--live-repo PATH] [--repo-url URL]
+              [--branch NAME] [--allow-dirty]
+
+Default behavior:
+  1. report the active Wuci-OS identity, architecture, and configured repositories
+  2. update packages with the configured xbps repository set
+  3. fast-forward the onboard Wuci-Ji checkout, or clone a live checkout when
+     the embedded source payload is a deterministic snapshot
+  4. rebuild and reactivate the local Wuci-OS overlay when possible
+
+No credentials are baked into Wuci-OS. Git remotes and xbps repositories must be
+configured by the operator or the installed image.
+TEXT
+}
+
+repo="${WUCI_SOURCE_ROOT:-/opt/wuci-os/source/wuci-ji}"
+live_repo="${WUCI_LIVE_SOURCE_ROOT:-${HOME:-/tmp}/wuci-ji-live}"
+repo_url="${WUCI_REPO_URL:-https://github.com/chasebryan/-wuci-ji.git}"
+branch="${WUCI_UPDATE_BRANCH:-}"
+allow_dirty=0
+check_only=0
+packages=1
+source=1
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --repo)
+            [ "$#" -ge 2 ] || { printf 'wuci-update: --repo needs a path\\n' >&2; exit 2; }
+            repo=$2
+            shift 2
+            ;;
+        --live-repo)
+            [ "$#" -ge 2 ] || { printf 'wuci-update: --live-repo needs a path\\n' >&2; exit 2; }
+            live_repo=$2
+            shift 2
+            ;;
+        --repo-url)
+            [ "$#" -ge 2 ] || { printf 'wuci-update: --repo-url needs a URL\\n' >&2; exit 2; }
+            repo_url=$2
+            shift 2
+            ;;
+        --branch)
+            [ "$#" -ge 2 ] || { printf 'wuci-update: --branch needs a name\\n' >&2; exit 2; }
+            branch=$2
+            shift 2
+            ;;
+        --allow-dirty)
+            allow_dirty=1
+            shift
+            ;;
+        --check|--dry-run)
+            check_only=1
+            shift
+            ;;
+        --packages-only)
+            packages=1
+            source=0
+            shift
+            ;;
+        --source-only|--repo-only)
+            packages=0
+            source=1
+            shift
+            ;;
+        --no-packages)
+            packages=0
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            printf 'wuci-update: unknown argument: %s\\n' "$1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+as_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        printf 'wuci-update: run as root or install sudo for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+run_wait() {
+    label=$1
+    shift
+    if command -v wuci-wait-run >/dev/null 2>&1; then
+        wuci-wait-run "$label" "$@"
+    else
+        "$@"
+    fi
+}
+
+run_root_wait() {
+    label=$1
+    shift
+    if [ "$(id -u)" = "0" ]; then
+        run_wait "$label" "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        run_wait "$label" sudo "$@"
+    else
+        printf 'wuci-update: run as root or install sudo for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+ensure_network_for_updates() {
+    [ "${WUCI_SKIP_NETWORK_PROMPT:-0}" = "1" ] && return 0
+    command -v wuci-network-connect >/dev/null 2>&1 || return 0
+    if wuci-network-connect --check >/dev/null 2>&1; then
+        return 0
+    fi
+    printf 'wuci-update: network is not connected; starting Wuci network credential prompt\\n' >&2
+    as_root wuci-network-connect
+}
+
+os_id=unknown
+os_like=
+os_name=unknown
+os_version=rolling
+if [ -r /etc/os-release ]; then
+    os_id=$(awk -F= '$1 == "ID" { gsub(/"/, "", $2); print $2; exit }' /etc/os-release)
+    os_like=$(awk -F= '$1 == "ID_LIKE" { gsub(/"/, "", $2); print $2; exit }' /etc/os-release)
+    os_name=$(awk -F= '$1 == "NAME" { gsub(/"/, "", $2); print $2; exit }' /etc/os-release)
+    found_version=$(awk -F= '$1 == "VERSION_ID" { gsub(/"/, "", $2); print $2; exit }' /etc/os-release)
+    [ -n "$found_version" ] && os_version=$found_version || true
+fi
+arch=unknown
+if command -v xbps-uhelper >/dev/null 2>&1; then
+    arch=$(xbps-uhelper arch 2>/dev/null || printf unknown)
+elif command -v uname >/dev/null 2>&1; then
+    arch=$(uname -m)
+fi
+
+printf 'Wuci-OS update context\\n'
+printf '  os:      %s (%s)\\n' "$os_name" "$os_id"
+[ -n "$os_like" ] && printf '  like:    %s\\n' "$os_like"
+printf '  version: %s\\n' "$os_version"
+printf '  arch:    %s\\n' "$arch"
+printf '  repo:    %s\\n' "$repo"
+printf '  live:    %s\\n' "$live_repo"
+printf '  remote:  %s\\n' "$repo_url"
+
+if ! command -v xbps-install >/dev/null 2>&1; then
+    printf 'wuci-update: warning: xbps-install is unavailable; package updates will be skipped\\n' >&2
+fi
+
+if command -v xbps-query >/dev/null 2>&1; then
+    base_pkg=$(xbps-query -p pkgver base-system 2>/dev/null || true)
+    [ -n "$base_pkg" ] && printf '  base:    %s\\n' "$base_pkg"
+fi
+if command -v xbps-query >/dev/null 2>&1; then
+    repos=$(xbps-query -L 2>/dev/null || true)
+    if [ -n "$repos" ]; then
+        printf '  xbps repositories:\\n'
+        printf '%s\\n' "$repos" | sed 's/^/    /'
+    fi
+fi
+
+if [ "$check_only" -eq 1 ]; then
+    if [ "$source" -eq 1 ] && [ -d "$repo/.git" ]; then
+        git -C "$repo" status --short --branch || true
+    elif [ "$source" -eq 1 ] && [ -d "$live_repo/.git" ]; then
+        git -C "$live_repo" status --short --branch || true
+    elif [ "$source" -eq 1 ]; then
+        printf 'wuci-update: embedded source is not a git checkout; live clone target: %s\\n' "$live_repo"
+    fi
+    exit 0
+fi
+
+if [ "$packages" -eq 1 ]; then
+    if command -v xbps-install >/dev/null 2>&1; then
+        if ensure_network_for_updates; then
+            run_root_wait "system package update" xbps-install -Syu
+        else
+            printf 'wuci-update: package update skipped because network setup did not complete\\n' >&2
+        fi
+    else
+        printf 'wuci-update: xbps-install unavailable; skipping package update\\n' >&2
+    fi
+fi
+
+if [ "$source" -eq 1 ]; then
+    if ! ensure_network_for_updates; then
+        printf 'wuci-update: source repo sync skipped because network setup did not complete\\n' >&2
+        exit 1
+    fi
+    if ! command -v git >/dev/null 2>&1; then
+        printf 'wuci-update: git unavailable; cannot update source repo\\n' >&2
+        exit 1
+    fi
+    if [ ! -d "$repo/.git" ]; then
+        if [ -d "$live_repo/.git" ]; then
+            printf 'wuci-update: using existing live checkout: %s\\n' "$live_repo"
+            repo=$live_repo
+        else
+            clone_target=$repo
+            if [ -d "$repo" ]; then
+                if find "$repo" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | grep -q .; then
+                    clone_target=$live_repo
+                fi
+            fi
+            mkdir -p "$(dirname "$clone_target")"
+            if [ -n "$branch" ]; then
+                run_wait "repo clone" git clone --branch "$branch" "$repo_url" "$clone_target"
+            else
+                run_wait "repo clone" git clone "$repo_url" "$clone_target"
+            fi
+            repo=$clone_target
+        fi
+    fi
+    dirty=$(git -C "$repo" status --porcelain)
+    if [ -n "$dirty" ] && [ "$allow_dirty" -ne 1 ]; then
+        printf 'wuci-update: refusing to update dirty checkout; use --allow-dirty after review\\n' >&2
+        git -C "$repo" status --short
+        exit 2
+    fi
+    current_branch=$(git -C "$repo" rev-parse --abbrev-ref HEAD)
+    if [ "$current_branch" = "HEAD" ] && [ -z "$branch" ]; then
+        printf 'wuci-update: detached HEAD; pass --branch NAME for fast-forward update\\n' >&2
+        exit 2
+    fi
+    [ -n "$branch" ] || branch=$current_branch
+    before=$(git -C "$repo" rev-parse HEAD)
+    run_wait "repo fetch" git -C "$repo" fetch --prune origin
+    run_wait "repo fast-forward" git -C "$repo" pull --ff-only origin "$branch"
+    after=$(git -C "$repo" rev-parse HEAD)
+    printf 'wuci-update: repo %s -> %s on %s\\n' "$before" "$after" "$branch"
+
+    if [ -x "$repo/tools/wuci-os" ]; then
+        run_wait "wuci-os overlay refresh" "$repo/tools/wuci-os" overlay --force
+        if [ "$(id -u)" = "0" ] && [ -x "$repo/tools/wuci-os-live-activate" ]; then
+            WUCI_OS_OVERLAY="$repo/build/wuci-os/overlay" "$repo/tools/wuci-os-live-activate" || true
+        else
+            printf 'wuci-update: overlay refreshed; run as root to reactivate live overlay:\\n'
+            printf '  WUCI_OS_OVERLAY=%s %s/tools/wuci-os-live-activate\\n' "$repo/build/wuci-os/overlay" "$repo"
+        fi
+    fi
+fi
+
+printf 'wuci-update: complete\\n'
+"""
     ai_status_script = """#!/bin/sh
 set -eu
 
@@ -3325,10 +5643,30 @@ if [ -t 1 ] && [ "${WUCI_OS_QUIET:-0}" != "1" ]; then
     printf '\\nWuci-OS live profile active. Run: wuci-status | wuci-attest | wuci-enter\\n\\n'
 fi
 """
+    xfce_autostart_profile = """# Wuci-OS tty1 XFCE autostart
+if [ -z "${DISPLAY:-}" ] && [ "${WUCI_XFCE_AUTOSTART:-1}" = "1" ] && [ -t 0 ]; then
+    current_tty=$(tty 2>/dev/null || true)
+    current_user=$(id -un 2>/dev/null || true)
+    if [ "$current_tty" = "/dev/tty1" ] && [ "$current_user" = "wj" ] && command -v startx >/dev/null 2>&1; then
+        if command -v wuci-live-banner >/dev/null 2>&1; then
+            wuci-live-banner || true
+        fi
+        exec startx >/tmp/wuci-xfce.log 2>&1
+    fi
+fi
+"""
     issue = """Wuci-OS live profile
 Wuci-OS x86_64-musl base
 login: wj / press Enter  or  wj_low / press Enter
 admin: wj shows prompt WJ>_
+"""
+    os_release = """NAME="Wuci-OS"
+ID=wuci-os
+ID_LIKE=linux
+PRETTY_NAME="Wuci-OS x86_64-musl"
+VERSION_ID="0"
+HOME_URL="https://github.com/chasebryan/-wuci-ji"
+BUG_REPORT_URL="https://github.com/chasebryan/-wuci-ji/issues"
 """
     motd = """Wuci-OS live profile
 
@@ -3341,7 +5679,19 @@ Run:
   wuci-auto
   wuci-source-status
   wuci-install
+  wuci-install-target-activate
   wuci-wallpaper
+  wuci-terminal
+  wuci-boot-chime
+  wuci-network-connect
+  wuci-network-apply
+  wuci-network-status
+  wuci-media-apply
+  wuci-media-status
+  wuci-media-session
+  wuci-sdr-apply
+  wuci-sdr-status
+  wuci-update
   wuci-users-apply
   wuci-users-status
   wuci-dev-install
@@ -3364,6 +5714,27 @@ Exec=/usr/local/bin/wuci-wallpaper
 OnlyShowIn=XFCE;GNOME;LXDE;LXQt;MATE;
 X-GNOME-Autostart-enabled=true
 """
+    terminal_desktop_entry = """[Desktop Entry]
+Type=Application
+Name=Wuci-OS Terminal
+Exec=/usr/local/bin/wuci-terminal
+OnlyShowIn=XFCE;GNOME;LXDE;LXQt;MATE;
+X-GNOME-Autostart-enabled=true
+"""
+    chime_desktop_entry = """[Desktop Entry]
+Type=Application
+Name=Wuci-OS Boot Chime
+Exec=/usr/local/bin/wuci-boot-chime --once --quiet
+OnlyShowIn=XFCE;GNOME;LXDE;LXQt;MATE;
+X-GNOME-Autostart-enabled=true
+"""
+    media_desktop_entry = """[Desktop Entry]
+Type=Application
+Name=Wuci-OS Media Session
+Exec=/usr/local/bin/wuci-media-session
+OnlyShowIn=XFCE;GNOME;LXDE;LXQt;MATE;
+X-GNOME-Autostart-enabled=true
+"""
     ratpoisonrc = """# Wuci-OS ratpoison profile
 set prefix C-t
 set border 1
@@ -3375,10 +5746,10 @@ set historysize 2000
 set wingravity center
 set msgwait 4
 set framefmt %n:%t
-bind c exec kitty
-bind C exec xfce4-terminal
+bind c exec wuci-terminal
+bind C exec wuci-terminal
 bind e exec emacs
-bind v exec kitty -e vim
+bind v exec wuci-terminal vim
 bind b exec firefox
 bind p exec dmenu_run
 bind s exec wuci-security-status
@@ -3388,7 +5759,7 @@ bind r restart
 bind q only
 bind Q quit
 startup_message off
-echo Wuci-OS ratpoison profile active: C-t c opens kitty, C-t s checks security.
+echo Wuci-OS ratpoison profile active: C-t c opens preferred terminal, C-t s checks security.
 """
     kitty_conf = """# Wuci-OS kitty profile
 font_family monospace
@@ -3420,16 +5791,40 @@ color14 #66c4c4
 color15 #ffffff
 """
     xinitrc = """#!/bin/sh
+if command -v wuci-boot-chime >/dev/null 2>&1; then
+    wuci-boot-chime --once --quiet &
+fi
+if command -v wuci-media-session >/dev/null 2>&1; then
+    wuci-media-session &
+fi
+if command -v wuci-terminal >/dev/null 2>&1; then
+    wuci-terminal &
+fi
 exec startxfce4
+"""
+    boot_chime_runit = """#!/bin/sh
+if [ -x /usr/local/bin/wuci-boot-chime ]; then
+    /usr/local/bin/wuci-boot-chime --once --quiet >/dev/null 2>&1 || true
+fi
+while :; do
+    sleep 3600
+done
 """
     package_profile_json = json.dumps(package_manifest(), indent=2, sort_keys=True) + "\n"
     return {
         "etc/hostname": "wuci-os-live\n",
         "etc/issue": issue,
         "etc/motd": motd,
+        "etc/os-release": os_release,
+        "usr/lib/os-release": os_release,
         "etc/profile.d/wuci-os.sh": profile,
+        "etc/profile.d/wuci-xfce-autostart.sh": xfce_autostart_profile,
         "etc/profile.d/wuci-prompt.sh": prompt_script,
         "etc/xdg/autostart/wuci-wallpaper.desktop": desktop_entry,
+        "etc/xdg/autostart/wuci-terminal.desktop": terminal_desktop_entry,
+        "etc/xdg/autostart/wuci-boot-chime.desktop": chime_desktop_entry,
+        "etc/xdg/autostart/wuci-media-session.desktop": media_desktop_entry,
+        "etc/runit/runsvdir/default/wuci-boot-chime/run": boot_chime_runit,
         "etc/skel/.xinitrc": xinitrc,
         "etc/skel/.ratpoisonrc": ratpoisonrc,
         "etc/skel/.config/kitty/kitty.conf": kitty_conf,
@@ -3444,7 +5839,19 @@ exec startxfce4
         "usr/local/bin/wuci-guide": guide_script,
         "usr/local/bin/wuci-auto": auto_script,
         "usr/local/bin/wuci-install": install_script,
+        "usr/local/bin/wuci-install-target-activate": install_target_activate_script,
         "usr/local/bin/wuci-wallpaper": wallpaper_script,
+        "usr/local/bin/wuci-terminal": terminal_script.replace("__TERMINAL_CANDIDATES__", sh_words(TERMINAL_CANDIDATES)),
+        "usr/local/bin/wuci-boot-chime": boot_chime_script,
+        "usr/local/bin/wuci-network-connect": network_connect_script,
+        "usr/local/bin/wuci-network-apply": network_apply_script,
+        "usr/local/bin/wuci-network-status": network_status_script,
+        "usr/local/bin/wuci-media-apply": media_apply_script,
+        "usr/local/bin/wuci-media-status": media_status_script,
+        "usr/local/bin/wuci-media-session": media_session_script,
+        "usr/local/bin/wuci-sdr-apply": sdr_apply_script,
+        "usr/local/bin/wuci-sdr-status": sdr_status_script,
+        "usr/local/bin/wuci-update": update_script,
         "usr/local/bin/wuci-wait-run": wait_run_script,
         "usr/local/bin/wj": wj_script,
         "usr/local/bin/wuci-users-apply": users_apply_script,
@@ -3460,9 +5867,19 @@ exec startxfce4
         "usr/share/wuci-os/accounts.json": account_profile_json,
         "usr/share/wuci-os/packages.json": package_profile_json,
         "usr/share/wuci-os/security-profile.json": json.dumps(security_profile_manifest(), indent=2, sort_keys=True) + "\n",
+        "usr/share/wuci-os/full-suite-packages.txt": "\n".join(full_suite_packages()) + "\n",
         "usr/share/wuci-os/ratpoisonrc": ratpoisonrc,
         "usr/share/wuci-os/kitty.conf": kitty_conf,
         "usr/share/wuci-os/README": readme,
+        "usr/share/wuci-os/OFFLINE-INSTALL.txt": offline_install_guide_text(),
+        "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md": _read_regular_bytes(
+            repo_root() / DAYLIGHT_V8_MODEL_DOC,
+            "Wuci-OS Daylight v8 model doc",
+        ).decode("utf-8"),
+        "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md": _read_regular_bytes(
+            repo_root() / DAYLIGHT_V9_MODEL_DOC,
+            "Wuci-OS Daylight v9 model doc",
+        ).decode("utf-8"),
         "usr/share/wuci-os/boundary.txt": "\n".join(BOUNDARY_DENIALS) + "\n",
         "usr/share/wuci-os/selinux.txt": "\n".join(
             [
@@ -3502,6 +5919,29 @@ def create_overlay(
     _reject_symlink_output_parents(root / ".wuci-output-check", "Wuci-OS overlay root")
     wallpaper = DEFAULT_WALLPAPER_SOURCE if wallpaper_source is None else wallpaper_source
     wallpaper_info = _verified_regular_file_info(wallpaper, "Wuci-OS wallpaper")
+    model_diagram = repo_root() / DEFAULT_MODEL_DIAGRAM_SOURCE
+    model_diagram_info = _verified_regular_file_info(model_diagram, "Wuci-OS Daylight wire model diagram")
+    _validate_png_bytes(
+        _read_regular_bytes(model_diagram, "Wuci-OS Daylight wire model diagram"),
+        "Wuci-OS Daylight wire model diagram",
+    )
+    daylight_v8_diagram = repo_root() / DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE
+    daylight_v8_diagram_info = _verified_regular_file_info(daylight_v8_diagram, "Wuci-OS Daylight v8 sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v8_diagram, "Wuci-OS Daylight v8 sheet"),
+        "Wuci-OS Daylight v8 sheet",
+    )
+    daylight_v9_sheet = repo_root() / DEFAULT_DAYLIGHT_V9_SHEET_SOURCE
+    daylight_v9_sheet_info = _verified_regular_file_info(daylight_v9_sheet, "Wuci-OS Daylight v9 sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v9_sheet, "Wuci-OS Daylight v9 sheet"),
+        "Wuci-OS Daylight v9 sheet",
+    )
+    daylight_v9_diagram = repo_root() / DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE
+    daylight_v9_diagram_info = _verified_regular_file_info(daylight_v9_diagram, "Wuci-OS Daylight v9 formal spine")
+    daylight_v9_diagram_data = _read_regular_bytes(daylight_v9_diagram, "Wuci-OS Daylight v9 formal spine")
+    if b"<svg" not in daylight_v9_diagram_data[:256]:
+        raise WuciOSError(f"Wuci-OS Daylight v9 formal spine is not an SVG document: {daylight_v9_diagram}")
     try:
         root_info = os.lstat(root)
     except FileNotFoundError:
@@ -3540,6 +5980,42 @@ def create_overlay(
         mode=0o644,
     )
     written.append(str(OVERLAY_WALLPAPER_PATH))
+    model_diagram_overlay_path = Path("usr/share/wuci-os/wuci-daylight-wire-model.png")
+    model_diagram_digest, model_diagram_bytes = _copy_verified_regular_file(
+        model_diagram,
+        root / model_diagram_overlay_path,
+        "Wuci-OS overlay Daylight wire model diagram",
+        expected_info=model_diagram_info,
+        mode=0o644,
+    )
+    written.append(str(model_diagram_overlay_path))
+    daylight_v8_diagram_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v8-sheet.png")
+    daylight_v8_diagram_digest, daylight_v8_diagram_bytes = _copy_verified_regular_file(
+        daylight_v8_diagram,
+        root / daylight_v8_diagram_overlay_path,
+        "Wuci-OS overlay Daylight v8 sheet",
+        expected_info=daylight_v8_diagram_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v8_diagram_overlay_path))
+    daylight_v9_sheet_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v9-sheet.png")
+    daylight_v9_sheet_digest, daylight_v9_sheet_bytes = _copy_verified_regular_file(
+        daylight_v9_sheet,
+        root / daylight_v9_sheet_overlay_path,
+        "Wuci-OS overlay Daylight v9 sheet",
+        expected_info=daylight_v9_sheet_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v9_sheet_overlay_path))
+    daylight_v9_diagram_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v9-spine.svg")
+    daylight_v9_diagram_digest, daylight_v9_diagram_bytes = _copy_verified_regular_file(
+        daylight_v9_diagram,
+        root / daylight_v9_diagram_overlay_path,
+        "Wuci-OS overlay Daylight v9 formal spine",
+        expected_info=daylight_v9_diagram_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v9_diagram_overlay_path))
     manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
     manifest_files = written + [manifest_relative]
     manifest = {
@@ -3558,6 +6034,30 @@ def create_overlay(
             "bytes": wallpaper_bytes,
             "digest_vector": wallpaper_digest,
             "resize_policy": "wuci-wallpaper detects screen geometry and creates an exact-size cache when ImageMagick or GraphicsMagick is present; otherwise it uses desktop fill/zoom setters",
+        },
+        "substract_model_diagram": {
+            "path": str(model_diagram_overlay_path),
+            "source_path": str(model_diagram),
+            "bytes": model_diagram_bytes,
+            "digest_vector": model_diagram_digest,
+        },
+        "daylight_v8_diagram": {
+            "path": str(daylight_v8_diagram_overlay_path),
+            "source_path": str(daylight_v8_diagram),
+            "bytes": daylight_v8_diagram_bytes,
+            "digest_vector": daylight_v8_diagram_digest,
+        },
+        "daylight_v9_sheet": {
+            "path": str(daylight_v9_sheet_overlay_path),
+            "source_path": str(daylight_v9_sheet),
+            "bytes": daylight_v9_sheet_bytes,
+            "digest_vector": daylight_v9_sheet_digest,
+        },
+        "daylight_v9_diagram": {
+            "path": str(daylight_v9_diagram_overlay_path),
+            "source_path": str(daylight_v9_diagram),
+            "bytes": daylight_v9_diagram_bytes,
+            "digest_vector": daylight_v9_diagram_digest,
         },
         "boundary_denials": list(BOUNDARY_DENIALS),
     }
@@ -3594,7 +6094,7 @@ def _build_qemu_argv(
         "-smp",
         str(cpus),
         "-machine",
-        "pc,accel=tcg",
+        "pc,accel=kvm:tcg",
         "-cpu",
         "max",
         "-kernel",
@@ -3696,6 +6196,13 @@ def boot_plan(
         "kernel_iso_path": "boot/vmlinuz",
         "initrd_iso_path": "boot/initrd",
         "append": append,
+        "boot_profile": {
+            "mode": "fast-live",
+            "qemu_acceleration": "kvm:tcg",
+            "kernel_args": list(FAST_BOOT_KERNEL_ARGS),
+            "module_blacklist": list(FAST_BOOT_MODPROBE_BLACKLIST),
+            "purpose": "reduce live-boot hardware/storage probing for the Wuci-OS workstation path",
+        },
         "argv": argv,
         "overlay_root": str(overlay_root),
         "source_kit_path": str(source_kit_path) if source_kit_path else "",
@@ -3893,6 +6400,2096 @@ def cleanup_boot_artifacts(boot_root: Path | str) -> None:
         pass
 
 
+def _iso_remove_if_present(iso: Any, iso_path: str) -> None:
+    try:
+        iso.get_record(iso_path=iso_path)
+    except Exception:
+        return
+    iso.rm_file(iso_path=iso_path)
+
+
+def _iso_path_exists(iso: Any, iso_path: str) -> bool:
+    try:
+        iso.get_record(iso_path=iso_path)
+        return True
+    except Exception:
+        return False
+
+
+def _iso_first_existing_path(iso: Any, candidates: tuple[str, ...], label: str) -> str:
+    for candidate in candidates:
+        if _iso_path_exists(iso, candidate):
+            return candidate
+    raise WuciOSError(f"could not find ISO path for {label}: {', '.join(candidates)}")
+
+
+def _iso_child_path_for_parent(iso: Any, candidates: tuple[tuple[str, str], ...]) -> str:
+    for parent, child in candidates:
+        if _iso_path_exists(iso, parent):
+            return child
+    return candidates[0][1]
+
+
+def _iso_get_record_any(iso: Any, candidates: tuple[str, ...], label: str) -> None:
+    _iso_first_existing_path(iso, candidates, label)
+
+
+ISO9660_FILE_ALIASES = {
+    "isolinux.cfg": "ISOLINUX.CFG;1",
+    "wuci-splash.png": "WUCISPL.PNG;1",
+    "boot-splash.svg": "SPLASH.SVG;1",
+    "grub.cfg": "GRUB.CFG;1",
+    "grub_void.cfg": "GRUBVOID.CFG;1",
+    "loopback.cfg": "LOOPBACK.CFG;1",
+    "squashfs.img": "SQUASHFS.IMG;1",
+}
+
+
+def _iso_add_path_for_rr_name(iso_path: str, rr_name: str) -> str:
+    parent, _, name = iso_path.rpartition("/")
+    if not parent:
+        return iso_path
+    if re.fullmatch(r"[A-Z0-9_]+(?:\.[A-Z0-9_]+)?(?:;[0-9]+)?", name):
+        return iso_path
+    alias = ISO9660_FILE_ALIASES.get(rr_name)
+    if alias is None:
+        base, dot, ext = rr_name.partition(".")
+        safe_base = re.sub(r"[^A-Z0-9_]", "", base.upper())[:8] or "FILE"
+        safe_ext = re.sub(r"[^A-Z0-9_]", "", ext.upper())[:3]
+        alias = f"{safe_base}.{safe_ext};1" if dot and safe_ext else f"{safe_base};1"
+    return f"{parent}/{alias}"
+
+
+def _iso_replace_bytes(
+    iso: Any,
+    data: bytes,
+    *,
+    iso_path: str,
+    rr_name: str,
+    joliet_path: str,
+    mode: int = 0o644,
+) -> dict[str, Any]:
+    _iso_remove_if_present(iso, iso_path)
+    return _iso_add_bytes(
+        iso,
+        data,
+        iso_path=_iso_add_path_for_rr_name(iso_path, rr_name),
+        rr_name=rr_name,
+        joliet_path=joliet_path,
+        mode=mode,
+    )
+
+
+def _iso_replace_local_file(
+    iso: Any,
+    source: Path,
+    *,
+    iso_path: str,
+    rr_name: str,
+    joliet_path: str,
+    label: str,
+) -> dict[str, Any]:
+    _iso_remove_if_present(iso, iso_path)
+    return _iso_add_local_file(
+        iso,
+        source,
+        iso_path=_iso_add_path_for_rr_name(iso_path, rr_name),
+        rr_name=rr_name,
+        joliet_path=joliet_path,
+        label=label,
+    )
+
+
+GRUB_CONFIG_ISO_PATHS: dict[str, tuple[str, str, str]] = {
+    "boot/grub/grub.cfg": ("/boot/grub/grub.cfg", "grub.cfg", "/boot/grub/grub.cfg"),
+    "boot/grub/grub_void.cfg": ("/boot/grub/grub_void.cfg", "grub_void.cfg", "/boot/grub/grub_void.cfg"),
+    "boot/grub/loopback.cfg": ("/boot/grub/loopback.cfg", "loopback.cfg", "/boot/grub/loopback.cfg"),
+    "EFI/BOOT/grub.cfg": ("/EFI/BOOT/grub.cfg", "grub.cfg", "/EFI/BOOT/grub.cfg"),
+}
+
+
+def _require_host_tool(tools: dict[str, dict[str, Any]], name: str) -> str:
+    item = tools.get(name, {})
+    path = str(item.get("path", ""))
+    if item.get("status") != "available" or not path:
+        raise WuciOSError(f"Wuci-OS remaster requires host tool: {name}")
+    return path
+
+
+def _safe_rootfs_relative_path(relative: str | Path) -> Path:
+    rel = Path(relative)
+    text = rel.as_posix()
+    if rel.is_absolute() or ".." in rel.parts or text in {"", "."} or text.startswith("/"):
+        raise WuciOSError(f"unsafe rootfs path: {text}")
+    return rel
+
+
+def _write_rootfs_file(rootfs: Path, relative: str | Path, data: bytes, *, mode: int) -> dict[str, Any]:
+    rel = _safe_rootfs_relative_path(relative)
+    path = rootfs / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        info = None
+    if info is not None:
+        if stat.S_ISDIR(info.st_mode):
+            raise WuciOSError(f"rootfs target is a directory: {rel.as_posix()}")
+        if not stat.S_ISLNK(info.st_mode) and not stat.S_ISREG(info.st_mode):
+            raise WuciOSError(f"rootfs target has unsupported type: {rel.as_posix()}")
+        if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
+            raise WuciOSError(f"rootfs target must not be hardlinked: {rel.as_posix()}")
+        path.unlink()
+    digest, size = _write_verified_new_file(
+        path,
+        data,
+        f"Wuci-OS remaster rootfs file {rel.as_posix()}",
+        mode=mode,
+    )
+    return {
+        "path": rel.as_posix(),
+        "bytes": size,
+        "mode": oct(mode),
+        "digest_vector": digest,
+    }
+
+
+def _patch_rootfs_text_file(rootfs: Path, relative: str | Path, replacements: dict[str, str]) -> dict[str, Any] | None:
+    rel = _safe_rootfs_relative_path(relative)
+    path = rootfs / rel
+    if not path.exists() or path.is_symlink():
+        return None
+    info = _verified_regular_file_info(path, f"Wuci-OS remaster text file {rel.as_posix()}")
+    data = _read_regular_bytes(path, f"Wuci-OS remaster text file {rel.as_posix()}").decode("utf-8", "replace")
+    patched = data
+    for old, new in replacements.items():
+        patched = patched.replace(old, new)
+    if patched == data:
+        return {
+            "path": rel.as_posix(),
+            "changed": False,
+            "bytes": info.st_size,
+        }
+    return _write_rootfs_file(
+        rootfs,
+        rel,
+        patched.encode("utf-8"),
+        mode=stat.S_IMODE(info.st_mode),
+    ) | {"changed": True}
+
+
+def _rootfs_text(rootfs: Path, relative: str | Path, *, default: str = "") -> str:
+    rel = _safe_rootfs_relative_path(relative)
+    path = rootfs / rel
+    if not path.exists():
+        return default
+    return _read_regular_bytes(path, f"Wuci-OS rootfs text {rel.as_posix()}").decode("utf-8", "replace")
+
+
+def _write_rootfs_text(rootfs: Path, relative: str | Path, text: str, *, mode: int = 0o644) -> dict[str, Any]:
+    return _write_rootfs_file(rootfs, relative, text.encode("utf-8"), mode=mode)
+
+
+def _debugfs_remote_path(relative: str | Path) -> str:
+    rel = _safe_rootfs_relative_path(relative)
+    return "/" + rel.as_posix()
+
+
+def _debugfs_run(image: Path, commands: list[str], label: str, *, cwd: Path) -> subprocess.CompletedProcess[str]:
+    command_file = cwd / f".debugfs-{hashlib.sha256(label.encode('utf-8')).hexdigest()[:16]}.cmd"
+    _prepare_exclusive_output_path(command_file, f"{label} debugfs command file", force=True)
+    _write_verified_new_file(command_file, ("\n".join(commands) + "\n").encode("utf-8"), f"{label} debugfs command file", mode=0o600)
+    try:
+        result = subprocess.run(
+            ["debugfs", "-w", "-f", str(command_file), str(image)],
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            check=False,
+        )
+    finally:
+        try:
+            command_file.unlink()
+        except FileNotFoundError:
+            pass
+    if result.returncode != 0:
+        raise WuciOSError(f"{label} failed: {result.stderr.strip() or result.stdout.strip()}")
+    return result
+
+
+def _debugfs_mkdir_commands(relative: str | Path) -> list[str]:
+    rel = _safe_rootfs_relative_path(relative)
+    commands: list[str] = []
+    parts: list[str] = []
+    for part in rel.parts:
+        parts.append(part)
+        remote = "/" + "/".join(parts)
+        commands.append(f"mkdir {remote}")
+        commands.append(f"set_inode_field {remote} mode 040755")
+    return commands
+
+
+def _debugfs_write_file_commands(local: Path, relative: str | Path, mode: int) -> list[str]:
+    remote = _debugfs_remote_path(relative)
+    return [
+        f"rm {remote}",
+        f"write {local} {remote}",
+        f"set_inode_field {remote} mode {oct(0o100000 | (mode & 0o7777))}",
+        "dirty",
+    ]
+
+
+def _debugfs_write_text_file(
+    image: Path,
+    relative: str | Path,
+    text: str,
+    *,
+    mode: int,
+    work_root: Path,
+    label: str,
+) -> dict[str, Any]:
+    rel = _safe_rootfs_relative_path(relative)
+    local = work_root / "debugfs-files" / rel
+    _prepare_exclusive_output_path(local, f"{label} local staging file", force=True)
+    digest, size = _write_verified_new_file(local, text.encode("utf-8"), f"{label} local staging file", mode=0o644)
+    commands = _debugfs_mkdir_commands(rel.parent) if rel.parent.as_posix() != "." else []
+    commands.extend(_debugfs_write_file_commands(local, rel, mode))
+    _debugfs_run(image, commands, label, cwd=work_root)
+    return {
+        "path": rel.as_posix(),
+        "bytes": size,
+        "mode": oct(mode),
+        "digest_vector": digest,
+    }
+
+
+def _debugfs_write_bytes_file(
+    image: Path,
+    relative: str | Path,
+    data: bytes,
+    *,
+    mode: int,
+    work_root: Path,
+    label: str,
+) -> dict[str, Any]:
+    rel = _safe_rootfs_relative_path(relative)
+    local = work_root / "debugfs-files" / rel
+    _prepare_exclusive_output_path(local, f"{label} local staging file", force=True)
+    digest, size = _write_verified_new_file(local, data, f"{label} local staging file", mode=0o644)
+    commands = _debugfs_mkdir_commands(rel.parent) if rel.parent.as_posix() != "." else []
+    commands.extend(_debugfs_write_file_commands(local, rel, mode))
+    _debugfs_run(image, commands, label, cwd=work_root)
+    return {
+        "path": rel.as_posix(),
+        "bytes": size,
+        "mode": oct(mode),
+        "digest_vector": digest,
+    }
+
+
+def _debugfs_dump_file(image: Path, relative: str | Path, dest: Path, *, work_root: Path, label: str) -> bool:
+    rel = _safe_rootfs_relative_path(relative)
+    _prepare_exclusive_output_path(dest, f"{label} dump", force=True)
+    result = _debugfs_run(image, [f"dump {_debugfs_remote_path(rel)} {dest}"], label, cwd=work_root)
+    if dest.is_file():
+        return True
+    stderr = (result.stderr or "") + (result.stdout or "")
+    if "File not found" in stderr or "not found" in stderr:
+        return False
+    return False
+
+
+def _debugfs_read_text_file(image: Path, relative: str | Path, *, work_root: Path, default: str = "") -> str:
+    rel = _safe_rootfs_relative_path(relative)
+    dest = work_root / "debugfs-dumps" / rel
+    if not _debugfs_dump_file(image, rel, dest, work_root=work_root, label=f"Wuci-OS ext image dump {rel.as_posix()}"):
+        return default
+    return _read_regular_bytes(dest, f"Wuci-OS ext image text {rel.as_posix()}").decode("utf-8", "replace")
+
+
+def _patch_ext_image_text_file(
+    image: Path,
+    relative: str | Path,
+    replacements: dict[str, str],
+    *,
+    work_root: Path,
+) -> dict[str, Any] | None:
+    rel = _safe_rootfs_relative_path(relative)
+    original = _debugfs_read_text_file(image, rel, work_root=work_root, default="")
+    if not original:
+        return None
+    patched = original
+    for old, new in replacements.items():
+        patched = patched.replace(old, new)
+    if patched == original:
+        return {
+            "path": rel.as_posix(),
+            "changed": False,
+            "bytes": len(original.encode("utf-8")),
+        }
+    return _debugfs_write_text_file(
+        image,
+        rel,
+        patched,
+        mode=0o644,
+        work_root=work_root,
+        label=f"Wuci-OS ext image patched text {rel.as_posix()}",
+    ) | {"changed": True}
+
+
+def _debugfs_path_exists(image: Path, relative: str | Path, *, work_root: Path) -> bool:
+    rel = _safe_rootfs_relative_path(relative)
+    result = _debugfs_run(image, [f"stat {_debugfs_remote_path(rel)}"], f"Wuci-OS ext image stat {rel.as_posix()}", cwd=work_root)
+    combined = (result.stdout or "") + (result.stderr or "")
+    return "Inode:" in combined and "File not found" not in combined
+
+
+def _next_rootfs_id(lines: list[str], field_index: int, *, start: int) -> int:
+    used: set[int] = set()
+    for line in lines:
+        parts = line.split(":")
+        if len(parts) > field_index:
+            try:
+                used.add(int(parts[field_index]))
+            except ValueError:
+                pass
+    candidate = start
+    while candidate in used:
+        candidate += 1
+    return candidate
+
+
+def _ensure_group_line(lines: list[str], name: str, gid: int, members: list[str]) -> list[str]:
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        parts = line.split(":")
+        if len(parts) >= 4 and parts[0] == name:
+            existing = [member for member in parts[3].split(",") if member]
+            for member in members:
+                if member not in existing:
+                    existing.append(member)
+            parts[3] = ",".join(existing)
+            updated.append(":".join(parts))
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(f"{name}:x:{gid}:{','.join(members)}")
+    return updated
+
+
+def _ensure_shadow_line(lines: list[str], name: str) -> list[str]:
+    if any(line.split(":", 1)[0] == name for line in lines):
+        return lines
+    return lines + [f"{name}::0:0:99999:7:::"]
+
+
+def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
+    passwd_lines = [line for line in _rootfs_text(rootfs, "etc/passwd").splitlines() if line]
+    group_lines = [line for line in _rootfs_text(rootfs, "etc/group").splitlines() if line]
+    shadow_lines = [line for line in _rootfs_text(rootfs, "etc/shadow").splitlines() if line]
+    gid_wj = _next_rootfs_id(group_lines, 2, start=1000)
+    gid_low = gid_wj + 1 if gid_wj + 1 not in {int(line.split(":")[2]) for line in group_lines if len(line.split(":")) > 2 and line.split(":")[2].isdigit()} else _next_rootfs_id(group_lines, 2, start=gid_wj + 1)
+    uid_wj = _next_rootfs_id(passwd_lines, 2, start=1000)
+    uid_low = uid_wj + 1 if uid_wj + 1 not in {int(line.split(":")[2]) for line in passwd_lines if len(line.split(":")) > 2 and line.split(":")[2].isdigit()} else _next_rootfs_id(passwd_lines, 2, start=uid_wj + 1)
+    shell_path = "/bin/bash" if (rootfs / "bin/bash").exists() else "/bin/sh"
+    if not any(line.split(":", 1)[0] == "wj" for line in passwd_lines):
+        passwd_lines.append(f"wj:x:{uid_wj}:{gid_wj}:Wuci-OS Operator:/home/wj:{shell_path}")
+    if not any(line.split(":", 1)[0] == "wj_low" for line in passwd_lines):
+        passwd_lines.append(f"wj_low:x:{uid_low}:{gid_low}:Wuci-OS Low Privilege:/home/wj_low:{shell_path}")
+    group_lines = _ensure_group_line(group_lines, "wj", gid_wj, ["wj"])
+    group_lines = _ensure_group_line(group_lines, "wj_low", gid_low, ["wj_low"])
+    for group in ("wheel", "audio", "video", "input", "kvm", "network", "storage", "plugdev", "usb", "dialout", "uucp"):
+        group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj"])
+    for group in ("audio", "video", "plugdev", "usb", "dialout", "uucp"):
+        group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj_low"])
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low")
+    written = [
+        _write_rootfs_text(rootfs, "etc/passwd", "\n".join(passwd_lines) + "\n", mode=0o644),
+        _write_rootfs_text(rootfs, "etc/group", "\n".join(group_lines) + "\n", mode=0o644),
+        _write_rootfs_text(rootfs, "etc/shadow", "\n".join(shadow_lines) + "\n", mode=0o600),
+        _write_rootfs_text(rootfs, "etc/sudoers.d/90-wuci-os-wj", "wj ALL=(ALL:ALL) NOPASSWD: ALL\n", mode=0o440),
+        _write_rootfs_text(rootfs, "etc/doas.d/90-wuci-os-wj.conf", "permit nopass wj as root\n", mode=0o440),
+    ]
+    written.append(
+        _write_rootfs_text(
+            rootfs,
+            "etc/sv/agetty-tty1/conf",
+            'GETTY_ARGS="--autologin wj --noclear"\nBAUD_RATE=38400\nTERM_NAME=linux\n',
+            mode=0o644,
+        )
+    )
+    homes: list[dict[str, Any]] = []
+    for user in ("wj", "wj_low"):
+        home = rootfs / "home" / user
+        (home / ".config/kitty").mkdir(parents=True, exist_ok=True)
+        homes.append(_write_rootfs_text(rootfs, Path("home") / user / ".xinitrc", "exec startxfce4\n", mode=0o644))
+        kitty = rootfs / "usr/share/wuci-os/kitty.conf"
+        ratpoison = rootfs / "usr/share/wuci-os/ratpoisonrc"
+        if kitty.is_file():
+            homes.append(
+                _write_rootfs_file(
+                    rootfs,
+                    Path("home") / user / ".config/kitty/kitty.conf",
+                    _read_regular_bytes(kitty, "Wuci-OS rootfs kitty profile"),
+                    mode=0o644,
+                )
+            )
+        if ratpoison.is_file():
+            homes.append(
+                _write_rootfs_file(
+                    rootfs,
+                    Path("home") / user / ".ratpoisonrc",
+                    _read_regular_bytes(ratpoison, "Wuci-OS rootfs ratpoison profile"),
+                    mode=0o644,
+                )
+            )
+        if os.geteuid() == 0:
+            target_uid = uid_wj if user == "wj" else uid_low
+            target_gid = gid_wj if user == "wj" else gid_low
+            for path in [home, *home.rglob("*")]:
+                try:
+                    os.chown(path, target_uid, target_gid)
+                except OSError:
+                    pass
+    return {
+        "schema": "wuci-os-rootfs-account-profile-v1",
+        "status": "pass",
+        "users": ["wj", "wj_low"],
+        "operator_prompt": "WJ>_",
+        "live_password": "empty password for live/demo only",
+        "written": written,
+        "home_files": homes,
+    }
+
+
+def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_root: Path) -> dict[str, Any]:
+    passwd_lines = [line for line in _debugfs_read_text_file(ext_image, "etc/passwd", work_root=work_root).splitlines() if line]
+    group_lines = [line for line in _debugfs_read_text_file(ext_image, "etc/group", work_root=work_root).splitlines() if line]
+    shadow_lines = [line for line in _debugfs_read_text_file(ext_image, "etc/shadow", work_root=work_root).splitlines() if line]
+    gid_wj = _next_rootfs_id(group_lines, 2, start=1000)
+    used_gids = {int(line.split(":")[2]) for line in group_lines if len(line.split(":")) > 2 and line.split(":")[2].isdigit()}
+    gid_low = gid_wj + 1 if gid_wj + 1 not in used_gids else _next_rootfs_id(group_lines, 2, start=gid_wj + 1)
+    uid_wj = _next_rootfs_id(passwd_lines, 2, start=1000)
+    used_uids = {int(line.split(":")[2]) for line in passwd_lines if len(line.split(":")) > 2 and line.split(":")[2].isdigit()}
+    uid_low = uid_wj + 1 if uid_wj + 1 not in used_uids else _next_rootfs_id(passwd_lines, 2, start=uid_wj + 1)
+    shell_path = "/bin/bash" if _debugfs_path_exists(ext_image, "bin/bash", work_root=work_root) else "/bin/sh"
+    if not any(line.split(":", 1)[0] == "wj" for line in passwd_lines):
+        passwd_lines.append(f"wj:x:{uid_wj}:{gid_wj}:Wuci-OS Operator:/home/wj:{shell_path}")
+    if not any(line.split(":", 1)[0] == "wj_low" for line in passwd_lines):
+        passwd_lines.append(f"wj_low:x:{uid_low}:{gid_low}:Wuci-OS Low Privilege:/home/wj_low:{shell_path}")
+    group_lines = _ensure_group_line(group_lines, "wj", gid_wj, ["wj"])
+    group_lines = _ensure_group_line(group_lines, "wj_low", gid_low, ["wj_low"])
+    for group in ("wheel", "audio", "video", "input", "kvm", "network", "storage", "plugdev", "usb", "dialout", "uucp"):
+        group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj"])
+    for group in ("audio", "video", "plugdev", "usb", "dialout", "uucp"):
+        group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj_low"])
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low")
+    written = [
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/passwd",
+            "\n".join(passwd_lines) + "\n",
+            mode=0o644,
+            work_root=work_root,
+            label="Wuci-OS ext image passwd",
+        ),
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/group",
+            "\n".join(group_lines) + "\n",
+            mode=0o644,
+            work_root=work_root,
+            label="Wuci-OS ext image group",
+        ),
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/shadow",
+            "\n".join(shadow_lines) + "\n",
+            mode=0o600,
+            work_root=work_root,
+            label="Wuci-OS ext image shadow",
+        ),
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/sudoers.d/90-wuci-os-wj",
+            "wj ALL=(ALL:ALL) NOPASSWD: ALL\n",
+            mode=0o440,
+            work_root=work_root,
+            label="Wuci-OS ext image sudoers",
+        ),
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/doas.d/90-wuci-os-wj.conf",
+            "permit nopass wj as root\n",
+            mode=0o440,
+            work_root=work_root,
+            label="Wuci-OS ext image doas",
+        ),
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/sv/agetty-tty1/conf",
+            'GETTY_ARGS="--autologin wj --noclear"\nBAUD_RATE=38400\nTERM_NAME=linux\n',
+            mode=0o644,
+            work_root=work_root,
+            label="Wuci-OS ext image tty1 autologin",
+        ),
+    ]
+    homes: list[dict[str, Any]] = []
+    skeletons = {
+        ".xinitrc": overlay_root / "etc/skel/.xinitrc",
+        ".ratpoisonrc": overlay_root / "usr/share/wuci-os/ratpoisonrc",
+        ".config/kitty/kitty.conf": overlay_root / "usr/share/wuci-os/kitty.conf",
+    }
+    for user, uid, gid in (("wj", uid_wj, gid_wj), ("wj_low", uid_low, gid_low)):
+        dir_commands: list[str] = []
+        for rel in (Path("home") / user, Path("home") / user / ".config", Path("home") / user / ".config/kitty"):
+            remote = _debugfs_remote_path(rel)
+            dir_commands.extend(_debugfs_mkdir_commands(rel))
+            dir_commands.extend(
+                [
+                    f"set_inode_field {remote} uid {uid}",
+                    f"set_inode_field {remote} gid {gid}",
+                    f"set_inode_field {remote} mode 040755",
+                ]
+            )
+        _debugfs_run(ext_image, dir_commands, f"Wuci-OS ext image home directories {user}", cwd=work_root)
+        for dest_name, source in skeletons.items():
+            if source.is_file():
+                data = _read_regular_bytes(source, f"Wuci-OS ext image skeleton {dest_name}")
+            elif dest_name == ".xinitrc":
+                data = b"exec startxfce4\n"
+            else:
+                continue
+            rel = Path("home") / user / dest_name
+            record = _debugfs_write_bytes_file(
+                ext_image,
+                rel,
+                data,
+                mode=0o644,
+                work_root=work_root,
+                label=f"Wuci-OS ext image home file {user}/{dest_name}",
+            )
+            remote = _debugfs_remote_path(rel)
+            _debugfs_run(
+                ext_image,
+                [
+                    f"set_inode_field {remote} uid {uid}",
+                    f"set_inode_field {remote} gid {gid}",
+                ],
+                f"Wuci-OS ext image chown {user}/{dest_name}",
+                cwd=work_root,
+            )
+            homes.append(record)
+    return {
+        "schema": "wuci-os-ext-image-account-profile-v1",
+        "status": "pass",
+        "users": ["wj", "wj_low"],
+        "operator_prompt": "WJ>_",
+        "live_password": "empty password for live/demo only",
+        "written": written,
+        "home_files": homes,
+    }
+
+
+def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, Any]:
+    manifest_path = overlay_manifest_path(overlay_root)
+    if manifest_path.is_file():
+        try:
+            manifest = wuci_kaiju.read_public_json(manifest_path, "Wuci-OS overlay manifest")
+        except wuci_kaiju.KaijuError as exc:
+            raise WuciOSError(str(exc)) from exc
+        records = validate_overlay_manifest_current(overlay_root, manifest, ticker_mode="never")
+    else:
+        records = overlay_file_records(overlay_root, ticker_mode="never")
+    written: list[dict[str, Any]] = []
+    directories = 0
+    for record in records:
+        rel = _safe_rootfs_relative_path(str(record["path"]))
+        dest = rootfs / rel
+        if record["type"] in {"dir", "directory"}:
+            dest.mkdir(parents=True, exist_ok=True)
+            directories += 1
+            continue
+        if record["type"] != "file":
+            raise WuciOSError(f"unsupported overlay record type: {record['type']}")
+        source = overlay_root / rel
+        data = _read_regular_bytes(source, f"Wuci-OS overlay remaster file {rel.as_posix()}")
+        mode_text = str(record.get("mode", "0o644"))
+        mode = int(mode_text, 8)
+        written.append(_write_rootfs_file(rootfs, rel, data, mode=mode))
+    patches = [
+        result
+        for result in (
+            _patch_rootfs_text_file(
+                rootfs,
+                "etc/runit/1",
+                {
+                    "Welcome to Void!": "Welcome to Wuci-OS!",
+                    "Void Linux": "Wuci-OS",
+                    "void-live": "wuci-os-live",
+                    "void-installer": "wuci-install",
+                    "voidlinux": "press Enter",
+                },
+            ),
+            _patch_rootfs_text_file(
+                rootfs,
+                "etc/issue",
+                {
+                    "Welcome to the Void Linux Live system": "Welcome to the Wuci-OS live system",
+                    "Void Linux": "Wuci-OS",
+                    "void-live": "wuci-os-live",
+                    "void-installer": "wuci-install",
+                    "anon:voidlinux": "wj_low:press Enter",
+                    "root:voidlinux": "wj:press Enter",
+                    "voidlinux": "press Enter",
+                },
+            ),
+            _patch_rootfs_text_file(
+                rootfs,
+                "etc/motd",
+                {
+                    "Welcome to the Void Linux Live system": "Welcome to the Wuci-OS live system",
+                    "Void Linux": "Wuci-OS",
+                    "void-live": "wuci-os-live",
+                    "void-installer": "wuci-install",
+                    "anon:voidlinux": "wj_low:press Enter",
+                    "root:voidlinux": "wj:press Enter",
+                    "voidlinux": "press Enter",
+                },
+            ),
+        )
+        if result is not None
+    ]
+    hostname_service = _write_rootfs_file(
+        rootfs,
+        "etc/runit/core-services/04-wuci-hostname.sh",
+        (
+            "#!/bin/sh\n"
+            "# Restore Wuci hostname after the inherited live initramfs writes its default.\n"
+            "printf 'wuci-os-live\\n' > /etc/hostname\n"
+        ).encode("utf-8"),
+        mode=0o755,
+    )
+    written.append(hostname_service)
+    live_access_service = _write_rootfs_file(
+        rootfs,
+        "etc/runit/core-services/04-wuci-live-access.sh",
+        (
+            "#!/bin/sh\n"
+            "# Restore Wuci live access after inherited live-init account hooks run.\n"
+            "mkdir -p /etc/sudoers.d /etc/doas.d\n"
+            "printf 'wj ALL=(ALL:ALL) NOPASSWD: ALL\\n' > /etc/sudoers.d/90-wuci-os-wj\n"
+            "chmod 0440 /etc/sudoers.d/90-wuci-os-wj\n"
+            "printf 'permit nopass wj as root\\n' > /etc/doas.d/90-wuci-os-wj.conf\n"
+            "chmod 0440 /etc/doas.d/90-wuci-os-wj.conf\n"
+            "if command -v usermod >/dev/null 2>&1 && id wj >/dev/null 2>&1; then\n"
+            "    for group in wheel audio video input kvm network storage; do\n"
+            "        getent group \"$group\" >/dev/null 2>&1 && usermod -aG \"$group\" wj >/dev/null 2>&1 || true\n"
+            "    done\n"
+            "fi\n"
+        ).encode("utf-8"),
+        mode=0o755,
+    )
+    written.append(live_access_service)
+    accounts = apply_rootfs_account_profile(rootfs)
+    return {
+        "schema": "wuci-os-rootfs-overlay-application-v1",
+        "status": "pass",
+        "overlay_root": str(overlay_root),
+        "rootfs": str(rootfs),
+        "directories": directories,
+        "files": written,
+        "identity_patches": patches,
+        "account_profile": accounts,
+    }
+
+
+def run_e2fsck(image: Path, *, work_root: Path) -> dict[str, Any]:
+    result = subprocess.run(
+        ["e2fsck", "-fy", str(image)],
+        cwd=work_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    status = "pass" if result.returncode in {0, 1} else "fail"
+    if status != "pass":
+        raise WuciOSError(f"e2fsck failed for Wuci-OS ext image: {result.stderr.strip() or result.stdout.strip()}")
+    digest, size = wuci_kaiju.file_digest_vector(image, "Wuci-OS ext image after e2fsck")
+    return {
+        "schema": "wuci-os-ext-image-fsck-v1",
+        "status": status,
+        "returncode": result.returncode,
+        "bytes": size,
+        "digest_vector": digest,
+    }
+
+
+def apply_wuci_overlay_to_ext_image(overlay_root: Path, ext_image: Path, work_root: Path) -> dict[str, Any]:
+    manifest_path = overlay_manifest_path(overlay_root)
+    if manifest_path.is_file():
+        try:
+            manifest = wuci_kaiju.read_public_json(manifest_path, "Wuci-OS overlay manifest")
+        except wuci_kaiju.KaijuError as exc:
+            raise WuciOSError(str(exc)) from exc
+        records = validate_overlay_manifest_current(overlay_root, manifest, ticker_mode="never")
+    else:
+        records = overlay_file_records(overlay_root, ticker_mode="never")
+    directory_commands: list[str] = []
+    directories = 0
+    for record in records:
+        rel = _safe_rootfs_relative_path(str(record["path"]))
+        if record["type"] in {"dir", "directory"}:
+            directory_commands.extend(_debugfs_mkdir_commands(rel))
+            directories += 1
+    if directory_commands:
+        _debugfs_run(ext_image, directory_commands, "Wuci-OS ext image overlay directories", cwd=work_root)
+
+    written: list[dict[str, Any]] = []
+    for record in records:
+        rel = _safe_rootfs_relative_path(str(record["path"]))
+        if record["type"] in {"dir", "directory"}:
+            continue
+        if record["type"] != "file":
+            raise WuciOSError(f"unsupported overlay record type: {record['type']}")
+        source = overlay_root / rel
+        data = _read_regular_bytes(source, f"Wuci-OS ext image overlay file {rel.as_posix()}")
+        mode_text = str(record.get("mode", "0o644"))
+        mode = int(mode_text, 8)
+        written.append(
+            _debugfs_write_bytes_file(
+                ext_image,
+                rel,
+                data,
+                mode=mode,
+                work_root=work_root,
+                label=f"Wuci-OS ext image overlay file {rel.as_posix()}",
+            )
+        )
+    patches = [
+        result
+        for result in (
+            _patch_ext_image_text_file(
+                ext_image,
+                "etc/runit/1",
+                {
+                    "Welcome to Void!": "Welcome to Wuci-OS!",
+                    "Void Linux": "Wuci-OS",
+                    "void-live": "wuci-os-live",
+                    "void-installer": "wuci-install",
+                    "voidlinux": "press Enter",
+                },
+                work_root=work_root,
+            ),
+            _patch_ext_image_text_file(
+                ext_image,
+                "etc/issue",
+                {
+                    "Welcome to the Void Linux Live system": "Welcome to the Wuci-OS live system",
+                    "Void Linux": "Wuci-OS",
+                    "void-live": "wuci-os-live",
+                    "void-installer": "wuci-install",
+                    "anon:voidlinux": "wj_low:press Enter",
+                    "root:voidlinux": "wj:press Enter",
+                    "voidlinux": "press Enter",
+                },
+                work_root=work_root,
+            ),
+            _patch_ext_image_text_file(
+                ext_image,
+                "etc/motd",
+                {
+                    "Welcome to the Void Linux Live system": "Welcome to the Wuci-OS live system",
+                    "Void Linux": "Wuci-OS",
+                    "void-live": "wuci-os-live",
+                    "void-installer": "wuci-install",
+                    "anon:voidlinux": "wj_low:press Enter",
+                    "root:voidlinux": "wj:press Enter",
+                    "voidlinux": "press Enter",
+                },
+                work_root=work_root,
+            ),
+        )
+        if result is not None
+    ]
+    written.append(
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/runit/core-services/04-wuci-hostname.sh",
+            "#!/bin/sh\n"
+            "# Restore Wuci hostname after the inherited live initramfs writes its default.\n"
+            "printf 'wuci-os-live\\n' > /etc/hostname\n",
+            mode=0o755,
+            work_root=work_root,
+            label="Wuci-OS ext image hostname core service",
+        )
+    )
+    written.append(
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/runit/core-services/04-wuci-live-access.sh",
+            "#!/bin/sh\n"
+            "# Restore Wuci live access after inherited live-init account hooks run.\n"
+            "mkdir -p /etc/sudoers.d /etc/doas.d\n"
+            "printf 'wj ALL=(ALL:ALL) NOPASSWD: ALL\\n' > /etc/sudoers.d/90-wuci-os-wj\n"
+            "chmod 0440 /etc/sudoers.d/90-wuci-os-wj\n"
+            "printf 'permit nopass wj as root\\n' > /etc/doas.d/90-wuci-os-wj.conf\n"
+            "chmod 0440 /etc/doas.d/90-wuci-os-wj.conf\n"
+            "if command -v usermod >/dev/null 2>&1 && id wj >/dev/null 2>&1; then\n"
+            "    for group in wheel audio video input kvm network storage; do\n"
+            "        getent group \"$group\" >/dev/null 2>&1 && usermod -aG \"$group\" wj >/dev/null 2>&1 || true\n"
+            "    done\n"
+            "fi\n",
+            mode=0o755,
+            work_root=work_root,
+            label="Wuci-OS ext image live access core service",
+        )
+    )
+    accounts = apply_ext_image_account_profile(ext_image, overlay_root, work_root)
+    fsck = run_e2fsck(ext_image, work_root=work_root)
+    return {
+        "schema": "wuci-os-ext-image-overlay-application-v1",
+        "status": "pass",
+        "overlay_root": str(overlay_root),
+        "ext_image": str(ext_image),
+        "directories": directories,
+        "files": written,
+        "identity_patches": patches,
+        "account_profile": accounts,
+        "fsck": fsck,
+    }
+
+
+def install_suite_packages_into_rootfs(rootfs: Path, *, ticker_mode: str = "auto") -> dict[str, Any]:
+    packages = list(full_suite_packages())
+    host_xbps = shutil.which("xbps-install")
+    rootfs_xbps = rootfs / "usr/bin/xbps-install"
+    if host_xbps:
+        base_cmd = [host_xbps, "-r", str(rootfs), "-Sy"]
+        method = "host-xbps-install-root"
+    elif os.geteuid() == 0 and rootfs_xbps.is_file():
+        base_cmd = ["chroot", str(rootfs), "/usr/bin/xbps-install", "-Sy"]
+        method = "rootfs-chroot-xbps-install"
+    else:
+        raise WuciOSError(
+            "Wuci-OS suite package baking requires host xbps-install, or root chroot access "
+            "to a rootfs that already contains /usr/bin/xbps-install"
+        )
+
+    def run_install(items: list[str], label: str) -> subprocess.CompletedProcess[str]:
+        with wuci_progress.stage(label, ticker_mode):
+            return subprocess.run(
+                base_cmd + items,
+                cwd=repo_root(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                shell=False,
+                check=False,
+            )
+
+    result = run_install(packages, "wuci-os suite packages")
+    installed = packages
+    failed: list[dict[str, str]] = []
+    if result.returncode != 0:
+        installed = []
+        for package in packages:
+            package_result = run_install([package], f"wuci-os package {package}")
+            if package_result.returncode == 0:
+                installed.append(package)
+            else:
+                reason = "\n".join((package_result.stderr or package_result.stdout).splitlines()[-8:])
+                failed.append({"package": package, "reason": reason})
+    status = "pass" if not failed else "partial"
+    return {
+        "schema": "wuci-os-rootfs-suite-package-install-v1",
+        "status": status,
+        "method": method,
+        "package_count": len(packages),
+        "installed_count": len(installed),
+        "failed_count": len(failed),
+        "packages": packages,
+        "installed_packages": installed,
+        "failed_packages": failed,
+    }
+
+
+def _looks_like_void_rootfs(rootfs: Path) -> bool:
+    required = (
+        "etc/passwd",
+        "etc/group",
+        "etc/shadow",
+        "etc/runit/1",
+        "etc/runit/2",
+        "usr/bin/xbps-install",
+        "sbin/init",
+    )
+    return rootfs.is_dir() and not rootfs.is_symlink() and all((rootfs / item).exists() for item in required)
+
+
+def resolve_rootfs_source(rootfs_source: Path | None) -> Path | None:
+    if rootfs_source is None:
+        return None
+    root = rootfs_source
+    if _looks_like_void_rootfs(root):
+        return root
+    if root.is_dir() and not root.is_symlink():
+        candidates = sorted(child for child in root.iterdir() if _looks_like_void_rootfs(child))
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            names = ", ".join(candidate.name for candidate in candidates)
+            raise WuciOSError(f"multiple extracted Void rootfs candidates under {root}: {names}")
+    raise WuciOSError(
+        "rootfs source must be an extracted Void rootfs tree containing "
+        "etc/passwd, etc/runit/1, usr/bin/xbps-install, and sbin/init"
+    )
+
+
+def rootfs_source_manifest(rootfs: Path) -> dict[str, Any]:
+    release = ""
+    os_release = rootfs / "usr/lib/os-release"
+    if not os_release.is_file():
+        os_release = rootfs / "etc/os-release"
+    if os_release.is_file() and not os_release.is_symlink():
+        release = _read_regular_bytes(os_release, "Void extracted rootfs os-release").decode("utf-8", "replace")
+    return {
+        "schema": "wuci-os-extracted-rootfs-source-v1",
+        "path": str(rootfs),
+        "layout": "direct-rootfs-tree",
+        "has_proc_dir": (rootfs / "proc").is_dir(),
+        "has_xbps_install": (rootfs / "usr/bin/xbps-install").is_file(),
+        "os_release": release,
+    }
+
+
+def rootfs_source_tarball(rootfs: Path) -> Path | None:
+    for suffix in (".tar.xz", ".tar.zst", ".tar.gz", ".tar"):
+        candidate = rootfs.with_name(rootfs.name + suffix)
+        if candidate.is_file() and not candidate.is_symlink():
+            return candidate
+    return None
+
+
+def _parse_tar_owner_spec(owner_spec: str) -> tuple[int, int] | None:
+    user, slash, group = owner_spec.partition("/")
+    if not slash:
+        return None
+    try:
+        return int(user), int(group)
+    except ValueError:
+        return None
+
+
+def _rootfs_owner_map_from_tarball(rootfs: Path, tarball: Path, tools: dict[str, dict[str, Any]], work_root: Path) -> dict[str, tuple[int, int]]:
+    tar = _require_host_tool(tools, "tar")
+    listing = subprocess.run(
+        [tar, "--numeric-owner", "-tvf", str(tarball)],
+        cwd=work_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    if listing.returncode != 0:
+        raise WuciOSError(f"could not inspect rootfs tarball ownership: {listing.stderr.strip() or listing.stdout.strip()}")
+    owner_map: dict[str, tuple[int, int]] = {}
+    for line in listing.stdout.splitlines():
+        parts = line.split(maxsplit=5)
+        if len(parts) < 6:
+            continue
+        owner = _parse_tar_owner_spec(parts[1])
+        if owner is None:
+            continue
+        name = parts[5].split(" -> ", 1)[0].strip()
+        while name.startswith("./"):
+            name = name[2:]
+        name = name.strip("/")
+        owner_map[name] = owner
+    if not owner_map:
+        raise WuciOSError(f"rootfs tarball ownership listing was empty: {tarball}")
+    return owner_map
+
+
+def _debugfs_safe_path(relative: str) -> str:
+    if relative in {"", "."}:
+        return "/"
+    if any(ch.isspace() for ch in relative) or "\\" in relative or '"' in relative:
+        raise WuciOSError(f"rootfs path cannot be safely normalized with debugfs: {relative}")
+    return "/" + relative.strip("/")
+
+
+def normalize_generated_rootfs_image_ownership(
+    image: Path,
+    rootfs: Path,
+    *,
+    tools: dict[str, dict[str, Any]],
+    work_root: Path,
+    owner_tarball: Path | None = None,
+) -> dict[str, Any]:
+    _require_host_tool(tools, "debugfs")
+    tarball = owner_tarball or rootfs_source_tarball(rootfs)
+    owner_map: dict[str, tuple[int, int]] = {}
+    source = "all-root-fallback"
+    if tarball is not None:
+        owner_map = _rootfs_owner_map_from_tarball(rootfs, tarball, tools, work_root)
+        source = str(tarball)
+    commands = ["set_inode_field / uid 0", "set_inode_field / gid 0"]
+    path_count = 1
+    setuid_fixed = 0
+    for path in sorted(rootfs.rglob("*"), key=lambda item: item.relative_to(rootfs).as_posix()):
+        rel = path.relative_to(rootfs).as_posix()
+        uid, gid = owner_map.get(rel, (0, 0))
+        remote = _debugfs_safe_path(rel)
+        commands.append(f"set_inode_field {remote} uid {uid}")
+        commands.append(f"set_inode_field {remote} gid {gid}")
+        path_count += 1
+        try:
+            if os.lstat(path).st_mode & 0o6000 and (uid, gid) == (0, 0):
+                setuid_fixed += 1
+        except FileNotFoundError:
+            pass
+    _debugfs_run(image, commands, "Wuci-OS generated rootfs ownership normalization", cwd=work_root)
+    return {
+        "schema": "wuci-os-rootfs-ownership-normalization-v1",
+        "status": "pass",
+        "source": source,
+        "paths": path_count,
+        "setuid_or_setgid_root_paths": setuid_fixed,
+    }
+
+
+def _rootfs_tree_payload_bytes(rootfs: Path) -> int:
+    total = 0
+    for path in rootfs.rglob("*"):
+        try:
+            info = os.lstat(path)
+        except FileNotFoundError:
+            continue
+        if stat.S_ISREG(info.st_mode):
+            total += info.st_size
+        elif stat.S_ISLNK(info.st_mode):
+            try:
+                total += len(os.readlink(path).encode("utf-8"))
+            except OSError:
+                total += 128
+    return total
+
+
+def build_rootfs_image_from_tree(
+    rootfs: Path,
+    image: Path,
+    *,
+    tools: dict[str, dict[str, Any]],
+    work_root: Path,
+    owner_tarball: Path | None = None,
+) -> dict[str, Any]:
+    mke2fs = _require_host_tool(tools, "mke2fs")
+    payload_bytes = _rootfs_tree_payload_bytes(rootfs)
+    image_bytes = max(512 * 1024 * 1024, int(payload_bytes * 2.4) + 128 * 1024 * 1024)
+    image_bytes = ((image_bytes + 4095) // 4096) * 4096
+    _prepare_exclusive_output_path(image, "Wuci-OS generated rootfs image", force=True)
+    image.parent.mkdir(parents=True, exist_ok=True)
+    with image.open("wb") as handle:
+        handle.truncate(image_bytes)
+    build = subprocess.run(
+        [
+            mke2fs,
+            "-q",
+            "-F",
+            "-t",
+            "ext4",
+            "-L",
+            "wuci-rootfs",
+            "-d",
+            str(rootfs),
+            str(image),
+        ],
+        cwd=work_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    if build.returncode != 0:
+        raise WuciOSError(f"mke2fs generated rootfs image failed: {build.stderr.strip() or build.stdout.strip()}")
+    ownership = normalize_generated_rootfs_image_ownership(
+        image,
+        rootfs,
+        tools=tools,
+        work_root=work_root,
+        owner_tarball=owner_tarball,
+    )
+    digest, size = wuci_kaiju.file_digest_vector(image, "Wuci-OS generated rootfs image")
+    return {
+        "schema": "wuci-os-generated-rootfs-image-v1",
+        "status": "pass",
+        "path": str(image),
+        "filesystem": "ext4",
+        "label": "wuci-rootfs",
+        "payload_bytes": payload_bytes,
+        "bytes": size,
+        "digest_vector": digest,
+        "ownership_normalization": ownership,
+    }
+
+
+def remaster_live_rootfs(
+    *,
+    source_iso: Path,
+    overlay_root: Path,
+    work_root: Path,
+    rootfs_source: Path | None = None,
+    install_suite_packages: bool = False,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
+    tools = discover_host_image_tools()
+    unsquashfs = _require_host_tool(tools, "unsquashfs")
+    mksquashfs = _require_host_tool(tools, "mksquashfs")
+    _prepare_output_directory(work_root, "Wuci-OS remaster workspace")
+    old_squashfs = work_root / "source-squashfs.img"
+    new_squashfs = work_root / "wuci-os-squashfs.img"
+    rootfs = work_root / "rootfs"
+    squashfs_source = rootfs
+    generated_rootfs_image: dict[str, Any] | None = None
+    for path in (old_squashfs, new_squashfs):
+        _prepare_exclusive_output_path(path, f"Wuci-OS remaster artifact {path.name}", force=True)
+    if rootfs.exists():
+        shutil.rmtree(rootfs)
+    rootfs_source_root = resolve_rootfs_source(rootfs_source)
+    if rootfs_source_root is None:
+        rootfs.mkdir(parents=True)
+    squashfs_data = _extract_iso_bytes(source_iso, "LiveOS/squashfs.img", "LiveOS squashfs")
+    _write_verified_new_file(old_squashfs, squashfs_data, "Wuci-OS source squashfs", mode=0o644)
+    rootfs_source_info: dict[str, Any] | None = None
+    if rootfs_source_root is not None:
+        rootfs_source_info = rootfs_source_manifest(rootfs_source_root)
+        shutil.copytree(rootfs_source_root, rootfs, symlinks=True)
+    else:
+        extract = subprocess.run(
+            [unsquashfs, "-d", str(rootfs), str(old_squashfs)],
+            cwd=work_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            check=False,
+        )
+        if extract.returncode != 0:
+            raise WuciOSError(f"unsquashfs failed: {extract.stderr.strip() or extract.stdout.strip()}")
+    nested_ext_image = rootfs / "LiveOS/ext3fs.img"
+    rootfs_image_layout = "wrapped-rootfs-img" if rootfs_source_root is not None else ("nested-ext3fs" if nested_ext_image.is_file() else "direct-squashfs-root")
+    if nested_ext_image.is_file():
+        _require_host_tool(tools, "e2fsck")
+        if not install_suite_packages or os.geteuid() != 0:
+            _require_host_tool(tools, "debugfs")
+    if nested_ext_image.is_file() and install_suite_packages:
+        if os.geteuid() != 0:
+            raise WuciOSError(
+                "Wuci-OS suite package baking for this nested ext3 live image requires root chroot access; "
+                "rerun final-iso with sudo/root, or omit --install-suite-packages for identity-only remaster"
+            )
+        mount_root = work_root / "mounted-rootfs"
+        mount_root.mkdir(parents=True, exist_ok=True)
+        mounted = False
+        mount = subprocess.run(
+            ["mount", "-o", "loop,rw", str(nested_ext_image), str(mount_root)],
+            cwd=work_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            check=False,
+        )
+        if mount.returncode != 0:
+            raise WuciOSError(f"mount nested Wuci-OS ext image failed: {mount.stderr.strip() or mount.stdout.strip()}")
+        mounted = True
+        try:
+            package_install = install_suite_packages_into_rootfs(mount_root, ticker_mode=ticker_mode)
+            overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, mount_root)
+        finally:
+            if mounted:
+                umount = subprocess.run(
+                    ["umount", str(mount_root)],
+                    cwd=work_root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    shell=False,
+                    check=False,
+                )
+                if umount.returncode != 0:
+                    raise WuciOSError(f"umount nested Wuci-OS ext image failed: {umount.stderr.strip() or umount.stdout.strip()}")
+        fsck = run_e2fsck(nested_ext_image, work_root=work_root)
+        overlay_application = overlay_application | {"nested_ext_image_fsck": fsck}
+    elif install_suite_packages:
+        package_install = install_suite_packages_into_rootfs(rootfs, ticker_mode=ticker_mode)
+        overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, rootfs)
+    else:
+        package_install = {
+            "schema": "wuci-os-rootfs-suite-package-install-v1",
+            "status": "not-requested",
+            "reason": "pass --install-suite-packages with --remaster-rootfs to bake Wi-Fi/audio/video/developer packages",
+            "package_count": len(full_suite_packages()),
+            "packages": list(full_suite_packages()),
+        }
+        if nested_ext_image.is_file():
+            overlay_application = apply_wuci_overlay_to_ext_image(overlay_root, nested_ext_image, work_root)
+        else:
+            overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, rootfs)
+    if rootfs_source_root is not None:
+        squashfs_source = work_root / "squashfs-wrapper"
+        if squashfs_source.exists():
+            shutil.rmtree(squashfs_source)
+        (squashfs_source / "LiveOS").mkdir(parents=True)
+        generated_rootfs_image = build_rootfs_image_from_tree(
+            rootfs,
+            squashfs_source / "LiveOS/rootfs.img",
+            tools=tools,
+            work_root=work_root,
+            owner_tarball=rootfs_source_tarball(rootfs_source_root),
+        )
+    build = subprocess.run(
+        [
+            mksquashfs,
+            str(squashfs_source),
+            str(new_squashfs),
+            "-noappend",
+            "-all-root",
+            "-comp",
+            "xz",
+            "-no-xattrs",
+            "-no-progress",
+        ],
+        cwd=work_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    if build.returncode != 0:
+        raise WuciOSError(f"mksquashfs failed: {build.stderr.strip() or build.stdout.strip()}")
+    old_digest, old_bytes = wuci_kaiju.file_digest_vector(old_squashfs, "Wuci-OS source squashfs")
+    new_digest, new_bytes = wuci_kaiju.file_digest_vector(new_squashfs, "Wuci-OS remastered squashfs")
+    return {
+        "schema": "wuci-os-rootfs-remaster-v1",
+        "status": "pass",
+        "source_squashfs": {
+            "path": str(old_squashfs),
+            "bytes": old_bytes,
+            "digest_vector": old_digest,
+        },
+        "remastered_squashfs": {
+            "path": str(new_squashfs),
+            "bytes": new_bytes,
+            "digest_vector": new_digest,
+        },
+        "rootfs_image_layout": rootfs_image_layout,
+        "generated_rootfs_image": generated_rootfs_image
+        or {
+            "schema": "wuci-os-generated-rootfs-image-v1",
+            "status": "not-used",
+            "reason": "remaster preserved source live rootfs image layout",
+        },
+        "rootfs_source": rootfs_source_info
+        or {
+            "schema": "wuci-os-extracted-rootfs-source-v1",
+            "status": "not-used",
+            "reason": "remaster used source ISO LiveOS/squashfs.img",
+        },
+        "suite_package_install": package_install,
+        "overlay_application": overlay_application,
+        "host_tool_status": tools,
+        "non_claims": list(BOUNDARY_DENIALS),
+    }
+
+
+def build_final_iso(
+    *,
+    source_root: Path | None = None,
+    overlay_root: Path | None = None,
+    seal_root: Path | None = None,
+    final_root: Path | None = None,
+    rootfs_source: Path | None = None,
+    keyfile: Path | None = None,
+    bin_path: Path | None = None,
+    remaster_rootfs: bool = False,
+    install_suite_packages: bool = False,
+    force: bool = False,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
+    try:
+        import pycdlib  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise WuciOSError(
+            "pycdlib is required for payload ISO assembly; run: python3 -m ensurepip --user && "
+            "python3 -m pip install --user pycdlib"
+        ) from exc
+
+    source = verify_source(source_root, require_layout=True)
+    if source.get("status") != "pass":
+        raise WuciOSError("Wuci-OS source verification failed: " + "; ".join(map(str, source.get("problems", []))))
+    if install_suite_packages and not remaster_rootfs:
+        raise WuciOSError("--install-suite-packages requires --remaster-rootfs")
+
+    overlay = DEFAULT_OVERLAY_ROOT if overlay_root is None else overlay_root
+    seal = DEFAULT_SEAL_ROOT if seal_root is None else seal_root
+    final = DEFAULT_FINAL_ROOT if final_root is None else final_root
+    key = seal / "wuci-os-overlay.key" if keyfile is None else keyfile
+    binary = repo_root() / DEFAULT_WUCI_BIN if bin_path is None else bin_path
+    final_iso = final / FINAL_ISO_NAME
+    sha_path = final / f"{FINAL_ISO_NAME}.sha256"
+    manifest_path = final / "manifest.json"
+    daylight_manifest_path = final / "daylight-manifest.json"
+    rootfs_manifest_path = final / "rootfs-manifest.json"
+    source_kit_path = final / SOURCE_KIT_TAR_NAME
+    overlay_tar_path = final / "wuci-os-overlay.tar"
+    boot_splash_png_path = final / BOOT_SPLASH_PNG_NAME
+
+    _prepare_output_directory(final, "Wuci-OS final ISO output")
+    for path, label in (
+        (final_iso, "Wuci-OS final ISO"),
+        (sha_path, "Wuci-OS final ISO sha256"),
+        (manifest_path, "Wuci-OS final ISO manifest"),
+        (daylight_manifest_path, "Wuci-OS final Daylight manifest"),
+        (rootfs_manifest_path, "Wuci-OS final rootfs manifest"),
+        (source_kit_path, "Wuci-OS final source-kit tar"),
+        (overlay_tar_path, "Wuci-OS final overlay tar"),
+        (boot_splash_png_path, "Wuci-OS rendered boot splash PNG"),
+    ):
+        _prepare_exclusive_output_path(path, label, force=force)
+
+    if not key.is_file():
+        generate_keyfile(key, force=False)
+
+    overlay_manifest = create_overlay(
+        overlay,
+        wallpaper_source=repo_root() / DEFAULT_WALLPAPER_SOURCE,
+        force=True,
+    )
+    seal_manifest = seal_overlay(
+        overlay_root=overlay,
+        out_root=seal,
+        keyfile=key,
+        bin_path=binary,
+        force=True,
+        ticker_mode=ticker_mode,
+    )
+    source_kit = write_deterministic_source_kit_tar(source_kit_path, ticker_mode=ticker_mode)
+    overlay_tar_validation = write_deterministic_overlay_tar(overlay, overlay_tar_path, ticker_mode=ticker_mode)
+    overlay_tar_digest, overlay_tar_bytes = wuci_kaiju.file_digest_vector(overlay_tar_path, "Wuci-OS final overlay tar")
+    source_manifest = read_source_manifest(Path(str(source.get("source_root", DEFAULT_SOURCE_ROOT))))
+    tools = discover_host_image_tools()
+    bootable_base = bool(source.get("layout", {}).get("status") == "pass")
+    source_iso = Path(str(source["image_path"]))
+    boot_splash_source = repo_root() / DEFAULT_BOOT_SPLASH_SOURCE
+    if not boot_splash_source.is_file():
+        boot_splash_source = repo_root() / DEFAULT_WALLPAPER_SOURCE
+    boot_splash_render = render_boot_splash_png(boot_splash_source, boot_splash_png_path, force=True)
+    boot_splash = Path(str(boot_splash_render["rendered_path"]))
+    boot_splash_digest = dict(boot_splash_render["digest_vector"])
+    boot_splash_bytes = int(boot_splash_render["bytes"])
+    model_doc_source = repo_root() / SUBSTRACT_MODEL_DOC
+    model_doc_digest, model_doc_bytes = wuci_kaiju.file_digest_vector(model_doc_source, "Wuci-OS Substract Substrate model doc")
+    daylight_v8_model_source = repo_root() / DAYLIGHT_V8_MODEL_DOC
+    daylight_v8_model_data = _read_regular_bytes(daylight_v8_model_source, "Wuci-OS Daylight v8 model doc")
+    daylight_v8_model_digest = digest_vector(daylight_v8_model_data)
+    daylight_v8_model_bytes = len(daylight_v8_model_data)
+    daylight_v9_model_source = repo_root() / DAYLIGHT_V9_MODEL_DOC
+    daylight_v9_model_data = _read_regular_bytes(daylight_v9_model_source, "Wuci-OS Daylight v9 model doc")
+    daylight_v9_model_digest = digest_vector(daylight_v9_model_data)
+    daylight_v9_model_bytes = len(daylight_v9_model_data)
+    model_diagram_source = repo_root() / DEFAULT_MODEL_DIAGRAM_SOURCE
+    model_diagram_data = _read_regular_bytes(model_diagram_source, "Wuci-OS Daylight wire model diagram")
+    _validate_png_bytes(model_diagram_data, "Wuci-OS Daylight wire model diagram")
+    model_diagram_digest, model_diagram_bytes = digest_vector(model_diagram_data), len(model_diagram_data)
+    daylight_v8_diagram_source = repo_root() / DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE
+    daylight_v8_diagram_data = _read_regular_bytes(daylight_v8_diagram_source, "Wuci-OS Daylight v8 sheet")
+    _validate_png_bytes(daylight_v8_diagram_data, "Wuci-OS Daylight v8 sheet")
+    daylight_v8_diagram_digest, daylight_v8_diagram_bytes = digest_vector(daylight_v8_diagram_data), len(daylight_v8_diagram_data)
+    daylight_v9_sheet_source = repo_root() / DEFAULT_DAYLIGHT_V9_SHEET_SOURCE
+    daylight_v9_sheet_data = _read_regular_bytes(daylight_v9_sheet_source, "Wuci-OS Daylight v9 sheet")
+    _validate_png_bytes(daylight_v9_sheet_data, "Wuci-OS Daylight v9 sheet")
+    daylight_v9_sheet_digest, daylight_v9_sheet_bytes = digest_vector(daylight_v9_sheet_data), len(daylight_v9_sheet_data)
+    daylight_v9_diagram_source = repo_root() / DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE
+    daylight_v9_diagram_data = _read_regular_bytes(daylight_v9_diagram_source, "Wuci-OS Daylight v9 formal spine")
+    if b"<svg" not in daylight_v9_diagram_data[:256]:
+        raise WuciOSError(f"Wuci-OS Daylight v9 formal spine is not an SVG document: {daylight_v9_diagram_source}")
+    daylight_v9_diagram_digest, daylight_v9_diagram_bytes = digest_vector(daylight_v9_diagram_data), len(daylight_v9_diagram_data)
+    original_boot_menu = _extract_iso_text(source_iso, "boot/isolinux/isolinux.cfg")
+    wuci_boot_menu = rewrite_isolinux_config_for_wuci(original_boot_menu) if original_boot_menu else ""
+    grub_rewrites: dict[str, str] = {}
+    for grub_path in GRUB_CONFIG_ISO_PATHS:
+        grub_text = _extract_iso_text(source_iso, grub_path)
+        if grub_text:
+            grub_rewrites[grub_path] = rewrite_grub_config_for_wuci(grub_text)
+    remaster_result: dict[str, Any] = {
+        "schema": "wuci-os-rootfs-remaster-v1",
+        "status": "not-requested",
+        "reason": "payload-preview mode; pass --remaster-rootfs for the Wuci-OS first-boot identity image",
+        "host_tool_status": tools,
+    }
+    remaster_tmp_ctx: tempfile.TemporaryDirectory[str] | None = None
+    if remaster_rootfs:
+        remaster_tmp_ctx = tempfile.TemporaryDirectory(prefix=".wuci-os-remaster.", dir=str(final))
+        remaster_result = remaster_live_rootfs(
+            source_iso=source_iso,
+            overlay_root=overlay,
+            work_root=Path(remaster_tmp_ctx.name),
+            rootfs_source=rootfs_source,
+            install_suite_packages=install_suite_packages,
+            ticker_mode=ticker_mode,
+        )
+
+    suite_packages_baked = bool(
+        remaster_rootfs
+        and isinstance(remaster_result.get("suite_package_install"), dict)
+        and remaster_result["suite_package_install"].get("status") == "pass"
+    )
+    release_blockers = []
+    if not remaster_rootfs:
+        release_blockers.append("deterministic-rootfs-not-remastered")
+    if not suite_packages_baked:
+        release_blockers.append("package-closure-fixed-point-missing")
+    release_blockers.extend(
+        [
+            "qemu-boot-trace-not-bound-to-final-manifest",
+            "hardware-boot-trace-missing",
+            "final-iso-manifest-signature-missing",
+            "witness-ledger-entry-missing",
+        ]
+    )
+    release_gate = {
+        "schema": "wuci-os-substract-release-gate-v1",
+        "status": "blocked" if release_blockers else "pass",
+        "release_allowed": not release_blockers,
+        "blockers": release_blockers,
+        "subtracted_claims": [
+            "release-ready",
+            "package-closure-fixed-point",
+            "manifest-signed",
+            "boot-bisimulation-complete",
+        ]
+        if release_blockers
+        else [],
+        "model": "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md",
+    }
+
+    onboard_manifest = {
+        "schema": FINAL_ISO_SCHEMA,
+        "status": "remastered-iso-built" if remaster_rootfs else "payload-preview-built",
+        "product": PRODUCT_NAME,
+        "image_id": IMAGE_ID,
+        "created_utc": utc_now(),
+        "mode": "bootable remastered Wuci-OS ISO" if remaster_rootfs else "bootable payload-preview ISO",
+        "base_source_iso": {
+            "path": str(source["image_path"]),
+            "digest_vector": source.get("digest_vector", {}),
+            "bytes": source.get("image_bytes", 0),
+            "layout": source.get("layout", {}),
+        },
+        "payload_policy": {
+            "rootfs_squashfs_rebuilt": remaster_rootfs,
+            "rootfs_image_layout": remaster_result.get("rootfs_image_layout"),
+            "suite_packages_baked": suite_packages_baked,
+            "boot_catalog_preserved_from_source": bootable_base,
+            "boot_menu_rewritten": bool(wuci_boot_menu),
+            "grub_entries_rewritten": sorted(grub_rewrites),
+            "boot_splash_embedded": True,
+            "legacy_bios_live_profile": list(LEGACY_BIOS_LIVE_KERNEL_ARGS),
+            "direct_kernel_fast_boot_profile": list(FAST_BOOT_KERNEL_ARGS),
+            "activation": "Wuci-OS rootfs boots directly" if remaster_rootfs else "boot the live base, then extract /wuci-os/*.tar payloads or run tools/wuci-os-live-activate from mounted source",
+            "reason": "rootfs remastered with Wuci-OS overlay" if remaster_rootfs else "payload-preview mode embeds Wuci-OS overlay/source evidence as onboard payloads",
+        },
+        "self_host_payloads": {
+            "wuci_source": "wuci-os/wuci-os-source-kit.tar includes the Wuci-Ji checkout under /opt/wuci-os/source/wuci-ji",
+            "upstream_build_source": "source-kit includes build/wuci-os/upstream under /opt/wuci-os/source/upstream when present",
+            "activation_helper": "wuci-os/wuci-os-live-activate",
+            "offline_install_guide": "wuci-os/OFFLINE-INSTALL.txt gives beginning-to-end install and first-boot steps without internet",
+            "update_command": "wuci-update updates system packages from configured repositories and fast-forwards the onboard repo",
+            "terminal_resolver": "wuci-terminal prefers kitty, then ghostty, then safe fallbacks",
+            "boot_chime": "wuci-boot-chime generates the original Wuci-OS chime locally and falls back to terminal bell",
+            "network_suite": "NetworkManager, Wi-Fi supplicants, firmware, VPN/mobile helpers, and nftables are listed for baked suite installs",
+            "media_suite": "PipeWire/WirePlumber, ALSA/Pulse helpers, Mesa/video drivers, Bluetooth, printing, scanning, and portals are listed for baked suite installs",
+            "ai_tooling": "wuci-ai-setup is plan-only; credentials are operator-supplied and not baked into the ISO",
+        },
+        "boot_splash": {
+            "source_path": str(boot_splash_source),
+            "source_bytes": boot_splash_render["source_bytes"],
+            "source_digest_vector": boot_splash_render["source_digest_vector"],
+            "rendered_path": str(boot_splash),
+            "render_method": boot_splash_render["render_method"],
+            "iso_paths": [
+                "/boot/isolinux/wuci-splash.png",
+                "/boot/grub/wuci-splash.png",
+                "/wuci-os/boot-splash.svg",
+            ],
+            "bytes": boot_splash_bytes,
+            "digest_vector": boot_splash_digest,
+            "menu_names": [
+                "Wuci-Ji Systems / Wuci-OS live",
+                "Wuci-Ji Systems recovery and tools",
+            ],
+        },
+        "substract_substrate_model": {
+            "schema": "wuci-os-substract-substrate-model-binding-v1",
+            "formal_model_path": str(SUBSTRACT_MODEL_DOC),
+            "formal_model_bytes": model_doc_bytes,
+            "formal_model_digest_vector": model_doc_digest,
+            "daylight_v8_model_path": str(DAYLIGHT_V8_MODEL_DOC),
+            "daylight_v8_model_bytes": daylight_v8_model_bytes,
+            "daylight_v8_model_digest_vector": daylight_v8_model_digest,
+            "daylight_v9_model_path": str(DAYLIGHT_V9_MODEL_DOC),
+            "daylight_v9_model_bytes": daylight_v9_model_bytes,
+            "daylight_v9_model_digest_vector": daylight_v9_model_digest,
+            "diagram_path": str(DEFAULT_MODEL_DIAGRAM_SOURCE),
+            "diagram_bytes": model_diagram_bytes,
+            "diagram_digest_vector": model_diagram_digest,
+            "daylight_v8_diagram_path": str(DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE),
+            "daylight_v8_diagram_bytes": daylight_v8_diagram_bytes,
+            "daylight_v8_diagram_digest_vector": daylight_v8_diagram_digest,
+            "daylight_v9_sheet_path": str(DEFAULT_DAYLIGHT_V9_SHEET_SOURCE),
+            "daylight_v9_sheet_bytes": daylight_v9_sheet_bytes,
+            "daylight_v9_sheet_digest_vector": daylight_v9_sheet_digest,
+            "daylight_v9_diagram_path": str(DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE),
+            "daylight_v9_diagram_bytes": daylight_v9_diagram_bytes,
+            "daylight_v9_diagram_digest_vector": daylight_v9_diagram_digest,
+            "iso_paths": [
+                "/wuci-os/WUCI_DAYLIGHT_V8.md",
+                "/wuci-os/WUCI_DAYLIGHT_V9.md",
+                "/wuci-os/wuci-daylight-v8-sheet.png",
+                "/wuci-os/wuci-daylight-v9-sheet.png",
+                "/wuci-os/wuci-daylight-v9-spine.svg",
+                "/wuci-os/wuci-daylight-wire-model.png",
+                f"/opt/wuci-os/source/wuci-ji/{SUBSTRACT_MODEL_DOC.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V8_MODEL_DOC.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V9_MODEL_DOC.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_MODEL_DIAGRAM_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V9_SHEET_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE.as_posix()}",
+            ],
+        },
+        "payloads": {
+            "overlay_tar": {
+                "path": "wuci-os/wuci-os-overlay.tar",
+                "bytes": overlay_tar_bytes,
+                "digest_vector": overlay_tar_digest,
+                "validation": overlay_tar_validation,
+            },
+            "source_kit_tar": {
+                "path": "wuci-os/wuci-os-source-kit.tar",
+                "bytes": source_kit["tar_bytes"],
+                "digest_vector": source_kit["tar_digest_vector"],
+                "validation": source_kit["source_kit_validation"],
+            },
+            "daylight_overlay": seal_manifest["sealed_artifact"],
+        },
+        "rootfs_remaster": remaster_result,
+        "release_gate": release_gate,
+        "overlay_manifest_digest_vector": digest_vector(canonical_json_bytes(overlay_manifest)),
+        "daylight_manifest_digest_vector": digest_vector(canonical_json_bytes(seal_manifest)),
+        "host_tool_status": tools,
+        "next_remaster_requirements": [
+            "install squashfs-tools for mksquashfs and unsquashfs",
+            "install or expose xbps-install/chroot for --install-suite-packages",
+            "rebuild LiveOS/squashfs.img with the Wuci-OS overlay applied",
+            "reassemble and boot-smoke-test the remastered ISO",
+        ],
+        "non_claims": list(BOUNDARY_DENIALS),
+    }
+    onboard_manifest_bytes = canonical_json_bytes(onboard_manifest) + b"\n"
+    source_manifest_bytes = canonical_json_bytes(wuci_public_source_manifest(source_manifest)) + b"\n"
+    seal_manifest_bytes = canonical_json_bytes(seal_manifest) + b"\n"
+    remaster_manifest_bytes = canonical_json_bytes(remaster_result) + b"\n"
+    offline_install_bytes = offline_install_guide_text().encode("utf-8")
+    remaster_readme_note = (
+        "LiveOS/squashfs.img was remastered with Wuci-OS identity and overlay files.\n\n"
+        if remaster_rootfs
+        else "This payload-preview ISO has not remastered LiveOS/squashfs.img; pass --remaster-rootfs for the first-boot Wuci identity image.\n\n"
+    )
+    readme_bytes = (
+        "Wuci-OS boot ISO\n\n"
+        "This ISO includes Wuci-OS payloads under /wuci-os and preserves upstream attribution in evidence.\n"
+        + remaster_readme_note
+        +
+        "Payloads:\n"
+        "  /wuci-os/wuci-os-overlay.tar\n"
+        "  /wuci-os/wuci-os-source-kit.tar\n"
+        "  /wuci-os/wuci-os-overlay.wj\n"
+        "  /wuci-os/manifest.json\n"
+        "  /wuci-os/daylight-manifest.json\n"
+        "  /wuci-os/rootfs-manifest.json\n"
+        "  /wuci-os/WUCI_DAYLIGHT_V8.md\n"
+        "  /wuci-os/WUCI_DAYLIGHT_V9.md\n"
+        "  /wuci-os/wuci-daylight-v8-sheet.png\n"
+        "  /wuci-os/wuci-daylight-v9-sheet.png\n"
+        "  /wuci-os/wuci-daylight-v9-spine.svg\n"
+        "  /wuci-os/wuci-daylight-wire-model.png\n"
+        "  /wuci-os/OFFLINE-INSTALL.txt\n"
+    ).encode("utf-8")
+    activate_path = repo_root() / "tools/wuci-os-live-activate"
+
+    payload_records: list[dict[str, Any]] = []
+    iso_assembly: dict[str, Any] = {
+        "schema": "wuci-os-iso-assembly-v1",
+        "status": "pass",
+        "tool": "pycdlib",
+        "reason": "xorriso was not available; used Python ISO writer fallback",
+    }
+    iso = pycdlib.PyCdlib()
+    try:
+        iso.open(str(source_iso))
+        isolinux_cfg_iso_path = _iso_first_existing_path(
+            iso,
+            ("/boot/isolinux/isolinux.cfg", "/BOOT/ISOLINUX/ISOLINUX.CFG;1"),
+            "ISOLINUX config",
+        )
+        isolinux_splash_iso_path = _iso_child_path_for_parent(
+            iso,
+            (
+                ("/boot/isolinux", "/boot/isolinux/wuci-splash.png"),
+                ("/BOOT/ISOLINUX", "/BOOT/ISOLINUX/WUCISPL.PNG;1"),
+            ),
+        )
+        grub_dir_iso_path = "/boot/grub" if _iso_path_exists(iso, "/boot/grub") else "/BOOT/GRUB"
+        grub_splash_iso_path = _iso_child_path_for_parent(
+            iso,
+            (
+                ("/boot/grub", "/boot/grub/wuci-splash.png"),
+                ("/BOOT/GRUB", "/BOOT/GRUB/WUCISPL.PNG;1"),
+            ),
+        )
+        if wuci_boot_menu:
+            payload_records.append(
+                _iso_replace_bytes(
+                    iso,
+                    wuci_boot_menu.encode("utf-8"),
+                    iso_path=isolinux_cfg_iso_path,
+                    rr_name="isolinux.cfg",
+                    joliet_path="/boot/isolinux/isolinux.cfg",
+                )
+            )
+        _iso_add_directory_once(iso, grub_dir_iso_path, rr_name="grub", joliet_path="/boot/grub")
+        payload_records.append(
+            _iso_replace_local_file(
+                iso,
+                boot_splash,
+                iso_path=isolinux_splash_iso_path,
+                rr_name="wuci-splash.png",
+                joliet_path="/boot/isolinux/wuci-splash.png",
+                label="Wuci-OS ISOLINUX boot splash",
+            )
+        )
+        payload_records.append(
+            _iso_replace_local_file(
+                iso,
+                boot_splash,
+                iso_path=grub_splash_iso_path,
+                rr_name="wuci-splash.png",
+                joliet_path="/boot/grub/wuci-splash.png",
+                label="Wuci-OS GRUB boot splash",
+            )
+        )
+        for grub_path, grub_text in grub_rewrites.items():
+            iso_path, rr_name, joliet_path = GRUB_CONFIG_ISO_PATHS[grub_path]
+            iso_path_candidates = (iso_path,)
+            if grub_path == "boot/grub/grub.cfg":
+                iso_path_candidates = (iso_path, "/BOOT/GRUB/GRUB.CFG;1")
+            elif grub_path == "boot/grub/grub_void.cfg":
+                iso_path_candidates = (iso_path, "/BOOT/GRUB/GRUBVOID.CFG;1")
+            elif grub_path == "boot/grub/loopback.cfg":
+                iso_path_candidates = (iso_path, "/BOOT/GRUB/LOOPBACK.CFG;1")
+            elif grub_path == "EFI/BOOT/grub.cfg":
+                iso_path_candidates = (iso_path, "/EFI/BOOT/GRUB.CFG;1")
+            payload_records.append(
+                _iso_replace_bytes(
+                    iso,
+                    grub_text.encode("utf-8"),
+                    iso_path=_iso_first_existing_path(iso, iso_path_candidates, f"GRUB config {grub_path}"),
+                    rr_name=rr_name,
+                    joliet_path=joliet_path,
+                )
+            )
+        if remaster_rootfs:
+            payload_records.append(
+                _iso_replace_local_file(
+                    iso,
+                    Path(str(remaster_result["remastered_squashfs"]["path"])),
+                    iso_path=_iso_first_existing_path(
+                        iso,
+                        ("/LiveOS/squashfs.img", "/LIVEOS/SQUASHFS.IMG;1"),
+                        "LiveOS squashfs",
+                    ),
+                    rr_name="squashfs.img",
+                    joliet_path="/LiveOS/squashfs.img",
+                    label="Wuci-OS remastered squashfs",
+                )
+            )
+        _iso_add_directory_once(iso, "/WUCI_OS", rr_name="wuci-os", joliet_path="/wuci-os")
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                boot_splash_source,
+                iso_path="/WUCI_OS/SPLASH.SVG;1",
+                rr_name="boot-splash.svg",
+                joliet_path="/wuci-os/boot-splash.svg",
+                label="Wuci-OS boot splash source SVG",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                model_diagram_source,
+                iso_path="/WUCI_OS/WIRE.PNG;1",
+                rr_name="wuci-daylight-wire-model.png",
+                joliet_path="/wuci-os/wuci-daylight-wire-model.png",
+                label="Wuci-OS Daylight wire model diagram",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v8_diagram_source,
+                iso_path="/WUCI_OS/DLV8.PNG;1",
+                rr_name="wuci-daylight-v8-sheet.png",
+                joliet_path="/wuci-os/wuci-daylight-v8-sheet.png",
+                label="Wuci-OS Daylight v8 sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v9_sheet_source,
+                iso_path="/WUCI_OS/D9SHEET.PNG;1",
+                rr_name="wuci-daylight-v9-sheet.png",
+                joliet_path="/wuci-os/wuci-daylight-v9-sheet.png",
+                label="Wuci-OS Daylight v9 sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v9_diagram_source,
+                iso_path="/WUCI_OS/DLV9.SVG;1",
+                rr_name="wuci-daylight-v9-spine.svg",
+                joliet_path="/wuci-os/wuci-daylight-v9-spine.svg",
+                label="Wuci-OS Daylight v9 formal spine",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                readme_bytes,
+                iso_path="/WUCI_OS/README.TXT;1",
+                rr_name="README.txt",
+                joliet_path="/wuci-os/README.txt",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                offline_install_bytes,
+                iso_path="/WUCI_OS/INSTALL.TXT;1",
+                rr_name="OFFLINE-INSTALL.txt",
+                joliet_path="/wuci-os/OFFLINE-INSTALL.txt",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                daylight_v8_model_data,
+                iso_path="/WUCI_OS/DLV8.MD;1",
+                rr_name="WUCI_DAYLIGHT_V8.md",
+                joliet_path="/wuci-os/WUCI_DAYLIGHT_V8.md",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                daylight_v9_model_data,
+                iso_path="/WUCI_OS/DLV9.MD;1",
+                rr_name="WUCI_DAYLIGHT_V9.md",
+                joliet_path="/wuci-os/WUCI_DAYLIGHT_V9.md",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                onboard_manifest_bytes,
+                iso_path="/WUCI_OS/MANIFEST.JSON;1",
+                rr_name="manifest.json",
+                joliet_path="/wuci-os/manifest.json",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                source_manifest_bytes,
+                iso_path="/WUCI_OS/SOURCE.JSON;1",
+                rr_name="source.json",
+                joliet_path="/wuci-os/source.json",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                seal_manifest_bytes,
+                iso_path="/WUCI_OS/DAYLIGHT.JSON;1",
+                rr_name="daylight-manifest.json",
+                joliet_path="/wuci-os/daylight-manifest.json",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                remaster_manifest_bytes,
+                iso_path="/WUCI_OS/ROOTFS.JSON;1",
+                rr_name="rootfs-manifest.json",
+                joliet_path="/wuci-os/rootfs-manifest.json",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                overlay_tar_path,
+                iso_path="/WUCI_OS/OVERLAY.TAR;1",
+                rr_name="wuci-os-overlay.tar",
+                joliet_path="/wuci-os/wuci-os-overlay.tar",
+                label="Wuci-OS final overlay tar",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                source_kit_path,
+                iso_path="/WUCI_OS/SOURCEKT.TAR;1",
+                rr_name=SOURCE_KIT_TAR_NAME,
+                joliet_path=f"/wuci-os/{SOURCE_KIT_TAR_NAME}",
+                label="Wuci-OS final source-kit tar",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                Path(str(seal_manifest["sealed_artifact"]["path"])),
+                iso_path="/WUCI_OS/OVERLAY.WJ;1",
+                rr_name="wuci-os-overlay.wj",
+                joliet_path="/wuci-os/wuci-os-overlay.wj",
+                label="Wuci-OS Daylight sealed overlay",
+            )
+        )
+        if activate_path.is_file():
+            payload_records.append(
+                _iso_add_local_file(
+                    iso,
+                    activate_path,
+                    iso_path="/WUCI_OS/ACTIVATE.SH;1",
+                    rr_name="wuci-os-live-activate",
+                    joliet_path="/wuci-os/wuci-os-live-activate",
+                    label="Wuci-OS live activate helper",
+                )
+            )
+        iso.write(str(final_iso))
+        xorriso_path = str(tools.get("xorriso", {}).get("path") or "")
+        if tools.get("xorriso", {}).get("status") == "available" and xorriso_path:
+            with tempfile.TemporaryDirectory(prefix=".wuci-os-xorriso.", dir=str(final)) as xorriso_tmp:
+                iso_assembly = _xorriso_replay_final_iso(
+                    xorriso=xorriso_path,
+                    source_iso=source_iso,
+                    final_iso=final_iso,
+                    staging_root=Path(xorriso_tmp),
+                    wuci_boot_menu=wuci_boot_menu,
+                    grub_rewrites=grub_rewrites,
+                    boot_splash=boot_splash,
+                    boot_splash_source=boot_splash_source,
+                    model_diagram_source=model_diagram_source,
+                    daylight_v8_diagram_source=daylight_v8_diagram_source,
+                    daylight_v9_sheet_source=daylight_v9_sheet_source,
+                    daylight_v9_diagram_source=daylight_v9_diagram_source,
+                    readme_bytes=readme_bytes,
+                    offline_install_bytes=offline_install_bytes,
+                    daylight_v8_model_bytes=daylight_v8_model_data,
+                    daylight_v9_model_bytes=daylight_v9_model_data,
+                    onboard_manifest_bytes=onboard_manifest_bytes,
+                    source_manifest_bytes=source_manifest_bytes,
+                    seal_manifest_bytes=seal_manifest_bytes,
+                    remaster_manifest_bytes=remaster_manifest_bytes,
+                    overlay_tar_path=overlay_tar_path,
+                    source_kit_path=source_kit_path,
+                    sealed_overlay_path=Path(str(seal_manifest["sealed_artifact"]["path"])),
+                    activate_path=activate_path,
+                    remaster_result=remaster_result,
+                    remaster_rootfs=remaster_rootfs,
+                )
+    except Exception:
+        try:
+            final_iso.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+    finally:
+        iso.close()
+        if remaster_tmp_ctx is not None:
+            remaster_tmp_ctx.cleanup()
+
+    final_digest, final_bytes = wuci_kaiju.file_digest_vector(final_iso, "Wuci-OS final ISO")
+    validation_iso = pycdlib.PyCdlib()
+    try:
+        validation_iso.open(str(final_iso))
+        has_boot_catalog = validation_iso.eltorito_boot_catalog is not None
+    finally:
+        validation_iso.close()
+    for subpath, label in (
+        ("wuci-os/manifest.json", "Wuci-OS manifest"),
+        ("wuci-os/wuci-os-overlay.tar", "Wuci-OS overlay tar"),
+        (f"wuci-os/{SOURCE_KIT_TAR_NAME}", "Wuci-OS source kit"),
+        ("wuci-os/wuci-os-overlay.wj", "Wuci-OS sealed overlay"),
+        ("wuci-os/rootfs-manifest.json", "Wuci-OS rootfs manifest"),
+        ("wuci-os/OFFLINE-INSTALL.txt", "Wuci-OS offline install guide"),
+        ("wuci-os/WUCI_DAYLIGHT_V8.md", "Wuci-OS Daylight v8 model"),
+        ("wuci-os/WUCI_DAYLIGHT_V9.md", "Wuci-OS Daylight v9 model"),
+        ("wuci-os/wuci-daylight-v8-sheet.png", "Wuci-OS Daylight v8 sheet"),
+        ("wuci-os/wuci-daylight-v9-sheet.png", "Wuci-OS Daylight v9 sheet"),
+        ("wuci-os/wuci-daylight-v9-spine.svg", "Wuci-OS Daylight v9 formal spine"),
+        ("wuci-os/wuci-daylight-wire-model.png", "Wuci-OS Daylight wire model diagram"),
+        ("boot/isolinux/wuci-splash.png", "Wuci-OS ISOLINUX boot splash"),
+        ("boot/grub/wuci-splash.png", "Wuci-OS GRUB boot splash"),
+    ):
+        _extract_iso_bytes(final_iso, subpath, label)
+    layout = inspect_void_iso(final_iso)
+    result = onboard_manifest | {
+        "status": "built",
+        "iso": {
+            "path": str(final_iso),
+            "bytes": final_bytes,
+            "digest_vector": final_digest,
+            "sha256_path": str(sha_path),
+        },
+        "manifest_path": str(manifest_path),
+        "daylight_manifest_path": str(daylight_manifest_path),
+        "rootfs_manifest_path": str(rootfs_manifest_path),
+        "payload_records": payload_records,
+        "iso_assembly": iso_assembly,
+        "validation": {
+            "schema": "wuci-os-final-iso-validation-v1",
+            "status": "pass" if has_boot_catalog and layout.get("status") == "pass" else "blocked",
+            "eltorito_boot_catalog": "present" if has_boot_catalog else "missing",
+            "void_live_layout": layout,
+            "payload_directory": "/wuci-os",
+            "rootfs_remastered": remaster_rootfs,
+        },
+    }
+    sha_text = f"{final_digest['sha256']}  {FINAL_ISO_NAME}\n".encode("ascii")
+    _write_verified_new_file(sha_path, sha_text, "Wuci-OS final ISO sha256", mode=0o644)
+    wuci_kaiju.write_json_atomic(manifest_path, result)
+    wuci_kaiju.write_json_atomic(daylight_manifest_path, seal_manifest)
+    wuci_kaiju.write_json_atomic(rootfs_manifest_path, remaster_result)
+    _fsync_parent(final_iso)
+    _fsync_parent(manifest_path)
+    return result
+
+
+def _read_failure_notes(notes_path: Path) -> tuple[dict[str, Any], dict[str, str], int]:
+    data = _read_regular_bytes(notes_path, "Wuci-OS failure notes")
+    try:
+        notes = json.loads(data.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise WuciOSError(f"failure notes must be JSON: {notes_path}: {exc}") from exc
+    if not isinstance(notes, dict):
+        raise WuciOSError("failure notes must be a JSON object")
+    required = ("observed_failure", "boot_log", "qemu_plan", "target_hardware")
+    missing = [key for key in required if not notes.get(key)]
+    if missing:
+        raise WuciOSError("failure notes missing required fields: " + ", ".join(missing))
+    return notes, digest_vector(data), len(data)
+
+
+def _failure_evidence_file_records(notes: dict[str, Any], notes_path: Path) -> list[dict[str, Any]]:
+    raw = notes.get("evidence_files", {})
+    if raw is None:
+        return []
+    if not isinstance(raw, dict):
+        raise WuciOSError("failure notes evidence_files must be an object when present")
+    records: list[dict[str, Any]] = []
+    for label, raw_path in sorted(raw.items()):
+        if not isinstance(label, str) or not label:
+            raise WuciOSError("failure evidence file labels must be non-empty strings")
+        if not isinstance(raw_path, str) or not raw_path:
+            raise WuciOSError(f"failure evidence path for {label!r} must be a non-empty string")
+        path = Path(raw_path)
+        if not path.is_absolute():
+            path = notes_path.parent / path
+        digest, size = wuci_kaiju.file_digest_vector(path, f"Wuci-OS failure evidence file {label}")
+        records.append(
+            {
+                "label": label,
+                "path": str(path),
+                "bytes": size,
+                "digest_vector": digest,
+            }
+        )
+    return records
+
+
+def ingest_failure_specimen(iso_path: Path, notes_path: Path, *, failure_root: Path | None = None) -> dict[str, Any]:
+    failure_root = DEFAULT_FAILURE_ROOT if failure_root is None else failure_root
+    iso_digest, iso_bytes = wuci_kaiju.file_digest_vector(iso_path, "Wuci-OS failed ISO specimen")
+    notes, notes_digest, notes_bytes = _read_failure_notes(notes_path)
+    evidence_files = _failure_evidence_file_records(notes, notes_path)
+    specimen_id = iso_digest["sha256"]
+    out_dir = failure_root / specimen_id
+    manifest_path = out_dir / "failure.json"
+    _prepare_output_directory(failure_root, "Wuci-OS failure specimen root")
+    if out_dir.exists():
+        raise WuciOSError(f"failure specimen already exists and will not be overwritten: {out_dir}")
+    _prepare_output_directory(out_dir, "Wuci-OS failure specimen directory")
+    manifest = {
+        "schema": FAILURE_SPECIMEN_SCHEMA,
+        "status": "negative-evidence",
+        "created_utc": utc_now(),
+        "specimen_id": specimen_id,
+        "product": PRODUCT_NAME,
+        "image_id": IMAGE_ID,
+        "failed_iso": {
+            "path": str(iso_path),
+            "bytes": iso_bytes,
+            "digest_vector": iso_digest,
+        },
+        "notes": notes,
+        "notes_file": {
+            "path": str(notes_path),
+            "bytes": notes_bytes,
+            "digest_vector": notes_digest,
+        },
+        "evidence_files": evidence_files,
+        "claim_effect": {
+            "release_allowed": False,
+            "reason": "failed ISO specimen is negative evidence; it cannot be promoted as a release base",
+            "subtracted_claims": [
+                "working-iso",
+                "boot-trace-qemu-pass",
+                "boot-trace-hardware-pass",
+            ],
+        },
+        "non_claims": list(BOUNDARY_DENIALS),
+    }
+    wuci_kaiju.write_json_atomic(manifest_path, manifest)
+    _fsync_parent(manifest_path)
+    return manifest | {"manifest_path": str(manifest_path)}
+
+
 def command_source(args: argparse.Namespace) -> int:
     source_root = resolve_repo_path(args.source_root, DEFAULT_SOURCE_ROOT)
     subcommand = args.source_command or "status"
@@ -4009,6 +8606,63 @@ def command_seal(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_failure(args: argparse.Namespace) -> int:
+    subcommand = args.failure_command or ""
+    if subcommand == "ingest":
+        iso_path = resolve_repo_path(args.iso, Path(args.iso))
+        notes_path = resolve_repo_path(args.notes, Path(args.notes))
+        failure_root = resolve_repo_path(args.failure_root, DEFAULT_FAILURE_ROOT)
+        result = ingest_failure_specimen(iso_path, notes_path, failure_root=failure_root)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            print("wuci-os failure specimen: ingested")
+            print(f"manifest: {result['manifest_path']}")
+            print(f"specimen-id: {result['specimen_id']}")
+            print(f"sha256: {result['failed_iso']['digest_vector']['sha256']}")
+            print("release: blocked-negative-evidence")
+        return 0
+    raise WuciOSError(f"unsupported failure command: {subcommand}")
+
+
+def command_final_iso(args: argparse.Namespace) -> int:
+    source_root = resolve_repo_path(args.source_root, DEFAULT_SOURCE_ROOT)
+    overlay_root = resolve_repo_path(args.overlay_root, DEFAULT_OVERLAY_ROOT)
+    seal_root = resolve_repo_path(args.seal_root, DEFAULT_SEAL_ROOT)
+    final_root = resolve_repo_path(args.final_root, DEFAULT_FINAL_ROOT)
+    rootfs_source = resolve_repo_path(args.rootfs_source, DEFAULT_ROOTFS_SOURCE_ROOT) if args.rootfs_source else None
+    keyfile = resolve_repo_path(args.keyfile, DEFAULT_SEAL_ROOT / "wuci-os-overlay.key")
+    bin_path = resolve_repo_path(args.bin, DEFAULT_WUCI_BIN)
+    result = build_final_iso(
+        source_root=source_root,
+        overlay_root=overlay_root,
+        seal_root=seal_root,
+        final_root=final_root,
+        rootfs_source=rootfs_source,
+        keyfile=keyfile,
+        bin_path=bin_path,
+        remaster_rootfs=args.remaster_rootfs,
+        install_suite_packages=args.install_suite_packages,
+        force=args.force,
+        ticker_mode=args.ticker,
+    )
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print("wuci-os final ISO: built")
+        print(f"artifact: {result['iso']['path']}")
+        print(f"manifest: {result['manifest_path']}")
+        print(f"daylight-manifest: {result['daylight_manifest_path']}")
+        print(f"rootfs-manifest: {result['rootfs_manifest_path']}")
+        print(f"sha256: {result['iso']['digest_vector']['sha256']}")
+        print(f"mode: {result['mode']}")
+        if not result["payload_policy"]["rootfs_squashfs_rebuilt"]:
+            print("warning: payload-preview ISO; pass --remaster-rootfs for Wuci-OS first-boot identity")
+        elif not result["payload_policy"].get("suite_packages_baked"):
+            print("warning: suite packages were not baked; pass --install-suite-packages with host xbps/chroot support")
+    return 0 if result.get("validation", {}).get("status") == "pass" else 1
+
+
 def command_boot(args: argparse.Namespace) -> int:
     source_root = resolve_repo_path(args.source_root, DEFAULT_SOURCE_ROOT)
     boot_root = resolve_repo_path(args.boot_root, DEFAULT_BOOT_ROOT)
@@ -4089,6 +8743,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     seal_parser.add_argument("--json", action="store_true", help="emit JSON seal manifest")
     wuci_progress.add_ticker_arg(seal_parser)
 
+    failure_parser = subparsers.add_parser("failure", help="ingest failed Wuci-OS ISO specimens as negative evidence")
+    failure_subparsers = failure_parser.add_subparsers(dest="failure_command")
+    failure_ingest_parser = failure_subparsers.add_parser("ingest", help="record a failed ISO digest and boot notes")
+    failure_ingest_parser.add_argument("iso", help="failed ISO specimen path")
+    failure_ingest_parser.add_argument("notes", help="JSON notes with observed_failure, boot_log, qemu_plan, and target_hardware")
+    failure_ingest_parser.add_argument("--failure-root", help="failure evidence output directory")
+    failure_ingest_parser.add_argument("--json", action="store_true", help="emit JSON failure specimen manifest")
+
+    final_parser = subparsers.add_parser("final-iso", help="build the bootable Wuci-OS payload ISO")
+    final_parser.add_argument("--source-root", help="Wuci-OS source workspace")
+    final_parser.add_argument("--overlay-root", help="Wuci-OS overlay directory")
+    final_parser.add_argument("--seal-root", help="Daylight seal output directory")
+    final_parser.add_argument("--final-root", help="final ISO output directory")
+    final_parser.add_argument("--rootfs-source", help="extracted Void rootfs directory to pack directly into LiveOS/squashfs.img")
+    final_parser.add_argument("--keyfile", help="local 32-byte hex WJSEAL keyfile")
+    final_parser.add_argument("--bin", help="wuci-ji binary path")
+    final_parser.add_argument("--remaster-rootfs", action="store_true", help="rebuild LiveOS/squashfs.img with Wuci-OS identity and overlay")
+    final_parser.add_argument("--install-suite-packages", action="store_true", help="bake Wi-Fi/audio/video/developer package suite into the remastered rootfs")
+    final_parser.add_argument("--force", action="store_true", help="replace existing final ISO outputs")
+    final_parser.add_argument("--json", action="store_true", help="emit JSON final ISO manifest")
+    wuci_progress.add_ticker_arg(final_parser)
+
     boot_parser = subparsers.add_parser("boot", help="build or run a serial QEMU boot plan for the Wuci-OS musl source")
     boot_parser.add_argument("--source-root", help="Wuci-OS source workspace")
     boot_parser.add_argument("--boot-root", help="transient Wuci-OS boot artifact workspace")
@@ -4126,6 +8802,10 @@ def main(argv: list[str] | None = None) -> int:
             return command_keygen(args)
         if args.command == "seal-overlay":
             return command_seal(args)
+        if args.command == "failure":
+            return command_failure(args)
+        if args.command == "final-iso":
+            return command_final_iso(args)
         if args.command == "boot":
             return command_boot(args)
     except (WuciOSError, wuci_kaiju.KaijuError) as exc:

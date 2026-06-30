@@ -40,6 +40,16 @@ chmod 755 "$TARGET"/usr/local/bin/wuci-status \
     "$TARGET"/usr/local/bin/wuci-auto \
     "$TARGET"/usr/local/bin/wuci-install \
     "$TARGET"/usr/local/bin/wuci-wallpaper \
+    "$TARGET"/usr/local/bin/wuci-terminal \
+    "$TARGET"/usr/local/bin/wuci-boot-chime \
+    "$TARGET"/usr/local/bin/wuci-network-apply \
+    "$TARGET"/usr/local/bin/wuci-network-status \
+    "$TARGET"/usr/local/bin/wuci-media-apply \
+    "$TARGET"/usr/local/bin/wuci-media-status \
+    "$TARGET"/usr/local/bin/wuci-media-session \
+    "$TARGET"/usr/local/bin/wuci-sdr-apply \
+    "$TARGET"/usr/local/bin/wuci-sdr-status \
+    "$TARGET"/usr/local/bin/wuci-update \
     "$TARGET"/usr/local/bin/wuci-wait-run \
     "$TARGET"/usr/local/bin/wj \
     "$TARGET"/usr/local/bin/wuci-users-apply \
@@ -55,7 +65,10 @@ chmod 755 "$TARGET"/usr/local/bin/wuci-status \
 chmod 644 "$TARGET"/etc/issue "$TARGET"/etc/motd 2>/dev/null || true
 
 printf 'Wuci-OS live profile activated.\n'
-printf 'Commands now available: wj, wuci-guide, wuci-auto, wuci-status, wuci-live-banner, wuci-source-status, wuci-attest, wuci-enter, wuci-install, wuci-wallpaper, wuci-users-apply, wuci-security-status\n'
+printf 'Commands now available: wj, wuci-guide, wuci-auto, wuci-update, wuci-terminal, wuci-boot-chime, wuci-network-apply, wuci-media-apply, wuci-sdr-apply, wuci-status, wuci-live-banner, wuci-source-status, wuci-attest, wuci-enter, wuci-install, wuci-wallpaper, wuci-users-apply, wuci-security-status\n'
+if [ -x "$TARGET"/usr/local/bin/wuci-boot-chime ]; then
+    "$TARGET"/usr/local/bin/wuci-boot-chime --once --quiet || true
+fi
 if [ -x "$TARGET"/usr/local/bin/wuci-live-banner ]; then
     "$TARGET"/usr/local/bin/wuci-live-banner || true
 fi

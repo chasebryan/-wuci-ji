@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import io
+import inspect
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -37,7 +39,7 @@ def layout_fixture(*, status: str = "pass", append: str | None = None, problems:
 
 def source_base_fixture(image_name: str) -> dict[str, str]:
     return {
-        "distribution": "Void Linux",
+        "distribution": "Wuci-OS live base",
         "libc": "musl",
         "image_kind": "live base ISO",
         "upstream_label": wuci_os.VOID_LIVE_LABEL,
@@ -50,6 +52,51 @@ def assert_core_policy() -> None:
     assert wuci_os.IMAGE_ID == "wuci-os"
     assert "runtime sandboxing" in " ".join(wuci_os.BOUNDARY_DENIALS)
     assert "offensive scanning" in " ".join(wuci_os.BOUNDARY_DENIALS)
+    model = (REPO / "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md").read_text(encoding="utf-8")
+    for required in (
+        "SSM_v1",
+        "WUCI_D = Fix(Phi_D)",
+        "Sub_D(S)",
+        "PublicBeforePrivate_D",
+        "I(K_priv ; W_pub) = 0",
+        "PackageDAG*",
+        "Boot_D_strong(ISO)",
+        "FinalManifest_D",
+        "Publish_D(ISO) = 0 otherwise",
+    ):
+        assert required in model
+    daylight_v8 = (REPO / "docs/WUCI_DAYLIGHT_V8.md").read_text(encoding="utf-8")
+    for required in (
+        "Daylight_v8",
+        "Sheaf-Gated Subtractive Cryptographic Substrate",
+        "Gamma(X,F) != empty",
+        "EvidenceSheaf",
+        "SubtractiveCapabilityLattice",
+        "ctx_D",
+        "Artifact_i",
+        "LedgerStep_D(t)=1",
+        "NoProof_D(x) => NoClaim_D(x) => NoRelease_D(x)",
+    ):
+        assert required in daylight_v8
+    daylight_v9 = (REPO / "docs/WUCI_DAYLIGHT_V9.md").read_text(encoding="utf-8")
+    for required in (
+        "Daylight v9",
+        "Proof-Carrying Subtractive Cryptographic Operating Substrate",
+        "Daylight v8 benchmark: 973/1000",
+        "Daylight v9 target: 990-995",
+        "AttackSurface_D(s) subseteq Closed_D",
+        "rho_{U,U_intersect_V}",
+        "from z3 import *",
+        "structure DaylightState",
+        "Artifact_i =",
+        "NoProof_D(x) => NoClaim_D(x) => NoRelease_D(x)",
+    ):
+        assert required in daylight_v9
+    daylight_v9_svg = (REPO / "docs/wuci-os/assets/wuci-daylight-v9-spine.svg").read_text(encoding="utf-8")
+    assert "Daylight v9" in daylight_v9_svg
+    assert "NoProof_D(x) =&gt; NoClaim_D(x) =&gt; NoRelease_D(x)" in daylight_v9_svg
+    daylight_v9_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v9-sheet.png").read_bytes()
+    assert daylight_v9_png.startswith(wuci_os.PNG_SIGNATURE)
     assert wuci_os.safe_iso_name("void-live-x86_64-musl-20250202-base.iso")
     for bad in ("../void.iso", "/tmp/void.iso", "void.img", ".iso"):
         try:
@@ -65,8 +112,45 @@ def assert_append_parsing() -> None:
     serial = wuci_os.serial_append_from_void(append)
     assert "initrd=" not in serial
     assert "console=ttyS0,115200n8" in serial
+    assert "console=tty0" in serial
     assert "nomodeset" in serial
+    assert "rd.md=0" in serial
+    assert "rd.luks=0" in serial
+    assert "modprobe.blacklist=raid456,async_raid6_recov,dm_raid,md_mod,btrfs" in serial
     assert serial.count("console=ttyS0,115200n8") == 1
+    assert serial.count("console=tty0") == 1
+    boot_menu = wuci_os.rewrite_isolinux_config_for_wuci(
+        ISOLINUX
+        + "\nLABEL linuxram\nMENU LABEL Void Linux x86_64-musl (RAM)\nKERNEL /boot/vmlinuz\nAPPEND initrd=/boot/initrd root=live:CDLABEL=VOID_LIVE rd.live.ram\n"
+        + "\nLABEL c\nMENU LABEL Boot first HD found by BIOS\nCOM32 chain.c32\nAPPEND hd0\n"
+        + "\nLABEL reboot\nMENU LABEL Re^boot\nCOM32 reboot.c32\n"
+    )
+    assert "MENU LABEL Wuci-Ji Systems / Wuci-OS live" in boot_menu
+    assert "MENU LABEL Wuci-OS live (copy to RAM)" in boot_menu
+    assert "MENU LABEL Boot first hard disk" in boot_menu
+    assert "MENU LABEL Reboot" in boot_menu
+    assert "MENU BACKGROUND /boot/isolinux/wuci-splash.png" in boot_menu
+    assert "initrd=/boot/initrd" in boot_menu
+    assert "console=tty0" in boot_menu
+    assert "rd.driver.pre=loop" in boot_menu
+    assert "live.hostname=wuci-os-live" in boot_menu
+    assert "rd.auto=0" not in boot_menu
+    assert "rd.lvm=0" not in boot_menu
+    assert "modprobe.blacklist=" not in boot_menu
+    assert "APPEND hd0 console=" not in boot_menu
+    assert "Void Linux" not in boot_menu
+    grub = wuci_os.rewrite_grub_config_for_wuci(
+        "menuentry 'Void Linux' --id linux {\n linux /boot/vmlinuz \\\n  root=live:CDLABEL=VOID_LIVE ro init=/sbin/init \\\n}\n"
+        "menuentry 'Void Linux (RAM)' --id linuxram --hotkey r {\n linux /boot/vmlinuz \\\n  root=live:CDLABEL=VOID_LIVE ro init=/sbin/init rd.live.ram \\\n}\n"
+        "menuentry 'System restart' --id restart {\n reboot\n}\n"
+    )
+    assert "menuentry 'Wuci-Ji Systems / Wuci-OS live' --id linux" in grub
+    assert "menuentry 'Wuci-OS live (copy to RAM)' --id linuxram --hotkey r" in grub
+    assert "menuentry 'Restart' --id restart" in grub
+    assert "background_image /boot/grub/wuci-splash.png" in grub
+    assert "console=tty0" in grub
+    assert "rd.driver.pre=loop" in grub
+    assert "Void Linux" not in grub
 
 
 def assert_missing_source(tmp: Path) -> None:
@@ -464,9 +548,12 @@ def assert_boot_plan_ready(tmp: Path) -> None:
     assert plan["network"] == "user"
     assert "-kernel" in plan["argv"]
     assert "-initrd" in plan["argv"]
-    assert "pc,accel=tcg" in plan["argv"]
+    assert "pc,accel=kvm:tcg" in plan["argv"]
     assert "max" in plan["argv"]
     assert "console=ttyS0,115200n8" in plan["append"]
+    assert "console=tty0" in plan["append"]
+    assert plan["boot_profile"]["mode"] == "fast-live"
+    assert "rd.auto=0" in plan["append"]
     assert any("user,model=virtio-net-pci" == item for item in plan["argv"])
     assert share_plan["status"] == "ready", share_plan
     assert share_plan["share_mode"] == "tar-drive"
@@ -744,6 +831,17 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-guide",
         "usr/local/bin/wuci-auto",
         "usr/local/bin/wuci-daylight-status",
+        "usr/local/bin/wuci-terminal",
+        "usr/local/bin/wuci-boot-chime",
+        "usr/local/bin/wuci-network-connect",
+        "usr/local/bin/wuci-network-apply",
+        "usr/local/bin/wuci-network-status",
+        "usr/local/bin/wuci-media-apply",
+        "usr/local/bin/wuci-media-status",
+        "usr/local/bin/wuci-media-session",
+        "usr/local/bin/wuci-sdr-apply",
+        "usr/local/bin/wuci-sdr-status",
+        "usr/local/bin/wuci-update",
         "usr/local/bin/wj",
         "usr/local/bin/wuci-users-apply",
         "usr/local/bin/wuci-users-status",
@@ -756,7 +854,15 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/share/wuci-os/accounts.json",
         "usr/share/wuci-os/packages.json",
         "usr/share/wuci-os/security-profile.json",
+        "usr/share/wuci-os/full-suite-packages.txt",
+        "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md",
+        "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md",
+        "etc/os-release",
+        "usr/lib/os-release",
         "etc/profile.d/wuci-prompt.sh",
+        "etc/xdg/autostart/wuci-boot-chime.desktop",
+        "etc/xdg/autostart/wuci-media-session.desktop",
+        "etc/runit/runsvdir/default/wuci-boot-chime/run",
         "etc/skel/.ratpoisonrc",
         "etc/skel/.config/kitty/kitty.conf",
     }
@@ -766,18 +872,62 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "policy drop" in files["usr/local/bin/wuci-security-apply"]
     assert "passwd -d wj" in files["usr/local/bin/wuci-users-apply"]
     assert "chpst" in files["usr/local/bin/wuci-enter"]
+    assert "run as root to switch users" in files["usr/local/bin/wuci-enter"]
+    assert '"$current_user" = "$target"' in files["usr/local/bin/wuci-enter"]
     assert "wuci-security-apply" in files["usr/local/bin/wuci-guide"]
     assert "wuci-source-status" in files["usr/local/bin/wuci-guide"]
+    assert "wuci-update" in files["usr/local/bin/wuci-guide"]
+    assert "wuci-network-apply" in files["usr/local/bin/wuci-guide"]
+    assert "wuci-media-apply" in files["usr/local/bin/wuci-guide"]
+    assert "wuci-sdr-apply" in files["usr/local/bin/wuci-guide"]
+    assert "wuci-install-target-activate" in files["usr/share/wuci-os/README"]
+    assert "sudo wuci-install-target-activate /mnt" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
+    assert "wuci-install-target-activate: complete" in files["usr/local/bin/wuci-install-target-activate"]
+    assert "wuci-boot-chime --once" in files["usr/local/bin/wuci-guide"]
+    assert "wuci-terminal --print" in files["usr/local/bin/wuci-guide"]
     assert "sudo wj install vim emacs kitty" in files["usr/local/bin/wuci-guide"]
     assert "prepare AI tool setup plan" in files["usr/local/bin/wuci-guide"]
     assert "xbps-install -Sy" in files["usr/local/bin/wj"]
+    assert "wuci-network-connect" in files["usr/local/bin/wj"]
+    assert "network is not connected" in files["usr/local/bin/wj"]
+    assert "os-update|live-update" in files["usr/local/bin/wj"]
     assert "WJ_ALLOW_REMOVE=1" in files["usr/local/bin/wj"]
+    assert "Wi-Fi SSID" in files["usr/local/bin/wuci-network-connect"]
+    assert "wpa_supplicant" in files["usr/local/bin/wuci-network-connect"]
+    assert "WUCI_WIFI_SSID" in files["usr/local/bin/wuci-network-connect"]
+    assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
+    assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
+    assert "xbps-install -Syu" in files["usr/local/bin/wuci-update"]
+    assert "wuci-network-connect" in files["usr/local/bin/wuci-update"]
+    assert "git clone" in files["usr/local/bin/wuci-update"]
+    assert "https://github.com/chasebryan/-wuci-ji.git" in files["usr/local/bin/wuci-update"]
+    assert "__TERMINAL_CANDIDATES__" not in files["usr/local/bin/wuci-terminal"]
+    assert "kitty ghostty xfce4-terminal xterm" in files["usr/local/bin/wuci-terminal"]
+    assert "wave.open" in files["usr/local/bin/wuci-boot-chime"]
+    assert "pw-play aplay paplay ffplay mpv play" in files["usr/local/bin/wuci-boot-chime"]
+    assert "NetworkManager" in files["usr/local/bin/wuci-network-apply"]
+    assert "linux-firmware-network" in files["usr/local/bin/wuci-network-apply"]
+    assert "nmcli --ask device wifi connect SSID" in files["usr/local/bin/wuci-network-apply"]
+    assert "pipewire" in files["usr/local/bin/wuci-media-apply"]
+    assert "mesa-vulkan-radeon" in files["usr/local/bin/wuci-media-apply"]
+    assert "xdg-desktop-portal-gtk" in files["usr/local/bin/wuci-media-apply"]
+    assert "gnuradio" in files["usr/local/bin/wuci-sdr-apply"]
+    assert "rtl-sdr" in files["usr/local/bin/wuci-sdr-apply"]
+    assert "hackrf" in files["usr/local/bin/wuci-sdr-apply"]
+    assert "SoapySDR" in files["usr/local/bin/wuci-sdr-apply"]
+    assert "60-wuci-sdr.rules" in files["usr/local/bin/wuci-sdr-apply"]
+    assert "gnuradio-companion" in files["usr/local/bin/wuci-sdr-status"]
+    assert "rtl_test" in files["usr/local/bin/wuci-sdr-status"]
     assert "WUCI_GUIDE_ASSUME_YES=1" in files["usr/local/bin/wuci-auto"]
     assert "Daylight/WJSEAL" in files["usr/local/bin/wuci-daylight-status"]
     assert "release seal pending" in files["usr/local/bin/wuci-daylight-status"]
     assert "/opt/wuci-os/source/wuci-ji" in files["usr/local/bin/wuci-source-status"]
     assert "/opt/wuci-os/source/upstream" in files["usr/local/bin/wuci-source-status"]
     assert "WJ>_" in files["etc/profile.d/wuci-prompt.sh"]
+    assert 'NAME="Wuci-OS"' in files["etc/os-release"]
+    assert "ID_LIKE=linux" in files["etc/os-release"]
+    assert "current_user\" = \"wj\"" in files["etc/profile.d/wuci-xfce-autostart.sh"]
+    assert "exec startx" in files["etc/profile.d/wuci-xfce-autostart.sh"]
     assert not any(path.endswith("wuci-play") for path in files)
     assert "wuci-play" not in "\n".join(files.values())
     assert "grok-build-0.1" in files["usr/local/bin/wuci-grok-build"]
@@ -793,9 +943,27 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "remote installers" in files["usr/share/wuci-os/ai-tools.txt"]
 
     packages = json.loads(files["usr/share/wuci-os/packages.json"])
-    assert packages["developer"]["desktop"]["default"] == "xfce4"
+    assert packages["developer"]["desktop"]["default"] == "terminal-first"
+    assert packages["developer"]["desktop"]["desktop_environment"] == "xfce4"
     assert packages["developer"]["desktop"]["preferred_terminal"] == "kitty"
     assert packages["developer"]["desktop"]["fallback_terminal"] == "xfce4-terminal"
+    assert packages["developer"]["desktop"]["alternate_terminal"] == "ghostty"
+    assert packages["developer"]["desktop"]["terminal_candidates"][0] == "kitty"
+    assert "NetworkManager" in packages["developer"]["network"]["packages"]
+    assert "wpa_supplicant" in packages["developer"]["network"]["wifi"]
+    assert "linux-firmware-network" in packages["developer"]["network"]["firmware"]
+    assert "pipewire" in packages["developer"]["audio"]["packages"]
+    assert "mesa-dri" in packages["developer"]["video"]["packages"]
+    assert "bluez" in packages["developer"]["peripherals"]["packages"]
+    assert "gnuradio" in packages["developer"]["sdr"]["core_packages"]
+    assert "rtl-sdr" in packages["developer"]["sdr"]["core_packages"]
+    assert "sdrangel" in packages["developer"]["sdr"]["optional_packages"]
+    assert "NetworkManager" in packages["developer"]["full_suite_packages"]
+    assert "pipewire" in packages["developer"]["full_suite_packages"]
+    assert "mesa-dri" in packages["developer"]["full_suite_packages"]
+    assert "gnuradio" in packages["developer"]["full_suite_packages"]
+    assert "ghostty" in packages["developer"]["desktop"]["packages"]
+    assert "xterm" in packages["developer"]["desktop"]["packages"]
     assert "ratpoison" in packages["developer"]["desktop"]["packages"]
     assert "vim" in packages["developer"]["editors"]["packages"]
     assert "emacs" in packages["developer"]["editors"]["packages"]
@@ -869,7 +1037,13 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert script_record["digest_vector"] == wuci_os.digest_vector(files["usr/local/bin/wuci-security-apply"].encode("utf-8"))
     config_record = records_by_path["usr/share/wuci-os/packages.json"]
     assert config_record["mode"] == "0o644"
-    assert config_record["digest_vector"] == wuci_os.digest_vector(files["usr/share/wuci-os/packages.json"].encode("utf-8"))
+    assert config_record["digest_vector"] == wuci_os.digest_vector(
+        (overlay_root / "usr/share/wuci-os/packages.json").read_bytes()
+    )
+    suite_record = records_by_path["usr/share/wuci-os/full-suite-packages.txt"]
+    assert suite_record["digest_vector"] == wuci_os.digest_vector(
+        (overlay_root / "usr/share/wuci-os/full-suite-packages.txt").read_bytes()
+    )
     assert any(record["path"] == "usr/local/bin/wuci-security-apply" for record in records)
 
     for relative in sorted(path for path in files if path.startswith("usr/local/bin/")):
@@ -987,6 +1161,141 @@ def assert_overlay_force_rebuild(tmp: Path) -> None:
             assert "hardlinked" in str(exc)
         else:
             raise AssertionError("overlay force rebuild accepted a stale hardlink")
+
+
+def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
+    overlay_root = tmp / "identity-overlay"
+    wuci_os.create_overlay(
+        overlay_root,
+        wallpaper_source=REPO / "docs" / "wuci-os" / "assets" / "wallpaper1.png",
+        force=True,
+    )
+    rootfs = tmp / "identity-rootfs"
+    (rootfs / "etc/runit").mkdir(parents=True)
+    (rootfs / "etc").mkdir(exist_ok=True)
+    (rootfs / "etc/runit/1").write_text("=> Welcome to Void!\nvoid-live\n", encoding="utf-8")
+    (rootfs / "etc/issue").write_text(
+        "Welcome to the Void Linux Live system\nroot:voidlinux\nanon:voidlinux\n",
+        encoding="utf-8",
+    )
+    result = wuci_os.apply_wuci_overlay_to_rootfs(overlay_root, rootfs)
+    assert result["schema"] == "wuci-os-rootfs-overlay-application-v1"
+    assert result["status"] == "pass"
+    assert "Welcome to Wuci-OS!" in (rootfs / "etc/runit/1").read_text(encoding="utf-8")
+    assert "void-live" not in (rootfs / "etc/runit/1").read_text(encoding="utf-8")
+    assert "wuci-os-live" in (rootfs / "etc/runit/core-services/04-wuci-hostname.sh").read_text(encoding="utf-8")
+    live_access = (rootfs / "etc/runit/core-services/04-wuci-live-access.sh").read_text(encoding="utf-8")
+    assert "90-wuci-os-wj" in live_access
+    assert "usermod -aG" in live_access
+    issue = (rootfs / "etc/issue").read_text(encoding="utf-8")
+    assert "Wuci-OS live profile" in issue
+    assert "Void Linux Live" not in issue
+    assert (rootfs / "usr/local/bin/wuci-update").is_file()
+    assert (rootfs / "usr/local/bin/wuci-terminal").is_file()
+    assert (rootfs / "usr/local/bin/wuci-boot-chime").is_file()
+    assert (rootfs / "usr/local/bin/wuci-network-apply").is_file()
+    assert (rootfs / "usr/local/bin/wuci-network-connect").is_file()
+    assert (rootfs / "usr/local/bin/wuci-media-apply").is_file()
+    assert (rootfs / "usr/local/bin/wuci-sdr-apply").is_file()
+    assert (rootfs / "usr/local/bin/wuci-install-target-activate").is_file()
+    assert (rootfs / "usr/share/wuci-os/OFFLINE-INSTALL.txt").is_file()
+    assert (rootfs / "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md").is_file()
+    assert (rootfs / "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-wire-model.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v8-sheet.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v9-sheet.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v9-spine.svg").is_file()
+    assert 'NAME="Wuci-OS"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
+    assert "wj:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
+    assert "wj_low:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
+    assert "Wuci-OS Operator" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
+    assert "wj::" in (rootfs / "etc/shadow").read_text(encoding="utf-8")
+    assert "plugdev:" in (rootfs / "etc/group").read_text(encoding="utf-8")
+    assert "dialout:" in (rootfs / "etc/group").read_text(encoding="utf-8")
+    assert "wj ALL=(ALL:ALL) NOPASSWD: ALL" in (rootfs / "etc/sudoers.d/90-wuci-os-wj").read_text(encoding="utf-8")
+    assert "permit nopass wj as root" in (rootfs / "etc/doas.d/90-wuci-os-wj.conf").read_text(encoding="utf-8")
+    assert "--autologin wj" in (rootfs / "etc/sv/agetty-tty1/conf").read_text(encoding="utf-8")
+    assert (rootfs / "home/wj/.xinitrc").is_file()
+    assert (rootfs / "home/wj/.config/kitty/kitty.conf").is_file()
+
+
+def assert_remaster_squashfs_uses_live_safe_options() -> None:
+    source = inspect.getsource(wuci_os.remaster_live_rootfs)
+    assert '"-comp",' in source
+    assert '"xz",' in source
+    assert '"-no-xattrs",' in source
+
+
+def make_tiny_extracted_rootfs(rootfs: Path) -> None:
+    for directory in (
+        "etc/runit",
+        "etc/sv/agetty-tty1",
+        "usr/bin",
+        "usr/lib",
+        "proc",
+        "home",
+        "root",
+        "tmp",
+    ):
+        (rootfs / directory).mkdir(parents=True, exist_ok=True)
+    (rootfs / "bin").symlink_to("usr/bin")
+    (rootfs / "sbin").symlink_to("usr/bin")
+    (rootfs / "usr/bin/sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (rootfs / "usr/bin/sh").chmod(0o755)
+    (rootfs / "usr/bin/xbps-install").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (rootfs / "usr/bin/xbps-install").chmod(0o755)
+    (rootfs / "usr/bin/init").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (rootfs / "usr/bin/init").chmod(0o755)
+    (rootfs / "etc/passwd").write_text("root:x:0:0:root:/root:/bin/sh\n", encoding="utf-8")
+    (rootfs / "etc/group").write_text("root:x:0:\nwheel:x:10:root\n", encoding="utf-8")
+    (rootfs / "etc/shadow").write_text("root:*:0:0:99999:7:::\n", encoding="utf-8")
+    (rootfs / "etc/runit/1").write_text("=> Welcome to Void!\nvoid-live\n", encoding="utf-8")
+    (rootfs / "etc/runit/2").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (rootfs / "etc/issue").write_text("Welcome to the Void Linux Live system\n", encoding="utf-8")
+    (rootfs / "usr/lib/os-release").write_text('NAME="Void"\nID="void"\n', encoding="utf-8")
+
+
+def assert_remaster_from_extracted_rootfs_is_wrapped(tmp: Path) -> None:
+    if not shutil.which("mksquashfs") or not shutil.which("unsquashfs"):
+        return
+    try:
+        import pycdlib  # type: ignore[import-not-found] # noqa: F401
+    except ImportError:
+        return
+    source_iso = tmp / "tiny-rootfs-source.iso"
+    make_tiny_void_iso(source_iso)
+    if not source_iso.is_file():
+        return
+    overlay_root = tmp / "direct-rootfs-overlay"
+    wuci_os.create_overlay(
+        overlay_root,
+        wallpaper_source=REPO / "docs" / "wuci-os" / "assets" / "wallpaper1.png",
+        force=True,
+    )
+    extracted_rootfs = tmp / "void-rootfs"
+    make_tiny_extracted_rootfs(extracted_rootfs)
+    result = wuci_os.remaster_live_rootfs(
+        source_iso=source_iso,
+        overlay_root=overlay_root,
+        work_root=tmp / "direct-rootfs-remaster",
+        rootfs_source=extracted_rootfs,
+        ticker_mode="never",
+    )
+    assert result["status"] == "pass"
+    assert result["rootfs_image_layout"] == "wrapped-rootfs-img"
+    assert result["rootfs_source"]["layout"] == "direct-rootfs-tree"
+    assert result["generated_rootfs_image"]["filesystem"] == "ext4"
+    remastered = Path(result["remastered_squashfs"]["path"])
+    listing = subprocess.run(
+        ["unsquashfs", "-ll", str(remastered)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert listing.returncode == 0, listing.stderr
+    assert "squashfs-root/LiveOS/rootfs.img" in listing.stdout
+    assert "squashfs-root/LiveOS/ext3fs.img" not in listing.stdout
 
 
 def assert_overlay_tar_safeio(tmp: Path) -> None:
@@ -1353,6 +1662,44 @@ def assert_daylight_seal_manifest_failure_preserves_outputs(tmp: Path) -> None:
     assert not any(path.name.startswith(".manifest.json.old.") for path in out_root.iterdir())
 
 
+def assert_failure_specimen_ingest(tmp: Path) -> None:
+    iso = tmp / "failed.iso"
+    iso.write_bytes(b"failed iso specimen\n")
+    boot_log = tmp / "failed-boot.log"
+    boot_log.write_text("dracut fatal failed to find root filesystem\n", encoding="utf-8")
+    notes = tmp / "failure-notes.json"
+    notes.write_text(
+        json.dumps(
+            {
+                "observed_failure": "dracut could not find live rootfs",
+                "boot_log": "dracut fatal failed to find root filesystem",
+                "qemu_plan": "legacy BIOS serial boot reproducer",
+                "target_hardware": "ThinkPad X200s default BIOS",
+                "evidence_files": {"boot_log": str(boot_log)},
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    result = wuci_os.ingest_failure_specimen(iso, notes, failure_root=tmp / "failures")
+    assert result["schema"] == wuci_os.FAILURE_SPECIMEN_SCHEMA
+    assert result["status"] == "negative-evidence"
+    assert result["claim_effect"]["release_allowed"] is False
+    assert "working-iso" in result["claim_effect"]["subtracted_claims"]
+    assert result["evidence_files"][0]["label"] == "boot_log"
+    manifest = Path(result["manifest_path"])
+    assert manifest.is_file()
+    persisted = json.loads(manifest.read_text(encoding="utf-8"))
+    assert persisted["failed_iso"]["digest_vector"] == result["failed_iso"]["digest_vector"]
+    try:
+        wuci_os.ingest_failure_specimen(iso, notes, failure_root=tmp / "failures")
+    except wuci_os.WuciOSError as exc:
+        assert "will not be overwritten" in str(exc)
+    else:
+        raise AssertionError("failure ingest overwrote an existing negative-evidence specimen")
+
+
 def assert_source_kit(tmp: Path) -> None:
     out = tmp / "boot" / "wuci-os-source-kit.tar"
     result = wuci_os.write_deterministic_source_kit_tar(out, ticker_mode="never")
@@ -1363,6 +1710,13 @@ def assert_source_kit(tmp: Path) -> None:
     assert result["guest_source_root"] == "opt/wuci-os/source/wuci-ji"
     assert result["guest_upstream_source_root"] == "opt/wuci-os/source/upstream"
     assert any(record["path"] == "tools/wuci_os.py" for record in result["files"])
+    assert any(record["path"] == "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md" for record in result["files"])
+    assert any(record["path"] == "docs/WUCI_DAYLIGHT_V8.md" for record in result["files"])
+    assert any(record["path"] == "docs/WUCI_DAYLIGHT_V9.md" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-wire-model.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v8-sheet.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v9-sheet.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v9-spine.svg" for record in result["files"])
     assert result["extraction_policy"]["schema"] == "wuci-os-tar-extraction-policy-v1"
     assert result["tar_validation"]["status"] == "pass"
     assert result["tar_validation"]["members"] >= len(result["files"])
@@ -1375,6 +1729,13 @@ def assert_source_kit(tmp: Path) -> None:
         assert manifest_handle is not None
         archived_manifest = json.loads(manifest_handle.read().decode("utf-8"))
     assert "opt/wuci-os/source/wuci-ji/tools/wuci_os.py" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/WUCI_DAYLIGHT_V8.md" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/WUCI_DAYLIGHT_V9.md" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-wire-model.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v8-sheet.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v9-sheet.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v9-spine.svg" in names
     assert "usr/share/wuci-os/source-kit.json" in names
     assert "opt/wuci-os/source/wuci-ji/.wuci-os-source-kit.json" in names
     assert archived_manifest["created_utc"] == wuci_os.SOURCE_KIT_DETERMINISTIC_CREATED_UTC
@@ -1519,14 +1880,203 @@ def assert_iso_plan(tmp: Path) -> None:
     assert plan["status"] == "ready-for-build-lane"
     assert any(output.endswith(".iso") for output in plan["required_outputs"])
     assert "Wuci-OS" in plan["goal"]
+    assert any(phase["automation"] == "tools/wuci-os final-iso" for phase in plan["build_phases"])
     assert any(component["component"] == "wuci-os-guide" for component in wuci_os.RUST_REDESIGN_COMPONENTS)
     commands = wuci_os.demo_command_text()
-    assert "10. wuci-live-banner" in commands
-    assert "12. wuci-source-status" in commands
-    assert "13. wuci-guide" in commands
-    assert "14. sudo wj install vim emacs kitty" in commands
+    assert "6. tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages" in commands
+    assert "11. wuci-live-banner" in commands
+    assert "13. wuci-source-status" in commands
+    assert "14. wuci-guide" in commands
+    assert "15. sudo wj install vim emacs kitty" in commands
     assert "&& break" not in commands
     assert "wuci-play" not in commands
+
+
+def make_tiny_void_iso(path: Path) -> None:
+    try:
+        import pycdlib  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    iso = pycdlib.PyCdlib()
+    iso.new(interchange_level=3, rock_ridge="1.09", joliet=3, vol_ident="VOID_LIVE")
+    iso.add_directory("/BOOT", rr_name="boot", joliet_path="/boot")
+    iso.add_directory("/BOOT/ISOLINUX", rr_name="isolinux", joliet_path="/boot/isolinux")
+    iso.add_directory("/BOOT/GRUB", rr_name="grub", joliet_path="/boot/grub")
+    iso.add_directory("/LIVEOS", rr_name="LiveOS", joliet_path="/LiveOS")
+    for data, iso_path, rr_name, joliet_path in (
+        (b"kernel\n", "/BOOT/VMLINUZ.;1", "vmlinuz", "/boot/vmlinuz"),
+        (b"initrd\n", "/BOOT/INITRD.;1", "initrd", "/boot/initrd"),
+        (b"squashfs\n", "/LIVEOS/SQUASHFS.IMG;1", "squashfs.img", "/LiveOS/squashfs.img"),
+        (ISOLINUX.encode("utf-8"), "/BOOT/ISOLINUX/ISOLINUX.CFG;1", "isolinux.cfg", "/boot/isolinux/isolinux.cfg"),
+        (b"source /boot/grub/grub_void.cfg\n", "/BOOT/GRUB/GRUB.CFG;1", "grub.cfg", "/boot/grub/grub.cfg"),
+        (
+            b"menuentry 'Void Linux' {\n linux /boot/vmlinuz \\\n  root=live:CDLABEL=VOID_LIVE ro init=/sbin/init \\\n}\n",
+            "/BOOT/GRUB/GRUBVOID.CFG;1",
+            "grub_void.cfg",
+            "/boot/grub/grub_void.cfg",
+        ),
+        (b"boot image\n" * 256, "/BOOT/ISOLINUX/ISOLINUX.BIN;1", "isolinux.bin", "/boot/isolinux/isolinux.bin"),
+    ):
+        iso.add_fp(io.BytesIO(data), len(data), iso_path=iso_path, rr_name=rr_name, joliet_path=joliet_path)
+    iso.add_eltorito("/BOOT/ISOLINUX/ISOLINUX.BIN;1", bootcatfile="/BOOT.CAT;1", boot_load_size=4)
+    iso.write(str(path))
+    iso.close()
+
+
+def assert_final_iso_payload_builder(tmp: Path) -> None:
+    try:
+        import pycdlib  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    source_root = tmp / "final-iso-source"
+    source_root.mkdir()
+    source_iso = source_root / "void-live-x86_64-musl-20250202-base.iso"
+    make_tiny_void_iso(source_iso)
+    if not source_iso.is_file():
+        return
+    layout = wuci_os.inspect_void_iso(source_iso)
+    assert layout["status"] == "pass"
+    digest, size = wuci_os.wuci_kaiju.file_digest_vector(source_iso, "tiny source ISO")
+    wuci_os.wuci_kaiju.write_json_atomic(
+        wuci_os.source_manifest_path(source_root),
+        {
+            "schema": wuci_os.SOURCE_SCHEMA,
+            "created_utc": "2026-06-29T00:00:00Z",
+            "product": wuci_os.PRODUCT_NAME,
+            "image_id": wuci_os.IMAGE_ID,
+            "base": source_base_fixture(source_iso.name),
+            "operator_supplied": True,
+            "image_name": source_iso.name,
+            "image_path": str(source_iso),
+            "image_bytes": size,
+            "digest_vector": digest,
+            "layout": layout,
+            "boundary_denials": list(wuci_os.BOUNDARY_DENIALS),
+        },
+    )
+
+    original_create_overlay = wuci_os.create_overlay
+    original_seal_overlay = wuci_os.seal_overlay
+    original_source_kit = wuci_os.write_deterministic_source_kit_tar
+    original_overlay_tar = wuci_os.write_deterministic_overlay_tar
+    try:
+        wuci_os.create_overlay = lambda overlay_root=None, **_kwargs: {
+            "schema": wuci_os.OVERLAY_SCHEMA,
+            "overlay_root": str(overlay_root),
+            "files": [],
+        }
+
+        def fake_seal_overlay(**kwargs: object) -> dict[str, object]:
+            out_root = Path(str(kwargs["out_root"]))
+            out_root.mkdir(parents=True, exist_ok=True)
+            artifact = out_root / "wuci-os-overlay.wj"
+            artifact.write_bytes(b"sealed overlay\n")
+            digest, artifact_size = wuci_os.wuci_kaiju.file_digest_vector(artifact, "fake sealed overlay")
+            return {
+                "schema": wuci_os.OVERLAY_SEAL_SCHEMA,
+                "sealed_artifact": {
+                    "path": str(artifact),
+                    "bytes": artifact_size,
+                    "digest_vector": digest,
+                },
+            }
+
+        def fake_source_kit(path: Path, **_kwargs: object) -> dict[str, object]:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"source kit\n")
+            digest, kit_size = wuci_os.wuci_kaiju.file_digest_vector(path, "fake source kit")
+            return {
+                "tar_path": str(path),
+                "tar_bytes": kit_size,
+                "tar_digest_vector": digest,
+                "source_kit_validation": {"status": "pass"},
+            }
+
+        def fake_overlay_tar(_overlay_root: Path, path: Path, **_kwargs: object) -> dict[str, object]:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"overlay tar\n")
+            return {"status": "pass"}
+
+        wuci_os.seal_overlay = fake_seal_overlay
+        wuci_os.write_deterministic_source_kit_tar = fake_source_kit
+        wuci_os.write_deterministic_overlay_tar = fake_overlay_tar
+        result = wuci_os.build_final_iso(
+            source_root=source_root,
+            overlay_root=tmp / "overlay",
+            seal_root=tmp / "daylight",
+            final_root=tmp / "final",
+            keyfile=tmp / "daylight" / "wuci-os-overlay.key",
+            bin_path=tmp / "fake-wuci-ji",
+            force=True,
+            ticker_mode="never",
+        )
+    finally:
+        wuci_os.create_overlay = original_create_overlay
+        wuci_os.seal_overlay = original_seal_overlay
+        wuci_os.write_deterministic_source_kit_tar = original_source_kit
+        wuci_os.write_deterministic_overlay_tar = original_overlay_tar
+
+    assert result["schema"] == wuci_os.FINAL_ISO_SCHEMA
+    assert result["status"] == "built"
+    assert result["validation"]["status"] == "pass"
+    assert result["payload_policy"]["rootfs_squashfs_rebuilt"] is False
+    assert result["payload_policy"]["boot_menu_rewritten"] is True
+    assert result["payload_policy"]["boot_splash_embedded"] is True
+    assert result["release_gate"]["release_allowed"] is False
+    assert result["release_gate"]["model"] == "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md"
+    assert "package-closure-fixed-point-missing" in result["release_gate"]["blockers"]
+    assert result["substract_substrate_model"]["formal_model_path"] == "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md"
+    assert result["substract_substrate_model"]["daylight_v8_model_path"] == "docs/WUCI_DAYLIGHT_V8.md"
+    assert result["substract_substrate_model"]["daylight_v9_model_path"] == "docs/WUCI_DAYLIGHT_V9.md"
+    assert result["substract_substrate_model"]["diagram_path"] == "docs/wuci-os/assets/wuci-daylight-wire-model.png"
+    assert result["substract_substrate_model"]["daylight_v8_diagram_path"] == "docs/wuci-os/assets/wuci-daylight-v8-sheet.png"
+    assert result["substract_substrate_model"]["daylight_v9_sheet_path"] == "docs/wuci-os/assets/wuci-daylight-v9-sheet.png"
+    assert result["substract_substrate_model"]["daylight_v9_diagram_path"] == "docs/wuci-os/assets/wuci-daylight-v9-spine.svg"
+    assert "boot/grub/grub.cfg" in result["payload_policy"]["grub_entries_rewritten"]
+    assert result["rootfs_remaster"]["status"] == "not-requested"
+    assert "wuci-update" in result["self_host_payloads"]["update_command"]
+    assert "wuci-terminal" in result["self_host_payloads"]["terminal_resolver"]
+    assert "OFFLINE-INSTALL.txt" in result["self_host_payloads"]["offline_install_guide"]
+    assert result["boot_splash"]["source_path"].endswith("wuci-os-boot-splash.svg")
+    assert result["boot_splash"]["render_method"] in {"embedded-svg-png", "rsvg-convert", "magick", "convert"}
+    assert Path(result["boot_splash"]["rendered_path"]).is_file()
+    final_iso = Path(result["iso"]["path"])
+    assert final_iso.is_file()
+    boot_menu = wuci_os._extract_iso_text(final_iso, "boot/isolinux/isolinux.cfg")
+    assert "Wuci-Ji Systems / Wuci-OS live" in boot_menu
+    assert "wuci-splash.png" in boot_menu
+    assert "console=tty0" in boot_menu
+    assert "rd.driver.pre=loop" in boot_menu
+    assert "rd.auto=0" not in boot_menu
+    assert "rd.lvm=0" not in boot_menu
+    assert "modprobe.blacklist=" not in boot_menu
+    assert "Void Linux" not in boot_menu
+    grub_menu = wuci_os._extract_iso_text(final_iso, "boot/grub/grub.cfg")
+    assert "background_image /boot/grub/wuci-splash.png" in grub_menu
+    assert "Void Linux" not in grub_menu
+    grub_void_menu = wuci_os._extract_iso_text(final_iso, "boot/grub/grub_void.cfg")
+    assert "Wuci-Ji Systems / Wuci-OS live" in grub_void_menu
+    assert "console=tty0" in grub_void_menu
+    assert "rd.driver.pre=loop" in grub_void_menu
+    assert "live.hostname=wuci-os-live" in grub_void_menu
+    assert "Void Linux" not in grub_void_menu
+    for subpath in (
+        "wuci-os/manifest.json",
+        "wuci-os/wuci-os-overlay.tar",
+        f"wuci-os/{wuci_os.SOURCE_KIT_TAR_NAME}",
+        "wuci-os/rootfs-manifest.json",
+        "wuci-os/OFFLINE-INSTALL.txt",
+        "wuci-os/WUCI_DAYLIGHT_V8.md",
+        "wuci-os/WUCI_DAYLIGHT_V9.md",
+        "wuci-os/wuci-daylight-wire-model.png",
+        "wuci-os/wuci-daylight-v8-sheet.png",
+        "wuci-os/wuci-daylight-v9-sheet.png",
+        "wuci-os/wuci-daylight-v9-spine.svg",
+        "wuci-os/boot-splash.svg",
+        "boot/isolinux/wuci-splash.png",
+        "boot/grub/wuci-splash.png",
+    ):
+        assert wuci_os._extract_iso_bytes(final_iso, subpath, subpath)
 
 
 def assert_cli(tmp: Path) -> None:
@@ -1586,6 +2136,9 @@ def main() -> int:
         assert_boot_cleanup_safeio(tmp)
         assert_overlay_profile(tmp)
         assert_overlay_force_rebuild(tmp)
+        assert_rootfs_overlay_identity_patch(tmp)
+        assert_remaster_squashfs_uses_live_safe_options()
+        assert_remaster_from_extracted_rootfs_is_wrapped(tmp)
         assert_overlay_tar_safeio(tmp)
         assert_tar_member_policy(tmp)
         assert_daylight_keygen(tmp)
@@ -1593,11 +2146,13 @@ def main() -> int:
         assert_daylight_seal_rejects_stale_overlay_manifest(tmp)
         assert_daylight_seal_failure_preserves_outputs(tmp)
         assert_daylight_seal_manifest_failure_preserves_outputs(tmp)
+        assert_failure_specimen_ingest(tmp)
         assert_source_kit(tmp)
         assert_source_kit_avoids_output_self_capture(tmp)
         assert_source_kit_rejects_stale_output_temp(tmp)
         assert_source_kit_rejects_changed_member_after_record(tmp)
         assert_iso_plan(tmp)
+        assert_final_iso_payload_builder(tmp)
         assert_cli(tmp)
     if not parser_quiet:
         print("wuci-os tests: PASS")
