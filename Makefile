@@ -120,8 +120,21 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wuci-prism-test wuci-progress-test
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 .PHONY: wuci-kaiju-test wuci-os-test
+.PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
 
 all: check-native $(TARGET)
+
+daylight-cplus-score:
+	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json --receipt daylight/v14c-plus/examples/reproducibility-receipt.v14c-plus.json --output-ledger daylight/v14c-plus/examples/ledger.with-scorecard.jsonl
+
+daylight-cplus-verify: daylight-cplus-score
+	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli verify-scorecard daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json
+
+daylight-cplus-corpus:
+	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli freeze-corpus --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/corpus.snapshot.json
+
+daylight-cplus-test: daylight-cplus-verify
+	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m unittest discover -s daylight/v14c-plus/tests -t daylight/v14c-plus
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

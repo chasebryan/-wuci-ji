@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v14C+ Ledger Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "entry_id",
+    "entry_type",
+    "artifact_digest",
+    "previous_head",
+    "entry_digest",
+    "witness",
+    "transcript_digest",
+    "timestamp_utc",
+    "version_tag",
+    "evidence_binding",
+    "signatures"
+  ],
+  "properties": {
+    "entry_id": {"type": "string", "minLength": 1},
+    "entry_type": {
+      "type": "string",
+      "enum": ["source", "build", "test", "adversarial_run", "harness_execution", "corpus_snapshot", "scorecard", "claim", "downgrade"]
+    },
+    "artifact_digest": {"type": "string", "minLength": 64},
+    "previous_head": {"type": "string", "minLength": 64},
+    "entry_digest": {"type": "string", "minLength": 64},
+    "witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["witness_type", "witness_digest"],
+      "properties": {
+        "witness_type": {"type": "string", "minLength": 1},
+        "witness_digest": {"type": "string", "minLength": 64}
+      }
+    },
+    "transcript_digest": {"type": "string", "minLength": 64},
+    "timestamp_utc": {"type": "string", "minLength": 20},
+    "version_tag": {"type": "string", "const": "daylight-v14c-plus-v0.2"},
+    "evidence_binding": {"type": "string", "minLength": 1},
+    "signatures": {"type": "array"}
+  }
+}

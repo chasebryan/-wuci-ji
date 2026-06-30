@@ -18,7 +18,7 @@ import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import wuci_kaiju
 import wuci_progress
@@ -51,9 +51,16 @@ DEFAULT_MODEL_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-wire-mode
 DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v8-sheet.png")
 DEFAULT_DAYLIGHT_V9_SHEET_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v9-sheet.png")
 DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v9-spine.svg")
+DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v10-scoreboard.png")
+DEFAULT_DAYLIGHT_V13_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png")
+DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png")
+DEFAULT_DAYLIGHT_V14C_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png")
+DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png")
 SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
 DAYLIGHT_V8_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V8.md")
 DAYLIGHT_V9_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V9.md")
+DAYLIGHT_V10_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V10.md")
+DAYLIGHT_V13_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md")
 BOOT_SPLASH_PNG_NAME = "wuci-os-boot-splash.png"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 OVERLAY_WALLPAPER_PATH = Path("usr/share/backgrounds/wuci-os/wallpaper1.png")
@@ -87,6 +94,108 @@ BOUNDARY_DENIALS = (
     "no offensive scanning or exploit tooling is added by this lane",
     "SELinux, LUKS, and Daylight/WJSEAL status must be verified on the installed system before security claims",
 )
+
+LIVE_COMMAND_SURFACE_REQUIRED = (
+    "usr/bin/sudo",
+    "usr/bin/su",
+    "usr/bin/sv",
+    "usr/bin/ip",
+    "usr/bin/dhcpcd",
+    "usr/bin/iw",
+    "usr/bin/rfkill",
+    "usr/bin/wpa_supplicant",
+    "usr/bin/wpa_passphrase",
+    "usr/bin/nmcli",
+    "usr/bin/NetworkManager",
+    "usr/bin/dbus-daemon",
+    "usr/bin/xbps-install",
+    "usr/local/bin/wuci-network-connect",
+    "usr/local/bin/wuci-install",
+    "usr/local/bin/wuci-install-target-activate",
+    "usr/local/bin/wj",
+)
+
+MINIMUM_LIVE_NETWORK_PACKAGES = (
+    "sudo",
+    "kmod",
+    "pciutils",
+    "usbutils",
+    "iproute2",
+    "dhcpcd",
+    "iw",
+    "rfkill",
+    "wpa_supplicant",
+    "iwd",
+    "dbus",
+    "NetworkManager",
+    "dracut",
+    "parted",
+    "libkmod",
+    "linux-firmware-network",
+    "linux-firmware-intel",
+)
+
+MINIMUM_LIVE_NETWORK_REQUIRED_PATHS = (
+    "usr/bin/sudo",
+    "usr/bin/sv",
+    "usr/bin/depmod",
+    "usr/bin/modprobe",
+    "usr/bin/lspci",
+    "usr/bin/lsusb",
+    "usr/bin/udevadm",
+    "usr/bin/udevd",
+    "usr/bin/ip",
+    "usr/bin/dhcpcd",
+    "usr/bin/iw",
+    "usr/bin/rfkill",
+    "usr/bin/wpa_supplicant",
+    "usr/bin/wpa_passphrase",
+    "usr/bin/nmcli",
+    "usr/bin/NetworkManager",
+    "usr/bin/dbus-daemon",
+    "usr/bin/dracut",
+    "usr/bin/parted",
+    "usr/lib/firmware/iwlwifi-5000-5.ucode.zst",
+    "usr/lib/firmware/mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin.zst",
+    "usr/lib/firmware/mediatek/WIFI_RAM_CODE_MT7961_1.bin.zst",
+)
+
+LIVE_KERNEL_MODULE_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+    "nl80211-cfg80211": ("kernel/net/wireless/cfg80211.ko*",),
+    "mac80211-core": ("kernel/net/mac80211/mac80211.ko*",),
+    "x200s-intel-iwlwifi": (
+        "kernel/drivers/net/wireless/intel/iwlwifi/iwlwifi.ko*",
+        "kernel/drivers/net/wireless/intel/iwlwifi/dvm/iwldvm.ko*",
+    ),
+    "netgear-a8000-mt7921u": (
+        "kernel/drivers/net/wireless/mediatek/mt76/mt7921/mt7921u.ko*",
+        "kernel/drivers/net/wireless/mediatek/mt76/mt7921/mt7921-common.ko*",
+        "kernel/drivers/net/wireless/mediatek/mt76/mt76-usb.ko*",
+        "kernel/drivers/net/wireless/mediatek/mt76/mt76.ko*",
+    ),
+    "usb-host-controllers": (
+        "kernel/drivers/usb/host/xhci*.ko*",
+        "kernel/drivers/usb/host/ehci*.ko*",
+        "kernel/drivers/usb/host/uhci*.ko*",
+    ),
+}
+
+LIVE_USB_HOTPLUG_REQUIRED_PATHS = (
+    "etc/sv/udevd",
+    "etc/runit/runsvdir/default/udevd",
+    "usr/lib/udev/rules.d/80-drivers.rules",
+    "usr/lib/udev/hwdb.d/20-usb-vendor-model.hwdb",
+    "usr/lib/udev/rules.d/75-net-description.rules",
+)
+
+AUTH_SETUID_REQUIRED_PATHS = (
+    "usr/bin/sudo",
+    "usr/bin/su",
+)
+AUTH_SETUID_OPTIONAL_PATHS = (
+    "usr/bin/doas",
+)
+
 
 
 DESKTOP_PACKAGES = (
@@ -1759,10 +1868,19 @@ def _xorriso_replay_final_iso(
     daylight_v8_diagram_source: Path,
     daylight_v9_sheet_source: Path,
     daylight_v9_diagram_source: Path,
+    daylight_v10_scoreboard_source: Path,
+    daylight_v13_math_source: Path,
+    daylight_v14c_image_source: Path,
+    daylight_v14c_math_source: Path,
+    daylight_v14c_wide_source: Path,
     readme_bytes: bytes,
     offline_install_bytes: bytes,
     daylight_v8_model_bytes: bytes,
     daylight_v9_model_bytes: bytes,
+    daylight_v10_model_bytes: bytes,
+    daylight_v13_model_bytes: bytes,
+    replacement_kernel_path: Path | None,
+    replacement_initrd_path: Path | None,
     onboard_manifest_bytes: bytes,
     source_manifest_bytes: bytes,
     seal_manifest_bytes: bytes,
@@ -1813,16 +1931,27 @@ def _xorriso_replay_final_iso(
             Path(str(remaster_result["remastered_squashfs"]["path"])),
             "/LiveOS/squashfs.img",
         )
+        if replacement_kernel_path is not None:
+            _xorriso_add_map(args, replacement_kernel_path, "/boot/vmlinuz")
+        if replacement_initrd_path is not None:
+            _xorriso_add_map(args, replacement_initrd_path, "/boot/initrd")
     staged_payloads = (
         ("wuci-os/boot-splash.svg", boot_splash_source, None, 0o644),
         ("wuci-os/wuci-daylight-wire-model.png", model_diagram_source, None, 0o644),
         ("wuci-os/wuci-daylight-v8-sheet.png", daylight_v8_diagram_source, None, 0o644),
         ("wuci-os/wuci-daylight-v9-sheet.png", daylight_v9_sheet_source, None, 0o644),
         ("wuci-os/wuci-daylight-v9-spine.svg", daylight_v9_diagram_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v10-scoreboard.png", daylight_v10_scoreboard_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v13-sovereign-math.png", daylight_v13_math_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant.png", daylight_v14c_image_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-math.png", daylight_v14c_math_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png", daylight_v14c_wide_source, None, 0o644),
         ("wuci-os/README.txt", None, readme_bytes, 0o644),
         ("wuci-os/OFFLINE-INSTALL.txt", None, offline_install_bytes, 0o644),
         ("wuci-os/WUCI_DAYLIGHT_V8.md", None, daylight_v8_model_bytes, 0o644),
         ("wuci-os/WUCI_DAYLIGHT_V9.md", None, daylight_v9_model_bytes, 0o644),
+        ("wuci-os/WUCI_DAYLIGHT_V10.md", None, daylight_v10_model_bytes, 0o644),
+        ("wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md", None, daylight_v13_model_bytes, 0o644),
         ("wuci-os/manifest.json", None, onboard_manifest_bytes, 0o644),
         ("wuci-os/source.json", None, source_manifest_bytes, 0o644),
         ("wuci-os/daylight-manifest.json", None, seal_manifest_bytes, 0o644),
@@ -4777,13 +4906,13 @@ case "$mode" in
 Wuci-OS network connection prompt
 
 Usage:
-  sudo wuci-network-connect
-  sudo wuci-network-connect --check
+  wuci-network-connect
+  wuci-network-connect --check
 
 No Wi-Fi IDs or passwords are baked into Wuci-OS. The prompt asks locally at
 first boot. Optional noninteractive inputs:
-  WUCI_WIFI_SSID='network name' sudo -E wuci-network-connect
-  WUCI_WIFI_PASSWORD='password' WUCI_WIFI_SSID='network name' sudo -E wuci-network-connect
+  WUCI_WIFI_SSID='network name' wuci-network-connect
+  WUCI_WIFI_PASSWORD='password' WUCI_WIFI_SSID='network name' wuci-network-connect
 TEXT
         exit 0
         ;;
@@ -4808,9 +4937,25 @@ if [ "$(id -u)" != "0" ]; then
     if command -v sudo >/dev/null 2>&1; then
         exec sudo "$0" "$@"
     fi
-    printf 'wuci-network-connect: run as root or install sudo\\n' >&2
+    if command -v doas >/dev/null 2>&1; then
+        exec doas "$0" "$@"
+    fi
+    printf 'wuci-network-connect: root is required and sudo/doas is unavailable.\\n' >&2
+    printf 'wuci-network-connect: log in as root, then run: wuci-network-connect\\n' >&2
     exit 1
 fi
+
+printf 'Wuci-OS network setup\\n'
+printf '  user: root\\n'
+printf '  tools:'
+for tool in ip dhcpcd iw rfkill wpa_supplicant wpa_passphrase nmcli; do
+    if command -v "$tool" >/dev/null 2>&1; then
+        printf ' %s=ok' "$tool"
+    else
+        printf ' %s=missing' "$tool"
+    fi
+done
+printf '\\n'
 
 enable_service() {
     service=$1
@@ -4831,11 +4976,43 @@ if command -v rfkill >/dev/null 2>&1; then
     rfkill unblock all 2>/dev/null || true
 fi
 
+check_wireless_kernel_stack() {
+    kernel_release=$(uname -r 2>/dev/null || printf unknown)
+    missing=""
+    for module in cfg80211 mac80211; do
+        if [ -d "/sys/module/$module" ]; then
+            continue
+        fi
+        found=0
+        for base in /lib/modules /usr/lib/modules; do
+            if find "$base/$kernel_release" -iname "$module.ko*" -print -quit 2>/dev/null | grep -q .; then
+                found=1
+                break
+            fi
+        done
+        if [ "$found" -eq 0 ]; then
+            missing="$missing $module"
+        fi
+    done
+    if [ -n "$missing" ]; then
+        printf 'wuci-network-connect: kernel wireless stack missing for %s:%s\\n' "$kernel_release" "$missing" >&2
+        printf 'wuci-network-connect: nl80211 cannot work until the ISO includes matching cfg80211/mac80211 modules and firmware.\\n' >&2
+        printf 'wuci-network-connect: use Ethernet, then rebuild or install the matching linux package and run depmod -a %s.\\n' "$kernel_release" >&2
+        return 1
+    fi
+    return 0
+}
+
 try_dhcp() {
     iface=$1
     [ -n "$iface" ] || return 1
+    printf 'wuci-network-connect: DHCP probe on %s\\n' "$iface"
     if command -v dhcpcd >/dev/null 2>&1; then
-        dhcpcd -n "$iface" >/dev/null 2>&1 || dhcpcd "$iface" >/dev/null 2>&1 || true
+        if command -v timeout >/dev/null 2>&1; then
+            timeout 12s dhcpcd -n "$iface" >/dev/null 2>&1 || timeout 12s dhcpcd -4 "$iface" >/dev/null 2>&1 || true
+        else
+            dhcpcd -n "$iface" >/dev/null 2>&1 || dhcpcd -4 "$iface" >/dev/null 2>&1 || true
+        fi
     elif command -v udhcpc >/dev/null 2>&1; then
         udhcpc -i "$iface" -q -t 3 >/dev/null 2>&1 || true
     else
@@ -4849,6 +5026,12 @@ if command -v ip >/dev/null 2>&1; then
         case "$iface" in
             wl*|wifi*|wlan*) continue ;;
         esac
+        ip link set "$iface" up >/dev/null 2>&1 || true
+        carrier=$(cat "/sys/class/net/$iface/carrier" 2>/dev/null || printf unknown)
+        if [ "$carrier" = "0" ]; then
+            printf 'wuci-network-connect: skipping %s, no carrier\\n' "$iface"
+            continue
+        fi
         try_dhcp "$iface" && {
             printf 'wuci-network-connect: online through %s\\n' "$iface"
             exit 0
@@ -4865,6 +5048,7 @@ if command -v nmcli >/dev/null 2>&1; then
 
     nmcli networking on 2>/dev/null || true
     nmcli radio wifi on 2>/dev/null || true
+    check_wireless_kernel_stack || true
 
     printf 'Wuci-OS network credential prompt\\n'
     nmcli -f DEVICE,TYPE,STATE device status 2>/dev/null || true
@@ -4922,7 +5106,12 @@ if command -v nmcli >/dev/null 2>&1; then
     fi
 fi
 
+if ! command -v nmcli >/dev/null 2>&1; then
+    check_wireless_kernel_stack || true
+fi
+
 if command -v wpa_supplicant >/dev/null 2>&1; then
+    printf 'wuci-network-connect: using wpa_supplicant fallback\\n'
     wifi_iface="${WUCI_WIFI_IFACE:-}"
     if [ -z "$wifi_iface" ] && command -v iw >/dev/null 2>&1; then
         wifi_iface=$(iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }')
@@ -4933,10 +5122,16 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
     if [ -z "$wifi_iface" ]; then
         printf 'wuci-network-connect: no Wi-Fi interface found for wpa_supplicant\\n' >&2
     else
+        ip link set "$wifi_iface" up >/dev/null 2>&1 || true
         ssid="${WUCI_WIFI_SSID:-}"
         if [ -z "$ssid" ]; then
-            printf 'Wi-Fi SSID: '
-            IFS= read -r ssid || true
+            if [ -r /dev/tty ]; then
+                printf 'Wi-Fi SSID: ' >/dev/tty
+                IFS= read -r ssid </dev/tty || true
+            else
+                printf 'Wi-Fi SSID: '
+                IFS= read -r ssid || true
+            fi
         fi
         if [ -z "$ssid" ]; then
             printf 'wuci-network-connect: SSID is empty; network not configured\\n' >&2
@@ -4944,11 +5139,19 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
         fi
         pass="${WUCI_WIFI_PASSWORD:-}"
         if [ -z "$pass" ]; then
-            stty -echo 2>/dev/null || true
-            printf 'Wi-Fi password, blank for open network: '
-            IFS= read -r pass || true
-            printf '\\n'
-            stty echo 2>/dev/null || true
+            if [ -r /dev/tty ]; then
+                stty -echo < /dev/tty 2>/dev/null || true
+                printf 'Wi-Fi password, blank for open network: ' >/dev/tty
+                IFS= read -r pass </dev/tty || true
+                printf '\\n' >/dev/tty
+                stty echo < /dev/tty 2>/dev/null || true
+            else
+                stty -echo 2>/dev/null || true
+                printf 'Wi-Fi password, blank for open network: '
+                IFS= read -r pass || true
+                printf '\\n'
+                stty echo 2>/dev/null || true
+            fi
         fi
         conf_dir=/run/wuci-network
         mkdir -p "$conf_dir"
@@ -4974,7 +5177,8 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
             } > "$conf"
         fi
         chmod 0600 "$conf"
-        wpa_supplicant -B -i "$wifi_iface" -c "$conf" >/dev/null 2>&1 || true
+        pkill -f "wpa_supplicant.*-i $wifi_iface" >/dev/null 2>&1 || true
+        wpa_supplicant -B -i "$wifi_iface" -c "$conf" || true
         try_dhcp "$wifi_iface" && {
             printf 'wuci-network-connect: online through %s\\n' "$wifi_iface"
             exit 0
@@ -5802,6 +6006,18 @@ if command -v wuci-terminal >/dev/null 2>&1; then
 fi
 exec startxfce4
 """
+    def command_wrapper(command: str) -> str:
+        return (
+            "#!/bin/sh\n"
+            f"for candidate in /usr/bin/{command} /bin/{command} /usr/sbin/{command} /sbin/{command}; do\n"
+            "    if [ -x \"$candidate\" ]; then\n"
+            "        exec \"$candidate\" \"$@\"\n"
+            "    fi\n"
+            "done\n"
+            f"printf '{command}: required Wuci-OS command is missing from this image\\n' >&2\n"
+            "exit 127\n"
+        )
+
     boot_chime_runit = """#!/bin/sh
 if [ -x /usr/local/bin/wuci-boot-chime ]; then
     /usr/local/bin/wuci-boot-chime --once --quiet >/dev/null 2>&1 || true
@@ -5834,6 +6050,15 @@ done
         "usr/local/bin/wuci-status": status_script,
         "usr/local/bin/wuci-attest": attest_script,
         "usr/local/bin/wuci-live-banner": live_banner_script,
+        "usr/local/bin/sudo": command_wrapper("sudo"),
+        "usr/local/bin/su": command_wrapper("su"),
+        "usr/local/bin/ip": command_wrapper("ip"),
+        "usr/local/bin/dhcpcd": command_wrapper("dhcpcd"),
+        "usr/local/bin/iw": command_wrapper("iw"),
+        "usr/local/bin/rfkill": command_wrapper("rfkill"),
+        "usr/local/bin/wpa_supplicant": command_wrapper("wpa_supplicant"),
+        "usr/local/bin/wpa_passphrase": command_wrapper("wpa_passphrase"),
+        "usr/local/bin/xbps-install": command_wrapper("xbps-install"),
         "usr/local/bin/wuci-source-status": source_status_script,
         "usr/local/bin/wuci-enter": enter_script,
         "usr/local/bin/wuci-guide": guide_script,
@@ -5879,6 +6104,14 @@ done
         "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md": _read_regular_bytes(
             repo_root() / DAYLIGHT_V9_MODEL_DOC,
             "Wuci-OS Daylight v9 model doc",
+        ).decode("utf-8"),
+        "usr/share/wuci-os/WUCI_DAYLIGHT_V10.md": _read_regular_bytes(
+            repo_root() / DAYLIGHT_V10_MODEL_DOC,
+            "Wuci-OS Daylight v10 model doc",
+        ).decode("utf-8"),
+        "usr/share/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md": _read_regular_bytes(
+            repo_root() / DAYLIGHT_V13_MODEL_DOC,
+            "Wuci-OS Daylight v13 Sovereign model doc",
         ).decode("utf-8"),
         "usr/share/wuci-os/boundary.txt": "\n".join(BOUNDARY_DENIALS) + "\n",
         "usr/share/wuci-os/selinux.txt": "\n".join(
@@ -5942,6 +6175,36 @@ def create_overlay(
     daylight_v9_diagram_data = _read_regular_bytes(daylight_v9_diagram, "Wuci-OS Daylight v9 formal spine")
     if b"<svg" not in daylight_v9_diagram_data[:256]:
         raise WuciOSError(f"Wuci-OS Daylight v9 formal spine is not an SVG document: {daylight_v9_diagram}")
+    daylight_v10_scoreboard = repo_root() / DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE
+    daylight_v10_scoreboard_info = _verified_regular_file_info(daylight_v10_scoreboard, "Wuci-OS Daylight v10 scoreboard")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v10_scoreboard, "Wuci-OS Daylight v10 scoreboard"),
+        "Wuci-OS Daylight v10 scoreboard",
+    )
+    daylight_v13_math = repo_root() / DEFAULT_DAYLIGHT_V13_MATH_SOURCE
+    daylight_v13_math_info = _verified_regular_file_info(daylight_v13_math, "Wuci-OS Daylight v13 Sovereign math sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v13_math, "Wuci-OS Daylight v13 Sovereign math sheet"),
+        "Wuci-OS Daylight v13 Sovereign math sheet",
+    )
+    daylight_v14c_image = repo_root() / DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE
+    daylight_v14c_image_info = _verified_regular_file_info(daylight_v14c_image, "Wuci-OS Daylight v14C+ Ascendant candidate sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v14c_image, "Wuci-OS Daylight v14C+ Ascendant candidate sheet"),
+        "Wuci-OS Daylight v14C+ Ascendant candidate sheet",
+    )
+    daylight_v14c_math = repo_root() / DEFAULT_DAYLIGHT_V14C_MATH_SOURCE
+    daylight_v14c_math_info = _verified_regular_file_info(daylight_v14c_math, "Wuci-OS Daylight v14C+ Ascendant math sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v14c_math, "Wuci-OS Daylight v14C+ Ascendant math sheet"),
+        "Wuci-OS Daylight v14C+ Ascendant math sheet",
+    )
+    daylight_v14c_wide = repo_root() / DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE
+    daylight_v14c_wide_info = _verified_regular_file_info(daylight_v14c_wide, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v14c_wide, "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
+        "Wuci-OS Daylight v14C+ Ascendant wide sheet",
+    )
     try:
         root_info = os.lstat(root)
     except FileNotFoundError:
@@ -6016,6 +6279,51 @@ def create_overlay(
         mode=0o644,
     )
     written.append(str(daylight_v9_diagram_overlay_path))
+    daylight_v10_scoreboard_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v10-scoreboard.png")
+    daylight_v10_scoreboard_digest, daylight_v10_scoreboard_bytes = _copy_verified_regular_file(
+        daylight_v10_scoreboard,
+        root / daylight_v10_scoreboard_overlay_path,
+        "Wuci-OS overlay Daylight v10 scoreboard",
+        expected_info=daylight_v10_scoreboard_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v10_scoreboard_overlay_path))
+    daylight_v13_math_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png")
+    daylight_v13_math_digest, daylight_v13_math_bytes = _copy_verified_regular_file(
+        daylight_v13_math,
+        root / daylight_v13_math_overlay_path,
+        "Wuci-OS overlay Daylight v13 Sovereign math sheet",
+        expected_info=daylight_v13_math_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v13_math_overlay_path))
+    daylight_v14c_image_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png")
+    daylight_v14c_image_digest, daylight_v14c_image_bytes = _copy_verified_regular_file(
+        daylight_v14c_image,
+        root / daylight_v14c_image_overlay_path,
+        "Wuci-OS overlay Daylight v14C+ Ascendant candidate sheet",
+        expected_info=daylight_v14c_image_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v14c_image_overlay_path))
+    daylight_v14c_math_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png")
+    daylight_v14c_math_digest, daylight_v14c_math_bytes = _copy_verified_regular_file(
+        daylight_v14c_math,
+        root / daylight_v14c_math_overlay_path,
+        "Wuci-OS overlay Daylight v14C+ Ascendant math sheet",
+        expected_info=daylight_v14c_math_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v14c_math_overlay_path))
+    daylight_v14c_wide_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png")
+    daylight_v14c_wide_digest, daylight_v14c_wide_bytes = _copy_verified_regular_file(
+        daylight_v14c_wide,
+        root / daylight_v14c_wide_overlay_path,
+        "Wuci-OS overlay Daylight v14C+ Ascendant wide sheet",
+        expected_info=daylight_v14c_wide_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v14c_wide_overlay_path))
     manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
     manifest_files = written + [manifest_relative]
     manifest = {
@@ -6058,6 +6366,36 @@ def create_overlay(
             "source_path": str(daylight_v9_diagram),
             "bytes": daylight_v9_diagram_bytes,
             "digest_vector": daylight_v9_diagram_digest,
+        },
+        "daylight_v10_scoreboard": {
+            "path": str(daylight_v10_scoreboard_overlay_path),
+            "source_path": str(daylight_v10_scoreboard),
+            "bytes": daylight_v10_scoreboard_bytes,
+            "digest_vector": daylight_v10_scoreboard_digest,
+        },
+        "daylight_v13_math": {
+            "path": str(daylight_v13_math_overlay_path),
+            "source_path": str(daylight_v13_math),
+            "bytes": daylight_v13_math_bytes,
+            "digest_vector": daylight_v13_math_digest,
+        },
+        "daylight_v14c_image": {
+            "path": str(daylight_v14c_image_overlay_path),
+            "source_path": str(daylight_v14c_image),
+            "bytes": daylight_v14c_image_bytes,
+            "digest_vector": daylight_v14c_image_digest,
+        },
+        "daylight_v14c_math": {
+            "path": str(daylight_v14c_math_overlay_path),
+            "source_path": str(daylight_v14c_math),
+            "bytes": daylight_v14c_math_bytes,
+            "digest_vector": daylight_v14c_math_digest,
+        },
+        "daylight_v14c_wide": {
+            "path": str(daylight_v14c_wide_overlay_path),
+            "source_path": str(daylight_v14c_wide),
+            "bytes": daylight_v14c_wide_bytes,
+            "digest_vector": daylight_v14c_wide_digest,
         },
         "boundary_denials": list(BOUNDARY_DENIALS),
     }
@@ -6442,6 +6780,8 @@ ISO9660_FILE_ALIASES = {
     "grub_void.cfg": "GRUBVOID.CFG;1",
     "loopback.cfg": "LOOPBACK.CFG;1",
     "squashfs.img": "SQUASHFS.IMG;1",
+    "vmlinuz": "VMLINUX.;1",
+    "initrd": "INITRD.;1",
 }
 
 
@@ -6781,10 +7121,19 @@ def _ensure_group_line(lines: list[str], name: str, gid: int, members: list[str]
     return updated
 
 
-def _ensure_shadow_line(lines: list[str], name: str) -> list[str]:
-    if any(line.split(":", 1)[0] == name for line in lines):
-        return lines
-    return lines + [f"{name}::0:0:99999:7:::"]
+def _ensure_shadow_line(lines: list[str], name: str, *, secret: str = "!", last_change: str = "20121") -> list[str]:
+    normalized = f"{name}:{secret}:{last_change}:0:99999:7:::"
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        if line.split(":", 1)[0] == name:
+            updated.append(normalized)
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(normalized)
+    return updated
 
 
 def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
@@ -6800,14 +7149,20 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
         passwd_lines.append(f"wj:x:{uid_wj}:{gid_wj}:Wuci-OS Operator:/home/wj:{shell_path}")
     if not any(line.split(":", 1)[0] == "wj_low" for line in passwd_lines):
         passwd_lines.append(f"wj_low:x:{uid_low}:{gid_low}:Wuci-OS Low Privilege:/home/wj_low:{shell_path}")
+    if (rootfs / "usr/bin/dbus-daemon").is_file() and not any(line.split(":", 1)[0] == "dbus" for line in passwd_lines):
+        passwd_lines.append("dbus:x:22:22:System Message Bus:/var/run/dbus:/sbin/nologin")
     group_lines = _ensure_group_line(group_lines, "wj", gid_wj, ["wj"])
     group_lines = _ensure_group_line(group_lines, "wj_low", gid_low, ["wj_low"])
+    if (rootfs / "usr/bin/dbus-daemon").is_file():
+        group_lines = _ensure_group_line(group_lines, "dbus", 22, [])
     for group in ("wheel", "audio", "video", "input", "kvm", "network", "storage", "plugdev", "usb", "dialout", "uucp"):
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj"])
     for group in ("audio", "video", "plugdev", "usb", "dialout", "uucp"):
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj_low"])
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj")
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj", secret="")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low", secret="")
+    if (rootfs / "usr/bin/dbus-daemon").is_file():
+        shadow_lines = _ensure_shadow_line(shadow_lines, "dbus", secret="!")
     written = [
         _write_rootfs_text(rootfs, "etc/passwd", "\n".join(passwd_lines) + "\n", mode=0o644),
         _write_rootfs_text(rootfs, "etc/group", "\n".join(group_lines) + "\n", mode=0o644),
@@ -6888,8 +7243,8 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj"])
     for group in ("audio", "video", "plugdev", "usb", "dialout", "uucp"):
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj_low"])
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj")
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj", secret="")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low", secret="")
     written = [
         _debugfs_write_text_file(
             ext_image,
@@ -6997,6 +7352,30 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
     }
 
 
+def enable_rootfs_runit_services(rootfs: Path, services: Sequence[str]) -> dict[str, Any]:
+    default_dir = rootfs / "etc/runit/runsvdir/default"
+    default_dir.mkdir(parents=True, exist_ok=True)
+    records: list[dict[str, str]] = []
+    for service in services:
+        if "/" in service or service in {"", ".", ".."}:
+            raise WuciOSError(f"invalid runit service name: {service!r}")
+        service_dir = rootfs / "etc/sv" / service
+        target = default_dir / service
+        if not service_dir.is_dir():
+            records.append({"service": service, "status": "missing-service-dir"})
+            continue
+        if target.is_symlink() or target.exists():
+            records.append({"service": service, "status": "already-enabled", "target": str(target)})
+            continue
+        target.symlink_to(Path("../../../sv") / service)
+        records.append({"service": service, "status": "enabled", "target": str(target)})
+    return {
+        "schema": "wuci-os-rootfs-runit-service-enable-v1",
+        "status": "pass",
+        "services": records,
+    }
+
+
 def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, Any]:
     manifest_path = overlay_manifest_path(overlay_root)
     if manifest_path.is_file():
@@ -7098,6 +7477,7 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
     )
     written.append(live_access_service)
     accounts = apply_rootfs_account_profile(rootfs)
+    services = enable_rootfs_runit_services(rootfs, ("dbus", "NetworkManager"))
     return {
         "schema": "wuci-os-rootfs-overlay-application-v1",
         "status": "pass",
@@ -7107,6 +7487,463 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
         "files": written,
         "identity_patches": patches,
         "account_profile": accounts,
+        "service_enablement": services,
+    }
+
+
+def validate_live_command_surface(rootfs: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for relative in LIVE_COMMAND_SURFACE_REQUIRED:
+        rel = Path(relative)
+        path = rootfs / rel
+        exists = path.exists() or path.is_symlink()
+        executable = exists and os.access(path, os.X_OK)
+        record = {
+            "path": relative,
+            "exists": exists,
+            "executable": executable,
+        }
+        records.append(record)
+        if not executable:
+            missing.append(relative)
+    result = {
+        "schema": "wuci-os-live-command-surface-v1",
+        "status": "pass" if not missing else "fail",
+        "required": list(LIVE_COMMAND_SURFACE_REQUIRED),
+        "records": records,
+        "missing_or_not_executable": missing,
+    }
+    if missing:
+        raise WuciOSError("Wuci-OS live command surface incomplete: " + ", ".join(missing))
+    return result
+
+
+def detect_kernel_release_from_bytes(data: bytes) -> str | None:
+    text = data.decode("latin-1", "ignore")
+    patterns = (
+        r"\b([0-9]+\.[0-9]+(?:\.[0-9]+)?_[0-9]+)\s+\([^)]*\)\s+#\d+",
+        r"Linux version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?_[0-9]+)",
+        r"\b([0-9]+\.[0-9]+(?:\.[0-9]+)?-[A-Za-z0-9_.+-]+)\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def detect_boot_kernel_release(source_iso: Path) -> str | None:
+    kernel = _extract_iso_bytes(source_iso, "boot/vmlinuz", "boot kernel")
+    return detect_kernel_release_from_bytes(kernel)
+
+
+def kernel_package_from_release(kernel_release: str | None) -> str | None:
+    if not kernel_release:
+        return None
+    match = re.match(r"^([0-9]+)\.([0-9]+)\.", kernel_release)
+    if not match:
+        return None
+    return f"linux{match.group(1)}.{match.group(2)}"
+
+
+def kernel_module_releases(rootfs: Path) -> list[str]:
+    releases: set[str] = set()
+    for base in (rootfs / "lib/modules", rootfs / "usr/lib/modules"):
+        if not base.is_dir():
+            continue
+        for child in base.iterdir():
+            if child.is_dir():
+                releases.add(child.name)
+    return sorted(releases)
+
+
+def kernel_module_root(rootfs: Path, kernel_release: str) -> Path | None:
+    for base in (rootfs / "lib/modules", rootfs / "usr/lib/modules"):
+        candidate = base / kernel_release
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _kernel_release_sort_key(release: str) -> tuple[Any, ...]:
+    parts: list[Any] = []
+    for part in re.split(r"([0-9]+)", release):
+        if not part:
+            continue
+        parts.append(int(part) if part.isdigit() else part)
+    return tuple(parts)
+
+
+def _first_existing_rootfs_file(rootfs: Path, candidates: tuple[str, ...]) -> Path | None:
+    for candidate in candidates:
+        path = rootfs / candidate
+        if path.is_file():
+            return path
+    return None
+
+
+def rootfs_boot_artifacts_for_release(rootfs: Path, kernel_release: str) -> dict[str, Any]:
+    kernel = _first_existing_rootfs_file(
+        rootfs,
+        (
+            f"boot/vmlinuz-{kernel_release}",
+            f"boot/kernel-{kernel_release}",
+            "boot/vmlinuz",
+        ),
+    )
+    initrd = _first_existing_rootfs_file(
+        rootfs,
+        (
+            f"boot/initrd-{kernel_release}.img",
+            f"boot/initramfs-{kernel_release}.img",
+            f"boot/initrd.img-{kernel_release}",
+            f"boot/initrd-{kernel_release}",
+            f"boot/initramfs-{kernel_release}",
+            "boot/initrd",
+        ),
+    )
+    result: dict[str, Any] = {
+        "schema": "wuci-os-rootfs-boot-artifacts-v1",
+        "kernel_release": kernel_release,
+        "kernel_path": str(kernel) if kernel else None,
+        "initrd_path": str(initrd) if initrd else None,
+        "status": "pass" if kernel and initrd else "fail",
+        "problems": [],
+    }
+    if kernel is None:
+        result["problems"].append(f"missing rootfs boot kernel for {kernel_release}")
+    if initrd is None:
+        result["problems"].append(f"missing rootfs initramfs for {kernel_release}")
+    if kernel and initrd:
+        _verified_regular_file_info(kernel, f"Wuci-OS rootfs boot kernel {kernel_release}")
+        _verified_regular_file_info(initrd, f"Wuci-OS rootfs initramfs {kernel_release}")
+        result["kernel"] = _regular_artifact_evidence(kernel, f"Wuci-OS rootfs boot kernel {kernel_release}")
+        result["initrd"] = _regular_artifact_evidence(initrd, f"Wuci-OS rootfs initramfs {kernel_release}")
+    return result
+
+
+def select_live_boot_kernel_surface(rootfs: Path, source_kernel_release: str | None) -> dict[str, Any]:
+    checked: list[dict[str, Any]] = []
+    if source_kernel_release:
+        source_surface = inspect_live_kernel_hardware_surface(rootfs, source_kernel_release)
+        checked.append({"kernel_release": source_kernel_release, "surface": source_surface, "boot_artifacts": None})
+        if source_surface["status"] == "pass":
+            return {
+                "schema": "wuci-os-live-boot-kernel-selection-v1",
+                "status": "source-iso-kernel",
+                "source_kernel_release": source_kernel_release,
+                "effective_kernel_release": source_kernel_release,
+                "kernel_package": kernel_package_from_release(source_kernel_release),
+                "replacement_required": False,
+                "kernel_hardware_surface": source_surface,
+                "boot_artifacts": {
+                    "schema": "wuci-os-rootfs-boot-artifacts-v1",
+                    "status": "not-needed",
+                    "reason": "source ISO boot kernel already matches a passing rootfs module tree",
+                },
+                "checked": checked,
+            }
+    artifact_blockers: list[str] = []
+    for release in sorted(kernel_module_releases(rootfs), key=_kernel_release_sort_key, reverse=True):
+        if release == source_kernel_release:
+            continue
+        surface = inspect_live_kernel_hardware_surface(rootfs, release)
+        artifacts = rootfs_boot_artifacts_for_release(rootfs, release)
+        checked.append({"kernel_release": release, "surface": surface, "boot_artifacts": artifacts})
+        if surface["status"] == "pass" and artifacts["status"] == "pass":
+            return {
+                "schema": "wuci-os-live-boot-kernel-selection-v1",
+                "status": "rootfs-kernel-replacement",
+                "source_kernel_release": source_kernel_release or "unknown",
+                "effective_kernel_release": release,
+                "kernel_package": kernel_package_from_release(release),
+                "replacement_required": True,
+                "kernel_hardware_surface": surface,
+                "boot_artifacts": artifacts,
+                "checked": checked,
+            }
+        if surface["status"] == "pass" and artifacts["status"] != "pass":
+            artifact_blockers.extend(str(problem) for problem in artifacts["problems"])
+    source_label = source_kernel_release or "unknown"
+    problems = [f"no passing kernel hardware surface for source ISO boot kernel: {source_label}"]
+    if artifact_blockers:
+        problems.extend(artifact_blockers)
+    raise WuciOSError("Wuci-OS boot kernel/rootfs module closure incomplete: " + "; ".join(problems))
+
+
+def _rootfs_path_record(rootfs: Path, relative: str) -> dict[str, Any]:
+    rel = Path(relative)
+    path = rootfs / rel
+    exists = path.exists() or path.is_symlink()
+    executable = exists and os.access(path, os.X_OK)
+    return {
+        "path": relative,
+        "exists": exists,
+        "executable": executable,
+        "is_dir": path.is_dir(),
+        "is_file": path.is_file(),
+        "is_symlink": path.is_symlink(),
+    }
+
+
+def inspect_live_kernel_hardware_surface(rootfs: Path, kernel_release: str | None) -> dict[str, Any]:
+    problems: list[str] = []
+    module_records: list[dict[str, Any]] = []
+    available_releases = kernel_module_releases(rootfs)
+    module_root = kernel_module_root(rootfs, kernel_release) if kernel_release else None
+    if not kernel_release:
+        problems.append("boot kernel release could not be detected")
+    elif module_root is None:
+        problems.append(f"missing module tree for boot kernel: {kernel_release}")
+    else:
+        for name, patterns in LIVE_KERNEL_MODULE_REQUIREMENTS.items():
+            pattern_records: list[dict[str, Any]] = []
+            missing_patterns: list[str] = []
+            for pattern in patterns:
+                matches = sorted(path.relative_to(module_root).as_posix() for path in module_root.glob(pattern))
+                pattern_records.append({"pattern": pattern, "matches": matches})
+                if not matches:
+                    missing_patterns.append(pattern)
+            module_records.append(
+                {
+                    "requirement": name,
+                    "patterns": pattern_records,
+                    "status": "pass" if not missing_patterns else "fail",
+                    "missing_patterns": missing_patterns,
+                }
+            )
+            if missing_patterns:
+                problems.append(f"{name} missing: " + ", ".join(missing_patterns))
+        for required in ("modules.dep", "modules.alias"):
+            if not (module_root / required).is_file():
+                problems.append(f"missing module metadata: {kernel_release}/{required}")
+    path_records = [
+        _rootfs_path_record(rootfs, path)
+        for path in (*MINIMUM_LIVE_NETWORK_REQUIRED_PATHS, *LIVE_USB_HOTPLUG_REQUIRED_PATHS)
+    ]
+    for record in path_records:
+        path = str(record["path"])
+        if path.endswith("/") and not record["is_dir"]:
+            problems.append(f"missing required directory: {path}")
+        elif path.startswith("usr/bin/") and not record["executable"]:
+            problems.append(f"missing executable: {path}")
+        elif not record["exists"]:
+            problems.append(f"missing required path: {path}")
+    return {
+        "schema": "wuci-os-live-kernel-hardware-surface-v1",
+        "status": "pass" if not problems else "fail",
+        "kernel_release": kernel_release or "unknown",
+        "kernel_package": kernel_package_from_release(kernel_release),
+        "module_root": str(module_root) if module_root else None,
+        "available_module_releases": available_releases,
+        "module_requirements": module_records,
+        "path_requirements": path_records,
+        "problems": problems,
+    }
+
+
+def validate_live_kernel_hardware_surface(rootfs: Path, kernel_release: str | None) -> dict[str, Any]:
+    result = inspect_live_kernel_hardware_surface(rootfs, kernel_release)
+    if result["status"] != "pass":
+        raise WuciOSError("Wuci-OS kernel hardware surface incomplete: " + "; ".join(result["problems"]))
+    return result
+
+
+def any_live_kernel_hardware_surface_passes(rootfs: Path, preferred_release: str | None) -> bool:
+    releases: list[str] = []
+    if preferred_release:
+        releases.append(preferred_release)
+    for release in kernel_module_releases(rootfs):
+        if release not in releases:
+            releases.append(release)
+    return any(inspect_live_kernel_hardware_surface(rootfs, release)["status"] == "pass" for release in releases)
+
+
+def _rootfs_musl_command(rootfs: Path, program: str) -> list[str]:
+    loader = rootfs / "usr/lib64/libc.so"
+    binary = rootfs / program.lstrip("/")
+    if not loader.is_file() or not os.access(loader, os.X_OK):
+        raise WuciOSError(f"rootfs musl loader is unavailable: {loader}")
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        raise WuciOSError(f"rootfs executable is unavailable: {binary}")
+    library_path = ":".join(
+        str(path)
+        for path in (
+            rootfs / "usr/lib",
+            rootfs / "usr/lib64",
+            rootfs / "lib",
+            rootfs / "lib64",
+        )
+    )
+    return [str(loader), "--library-path", library_path, str(binary)]
+
+
+def refresh_rootfs_depmod(rootfs: Path, kernel_release: str | None, *, ticker_mode: str = "auto") -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "schema": "wuci-os-rootfs-depmod-refresh-v1",
+        "kernel_release": kernel_release or "unknown",
+        "status": "skipped",
+        "method": "depmod -b",
+        "problems": [],
+    }
+    if not kernel_release:
+        result["reason"] = "kernel release unknown"
+        return result
+    module_root = kernel_module_root(rootfs, kernel_release)
+    if module_root is None:
+        result["reason"] = f"module tree not present for {kernel_release}"
+        return result
+    depmod = rootfs / "usr/bin/depmod"
+    if not depmod.is_file() or not os.access(depmod, os.X_OK):
+        result["status"] = "fail"
+        result["problems"] = [f"depmod missing or not executable: {depmod.relative_to(rootfs).as_posix()}"]
+        return result
+    try:
+        command = _rootfs_musl_command(rootfs, "usr/bin/depmod") + ["-b", str(rootfs), kernel_release]
+    except WuciOSError as exc:
+        metadata = all((module_root / item).is_file() for item in ("modules.dep", "modules.alias"))
+        result["status"] = "simulated-pass" if metadata else "fail"
+        result["reason"] = str(exc)
+        if not metadata:
+            result["problems"] = [f"depmod could not run and module metadata is incomplete for {kernel_release}"]
+        return result
+    with wuci_progress.stage(f"wuci-os depmod {kernel_release}", ticker_mode):
+        proc = subprocess.run(
+            command,
+            cwd=repo_root(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            check=False,
+        )
+    result["returncode"] = proc.returncode
+    result["stdout_tail"] = "\n".join((proc.stdout or "").splitlines()[-8:])
+    result["stderr_tail"] = "\n".join((proc.stderr or "").splitlines()[-8:])
+    if proc.returncode != 0:
+        result["status"] = "fail"
+        result["problems"] = [proc.stderr.strip() or proc.stdout.strip() or f"depmod failed for {kernel_release}"]
+        return result
+    result["status"] = "pass"
+    return result
+
+
+def refresh_rootfs_depmod_for_releases(
+    rootfs: Path,
+    preferred_release: str | None,
+    *,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
+    releases: list[str] = []
+    if preferred_release:
+        releases.append(preferred_release)
+    for release in kernel_module_releases(rootfs):
+        if release not in releases:
+            releases.append(release)
+    records = [refresh_rootfs_depmod(rootfs, release, ticker_mode=ticker_mode) for release in releases]
+    failures = [problem for record in records if record["status"] == "fail" for problem in record.get("problems", [])]
+    if failures:
+        raise WuciOSError("Wuci-OS depmod refresh failed: " + "; ".join(str(problem) for problem in failures))
+    return {
+        "schema": "wuci-os-rootfs-depmod-refresh-set-v1",
+        "status": "pass",
+        "preferred_kernel_release": preferred_release or "unknown",
+        "records": records,
+    }
+
+
+def _run_rootfs_xbps(rootfs: Path, args: list[str], *, label: str, ticker_mode: str) -> subprocess.CompletedProcess[str]:
+    command = _rootfs_musl_command(rootfs, "usr/bin/xbps-install") + ["-r", str(rootfs), *args]
+    with wuci_progress.stage(label, ticker_mode):
+        return subprocess.run(
+            command,
+            cwd=repo_root(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            check=False,
+        )
+
+
+def ensure_minimum_live_network_packages(
+    rootfs: Path,
+    *,
+    boot_kernel_release: str | None = None,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
+    packages = list(MINIMUM_LIVE_NETWORK_PACKAGES)
+    kernel_package = kernel_package_from_release(boot_kernel_release)
+    if kernel_package and kernel_package not in packages:
+        packages.append(kernel_package)
+    missing_before = [path for path in MINIMUM_LIVE_NETWORK_REQUIRED_PATHS if not (rootfs / path).exists()]
+    kernel_surface_before = inspect_live_kernel_hardware_surface(rootfs, boot_kernel_release)
+    if not any_live_kernel_hardware_surface_passes(rootfs, boot_kernel_release):
+        missing_before.extend(f"kernel:{problem}" for problem in kernel_surface_before["problems"])
+    if not missing_before:
+        return {
+            "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
+            "status": "already-present",
+            "packages": packages,
+            "kernel_package": kernel_package,
+            "required_paths": list(MINIMUM_LIVE_NETWORK_REQUIRED_PATHS),
+            "missing_before": [],
+            "missing_after": [],
+            "kernel_hardware_surface_before": kernel_surface_before,
+        }
+    _rootfs_musl_command(rootfs, "usr/bin/xbps-install")
+    install = _run_rootfs_xbps(
+        rootfs,
+        ["-y", "-Sy", *packages],
+        label="wuci-os minimum Wi-Fi packages",
+        ticker_mode=ticker_mode,
+    )
+    install_output = (install.stdout or "") + (install.stderr or "")
+    xbps_update: dict[str, Any] | None = None
+    if install.returncode != 0 and "xbps' package must be updated" in install_output:
+        update = _run_rootfs_xbps(
+            rootfs,
+            ["-y", "-u", "xbps"],
+            label="wuci-os rootfs xbps self-update",
+            ticker_mode=ticker_mode,
+        )
+        xbps_update = {
+            "returncode": update.returncode,
+            "stdout_tail": "\n".join((update.stdout or "").splitlines()[-12:]),
+            "stderr_tail": "\n".join((update.stderr or "").splitlines()[-12:]),
+        }
+        if update.returncode != 0:
+            raise WuciOSError("rootfs xbps self-update failed: " + (update.stderr.strip() or update.stdout.strip()))
+        install = _run_rootfs_xbps(
+            rootfs,
+            ["-y", "-Sy", *packages],
+            label="wuci-os minimum Wi-Fi packages",
+            ticker_mode=ticker_mode,
+        )
+        install_output = (install.stdout or "") + (install.stderr or "")
+    if install.returncode != 0:
+        raise WuciOSError("minimum live Wi-Fi package install failed: " + (install.stderr.strip() or install.stdout.strip()))
+    missing_after = [path for path in MINIMUM_LIVE_NETWORK_REQUIRED_PATHS if not (rootfs / path).exists()]
+    kernel_surface_after = inspect_live_kernel_hardware_surface(rootfs, boot_kernel_release)
+    if not any_live_kernel_hardware_surface_passes(rootfs, boot_kernel_release):
+        missing_after.extend(f"kernel:{problem}" for problem in kernel_surface_after["problems"])
+    if missing_after:
+        raise WuciOSError("minimum live Wi-Fi package install did not provide: " + ", ".join(missing_after))
+    return {
+        "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
+        "status": "pass",
+        "packages": packages,
+        "kernel_package": kernel_package,
+        "required_paths": list(MINIMUM_LIVE_NETWORK_REQUIRED_PATHS),
+        "missing_before": missing_before,
+        "missing_after": missing_after,
+        "kernel_hardware_surface_before": kernel_surface_before,
+        "kernel_hardware_surface_after": kernel_surface_after,
+        "xbps_update": xbps_update,
+        "install_returncode": install.returncode,
+        "install_stdout_tail": "\n".join((install.stdout or "").splitlines()[-16:]),
+        "install_stderr_tail": "\n".join((install.stderr or "").splitlines()[-16:]),
     }
 
 
@@ -7423,9 +8260,12 @@ def _rootfs_owner_map_from_tarball(rootfs: Path, tarball: Path, tools: dict[str,
 def _debugfs_safe_path(relative: str) -> str:
     if relative in {"", "."}:
         return "/"
-    if any(ch.isspace() for ch in relative) or "\\" in relative or '"' in relative:
+    if "\\" in relative or '"' in relative or any(ch in relative for ch in "\r\n\t"):
         raise WuciOSError(f"rootfs path cannot be safely normalized with debugfs: {relative}")
-    return "/" + relative.strip("/")
+    path = "/" + relative.strip("/")
+    if any(ch.isspace() for ch in relative):
+        return f'"{path}"'
+    return path
 
 
 def normalize_generated_rootfs_image_ownership(
@@ -7446,6 +8286,8 @@ def normalize_generated_rootfs_image_ownership(
     commands = ["set_inode_field / uid 0", "set_inode_field / gid 0"]
     path_count = 1
     setuid_fixed = 0
+    auth_setuid_root_paths: list[str] = []
+    missing_required_auth: list[str] = []
     for path in sorted(rootfs.rglob("*"), key=lambda item: item.relative_to(rootfs).as_posix()):
         rel = path.relative_to(rootfs).as_posix()
         uid, gid = owner_map.get(rel, (0, 0))
@@ -7458,6 +8300,19 @@ def normalize_generated_rootfs_image_ownership(
                 setuid_fixed += 1
         except FileNotFoundError:
             pass
+    for rel in (*AUTH_SETUID_REQUIRED_PATHS, *AUTH_SETUID_OPTIONAL_PATHS):
+        path = rootfs / rel
+        if not path.exists():
+            if rel in AUTH_SETUID_REQUIRED_PATHS:
+                missing_required_auth.append(rel)
+            continue
+        remote = _debugfs_safe_path(rel)
+        commands.append(f"set_inode_field {remote} uid 0")
+        commands.append(f"set_inode_field {remote} gid 0")
+        commands.append(f"set_inode_field {remote} mode 0104755")
+        auth_setuid_root_paths.append(rel)
+    if missing_required_auth:
+        raise WuciOSError("generated rootfs image is missing required auth tools: " + ", ".join(missing_required_auth))
     _debugfs_run(image, commands, "Wuci-OS generated rootfs ownership normalization", cwd=work_root)
     return {
         "schema": "wuci-os-rootfs-ownership-normalization-v1",
@@ -7465,6 +8320,8 @@ def normalize_generated_rootfs_image_ownership(
         "source": source,
         "paths": path_count,
         "setuid_or_setgid_root_paths": setuid_fixed,
+        "auth_setuid_root_paths": auth_setuid_root_paths,
+        "auth_setuid_required_missing": missing_required_auth,
     }
 
 
@@ -7589,6 +8446,41 @@ def remaster_live_rootfs(
             raise WuciOSError(f"unsquashfs failed: {extract.stderr.strip() or extract.stdout.strip()}")
     nested_ext_image = rootfs / "LiveOS/ext3fs.img"
     rootfs_image_layout = "wrapped-rootfs-img" if rootfs_source_root is not None else ("nested-ext3fs" if nested_ext_image.is_file() else "direct-squashfs-root")
+    source_boot_kernel_release = detect_boot_kernel_release(source_iso)
+    minimum_network_bootstrap = (
+        ensure_minimum_live_network_packages(rootfs, boot_kernel_release=source_boot_kernel_release, ticker_mode=ticker_mode)
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
+            "status": "not-checked",
+            "reason": "nested ext image package bootstrap requires mounted root access",
+            "packages": list(MINIMUM_LIVE_NETWORK_PACKAGES),
+            "kernel_release": source_boot_kernel_release or "unknown",
+        }
+    )
+    depmod_refresh = (
+        refresh_rootfs_depmod_for_releases(rootfs, source_boot_kernel_release, ticker_mode=ticker_mode)
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-rootfs-depmod-refresh-set-v1",
+            "status": "not-checked",
+            "reason": "nested ext image depmod refresh requires mounted root access",
+            "preferred_kernel_release": source_boot_kernel_release or "unknown",
+            "records": [],
+        }
+    )
+    boot_kernel_selection = (
+        select_live_boot_kernel_surface(rootfs, source_boot_kernel_release)
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-live-boot-kernel-selection-v1",
+            "status": "not-checked",
+            "reason": "nested ext image boot kernel selection requires mounted root access",
+            "source_kernel_release": source_boot_kernel_release or "unknown",
+            "effective_kernel_release": source_boot_kernel_release or "unknown",
+            "replacement_required": False,
+        }
+    )
     if nested_ext_image.is_file():
         _require_host_tool(tools, "e2fsck")
         if not install_suite_packages or os.geteuid() != 0:
@@ -7647,6 +8539,25 @@ def remaster_live_rootfs(
             overlay_application = apply_wuci_overlay_to_ext_image(overlay_root, nested_ext_image, work_root)
         else:
             overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, rootfs)
+    command_surface = (
+        validate_live_command_surface(rootfs)
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-live-command-surface-v1",
+            "status": "not-checked",
+            "reason": "nested ext image command surface is validated after image extraction in integration checks",
+        }
+    )
+    kernel_hardware_surface = (
+        boot_kernel_selection["kernel_hardware_surface"]
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-live-kernel-hardware-surface-v1",
+            "status": "not-checked",
+            "reason": "nested ext image hardware surface is validated after image extraction in integration checks",
+            "kernel_release": source_boot_kernel_release or "unknown",
+        }
+    )
     if rootfs_source_root is not None:
         squashfs_source = work_root / "squashfs-wrapper"
         if squashfs_source.exists():
@@ -7708,8 +8619,13 @@ def remaster_live_rootfs(
             "status": "not-used",
             "reason": "remaster used source ISO LiveOS/squashfs.img",
         },
+        "minimum_network_package_bootstrap": minimum_network_bootstrap,
+        "depmod_refresh": depmod_refresh,
+        "boot_kernel_selection": boot_kernel_selection,
         "suite_package_install": package_install,
         "overlay_application": overlay_application,
+        "live_command_surface": command_surface,
+        "kernel_hardware_surface": kernel_hardware_surface,
         "host_tool_status": tools,
         "non_claims": list(BOUNDARY_DENIALS),
     }
@@ -7810,6 +8726,14 @@ def build_final_iso(
     daylight_v9_model_data = _read_regular_bytes(daylight_v9_model_source, "Wuci-OS Daylight v9 model doc")
     daylight_v9_model_digest = digest_vector(daylight_v9_model_data)
     daylight_v9_model_bytes = len(daylight_v9_model_data)
+    daylight_v10_model_source = repo_root() / DAYLIGHT_V10_MODEL_DOC
+    daylight_v10_model_data = _read_regular_bytes(daylight_v10_model_source, "Wuci-OS Daylight v10 model doc")
+    daylight_v10_model_digest = digest_vector(daylight_v10_model_data)
+    daylight_v10_model_bytes = len(daylight_v10_model_data)
+    daylight_v13_model_source = repo_root() / DAYLIGHT_V13_MODEL_DOC
+    daylight_v13_model_data = _read_regular_bytes(daylight_v13_model_source, "Wuci-OS Daylight v13 Sovereign model doc")
+    daylight_v13_model_digest = digest_vector(daylight_v13_model_data)
+    daylight_v13_model_bytes = len(daylight_v13_model_data)
     model_diagram_source = repo_root() / DEFAULT_MODEL_DIAGRAM_SOURCE
     model_diagram_data = _read_regular_bytes(model_diagram_source, "Wuci-OS Daylight wire model diagram")
     _validate_png_bytes(model_diagram_data, "Wuci-OS Daylight wire model diagram")
@@ -7827,6 +8751,31 @@ def build_final_iso(
     if b"<svg" not in daylight_v9_diagram_data[:256]:
         raise WuciOSError(f"Wuci-OS Daylight v9 formal spine is not an SVG document: {daylight_v9_diagram_source}")
     daylight_v9_diagram_digest, daylight_v9_diagram_bytes = digest_vector(daylight_v9_diagram_data), len(daylight_v9_diagram_data)
+    daylight_v10_scoreboard_source = repo_root() / DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE
+    daylight_v10_scoreboard_data = _read_regular_bytes(daylight_v10_scoreboard_source, "Wuci-OS Daylight v10 scoreboard")
+    _validate_png_bytes(daylight_v10_scoreboard_data, "Wuci-OS Daylight v10 scoreboard")
+    daylight_v10_scoreboard_digest = digest_vector(daylight_v10_scoreboard_data)
+    daylight_v10_scoreboard_bytes = len(daylight_v10_scoreboard_data)
+    daylight_v13_math_source = repo_root() / DEFAULT_DAYLIGHT_V13_MATH_SOURCE
+    daylight_v13_math_data = _read_regular_bytes(daylight_v13_math_source, "Wuci-OS Daylight v13 Sovereign math sheet")
+    _validate_png_bytes(daylight_v13_math_data, "Wuci-OS Daylight v13 Sovereign math sheet")
+    daylight_v13_math_digest = digest_vector(daylight_v13_math_data)
+    daylight_v13_math_bytes = len(daylight_v13_math_data)
+    daylight_v14c_image_source = repo_root() / DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE
+    daylight_v14c_image_data = _read_regular_bytes(daylight_v14c_image_source, "Wuci-OS Daylight v14C+ Ascendant candidate sheet")
+    _validate_png_bytes(daylight_v14c_image_data, "Wuci-OS Daylight v14C+ Ascendant candidate sheet")
+    daylight_v14c_image_digest = digest_vector(daylight_v14c_image_data)
+    daylight_v14c_image_bytes = len(daylight_v14c_image_data)
+    daylight_v14c_math_source = repo_root() / DEFAULT_DAYLIGHT_V14C_MATH_SOURCE
+    daylight_v14c_math_data = _read_regular_bytes(daylight_v14c_math_source, "Wuci-OS Daylight v14C+ Ascendant math sheet")
+    _validate_png_bytes(daylight_v14c_math_data, "Wuci-OS Daylight v14C+ Ascendant math sheet")
+    daylight_v14c_math_digest = digest_vector(daylight_v14c_math_data)
+    daylight_v14c_math_bytes = len(daylight_v14c_math_data)
+    daylight_v14c_wide_source = repo_root() / DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE
+    daylight_v14c_wide_data = _read_regular_bytes(daylight_v14c_wide_source, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
+    _validate_png_bytes(daylight_v14c_wide_data, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
+    daylight_v14c_wide_digest = digest_vector(daylight_v14c_wide_data)
+    daylight_v14c_wide_bytes = len(daylight_v14c_wide_data)
     original_boot_menu = _extract_iso_text(source_iso, "boot/isolinux/isolinux.cfg")
     wuci_boot_menu = rewrite_isolinux_config_for_wuci(original_boot_menu) if original_boot_menu else ""
     grub_rewrites: dict[str, str] = {}
@@ -7851,6 +8800,19 @@ def build_final_iso(
             install_suite_packages=install_suite_packages,
             ticker_mode=ticker_mode,
         )
+    boot_kernel_selection = remaster_result.get("boot_kernel_selection", {})
+    replacement_kernel_path: Path | None = None
+    replacement_initrd_path: Path | None = None
+    if remaster_rootfs and bool(boot_kernel_selection.get("replacement_required")):
+        boot_artifacts = boot_kernel_selection.get("boot_artifacts", {})
+        replacement_kernel_text = str(boot_artifacts.get("kernel_path") or "")
+        replacement_initrd_text = str(boot_artifacts.get("initrd_path") or "")
+        if not replacement_kernel_text or not replacement_initrd_text:
+            raise WuciOSError("Wuci-OS boot kernel replacement selected without kernel/initrd paths")
+        replacement_kernel_path = Path(replacement_kernel_text)
+        replacement_initrd_path = Path(replacement_initrd_text)
+        _verified_regular_file_info(replacement_kernel_path, "Wuci-OS replacement boot kernel")
+        _verified_regular_file_info(replacement_initrd_path, "Wuci-OS replacement initramfs")
 
     suite_packages_baked = bool(
         remaster_rootfs
@@ -7905,6 +8867,8 @@ def build_final_iso(
             "suite_packages_baked": suite_packages_baked,
             "boot_catalog_preserved_from_source": bootable_base,
             "boot_menu_rewritten": bool(wuci_boot_menu),
+            "boot_kernel_rewritten": bool(replacement_kernel_path and replacement_initrd_path),
+            "boot_kernel_selection": boot_kernel_selection,
             "grub_entries_rewritten": sorted(grub_rewrites),
             "boot_splash_embedded": True,
             "legacy_bios_live_profile": list(LEGACY_BIOS_LIVE_KERNEL_ARGS),
@@ -7953,6 +8917,12 @@ def build_final_iso(
             "daylight_v9_model_path": str(DAYLIGHT_V9_MODEL_DOC),
             "daylight_v9_model_bytes": daylight_v9_model_bytes,
             "daylight_v9_model_digest_vector": daylight_v9_model_digest,
+            "daylight_v10_model_path": str(DAYLIGHT_V10_MODEL_DOC),
+            "daylight_v10_model_bytes": daylight_v10_model_bytes,
+            "daylight_v10_model_digest_vector": daylight_v10_model_digest,
+            "daylight_v13_model_path": str(DAYLIGHT_V13_MODEL_DOC),
+            "daylight_v13_model_bytes": daylight_v13_model_bytes,
+            "daylight_v13_model_digest_vector": daylight_v13_model_digest,
             "diagram_path": str(DEFAULT_MODEL_DIAGRAM_SOURCE),
             "diagram_bytes": model_diagram_bytes,
             "diagram_digest_vector": model_diagram_digest,
@@ -7965,20 +8935,49 @@ def build_final_iso(
             "daylight_v9_diagram_path": str(DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE),
             "daylight_v9_diagram_bytes": daylight_v9_diagram_bytes,
             "daylight_v9_diagram_digest_vector": daylight_v9_diagram_digest,
+            "daylight_v10_scoreboard_path": str(DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE),
+            "daylight_v10_scoreboard_bytes": daylight_v10_scoreboard_bytes,
+            "daylight_v10_scoreboard_digest_vector": daylight_v10_scoreboard_digest,
+            "daylight_v13_math_path": str(DEFAULT_DAYLIGHT_V13_MATH_SOURCE),
+            "daylight_v13_math_bytes": daylight_v13_math_bytes,
+            "daylight_v13_math_digest_vector": daylight_v13_math_digest,
+            "daylight_v14c_image_path": str(DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE),
+            "daylight_v14c_image_bytes": daylight_v14c_image_bytes,
+            "daylight_v14c_image_digest_vector": daylight_v14c_image_digest,
+            "daylight_v14c_math_path": str(DEFAULT_DAYLIGHT_V14C_MATH_SOURCE),
+            "daylight_v14c_math_bytes": daylight_v14c_math_bytes,
+            "daylight_v14c_math_digest_vector": daylight_v14c_math_digest,
+            "daylight_v14c_wide_path": str(DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE),
+            "daylight_v14c_wide_bytes": daylight_v14c_wide_bytes,
+            "daylight_v14c_wide_digest_vector": daylight_v14c_wide_digest,
             "iso_paths": [
                 "/wuci-os/WUCI_DAYLIGHT_V8.md",
                 "/wuci-os/WUCI_DAYLIGHT_V9.md",
+                "/wuci-os/WUCI_DAYLIGHT_V10.md",
+                "/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
                 "/wuci-os/wuci-daylight-v8-sheet.png",
                 "/wuci-os/wuci-daylight-v9-sheet.png",
                 "/wuci-os/wuci-daylight-v9-spine.svg",
+                "/wuci-os/wuci-daylight-v10-scoreboard.png",
+                "/wuci-os/wuci-daylight-v13-sovereign-math.png",
+                "/wuci-os/wuci-daylight-v14c-plus-ascendant.png",
+                "/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
+                "/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
                 "/wuci-os/wuci-daylight-wire-model.png",
                 f"/opt/wuci-os/source/wuci-ji/{SUBSTRACT_MODEL_DOC.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V8_MODEL_DOC.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V9_MODEL_DOC.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V10_MODEL_DOC.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V13_MODEL_DOC.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_MODEL_DIAGRAM_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V9_SHEET_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V9_DIAGRAM_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V10_SCOREBOARD_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V13_MATH_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_MATH_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE.as_posix()}",
             ],
         },
         "payloads": {
@@ -8033,9 +9032,16 @@ def build_final_iso(
         "  /wuci-os/rootfs-manifest.json\n"
         "  /wuci-os/WUCI_DAYLIGHT_V8.md\n"
         "  /wuci-os/WUCI_DAYLIGHT_V9.md\n"
+        "  /wuci-os/WUCI_DAYLIGHT_V10.md\n"
+        "  /wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md\n"
         "  /wuci-os/wuci-daylight-v8-sheet.png\n"
         "  /wuci-os/wuci-daylight-v9-sheet.png\n"
         "  /wuci-os/wuci-daylight-v9-spine.svg\n"
+        "  /wuci-os/wuci-daylight-v10-scoreboard.png\n"
+        "  /wuci-os/wuci-daylight-v13-sovereign-math.png\n"
+        "  /wuci-os/wuci-daylight-v14c-plus-ascendant.png\n"
+        "  /wuci-os/wuci-daylight-v14c-plus-ascendant-math.png\n"
+        "  /wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png\n"
         "  /wuci-os/wuci-daylight-wire-model.png\n"
         "  /wuci-os/OFFLINE-INSTALL.txt\n"
     ).encode("utf-8")
@@ -8137,6 +9143,28 @@ def build_final_iso(
                     label="Wuci-OS remastered squashfs",
                 )
             )
+            if replacement_kernel_path is not None:
+                payload_records.append(
+                    _iso_replace_local_file(
+                        iso,
+                        replacement_kernel_path,
+                        iso_path=_iso_first_existing_path(iso, ("/boot/vmlinuz", "/BOOT/VMLINUZ.;1", "/BOOT/VMLINUZ;1"), "boot kernel"),
+                        rr_name="vmlinuz",
+                        joliet_path="/boot/vmlinuz",
+                        label="Wuci-OS replacement boot kernel",
+                    )
+                )
+            if replacement_initrd_path is not None:
+                payload_records.append(
+                    _iso_replace_local_file(
+                        iso,
+                        replacement_initrd_path,
+                        iso_path=_iso_first_existing_path(iso, ("/boot/initrd", "/BOOT/INITRD.;1", "/BOOT/INITRD;1"), "boot initramfs"),
+                        rr_name="initrd",
+                        joliet_path="/boot/initrd",
+                        label="Wuci-OS replacement initramfs",
+                    )
+                )
         _iso_add_directory_once(iso, "/WUCI_OS", rr_name="wuci-os", joliet_path="/wuci-os")
         payload_records.append(
             _iso_add_local_file(
@@ -8189,6 +9217,56 @@ def build_final_iso(
             )
         )
         payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v10_scoreboard_source,
+                iso_path="/WUCI_OS/D10SCORE.PNG;1",
+                rr_name="wuci-daylight-v10-scoreboard.png",
+                joliet_path="/wuci-os/wuci-daylight-v10-scoreboard.png",
+                label="Wuci-OS Daylight v10 scoreboard",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v13_math_source,
+                iso_path="/WUCI_OS/D13MATH.PNG;1",
+                rr_name="wuci-daylight-v13-sovereign-math.png",
+                joliet_path="/wuci-os/wuci-daylight-v13-sovereign-math.png",
+                label="Wuci-OS Daylight v13 Sovereign math sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v14c_image_source,
+                iso_path="/WUCI_OS/D14CPLUS.PNG;1",
+                rr_name="wuci-daylight-v14c-plus-ascendant.png",
+                joliet_path="/wuci-os/wuci-daylight-v14c-plus-ascendant.png",
+                label="Wuci-OS Daylight v14C+ Ascendant candidate sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v14c_math_source,
+                iso_path="/WUCI_OS/D14MATH.PNG;1",
+                rr_name="wuci-daylight-v14c-plus-ascendant-math.png",
+                joliet_path="/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
+                label="Wuci-OS Daylight v14C+ Ascendant math sheet",
+            )
+        )
+        payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v14c_wide_source,
+                iso_path="/WUCI_OS/D14WIDE.PNG;1",
+                rr_name="wuci-daylight-v14c-plus-ascendant-wide.png",
+                joliet_path="/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
+                label="Wuci-OS Daylight v14C+ Ascendant wide sheet",
+            )
+        )
+        payload_records.append(
             _iso_add_bytes(
                 iso,
                 readme_bytes,
@@ -8222,6 +9300,24 @@ def build_final_iso(
                 iso_path="/WUCI_OS/DLV9.MD;1",
                 rr_name="WUCI_DAYLIGHT_V9.md",
                 joliet_path="/wuci-os/WUCI_DAYLIGHT_V9.md",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                daylight_v10_model_data,
+                iso_path="/WUCI_OS/DL10.MD;1",
+                rr_name="WUCI_DAYLIGHT_V10.md",
+                joliet_path="/wuci-os/WUCI_DAYLIGHT_V10.md",
+            )
+        )
+        payload_records.append(
+            _iso_add_bytes(
+                iso,
+                daylight_v13_model_data,
+                iso_path="/WUCI_OS/DL13SOV.MD;1",
+                rr_name="WUCI_DAYLIGHT_V13_SOVEREIGN.md",
+                joliet_path="/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
             )
         )
         payload_records.append(
@@ -8318,10 +9414,19 @@ def build_final_iso(
                     daylight_v8_diagram_source=daylight_v8_diagram_source,
                     daylight_v9_sheet_source=daylight_v9_sheet_source,
                     daylight_v9_diagram_source=daylight_v9_diagram_source,
+                    daylight_v10_scoreboard_source=daylight_v10_scoreboard_source,
+                    daylight_v13_math_source=daylight_v13_math_source,
+                    daylight_v14c_image_source=daylight_v14c_image_source,
+                    daylight_v14c_math_source=daylight_v14c_math_source,
+                    daylight_v14c_wide_source=daylight_v14c_wide_source,
                     readme_bytes=readme_bytes,
                     offline_install_bytes=offline_install_bytes,
                     daylight_v8_model_bytes=daylight_v8_model_data,
                     daylight_v9_model_bytes=daylight_v9_model_data,
+                    daylight_v10_model_bytes=daylight_v10_model_data,
+                    daylight_v13_model_bytes=daylight_v13_model_data,
+                    replacement_kernel_path=replacement_kernel_path,
+                    replacement_initrd_path=replacement_initrd_path,
                     onboard_manifest_bytes=onboard_manifest_bytes,
                     source_manifest_bytes=source_manifest_bytes,
                     seal_manifest_bytes=seal_manifest_bytes,
@@ -8360,9 +9465,16 @@ def build_final_iso(
         ("wuci-os/OFFLINE-INSTALL.txt", "Wuci-OS offline install guide"),
         ("wuci-os/WUCI_DAYLIGHT_V8.md", "Wuci-OS Daylight v8 model"),
         ("wuci-os/WUCI_DAYLIGHT_V9.md", "Wuci-OS Daylight v9 model"),
+        ("wuci-os/WUCI_DAYLIGHT_V10.md", "Wuci-OS Daylight v10 model"),
+        ("wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md", "Wuci-OS Daylight v13 Sovereign model"),
         ("wuci-os/wuci-daylight-v8-sheet.png", "Wuci-OS Daylight v8 sheet"),
         ("wuci-os/wuci-daylight-v9-sheet.png", "Wuci-OS Daylight v9 sheet"),
         ("wuci-os/wuci-daylight-v9-spine.svg", "Wuci-OS Daylight v9 formal spine"),
+        ("wuci-os/wuci-daylight-v10-scoreboard.png", "Wuci-OS Daylight v10 scoreboard"),
+        ("wuci-os/wuci-daylight-v13-sovereign-math.png", "Wuci-OS Daylight v13 Sovereign math sheet"),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant.png", "Wuci-OS Daylight v14C+ Ascendant candidate sheet"),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-math.png", "Wuci-OS Daylight v14C+ Ascendant math sheet"),
+        ("wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png", "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
         ("wuci-os/wuci-daylight-wire-model.png", "Wuci-OS Daylight wire model diagram"),
         ("boot/isolinux/wuci-splash.png", "Wuci-OS ISOLINUX boot splash"),
         ("boot/grub/wuci-splash.png", "Wuci-OS GRUB boot splash"),

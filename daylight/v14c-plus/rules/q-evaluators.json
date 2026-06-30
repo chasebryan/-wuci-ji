@@ -1,0 +1,65 @@
+{
+  "version": "daylight-v14c-plus-q-evaluators-v0.2",
+  "evaluators": {
+    "q1_doctrine_master_law": {
+      "target": "1000/1000",
+      "requires": ["claim", "test"],
+      "minimum_corpus_categories": ["proof_failure"]
+    },
+    "q2_formalism_mathematical_density": {
+      "target": "998/1000",
+      "requires": ["source", "build", "test"],
+      "minimum_corpus_categories": ["transcript_mismatch"]
+    },
+    "q3_negative_evidence_subtractive_capability": {
+      "target": "1000/1000",
+      "requires": ["adversarial_run", "corpus_snapshot", "downgrade"],
+      "minimum_corpus_categories": ["downgrade_trigger", "manual_score_mutation"]
+    },
+    "q4_gate_algebra_fail_closed_enforcement": {
+      "target": "1000/1000",
+      "requires": ["test", "harness_execution"],
+      "minimum_corpus_categories": ["proof_failure"]
+    },
+    "q5_evidence_sheaf_release_engineering": {
+      "target": "997/1000",
+      "requires": ["source", "build", "corpus_snapshot"],
+      "minimum_corpus_categories": ["boundary_violation"]
+    },
+    "q6_surface_closure_boundary_semantics": {
+      "target": "995/1000",
+      "requires": ["test", "adversarial_run"],
+      "minimum_corpus_categories": ["boundary_violation", "adversarial_input"]
+    },
+    "q7_adversarial_survival_model": {
+      "target": "995/1000",
+      "requires": ["adversarial_run", "corpus_snapshot", "downgrade"],
+      "minimum_corpus_categories": ["boundary_violation", "adversarial_input", "transcript_mismatch"]
+    },
+    "q8_cryptographic_number_theoretic_margin": {
+      "target": "998/1000",
+      "requires": ["source", "test"],
+      "minimum_corpus_categories": ["transcript_mismatch"]
+    },
+    "q9_statistical_confidence_reproducibility": {
+      "target": "997/1000",
+      "requires": ["harness_execution", "build"],
+      "minimum_corpus_categories": ["statistical_outlier", "reproducibility_failure"]
+    },
+    "q10_implementation_traceability": {
+      "target": "997/1000",
+      "requires": ["build", "test", "harness_execution"],
+      "minimum_corpus_categories": ["manual_score_mutation"]
+    },
+    "q11_external_falsification_readiness": {
+      "target": "990/1000",
+      "requires": ["adversarial_run"],
+      "minimum_corpus_categories": ["adversarial_input"]
+    },
+    "q12_communication_overall": {
+      "target": "997/1000",
+      "requires": ["claim", "harness_execution"],
+      "minimum_corpus_categories": ["boundary_violation"]
+    }
+  }
+}

@@ -41,6 +41,32 @@ research system.
 | Threat model | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) |
 | Production blockers | [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) |
 | Daylight workspace | [daylight-equation/](daylight-equation/) |
+| Daylight v14C+ execution package | [daylight/v14c-plus/](daylight/v14c-plus/) |
+
+## Daylight C+ / v14C+
+
+Daylight v14C+ is a deterministic execution package, not a manually asserted
+score. The package under [daylight/v14c-plus/](daylight/v14c-plus/) regenerates
+the candidate score from a frozen ledger, frozen corpus snapshot, exact rational
+arithmetic, q-evaluator rules, and a reproducibility receipt:
+
+```text
+NoProof(x) -> NoClaim(x) -> NoRelease(x)
+NoEvidence(x) -> NoScore(x) -> NoRelease(x)
+NoTrace(x) -> NoTrust(x)
+ManualScore(x) -> Reject(x)
+```
+
+Run the focused C+ lane:
+
+```sh
+make daylight-cplus-test
+PYTHONPATH=daylight/v14c-plus python3 -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json
+PYTHONPATH=daylight/v14c-plus python3 -m src.cli verify-scorecard daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json
+```
+
+The expected generated candidate score is `998,200M / 1,000,000M`. It remains a
+candidate score until non-fixture release gates pass.
 
 ## System Shape
 
