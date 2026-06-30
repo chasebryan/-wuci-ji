@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian Frontier Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_version",
+    "obligations_version",
+    "obligations_digest",
+    "internal_ceiling_M",
+    "perfect_score_M",
+    "structural_external_residue_M",
+    "open_internal_residue_M",
+    "open_external_residue_M",
+    "open_internal_obligations",
+    "open_external_obligations",
+    "note"
+  ],
+  "properties": {
+    "report_version": {"type": "string", "const": "daylight-v15-meridian-frontier-report-v0.1"},
+    "obligations_version": {"type": "string", "const": "daylight-v15-meridian-obligations-v0.1"},
+    "obligations_digest": {"type": "string", "minLength": 64},
+    "internal_ceiling_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "perfect_score_M": {"type": "integer", "const": 1000000},
+    "structural_external_residue_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "open_internal_residue_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "open_external_residue_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "open_internal_obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["obligation_id", "q_id", "weight", "contribution_M", "external_role"],
+        "properties": {
+          "obligation_id": {"type": "string", "minLength": 1},
+          "q_id": {"type": "string", "minLength": 1},
+          "weight": {"type": "integer", "minimum": 1, "maximum": 1000},
+          "contribution_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+          "external_role": {"type": "string"}
+        }
+      }
+    },
+    "open_external_obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["obligation_id", "q_id", "weight", "contribution_M", "external_role"],
+        "properties": {
+          "obligation_id": {"type": "string", "minLength": 1},
+          "q_id": {"type": "string", "minLength": 1},
+          "weight": {"type": "integer", "minimum": 1, "maximum": 1000},
+          "contribution_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+          "external_role": {"type": "string"}
+        }
+      }
+    },
+    "note": {"type": "string", "minLength": 1}
+  }
+}

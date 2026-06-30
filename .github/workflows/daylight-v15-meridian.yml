@@ -1,0 +1,42 @@
+name: daylight-v15-meridian
+
+on:
+  push:
+    branches:
+      - main
+      - feature/daylight-v15-meridian-real-artifact
+  pull_request:
+
+jobs:
+  daylight-v15-meridian:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5
+        with:
+          python-version: "3.12"
+
+      - name: Show toolchain
+        run: python3 --version
+
+      - name: Editable install (packaging check)
+        run: python3 -m pip install -e daylight/v15-meridian
+
+      - name: Console script smoke
+        run: |
+          daylight-meridian --version
+          daylight-meridian doctor
+
+      - name: Meridian CI lane
+        run: make daylight-meridian-ci
+
+      - name: Upload release artifact
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        with:
+          name: daylight-v15-meridian-artifact
+          path: build/daylight/v15-meridian/
+          if-no-files-found: warn
