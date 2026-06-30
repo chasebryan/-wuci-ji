@@ -93,12 +93,21 @@ that satisfies the sealed policy. Seal with `--min-score 1000000` and the secret
 opens only under a perfect Meridian state. See
 [docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md](docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md).
 
+The **Meridian Vault** turns that envelope into a usable, offline encrypt/decrypt
+store for any host: `vault init`, `seal`, `open`, `list`, `status`, and `autoseal`
+(also reachable as `wj vault ...` on Wuci-OS). A vault binds a frozen evidence base
+plus a policy; sealing needs verifying evidence and opening is fail-closed, so data
+refuses to open on a host whose Daylight v15 evidence no longer verifies. It is
+non-destructive by default (originals kept). See
+[docs/WUCI_DAYLIGHT_V15_MERIDIAN_VAULT.md](docs/WUCI_DAYLIGHT_V15_MERIDIAN_VAULT.md).
+
 ```sh
 make daylight-meridian-test
 make daylight-meridian-frontier
 make daylight-meridian-artifact
 make daylight-meridian-perfect-demo
 make daylight-meridian-envelope-test
+make daylight-meridian-vault-demo
 make daylight-meridian-ci
 ```
 

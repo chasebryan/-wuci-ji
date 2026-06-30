@@ -18,6 +18,8 @@ verify, and frontier commands are in its
 [README](../daylight/v15-meridian/README.md). This document explains the design
 and the honest answer to "can it reach 1,000,000M?"
 
+![WUCI v15 MAE Meridian Authorized Envelope visual map](../daylight/v15-meridian/assets/wuci-v15-mae-meridian-authorized-envelope.jpeg)
+
 ## What v14C+ proved, and the one gap it left
 
 v14C+ established the doctrine and the exact-rational arithmetic:

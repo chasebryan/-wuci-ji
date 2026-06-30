@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from . import envelope as envelope_model
 from . import ledger as ledger_model
 from . import obligations as obligation_model
 from . import scoring
+from . import vault as vault_model
 from .canonical_json import canonical_sha256
 
 
@@ -36,6 +38,7 @@ CLI_ERRORS = (
     corpus_model.CorpusError,
     envelope_model.EnvelopeError,
     envelope_model.EnvelopeRefused,
+    vault_model.VaultError,
     FileNotFoundError,
 )
 
@@ -451,6 +454,84 @@ def cmd_envelope_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
+def _vault_root(args: argparse.Namespace) -> Path:
+    return Path(args.vault) if getattr(args, "vault", None) else vault_model.DEFAULT_VAULT_ROOT
+
+
+def _vault_passphrase(args: argparse.Namespace) -> str | None:
+    if getattr(args, "passphrase", None):
+        return args.passphrase
+    if getattr(args, "passphrase_env", None):
+        value = os.environ.get(args.passphrase_env)
+        if value is None:
+            raise CommandError(f"environment variable {args.passphrase_env} is not set")
+        return value
+    return None
+
+
+def cmd_vault_init(args: argparse.Namespace) -> int:
+    info = vault_model.init_vault(
+        _vault_root(args),
+        min_score_M=args.min_score,
+        required_closed_obligations=args.require_closed or [],
+        evidence_ledger=args.ledger,
+        evidence_corpus=args.corpus,
+        passphrase=_vault_passphrase(args),
+        force=args.force,
+    )
+    print(f"vault ready -> {info['root']}")
+    print(f"  key mode: {info['key_mode']}")
+    print(f"  policy:   min_score_M={info['policy']['min_score_M']} "
+          f"required_closed={info['policy']['required_closed_obligations'] or '[]'}")
+    print(f"  evidence: {info['evidence_final_score_M']}M (fail-closed below the policy floor)")
+    return 0
+
+
+def cmd_vault_seal(args: argparse.Namespace) -> int:
+    v = vault_model.Vault(_vault_root(args))
+    record = v.seal_file(
+        args.path, name=args.name, keep_original=not args.remove_original,
+        passphrase=_vault_passphrase(args),
+    )
+    note = "original removed" if args.remove_original else "original kept"
+    print(f"sealed {record['name']} ({record['plaintext_bytes']} bytes; {note})")
+    return 0
+
+
+def cmd_vault_open(args: argparse.Namespace) -> int:
+    v = vault_model.Vault(_vault_root(args))
+    result = v.open_file(
+        args.name, out_path=args.out, restore=args.restore, passphrase=_vault_passphrase(args)
+    )
+    if result["restored_to"]:
+        print(f"opened {result['name']} -> {result['restored_to']} ({result['bytes']} bytes)")
+    return 0
+
+
+def cmd_vault_list(args: argparse.Namespace) -> int:
+    v = vault_model.Vault(_vault_root(args))
+    _json_dump({"root": str(v.root), "entries": v.entries()}, None)
+    return 0
+
+
+def cmd_vault_status(args: argparse.Namespace) -> int:
+    v = vault_model.Vault(_vault_root(args))
+    _json_dump(v.status(), None)
+    return 0
+
+
+def cmd_vault_autoseal(args: argparse.Namespace) -> int:
+    v = vault_model.Vault(_vault_root(args))
+    result = vault_model.autoseal(
+        v, targets=args.target or None, keep_original=not args.remove_original,
+        passphrase=_vault_passphrase(args),
+    )
+    print(f"auto-sealed {result['sealed_count']} file(s); skipped {len(result['skipped_patterns'])} absent target(s)")
+    for record in result["sealed"]:
+        print(f"  + {record['name']} <- {record.get('original_path', '')}")
+    return 0
+
+
 def cmd_check_downgrade(args: argparse.Namespace) -> int:
     claimed = json.loads(Path(args.claimed).read_text(encoding="utf-8"))
     current = json.loads(Path(args.current).read_text(encoding="utf-8"))
@@ -571,6 +652,57 @@ def build_parser() -> argparse.ArgumentParser:
     envelope_inspect.add_argument("--in", dest="in_path", help="sealed input file (default: stdin)")
     envelope_inspect.add_argument("--out")
     envelope_inspect.set_defaults(func=cmd_envelope_inspect)
+
+    vault_cmd = sub.add_parser("vault", help="evidence-gated, fail-closed file/secret vault for this host")
+    vault_sub = vault_cmd.add_subparsers(dest="vault_command", required=True)
+
+    def _add_passphrase_flags(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--passphrase", help="vault passphrase (passphrase-mode vaults)")
+        parser.add_argument("--passphrase-env", help="read the passphrase from this environment variable")
+
+    v_init = vault_sub.add_parser("init", help="create a vault bound to this host's Daylight v15 evidence")
+    v_init.add_argument("--vault", help=f"vault root (default: {vault_model.DEFAULT_VAULT_ROOT})")
+    v_init.add_argument("--min-score", type=int, default=vault_model.DEFAULT_MIN_SCORE_M,
+                        help="policy floor: minimum final_score_M to seal/open (default: internal ceiling)")
+    v_init.add_argument("--require-closed", nargs="*", default=[],
+                        help="policy: obligation ids that must be closed to open")
+    v_init.add_argument("--ledger", help="evidence ledger to bind (default: shipped seed evidence)")
+    v_init.add_argument("--corpus", help="evidence corpus to bind (default: shipped seed evidence)")
+    v_init.add_argument("--force", action="store_true", help="rebuild an existing vault root")
+    _add_passphrase_flags(v_init)
+    v_init.set_defaults(func=cmd_vault_init)
+
+    v_seal = vault_sub.add_parser("seal", help="seal a file into the vault (keeps the original by default)")
+    v_seal.add_argument("--vault", help="vault root")
+    v_seal.add_argument("path", help="file to seal")
+    v_seal.add_argument("--name", help="vault entry name (default: derived from the path)")
+    v_seal.add_argument("--remove-original", action="store_true",
+                        help="overwrite and delete the cleartext original after sealing")
+    _add_passphrase_flags(v_seal)
+    v_seal.set_defaults(func=cmd_vault_seal)
+
+    v_open = vault_sub.add_parser("open", help="open a vault entry (fail-closed on degraded evidence)")
+    v_open.add_argument("--vault", help="vault root")
+    v_open.add_argument("name", help="vault entry name")
+    v_open.add_argument("--out", help="write plaintext here (default: stdout)")
+    v_open.add_argument("--restore", action="store_true", help="write back to the recorded original path")
+    _add_passphrase_flags(v_open)
+    v_open.set_defaults(func=cmd_vault_open)
+
+    v_list = vault_sub.add_parser("list", help="list sealed vault entries")
+    v_list.add_argument("--vault", help="vault root")
+    v_list.set_defaults(func=cmd_vault_list)
+
+    v_status = vault_sub.add_parser("status", help="show vault authorization status (evidence + policy)")
+    v_status.add_argument("--vault", help="vault root")
+    v_status.set_defaults(func=cmd_vault_status)
+
+    v_auto = vault_sub.add_parser("autoseal", help="seal a profile of common secret files into the vault")
+    v_auto.add_argument("--vault", help="vault root")
+    v_auto.add_argument("--target", action="append", help="extra path/glob to seal (repeatable; default profile if omitted)")
+    v_auto.add_argument("--remove-original", action="store_true", help="delete cleartext originals after sealing")
+    _add_passphrase_flags(v_auto)
+    v_auto.set_defaults(func=cmd_vault_autoseal)
 
     check = sub.add_parser("check-downgrade", help="evaluate the downgrade machine")
     check.add_argument("--claimed", required=True)

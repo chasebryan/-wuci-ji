@@ -215,9 +215,11 @@ wj info python3
 
 `wuci-network-connect` is the first-boot network credential prompt. It tries
 wired DHCP first, then asks locally for Wi-Fi credentials through NetworkManager
-or a `wpa_supplicant` fallback when those tools are present. `wj install`,
-`wj update`, and `wuci-update` call the prompt before repository sync if no
-network route exists.
+or a `wpa_supplicant` fallback when those tools are present. If NetworkManager
+marks a usable Wi-Fi card unavailable, the helper falls through to the
+`wpa_supplicant` path instead of treating that state as a hardware-switch
+failure. `wj install`, `wj update`, and `wuci-update` call the prompt before
+repository sync if no network route exists.
 
 Daylight/WJSEAL is treated as a required evidence lane for every major generated
 component. The current implemented seal covers the generated overlay. The

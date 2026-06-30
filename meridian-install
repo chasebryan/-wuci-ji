@@ -1,0 +1,227 @@
+#!/bin/sh
+# meridian-install — offline installer for Daylight v15 Meridian host encryption.
+#
+# Clone the repo, run this script, and your machine gains an evidence-gated,
+# fail-closed encryption layer built on Daylight v15 Meridian. It is additive and
+# reversible: the system keeps working exactly as before. Three modes, freely
+# combinable per your preference:
+#
+#   --vault         install the Meridian vault + CLI (seal/open files on demand)
+#   --autoseal      also auto-seal a profile of common secret files
+#   --luks DEVICE   gate a real LUKS volume's key behind Meridian evidence
+#
+# Honesty boundary: the v15 AEAD is a research reference (not constant-time) and
+# this is not a production key-management or full-disk-encryption product. What
+# Meridian adds is evidence-derived authorization: secrets that refuse to open on
+# a host whose Daylight v15 evidence does not verify. Everything runs offline.
+set -eu
+
+SELF=$(command -v "$0" 2>/dev/null || printf '%s' "$0")
+case "$SELF" in
+    */*) REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$SELF")" && pwd) ;;
+    *)   REPO_ROOT=$(pwd) ;;
+esac
+PKG_SRC="$REPO_ROOT/daylight/v15-meridian"
+
+PREFIX=${MERIDIAN_PREFIX:-$HOME/.local}
+SHARE="$PREFIX/share/daylight-meridian"
+BIN="$PREFIX/bin"
+VAULT=${MERIDIAN_VAULT:-$HOME/.meridian-vault}
+PY=${PYTHON:-python3}
+
+do_vault=0
+do_autoseal=0
+luks_device=
+remove_originals=0
+use_passphrase=0
+min_score=998900
+assume_yes=0
+mode_uninstall=0
+PASSPHRASE=
+
+die() { printf 'meridian-install: %s\n' "$*" >&2; exit 1; }
+say() { printf '\n==> %s\n' "$*"; }
+
+usage() {
+    cat <<'TEXT'
+Daylight v15 Meridian — offline host encryption installer
+
+Usage:
+  meridian-install [--vault] [--autoseal] [--luks /dev/sdXN]
+                   [--passphrase] [--remove-originals] [--min-score N]
+                   [--prefix DIR] [--yes]
+  meridian-install --uninstall
+
+Modes (combine freely; default if none given is --vault):
+  --vault            install the CLI + create a Meridian vault for this host
+  --autoseal         seal a profile of common secret files into the vault
+  --luks DEVICE      bind a LUKS volume's unlock key to Meridian evidence
+
+Options:
+  --passphrase       protect the vault with a passphrase (no key stored on disk)
+  --remove-originals shred cleartext originals after sealing (default: keep them)
+  --min-score N      vault policy floor in M (default 998900, the internal ceiling)
+  --prefix DIR       install prefix (default ~/.local)
+  --yes              do not prompt for confirmations
+  --uninstall        remove the CLI and launchers (vault data is left in place)
+TEXT
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -h|--help) usage; exit 0 ;;
+        --vault) do_vault=1; shift ;;
+        --autoseal) do_vault=1; do_autoseal=1; shift ;;
+        --luks) [ "$#" -ge 2 ] || die "--luks needs a device"; luks_device=$2; do_vault=1; shift 2 ;;
+        --passphrase) use_passphrase=1; shift ;;
+        --remove-originals) remove_originals=1; shift ;;
+        --min-score) [ "$#" -ge 2 ] || die "--min-score needs a value"; min_score=$2; shift 2 ;;
+        --prefix) [ "$#" -ge 2 ] || die "--prefix needs a path"; PREFIX=$2; SHARE="$PREFIX/share/daylight-meridian"; BIN="$PREFIX/bin"; shift 2 ;;
+        --yes|-y) assume_yes=1; shift ;;
+        --uninstall) mode_uninstall=1; shift ;;
+        *) die "unknown argument: $1 (try --help)" ;;
+    esac
+done
+
+LAUNCHER="$BIN/daylight-meridian"
+
+remove_install() {
+    rm -f "$LAUNCHER" "$BIN/uninstall-meridian" "$BIN/meridian-luks-unlock"
+    rm -rf "$SHARE"
+}
+
+if [ "$mode_uninstall" = "1" ]; then
+    say "Uninstall Meridian launchers"
+    remove_install
+    printf 'Removed the Meridian CLI from %s.\n' "$PREFIX"
+    printf 'Your vault at %s was left untouched (delete it manually if desired).\n' "$VAULT"
+    exit 0
+fi
+
+[ -d "$PKG_SRC/src" ] || die "Daylight v15 Meridian package not found at $PKG_SRC (run from the cloned repo)"
+command -v "$PY" >/dev/null 2>&1 || die "python3 is required"
+
+# Default to the vault if no mode was requested.
+if [ "$do_vault" = "0" ] && [ -z "$luks_device" ]; then
+    do_vault=1
+fi
+
+# Run the installed CLI with the vault environment bound.
+mc() {
+    MERIDIAN_VAULT="$VAULT" "$LAUNCHER" "$@"
+}
+
+if [ "$use_passphrase" = "1" ]; then
+    if [ -n "${MERIDIAN_PASSPHRASE:-}" ]; then
+        PASSPHRASE=$MERIDIAN_PASSPHRASE
+    else
+        stty -echo 2>/dev/null || true
+        printf 'Vault passphrase: '; IFS= read -r PASSPHRASE; printf '\n'
+        printf 'Confirm: '; IFS= read -r _confirm; printf '\n'
+        stty echo 2>/dev/null || true
+        [ -n "$PASSPHRASE" ] || die "empty passphrase rejected"
+        [ "$PASSPHRASE" = "$_confirm" ] || die "passphrases did not match"
+    fi
+fi
+
+# 1. Install the package offline.
+say "Install the Daylight v15 Meridian package (offline) into $SHARE/pkg"
+mkdir -p "$SHARE" "$BIN"
+rm -rf "$SHARE/pkg"
+cp -a "$PKG_SRC" "$SHARE/pkg"
+find "$SHARE/pkg" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+find "$SHARE/pkg" -name '*.pyc' -delete 2>/dev/null || true
+
+# 2. Install the CLI launcher and uninstaller.
+say "Install the daylight-meridian launcher"
+cat > "$LAUNCHER" <<LAUNCH
+#!/bin/sh
+# Daylight v15 Meridian CLI launcher (installed by meridian-install).
+PYTHONPATH="$SHARE/pkg" exec "$PY" -m src.cli "\$@"
+LAUNCH
+chmod 0755 "$LAUNCHER"
+
+cat > "$BIN/uninstall-meridian" <<UNINST
+#!/bin/sh
+rm -f "$LAUNCHER" "$BIN/uninstall-meridian" "$BIN/meridian-luks-unlock"
+rm -rf "$SHARE"
+printf 'Removed the Meridian CLI. Vault at %s left in place.\n' "$VAULT"
+UNINST
+chmod 0755 "$BIN/uninstall-meridian"
+
+# 3. Prove the install: AEAD RFC-8439 KAT + scorecard verification.
+say "Self-check the installation (doctor)"
+"$LAUNCHER" doctor || { remove_install; die "doctor failed: the installed package does not verify"; }
+
+# 4. Vault.
+if [ "$do_vault" = "1" ]; then
+    say "Create the Meridian vault at $VAULT"
+    if [ -f "$VAULT/vault.json" ]; then
+        printf 'A vault already exists at %s; keeping it.\n' "$VAULT"
+    elif [ "$use_passphrase" = "1" ]; then
+        mc vault init --min-score "$min_score" --passphrase "$PASSPHRASE"
+    else
+        mc vault init --min-score "$min_score"
+    fi
+fi
+
+# 5. Auto-seal profile.
+if [ "$do_autoseal" = "1" ]; then
+    say "Auto-seal common secret files into the vault"
+    set -- vault autoseal
+    [ "$remove_originals" = "1" ] && set -- "$@" --remove-original
+    [ "$use_passphrase" = "1" ] && set -- "$@" --passphrase "$PASSPHRASE"
+    mc "$@" || true
+fi
+
+# 6. LUKS gated by Meridian.
+if [ -n "$luks_device" ]; then
+    say "Bind LUKS volume $luks_device to Meridian evidence"
+    command -v cryptsetup >/dev/null 2>&1 || die "cryptsetup is required for --luks"
+    [ "$(id -u)" = "0" ] || die "LUKS setup must run as root (re-run with sudo for --luks)"
+    [ -b "$luks_device" ] || die "not a block device: $luks_device"
+    if [ "$assume_yes" != "1" ]; then
+        printf 'This formats %s as LUKS and ERASES it. Type FORMAT to continue: ' "$luks_device"
+        IFS= read -r reply || reply=
+        [ "$reply" = "FORMAT" ] || die "confirmation did not match FORMAT"
+    fi
+    luks_name=$(printf '%s' "$luks_device" | tr -c 'A-Za-z0-9_.-' '_')
+    keytmp=$(mktemp)
+    chmod 0600 "$keytmp"
+    "$PY" - "$keytmp" <<'GENKEY'
+import os, sys
+with open(sys.argv[1], "wb") as handle:
+    handle.write(os.urandom(64))
+GENKEY
+    cryptsetup luksFormat --type luks2 --batch-mode "$luks_device" "$keytmp" \
+        || die "luksFormat failed"
+    say "Seal the LUKS key into the Meridian vault (fail-closed on degraded evidence)"
+    set -- vault seal "$keytmp" --name "luks-$luks_name" --remove-original
+    [ "$use_passphrase" = "1" ] && set -- "$@" --passphrase "$PASSPHRASE"
+    mc "$@"
+    rm -f "$keytmp"
+    say "Install the meridian-luks-unlock helper"
+    cat > "$BIN/meridian-luks-unlock" <<UNLOCK
+#!/bin/sh
+# Open a Meridian-gated LUKS volume: the key only materializes when this host's
+# Daylight v15 evidence verifies and satisfies the sealed policy.
+set -eu
+device=\${1:-$luks_device}
+mapname=\${2:-meridian-$luks_name}
+MERIDIAN_VAULT="$VAULT" "$LAUNCHER" vault open "luks-$luks_name" \\
+    | cryptsetup open --type luks2 --key-file - "\$device" "\$mapname"
+printf 'opened %s -> /dev/mapper/%s\n' "\$device" "\$mapname"
+UNLOCK
+    chmod 0755 "$BIN/meridian-luks-unlock"
+    printf 'LUKS volume %s is now Meridian-gated. Unlock with: meridian-luks-unlock\n' "$luks_device"
+fi
+
+say "Done"
+case ":$PATH:" in
+    *":$BIN:"*) : ;;
+    *) printf 'Add %s to your PATH to use the daylight-meridian command.\n' "$BIN" ;;
+esac
+printf 'CLI:    %s\n' "$LAUNCHER"
+printf 'Vault:  %s\n' "$VAULT"
+printf 'Status: daylight-meridian vault status\n'
+printf 'Remove: uninstall-meridian\n'

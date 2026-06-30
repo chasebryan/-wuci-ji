@@ -57,6 +57,7 @@ DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14
 DEFAULT_DAYLIGHT_V14C_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png")
 DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png")
 DEFAULT_DAYLIGHT_V14C_PACKAGE_SOURCE = Path("daylight/v14c-plus")
+DEFAULT_DAYLIGHT_V15_PACKAGE_SOURCE = Path("daylight/v15-meridian")
 SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
 DAYLIGHT_V8_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V8.md")
 DAYLIGHT_V9_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V9.md")
@@ -1523,6 +1524,16 @@ nmcli device wifi list
 nmcli --ask device wifi connect "YOUR_WIFI_NAME"
 ```
 
+If NetworkManager marks a working Wi-Fi device unavailable, use the direct
+`wpa_supplicant` fallback:
+
+```sh
+sudo mkdir -p /run/wuci-network
+sudo wpa_passphrase "YOUR_WIFI_NAME" "YOUR_WIFI_PASSWORD" | sudo tee /run/wuci-network/wpa.conf >/dev/null
+sudo wpa_supplicant -B -i wlp2s0 -c /run/wuci-network/wpa.conf
+sudo dhcpcd -n wlp2s0
+```
+
 5. Check the connection:
 
 ```sh
@@ -1565,18 +1576,26 @@ INSTALL
 ```
 
 `INSTALL` automates partitioning, formatting, XBPS base install, network and
-desktop packages, GRUB, Wuci target activation, services, and verification.
-It self-escalates through sudo when needed and does not call the missing
-upstream installer backend. For safety, it shows the target disk and requires
-the confirmation word `INSTALL` before erasing.
+desktop packages, GRUB, Wuci target activation, package reconfiguration
+(initramfs), account passwords, services, and verification. It matches the
+target package architecture to the live system, seeds the target's XBPS
+repository configuration, and unmounts the target automatically if it fails
+partway through. It self-escalates through sudo when needed and does not call
+the missing upstream installer backend. For safety, it shows the target disk
+and requires the confirmation word `INSTALL` before erasing.
+
+Unlike the live demo accounts, an installed disk is given a real password on
+`root` and `wj`. Supply it with `--password` / `WUCI_INSTALL_PASSWORD`, or you
+are prompted once during install. Use `--empty-passwords` only when you
+deliberately want the passwordless live behavior on disk.
 
 Useful forms:
 
 ```sh
 INSTALL
 INSTALL --disk /dev/sda
-INSTALL --disk /dev/sda --yes
-WUCI_INSTALL_DISK=/dev/sda INSTALL
+INSTALL --disk /dev/sda --password 'choose-a-strong-one'
+WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_PASSWORD='secret' WUCI_INSTALL_ASSUME_YES=1 INSTALL
 ```
 
 Legacy BIOS machines such as the ThinkPad X200/X200s use one ext4 root
@@ -3451,6 +3470,7 @@ def overlay_files() -> dict[str, str]:
             "  wuci-auto     mostly automated live workstation setup",
             "  wuci-source-status     show onboard Wuci-Ji source payload status",
             "  wuci-daylight-v14c-plus regenerate/verify the Daylight v14C+ candidate score",
+            "  wuci-daylight-meridian verify/score/frontier/gate + the fail-closed Meridian vault (v15)",
             "  wj install <packages>  install Wuci-OS packages",
             "  INSTALL       auto-install Wuci-OS to disk after disk-erasure confirmation",
             "  wuci-install  same as INSTALL",
@@ -3684,6 +3704,23 @@ else
     report WARN 'release Daylight/WJSEAL seal manifest is not baked into this live preview'
 fi
 
+if [ -d /usr/share/wuci-os/daylight/v14c-plus/src ]; then
+    report PASS 'Daylight v14C+ candidate package present'
+else
+    report FAIL 'Daylight v14C+ candidate package missing'
+fi
+
+if [ -d /usr/share/wuci-os/daylight/v15-meridian/src ]; then
+    report PASS 'Daylight v15 Meridian package present (evidence-derived + fail-closed vault)'
+    if command -v wuci-daylight-meridian >/dev/null 2>&1 && wuci-daylight-meridian status >/dev/null 2>&1; then
+        report PASS 'Daylight v15 Meridian scorecard verifies'
+    else
+        report WARN 'Daylight v15 Meridian scorecard did not verify in this environment'
+    fi
+else
+    report FAIL 'Daylight v15 Meridian package missing'
+fi
+
 if [ "$summary" -eq 1 ]; then
     if [ "$fail" -eq 0 ]; then
         if [ "$warn" -eq 0 ]; then
@@ -3780,6 +3817,116 @@ verify  verify and print the packaged expected score
 score   regenerate the scorecard from frozen package inputs into /tmp
 test    run the package unit tests
 path    print the packaged harness path
+USAGE
+        exit 2
+        ;;
+esac
+"""
+    daylight_meridian_script = """#!/bin/sh
+set -eu
+
+pkg=${WUCI_DAYLIGHT_MERIDIAN_PACKAGE:-/usr/share/wuci-os/daylight/v15-meridian}
+out=${WUCI_DAYLIGHT_MERIDIAN_OUT:-/tmp/wuci-daylight-meridian}
+cmd=${1:-status}
+py=${PYTHON:-python3}
+
+need_python() {
+    if ! command -v "$py" >/dev/null 2>&1; then
+        printf 'wuci-daylight-meridian: python3 is required to execute the harness\\n' >&2
+        exit 127
+    fi
+}
+
+need_package() {
+    if [ ! -d "$pkg/src" ] || [ ! -r "$pkg/examples/ledger.seed.jsonl" ] || [ ! -r "$pkg/examples/corpus.seed.jsonl" ]; then
+        printf 'wuci-daylight-meridian: execution package missing or incomplete: %s\\n' "$pkg" >&2
+        exit 1
+    fi
+}
+
+run_cli() {
+    PYTHONPATH="$pkg" "$py" -m src.cli "$@"
+}
+
+scorecard_value() {
+    "$py" -c 'import json,sys; d=json.load(open(sys.argv[1], encoding="utf-8")); print("%sM" % d["final_score_M"])' "$1"
+}
+
+verify_packaged() {
+    need_python
+    need_package
+    run_cli verify-scorecard "$pkg/examples/expected-scorecard.v15-meridian.json"
+}
+
+case "$cmd" in
+    status)
+        if verify_packaged >/dev/null 2>&1; then
+            printf 'daylight-meridian: evidence-derived scorecard verifies (v15 Meridian); 1,000,000M still requires external attestation\\n'
+            exit 0
+        fi
+        printf 'daylight-meridian: packaged scorecard verification failed\\n' >&2
+        exit 1
+        ;;
+    verify)
+        verify_packaged
+        scorecard_value "$pkg/examples/expected-scorecard.v15-meridian.json"
+        ;;
+    score|regenerate)
+        need_python
+        need_package
+        mkdir -p "$out"
+        run_cli score \
+            --ledger "$pkg/examples/ledger.seed.jsonl" \
+            --corpus "$pkg/examples/corpus.seed.jsonl" \
+            --out "$out/scorecard.v15-meridian.json" \
+            --receipt "$out/reproducibility-receipt.v15-meridian.json"
+        run_cli verify-scorecard "$out/scorecard.v15-meridian.json"
+        printf 'model: DAYLIGHT v15 MERIDIAN (evidence-derived, fail-closed)\\n'
+        printf 'score: '
+        scorecard_value "$out/scorecard.v15-meridian.json"
+        ;;
+    frontier)
+        need_python
+        need_package
+        run_cli frontier
+        ;;
+    gate)
+        need_python
+        need_package
+        run_cli gate --scorecard "$pkg/examples/expected-scorecard.v15-meridian.json"
+        ;;
+    doctor)
+        need_python
+        need_package
+        run_cli doctor
+        ;;
+    vault)
+        need_python
+        need_package
+        shift
+        run_cli vault "$@"
+        ;;
+    test)
+        need_python
+        need_package
+        PYTHONPATH="$pkg" "$py" -m unittest discover -s "$pkg/tests" -t "$pkg"
+        ;;
+    path)
+        printf '%s\\n' "$pkg"
+        ;;
+    *)
+        cat <<'USAGE'
+usage: wuci-daylight-meridian [status|verify|score|frontier|gate|doctor|vault ...|test|path]
+
+status    verify the packaged evidence-derived scorecard
+verify    verify and print the packaged score (998900M internal ceiling)
+score     regenerate the scorecard from frozen package inputs into /tmp
+frontier  print the internal ceiling, residue, and external frontier
+gate      run the release/CI gate over the packaged scorecard
+doctor    self-check the install (AEAD RFC-8439 KAT + verify)
+vault ... evidence-gated, fail-closed vault (init|seal|open|list|status|autoseal)
+test      run the package unit tests
+path      print the packaged harness path
 USAGE
         exit 2
         ;;
@@ -3911,6 +4058,10 @@ disk=${WUCI_INSTALL_DISK:-}
 assume_yes=${WUCI_INSTALL_ASSUME_YES:-0}
 mode=${WUCI_INSTALL_BOOT_MODE:-auto}
 auto_reboot=${WUCI_INSTALL_REBOOT:-0}
+empty_passwords=${WUCI_INSTALL_EMPTY_PASSWORDS:-0}
+target_password=${WUCI_INSTALL_PASSWORD:-}
+hostname=${WUCI_INSTALL_HOSTNAME:-wuci-os}
+arch=${WUCI_INSTALL_ARCH:-}
 
 usage() {
     cat <<'TEXT'
@@ -3918,12 +4069,18 @@ Wuci-OS automatic installer
 
 Usage:
   INSTALL [--disk /dev/sdX] [--yes] [--bios|--uefi] [--reboot]
+          [--password PW | --empty-passwords] [--hostname NAME] [--arch ARCH]
 
 This command automates partitioning, formatting, package install, GRUB,
-Wuci-OS target activation, services, users, and verification.
+Wuci-OS target activation, services, account passwords, and verification.
+
+The installed system gets a real password on root and wj. Supply it with
+--password / WUCI_INSTALL_PASSWORD, or you are prompted once. Pass
+--empty-passwords only to reproduce the live demo's passwordless accounts.
 
 By default it requires one disk-erasure confirmation. To script it:
-  WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_ASSUME_YES=1 INSTALL
+  WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_PASSWORD=secret \\
+    WUCI_INSTALL_ASSUME_YES=1 INSTALL
 TEXT
 }
 
@@ -3947,6 +4104,20 @@ run() {
 
 need() {
     command -v "$1" >/dev/null 2>&1 || die "required command missing: $1"
+}
+
+cleanup_mounts() {
+    umount -R "$target/boot/efi" >/dev/null 2>&1 || true
+    umount -R "$target" >/dev/null 2>&1 || true
+}
+
+on_exit() {
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        printf '\\nINSTALL: failed (exit %s); unmounting %s so the disk is left clean.\\n' "$rc" "$target" >&2
+        cleanup_mounts
+    fi
+    return "$rc"
 }
 
 if [ "$(id -u)" != "0" ] && [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
@@ -3983,6 +4154,25 @@ while [ "$#" -gt 0 ]; do
             auto_reboot=1
             shift
             ;;
+        --password)
+            [ "$#" -ge 2 ] || die "--password needs a value"
+            target_password=$2
+            shift 2
+            ;;
+        --empty-passwords)
+            empty_passwords=1
+            shift
+            ;;
+        --hostname)
+            [ "$#" -ge 2 ] || die "--hostname needs a value"
+            hostname=$2
+            shift 2
+            ;;
+        --arch)
+            [ "$#" -ge 2 ] || die "--arch needs a value"
+            arch=$2
+            shift 2
+            ;;
         *)
             die "unknown argument: $1"
             ;;
@@ -3990,6 +4180,14 @@ while [ "$#" -gt 0 ]; do
 done
 
 need xbps-install
+
+# Match the target package architecture to the live system (e.g. x86_64-musl)
+# so xbps-install -r resolves the right repositories instead of guessing.
+if [ -z "$arch" ]; then
+    arch=$(xbps-uhelper arch 2>/dev/null || true)
+fi
+[ -n "$arch" ] || arch=$(uname -m)
+export XBPS_ARCH="$arch"
 
 detect_disk() {
     count=0
@@ -4078,6 +4276,7 @@ fi
 say "Unmount stale target mount"
 umount -R "$target" >/dev/null 2>&1 || true
 mkdir -p "$target"
+trap on_exit EXIT INT TERM
 
 say "Partition disk"
 if command -v wipefs >/dev/null 2>&1; then
@@ -4109,16 +4308,34 @@ if [ -n "$esp" ]; then
     run mount "$esp" "$target/boot/efi"
 fi
 
+say "Seed target package configuration (arch=$arch)"
+# A fresh root has no xbps repository config, so copy the live system's and
+# pass the live repositories explicitly. Without this, xbps-install -r cannot
+# resolve base-system on a musl target.
+mkdir -p "$target/usr/share/xbps.d" "$target/etc/xbps.d"
+if [ -d /usr/share/xbps.d ]; then
+    cp -a /usr/share/xbps.d/. "$target/usr/share/xbps.d/" 2>/dev/null || true
+fi
+if [ -d /etc/xbps.d ]; then
+    cp -a /etc/xbps.d/. "$target/etc/xbps.d/" 2>/dev/null || true
+fi
+repo_args=""
+for repo in $(xbps-query -L 2>/dev/null | awk 'NF >= 2 { print $2 }'); do
+    case "$repo" in
+        http://*|https://*|/*) repo_args="$repo_args -R $repo" ;;
+    esac
+done
+
 say "Install required base, kernel, network, and desktop packages"
 required_packages="base-system linux6.12 grub sudo doas bash shadow util-linux coreutils findutils grep sed gawk less nano vim NetworkManager dbus wpa_supplicant iw rfkill dhcpcd iproute2 wireless-regdb linux-firmware linux-firmware-network linux-firmware-intel pciutils usbutils kmod e2fsprogs python3 git ca-certificates xorg xinit xfce4 xfce4-terminal xterm"
 if [ "$mode" = "uefi" ]; then
     required_packages="$required_packages grub-x86_64-efi"
 fi
-run xbps-install -y -Sy -r "$target" $required_packages
+run xbps-install -y -Sy -r "$target" $repo_args $required_packages
 
 say "Install best-effort media and preferred terminal packages"
 optional_packages="kitty alsa-utils pipewire wireplumber pulseaudio-utils mesa-dri mesa-vulkan-intel xf86-video-intel"
-xbps-install -y -r "$target" $optional_packages || printf 'INSTALL: optional package group had unavailable packages; continuing with required desktop.\\n' >&2
+xbps-install -y -r "$target" $repo_args $optional_packages || printf 'INSTALL: optional package group had unavailable packages; continuing with required desktop.\\n' >&2
 
 say "Prepare chroot mounts"
 mkdir -p "$target/proc" "$target/sys" "$target/dev"
@@ -4138,7 +4355,7 @@ if [ -n "$esp" ]; then
     [ -n "$esp_uuid" ] || die "could not read EFI UUID"
     printf 'UUID=%s /boot/efi vfat defaults 0 2\\n' "$esp_uuid" >> "$target/etc/fstab"
 fi
-printf 'wuci-os\\n' > "$target/etc/hostname"
+printf '%s\\n' "$hostname" > "$target/etc/hostname"
 
 say "Enable services"
 chroot "$target" /bin/sh -c 'mkdir -p /etc/runit/runsvdir/default; for svc in udevd dbus NetworkManager; do [ -d /etc/sv/$svc ] && ln -sfn /etc/sv/$svc /etc/runit/runsvdir/default/$svc; done'
@@ -4149,6 +4366,43 @@ if command -v wuci-install-target-activate >/dev/null 2>&1; then
 else
     die "wuci-install-target-activate is missing from this live image"
 fi
+
+say "Reconfigure installed packages (initramfs, kernel hooks)"
+# Force reconfiguration in the target so dracut builds an initramfs and the
+# kernel/bootloader hooks run; otherwise the disk may not boot.
+chroot "$target" xbps-reconfigure -fa || printf 'INSTALL: package reconfigure reported issues; verify boot artifacts before trusting this install.\\n' >&2
+
+say "Set installed-system account passwords"
+# wuci-install-target-activate runs wuci-users-apply, which intentionally
+# leaves the LIVE accounts passwordless. An installed disk must not ship that
+# way, so set a real password on root and wj unless the operator opts out.
+if [ "$empty_passwords" = "1" ]; then
+    printf 'INSTALL: keeping empty passwords on the installed system (--empty-passwords).\\n'
+    printf 'INSTALL: rotate them after first boot with: passwd root; passwd wj\\n'
+else
+    if [ -z "$target_password" ]; then
+        if [ "$assume_yes" = "1" ]; then
+            die "no password set: pass --password / WUCI_INSTALL_PASSWORD, or --empty-passwords for an unattended demo install"
+        fi
+        stty -echo 2>/dev/null || true
+        printf 'Set a password for root and wj: '
+        IFS= read -r target_password || target_password=
+        printf '\\n'
+        printf 'Confirm password: '
+        IFS= read -r confirm_password || confirm_password=
+        printf '\\n'
+        stty echo 2>/dev/null || true
+        [ -n "$target_password" ] || die "empty password rejected (use --empty-passwords to intentionally keep it empty)"
+        [ "$target_password" = "$confirm_password" ] || die "passwords did not match"
+        confirm_password=
+    fi
+    for account in root wj; do
+        printf '%s:%s\\n' "$account" "$target_password" | chroot "$target" chpasswd \\
+            || die "failed to set password for $account"
+    done
+    printf 'INSTALL: set password on root and wj.\\n'
+fi
+target_password=
 
 say "Install bootloader"
 if [ "$mode" = "uefi" ]; then
@@ -4173,6 +4427,7 @@ chroot "$target" /usr/local/bin/wuci-status || true
 chroot "$target" /usr/local/bin/wuci-users-status || true
 chroot "$target" /usr/local/bin/wuci-network-status || true
 chroot "$target" /usr/local/bin/wuci-daylight-v14c-plus verify || true
+chroot "$target" /usr/local/bin/wuci-daylight-meridian verify || true
 
 say "Install complete"
 printf 'Installed Wuci-OS to %s.\\n' "$disk"
@@ -4379,6 +4634,8 @@ Usage:
   wj security                     show high-assurance security status
   wj daylight                     show Daylight evidence status
   wj daylight-v14c                verify/regenerate Daylight v14C+ candidate score
+  wj meridian [cmd]               Daylight v15 Meridian (verify|score|frontier|gate|doctor)
+  wj vault [cmd]                  evidence-gated, fail-closed Meridian vault
   wj enter [user]                 enter WJ>_ operator shell
   wj attest                       run local proof marker
 
@@ -4519,6 +4776,12 @@ case "$cmd" in
         ;;
     daylight-v14c|daylight-v14c-plus|v14c)
         exec wuci-daylight-v14c-plus "$@"
+        ;;
+    daylight-meridian|meridian|v15)
+        exec wuci-daylight-meridian "$@"
+        ;;
+    vault)
+        exec wuci-daylight-meridian vault "$@"
         ;;
     enter|shell)
         exec wuci-enter "$@"
@@ -5456,66 +5719,68 @@ if command -v nmcli >/dev/null 2>&1; then
     if [ "$has_wifi" -eq 0 ]; then
         printf 'wuci-network-connect: no Wi-Fi device reported by NetworkManager. Trying wpa_supplicant fallback.\\n' >&2
     else
+        nmcli_may_connect=1
         unavailable_wifi=0
         if nmcli -t -f DEVICE,TYPE,STATE device status 2>/dev/null | awk -F: '$2 == "wifi" && $3 == "unavailable" { found=1 } END { exit found ? 0 : 1 }'; then
             unavailable_wifi=1
         fi
         if [ "$unavailable_wifi" -eq 1 ]; then
-            printf 'wuci-network-connect: NetworkManager reports Wi-Fi unavailable; not asking for SSID yet.\\n' >&2
-            printf 'wuci-network-connect: check rfkill hard-block, hardware switch, BIOS wireless setting, and loaded iwlwifi/USB driver.\\n' >&2
+            printf 'wuci-network-connect: NetworkManager reports Wi-Fi unavailable; trying wpa_supplicant fallback.\\n' >&2
             print_wireless_snapshot
-            exit 1
+            nmcli_may_connect=0
         fi
 
-        if ! rescan_output=$(nmcli device wifi rescan 2>&1); then
+        if [ "$nmcli_may_connect" -eq 1 ] && ! rescan_output=$(nmcli device wifi rescan 2>&1); then
             printf 'wuci-network-connect: Wi-Fi rescan failed: %s\\n' "$rescan_output" >&2
             case "$rescan_output" in
                 *unavailable*|*Unavailable*)
-                    printf 'wuci-network-connect: not asking for SSID while Wi-Fi is unavailable.\\n' >&2
+                    printf 'wuci-network-connect: NetworkManager scan unavailable; trying wpa_supplicant fallback.\\n' >&2
                     print_wireless_snapshot
-                    exit 1
+                    nmcli_may_connect=0
                     ;;
             esac
         fi
-        nmcli -f SSID,SECURITY,SIGNAL device wifi list 2>/dev/null || true
+        if [ "$nmcli_may_connect" -eq 1 ]; then
+            nmcli -f SSID,SECURITY,SIGNAL device wifi list 2>/dev/null || true
 
-        ssid="${WUCI_WIFI_SSID:-}"
-        if [ -z "$ssid" ]; then
-            if [ -r /dev/tty ]; then
-                printf 'Wi-Fi SSID: ' >/dev/tty
-                IFS= read -r ssid </dev/tty || true
-            elif [ -t 0 ]; then
-                printf 'Wi-Fi SSID: '
-                IFS= read -r ssid || true
-            else
-                printf 'wuci-network-connect: no interactive terminal and WUCI_WIFI_SSID is not set\\n' >&2
+            ssid="${WUCI_WIFI_SSID:-}"
+            if [ -z "$ssid" ]; then
+                if [ -r /dev/tty ]; then
+                    printf 'Wi-Fi SSID: ' >/dev/tty
+                    IFS= read -r ssid </dev/tty || true
+                elif [ -t 0 ]; then
+                    printf 'Wi-Fi SSID: '
+                    IFS= read -r ssid || true
+                else
+                    printf 'wuci-network-connect: no interactive terminal and WUCI_WIFI_SSID is not set\\n' >&2
+                    exit 1
+                fi
+            fi
+
+            if [ -z "$ssid" ]; then
+                printf 'wuci-network-connect: SSID is empty; network not configured\\n' >&2
                 exit 1
             fi
-        fi
 
-        if [ -z "$ssid" ]; then
-            printf 'wuci-network-connect: SSID is empty; network not configured\\n' >&2
-            exit 1
-        fi
-
-        if [ -n "${WUCI_WIFI_PASSWORD:-}" ]; then
-            if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
-                nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD" hidden yes
+            if [ -n "${WUCI_WIFI_PASSWORD:-}" ]; then
+                if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
+                    nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD" hidden yes
+                else
+                    nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD"
+                fi
             else
-                nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD"
+                if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
+                    nmcli --ask device wifi connect "$ssid" hidden yes
+                else
+                    nmcli --ask device wifi connect "$ssid"
+                fi
             fi
-        else
-            if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
-                nmcli --ask device wifi connect "$ssid" hidden yes
-            else
-                nmcli --ask device wifi connect "$ssid"
-            fi
-        fi
 
-        if online; then
-            printf 'wuci-network-connect: online\\n'
-            ip -br addr 2>/dev/null || true
-            exit 0
+            if online; then
+                printf 'wuci-network-connect: online\\n'
+                ip -br addr 2>/dev/null || true
+                exit 0
+            fi
         fi
     fi
 fi
@@ -6325,6 +6590,7 @@ Run:
   wuci-selinux-status
   wuci-daylight-status
   wuci-daylight-v14c-plus
+  wuci-daylight-meridian
   wuci-ai-status
   wuci-ai-setup
   wuci-grok-build
@@ -6510,6 +6776,7 @@ done
         "usr/local/bin/wuci-selinux-status": selinux_status_script,
         "usr/local/bin/wuci-daylight-status": daylight_status_script,
         "usr/local/bin/wuci-daylight-v14c-plus": daylight_v14c_script,
+        "usr/local/bin/wuci-daylight-meridian": daylight_meridian_script,
         "usr/local/bin/wuci-ai-status": ai_status_script,
         "usr/local/bin/wuci-ai-setup": ai_setup_script,
         "usr/local/bin/wuci-grok-build": grok_build_script,
@@ -6638,6 +6905,15 @@ def create_overlay(
         raise WuciOSError(f"Wuci-OS Daylight v14C+ execution package must not be a symlink: {daylight_v14c_package}")
     if not stat.S_ISDIR(daylight_v14c_package_info.st_mode):
         raise WuciOSError(f"Wuci-OS Daylight v14C+ execution package must be a directory: {daylight_v14c_package}")
+    daylight_v15_package = repo_root() / DEFAULT_DAYLIGHT_V15_PACKAGE_SOURCE
+    try:
+        daylight_v15_package_info = os.lstat(daylight_v15_package)
+    except OSError as exc:
+        raise WuciOSError(f"missing Wuci-OS Daylight v15 Meridian execution package: {daylight_v15_package}") from exc
+    if stat.S_ISLNK(daylight_v15_package_info.st_mode):
+        raise WuciOSError(f"Wuci-OS Daylight v15 Meridian execution package must not be a symlink: {daylight_v15_package}")
+    if not stat.S_ISDIR(daylight_v15_package_info.st_mode):
+        raise WuciOSError(f"Wuci-OS Daylight v15 Meridian execution package must be a directory: {daylight_v15_package}")
     try:
         root_info = os.lstat(root)
     except FileNotFoundError:
@@ -6786,6 +7062,39 @@ def create_overlay(
                 "digest_vector": digest,
             }
         )
+    daylight_v15_package_overlay_path = Path("usr/share/wuci-os/daylight/v15-meridian")
+    daylight_v15_package_records: list[dict[str, Any]] = []
+    for source_path in sorted(daylight_v15_package.rglob("*"), key=lambda item: item.relative_to(daylight_v15_package).as_posix()):
+        rel = source_path.relative_to(daylight_v15_package)
+        rel_text = rel.as_posix()
+        if "__pycache__" in rel.parts or rel_text.endswith(".pyc"):
+            continue
+        if ".egg-info" in rel_text or rel.parts and rel.parts[0] == "build":
+            continue
+        if rel.is_absolute() or ".." in rel.parts or rel_text.startswith("/"):
+            raise WuciOSError(f"unsafe Daylight v15 Meridian package path: {rel_text}")
+        info = os.lstat(source_path)
+        if stat.S_ISLNK(info.st_mode):
+            raise WuciOSError(f"Wuci-OS Daylight v15 Meridian package must not contain symlinks: {rel_text}")
+        if stat.S_ISDIR(info.st_mode):
+            continue
+        target = daylight_v15_package_overlay_path / rel
+        digest, size = _copy_verified_regular_file(
+            source_path,
+            root / target,
+            f"Wuci-OS overlay Daylight v15 Meridian execution package file {rel_text}",
+            expected_info=info,
+            mode=0o755 if rel.parts and rel.parts[0] == "src" and source_path.suffix == ".py" else 0o644,
+        )
+        written.append(str(target))
+        daylight_v15_package_records.append(
+            {
+                "path": target.as_posix(),
+                "source_path": str(source_path),
+                "bytes": size,
+                "digest_vector": digest,
+            }
+        )
     manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
     manifest_files = written + [manifest_relative]
     manifest = {
@@ -6866,6 +7175,14 @@ def create_overlay(
             "files": daylight_v14c_package_records,
             "command": "wuci-daylight-v14c-plus",
             "claim": "candidate score package only; not release authority",
+        },
+        "daylight_v15_meridian_execution_package": {
+            "path": str(daylight_v15_package_overlay_path),
+            "source_path": str(daylight_v15_package),
+            "file_count": len(daylight_v15_package_records),
+            "files": daylight_v15_package_records,
+            "command": "wuci-daylight-meridian",
+            "claim": "evidence-derived scorecard + fail-closed Meridian vault; 1,000,000M still requires external attestation",
         },
         "boundary_denials": list(BOUNDARY_DENIALS),
     }
@@ -9450,11 +9767,43 @@ def build_final_iso(
             "witness-ledger-entry-missing",
         ]
     )
+    # Each blocker is fail-closed: absent evidence keeps it active. This map is
+    # informational only -- it documents the exact evidence and verification that
+    # retires a blocker, turning the gate into an actionable release checklist. It
+    # never flips release_allowed; only real, verified evidence (most of it from
+    # outside this build host: reference hardware, the release authority key, and
+    # the operated witness ledger) can do that. See docs/WUCI_OS_RELEASE_RUNBOOK.md.
+    blocker_requirements = {
+        "deterministic-rootfs-not-remastered":
+            "Rebuild with --remaster-rootfs so the live rootfs is deterministically "
+            "remastered with the Wuci-OS overlay (not payload-preview mode).",
+        "package-closure-fixed-point-missing":
+            "Bake the full install suite into the remaster (suite_package_install must "
+            "report status=pass) so the package dependency graph reaches a sealed fixed point.",
+        "qemu-boot-trace-not-bound-to-final-manifest":
+            "Capture a QEMU boot trace of THIS final ISO reaching the WJ>_ prompt and bind "
+            "it to the final-ISO manifest by recording the manifest sha256 inside the trace.",
+        "hardware-boot-trace-missing":
+            "Boot the final ISO on the reference hardware (ThinkPad X200s) and record a boot "
+            "trace reaching WJ>_ with the live Wi-Fi/admin surface present.",
+        "final-iso-manifest-signature-missing":
+            "Sign the final-ISO manifest digest with the Wuci-OS release authority key and "
+            "publish the detached signature alongside the ISO.",
+        "witness-ledger-entry-missing":
+            "Append the signed final-ISO manifest digest to the WUCI-WITNESS ledger and record "
+            "its inclusion proof so the release is publicly transparent.",
+    }
     release_gate = {
         "schema": "wuci-os-substract-release-gate-v1",
         "status": "blocked" if release_blockers else "pass",
         "release_allowed": not release_blockers,
         "blockers": release_blockers,
+        "blocker_requirements": {
+            blocker: blocker_requirements[blocker]
+            for blocker in release_blockers
+            if blocker in blocker_requirements
+        },
+        "release_runbook": "docs/WUCI_OS_RELEASE_RUNBOOK.md",
         "subtracted_claims": [
             "release-ready",
             "package-closure-fixed-point",

@@ -11,6 +11,7 @@ authorization predicate.
 
 Design and scores: [WUCI_DAYLIGHT_V15_MERIDIAN.md](WUCI_DAYLIGHT_V15_MERIDIAN.md).
 Artifact/CLI: [DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md](DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md).
+Host vault built on this envelope: [WUCI_DAYLIGHT_V15_MERIDIAN_VAULT.md](WUCI_DAYLIGHT_V15_MERIDIAN_VAULT.md).
 
 ## The law, enforced cryptographically
 

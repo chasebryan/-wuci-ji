@@ -77,6 +77,8 @@ daylight-meridian artifact --out-dir build/daylight/v15-meridian
 
 ## Encryption (Meridian Authorized Envelope)
 
+![WUCI v15 MAE Meridian Authorized Envelope visual map](assets/wuci-v15-mae-meridian-authorized-envelope.jpeg)
+
 Meridian also encrypts. The Meridian Authorized Envelope binds a vector-checked
 RFC 8439 ChaCha20-Poly1305 AEAD (`src/aead.py`) to evidence-derived obligation
 logic: `NoEvidence -> NoSeal`, and `Open = bottom` unless the caller's evidence

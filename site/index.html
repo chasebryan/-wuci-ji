@@ -37,6 +37,7 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <a class="skip-link" href="#top">Skip to content</a>
     <header class="site-header" data-header>
       <a class="brand" href="#top" aria-label="No Such Machine home">
         <img
@@ -44,12 +45,16 @@
           src="assets/no-such-machine-emblem.png"
           alt=""
           aria-hidden="true"
+          width="42"
+          height="42"
+          decoding="async"
         >
         <span>No Such Machine</span>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="#challenge">Challenge</a>
         <a href="#encrypt">Encrypt</a>
+        <a href="#mae">MAE</a>
         <a href="#evidence">Evidence</a>
         <a href="#os">Wuci-OS</a>
         <a href="#commands">Commands</a>
@@ -64,6 +69,10 @@
           class="hero-image"
           src="assets/wuci-daylight-v15-meridian-banner.png"
           alt="Daylight v15 Meridian evidence-derived sovereign mathematics banner"
+          width="2172"
+          height="724"
+          fetchpriority="high"
+          decoding="async"
         >
         <div class="hero-shade" aria-hidden="true"></div>
         <div class="hero-content">
@@ -189,6 +198,13 @@
         </div>
 
         <div class="encryptor-workbench" data-meridian-workbench>
+          <noscript>
+            <p class="workbench-noscript">
+              The Meridian browser envelope runs entirely in JavaScript with Web
+              Crypto. Enable JavaScript to seal or open files locally; nothing is
+              ever uploaded.
+            </p>
+          </noscript>
           <div class="tab-list" role="tablist" aria-label="Meridian envelope tools">
             <button class="tab-button is-active" type="button" role="tab" aria-selected="true" aria-controls="meridian-encrypt-panel" id="meridian-encrypt-tab" data-tab-target="meridian-encrypt-panel">Encrypt</button>
             <button class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="meridian-open-panel" id="meridian-open-tab" data-tab-target="meridian-open-panel">Open</button>
@@ -270,6 +286,34 @@
         </div>
       </section>
 
+      <section class="mae-plate-section" id="mae" aria-labelledby="mae-title">
+        <div class="mae-plate-copy">
+          <p class="eyebrow">Meridian Authorized Envelope</p>
+          <h2 id="mae-title">Seal by evidence. Open by proof.</h2>
+          <p>
+            The MAE plate is the visual map for the v15 envelope lane: evidence
+            derives the scorecard, policy binds into the authorization tag, and
+            open remains bottom unless the caller re-derives a verifying state.
+          </p>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md">
+            Read the envelope design
+          </a>
+        </div>
+        <figure class="mae-plate">
+          <img
+            src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg"
+            alt="WUCI v15 MAE Meridian Authorized Envelope visual map"
+            width="1672"
+            height="941"
+            loading="lazy"
+            decoding="async"
+          >
+          <figcaption>
+            WUCI v15 MAE: evidence-bound cryptographic gate, 30 June 2026.
+          </figcaption>
+        </figure>
+      </section>
+
       <section class="section" id="evidence" aria-labelledby="evidence-title">
         <div class="section-heading">
           <p class="eyebrow">Evidence lanes</p>
@@ -311,7 +355,14 @@
 
       <section class="split-section" id="os" aria-labelledby="os-title">
         <div class="split-media">
-          <img src="assets/wuci-daylight-v15-meridian.png" alt="Wuci Daylight v15 Meridian sheet">
+          <img
+            src="assets/wuci-daylight-v15-meridian.png"
+            alt="Wuci Daylight v15 Meridian sheet"
+            width="1672"
+            height="941"
+            loading="lazy"
+            decoding="async"
+          >
         </div>
         <div class="split-copy">
           <p class="eyebrow">Wuci-OS image lane</p>
@@ -375,19 +426,23 @@
         </div>
         <div class="image-grid">
           <figure>
-            <img src="assets/wuci-daylight-v15-meridian.png" alt="Daylight v15 Meridian evidence sheet">
+            <img src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg" alt="WUCI v15 MAE Meridian Authorized Envelope sheet" width="1672" height="941" loading="lazy" decoding="async">
+            <figcaption>WUCI v15 MAE envelope</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/wuci-daylight-v15-meridian.png" alt="Daylight v15 Meridian evidence sheet" width="1672" height="941" loading="lazy" decoding="async">
             <figcaption>Daylight v15 Meridian</figcaption>
           </figure>
           <figure>
-            <img src="assets/wuci-daylight-wire-model.png" alt="Daylight and Wuci wire model">
+            <img src="assets/wuci-daylight-wire-model.png" alt="Daylight and Wuci wire model" width="1491" height="1055" loading="lazy" decoding="async">
             <figcaption>Daylight/Wuci wire model</figcaption>
           </figure>
           <figure>
-            <img src="assets/wuci-daylight-v10-scoreboard.png" alt="Daylight v10 scoreboard">
+            <img src="assets/wuci-daylight-v10-scoreboard.png" alt="Daylight v10 scoreboard" width="1672" height="941" loading="lazy" decoding="async">
             <figcaption>Daylight v10 scoreboard</figcaption>
           </figure>
           <figure>
-            <img src="assets/wuci-os-boot-splash.svg" alt="Wuci-OS boot splash">
+            <img src="assets/wuci-os-boot-splash.svg" alt="Wuci-OS boot splash" width="1672" height="941" loading="lazy" decoding="async">
             <figcaption>Wuci-OS boot splash</figcaption>
           </figure>
         </div>

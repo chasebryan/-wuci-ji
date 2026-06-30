@@ -99,6 +99,9 @@ Live rootfs payloads:
 /usr/local/bin/wuci-daylight-v14c-plus
 ```
 
+The exact, ordered path that retires each blocker (and what evidence it needs)
+is in [WUCI_OS_RELEASE_RUNBOOK.md](WUCI_OS_RELEASE_RUNBOOK.md).
+
 Release gate blockers intentionally kept:
 
 ```text

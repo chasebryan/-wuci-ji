@@ -900,6 +900,7 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-ai-setup",
         "usr/local/bin/wuci-grok-build",
         "usr/local/bin/wuci-daylight-v14c-plus",
+        "usr/local/bin/wuci-daylight-meridian",
         "usr/share/wuci-os/accounts.json",
         "usr/share/wuci-os/packages.json",
         "usr/share/wuci-os/security-profile.json",
@@ -938,12 +939,28 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "\nINSTALL\n" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
     assert "wuci-install` is kept as a compatibility alias for `INSTALL`" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
     assert "sudo wuci-install-target-activate /mnt" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
-    assert "required command missing" in files["usr/local/bin/INSTALL"]
-    assert "xbps-install -y -Sy -r \"$target\"" in files["usr/local/bin/INSTALL"]
-    assert "grub-x86_64-efi" in files["usr/local/bin/INSTALL"]
-    assert "wuci-install-target-activate \"$target\"" in files["usr/local/bin/INSTALL"]
-    assert "grub-install \"$disk\"" in files["usr/local/bin/INSTALL"]
-    assert "THIS ERASES" in files["usr/local/bin/INSTALL"]
+    install_script = files["usr/local/bin/INSTALL"]
+    assert "required command missing" in install_script
+    assert "xbps-install -y -Sy -r \"$target\" $repo_args $required_packages" in install_script
+    assert "grub-x86_64-efi" in install_script
+    assert "wuci-install-target-activate \"$target\"" in install_script
+    assert "grub-install \"$disk\"" in install_script
+    assert "THIS ERASES" in install_script
+    # Match the live arch and seed the target's repository config, else
+    # xbps-install -r cannot resolve base-system on a fresh musl root.
+    assert "export XBPS_ARCH=\"$arch\"" in install_script
+    assert "cp -a /usr/share/xbps.d/. \"$target/usr/share/xbps.d/\"" in install_script
+    assert "xbps-query -L" in install_script
+    # Force reconfiguration so the initramfs/bootloader hooks actually run.
+    assert "xbps-reconfigure -fa" in install_script
+    # An installed disk must not ship with the live demo's empty passwords.
+    assert "Set installed-system account passwords" in install_script
+    assert "chroot \"$target\" chpasswd" in install_script
+    assert "--empty-passwords" in install_script
+    assert "WUCI_INSTALL_PASSWORD" in install_script
+    # A failed install must not leave the target mounted.
+    assert "trap on_exit EXIT INT TERM" in install_script
+    assert "cleanup_mounts" in install_script
     assert "exec INSTALL \"$@\"" in files["usr/local/bin/wuci-install"]
     assert "void-installer" not in files["usr/local/bin/wuci-install"]
     assert "/usr/local/bin/INSTALL /usr/local/bin/wuci-*" in files["usr/local/bin/wuci-install-target-activate"]
@@ -966,7 +983,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "cfg80211/mac80211" in files["usr/local/bin/wuci-network-connect"]
     assert "$module-unloaded" in files["usr/local/bin/wuci-network-connect"]
     assert "refusing Wi-Fi scan because the kernel cannot provide nl80211" in files["usr/local/bin/wuci-network-connect"]
-    assert "NetworkManager reports Wi-Fi unavailable; not asking for SSID yet" in files["usr/local/bin/wuci-network-connect"]
+    assert "NetworkManager reports Wi-Fi unavailable; trying wpa_supplicant fallback" in files["usr/local/bin/wuci-network-connect"]
+    assert "NetworkManager scan unavailable; trying wpa_supplicant fallback" in files["usr/local/bin/wuci-network-connect"]
     assert "root-owned setuid" in files["usr/local/bin/wuci-network-connect"]
     assert "hardware snapshot follows" in files["usr/local/bin/wuci-network-connect"]
     assert "depmod -a" in files["usr/local/bin/wuci-network-connect"]
@@ -1003,6 +1021,16 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "PYTHONPATH=\"$pkg\"" in files["usr/local/bin/wuci-daylight-v14c-plus"]
     assert "final_score_M" in files["usr/local/bin/wuci-daylight-v14c-plus"]
     assert "wuci-daylight-v14c-plus" in files["usr/local/bin/wuci-guide"]
+    # Daylight v15 Meridian live command: evidence-derived score + fail-closed vault.
+    meridian = files["usr/local/bin/wuci-daylight-meridian"]
+    assert "DAYLIGHT v15 MERIDIAN" in meridian
+    assert "/usr/share/wuci-os/daylight/v15-meridian" in meridian
+    assert "expected-scorecard.v15-meridian.json" in meridian
+    assert "run_cli vault" in meridian
+    assert "1,000,000M still requires external attestation" in meridian
+    assert "daylight-meridian|meridian|v15)" in files["usr/local/bin/wj"]
+    assert "exec wuci-daylight-meridian vault" in files["usr/local/bin/wj"]
+    assert "Daylight v15 Meridian package present" in files["usr/local/bin/wuci-daylight-status"]
     assert "daylight-v14c" in files["usr/local/bin/wj"]
     assert "/opt/wuci-os/source/wuci-ji" in files["usr/local/bin/wuci-source-status"]
     assert "/opt/wuci-os/source/upstream" in files["usr/local/bin/wuci-source-status"]
@@ -1132,6 +1160,13 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert manifest["daylight_v14c_execution_package"]["path"] == "usr/share/wuci-os/daylight/v14c-plus"
     assert manifest["daylight_v14c_execution_package"]["command"] == "wuci-daylight-v14c-plus"
     assert manifest["daylight_v14c_execution_package"]["file_count"] > 0
+    # Daylight v15 Meridian package is baked alongside v14C+.
+    assert any(record["path"] == "usr/share/wuci-os/daylight/v15-meridian/src/cli.py" for record in records)
+    assert any(record["path"] == "usr/share/wuci-os/daylight/v15-meridian/src/vault.py" for record in records)
+    assert manifest["daylight_v15_meridian_execution_package"]["path"] == "usr/share/wuci-os/daylight/v15-meridian"
+    assert manifest["daylight_v15_meridian_execution_package"]["command"] == "wuci-daylight-meridian"
+    assert manifest["daylight_v15_meridian_execution_package"]["file_count"] > 0
+    assert not any("__pycache__" in record["path"] for record in records)
 
     for relative in sorted(path for path in files if path.startswith("usr/local/bin/")):
         proc = subprocess.run(
@@ -2304,6 +2339,13 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
     assert result["release_gate"]["release_allowed"] is False
     assert result["release_gate"]["model"] == "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md"
     assert "package-closure-fixed-point-missing" in result["release_gate"]["blockers"]
+    # Every active blocker must carry an actionable, documented requirement, and the
+    # self-documenting checklist must never flip release_allowed on its own.
+    assert result["release_gate"]["release_runbook"] == "docs/WUCI_OS_RELEASE_RUNBOOK.md"
+    requirements = result["release_gate"]["blocker_requirements"]
+    assert set(requirements) == set(result["release_gate"]["blockers"])
+    assert all(isinstance(text, str) and text for text in requirements.values())
+    assert "hardware-boot-trace-missing" in requirements
     assert result["substract_substrate_model"]["formal_model_path"] == "docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md"
     assert result["substract_substrate_model"]["daylight_v8_model_path"] == "docs/WUCI_DAYLIGHT_V8.md"
     assert result["substract_substrate_model"]["daylight_v9_model_path"] == "docs/WUCI_DAYLIGHT_V9.md"

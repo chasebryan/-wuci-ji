@@ -121,7 +121,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 .PHONY: wuci-kaiju-test wuci-os-test
 .PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
-.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci daylight-meridian-envelope-demo daylight-meridian-envelope-test
+.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci daylight-meridian-envelope-demo daylight-meridian-envelope-test daylight-meridian-vault-test daylight-meridian-vault-demo
 
 all: check-native $(TARGET)
 
@@ -171,6 +171,13 @@ daylight-meridian-smoke:
 	mkdir -p build/daylight/v15-meridian
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --message "meridian smoke" --nonce 000000000000000000000000 --out build/daylight/v15-meridian/smoke.mae
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in build/daylight/v15-meridian/smoke.mae >/dev/null
+	rm -rf build/daylight/v15-meridian/smoke-vault
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault init --vault build/daylight/v15-meridian/smoke-vault --force
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault status --vault build/daylight/v15-meridian/smoke-vault >/dev/null
+	printf 'smoke\n' > build/daylight/v15-meridian/smoke-secret.txt
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault seal --vault build/daylight/v15-meridian/smoke-vault build/daylight/v15-meridian/smoke-secret.txt --name smoke
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault open --vault build/daylight/v15-meridian/smoke-vault smoke --out build/daylight/v15-meridian/smoke-secret.out
+	cmp build/daylight/v15-meridian/smoke-secret.txt build/daylight/v15-meridian/smoke-secret.out
 
 daylight-meridian-envelope-demo:
 	mkdir -p build/daylight/v15-meridian
@@ -181,12 +188,27 @@ daylight-meridian-envelope-demo:
 daylight-meridian-envelope-test:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest tests.test_aead_vectors tests.test_envelope
 
+daylight-meridian-vault-test:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest tests.test_vault
+
+daylight-meridian-vault-demo:
+	rm -rf build/daylight/v15-meridian/vault build/daylight/v15-meridian/vault-work
+	mkdir -p build/daylight/v15-meridian/vault-work
+	printf 'meridian vault demo: sealed by evidence, opened by proof.\n' > build/daylight/v15-meridian/vault-work/secret.txt
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault init --vault build/daylight/v15-meridian/vault --force
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault status --vault build/daylight/v15-meridian/vault
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault seal --vault build/daylight/v15-meridian/vault build/daylight/v15-meridian/vault-work/secret.txt --name demo
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault list --vault build/daylight/v15-meridian/vault
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault open --vault build/daylight/v15-meridian/vault demo --out build/daylight/v15-meridian/vault-work/secret.out
+	cmp build/daylight/v15-meridian/vault-work/secret.txt build/daylight/v15-meridian/vault-work/secret.out
+	@echo "daylight-meridian-vault-demo: evidence-gated roundtrip OK"
+
 daylight-meridian-package:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -c "from src import __version__; print('daylight-meridian', __version__)"
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli --version
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli doctor
 
-daylight-meridian-ci: daylight-meridian-test daylight-meridian-smoke daylight-meridian-artifact
+daylight-meridian-ci: daylight-meridian-test daylight-meridian-smoke daylight-meridian-vault-demo daylight-meridian-artifact
 	@echo "daylight-meridian-ci: complete"
 
 $(TARGET): $(OBJECTS)

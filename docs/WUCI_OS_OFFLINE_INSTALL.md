@@ -70,6 +70,16 @@ The network-fixed image includes NetworkManager/`nmcli`, `dbus`, `sv`,
 `wuci-network-connect` first; use direct `nmcli` commands only if you want to
 drive NetworkManager manually.
 
+If NetworkManager marks a working Wi-Fi device unavailable, use the direct
+`wpa_supplicant` fallback:
+
+```sh
+sudo mkdir -p /run/wuci-network
+sudo wpa_passphrase "YOUR_WIFI_NAME" "YOUR_WIFI_PASSWORD" | sudo tee /run/wuci-network/wpa.conf >/dev/null
+sudo wpa_supplicant -B -i wlp2s0 -c /run/wuci-network/wpa.conf
+sudo dhcpcd -n wlp2s0
+```
+
 If Wi-Fi does not work, use wired Ethernet if possible. If no network is
 available, continue the local install and run `sudo wuci-update` after first
 boot once networking is fixed.
