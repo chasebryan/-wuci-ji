@@ -123,7 +123,7 @@ Unavailable package messages are not fatal during installation. Re-run
 `wuci-update`, `wuci-media-apply`, and `wuci-sdr-apply` after first boot when
 networking is available.
 
-## 5. Install To Disk
+## 5. Auto Install To Disk
 
 Inspect disks first:
 
@@ -131,47 +131,36 @@ Inspect disks first:
 lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL
 ```
 
-Start the Wuci installer context:
+Run the uppercase Wuci installer:
 
 ```sh
-sudo wuci-install
+INSTALL
 ```
 
-Recommended choices:
+`INSTALL` automates partitioning, formatting, XBPS base install, network and
+desktop packages, GRUB, Wuci target activation, services, users, and
+verification. It self-escalates through sudo when needed and does not call an
+external installer backend.
 
-1. Keyboard: your physical layout, usually `us`.
-2. Network: the active connection already configured.
-3. Hostname: `wuci-os`.
-4. Timezone: your local timezone.
-5. Root password: set a strong temporary admin password.
-6. User: create `wj` if asked for a normal user.
-7. Bootloader: install GRUB to the target disk.
-8. UEFI partitioning: 512 MiB FAT32 EFI partition at `/boot/efi`, root at `/`,
-   swap optional.
-9. Legacy BIOS partitioning: root at `/`, swap optional, bootloader on the disk.
-10. Review the selected target disk carefully before confirming writes.
-11. Let the installer finish, but do not reboot yet.
-
-## 6. Apply Wuci Before Reboot
-
-After the installer completes, return to a terminal. The installed target is
-usually mounted at `/mnt`.
-
-If needed, mount it manually:
+For safety, it shows the target disk and requires the confirmation word
+`INSTALL` before erasing. Useful forms:
 
 ```sh
-sudo mount /dev/YOUR_ROOT_PARTITION /mnt
-sudo mkdir -p /mnt/boot/efi
-sudo mount /dev/YOUR_EFI_PARTITION /mnt/boot/efi
+INSTALL
+INSTALL --disk /dev/sda
+INSTALL --disk /dev/sda --yes
+WUCI_INSTALL_DISK=/dev/sda INSTALL
 ```
 
-Apply Wuci-OS to the installed target:
+Legacy BIOS machines such as the ThinkPad X200/X200s use one ext4 root
+partition and GRUB on the disk. UEFI machines get a 512 MiB EFI partition plus
+an ext4 root partition. After the confirmation, do not interrupt the install.
 
-```sh
-sudo wuci-install-target-activate /mnt
-```
+`wuci-install` is kept as a compatibility alias for `INSTALL`.
 
-Verify:
+## 6. Verify Before Reboot
+
+`INSTALL` runs these checks automatically. If needed, re-run them:
 
 ```sh
 sudo chroot /mnt /usr/local/bin/wuci-status
@@ -181,12 +170,13 @@ sudo chroot /mnt /usr/local/bin/wuci-media-status
 sudo chroot /mnt /usr/local/bin/wuci-source-status
 ```
 
-If chroot checks cannot run, confirm the files are present:
+If target activation needs to be replayed manually:
 
 ```sh
-sudo ls /mnt/usr/local/bin/wuci-status
-sudo ls /mnt/usr/share/wuci-os/OFFLINE-INSTALL.txt
-sudo cat /mnt/etc/os-release
+sudo mount /dev/YOUR_ROOT_PARTITION /mnt
+sudo wuci-install-target-activate /mnt
+sync
+sudo umount -R /mnt
 ```
 
 ## 7. Reboot

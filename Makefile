@@ -121,6 +121,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 .PHONY: wuci-kaiju-test wuci-os-test
 .PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
+.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo
 
 all: check-native $(TARGET)
 
@@ -135,6 +136,25 @@ daylight-cplus-corpus:
 
 daylight-cplus-test: daylight-cplus-verify
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m unittest discover -s daylight/v14c-plus/tests -t daylight/v14c-plus
+
+daylight-meridian-score:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli score --ledger daylight/v15-meridian/examples/ledger.seed.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --out daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json --receipt daylight/v15-meridian/examples/reproducibility-receipt.v15-meridian.json --output-ledger daylight/v15-meridian/examples/ledger.with-scorecard.jsonl
+
+daylight-meridian-verify: daylight-meridian-score
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli verify-scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json --ledger daylight/v15-meridian/examples/ledger.seed.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl
+
+daylight-meridian-corpus:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli freeze-corpus --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --out daylight/v15-meridian/examples/corpus.snapshot.json
+
+daylight-meridian-frontier:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli frontier
+
+daylight-meridian-perfect-demo:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli score --ledger daylight/v15-meridian/examples/ledger.perfect.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --out daylight/v15-meridian/examples/expected-scorecard.perfect.v15-meridian.json
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli verify-scorecard daylight/v15-meridian/examples/expected-scorecard.perfect.v15-meridian.json --ledger daylight/v15-meridian/examples/ledger.perfect.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl
+
+daylight-meridian-test: daylight-meridian-verify
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest discover -s daylight/v15-meridian/tests -t daylight/v15-meridian
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

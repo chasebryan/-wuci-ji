@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian Ledger Head",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ledger_head_version", "head_digest", "entry_count"],
+  "properties": {
+    "ledger_head_version": {"type": "string", "const": "daylight-v15-meridian-ledger-head-v0.1"},
+    "head_digest": {"type": "string", "minLength": 64},
+    "entry_count": {"type": "integer", "minimum": 0}
+  }
+}

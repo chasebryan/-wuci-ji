@@ -1,0 +1,64 @@
+{
+  "external_obligations": [
+    {
+      "external_role": "provenance-auditor",
+      "obligation_id": "o.q10.external_provenance_audit",
+      "q_id": "q10_implementation_traceability",
+      "weight": 1
+    },
+    {
+      "external_role": "external-falsifier",
+      "obligation_id": "o.q11.external_falsification_program",
+      "q_id": "q11_external_falsification_readiness",
+      "weight": 10
+    },
+    {
+      "external_role": "communication-reviewer",
+      "obligation_id": "o.q12.external_communication_review",
+      "q_id": "q12_communication_overall",
+      "weight": 1
+    },
+    {
+      "external_role": "formal-methods-auditor",
+      "obligation_id": "o.q2.external_formal_methods_audit",
+      "q_id": "q2_formalism_mathematical_density",
+      "weight": 1
+    },
+    {
+      "external_role": "release-reproduction-auditor",
+      "obligation_id": "o.q5.external_downstream_packaging_audit",
+      "q_id": "q5_evidence_sheaf_release_engineering",
+      "weight": 1
+    },
+    {
+      "external_role": "boundary-fuzz-auditor",
+      "obligation_id": "o.q6.external_boundary_fuzz_audit",
+      "q_id": "q6_surface_closure_boundary_semantics",
+      "weight": 2
+    },
+    {
+      "external_role": "red-team",
+      "obligation_id": "o.q7.external_red_team",
+      "q_id": "q7_adversarial_survival_model",
+      "weight": 5
+    },
+    {
+      "external_role": "post-quantum-crypto-auditor",
+      "obligation_id": "o.q8.external_pq_crypto_audit",
+      "q_id": "q8_cryptographic_number_theoretic_margin",
+      "weight": 2
+    },
+    {
+      "external_role": "independent-replicator",
+      "obligation_id": "o.q9.external_independent_replication",
+      "q_id": "q9_statistical_confidence_reproducibility",
+      "weight": 3
+    }
+  ],
+  "external_residue_M": 1100,
+  "internal_ceiling_M": 998900,
+  "note": "perfect_score_M is reachable only by closing every external obligation with a non-harness external attestation; the harness cannot self-certify these.",
+  "obligations_digest": "c54c543d970a32cec982543fd8e3681b5d4501c3af7d0ceaf67d571a702dcf25",
+  "obligations_version": "daylight-v15-meridian-obligations-v0.1",
+  "perfect_score_M": 1000000
+}

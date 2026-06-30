@@ -11,13 +11,13 @@ build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 Current digest:
 
 ```text
-SHA-256: f520078f04a4e374aa00317b1c869e21226a9ce59550c2de15c50197439d7b47
+SHA-256: c7acde3254abc60f51bca440802a9efb6960bb377e7c1b360a27d8daf4c86ef0
 ```
 
 Label:
 
 ```text
-wuci-os-v0.4
+wuci-os-v0
 ```
 
 Validated on the build host:
@@ -58,10 +58,8 @@ QEMU direct-kernel BIOS smoke against the final ISO reached:
   runit stage 1 complete
   runit stage 2 entered
   QEMU e1000 Ethernet link up
-
-QEMU serial prompt status:
-  not reached before the bounded 180 second smoke timeout
-  likely local-tty-only getty behavior; still a blocker for serial boot proof
+  Wuci live command list
+  WJ>_ serial prompt
 ```
 
 Bound v0 payloads:
@@ -97,6 +95,7 @@ Live rootfs payloads:
 /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png
 /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png
 /usr/share/wuci-os/daylight/v14c-plus
+/usr/local/bin/INSTALL
 /usr/local/bin/wuci-daylight-v14c-plus
 ```
 
@@ -104,7 +103,6 @@ Release gate blockers intentionally kept:
 
 ```text
 package-closure-fixed-point-missing
-qemu-serial-login-prompt-not-reached
 qemu-boot-trace-not-bound-to-final-manifest
 hardware-boot-trace-missing
 final-iso-manifest-signature-missing
@@ -115,7 +113,7 @@ Package-suite note:
 
 ```text
 The extracted rootfs now contains the minimum live Wi-Fi/admin surface:
-sudo, su, sv, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase, nmcli,
+INSTALL, sudo, su, sv, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase, nmcli,
 NetworkManager, dbus-daemon, dracut, parted, linux-firmware-network,
 linux-firmware-intel, usbutils, pciutils, xbps-install, and
 wuci-network-connect.

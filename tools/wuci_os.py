@@ -110,6 +110,7 @@ LIVE_COMMAND_SURFACE_REQUIRED = (
     "usr/bin/NetworkManager",
     "usr/bin/dbus-daemon",
     "usr/bin/xbps-install",
+    "usr/local/bin/INSTALL",
     "usr/local/bin/wuci-network-connect",
     "usr/local/bin/wuci-install",
     "usr/local/bin/wuci-install-target-activate",
@@ -1549,7 +1550,7 @@ If a package command reports unavailable packages, continue the install. The
 status commands will show what is already present and what needs to be updated
 after first boot.
 
-## 5. Start The Disk Installer
+## 5. Auto Install To Disk
 
 Before writing disks, confirm the target disk:
 
@@ -1557,66 +1558,36 @@ Before writing disks, confirm the target disk:
 lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL
 ```
 
-Start the Wuci installer context:
+Run the uppercase Wuci installer:
 
 ```sh
-sudo wuci-install
+INSTALL
 ```
 
-Use these choices unless you have a specific reason to change them:
+`INSTALL` automates partitioning, formatting, XBPS base install, network and
+desktop packages, GRUB, Wuci target activation, services, and verification.
+It self-escalates through sudo when needed and does not call the missing
+upstream installer backend. For safety, it shows the target disk and requires
+the confirmation word `INSTALL` before erasing.
 
-1. Keyboard: `us`, or your physical keyboard layout.
-2. Network: use the active connection you configured above.
-3. Source: local media if offered, network repository if the installer requires it and networking works.
-4. Hostname: `wuci-os`.
-5. Timezone: your local timezone.
-6. Root password: set a strong temporary admin password.
-7. User account: create `wj` if the installer asks for a normal user.
-8. Bootloader: install GRUB to the main target disk.
-9. Filesystem: ext4 for the simplest install, or btrfs if you know you want snapshots.
-10. Partitioning for UEFI:
-    - EFI system partition: 512 MiB, FAT32, mounted at `/boot/efi`.
-    - Root partition: remaining space, mounted at `/`.
-    - Swap: optional; use it if the machine has limited RAM.
-11. Partitioning for legacy BIOS:
-    - Root partition mounted at `/`.
-    - Swap optional.
-    - Install the bootloader to the disk, not a partition.
-12. Review the target disk carefully.
-13. Confirm the write only when the disk selection is correct.
-14. Let the installer finish, but do not reboot yet.
-
-## 6. Apply Wuci To The Installed Target Before Reboot
-
-After the installer finishes, return to a terminal. The installed root is often
-still mounted at `/mnt`. If it is not, mount it manually.
-
-1. Find the installed root partition:
+Useful forms:
 
 ```sh
-lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL
+INSTALL
+INSTALL --disk /dev/sda
+INSTALL --disk /dev/sda --yes
+WUCI_INSTALL_DISK=/dev/sda INSTALL
 ```
 
-2. If `/mnt` is empty, mount the installed root partition:
+Legacy BIOS machines such as the ThinkPad X200/X200s use one ext4 root
+partition and GRUB on the disk. UEFI machines get a 512 MiB EFI partition plus
+an ext4 root partition. After the confirmation, do not interrupt the install.
 
-```sh
-sudo mount /dev/YOUR_ROOT_PARTITION /mnt
-```
+`wuci-install` is kept as a compatibility alias for `INSTALL`.
 
-3. If you created a UEFI EFI partition, mount it too:
+## 6. Verify Before Reboot
 
-```sh
-sudo mkdir -p /mnt/boot/efi
-sudo mount /dev/YOUR_EFI_PARTITION /mnt/boot/efi
-```
-
-4. Apply the Wuci installed-target profile:
-
-```sh
-sudo wuci-install-target-activate /mnt
-```
-
-5. Verify the target:
+`INSTALL` runs these checks automatically. If you need to re-run them:
 
 ```sh
 sudo chroot /mnt /usr/local/bin/wuci-status
@@ -1626,15 +1597,14 @@ sudo chroot /mnt /usr/local/bin/wuci-media-status
 sudo chroot /mnt /usr/local/bin/wuci-source-status
 ```
 
-If a chroot status command cannot run, do not panic. Run:
+If target activation needs to be replayed manually:
 
 ```sh
-sudo ls /mnt/usr/local/bin/wuci-status
-sudo ls /mnt/usr/share/wuci-os/OFFLINE-INSTALL.txt
-sudo cat /mnt/etc/os-release
+sudo mount /dev/YOUR_ROOT_PARTITION /mnt
+sudo wuci-install-target-activate /mnt
+sync
+sudo umount -R /mnt
 ```
-
-You should see Wuci-OS identity and the Wuci command files.
 
 ## 7. Reboot Into The Installed System
 
@@ -3482,8 +3452,9 @@ def overlay_files() -> dict[str, str]:
             "  wuci-source-status     show onboard Wuci-Ji source payload status",
             "  wuci-daylight-v14c-plus regenerate/verify the Daylight v14C+ candidate score",
             "  wj install <packages>  install Wuci-OS packages",
-            "  wuci-install  start the Wuci-OS installer context",
-            "  wuci-install-target-activate  apply Wuci-OS to the installed target before reboot",
+            "  INSTALL       auto-install Wuci-OS to disk after disk-erasure confirmation",
+            "  wuci-install  same as INSTALL",
+            "  wuci-install-target-activate  reapply Wuci-OS to an installed target",
             "  /usr/share/wuci-os/OFFLINE-INSTALL.txt  full offline install steps",
             "  wuci-dev-install       install desktop, editor, and developer packages",
             "  wuci-security-apply    apply SELinux-first high-assurance settings",
@@ -3932,22 +3903,289 @@ set -eu
 export WUCI_GUIDE_ASSUME_YES=1
 exec wuci-guide "$@"
 """
+    auto_install_script = """#!/bin/sh
+set -eu
+
+target=/mnt
+disk=${WUCI_INSTALL_DISK:-}
+assume_yes=${WUCI_INSTALL_ASSUME_YES:-0}
+mode=${WUCI_INSTALL_BOOT_MODE:-auto}
+auto_reboot=${WUCI_INSTALL_REBOOT:-0}
+
+usage() {
+    cat <<'TEXT'
+Wuci-OS automatic installer
+
+Usage:
+  INSTALL [--disk /dev/sdX] [--yes] [--bios|--uefi] [--reboot]
+
+This command automates partitioning, formatting, package install, GRUB,
+Wuci-OS target activation, services, users, and verification.
+
+By default it requires one disk-erasure confirmation. To script it:
+  WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_ASSUME_YES=1 INSTALL
+TEXT
+}
+
+die() {
+    printf 'INSTALL: %s\\n' "$*" >&2
+    exit 1
+}
+
+say() {
+    printf '\\n==> %s\\n' "$*"
+}
+
+run() {
+    printf '+'
+    for arg in "$@"; do
+        printf ' %s' "$arg"
+    done
+    printf '\\n'
+    "$@"
+}
+
+need() {
+    command -v "$1" >/dev/null 2>&1 || die "required command missing: $1"
+}
+
+if [ "$(id -u)" != "0" ] && [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+    if command -v sudo >/dev/null 2>&1; then
+        exec sudo INSTALL "$@"
+    fi
+    die "run as root: sudo INSTALL"
+fi
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --disk)
+            [ "$#" -ge 2 ] || die "--disk needs a path"
+            disk=$2
+            shift 2
+            ;;
+        --yes|-y)
+            assume_yes=1
+            shift
+            ;;
+        --bios)
+            mode=bios
+            shift
+            ;;
+        --uefi)
+            mode=uefi
+            shift
+            ;;
+        --reboot)
+            auto_reboot=1
+            shift
+            ;;
+        *)
+            die "unknown argument: $1"
+            ;;
+    esac
+done
+
+need xbps-install
+
+detect_disk() {
+    count=0
+    selected=
+    for sysdisk in /sys/block/*; do
+        [ -e "$sysdisk" ] || continue
+        name=${sysdisk##*/}
+        case "$name" in
+            loop*|ram*|sr*|fd*) continue ;;
+        esac
+        [ -b "/dev/$name" ] || continue
+        removable=$(cat "$sysdisk/removable" 2>/dev/null || printf 1)
+        [ "$removable" = "0" ] || continue
+        count=$((count + 1))
+        selected=/dev/$name
+    done
+    if [ "$count" -eq 1 ]; then
+        printf '%s\\n' "$selected"
+    fi
+}
+
+if [ -z "$disk" ]; then
+    disk=$(detect_disk || true)
+fi
+
+if [ -z "$disk" ]; then
+    printf 'INSTALL: could not safely auto-select a target disk. Available disks:\\n' >&2
+    lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL >&2 || true
+    printf 'Run: sudo INSTALL --disk /dev/YOUR_DISK\\n' >&2
+    exit 2
+fi
+
+[ -b "$disk" ] || die "target disk is not a block device: $disk"
+
+if [ "$mode" = "auto" ]; then
+    if [ -d /sys/firmware/efi ]; then
+        mode=uefi
+    else
+        mode=bios
+    fi
+fi
+
+case "$mode" in
+    bios|uefi) ;;
+    *) die "unsupported boot mode: $mode" ;;
+esac
+
+part_path() {
+    case "$1" in
+        *[0-9]) printf '%sp%s\\n' "$1" "$2" ;;
+        *) printf '%s%s\\n' "$1" "$2" ;;
+    esac
+}
+
+if [ "$mode" = "uefi" ]; then
+    esp=$(part_path "$disk" 1)
+    rootpart=$(part_path "$disk" 2)
+else
+    esp=
+    rootpart=$(part_path "$disk" 1)
+fi
+
+say "Target disk"
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL "$disk" || true
+printf 'boot mode: %s\\n' "$mode"
+printf 'root partition: %s\\n' "$rootpart"
+[ -z "$esp" ] || printf 'efi partition: %s\\n' "$esp"
+
+if [ "$assume_yes" != "1" ]; then
+    printf '\\nTHIS ERASES %s. Type INSTALL to continue: ' "$disk"
+    IFS= read -r answer || answer=
+    [ "$answer" = "INSTALL" ] || die "confirmation did not match INSTALL"
+fi
+
+say "Install live-side toolchain"
+run xbps-install -S || true
+run xbps-install -y -Sy xbps parted e2fsprogs dosfstools grub util-linux gawk || true
+
+for tool in parted mkfs.ext4 mount umount chroot blkid grub-install grub-mkconfig; do
+    need "$tool"
+done
+if [ "$mode" = "uefi" ]; then
+    need mkfs.vfat
+fi
+
+say "Unmount stale target mount"
+umount -R "$target" >/dev/null 2>&1 || true
+mkdir -p "$target"
+
+say "Partition disk"
+if command -v wipefs >/dev/null 2>&1; then
+    run wipefs -a "$disk" || true
+fi
+if [ "$mode" = "uefi" ]; then
+    run parted -s "$disk" mklabel gpt
+    run parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
+    run parted -s "$disk" set 1 esp on
+    run parted -s "$disk" mkpart primary ext4 513MiB 100%
+else
+    run parted -s "$disk" mklabel msdos
+    run parted -s "$disk" mkpart primary ext4 1MiB 100%
+    run parted -s "$disk" set 1 boot on
+fi
+sync
+partprobe "$disk" >/dev/null 2>&1 || true
+sleep 2
+
+[ -b "$rootpart" ] || die "root partition did not appear: $rootpart"
+[ -z "$esp" ] || [ -b "$esp" ] || die "EFI partition did not appear: $esp"
+
+say "Format filesystems"
+run mkfs.ext4 -F "$rootpart"
+run mount "$rootpart" "$target"
+if [ -n "$esp" ]; then
+    run mkfs.vfat -F 32 "$esp"
+    mkdir -p "$target/boot/efi"
+    run mount "$esp" "$target/boot/efi"
+fi
+
+say "Install required base, kernel, network, and desktop packages"
+required_packages="base-system linux6.12 grub sudo doas bash shadow util-linux coreutils findutils grep sed gawk less nano vim NetworkManager dbus wpa_supplicant iw rfkill dhcpcd iproute2 wireless-regdb linux-firmware linux-firmware-network linux-firmware-intel pciutils usbutils kmod e2fsprogs python3 git ca-certificates xorg xinit xfce4 xfce4-terminal xterm"
+if [ "$mode" = "uefi" ]; then
+    required_packages="$required_packages grub-x86_64-efi"
+fi
+run xbps-install -y -Sy -r "$target" $required_packages
+
+say "Install best-effort media and preferred terminal packages"
+optional_packages="kitty alsa-utils pipewire wireplumber pulseaudio-utils mesa-dri mesa-vulkan-intel xf86-video-intel"
+xbps-install -y -r "$target" $optional_packages || printf 'INSTALL: optional package group had unavailable packages; continuing with required desktop.\\n' >&2
+
+say "Prepare chroot mounts"
+mkdir -p "$target/proc" "$target/sys" "$target/dev"
+mount -t proc proc "$target/proc" 2>/dev/null || true
+mount --rbind /sys "$target/sys" 2>/dev/null || true
+mount --make-rslave "$target/sys" 2>/dev/null || true
+mount --rbind /dev "$target/dev" 2>/dev/null || true
+mount --make-rslave "$target/dev" 2>/dev/null || true
+
+say "Write installed system identity and fstab"
+root_uuid=$(blkid -s UUID -o value "$rootpart")
+[ -n "$root_uuid" ] || die "could not read root UUID"
+mkdir -p "$target/etc"
+printf 'UUID=%s / ext4 defaults,noatime 0 1\\n' "$root_uuid" > "$target/etc/fstab"
+if [ -n "$esp" ]; then
+    esp_uuid=$(blkid -s UUID -o value "$esp")
+    [ -n "$esp_uuid" ] || die "could not read EFI UUID"
+    printf 'UUID=%s /boot/efi vfat defaults 0 2\\n' "$esp_uuid" >> "$target/etc/fstab"
+fi
+printf 'wuci-os\\n' > "$target/etc/hostname"
+
+say "Enable services"
+chroot "$target" /bin/sh -c 'mkdir -p /etc/runit/runsvdir/default; for svc in udevd dbus NetworkManager; do [ -d /etc/sv/$svc ] && ln -sfn /etc/sv/$svc /etc/runit/runsvdir/default/$svc; done'
+
+say "Apply Wuci-OS installed-target profile"
+if command -v wuci-install-target-activate >/dev/null 2>&1; then
+    run wuci-install-target-activate "$target"
+else
+    die "wuci-install-target-activate is missing from this live image"
+fi
+
+say "Install bootloader"
+if [ "$mode" = "uefi" ]; then
+    chroot "$target" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Wuci-OS || die "UEFI GRUB install failed"
+else
+    chroot "$target" grub-install "$disk" || die "BIOS GRUB install failed"
+fi
+chroot "$target" grub-mkconfig -o /boot/grub/grub.cfg || die "GRUB config generation failed"
+
+say "Write install receipt"
+mkdir -p "$target/usr/share/wuci-os"
+cat > "$target/usr/share/wuci-os/install-receipt.txt" <<TEXT
+Wuci-OS automatic install receipt
+disk=$disk
+root=$rootpart
+mode=$mode
+created_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf unknown)
+TEXT
+
+say "Verify installed target"
+chroot "$target" /usr/local/bin/wuci-status || true
+chroot "$target" /usr/local/bin/wuci-users-status || true
+chroot "$target" /usr/local/bin/wuci-network-status || true
+chroot "$target" /usr/local/bin/wuci-daylight-v14c-plus verify || true
+
+say "Install complete"
+printf 'Installed Wuci-OS to %s.\\n' "$disk"
+printf 'Next: sync; umount -R %s; reboot\\n' "$target"
+if [ "$auto_reboot" = "1" ]; then
+    sync
+    umount -R "$target" || true
+    reboot
+fi
+"""
     install_script = """#!/bin/sh
 set -eu
-cat <<'TEXT'
-Wuci-OS install lane
-
-This starts the Wuci-OS installer context. For high-assurance installs, use
-LUKS/dm-crypt during disk setup, then boot into Wuci-OS and run:
-
-  wuci-dev-install
-  wuci-security-apply
-  wuci-security-status
-
-Finished Wuci-OS images are generated with the Wuci-OS profile baked in.
-TEXT
-installer=$(printf '%s%s' vo id-installer)
-exec "$installer" "$@"
+exec INSTALL "$@"
 """
     install_target_activate_script = """#!/bin/sh
 set -eu
@@ -4005,7 +4243,7 @@ copy_tree() {
 
 printf 'wuci-install-target-activate: target %s\\n' "$target"
 
-for src in /usr/local/bin/wuci-* /usr/local/bin/wj; do
+for src in /usr/local/bin/INSTALL /usr/local/bin/wuci-* /usr/local/bin/wj; do
     [ -e "$src" ] || continue
     copy_file "$src" "${src#/}" 0755
 done
@@ -6064,6 +6302,7 @@ Run:
   wuci-guide
   wuci-auto
   wuci-source-status
+  INSTALL
   wuci-install
   wuci-install-target-activate
   wuci-wallpaper
@@ -6246,6 +6485,7 @@ done
         "usr/local/bin/wuci-enter": enter_script,
         "usr/local/bin/wuci-guide": guide_script,
         "usr/local/bin/wuci-auto": auto_script,
+        "usr/local/bin/INSTALL": auto_install_script,
         "usr/local/bin/wuci-install": install_script,
         "usr/local/bin/wuci-install-target-activate": install_target_activate_script,
         "usr/local/bin/wuci-wallpaper": wallpaper_script,
@@ -7165,6 +7405,10 @@ def _debugfs_remote_path(relative: str | Path) -> str:
     return "/" + rel.as_posix()
 
 
+def _debugfs_inode_mode_text(file_type: int, mode: int) -> str:
+    return f"{file_type | (mode & 0o7777):07o}"
+
+
 def _debugfs_run(image: Path, commands: list[str], label: str, *, cwd: Path) -> subprocess.CompletedProcess[str]:
     command_file = cwd / f".debugfs-{hashlib.sha256(label.encode('utf-8')).hexdigest()[:16]}.cmd"
     _prepare_exclusive_output_path(command_file, f"{label} debugfs command file", force=True)
@@ -7206,7 +7450,7 @@ def _debugfs_write_file_commands(local: Path, relative: str | Path, mode: int) -
     return [
         f"rm {remote}",
         f"write {local} {remote}",
-        f"set_inode_field {remote} mode {oct(0o100000 | (mode & 0o7777))}",
+        f"set_inode_field {remote} mode {_debugfs_inode_mode_text(0o100000, mode)}",
         "dirty",
     ]
 
@@ -7314,6 +7558,23 @@ def _debugfs_path_exists(image: Path, relative: str | Path, *, work_root: Path) 
     result = _debugfs_run(image, [f"stat {_debugfs_remote_path(rel)}"], f"Wuci-OS ext image stat {rel.as_posix()}", cwd=work_root)
     combined = (result.stdout or "") + (result.stderr or "")
     return "Inode:" in combined and "File not found" not in combined
+
+
+def _debugfs_path_stat(image: Path, relative: str | Path, *, work_root: Path) -> dict[str, Any]:
+    rel = _safe_rootfs_relative_path(relative)
+    result = _debugfs_run(image, [f"stat {_debugfs_remote_path(rel)}"], f"Wuci-OS ext image stat {rel.as_posix()}", cwd=work_root)
+    combined = (result.stdout or "") + (result.stderr or "")
+    exists = "Inode:" in combined and "File not found" not in combined
+    mode_match = re.search(r"\bMode:\s+([0-7]+)\b", combined)
+    type_match = re.search(r"\bType:\s+([A-Za-z0-9_-]+)\b", combined)
+    mode_value = int(mode_match.group(1), 8) if mode_match else None
+    return {
+        "path": rel.as_posix(),
+        "exists": exists,
+        "type": type_match.group(1) if type_match else None,
+        "mode": f"0{mode_value:o}" if mode_value is not None else None,
+        "executable": bool(exists and mode_value is not None and (mode_value & 0o111)),
+    }
 
 
 def _next_rootfs_id(lines: list[str], field_index: int, *, start: int) -> int:
@@ -7482,6 +7743,14 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
             mode=0o644,
         )
     )
+    written.append(
+        _write_rootfs_text(
+            rootfs,
+            "etc/sv/agetty-ttyS0/conf",
+            'GETTY_ARGS="--autologin wj --noclear -L -8"\nBAUD_RATE=115200\nTERM_NAME=vt100\n',
+            mode=0o644,
+        )
+    )
     homes: list[dict[str, Any]] = []
     for user in ("wj", "wj_low"):
         home = rootfs / "home" / user
@@ -7599,6 +7868,14 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
             mode=0o644,
             work_root=work_root,
             label="Wuci-OS ext image tty1 autologin",
+        ),
+        _debugfs_write_text_file(
+            ext_image,
+            "etc/sv/agetty-ttyS0/conf",
+            'GETTY_ARGS="--autologin wj --noclear -L -8"\nBAUD_RATE=115200\nTERM_NAME=vt100\n',
+            mode=0o644,
+            work_root=work_root,
+            label="Wuci-OS ext image ttyS0 autologin",
         ),
     ]
     homes: list[dict[str, Any]] = []
@@ -7790,7 +8067,7 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
     )
     written.append(live_access_service)
     accounts = apply_rootfs_account_profile(rootfs)
-    services = enable_rootfs_runit_services(rootfs, ("dbus", "NetworkManager", "udevd"))
+    services = enable_rootfs_runit_services(rootfs, ("dbus", "NetworkManager", "udevd", "agetty-ttyS0"))
     return {
         "schema": "wuci-os-rootfs-overlay-application-v1",
         "status": "pass",
@@ -7829,6 +8106,27 @@ def validate_live_command_surface(rootfs: Path) -> dict[str, Any]:
     }
     if missing:
         raise WuciOSError("Wuci-OS live command surface incomplete: " + ", ".join(missing))
+    return result
+
+
+def validate_ext_image_live_command_surface(ext_image: Path, *, work_root: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for relative in LIVE_COMMAND_SURFACE_REQUIRED:
+        record = _debugfs_path_stat(ext_image, relative, work_root=work_root)
+        records.append(record)
+        if not record["executable"]:
+            missing.append(relative)
+    result = {
+        "schema": "wuci-os-live-command-surface-v1",
+        "status": "pass" if not missing else "fail",
+        "required": list(LIVE_COMMAND_SURFACE_REQUIRED),
+        "records": records,
+        "missing_or_not_executable": missing,
+        "image_layout": "nested-ext-image",
+    }
+    if missing:
+        raise WuciOSError("Wuci-OS nested live command surface incomplete: " + ", ".join(missing))
     return result
 
 
@@ -8509,6 +8807,12 @@ def resolve_rootfs_source(rootfs_source: Path | None) -> Path | None:
     )
 
 
+def auto_rootfs_source(default_root: Path) -> Path | None:
+    if not default_root.exists():
+        return None
+    return resolve_rootfs_source(default_root)
+
+
 def rootfs_source_manifest(rootfs: Path) -> dict[str, Any]:
     release = ""
     os_release = rootfs / "usr/lib/os-release"
@@ -8860,11 +9164,7 @@ def remaster_live_rootfs(
     command_surface = (
         validate_live_command_surface(rootfs)
         if not nested_ext_image.is_file()
-        else {
-            "schema": "wuci-os-live-command-surface-v1",
-            "status": "not-checked",
-            "reason": "nested ext image command surface is validated after image extraction in integration checks",
-        }
+        else validate_ext_image_live_command_surface(nested_ext_image, work_root=work_root)
     )
     kernel_hardware_surface = (
         boot_kernel_selection["kernel_hardware_surface"]
@@ -10060,7 +10360,13 @@ def command_final_iso(args: argparse.Namespace) -> int:
     overlay_root = resolve_repo_path(args.overlay_root, DEFAULT_OVERLAY_ROOT)
     seal_root = resolve_repo_path(args.seal_root, DEFAULT_SEAL_ROOT)
     final_root = resolve_repo_path(args.final_root, DEFAULT_FINAL_ROOT)
-    rootfs_source = resolve_repo_path(args.rootfs_source, DEFAULT_ROOTFS_SOURCE_ROOT) if args.rootfs_source else None
+    rootfs_source = (
+        resolve_repo_path(args.rootfs_source, DEFAULT_ROOTFS_SOURCE_ROOT)
+        if args.rootfs_source
+        else auto_rootfs_source(resolve_repo_path(None, DEFAULT_ROOTFS_SOURCE_ROOT))
+        if args.remaster_rootfs
+        else None
+    )
     keyfile = resolve_repo_path(args.keyfile, DEFAULT_SEAL_ROOT / "wuci-os-overlay.key")
     bin_path = resolve_repo_path(args.bin, DEFAULT_WUCI_BIN)
     result = build_final_iso(
@@ -10086,9 +10392,11 @@ def command_final_iso(args: argparse.Namespace) -> int:
         print(f"rootfs-manifest: {result['rootfs_manifest_path']}")
         print(f"sha256: {result['iso']['digest_vector']['sha256']}")
         print(f"mode: {result['mode']}")
+        if rootfs_source is not None:
+            print(f"rootfs-source: {rootfs_source}")
         if not result["payload_policy"]["rootfs_squashfs_rebuilt"]:
             print("warning: payload-preview ISO; pass --remaster-rootfs for Wuci-OS first-boot identity")
-        elif not result["payload_policy"].get("suite_packages_baked"):
+        elif not result["payload_policy"].get("suite_packages_baked") and rootfs_source is None:
             print("warning: suite packages were not baked; pass --install-suite-packages with host xbps/chroot support")
     return 0 if result.get("validation", {}).get("status") == "pass" else 1
 
