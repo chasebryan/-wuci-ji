@@ -942,6 +942,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     install_script = files["usr/local/bin/INSTALL"]
     assert "required command missing" in install_script
     assert "xbps-install -y -Sy -r \"$target\" $repo_args $required_packages" in install_script
+    assert "sudo opendoas bash" in install_script
+    assert "sudo doas bash" not in install_script
     assert "grub-x86_64-efi" in install_script
     assert "wuci-install-target-activate \"$target\"" in install_script
     assert "grub-install \"$disk\"" in install_script

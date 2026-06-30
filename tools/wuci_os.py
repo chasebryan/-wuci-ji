@@ -530,7 +530,7 @@ SECURITY_PACKAGES = (
     "openssl",
     "audit",
     "sudo",
-    "doas",
+    "opendoas",
 )
 
 SELINUX_CANDIDATE_PACKAGES = (
@@ -4327,7 +4327,7 @@ for repo in $(xbps-query -L 2>/dev/null | awk 'NF >= 2 { print $2 }'); do
 done
 
 say "Install required base, kernel, network, and desktop packages"
-required_packages="base-system linux6.12 grub sudo doas bash shadow util-linux coreutils findutils grep sed gawk less nano vim NetworkManager dbus wpa_supplicant iw rfkill dhcpcd iproute2 wireless-regdb linux-firmware linux-firmware-network linux-firmware-intel pciutils usbutils kmod e2fsprogs python3 git ca-certificates xorg xinit xfce4 xfce4-terminal xterm"
+required_packages="base-system linux6.12 grub sudo opendoas bash shadow util-linux coreutils findutils grep sed gawk less nano vim NetworkManager dbus wpa_supplicant iw rfkill dhcpcd iproute2 wireless-regdb linux-firmware linux-firmware-network linux-firmware-intel pciutils usbutils kmod e2fsprogs python3 git ca-certificates xorg xinit xfce4 xfce4-terminal xterm"
 if [ "$mode" = "uefi" ]; then
     required_packages="$required_packages grub-x86_64-efi"
 fi
