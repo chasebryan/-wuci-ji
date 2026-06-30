@@ -31,13 +31,21 @@ wuci-network-status
 wuci-media-status
 wuci-sdr-status
 wuci-source-status
+wuci-daylight-v14c-plus verify
 ls /usr/share/wuci-os/WUCI_DAYLIGHT_V9.md /usr/share/wuci-os/WUCI_DAYLIGHT_V10.md /usr/share/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md /usr/share/wuci-os/wuci-daylight-v9-sheet.png /usr/share/wuci-os/wuci-daylight-v9-spine.svg /usr/share/wuci-os/wuci-daylight-v10-scoreboard.png /usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png
+ls /usr/share/wuci-os/daylight/v14c-plus/README.md /usr/share/wuci-os/daylight/v14c-plus/src/cli.py /usr/share/wuci-os/daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json
 ```
 
 Open the preferred terminal with:
 
 ```sh
 wuci-terminal
+```
+
+To regenerate the Daylight v14C+ candidate score from onboard frozen inputs:
+
+```sh
+wuci-daylight-v14c-plus score
 ```
 
 ## 3. Network

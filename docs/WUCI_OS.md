@@ -82,6 +82,11 @@ and
 [`docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png`](wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png),
 and embedded under `/wuci-os/` and `/usr/share/wuci-os/` with matching
 filenames.
+The executable v14C+ package is also copied into the live rootfs at
+`/usr/share/wuci-os/daylight/v14c-plus`; run
+`wuci-daylight-v14c-plus verify` to verify the packaged scorecard, or
+`wuci-daylight-v14c-plus score` to regenerate the candidate scorecard from the
+frozen package inputs into `/tmp`.
 
 ## Boundary
 

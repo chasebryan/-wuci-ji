@@ -56,6 +56,7 @@ DEFAULT_DAYLIGHT_V13_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v13-s
 DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png")
 DEFAULT_DAYLIGHT_V14C_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png")
 DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png")
+DEFAULT_DAYLIGHT_V14C_PACKAGE_SOURCE = Path("daylight/v14c-plus")
 SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
 DAYLIGHT_V8_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V8.md")
 DAYLIGHT_V9_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V9.md")
@@ -1481,6 +1482,7 @@ wuci-network-status
 wuci-media-status
 wuci-sdr-status
 wuci-source-status
+wuci-daylight-v14c-plus verify
 ```
 
 The preferred terminal order is kitty, ghostty, xfce4-terminal, xterm, then a
@@ -1710,6 +1712,7 @@ wuci-media-status
 wuci-sdr-status
 wuci-security-status
 wuci-daylight-status
+wuci-daylight-v14c-plus verify
 wuci-source-status
 ```
 
@@ -3477,6 +3480,7 @@ def overlay_files() -> dict[str, str]:
             "  wuci-guide    guided high-assurance setup",
             "  wuci-auto     mostly automated live workstation setup",
             "  wuci-source-status     show onboard Wuci-Ji source payload status",
+            "  wuci-daylight-v14c-plus regenerate/verify the Daylight v14C+ candidate score",
             "  wj install <packages>  install Wuci-OS packages",
             "  wuci-install  start the Wuci-OS installer context",
             "  wuci-install-target-activate  apply Wuci-OS to the installed target before reboot",
@@ -3722,6 +3726,94 @@ if [ "$summary" -eq 1 ]; then
 fi
 exit "$fail"
 """
+    daylight_v14c_script = """#!/bin/sh
+set -eu
+
+pkg=${WUCI_DAYLIGHT_V14C_PACKAGE:-/usr/share/wuci-os/daylight/v14c-plus}
+out=${WUCI_DAYLIGHT_V14C_OUT:-/tmp/wuci-daylight-v14c-plus}
+cmd=${1:-status}
+py=${PYTHON:-python3}
+
+need_python() {
+    if ! command -v "$py" >/dev/null 2>&1; then
+        printf 'wuci-daylight-v14c-plus: python3 is required to execute the harness\\n' >&2
+        exit 127
+    fi
+}
+
+need_package() {
+    if [ ! -d "$pkg/src" ] || [ ! -r "$pkg/examples/ledger.seed.jsonl" ] || [ ! -r "$pkg/examples/corpus.seed.jsonl" ]; then
+        printf 'wuci-daylight-v14c-plus: execution package missing or incomplete: %s\\n' "$pkg" >&2
+        exit 1
+    fi
+}
+
+scorecard_value() {
+    "$py" -c 'import json,sys; d=json.load(open(sys.argv[1], encoding="utf-8")); print("%sM" % d["final_score_M"])' "$1"
+}
+
+verify_packaged() {
+    need_python
+    need_package
+    PYTHONPATH="$pkg" "$py" -m src.cli verify-scorecard "$pkg/examples/expected-scorecard.v14c-plus.json"
+}
+
+regenerate() {
+    need_python
+    need_package
+    mkdir -p "$out"
+    PYTHONPATH="$pkg" "$py" -m src.cli score \
+        --ledger "$pkg/examples/ledger.seed.jsonl" \
+        --corpus "$pkg/examples/corpus.seed.jsonl" \
+        --out "$out/scorecard.v14c-plus.json" \
+        --receipt "$out/reproducibility-receipt.v14c-plus.json" \
+        --output-ledger "$out/ledger.with-scorecard.jsonl"
+    PYTHONPATH="$pkg" "$py" -m src.cli verify-scorecard "$out/scorecard.v14c-plus.json"
+    printf 'candidate: DAYLIGHT v14C+ ASCENDANT CANDIDATE\\n'
+    printf 'score: '
+    scorecard_value "$out/scorecard.v14c-plus.json"
+    printf 'scorecard: %s\\n' "$out/scorecard.v14c-plus.json"
+    printf 'receipt: %s\\n' "$out/reproducibility-receipt.v14c-plus.json"
+}
+
+case "$cmd" in
+    status|--summary)
+        if verify_packaged >/dev/null 2>&1; then
+            printf 'daylight-v14c-plus: candidate score package verifies; generated release authority is still blocked\\n'
+            exit 0
+        fi
+        printf 'daylight-v14c-plus: candidate package verification failed\\n' >&2
+        exit 1
+        ;;
+    verify)
+        verify_packaged
+        scorecard_value "$pkg/examples/expected-scorecard.v14c-plus.json"
+        ;;
+    score|regenerate)
+        regenerate
+        ;;
+    test)
+        need_python
+        need_package
+        PYTHONPATH="$pkg" "$py" -m unittest discover -s "$pkg/tests" -t "$pkg"
+        ;;
+    path)
+        printf '%s\\n' "$pkg"
+        ;;
+    *)
+        cat <<'USAGE'
+usage: wuci-daylight-v14c-plus [status|verify|score|test|path]
+
+status  verify the packaged candidate scorecard
+verify  verify and print the packaged expected score
+score   regenerate the scorecard from frozen package inputs into /tmp
+test    run the package unit tests
+path    print the packaged harness path
+USAGE
+        exit 2
+        ;;
+esac
+"""
     guide_script = """#!/bin/sh
 set -eu
 
@@ -3784,6 +3876,7 @@ run_check 'show network status before setup' wuci-network-status
 run_check 'show media status before setup' wuci-media-status
 run_check 'show onboard source payload status' wuci-source-status
 run_check 'show Daylight evidence status' wuci-daylight-status
+run_check 'verify Daylight v14C+ candidate package' wuci-daylight-v14c-plus
 run_check 'show security status before hardening' wuci-security-status
 
 if ask 'Connect and enable Wi-Fi/network support?' Y; then
@@ -3820,6 +3913,7 @@ run_check 'media status' wuci-media-status
 run_check 'SDR status' wuci-sdr-status
 run_check 'SELinux status' wuci-selinux-status
 run_check 'Daylight evidence status' wuci-daylight-status
+run_check 'Daylight v14C+ candidate package' wuci-daylight-v14c-plus
 run_check 'onboard source payload status' wuci-source-status
 
 cat <<'TEXT'
@@ -4046,6 +4140,7 @@ Usage:
   wj status                       show Wuci-OS status
   wj security                     show high-assurance security status
   wj daylight                     show Daylight evidence status
+  wj daylight-v14c                verify/regenerate Daylight v14C+ candidate score
   wj enter [user]                 enter WJ>_ operator shell
   wj attest                       run local proof marker
 
@@ -4183,6 +4278,9 @@ case "$cmd" in
         ;;
     daylight)
         exec wuci-daylight-status "$@"
+        ;;
+    daylight-v14c|daylight-v14c-plus|v14c)
+        exec wuci-daylight-v14c-plus "$@"
         ;;
     enter|shell)
         exec wuci-enter "$@"
@@ -4928,20 +5026,38 @@ online() {
     return 1
 }
 
+auth_tool_ready() {
+    tool_path=$1
+    [ -n "$tool_path" ] || return 1
+    [ -x "$tool_path" ] || return 1
+    uid=$(ls -ln "$tool_path" 2>/dev/null | awk '{ print $3; exit }')
+    [ "$uid" = "0" ] || return 1
+    [ -u "$tool_path" ] || return 1
+}
+
+try_escalate() {
+    tool=$1
+    shift
+    tool_path=$(command -v "$tool" 2>/dev/null || true)
+    [ -n "$tool_path" ] || return 1
+    if auth_tool_ready "$tool_path"; then
+        exec "$tool_path" "$0" "$@"
+    fi
+    printf 'wuci-network-connect: %s exists but is not root-owned setuid: %s\\n' "$tool" "$tool_path" >&2
+    printf 'wuci-network-connect: the live image privilege profile is broken; expected root:root mode 4755 for sudo/su/doas.\\n' >&2
+    return 1
+}
+
 if [ "$mode" = "--check" ]; then
     online
     exit $?
 fi
 
 if [ "$(id -u)" != "0" ]; then
-    if command -v sudo >/dev/null 2>&1; then
-        exec sudo "$0" "$@"
-    fi
-    if command -v doas >/dev/null 2>&1; then
-        exec doas "$0" "$@"
-    fi
-    printf 'wuci-network-connect: root is required and sudo/doas is unavailable.\\n' >&2
-    printf 'wuci-network-connect: log in as root, then run: wuci-network-connect\\n' >&2
+    try_escalate sudo "$@" || true
+    try_escalate doas "$@" || true
+    printf 'wuci-network-connect: root is required and no usable sudo/doas path is available.\\n' >&2
+    printf 'wuci-network-connect: rebuild/remaster this ISO or repair auth setuid bits from a root shell, then rerun wuci-network-connect.\\n' >&2
     exit 1
 fi
 
@@ -4970,11 +5086,39 @@ enable_service() {
 
 enable_service dbus
 enable_service NetworkManager
+enable_service udevd
 
 if command -v rfkill >/dev/null 2>&1; then
     rfkill unblock wifi 2>/dev/null || true
     rfkill unblock all 2>/dev/null || true
 fi
+
+try_load_kernel_modules() {
+    command -v modprobe >/dev/null 2>&1 || return 0
+    for module in cfg80211 mac80211 iwlwifi iwldvm mt7921u mt76_usb mt76 rtw88_pci rtw89_pci ath10k_pci ath11k_pci brcmfmac xhci_pci xhci_hcd ehci_pci ehci_hcd uhci_hcd; do
+        modprobe "$module" >/dev/null 2>&1 || true
+    done
+}
+
+print_wireless_snapshot() {
+    printf 'wuci-network-connect: hardware snapshot follows\\n' >&2
+    uname -r 2>/dev/null | sed 's/^/  kernel: /' >&2 || true
+    if command -v rfkill >/dev/null 2>&1; then
+        rfkill list all 2>/dev/null | sed 's/^/  rfkill: /' >&2 || true
+    fi
+    if command -v iw >/dev/null 2>&1; then
+        iw dev 2>/dev/null | sed 's/^/  iw: /' >&2 || true
+    fi
+    if command -v ip >/dev/null 2>&1; then
+        ip -br link 2>/dev/null | sed 's/^/  link: /' >&2 || true
+    fi
+    if command -v lspci >/dev/null 2>&1; then
+        lspci -nnk 2>/dev/null | grep -A4 -iE 'network|wireless|wifi' | sed 's/^/  pci: /' >&2 || true
+    fi
+    if command -v lsusb >/dev/null 2>&1; then
+        lsusb 2>/dev/null | sed 's/^/  usb: /' >&2 || true
+    fi
+}
 
 check_wireless_kernel_stack() {
     kernel_release=$(uname -r 2>/dev/null || printf unknown)
@@ -4998,6 +5142,7 @@ check_wireless_kernel_stack() {
         printf 'wuci-network-connect: kernel wireless stack missing for %s:%s\\n' "$kernel_release" "$missing" >&2
         printf 'wuci-network-connect: nl80211 cannot work until the ISO includes matching cfg80211/mac80211 modules and firmware.\\n' >&2
         printf 'wuci-network-connect: use Ethernet, then rebuild or install the matching linux package and run depmod -a %s.\\n' "$kernel_release" >&2
+        print_wireless_snapshot
         return 1
     fi
     return 0
@@ -5044,11 +5189,16 @@ if online; then
     exit 0
 fi
 
+try_load_kernel_modules
+if ! check_wireless_kernel_stack; then
+    printf 'wuci-network-connect: refusing Wi-Fi scan because the kernel cannot provide nl80211.\\n' >&2
+    exit 1
+fi
+
 if command -v nmcli >/dev/null 2>&1; then
 
     nmcli networking on 2>/dev/null || true
     nmcli radio wifi on 2>/dev/null || true
-    check_wireless_kernel_stack || true
 
     printf 'Wuci-OS network credential prompt\\n'
     nmcli -f DEVICE,TYPE,STATE device status 2>/dev/null || true
@@ -5061,8 +5211,27 @@ if command -v nmcli >/dev/null 2>&1; then
     if [ "$has_wifi" -eq 0 ]; then
         printf 'wuci-network-connect: no Wi-Fi device reported by NetworkManager. Trying wpa_supplicant fallback.\\n' >&2
     else
+        unavailable_wifi=0
+        if nmcli -t -f DEVICE,TYPE,STATE device status 2>/dev/null | awk -F: '$2 == "wifi" && $3 == "unavailable" { found=1 } END { exit found ? 0 : 1 }'; then
+            unavailable_wifi=1
+        fi
+        if [ "$unavailable_wifi" -eq 1 ]; then
+            printf 'wuci-network-connect: NetworkManager reports Wi-Fi unavailable; not asking for SSID yet.\\n' >&2
+            printf 'wuci-network-connect: check rfkill hard-block, hardware switch, BIOS wireless setting, and loaded iwlwifi/USB driver.\\n' >&2
+            print_wireless_snapshot
+            exit 1
+        fi
 
-        nmcli device wifi rescan 2>/dev/null || true
+        if ! rescan_output=$(nmcli device wifi rescan 2>&1); then
+            printf 'wuci-network-connect: Wi-Fi rescan failed: %s\\n' "$rescan_output" >&2
+            case "$rescan_output" in
+                *unavailable*|*Unavailable*)
+                    printf 'wuci-network-connect: not asking for SSID while Wi-Fi is unavailable.\\n' >&2
+                    print_wireless_snapshot
+                    exit 1
+                    ;;
+            esac
+        fi
         nmcli -f SSID,SECURITY,SIGNAL device wifi list 2>/dev/null || true
 
         ssid="${WUCI_WIFI_SSID:-}"
@@ -5123,6 +5292,11 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
         printf 'wuci-network-connect: no Wi-Fi interface found for wpa_supplicant\\n' >&2
     else
         ip link set "$wifi_iface" up >/dev/null 2>&1 || true
+        if command -v rfkill >/dev/null 2>&1 && rfkill list all 2>/dev/null | grep -qi 'Hard blocked: yes'; then
+            printf 'wuci-network-connect: Wi-Fi is hard-blocked; not asking for SSID until the hardware switch/BIOS block is cleared.\\n' >&2
+            print_wireless_snapshot
+            exit 1
+        fi
         ssid="${WUCI_WIFI_SSID:-}"
         if [ -z "$ssid" ]; then
             if [ -r /dev/tty ]; then
@@ -5218,6 +5392,7 @@ enable_service() {
 
 enable_service dbus
 enable_service NetworkManager
+enable_service udevd
 if command -v rfkill >/dev/null 2>&1; then
     rfkill unblock wifi 2>/dev/null || true
     rfkill unblock all 2>/dev/null || true
@@ -5903,6 +6078,7 @@ Run:
   wuci-security-status
   wuci-selinux-status
   wuci-daylight-status
+  wuci-daylight-v14c-plus
   wuci-ai-status
   wuci-ai-setup
   wuci-grok-build
@@ -6086,6 +6262,7 @@ done
         "usr/local/bin/wuci-security-status": security_status_script,
         "usr/local/bin/wuci-selinux-status": selinux_status_script,
         "usr/local/bin/wuci-daylight-status": daylight_status_script,
+        "usr/local/bin/wuci-daylight-v14c-plus": daylight_v14c_script,
         "usr/local/bin/wuci-ai-status": ai_status_script,
         "usr/local/bin/wuci-ai-setup": ai_setup_script,
         "usr/local/bin/wuci-grok-build": grok_build_script,
@@ -6205,6 +6382,15 @@ def create_overlay(
         _read_regular_bytes(daylight_v14c_wide, "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
         "Wuci-OS Daylight v14C+ Ascendant wide sheet",
     )
+    daylight_v14c_package = repo_root() / DEFAULT_DAYLIGHT_V14C_PACKAGE_SOURCE
+    try:
+        daylight_v14c_package_info = os.lstat(daylight_v14c_package)
+    except OSError as exc:
+        raise WuciOSError(f"missing Wuci-OS Daylight v14C+ execution package: {daylight_v14c_package}") from exc
+    if stat.S_ISLNK(daylight_v14c_package_info.st_mode):
+        raise WuciOSError(f"Wuci-OS Daylight v14C+ execution package must not be a symlink: {daylight_v14c_package}")
+    if not stat.S_ISDIR(daylight_v14c_package_info.st_mode):
+        raise WuciOSError(f"Wuci-OS Daylight v14C+ execution package must be a directory: {daylight_v14c_package}")
     try:
         root_info = os.lstat(root)
     except FileNotFoundError:
@@ -6324,6 +6510,35 @@ def create_overlay(
         mode=0o644,
     )
     written.append(str(daylight_v14c_wide_overlay_path))
+    daylight_v14c_package_overlay_path = Path("usr/share/wuci-os/daylight/v14c-plus")
+    daylight_v14c_package_records: list[dict[str, Any]] = []
+    for source_path in sorted(daylight_v14c_package.rglob("*"), key=lambda item: item.relative_to(daylight_v14c_package).as_posix()):
+        rel = source_path.relative_to(daylight_v14c_package)
+        rel_text = rel.as_posix()
+        if "__pycache__" in rel.parts or rel_text.endswith(".pyc"):
+            continue
+        if rel.is_absolute() or ".." in rel.parts or rel_text.startswith("/"):
+            raise WuciOSError(f"unsafe Daylight v14C+ package path: {rel_text}")
+        info = os.lstat(source_path)
+        if stat.S_ISDIR(info.st_mode):
+            continue
+        target = daylight_v14c_package_overlay_path / rel
+        digest, size = _copy_verified_regular_file(
+            source_path,
+            root / target,
+            f"Wuci-OS overlay Daylight v14C+ execution package file {rel_text}",
+            expected_info=info,
+            mode=0o755 if rel.parts and rel.parts[0] == "src" and source_path.suffix == ".py" else 0o644,
+        )
+        written.append(str(target))
+        daylight_v14c_package_records.append(
+            {
+                "path": target.as_posix(),
+                "source_path": str(source_path),
+                "bytes": size,
+                "digest_vector": digest,
+            }
+        )
     manifest_relative = "usr/share/wuci-os/overlay-manifest.json"
     manifest_files = written + [manifest_relative]
     manifest = {
@@ -6396,6 +6611,14 @@ def create_overlay(
             "source_path": str(daylight_v14c_wide),
             "bytes": daylight_v14c_wide_bytes,
             "digest_vector": daylight_v14c_wide_digest,
+        },
+        "daylight_v14c_execution_package": {
+            "path": str(daylight_v14c_package_overlay_path),
+            "source_path": str(daylight_v14c_package),
+            "file_count": len(daylight_v14c_package_records),
+            "files": daylight_v14c_package_records,
+            "command": "wuci-daylight-v14c-plus",
+            "claim": "candidate score package only; not release authority",
         },
         "boundary_denials": list(BOUNDARY_DENIALS),
     }
@@ -7136,6 +7359,80 @@ def _ensure_shadow_line(lines: list[str], name: str, *, secret: str = "!", last_
     return updated
 
 
+def restore_rootfs_auth_setuid(rootfs: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing_required: list[str] = []
+    for rel in (*AUTH_SETUID_REQUIRED_PATHS, *AUTH_SETUID_OPTIONAL_PATHS):
+        path = rootfs / rel
+        required = rel in AUTH_SETUID_REQUIRED_PATHS
+        if not path.exists():
+            records.append({"path": rel, "status": "missing", "required": required})
+            if required:
+                missing_required.append(rel)
+            continue
+        try:
+            os.chmod(path, 0o4755)
+            owner_repair = "not-root"
+            if os.geteuid() == 0:
+                os.chown(path, 0, 0)
+                owner_repair = "root:root"
+            info = os.stat(path)
+        except OSError as exc:
+            records.append({"path": rel, "status": "fail", "required": required, "problem": str(exc)})
+            if required:
+                missing_required.append(rel)
+            continue
+        records.append(
+            {
+                "path": rel,
+                "status": "pass",
+                "required": required,
+                "mode": oct(stat.S_IMODE(info.st_mode)),
+                "uid": info.st_uid,
+                "gid": info.st_gid,
+                "owner_repair": owner_repair,
+            }
+        )
+    if missing_required:
+        raise WuciOSError("Wuci-OS rootfs missing required auth setuid tools: " + ", ".join(missing_required))
+    return {
+        "schema": "wuci-os-rootfs-auth-setuid-repair-v1",
+        "status": "pass",
+        "records": records,
+    }
+
+
+def restore_ext_image_auth_setuid(ext_image: Path, work_root: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing_required: list[str] = []
+    commands: list[str] = []
+    for rel in (*AUTH_SETUID_REQUIRED_PATHS, *AUTH_SETUID_OPTIONAL_PATHS):
+        required = rel in AUTH_SETUID_REQUIRED_PATHS
+        if not _debugfs_path_exists(ext_image, rel, work_root=work_root):
+            records.append({"path": rel, "status": "missing", "required": required})
+            if required:
+                missing_required.append(rel)
+            continue
+        remote = _debugfs_safe_path(rel)
+        commands.extend(
+            [
+                f"set_inode_field {remote} uid 0",
+                f"set_inode_field {remote} gid 0",
+                f"set_inode_field {remote} mode 0104755",
+            ]
+        )
+        records.append({"path": rel, "status": "pass", "required": required, "mode": "0o4755", "uid": 0, "gid": 0})
+    if missing_required:
+        raise WuciOSError("Wuci-OS ext image missing required auth setuid tools: " + ", ".join(missing_required))
+    if commands:
+        _debugfs_run(ext_image, commands, "Wuci-OS ext image auth setuid repair", cwd=work_root)
+    return {
+        "schema": "wuci-os-ext-image-auth-setuid-repair-v1",
+        "status": "pass",
+        "records": records,
+    }
+
+
 def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
     passwd_lines = [line for line in _rootfs_text(rootfs, "etc/passwd").splitlines() if line]
     group_lines = [line for line in _rootfs_text(rootfs, "etc/group").splitlines() if line]
@@ -7211,6 +7508,7 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
                     os.chown(path, target_uid, target_gid)
                 except OSError:
                     pass
+    auth_setuid = restore_rootfs_auth_setuid(rootfs)
     return {
         "schema": "wuci-os-rootfs-account-profile-v1",
         "status": "pass",
@@ -7219,6 +7517,7 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
         "live_password": "empty password for live/demo only",
         "written": written,
         "home_files": homes,
+        "auth_setuid": auth_setuid,
     }
 
 
@@ -7341,6 +7640,7 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
                 cwd=work_root,
             )
             homes.append(record)
+    auth_setuid = restore_ext_image_auth_setuid(ext_image, work_root)
     return {
         "schema": "wuci-os-ext-image-account-profile-v1",
         "status": "pass",
@@ -7349,6 +7649,7 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
         "live_password": "empty password for live/demo only",
         "written": written,
         "home_files": homes,
+        "auth_setuid": auth_setuid,
     }
 
 
@@ -7467,6 +7768,11 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
             "chmod 0440 /etc/sudoers.d/90-wuci-os-wj\n"
             "printf 'permit nopass wj as root\\n' > /etc/doas.d/90-wuci-os-wj.conf\n"
             "chmod 0440 /etc/doas.d/90-wuci-os-wj.conf\n"
+            "for tool in /usr/bin/sudo /usr/bin/su /usr/bin/doas; do\n"
+            "    [ -e \"$tool\" ] || continue\n"
+            "    chown root:root \"$tool\" 2>/dev/null || true\n"
+            "    chmod 4755 \"$tool\" 2>/dev/null || true\n"
+            "done\n"
             "if command -v usermod >/dev/null 2>&1 && id wj >/dev/null 2>&1; then\n"
             "    for group in wheel audio video input kvm network storage; do\n"
             "        getent group \"$group\" >/dev/null 2>&1 && usermod -aG \"$group\" wj >/dev/null 2>&1 || true\n"
@@ -7477,7 +7783,7 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
     )
     written.append(live_access_service)
     accounts = apply_rootfs_account_profile(rootfs)
-    services = enable_rootfs_runit_services(rootfs, ("dbus", "NetworkManager"))
+    services = enable_rootfs_runit_services(rootfs, ("dbus", "NetworkManager", "udevd"))
     return {
         "schema": "wuci-os-rootfs-overlay-application-v1",
         "status": "pass",
@@ -8080,6 +8386,11 @@ def apply_wuci_overlay_to_ext_image(overlay_root: Path, ext_image: Path, work_ro
             "chmod 0440 /etc/sudoers.d/90-wuci-os-wj\n"
             "printf 'permit nopass wj as root\\n' > /etc/doas.d/90-wuci-os-wj.conf\n"
             "chmod 0440 /etc/doas.d/90-wuci-os-wj.conf\n"
+            "for tool in /usr/bin/sudo /usr/bin/su /usr/bin/doas; do\n"
+            "    [ -e \"$tool\" ] || continue\n"
+            "    chown root:root \"$tool\" 2>/dev/null || true\n"
+            "    chmod 4755 \"$tool\" 2>/dev/null || true\n"
+            "done\n"
             "if command -v usermod >/dev/null 2>&1 && id wj >/dev/null 2>&1; then\n"
             "    for group in wheel audio video input kvm network storage; do\n"
             "        getent group \"$group\" >/dev/null 2>&1 && usermod -aG \"$group\" wj >/dev/null 2>&1 || true\n"

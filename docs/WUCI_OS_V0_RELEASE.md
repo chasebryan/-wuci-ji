@@ -11,7 +11,7 @@ build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 Current digest:
 
 ```text
-SHA-256: d474003903fd5cf93d258a31f3f18d4f4e23505283d233a993e51e6a7a8eff7b
+SHA-256: e9f30e12cf176e271ea5f40c656e5b52937fc808751ab062aa3d4ef4ee30a4f9
 ```
 
 Label:
@@ -96,6 +96,8 @@ Live rootfs payloads:
 /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png
 /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png
 /usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png
+/usr/share/wuci-os/daylight/v14c-plus
+/usr/local/bin/wuci-daylight-v14c-plus
 ```
 
 Release gate blockers intentionally kept:

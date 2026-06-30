@@ -898,6 +898,7 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-selinux-status",
         "usr/local/bin/wuci-ai-setup",
         "usr/local/bin/wuci-grok-build",
+        "usr/local/bin/wuci-daylight-v14c-plus",
         "usr/share/wuci-os/accounts.json",
         "usr/share/wuci-os/packages.json",
         "usr/share/wuci-os/security-profile.json",
@@ -950,8 +951,14 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wpa_supplicant" in files["usr/local/bin/wuci-network-connect"]
     assert "kernel wireless stack missing" in files["usr/local/bin/wuci-network-connect"]
     assert "cfg80211/mac80211" in files["usr/local/bin/wuci-network-connect"]
+    assert "refusing Wi-Fi scan because the kernel cannot provide nl80211" in files["usr/local/bin/wuci-network-connect"]
+    assert "NetworkManager reports Wi-Fi unavailable; not asking for SSID yet" in files["usr/local/bin/wuci-network-connect"]
+    assert "root-owned setuid" in files["usr/local/bin/wuci-network-connect"]
+    assert "hardware snapshot follows" in files["usr/local/bin/wuci-network-connect"]
     assert "depmod -a" in files["usr/local/bin/wuci-network-connect"]
     assert "WUCI_WIFI_SSID" in files["usr/local/bin/wuci-network-connect"]
+    assert "enable_service udevd" in files["usr/local/bin/wuci-network-connect"]
+    assert "enable_service udevd" in files["usr/local/bin/wuci-network-apply"]
     assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
     assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
     assert "xbps-install -Syu" in files["usr/local/bin/wuci-update"]
@@ -978,6 +985,11 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "WUCI_GUIDE_ASSUME_YES=1" in files["usr/local/bin/wuci-auto"]
     assert "Daylight/WJSEAL" in files["usr/local/bin/wuci-daylight-status"]
     assert "release seal pending" in files["usr/local/bin/wuci-daylight-status"]
+    assert "DAYLIGHT v14C+ ASCENDANT CANDIDATE" in files["usr/local/bin/wuci-daylight-v14c-plus"]
+    assert "PYTHONPATH=\"$pkg\"" in files["usr/local/bin/wuci-daylight-v14c-plus"]
+    assert "final_score_M" in files["usr/local/bin/wuci-daylight-v14c-plus"]
+    assert "wuci-daylight-v14c-plus" in files["usr/local/bin/wuci-guide"]
+    assert "daylight-v14c" in files["usr/local/bin/wj"]
     assert "/opt/wuci-os/source/wuci-ji" in files["usr/local/bin/wuci-source-status"]
     assert "/opt/wuci-os/source/upstream" in files["usr/local/bin/wuci-source-status"]
     assert "WJ>_" in files["etc/profile.d/wuci-prompt.sh"]
@@ -1102,6 +1114,10 @@ def assert_overlay_profile(tmp: Path) -> None:
         (overlay_root / "usr/share/wuci-os/full-suite-packages.txt").read_bytes()
     )
     assert any(record["path"] == "usr/local/bin/wuci-security-apply" for record in records)
+    assert any(record["path"] == "usr/share/wuci-os/daylight/v14c-plus/src/cli.py" for record in records)
+    assert manifest["daylight_v14c_execution_package"]["path"] == "usr/share/wuci-os/daylight/v14c-plus"
+    assert manifest["daylight_v14c_execution_package"]["command"] == "wuci-daylight-v14c-plus"
+    assert manifest["daylight_v14c_execution_package"]["file_count"] > 0
 
     for relative in sorted(path for path in files if path.startswith("usr/local/bin/")):
         proc = subprocess.run(
@@ -1257,6 +1273,7 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/local/bin/wuci-media-apply").is_file()
     assert (rootfs / "usr/local/bin/wuci-sdr-apply").is_file()
     assert (rootfs / "usr/local/bin/wuci-install-target-activate").is_file()
+    assert (rootfs / "usr/local/bin/wuci-daylight-v14c-plus").is_file()
     assert (rootfs / "usr/share/wuci-os/OFFLINE-INSTALL.txt").is_file()
     assert (rootfs / "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md").is_file()
     assert (rootfs / "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md").is_file()
@@ -1271,6 +1288,10 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/README.md").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/src/cli.py").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/rules/weights.v13.json").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json").is_file()
     assert 'NAME="Wuci-OS"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
     assert "wj:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
     assert "wj_low:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
@@ -1282,8 +1303,12 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert "dialout:" in (rootfs / "etc/group").read_text(encoding="utf-8")
     assert (rootfs / "etc/runit/runsvdir/default/dbus").is_symlink()
     assert (rootfs / "etc/runit/runsvdir/default/NetworkManager").is_symlink()
+    assert (rootfs / "etc/runit/runsvdir/default/udevd").is_symlink()
     assert "wj ALL=(ALL:ALL) NOPASSWD: ALL" in (rootfs / "etc/sudoers.d/90-wuci-os-wj").read_text(encoding="utf-8")
     assert "permit nopass wj as root" in (rootfs / "etc/doas.d/90-wuci-os-wj.conf").read_text(encoding="utf-8")
+    assert ((rootfs / "usr/bin/sudo").stat().st_mode & 0o4755) == 0o4755
+    assert ((rootfs / "usr/bin/su").stat().st_mode & 0o4755) == 0o4755
+    assert "chmod 4755 \"$tool\"" in (rootfs / "etc/runit/core-services/04-wuci-live-access.sh").read_text(encoding="utf-8")
     assert "--autologin wj" in (rootfs / "etc/sv/agetty-tty1/conf").read_text(encoding="utf-8")
     assert (rootfs / "home/wj/.xinitrc").is_file()
     assert (rootfs / "home/wj/.config/kitty/kitty.conf").is_file()
