@@ -951,6 +951,7 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wpa_supplicant" in files["usr/local/bin/wuci-network-connect"]
     assert "kernel wireless stack missing" in files["usr/local/bin/wuci-network-connect"]
     assert "cfg80211/mac80211" in files["usr/local/bin/wuci-network-connect"]
+    assert "$module-unloaded" in files["usr/local/bin/wuci-network-connect"]
     assert "refusing Wi-Fi scan because the kernel cannot provide nl80211" in files["usr/local/bin/wuci-network-connect"]
     assert "NetworkManager reports Wi-Fi unavailable; not asking for SSID yet" in files["usr/local/bin/wuci-network-connect"]
     assert "root-owned setuid" in files["usr/local/bin/wuci-network-connect"]
@@ -1247,6 +1248,12 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     (rootfs / "etc/runit").mkdir(parents=True)
     (rootfs / "etc/sv/dbus").mkdir(parents=True)
     (rootfs / "etc/sv/NetworkManager").mkdir(parents=True)
+    (rootfs / "etc/sv/udevd").mkdir(parents=True)
+    (rootfs / "usr/bin").mkdir(parents=True)
+    for command in ("sudo", "su", "doas"):
+        path = rootfs / "usr/bin" / command
+        path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        path.chmod(0o755)
     (rootfs / "etc").mkdir(exist_ok=True)
     (rootfs / "etc/runit/1").write_text("=> Welcome to Void!\nvoid-live\n", encoding="utf-8")
     (rootfs / "etc/issue").write_text(

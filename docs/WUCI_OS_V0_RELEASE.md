@@ -11,7 +11,7 @@ build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 Current digest:
 
 ```text
-SHA-256: e9f30e12cf176e271ea5f40c656e5b52937fc808751ab062aa3d4ef4ee30a4f9
+SHA-256: f520078f04a4e374aa00317b1c869e21226a9ce59550c2de15c50197439d7b47
 ```
 
 Label:

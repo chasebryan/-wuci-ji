@@ -5136,6 +5136,13 @@ check_wireless_kernel_stack() {
         done
         if [ "$found" -eq 0 ]; then
             missing="$missing $module"
+            continue
+        fi
+        if command -v modprobe >/dev/null 2>&1; then
+            modprobe "$module" >/dev/null 2>&1 || true
+        fi
+        if [ ! -d "/sys/module/$module" ]; then
+            missing="$missing $module-unloaded"
         fi
     done
     if [ -n "$missing" ]; then
@@ -7371,11 +7378,11 @@ def restore_rootfs_auth_setuid(rootfs: Path) -> dict[str, Any]:
                 missing_required.append(rel)
             continue
         try:
-            os.chmod(path, 0o4755)
             owner_repair = "not-root"
             if os.geteuid() == 0:
                 os.chown(path, 0, 0)
                 owner_repair = "root:root"
+            os.chmod(path, 0o4755)
             info = os.stat(path)
         except OSError as exc:
             records.append({"path": rel, "status": "fail", "required": required, "problem": str(exc)})
