@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian Corpus Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "corpus_entry_id",
+    "category",
+    "generator",
+    "input_digest",
+    "observed_behavior",
+    "classification",
+    "coverage_contribution",
+    "linked_ledger_entry",
+    "timestamp_utc"
+  ],
+  "properties": {
+    "corpus_entry_id": {"type": "string", "minLength": 1},
+    "category": {
+      "type": "string",
+      "enum": ["boundary_violation", "proof_failure", "adversarial_input", "statistical_outlier", "transcript_mismatch", "downgrade_trigger", "manual_score_mutation", "reproducibility_failure"]
+    },
+    "generator": {"type": "string", "minLength": 1},
+    "input_digest": {"type": "string", "minLength": 64},
+    "observed_behavior": {"type": "string", "minLength": 1},
+    "classification": {"type": "string", "minLength": 1},
+    "coverage_contribution": {"type": "string", "minLength": 1},
+    "linked_ledger_entry": {"type": "string", "minLength": 1},
+    "timestamp_utc": {"type": "string", "minLength": 20},
+    "closes_obligations": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

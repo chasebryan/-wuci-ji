@@ -82,6 +82,11 @@ and
 [`docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png`](wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png),
 and embedded under `/wuci-os/` and `/usr/share/wuci-os/` with matching
 filenames.
+The executable v14C+ package is also copied into the live rootfs at
+`/usr/share/wuci-os/daylight/v14c-plus`; run
+`wuci-daylight-v14c-plus verify` to verify the packaged scorecard, or
+`wuci-daylight-v14c-plus score` to regenerate the candidate scorecard from the
+frozen package inputs into `/tmp`.
 
 ## Boundary
 
@@ -240,7 +245,10 @@ tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages
 The beginning-to-end offline install checklist is
 [WUCI_OS_OFFLINE_INSTALL.md](WUCI_OS_OFFLINE_INSTALL.md). The ISO also carries it
 at `/wuci-os/OFFLINE-INSTALL.txt`, and the live profile exposes it at
-`/usr/share/wuci-os/OFFLINE-INSTALL.txt`.
+`/usr/share/wuci-os/OFFLINE-INSTALL.txt`. The live install command is
+uppercase `INSTALL`; it self-escalates through sudo when needed and performs
+the Wuci auto-install path directly, while `wuci-install` remains a
+compatibility alias.
 
 The source ISO is copied under `build/wuci-os/source/`, which is ignored by Git.
 The source ISO is an operator-supplied input, not repository source. Source ISO

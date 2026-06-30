@@ -889,6 +889,7 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-sdr-apply",
         "usr/local/bin/wuci-sdr-status",
         "usr/local/bin/wuci-update",
+        "usr/local/bin/INSTALL",
         "usr/local/bin/wj",
         "usr/local/bin/wuci-users-apply",
         "usr/local/bin/wuci-users-status",
@@ -898,6 +899,7 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-selinux-status",
         "usr/local/bin/wuci-ai-setup",
         "usr/local/bin/wuci-grok-build",
+        "usr/local/bin/wuci-daylight-v14c-plus",
         "usr/share/wuci-os/accounts.json",
         "usr/share/wuci-os/packages.json",
         "usr/share/wuci-os/security-profile.json",
@@ -932,7 +934,19 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wuci-media-apply" in files["usr/local/bin/wuci-guide"]
     assert "wuci-sdr-apply" in files["usr/local/bin/wuci-guide"]
     assert "wuci-install-target-activate" in files["usr/share/wuci-os/README"]
+    assert "auto-install Wuci-OS to disk" in files["usr/share/wuci-os/README"]
+    assert "\nINSTALL\n" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
+    assert "wuci-install` is kept as a compatibility alias for `INSTALL`" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
     assert "sudo wuci-install-target-activate /mnt" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
+    assert "required command missing" in files["usr/local/bin/INSTALL"]
+    assert "xbps-install -y -Sy -r \"$target\"" in files["usr/local/bin/INSTALL"]
+    assert "grub-x86_64-efi" in files["usr/local/bin/INSTALL"]
+    assert "wuci-install-target-activate \"$target\"" in files["usr/local/bin/INSTALL"]
+    assert "grub-install \"$disk\"" in files["usr/local/bin/INSTALL"]
+    assert "THIS ERASES" in files["usr/local/bin/INSTALL"]
+    assert "exec INSTALL \"$@\"" in files["usr/local/bin/wuci-install"]
+    assert "void-installer" not in files["usr/local/bin/wuci-install"]
+    assert "/usr/local/bin/INSTALL /usr/local/bin/wuci-*" in files["usr/local/bin/wuci-install-target-activate"]
     assert "wuci-install-target-activate: complete" in files["usr/local/bin/wuci-install-target-activate"]
     assert "wuci-boot-chime --once" in files["usr/local/bin/wuci-guide"]
     assert "wuci-terminal --print" in files["usr/local/bin/wuci-guide"]
@@ -950,8 +964,15 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wpa_supplicant" in files["usr/local/bin/wuci-network-connect"]
     assert "kernel wireless stack missing" in files["usr/local/bin/wuci-network-connect"]
     assert "cfg80211/mac80211" in files["usr/local/bin/wuci-network-connect"]
+    assert "$module-unloaded" in files["usr/local/bin/wuci-network-connect"]
+    assert "refusing Wi-Fi scan because the kernel cannot provide nl80211" in files["usr/local/bin/wuci-network-connect"]
+    assert "NetworkManager reports Wi-Fi unavailable; not asking for SSID yet" in files["usr/local/bin/wuci-network-connect"]
+    assert "root-owned setuid" in files["usr/local/bin/wuci-network-connect"]
+    assert "hardware snapshot follows" in files["usr/local/bin/wuci-network-connect"]
     assert "depmod -a" in files["usr/local/bin/wuci-network-connect"]
     assert "WUCI_WIFI_SSID" in files["usr/local/bin/wuci-network-connect"]
+    assert "enable_service udevd" in files["usr/local/bin/wuci-network-connect"]
+    assert "enable_service udevd" in files["usr/local/bin/wuci-network-apply"]
     assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
     assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
     assert "xbps-install -Syu" in files["usr/local/bin/wuci-update"]
@@ -978,6 +999,11 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "WUCI_GUIDE_ASSUME_YES=1" in files["usr/local/bin/wuci-auto"]
     assert "Daylight/WJSEAL" in files["usr/local/bin/wuci-daylight-status"]
     assert "release seal pending" in files["usr/local/bin/wuci-daylight-status"]
+    assert "DAYLIGHT v14C+ ASCENDANT CANDIDATE" in files["usr/local/bin/wuci-daylight-v14c-plus"]
+    assert "PYTHONPATH=\"$pkg\"" in files["usr/local/bin/wuci-daylight-v14c-plus"]
+    assert "final_score_M" in files["usr/local/bin/wuci-daylight-v14c-plus"]
+    assert "wuci-daylight-v14c-plus" in files["usr/local/bin/wuci-guide"]
+    assert "daylight-v14c" in files["usr/local/bin/wj"]
     assert "/opt/wuci-os/source/wuci-ji" in files["usr/local/bin/wuci-source-status"]
     assert "/opt/wuci-os/source/upstream" in files["usr/local/bin/wuci-source-status"]
     assert "WJ>_" in files["etc/profile.d/wuci-prompt.sh"]
@@ -1102,6 +1128,10 @@ def assert_overlay_profile(tmp: Path) -> None:
         (overlay_root / "usr/share/wuci-os/full-suite-packages.txt").read_bytes()
     )
     assert any(record["path"] == "usr/local/bin/wuci-security-apply" for record in records)
+    assert any(record["path"] == "usr/share/wuci-os/daylight/v14c-plus/src/cli.py" for record in records)
+    assert manifest["daylight_v14c_execution_package"]["path"] == "usr/share/wuci-os/daylight/v14c-plus"
+    assert manifest["daylight_v14c_execution_package"]["command"] == "wuci-daylight-v14c-plus"
+    assert manifest["daylight_v14c_execution_package"]["file_count"] > 0
 
     for relative in sorted(path for path in files if path.startswith("usr/local/bin/")):
         proc = subprocess.run(
@@ -1231,6 +1261,12 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     (rootfs / "etc/runit").mkdir(parents=True)
     (rootfs / "etc/sv/dbus").mkdir(parents=True)
     (rootfs / "etc/sv/NetworkManager").mkdir(parents=True)
+    (rootfs / "etc/sv/udevd").mkdir(parents=True)
+    (rootfs / "usr/bin").mkdir(parents=True)
+    for command in ("sudo", "su", "doas"):
+        path = rootfs / "usr/bin" / command
+        path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        path.chmod(0o755)
     (rootfs / "etc").mkdir(exist_ok=True)
     (rootfs / "etc/runit/1").write_text("=> Welcome to Void!\nvoid-live\n", encoding="utf-8")
     (rootfs / "etc/issue").write_text(
@@ -1256,7 +1292,9 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/local/bin/wuci-network-connect").is_file()
     assert (rootfs / "usr/local/bin/wuci-media-apply").is_file()
     assert (rootfs / "usr/local/bin/wuci-sdr-apply").is_file()
+    assert (rootfs / "usr/local/bin/INSTALL").is_file()
     assert (rootfs / "usr/local/bin/wuci-install-target-activate").is_file()
+    assert (rootfs / "usr/local/bin/wuci-daylight-v14c-plus").is_file()
     assert (rootfs / "usr/share/wuci-os/OFFLINE-INSTALL.txt").is_file()
     assert (rootfs / "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md").is_file()
     assert (rootfs / "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md").is_file()
@@ -1271,6 +1309,10 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/README.md").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/src/cli.py").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/rules/weights.v13.json").is_file()
+    assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json").is_file()
     assert 'NAME="Wuci-OS"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
     assert "wj:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
     assert "wj_low:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
@@ -1282,9 +1324,15 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert "dialout:" in (rootfs / "etc/group").read_text(encoding="utf-8")
     assert (rootfs / "etc/runit/runsvdir/default/dbus").is_symlink()
     assert (rootfs / "etc/runit/runsvdir/default/NetworkManager").is_symlink()
+    assert (rootfs / "etc/runit/runsvdir/default/udevd").is_symlink()
     assert "wj ALL=(ALL:ALL) NOPASSWD: ALL" in (rootfs / "etc/sudoers.d/90-wuci-os-wj").read_text(encoding="utf-8")
     assert "permit nopass wj as root" in (rootfs / "etc/doas.d/90-wuci-os-wj.conf").read_text(encoding="utf-8")
+    assert ((rootfs / "usr/bin/sudo").stat().st_mode & 0o4755) == 0o4755
+    assert ((rootfs / "usr/bin/su").stat().st_mode & 0o4755) == 0o4755
+    assert "chmod 4755 \"$tool\"" in (rootfs / "etc/runit/core-services/04-wuci-live-access.sh").read_text(encoding="utf-8")
     assert "--autologin wj" in (rootfs / "etc/sv/agetty-tty1/conf").read_text(encoding="utf-8")
+    assert "--autologin wj" in (rootfs / "etc/sv/agetty-ttyS0/conf").read_text(encoding="utf-8")
+    assert (rootfs / "etc/runit/runsvdir/default/agetty-ttyS0").is_symlink()
     assert (rootfs / "home/wj/.xinitrc").is_file()
     assert (rootfs / "home/wj/.config/kitty/kitty.conf").is_file()
 
@@ -1299,6 +1347,41 @@ def assert_remaster_squashfs_uses_live_safe_options() -> None:
 def assert_debugfs_safe_path_quotes_firmware_names() -> None:
     path = "usr/lib/firmware/brcm/brcmfmac43241b4-sdio.Intel Corp.-VALLEYVIEW C0 PLATFORM.txt.zst"
     assert wuci_os._debugfs_safe_path(path) == f'"/{path}"'
+    assert wuci_os._debugfs_inode_mode_text(0o100000, 0o755) == "0100755"
+
+
+def assert_debugfs_ext_image_command_surface_preserves_execute_bits(tmp: Path) -> None:
+    if shutil.which("mke2fs") is None or shutil.which("debugfs") is None:
+        return
+    image = tmp / "command-surface.ext4"
+    work_root = tmp / "command-surface-debugfs"
+    work_root.mkdir()
+    build = subprocess.run(
+        ["mke2fs", "-q", "-t", "ext4", "-F", str(image), "16M"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if build.returncode != 0:
+        raise AssertionError(build.stderr or build.stdout)
+    for relative in wuci_os.LIVE_COMMAND_SURFACE_REQUIRED:
+        wuci_os._debugfs_write_text_file(
+            image,
+            relative,
+            "#!/bin/sh\nexit 0\n",
+            mode=0o755,
+            work_root=work_root,
+            label=f"test ext command {relative}",
+        )
+    stat_record = wuci_os._debugfs_path_stat(image, "usr/local/bin/INSTALL", work_root=work_root)
+    assert stat_record["exists"] is True
+    assert stat_record["mode"] == "0755"
+    assert stat_record["executable"] is True
+    command_surface = wuci_os.validate_ext_image_live_command_surface(image, work_root=work_root)
+    assert command_surface["status"] == "pass"
+    assert command_surface["missing_or_not_executable"] == []
+    assert "usr/local/bin/INSTALL" in command_surface["required"]
 
 
 def make_tiny_extracted_rootfs(rootfs: Path) -> None:
@@ -1382,11 +1465,20 @@ def make_tiny_extracted_rootfs(rootfs: Path) -> None:
     (rootfs / "etc/runit/2").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     (rootfs / "etc/issue").write_text("Welcome to the Void Linux Live system\n", encoding="utf-8")
     (rootfs / "usr/lib/os-release").write_text('NAME="Void"\nID="void"\n', encoding="utf-8")
+
     (rootfs / "usr/lib/udev/rules.d/80-drivers.rules").write_text("ACTION==\"add\", RUN+=\"/sbin/modprobe $env{MODALIAS}\"\n", encoding="utf-8")
     (rootfs / "usr/lib/udev/hwdb.d/20-usb-vendor-model.hwdb").write_text("usb:v0000p0000*\n ID_VENDOR_FROM_DATABASE=Wuci fixture\n", encoding="utf-8")
     (rootfs / "usr/lib/udev/rules.d/75-net-description.rules").write_text("SUBSYSTEM==\"net\", ACTION==\"add\"\n", encoding="utf-8")
     for auth_tool in ("usr/bin/sudo", "usr/bin/su", "usr/bin/doas"):
         (rootfs / auth_tool).chmod(0o4755)
+
+
+def assert_auto_rootfs_source_uses_single_extracted_rootfs(tmp: Path) -> None:
+    default_root = tmp / "default-rootfs"
+    extracted = default_root / "void-x86_64-musl-ROOTFS-fixture"
+    make_tiny_extracted_rootfs(extracted)
+    assert wuci_os.auto_rootfs_source(default_root) == extracted
+    assert wuci_os.auto_rootfs_source(tmp / "missing-rootfs") is None
 
 
 def assert_remaster_from_extracted_rootfs_is_wrapped(tmp: Path) -> None:
@@ -1427,6 +1519,10 @@ def assert_remaster_from_extracted_rootfs_is_wrapped(tmp: Path) -> None:
     assert "usr/bin/doas" in ownership["auth_setuid_root_paths"]
     assert result["live_command_surface"]["status"] == "pass"
     assert "usr/bin/wpa_supplicant" in result["live_command_surface"]["required"]
+    assert any(
+        record["service"] == "agetty-ttyS0" and record["status"] in {"enabled", "already-enabled"}
+        for record in result["overlay_application"]["service_enablement"]["services"]
+    )
     assert result["depmod_refresh"]["status"] == "pass"
     assert any(record["kernel_release"] == "6.12.11_1" for record in result["depmod_refresh"]["records"])
     assert result["kernel_hardware_surface"]["status"] == "pass"
@@ -2336,6 +2432,8 @@ def main() -> int:
         assert_rootfs_overlay_identity_patch(tmp)
         assert_remaster_squashfs_uses_live_safe_options()
         assert_debugfs_safe_path_quotes_firmware_names()
+        assert_debugfs_ext_image_command_surface_preserves_execute_bits(tmp)
+        assert_auto_rootfs_source_uses_single_extracted_rootfs(tmp)
         assert_remaster_from_extracted_rootfs_is_wrapped(tmp)
         assert_overlay_tar_safeio(tmp)
         assert_tar_member_policy(tmp)

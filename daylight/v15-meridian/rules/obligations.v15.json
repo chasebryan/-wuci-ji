@@ -1,0 +1,101 @@
+{
+  "version": "daylight-v15-meridian-obligations-v0.1",
+  "scale": "thousandths",
+  "harness_identity": "daylight-meridian-harness-v0.1",
+  "note": "Each q-value is derived as (sum of closed-obligation weights) / 1000. An obligation is closed only by a witnessed, transcript-bound evidence item that names the obligation id in closes_obligations. internal obligations are closeable by repository evidence; external obligations are closeable only by an external_attestation whose external_signer_id differs from harness_identity.",
+  "dimensions": {
+    "q1_doctrine_master_law": {
+      "label": "Doctrine & Master Law",
+      "obligations": [
+        {"id": "o.q1.master_law_executable", "weight": 700, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "test"},
+        {"id": "o.q1.doctrine_claim_bound", "weight": 300, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "claim"}
+      ]
+    },
+    "q2_formalism_mathematical_density": {
+      "label": "Formalism & Mathematical Density",
+      "obligations": [
+        {"id": "o.q2.exact_rational_proof", "weight": 500, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "proof"},
+        {"id": "o.q2.formal_density_tests", "weight": 499, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "test"},
+        {"id": "o.q2.external_formal_methods_audit", "weight": 1, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "formal-methods-auditor"}
+      ]
+    },
+    "q3_negative_evidence_subtractive_capability": {
+      "label": "Negative Evidence / Subtractive Capability",
+      "obligations": [
+        {"id": "o.q3.subtractive_corpus", "weight": 600, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "corpus_snapshot"},
+        {"id": "o.q3.downgrade_machine", "weight": 400, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "downgrade"}
+      ]
+    },
+    "q4_gate_algebra_fail_closed_enforcement": {
+      "label": "Gate Algebra & Fail-Closed Enforcement",
+      "obligations": [
+        {"id": "o.q4.fail_closed_tests", "weight": 600, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "test"},
+        {"id": "o.q4.gate_harness_execution", "weight": 400, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "harness_execution"}
+      ]
+    },
+    "q5_evidence_sheaf_release_engineering": {
+      "label": "Evidence Sheaf & Release Engineering",
+      "obligations": [
+        {"id": "o.q5.evidence_sheaf_build", "weight": 500, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "build"},
+        {"id": "o.q5.release_reproduction", "weight": 499, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "release_repro"},
+        {"id": "o.q5.external_downstream_packaging_audit", "weight": 1, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "release-reproduction-auditor"}
+      ]
+    },
+    "q6_surface_closure_boundary_semantics": {
+      "label": "Surface Closure & Boundary Semantics",
+      "obligations": [
+        {"id": "o.q6.boundary_matrix_tests", "weight": 500, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "test"},
+        {"id": "o.q6.surface_adversarial_run", "weight": 498, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "adversarial_run"},
+        {"id": "o.q6.external_boundary_fuzz_audit", "weight": 2, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "boundary-fuzz-auditor"}
+      ]
+    },
+    "q7_adversarial_survival_model": {
+      "label": "Adversarial Survival Model",
+      "obligations": [
+        {"id": "o.q7.modeled_adversary_corpus", "weight": 600, "scope": "internal", "evidence_kind": "corpus", "evidence_class": "adversarial_input"},
+        {"id": "o.q7.transcript_survival_corpus", "weight": 395, "scope": "internal", "evidence_kind": "corpus", "evidence_class": "transcript_mismatch"},
+        {"id": "o.q7.external_red_team", "weight": 5, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "red-team"}
+      ]
+    },
+    "q8_cryptographic_number_theoretic_margin": {
+      "label": "Cryptographic / Number-Theoretic Margin",
+      "obligations": [
+        {"id": "o.q8.classical_margin_source", "weight": 500, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "source"},
+        {"id": "o.q8.kat_vector_tests", "weight": 498, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "test"},
+        {"id": "o.q8.external_pq_crypto_audit", "weight": 2, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "post-quantum-crypto-auditor"}
+      ]
+    },
+    "q9_statistical_confidence_reproducibility": {
+      "label": "Statistical Confidence & Reproducibility",
+      "obligations": [
+        {"id": "o.q9.reproducibility_harness", "weight": 500, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "harness_execution"},
+        {"id": "o.q9.statistical_outlier_corpus", "weight": 497, "scope": "internal", "evidence_kind": "corpus", "evidence_class": "statistical_outlier"},
+        {"id": "o.q9.external_independent_replication", "weight": 3, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "independent-replicator"}
+      ]
+    },
+    "q10_implementation_traceability": {
+      "label": "Implementation Traceability",
+      "obligations": [
+        {"id": "o.q10.traceability_map", "weight": 600, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "traceability_map"},
+        {"id": "o.q10.implementation_tests", "weight": 399, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "test"},
+        {"id": "o.q10.external_provenance_audit", "weight": 1, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "provenance-auditor"}
+      ]
+    },
+    "q11_external_falsification_readiness": {
+      "label": "External Falsification Readiness",
+      "obligations": [
+        {"id": "o.q11.falsification_harness", "weight": 600, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "adversarial_run"},
+        {"id": "o.q11.falsification_corpus_snapshot", "weight": 390, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "corpus_snapshot"},
+        {"id": "o.q11.external_falsification_program", "weight": 10, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "external-falsifier"}
+      ]
+    },
+    "q12_communication_overall": {
+      "label": "Communication / Overall",
+      "obligations": [
+        {"id": "o.q12.documentation_complete", "weight": 700, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "doc"},
+        {"id": "o.q12.claim_communication", "weight": 299, "scope": "internal", "evidence_kind": "ledger", "evidence_class": "claim"},
+        {"id": "o.q12.external_communication_review", "weight": 1, "scope": "external", "evidence_kind": "ledger", "evidence_class": "external_attestation", "external_role": "communication-reviewer"}
+      ]
+    }
+  }
+}

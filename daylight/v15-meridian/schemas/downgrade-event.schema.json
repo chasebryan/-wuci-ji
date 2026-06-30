@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian Downgrade Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reason", "new_state"],
+  "properties": {
+    "q_id": {"type": "string"},
+    "reason": {"type": "string", "minLength": 1},
+    "claimed": {"type": "string"},
+    "recomputed": {"type": "string"},
+    "new_state": {"type": "string", "enum": ["sovereign", "candidate", "provisional", "rejected"]}
+  }
+}

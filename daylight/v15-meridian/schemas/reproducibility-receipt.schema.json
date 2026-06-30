@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian Reproducibility Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_version",
+    "input_ledger_head",
+    "corpus_snapshot_digest",
+    "obligations_digest",
+    "environment_digest",
+    "source_digest",
+    "harness_digest",
+    "scorecard_digest",
+    "created_at_utc",
+    "command",
+    "result"
+  ],
+  "properties": {
+    "receipt_version": {"type": "string", "const": "daylight-v15-meridian-receipt-v0.1"},
+    "input_ledger_head": {"type": "string", "minLength": 64},
+    "corpus_snapshot_digest": {"type": "string", "minLength": 64},
+    "obligations_digest": {"type": "string", "minLength": 64},
+    "environment_digest": {"type": "string", "minLength": 64},
+    "source_digest": {"type": "string", "minLength": 64},
+    "harness_digest": {"type": "string", "minLength": 64},
+    "scorecard_digest": {"type": "string", "minLength": 64},
+    "created_at_utc": {"type": "string", "minLength": 20},
+    "command": {"type": "string", "minLength": 1},
+    "result": {"type": "string", "const": "pass"}
+  }
+}

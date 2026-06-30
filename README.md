@@ -68,6 +68,31 @@ PYTHONPATH=daylight/v14c-plus python3 -m src.cli verify-scorecard daylight/v14c-
 The expected generated candidate score is `998,200M / 1,000,000M`. It remains a
 candidate score until non-fixture release gates pass.
 
+## Daylight v15 Meridian
+
+Daylight v15 Meridian under [daylight/v15-meridian/](daylight/v15-meridian/) is the
+successor to v14C+. It fixes the one design weakness in v14C+: q-values were
+asserted `target` constants gated only by evidence *presence*, so a reviewer could
+narrate any target up to a perfect score. Meridian makes every q-value
+evidence-derived (`q_i = closed-obligation weight / 1000`) and has the verifier
+*re-derive* the q-vector from a pinned obligation registry plus the sealed
+closed-obligation set, so editing a number is rejected rather than trusted. See
+[docs/WUCI_DAYLIGHT_V15_MERIDIAN.md](docs/WUCI_DAYLIGHT_V15_MERIDIAN.md).
+
+```sh
+make daylight-meridian-test
+make daylight-meridian-frontier
+make daylight-meridian-perfect-demo
+```
+
+Meridian's honest internal ceiling is `998,900M / 1,000,000M` (`+700M` over v14C+,
+every point earned by added internal evidence). The residual `1,100M` is held by
+external obligations the harness cannot self-issue (external red-team, post-quantum
+and crypto audit, independent replication, external falsification, and independent
+audits). A perfect `1,000,000M` is reachable only by closing those with genuine
+non-harness external attestations; claiming it from inside the repository is exactly
+the overclaim `ManualScore(x) -> Reject(x)` forbids.
+
 ## System Shape
 
 ```text
@@ -344,7 +369,9 @@ tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo
 Before installing from the ISO, read
 [docs/WUCI_OS_OFFLINE_INSTALL.md](docs/WUCI_OS_OFFLINE_INSTALL.md). The same
 instructions are embedded in the ISO at `/wuci-os/OFFLINE-INSTALL.txt` and in
-the live system at `/usr/share/wuci-os/OFFLINE-INSTALL.txt`.
+the live system at `/usr/share/wuci-os/OFFLINE-INSTALL.txt`. The live installer
+command is uppercase `INSTALL`; it self-escalates through sudo when needed, and
+`wuci-install` is only a compatibility alias for that automated Wuci installer.
 
 The boot payload carries both the Wuci-OS overlay and a deterministic source-kit
 tar that uses fixed archive metadata and extracts the current Wuci-Ji checkout
