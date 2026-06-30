@@ -44,7 +44,7 @@ wuci-terminal
 
 ```sh
 ip link
-sudo wuci-network-connect
+wuci-network-connect
 sudo wuci-network-apply
 nmcli device wifi list
 nmcli --ask device wifi connect "YOUR_WIFI_NAME"
@@ -56,6 +56,9 @@ ping -c 3 1.1.1.1
 Wi-Fi SSID and password locally; no network IDs or passwords are baked into the
 image. For noninteractive setup you may use `WUCI_WIFI_SSID`,
 `WUCI_WIFI_PASSWORD`, and optional `WUCI_WIFI_IFACE` / `WUCI_WIFI_HIDDEN=1`.
+The v0 network-fixed image includes `wpa_supplicant`, `wpa_passphrase`,
+`dhcpcd`, `iw`, `rfkill`, and `sudo` wrappers at the live prompt, so
+`wuci-network-connect` works even when NetworkManager/nmcli is not installed.
 
 If Wi-Fi does not work, use wired Ethernet if possible. If no network is
 available, continue the local install and run `sudo wuci-update` after first

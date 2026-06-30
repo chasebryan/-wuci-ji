@@ -88,6 +88,28 @@ BOUNDARY_DENIALS = (
     "SELinux, LUKS, and Daylight/WJSEAL status must be verified on the installed system before security claims",
 )
 
+LIVE_COMMAND_SURFACE_REQUIRED = (
+    "usr/bin/sudo",
+    "usr/bin/su",
+    "usr/bin/ip",
+    "usr/bin/dhcpcd",
+    "usr/bin/iw",
+    "usr/bin/rfkill",
+    "usr/bin/wpa_supplicant",
+    "usr/bin/wpa_passphrase",
+    "usr/bin/xbps-install",
+    "usr/local/bin/wuci-network-connect",
+    "usr/local/bin/wuci-install",
+    "usr/local/bin/wuci-install-target-activate",
+    "usr/local/bin/wj",
+)
+
+MINIMUM_LIVE_NETWORK_PACKAGES = (
+    "wpa_supplicant",
+    "iwd",
+)
+
+
 
 DESKTOP_PACKAGES = (
     "xorg",
@@ -4777,13 +4799,13 @@ case "$mode" in
 Wuci-OS network connection prompt
 
 Usage:
-  sudo wuci-network-connect
-  sudo wuci-network-connect --check
+  wuci-network-connect
+  wuci-network-connect --check
 
 No Wi-Fi IDs or passwords are baked into Wuci-OS. The prompt asks locally at
 first boot. Optional noninteractive inputs:
-  WUCI_WIFI_SSID='network name' sudo -E wuci-network-connect
-  WUCI_WIFI_PASSWORD='password' WUCI_WIFI_SSID='network name' sudo -E wuci-network-connect
+  WUCI_WIFI_SSID='network name' wuci-network-connect
+  WUCI_WIFI_PASSWORD='password' WUCI_WIFI_SSID='network name' wuci-network-connect
 TEXT
         exit 0
         ;;
@@ -4808,9 +4830,25 @@ if [ "$(id -u)" != "0" ]; then
     if command -v sudo >/dev/null 2>&1; then
         exec sudo "$0" "$@"
     fi
-    printf 'wuci-network-connect: run as root or install sudo\\n' >&2
+    if command -v doas >/dev/null 2>&1; then
+        exec doas "$0" "$@"
+    fi
+    printf 'wuci-network-connect: root is required and sudo/doas is unavailable.\\n' >&2
+    printf 'wuci-network-connect: log in as root, then run: wuci-network-connect\\n' >&2
     exit 1
 fi
+
+printf 'Wuci-OS network setup\\n'
+printf '  user: root\\n'
+printf '  tools:'
+for tool in ip dhcpcd iw rfkill wpa_supplicant wpa_passphrase nmcli; do
+    if command -v "$tool" >/dev/null 2>&1; then
+        printf ' %s=ok' "$tool"
+    else
+        printf ' %s=missing' "$tool"
+    fi
+done
+printf '\\n'
 
 enable_service() {
     service=$1
@@ -4834,8 +4872,13 @@ fi
 try_dhcp() {
     iface=$1
     [ -n "$iface" ] || return 1
+    printf 'wuci-network-connect: DHCP probe on %s\\n' "$iface"
     if command -v dhcpcd >/dev/null 2>&1; then
-        dhcpcd -n "$iface" >/dev/null 2>&1 || dhcpcd "$iface" >/dev/null 2>&1 || true
+        if command -v timeout >/dev/null 2>&1; then
+            timeout 12s dhcpcd -n "$iface" >/dev/null 2>&1 || timeout 12s dhcpcd -4 "$iface" >/dev/null 2>&1 || true
+        else
+            dhcpcd -n "$iface" >/dev/null 2>&1 || dhcpcd -4 "$iface" >/dev/null 2>&1 || true
+        fi
     elif command -v udhcpc >/dev/null 2>&1; then
         udhcpc -i "$iface" -q -t 3 >/dev/null 2>&1 || true
     else
@@ -4849,6 +4892,12 @@ if command -v ip >/dev/null 2>&1; then
         case "$iface" in
             wl*|wifi*|wlan*) continue ;;
         esac
+        ip link set "$iface" up >/dev/null 2>&1 || true
+        carrier=$(cat "/sys/class/net/$iface/carrier" 2>/dev/null || printf unknown)
+        if [ "$carrier" = "0" ]; then
+            printf 'wuci-network-connect: skipping %s, no carrier\\n' "$iface"
+            continue
+        fi
         try_dhcp "$iface" && {
             printf 'wuci-network-connect: online through %s\\n' "$iface"
             exit 0
@@ -4923,6 +4972,7 @@ if command -v nmcli >/dev/null 2>&1; then
 fi
 
 if command -v wpa_supplicant >/dev/null 2>&1; then
+    printf 'wuci-network-connect: using wpa_supplicant fallback\\n'
     wifi_iface="${WUCI_WIFI_IFACE:-}"
     if [ -z "$wifi_iface" ] && command -v iw >/dev/null 2>&1; then
         wifi_iface=$(iw dev 2>/dev/null | awk '$1 == "Interface" { print $2; exit }')
@@ -4933,10 +4983,16 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
     if [ -z "$wifi_iface" ]; then
         printf 'wuci-network-connect: no Wi-Fi interface found for wpa_supplicant\\n' >&2
     else
+        ip link set "$wifi_iface" up >/dev/null 2>&1 || true
         ssid="${WUCI_WIFI_SSID:-}"
         if [ -z "$ssid" ]; then
-            printf 'Wi-Fi SSID: '
-            IFS= read -r ssid || true
+            if [ -r /dev/tty ]; then
+                printf 'Wi-Fi SSID: ' >/dev/tty
+                IFS= read -r ssid </dev/tty || true
+            else
+                printf 'Wi-Fi SSID: '
+                IFS= read -r ssid || true
+            fi
         fi
         if [ -z "$ssid" ]; then
             printf 'wuci-network-connect: SSID is empty; network not configured\\n' >&2
@@ -4944,11 +5000,19 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
         fi
         pass="${WUCI_WIFI_PASSWORD:-}"
         if [ -z "$pass" ]; then
-            stty -echo 2>/dev/null || true
-            printf 'Wi-Fi password, blank for open network: '
-            IFS= read -r pass || true
-            printf '\\n'
-            stty echo 2>/dev/null || true
+            if [ -r /dev/tty ]; then
+                stty -echo < /dev/tty 2>/dev/null || true
+                printf 'Wi-Fi password, blank for open network: ' >/dev/tty
+                IFS= read -r pass </dev/tty || true
+                printf '\\n' >/dev/tty
+                stty echo < /dev/tty 2>/dev/null || true
+            else
+                stty -echo 2>/dev/null || true
+                printf 'Wi-Fi password, blank for open network: '
+                IFS= read -r pass || true
+                printf '\\n'
+                stty echo 2>/dev/null || true
+            fi
         fi
         conf_dir=/run/wuci-network
         mkdir -p "$conf_dir"
@@ -4974,7 +5038,8 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
             } > "$conf"
         fi
         chmod 0600 "$conf"
-        wpa_supplicant -B -i "$wifi_iface" -c "$conf" >/dev/null 2>&1 || true
+        pkill -f "wpa_supplicant.*-i $wifi_iface" >/dev/null 2>&1 || true
+        wpa_supplicant -B -i "$wifi_iface" -c "$conf" || true
         try_dhcp "$wifi_iface" && {
             printf 'wuci-network-connect: online through %s\\n' "$wifi_iface"
             exit 0
@@ -5802,6 +5867,18 @@ if command -v wuci-terminal >/dev/null 2>&1; then
 fi
 exec startxfce4
 """
+    def command_wrapper(command: str) -> str:
+        return (
+            "#!/bin/sh\n"
+            f"for candidate in /usr/bin/{command} /bin/{command} /usr/sbin/{command} /sbin/{command}; do\n"
+            "    if [ -x \"$candidate\" ]; then\n"
+            "        exec \"$candidate\" \"$@\"\n"
+            "    fi\n"
+            "done\n"
+            f"printf '{command}: required Wuci-OS command is missing from this image\\n' >&2\n"
+            "exit 127\n"
+        )
+
     boot_chime_runit = """#!/bin/sh
 if [ -x /usr/local/bin/wuci-boot-chime ]; then
     /usr/local/bin/wuci-boot-chime --once --quiet >/dev/null 2>&1 || true
@@ -5834,6 +5911,15 @@ done
         "usr/local/bin/wuci-status": status_script,
         "usr/local/bin/wuci-attest": attest_script,
         "usr/local/bin/wuci-live-banner": live_banner_script,
+        "usr/local/bin/sudo": command_wrapper("sudo"),
+        "usr/local/bin/su": command_wrapper("su"),
+        "usr/local/bin/ip": command_wrapper("ip"),
+        "usr/local/bin/dhcpcd": command_wrapper("dhcpcd"),
+        "usr/local/bin/iw": command_wrapper("iw"),
+        "usr/local/bin/rfkill": command_wrapper("rfkill"),
+        "usr/local/bin/wpa_supplicant": command_wrapper("wpa_supplicant"),
+        "usr/local/bin/wpa_passphrase": command_wrapper("wpa_passphrase"),
+        "usr/local/bin/xbps-install": command_wrapper("xbps-install"),
         "usr/local/bin/wuci-source-status": source_status_script,
         "usr/local/bin/wuci-enter": enter_script,
         "usr/local/bin/wuci-guide": guide_script,
@@ -6781,10 +6867,19 @@ def _ensure_group_line(lines: list[str], name: str, gid: int, members: list[str]
     return updated
 
 
-def _ensure_shadow_line(lines: list[str], name: str) -> list[str]:
-    if any(line.split(":", 1)[0] == name for line in lines):
-        return lines
-    return lines + [f"{name}::0:0:99999:7:::"]
+def _ensure_shadow_line(lines: list[str], name: str, *, secret: str = "!", last_change: str = "20121") -> list[str]:
+    normalized = f"{name}:{secret}:{last_change}:0:99999:7:::"
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        if line.split(":", 1)[0] == name:
+            updated.append(normalized)
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(normalized)
+    return updated
 
 
 def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
@@ -6800,14 +6895,20 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
         passwd_lines.append(f"wj:x:{uid_wj}:{gid_wj}:Wuci-OS Operator:/home/wj:{shell_path}")
     if not any(line.split(":", 1)[0] == "wj_low" for line in passwd_lines):
         passwd_lines.append(f"wj_low:x:{uid_low}:{gid_low}:Wuci-OS Low Privilege:/home/wj_low:{shell_path}")
+    if (rootfs / "usr/bin/dbus-daemon").is_file() and not any(line.split(":", 1)[0] == "dbus" for line in passwd_lines):
+        passwd_lines.append("dbus:x:22:22:System Message Bus:/var/run/dbus:/sbin/nologin")
     group_lines = _ensure_group_line(group_lines, "wj", gid_wj, ["wj"])
     group_lines = _ensure_group_line(group_lines, "wj_low", gid_low, ["wj_low"])
+    if (rootfs / "usr/bin/dbus-daemon").is_file():
+        group_lines = _ensure_group_line(group_lines, "dbus", 22, [])
     for group in ("wheel", "audio", "video", "input", "kvm", "network", "storage", "plugdev", "usb", "dialout", "uucp"):
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj"])
     for group in ("audio", "video", "plugdev", "usb", "dialout", "uucp"):
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj_low"])
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj")
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj", secret="")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low", secret="")
+    if (rootfs / "usr/bin/dbus-daemon").is_file():
+        shadow_lines = _ensure_shadow_line(shadow_lines, "dbus", secret="!")
     written = [
         _write_rootfs_text(rootfs, "etc/passwd", "\n".join(passwd_lines) + "\n", mode=0o644),
         _write_rootfs_text(rootfs, "etc/group", "\n".join(group_lines) + "\n", mode=0o644),
@@ -6888,8 +6989,8 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj"])
     for group in ("audio", "video", "plugdev", "usb", "dialout", "uucp"):
         group_lines = _ensure_group_line(group_lines, group, _next_rootfs_id(group_lines, 2, start=100), ["wj_low"])
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj")
-    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj", secret="")
+    shadow_lines = _ensure_shadow_line(shadow_lines, "wj_low", secret="")
     written = [
         _debugfs_write_text_file(
             ext_image,
@@ -7107,6 +7208,129 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
         "files": written,
         "identity_patches": patches,
         "account_profile": accounts,
+    }
+
+
+def validate_live_command_surface(rootfs: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for relative in LIVE_COMMAND_SURFACE_REQUIRED:
+        rel = Path(relative)
+        path = rootfs / rel
+        exists = path.exists() or path.is_symlink()
+        executable = exists and os.access(path, os.X_OK)
+        record = {
+            "path": relative,
+            "exists": exists,
+            "executable": executable,
+        }
+        records.append(record)
+        if not executable:
+            missing.append(relative)
+    result = {
+        "schema": "wuci-os-live-command-surface-v1",
+        "status": "pass" if not missing else "fail",
+        "required": list(LIVE_COMMAND_SURFACE_REQUIRED),
+        "records": records,
+        "missing_or_not_executable": missing,
+    }
+    if missing:
+        raise WuciOSError("Wuci-OS live command surface incomplete: " + ", ".join(missing))
+    return result
+
+
+def _rootfs_musl_command(rootfs: Path, program: str) -> list[str]:
+    loader = rootfs / "usr/lib64/libc.so"
+    binary = rootfs / program.lstrip("/")
+    if not loader.is_file() or not os.access(loader, os.X_OK):
+        raise WuciOSError(f"rootfs musl loader is unavailable: {loader}")
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        raise WuciOSError(f"rootfs executable is unavailable: {binary}")
+    library_path = ":".join(
+        str(path)
+        for path in (
+            rootfs / "usr/lib",
+            rootfs / "usr/lib64",
+            rootfs / "lib",
+            rootfs / "lib64",
+        )
+    )
+    return [str(loader), "--library-path", library_path, str(binary)]
+
+
+def _run_rootfs_xbps(rootfs: Path, args: list[str], *, label: str, ticker_mode: str) -> subprocess.CompletedProcess[str]:
+    command = _rootfs_musl_command(rootfs, "usr/bin/xbps-install") + ["-r", str(rootfs), *args]
+    with wuci_progress.stage(label, ticker_mode):
+        return subprocess.run(
+            command,
+            cwd=repo_root(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            check=False,
+        )
+
+
+def ensure_minimum_live_network_packages(rootfs: Path, *, ticker_mode: str = "auto") -> dict[str, Any]:
+    required_commands = (
+        "usr/bin/wpa_supplicant",
+        "usr/bin/wpa_passphrase",
+    )
+    missing_before = [path for path in required_commands if not os.access(rootfs / path, os.X_OK)]
+    if not missing_before:
+        return {
+            "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
+            "status": "already-present",
+            "packages": list(MINIMUM_LIVE_NETWORK_PACKAGES),
+            "missing_before": [],
+            "missing_after": [],
+        }
+    _rootfs_musl_command(rootfs, "usr/bin/xbps-install")
+    install = _run_rootfs_xbps(
+        rootfs,
+        ["-y", "-Sy", *MINIMUM_LIVE_NETWORK_PACKAGES],
+        label="wuci-os minimum Wi-Fi packages",
+        ticker_mode=ticker_mode,
+    )
+    install_output = (install.stdout or "") + (install.stderr or "")
+    xbps_update: dict[str, Any] | None = None
+    if install.returncode != 0 and "xbps' package must be updated" in install_output:
+        update = _run_rootfs_xbps(
+            rootfs,
+            ["-y", "-u", "xbps"],
+            label="wuci-os rootfs xbps self-update",
+            ticker_mode=ticker_mode,
+        )
+        xbps_update = {
+            "returncode": update.returncode,
+            "stdout_tail": "\n".join((update.stdout or "").splitlines()[-12:]),
+            "stderr_tail": "\n".join((update.stderr or "").splitlines()[-12:]),
+        }
+        if update.returncode != 0:
+            raise WuciOSError("rootfs xbps self-update failed: " + (update.stderr.strip() or update.stdout.strip()))
+        install = _run_rootfs_xbps(
+            rootfs,
+            ["-y", "-Sy", *MINIMUM_LIVE_NETWORK_PACKAGES],
+            label="wuci-os minimum Wi-Fi packages",
+            ticker_mode=ticker_mode,
+        )
+        install_output = (install.stdout or "") + (install.stderr or "")
+    if install.returncode != 0:
+        raise WuciOSError("minimum live Wi-Fi package install failed: " + (install.stderr.strip() or install.stdout.strip()))
+    missing_after = [path for path in required_commands if not os.access(rootfs / path, os.X_OK)]
+    if missing_after:
+        raise WuciOSError("minimum live Wi-Fi package install did not provide: " + ", ".join(missing_after))
+    return {
+        "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
+        "status": "pass",
+        "packages": list(MINIMUM_LIVE_NETWORK_PACKAGES),
+        "missing_before": missing_before,
+        "missing_after": missing_after,
+        "xbps_update": xbps_update,
+        "install_returncode": install.returncode,
+        "install_stdout_tail": "\n".join((install.stdout or "").splitlines()[-16:]),
+        "install_stderr_tail": "\n".join((install.stderr or "").splitlines()[-16:]),
     }
 
 
@@ -7589,6 +7813,16 @@ def remaster_live_rootfs(
             raise WuciOSError(f"unsquashfs failed: {extract.stderr.strip() or extract.stdout.strip()}")
     nested_ext_image = rootfs / "LiveOS/ext3fs.img"
     rootfs_image_layout = "wrapped-rootfs-img" if rootfs_source_root is not None else ("nested-ext3fs" if nested_ext_image.is_file() else "direct-squashfs-root")
+    minimum_network_bootstrap = (
+        ensure_minimum_live_network_packages(rootfs, ticker_mode=ticker_mode)
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
+            "status": "not-checked",
+            "reason": "nested ext image package bootstrap requires mounted root access",
+            "packages": list(MINIMUM_LIVE_NETWORK_PACKAGES),
+        }
+    )
     if nested_ext_image.is_file():
         _require_host_tool(tools, "e2fsck")
         if not install_suite_packages or os.geteuid() != 0:
@@ -7647,6 +7881,15 @@ def remaster_live_rootfs(
             overlay_application = apply_wuci_overlay_to_ext_image(overlay_root, nested_ext_image, work_root)
         else:
             overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, rootfs)
+    command_surface = (
+        validate_live_command_surface(rootfs)
+        if not nested_ext_image.is_file()
+        else {
+            "schema": "wuci-os-live-command-surface-v1",
+            "status": "not-checked",
+            "reason": "nested ext image command surface is validated after image extraction in integration checks",
+        }
+    )
     if rootfs_source_root is not None:
         squashfs_source = work_root / "squashfs-wrapper"
         if squashfs_source.exists():
@@ -7708,8 +7951,10 @@ def remaster_live_rootfs(
             "status": "not-used",
             "reason": "remaster used source ISO LiveOS/squashfs.img",
         },
+        "minimum_network_package_bootstrap": minimum_network_bootstrap,
         "suite_package_install": package_install,
         "overlay_application": overlay_application,
+        "live_command_surface": command_surface,
         "host_tool_status": tools,
         "non_claims": list(BOUNDARY_DENIALS),
     }

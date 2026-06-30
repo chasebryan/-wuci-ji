@@ -826,6 +826,15 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-wait-run",
         "usr/local/bin/wuci-attest",
         "usr/local/bin/wuci-live-banner",
+        "usr/local/bin/sudo",
+        "usr/local/bin/su",
+        "usr/local/bin/ip",
+        "usr/local/bin/dhcpcd",
+        "usr/local/bin/iw",
+        "usr/local/bin/rfkill",
+        "usr/local/bin/wpa_supplicant",
+        "usr/local/bin/wpa_passphrase",
+        "usr/local/bin/xbps-install",
         "usr/local/bin/wuci-source-status",
         "usr/local/bin/wuci-enter",
         "usr/local/bin/wuci-guide",
@@ -871,6 +880,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "SELINUXTYPE=targeted" in files["usr/local/bin/wuci-security-apply"]
     assert "policy drop" in files["usr/local/bin/wuci-security-apply"]
     assert "passwd -d wj" in files["usr/local/bin/wuci-users-apply"]
+    assert "required Wuci-OS command is missing" in files["usr/local/bin/sudo"]
+    assert 'exec "$candidate" "$@"' in files["usr/local/bin/wpa_supplicant"]
     assert "chpst" in files["usr/local/bin/wuci-enter"]
     assert "run as root to switch users" in files["usr/local/bin/wuci-enter"]
     assert '"$current_user" = "$target"' in files["usr/local/bin/wuci-enter"]
@@ -893,6 +904,9 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "os-update|live-update" in files["usr/local/bin/wj"]
     assert "WJ_ALLOW_REMOVE=1" in files["usr/local/bin/wj"]
     assert "Wi-Fi SSID" in files["usr/local/bin/wuci-network-connect"]
+    assert "Wuci-OS network setup" in files["usr/local/bin/wuci-network-connect"]
+    assert "DHCP probe" in files["usr/local/bin/wuci-network-connect"]
+    assert "timeout 12s dhcpcd" in files["usr/local/bin/wuci-network-connect"]
     assert "wpa_supplicant" in files["usr/local/bin/wuci-network-connect"]
     assert "WUCI_WIFI_SSID" in files["usr/local/bin/wuci-network-connect"]
     assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
@@ -1209,7 +1223,9 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert "wj:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
     assert "wj_low:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
     assert "Wuci-OS Operator" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
-    assert "wj::" in (rootfs / "etc/shadow").read_text(encoding="utf-8")
+    shadow = (rootfs / "etc/shadow").read_text(encoding="utf-8")
+    assert "wj::" in shadow
+    assert "wj::0:" not in shadow
     assert "plugdev:" in (rootfs / "etc/group").read_text(encoding="utf-8")
     assert "dialout:" in (rootfs / "etc/group").read_text(encoding="utf-8")
     assert "wj ALL=(ALL:ALL) NOPASSWD: ALL" in (rootfs / "etc/sudoers.d/90-wuci-os-wj").read_text(encoding="utf-8")
@@ -1242,8 +1258,19 @@ def make_tiny_extracted_rootfs(rootfs: Path) -> None:
     (rootfs / "sbin").symlink_to("usr/bin")
     (rootfs / "usr/bin/sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     (rootfs / "usr/bin/sh").chmod(0o755)
-    (rootfs / "usr/bin/xbps-install").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-    (rootfs / "usr/bin/xbps-install").chmod(0o755)
+    for command in (
+        "sudo",
+        "su",
+        "ip",
+        "dhcpcd",
+        "iw",
+        "rfkill",
+        "wpa_supplicant",
+        "wpa_passphrase",
+        "xbps-install",
+    ):
+        (rootfs / "usr/bin" / command).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (rootfs / "usr/bin" / command).chmod(0o755)
     (rootfs / "usr/bin/init").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     (rootfs / "usr/bin/init").chmod(0o755)
     (rootfs / "etc/passwd").write_text("root:x:0:0:root:/root:/bin/sh\n", encoding="utf-8")
@@ -1284,7 +1311,10 @@ def assert_remaster_from_extracted_rootfs_is_wrapped(tmp: Path) -> None:
     assert result["status"] == "pass"
     assert result["rootfs_image_layout"] == "wrapped-rootfs-img"
     assert result["rootfs_source"]["layout"] == "direct-rootfs-tree"
+    assert result["minimum_network_package_bootstrap"]["status"] == "already-present"
     assert result["generated_rootfs_image"]["filesystem"] == "ext4"
+    assert result["live_command_surface"]["status"] == "pass"
+    assert "usr/bin/wpa_supplicant" in result["live_command_surface"]["required"]
     remastered = Path(result["remastered_squashfs"]["path"])
     listing = subprocess.run(
         ["unsquashfs", "-ll", str(remastered)],
