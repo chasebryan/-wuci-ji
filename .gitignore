@@ -1,5 +1,9 @@
 build/
 __pycache__/
+node_modules/
+.env
+.env.local
+.dev.vars
 .tools/
 .wrangler/
 tools/wuci-pq-fips204-verify/target/

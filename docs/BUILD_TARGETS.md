@@ -408,3 +408,24 @@ available as an opt-in target:
 ```sh
 make check-asm-immediates
 ```
+
+## Daylight v15 Meridian Artifact Lane
+
+Meridian is the installable evidence-derived scoring artifact under
+`daylight/v15-meridian`. See
+[DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md](DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md).
+
+```sh
+make daylight-meridian-test            # 74-test package suite
+make daylight-meridian-verify          # regenerate + evidence-bound verify the example scorecard
+make daylight-meridian-frontier        # print internal ceiling, residue, and external frontier
+make daylight-meridian-perfect-demo    # demonstrate 1,000,000M from external-attestation fixtures
+make daylight-meridian-artifact        # write build/daylight/v15-meridian/ (scorecard, receipt, frontier, manifest, SHA256SUMS)
+make daylight-meridian-smoke           # CLI smoke checks
+make daylight-meridian-package         # offline package metadata + entrypoint check
+make daylight-meridian-ci              # test + smoke + artifact (GitHub Actions lane)
+```
+
+`daylight-meridian-test` and the CI lane stay standalone (not folded into
+`make test`), matching the v14C+ package convention. The lane is Python-only and
+needs no assembler, linker, or Zig.

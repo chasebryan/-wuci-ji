@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15 Meridian External Attestation Template",
+  "description": "Template/record for a genuine non-harness external attestation that closes an external obligation. A real deployment binds a real external signature; this template carries only the structure. external_signer_id must differ from the harness identity, or the harness refuses to count it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation_version",
+    "entry_type",
+    "obligation_id",
+    "external_signer_id",
+    "scope",
+    "closes_obligations",
+    "artifact_digest_target",
+    "transcript_reference",
+    "created_utc",
+    "signature_status",
+    "boundary"
+  ],
+  "properties": {
+    "attestation_version": {"type": "string", "const": "daylight-v15-meridian-external-attestation-v0.1"},
+    "entry_type": {"type": "string", "const": "external_attestation"},
+    "obligation_id": {"type": "string", "minLength": 1},
+    "external_role": {"type": "string", "minLength": 1},
+    "external_signer_id": {"type": "string", "minLength": 1},
+    "scope": {"type": "string", "const": "external"},
+    "closes_obligations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "artifact_digest_target": {"type": "string", "minLength": 1},
+    "transcript_reference": {"type": "string", "minLength": 1},
+    "created_utc": {"type": "string", "minLength": 10},
+    "signature_status": {"type": "string", "enum": ["unsigned-template", "signed"]},
+    "boundary": {"type": "string", "minLength": 1}
+  }
+}

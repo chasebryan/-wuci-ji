@@ -77,12 +77,21 @@ narrate any target up to a perfect score. Meridian makes every q-value
 evidence-derived (`q_i = closed-obligation weight / 1000`) and has the verifier
 *re-derive* the q-vector from a pinned obligation registry plus the sealed
 closed-obligation set, so editing a number is rejected rather than trusted. See
-[docs/WUCI_DAYLIGHT_V15_MERIDIAN.md](docs/WUCI_DAYLIGHT_V15_MERIDIAN.md).
+[docs/WUCI_DAYLIGHT_V15_MERIDIAN.md](docs/WUCI_DAYLIGHT_V15_MERIDIAN.md) for the
+design and [docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md](docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md)
+for the installable CLI, library API, schemas, and release-gate use.
+
+Meridian exposes `score`, `verify-scorecard`, `frontier`, `attestation-template`,
+`explain`, `gate`, `doctor`, and `artifact` commands through its source-tree CLI;
+`make daylight-meridian-package` checks the package metadata and entrypoint
+offline.
 
 ```sh
 make daylight-meridian-test
 make daylight-meridian-frontier
+make daylight-meridian-artifact
 make daylight-meridian-perfect-demo
+make daylight-meridian-ci
 ```
 
 Meridian's honest internal ceiling is `998,900M / 1,000,000M` (`+700M` over v14C+,

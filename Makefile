@@ -121,7 +121,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 .PHONY: wuci-kaiju-test wuci-os-test
 .PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
-.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo
+.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci
 
 all: check-native $(TARGET)
 
@@ -155,6 +155,27 @@ daylight-meridian-perfect-demo:
 
 daylight-meridian-test: daylight-meridian-verify
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest discover -s daylight/v15-meridian/tests -t daylight/v15-meridian
+
+daylight-meridian-artifact:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli artifact --out-dir build/daylight/v15-meridian --command-label "make daylight-meridian-artifact"
+
+daylight-meridian-smoke:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli --version
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli doctor
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli score --format text
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli frontier
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli frontier --json >/dev/null
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli attestation-template --obligation-id o.q7.external_red_team --signer-id ext:red-team >/dev/null
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli explain --scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json >/dev/null
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli gate --scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json --ledger daylight/v15-meridian/examples/ledger.seed.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --min-score 998900 --require-no-open-internal --allow-external-residue
+
+daylight-meridian-package:
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -c "from src import __version__; print('daylight-meridian', __version__)"
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli --version
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli doctor
+
+daylight-meridian-ci: daylight-meridian-test daylight-meridian-smoke daylight-meridian-artifact
+	@echo "daylight-meridian-ci: complete"
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

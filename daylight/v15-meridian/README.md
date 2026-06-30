@@ -1,5 +1,7 @@
 # Daylight v15 Meridian Execution Package
 
+![Daylight v15 Meridian evidence-derived sovereign mathematics sheet](../../site/assets/wuci-daylight-v15-meridian.png)
+
 Meridian is the successor to the [Daylight v14C+](../v14c-plus/) execution package.
 It keeps the v14C+ doctrine and exact-rational arithmetic and fixes the one weakness
 in the v14C+ design: q-values were asserted `target` constants, gated only by the
@@ -49,6 +51,28 @@ repository:
 Claiming `1,000,000M` from inside is precisely the overclaim
 `ManualScore(x) -> Reject(x)` forbids. Meridian proves this by construction instead
 of asserting it: see `tests/test_external_residue.py`.
+
+## Install and command-line
+
+Meridian ships as an installable artifact (`daylight-meridian`) and a reusable
+library. The full operating manual is
+[docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md](../../docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md).
+
+```bash
+python3 -m pip install -e daylight/v15-meridian   # console script: daylight-meridian
+# or, without installing:
+export PYTHONPATH=daylight/v15-meridian && python3 -m src.cli --help
+```
+
+Commands: `score`, `verify-scorecard`, `frontier`, `attestation-template`,
+`explain`, `gate`, `doctor`, `artifact`, `init-ledger`, `append-entry`,
+`freeze-corpus`, `check-downgrade`. The public library API is `src.api`.
+
+```bash
+daylight-meridian frontier
+daylight-meridian doctor
+daylight-meridian artifact --out-dir build/daylight/v15-meridian
+```
 
 ## Regenerate the example
 
