@@ -249,6 +249,7 @@ h3 {
 }
 
 .section,
+.challenge-section,
 .split-section,
 .gallery,
 .boundary {
@@ -263,6 +264,7 @@ h3 {
 }
 
 .section-copy p,
+.challenge-copy p,
 .split-copy p,
 .boundary p {
   max-width: 720px;
@@ -302,6 +304,76 @@ h3 {
 
 .flow li {
   padding-right: 18px;
+}
+
+.challenge-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(360px, 1.14fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: start;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #121612;
+}
+
+.challenge-copy h2 {
+  max-width: 11ch;
+}
+
+.challenge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.readiness-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.readiness-item {
+  min-height: 210px;
+  padding: 22px;
+  background: #0c110e;
+}
+
+.readiness-item span,
+.readiness-item strong {
+  display: block;
+}
+
+.readiness-item span {
+  margin-bottom: 12px;
+  color: var(--quiet);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.readiness-item strong {
+  margin-bottom: 12px;
+  font-size: 1.18rem;
+}
+
+.readiness-item p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.readiness-item.is-ready strong {
+  color: var(--green);
+}
+
+.readiness-item.is-blocked strong {
+  color: var(--rust);
+}
+
+.readiness-item.is-bounded strong {
+  color: var(--cyan);
 }
 
 .section-heading {
@@ -539,6 +611,7 @@ figcaption {
   .lane-grid,
   .command-grid,
   .image-grid,
+  .challenge-section,
   .intro,
   .split-section,
   .boundary {
@@ -584,10 +657,20 @@ figcaption {
 
   .truth-band div,
   .section,
+  .challenge-section,
   .split-section,
   .gallery,
   .boundary {
     padding-inline: 18px;
+  }
+
+  .challenge-actions,
+  .readiness-board {
+    grid-template-columns: 1fr;
+  }
+
+  .challenge-actions {
+    display: grid;
   }
 
   .section-heading {

@@ -31,6 +31,7 @@
         <span>No Such Machine</span>
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#challenge">Challenge</a>
         <a href="#evidence">Evidence</a>
         <a href="#os">Wuci-OS</a>
         <a href="#commands">Commands</a>
@@ -96,6 +97,60 @@
           <li>public witness bundle</li>
           <li>ledger history</li>
         </ol>
+      </section>
+
+      <section class="challenge-section" id="challenge" aria-labelledby="challenge-title">
+        <div class="challenge-copy">
+          <p class="eyebrow">Challenge issued 2026-06-30</p>
+          <h2 id="challenge-title">Public falsification lane is open.</h2>
+          <p>
+            No Such Machine has issued a public challenge to @780thC and any
+            other reviewer: inspect Daylight v15 Meridian logic, reproduce the
+            proof lanes, and falsify any claim that does not survive the
+            evidence. The target is the published research surface, not a
+            network, system, or third-party asset.
+          </p>
+          <div class="challenge-actions" aria-label="Challenge links">
+            <a class="button primary" href="https://github.com/chasebryan/-wuci-ji/tree/main/daylight/v15-meridian">Open Daylight v15</a>
+            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/blob/main/daylight-equation/SCORECARD.md">Read scorecard</a>
+          </div>
+        </div>
+        <div class="readiness-board" aria-label="Challenge readiness">
+          <article class="readiness-item is-ready">
+            <span>Review surface</span>
+            <strong>Ready to inspect</strong>
+            <p>
+              Source, schemas, examples, scorecards, boundary docs, and the
+              Daylight v15 Meridian CLI are published in the repository.
+            </p>
+          </article>
+          <article class="readiness-item is-ready">
+            <span>Local proof lane</span>
+            <strong>Ready to reproduce</strong>
+            <p>
+              <code>make daylight-meridian-frontier</code> reports a
+              998,900M internal ceiling with 1,100M of external residue.
+            </p>
+          </article>
+          <article class="readiness-item is-blocked">
+            <span>Repo 1000 claim gate</span>
+            <strong>Blocked by design</strong>
+            <p>
+              <code>Daylight_v0.6</code> remains <code>975/1000</code> with
+              <code>ready: false</code>. External review-set evidence and
+              integrated Daylight authority evidence are still required.
+            </p>
+          </article>
+          <article class="readiness-item is-bounded">
+            <span>Rules of engagement</span>
+            <strong>Defensive only</strong>
+            <p>
+              The accepted lane is public evidence review, reproducible command
+              output, and independent attestation. No exploit harness or
+              network attack lane is part of this challenge.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section class="section" id="evidence" aria-labelledby="evidence-title">
