@@ -11,13 +11,13 @@ build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 Current digest:
 
 ```text
-SHA-256: 334c86d28e8a464f9d276b7626b260c8d7a31b95b7c5439dbaee2da76b11ebc1
+SHA-256: 965f5a0f8f8189858636047392a29e25e4a352037cf406559b48a8c42c7abdc0
 ```
 
 Label:
 
 ```text
-v0
+wuci-os-v0.2
 ```
 
 Validated on the build host:
@@ -31,10 +31,14 @@ QEMU direct-kernel BIOS smoke reached:
   wuci-os-live login:
 QEMU live prompt check reached WJ>_ as wj without a password-change trap.
 QEMU command-surface check found:
-  sudo, su, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase,
-  xbps-install, wuci-network-connect
-QEMU no-Wi-Fi check:
-  wuci-network-connect printed tool status and exited cleanly instead of hanging.
+  sudo, su, sv, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase,
+  nmcli, NetworkManager, dbus-daemon, xbps-install, wuci-network-connect
+QEMU runit service check:
+  dbus and NetworkManager were enabled and running.
+QEMU network helper check:
+  wuci-network-connect printed tool status immediately and connected through ens3.
+QEMU NetworkManager check:
+  nmcli device status returned connected ethernet state.
 ```
 
 Bound v0 payloads:
@@ -71,10 +75,11 @@ Package-suite note:
 
 ```text
 The extracted rootfs now contains the minimum live Wi-Fi/admin surface:
-sudo, su, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase, xbps-install,
-and wuci-network-connect. The full desktop/media/SDR package suite is still not
-release-closure proven because this host did not grant the root/chroot package
-transaction needed to bake every full-suite package.
+sudo, su, sv, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase, nmcli,
+NetworkManager, dbus-daemon, xbps-install, and wuci-network-connect. The full
+desktop/media/SDR package suite is still not release-closure proven because this
+host did not grant the root/chroot package transaction needed to bake every
+full-suite package.
 ```
 
 Do not describe v0 as production ready, package-closure proven, hardware-trace

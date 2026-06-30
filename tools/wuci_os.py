@@ -18,7 +18,7 @@ import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import wuci_kaiju
 import wuci_progress
@@ -91,12 +91,16 @@ BOUNDARY_DENIALS = (
 LIVE_COMMAND_SURFACE_REQUIRED = (
     "usr/bin/sudo",
     "usr/bin/su",
+    "usr/bin/sv",
     "usr/bin/ip",
     "usr/bin/dhcpcd",
     "usr/bin/iw",
     "usr/bin/rfkill",
     "usr/bin/wpa_supplicant",
     "usr/bin/wpa_passphrase",
+    "usr/bin/nmcli",
+    "usr/bin/NetworkManager",
+    "usr/bin/dbus-daemon",
     "usr/bin/xbps-install",
     "usr/local/bin/wuci-network-connect",
     "usr/local/bin/wuci-install",
@@ -105,8 +109,15 @@ LIVE_COMMAND_SURFACE_REQUIRED = (
 )
 
 MINIMUM_LIVE_NETWORK_PACKAGES = (
+    "sudo",
+    "iproute2",
+    "dhcpcd",
+    "iw",
+    "rfkill",
     "wpa_supplicant",
     "iwd",
+    "dbus",
+    "NetworkManager",
 )
 
 
@@ -7098,6 +7109,30 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
     }
 
 
+def enable_rootfs_runit_services(rootfs: Path, services: Sequence[str]) -> dict[str, Any]:
+    default_dir = rootfs / "etc/runit/runsvdir/default"
+    default_dir.mkdir(parents=True, exist_ok=True)
+    records: list[dict[str, str]] = []
+    for service in services:
+        if "/" in service or service in {"", ".", ".."}:
+            raise WuciOSError(f"invalid runit service name: {service!r}")
+        service_dir = rootfs / "etc/sv" / service
+        target = default_dir / service
+        if not service_dir.is_dir():
+            records.append({"service": service, "status": "missing-service-dir"})
+            continue
+        if target.is_symlink() or target.exists():
+            records.append({"service": service, "status": "already-enabled", "target": str(target)})
+            continue
+        target.symlink_to(Path("../../../sv") / service)
+        records.append({"service": service, "status": "enabled", "target": str(target)})
+    return {
+        "schema": "wuci-os-rootfs-runit-service-enable-v1",
+        "status": "pass",
+        "services": records,
+    }
+
+
 def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, Any]:
     manifest_path = overlay_manifest_path(overlay_root)
     if manifest_path.is_file():
@@ -7199,6 +7234,7 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
     )
     written.append(live_access_service)
     accounts = apply_rootfs_account_profile(rootfs)
+    services = enable_rootfs_runit_services(rootfs, ("dbus", "NetworkManager"))
     return {
         "schema": "wuci-os-rootfs-overlay-application-v1",
         "status": "pass",
@@ -7208,6 +7244,7 @@ def apply_wuci_overlay_to_rootfs(overlay_root: Path, rootfs: Path) -> dict[str, 
         "files": written,
         "identity_patches": patches,
         "account_profile": accounts,
+        "service_enablement": services,
     }
 
 

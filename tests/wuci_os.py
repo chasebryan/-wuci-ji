@@ -1186,6 +1186,8 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     )
     rootfs = tmp / "identity-rootfs"
     (rootfs / "etc/runit").mkdir(parents=True)
+    (rootfs / "etc/sv/dbus").mkdir(parents=True)
+    (rootfs / "etc/sv/NetworkManager").mkdir(parents=True)
     (rootfs / "etc").mkdir(exist_ok=True)
     (rootfs / "etc/runit/1").write_text("=> Welcome to Void!\nvoid-live\n", encoding="utf-8")
     (rootfs / "etc/issue").write_text(
@@ -1228,6 +1230,8 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert "wj::0:" not in shadow
     assert "plugdev:" in (rootfs / "etc/group").read_text(encoding="utf-8")
     assert "dialout:" in (rootfs / "etc/group").read_text(encoding="utf-8")
+    assert (rootfs / "etc/runit/runsvdir/default/dbus").is_symlink()
+    assert (rootfs / "etc/runit/runsvdir/default/NetworkManager").is_symlink()
     assert "wj ALL=(ALL:ALL) NOPASSWD: ALL" in (rootfs / "etc/sudoers.d/90-wuci-os-wj").read_text(encoding="utf-8")
     assert "permit nopass wj as root" in (rootfs / "etc/doas.d/90-wuci-os-wj.conf").read_text(encoding="utf-8")
     assert "--autologin wj" in (rootfs / "etc/sv/agetty-tty1/conf").read_text(encoding="utf-8")
@@ -1246,6 +1250,8 @@ def make_tiny_extracted_rootfs(rootfs: Path) -> None:
     for directory in (
         "etc/runit",
         "etc/sv/agetty-tty1",
+        "etc/sv/dbus",
+        "etc/sv/NetworkManager",
         "usr/bin",
         "usr/lib",
         "proc",
@@ -1261,12 +1267,16 @@ def make_tiny_extracted_rootfs(rootfs: Path) -> None:
     for command in (
         "sudo",
         "su",
+        "sv",
         "ip",
         "dhcpcd",
         "iw",
         "rfkill",
         "wpa_supplicant",
         "wpa_passphrase",
+        "nmcli",
+        "NetworkManager",
+        "dbus-daemon",
         "xbps-install",
     ):
         (rootfs / "usr/bin" / command).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
