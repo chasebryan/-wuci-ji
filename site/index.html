@@ -7,6 +7,12 @@
       name="description"
       content="No Such Machine publishes the Wuci-Ji and Wuci-OS research surface: sealed artifacts, receipt-bound release, and public evidence for defensive proof lanes."
     >
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta
+      name="keywords"
+      content="No Such Machine, Wuci-Ji, Wuci-OS, Daylight v15 Meridian, evidence-derived cryptography, proof-carrying artifacts"
+    >
+    <meta name="theme-color" content="#0f1411">
     <meta property="og:title" content="No Such Machine">
     <meta
       property="og:description"
@@ -14,7 +20,18 @@
     >
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://nosuchmachine.net/">
+    <meta property="og:image" content="https://nosuchmachine.net/assets/wuci-daylight-v15-meridian-banner.png">
+    <meta property="og:site_name" content="No Such Machine">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="No Such Machine">
+    <meta
+      name="twitter:description"
+      content="Wuci-Ji and Wuci-OS research artifacts with explicit evidence boundaries."
+    >
+    <meta name="twitter:image" content="https://nosuchmachine.net/assets/wuci-daylight-v15-meridian-banner.png">
     <link rel="canonical" href="https://nosuchmachine.net/">
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+    <link rel="manifest" href="site.webmanifest">
     <link rel="icon" href="favicon.png" type="image/png">
     <title>No Such Machine</title>
     <link rel="stylesheet" href="styles.css">
@@ -32,6 +49,7 @@
       </a>
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="#challenge">Challenge</a>
+        <a href="#encrypt">Encrypt</a>
         <a href="#evidence">Evidence</a>
         <a href="#os">Wuci-OS</a>
         <a href="#commands">Commands</a>
@@ -150,6 +168,105 @@
               network attack lane is part of this challenge.
             </p>
           </article>
+        </div>
+      </section>
+
+      <section class="encryptor-section" id="encrypt" aria-labelledby="encrypt-title">
+        <div class="encryptor-copy">
+          <p class="eyebrow">Meridian browser envelope</p>
+          <h2 id="encrypt-title">Encrypt locally when the evidence gate permits it.</h2>
+          <p>
+            This browser lane never uploads your file. It creates a local
+            Meridian Browser Envelope with Web Crypto, binds the ciphertext to
+            the v15 evidence ceiling, and gives you a separate private download
+            key. Policies above the current internal evidence state are refused.
+          </p>
+          <ul class="encryptor-laws" aria-label="Browser envelope laws">
+            <li>NoEvidence(x) -> NoSeal(x)</li>
+            <li>NoProof(x) -> NoOpen(x)</li>
+            <li>ManualScore(x) -> Reject(x)</li>
+          </ul>
+        </div>
+
+        <div class="encryptor-workbench" data-meridian-workbench>
+          <div class="tab-list" role="tablist" aria-label="Meridian envelope tools">
+            <button class="tab-button is-active" type="button" role="tab" aria-selected="true" aria-controls="meridian-encrypt-panel" id="meridian-encrypt-tab" data-tab-target="meridian-encrypt-panel">Encrypt</button>
+            <button class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="meridian-open-panel" id="meridian-open-tab" data-tab-target="meridian-open-panel">Open</button>
+          </div>
+
+          <div class="tab-panel is-active" role="tabpanel" id="meridian-encrypt-panel" aria-labelledby="meridian-encrypt-tab">
+            <div class="field-grid">
+              <label class="field">
+                <span>File</span>
+                <input type="file" data-meridian-file>
+              </label>
+              <label class="field">
+                <span>Policy score floor</span>
+                <select data-meridian-min-score>
+                  <option value="998900">998,900M internal ceiling</option>
+                  <option value="1000000">1,000,000M perfect state</option>
+                </select>
+              </label>
+            </div>
+
+            <fieldset class="check-field">
+              <legend>Required closed obligations</legend>
+              <label><input type="checkbox" value="o.q1.master_law_executable" data-meridian-required checked> Master law executable</label>
+              <label><input type="checkbox" value="o.q4.fail_closed_tests" data-meridian-required checked> Fail-closed tests</label>
+              <label><input type="checkbox" value="o.q8.kat_vector_tests" data-meridian-required> Crypto KAT vectors</label>
+              <label><input type="checkbox" value="o.q11.external_falsification_program" data-meridian-required> External falsification program</label>
+            </fieldset>
+
+            <label class="boundary-check">
+              <input type="checkbox" data-meridian-boundary>
+              <span>I understand this is a browser research profile, not production cryptography or external certification.</span>
+            </label>
+
+            <div class="encryptor-actions">
+              <button class="button primary" type="button" data-meridian-encrypt>Encrypt file</button>
+              <button class="button secondary" type="button" data-meridian-reset>Reset</button>
+            </div>
+
+            <div class="meridian-status" data-meridian-status role="status" aria-live="polite">
+              Waiting for a file and an admissible policy.
+            </div>
+
+            <div class="download-grid" data-meridian-output hidden>
+              <a class="button primary" href="#" download data-meridian-envelope-download>Download encrypted envelope</a>
+              <a class="button secondary" href="#" download data-meridian-key-download>Download private key</a>
+              <button class="copy-button" type="button" data-meridian-copy-key>Copy key</button>
+            </div>
+          </div>
+
+          <div class="tab-panel" role="tabpanel" id="meridian-open-panel" aria-labelledby="meridian-open-tab" hidden>
+            <div class="field-grid">
+              <label class="field">
+                <span>Encrypted envelope</span>
+                <input type="file" accept="application/json,.json,.mbe" data-meridian-open-file>
+              </label>
+              <label class="field">
+                <span>Private download key</span>
+                <textarea rows="4" spellcheck="false" data-meridian-open-key placeholder="Paste the key text or the key JSON here"></textarea>
+              </label>
+            </div>
+
+            <label class="boundary-check">
+              <input type="checkbox" data-meridian-open-boundary>
+              <span>I understand opening is local and refuses if the sealed policy is not satisfied.</span>
+            </label>
+
+            <div class="encryptor-actions">
+              <button class="button primary" type="button" data-meridian-open>Open envelope</button>
+            </div>
+
+            <div class="meridian-status" data-meridian-open-status role="status" aria-live="polite">
+              Waiting for an envelope and its private key.
+            </div>
+
+            <div class="download-grid" data-meridian-open-output hidden>
+              <a class="button primary" href="#" download data-meridian-plain-download>Download opened file</a>
+            </div>
+          </div>
         </div>
       </section>
 

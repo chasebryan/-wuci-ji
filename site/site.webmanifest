@@ -1,0 +1,17 @@
+{
+  "name": "No Such Machine",
+  "short_name": "NSM",
+  "description": "Wuci-Ji and Wuci-OS research artifacts with explicit evidence boundaries.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1411",
+  "theme_color": "#0f1411",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

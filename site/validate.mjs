@@ -12,6 +12,9 @@ const requiredFiles = [
   "app.js",
   "_headers",
   "_redirects",
+  "robots.txt",
+  "sitemap.xml",
+  "site.webmanifest",
   "assets/wuci-daylight-v15-meridian-banner.png",
   "assets/wuci-daylight-v15-meridian.png",
   "assets/wuci-daylight-v14c-plus-ascendant-wide.png",
@@ -59,6 +62,20 @@ async function assertIndexReferences() {
       fail(`index.html references missing local asset: ${reference}`);
     }
   }
+  for (const required of [
+    'name="robots"',
+    'rel="canonical"',
+    'rel="sitemap"',
+    'rel="manifest"',
+    'property="og:image"',
+    'name="twitter:card"',
+    'href="#encrypt"',
+    'data-meridian-workbench'
+  ]) {
+    if (!index.includes(required)) {
+      fail(`index.html is missing SEO or encryptor marker: ${required}`);
+    }
+  }
 }
 
 async function assertAssetSizes() {
@@ -89,6 +106,21 @@ async function assertCloudflareFiles() {
   }
 }
 
+async function assertSearchDiscoveryFiles() {
+  const robots = await readFile(new URL("robots.txt", siteRoot), "utf8");
+  if (!robots.includes("Sitemap: https://nosuchmachine.net/sitemap.xml")) {
+    fail("robots.txt is missing sitemap declaration");
+  }
+  const sitemap = await readFile(new URL("sitemap.xml", siteRoot), "utf8");
+  if (!sitemap.includes("<loc>https://nosuchmachine.net/</loc>")) {
+    fail("sitemap.xml is missing canonical root URL");
+  }
+  const manifest = JSON.parse(await readFile(new URL("site.webmanifest", siteRoot), "utf8"));
+  if (manifest.name !== "No Such Machine" || manifest.start_url !== "/") {
+    fail("site.webmanifest has unexpected identity or start_url");
+  }
+}
+
 async function assertNoRootDeployArtifacts() {
   const forbidden = ["dist", "public", "build"];
   for (const directory of forbidden) {
@@ -103,6 +135,7 @@ await assertRequiredFiles();
 await assertIndexReferences();
 await assertAssetSizes();
 await assertCloudflareFiles();
+await assertSearchDiscoveryFiles();
 await assertNoRootDeployArtifacts();
 
 if (process.exitCode) {
