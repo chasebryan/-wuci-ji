@@ -118,6 +118,22 @@ MINIMUM_LIVE_NETWORK_PACKAGES = (
     "iwd",
     "dbus",
     "NetworkManager",
+    "linux-firmware-network",
+)
+
+MINIMUM_LIVE_NETWORK_REQUIRED_PATHS = (
+    "usr/bin/sudo",
+    "usr/bin/sv",
+    "usr/bin/ip",
+    "usr/bin/dhcpcd",
+    "usr/bin/iw",
+    "usr/bin/rfkill",
+    "usr/bin/wpa_supplicant",
+    "usr/bin/wpa_passphrase",
+    "usr/bin/nmcli",
+    "usr/bin/NetworkManager",
+    "usr/bin/dbus-daemon",
+    "usr/lib/firmware/iwlwifi-5000-5.ucode.zst",
 )
 
 
@@ -7310,16 +7326,13 @@ def _run_rootfs_xbps(rootfs: Path, args: list[str], *, label: str, ticker_mode: 
 
 
 def ensure_minimum_live_network_packages(rootfs: Path, *, ticker_mode: str = "auto") -> dict[str, Any]:
-    required_commands = (
-        "usr/bin/wpa_supplicant",
-        "usr/bin/wpa_passphrase",
-    )
-    missing_before = [path for path in required_commands if not os.access(rootfs / path, os.X_OK)]
+    missing_before = [path for path in MINIMUM_LIVE_NETWORK_REQUIRED_PATHS if not (rootfs / path).exists()]
     if not missing_before:
         return {
             "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
             "status": "already-present",
             "packages": list(MINIMUM_LIVE_NETWORK_PACKAGES),
+            "required_paths": list(MINIMUM_LIVE_NETWORK_REQUIRED_PATHS),
             "missing_before": [],
             "missing_after": [],
         }
@@ -7355,13 +7368,14 @@ def ensure_minimum_live_network_packages(rootfs: Path, *, ticker_mode: str = "au
         install_output = (install.stdout or "") + (install.stderr or "")
     if install.returncode != 0:
         raise WuciOSError("minimum live Wi-Fi package install failed: " + (install.stderr.strip() or install.stdout.strip()))
-    missing_after = [path for path in required_commands if not os.access(rootfs / path, os.X_OK)]
+    missing_after = [path for path in MINIMUM_LIVE_NETWORK_REQUIRED_PATHS if not (rootfs / path).exists()]
     if missing_after:
         raise WuciOSError("minimum live Wi-Fi package install did not provide: " + ", ".join(missing_after))
     return {
         "schema": "wuci-os-minimum-live-network-package-bootstrap-v1",
         "status": "pass",
         "packages": list(MINIMUM_LIVE_NETWORK_PACKAGES),
+        "required_paths": list(MINIMUM_LIVE_NETWORK_REQUIRED_PATHS),
         "missing_before": missing_before,
         "missing_after": missing_after,
         "xbps_update": xbps_update,
@@ -7684,9 +7698,12 @@ def _rootfs_owner_map_from_tarball(rootfs: Path, tarball: Path, tools: dict[str,
 def _debugfs_safe_path(relative: str) -> str:
     if relative in {"", "."}:
         return "/"
-    if any(ch.isspace() for ch in relative) or "\\" in relative or '"' in relative:
+    if "\\" in relative or '"' in relative or any(ch in relative for ch in "\r\n\t"):
         raise WuciOSError(f"rootfs path cannot be safely normalized with debugfs: {relative}")
-    return "/" + relative.strip("/")
+    path = "/" + relative.strip("/")
+    if any(ch.isspace() for ch in relative):
+        return f'"{path}"'
+    return path
 
 
 def normalize_generated_rootfs_image_ownership(

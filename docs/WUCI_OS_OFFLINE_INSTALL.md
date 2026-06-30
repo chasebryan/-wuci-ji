@@ -57,9 +57,10 @@ Wi-Fi SSID and password locally; no network IDs or passwords are baked into the
 image. For noninteractive setup you may use `WUCI_WIFI_SSID`,
 `WUCI_WIFI_PASSWORD`, and optional `WUCI_WIFI_IFACE` / `WUCI_WIFI_HIDDEN=1`.
 The network-fixed image includes NetworkManager/`nmcli`, `dbus`, `sv`,
-`wpa_supplicant`, `wpa_passphrase`, `dhcpcd`, `iw`, `rfkill`, and `sudo`
-at the live prompt. Use `wuci-network-connect` first; use direct `nmcli`
-commands only if you want to drive NetworkManager manually.
+`wpa_supplicant`, `wpa_passphrase`, `dhcpcd`, `iw`, `rfkill`,
+`linux-firmware-network`, and `sudo` at the live prompt. Use
+`wuci-network-connect` first; use direct `nmcli` commands only if you want to
+drive NetworkManager manually.
 
 If Wi-Fi does not work, use wired Ethernet if possible. If no network is
 available, continue the local install and run `sudo wuci-update` after first

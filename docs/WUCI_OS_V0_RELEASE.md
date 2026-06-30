@@ -11,13 +11,13 @@ build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 Current digest:
 
 ```text
-SHA-256: 965f5a0f8f8189858636047392a29e25e4a352037cf406559b48a8c42c7abdc0
+SHA-256: 23aa1490108e77c16dba2b764749baa70033fedee6d825f7f895b8d0bb6bc648
 ```
 
 Label:
 
 ```text
-wuci-os-v0.2
+wuci-os-v0.3
 ```
 
 Validated on the build host:
@@ -33,6 +33,8 @@ QEMU live prompt check reached WJ>_ as wj without a password-change trap.
 QEMU command-surface check found:
   sudo, su, sv, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase,
   nmcli, NetworkManager, dbus-daemon, xbps-install, wuci-network-connect
+Final rootfs firmware check found:
+  /usr/lib/firmware/iwlwifi-5000-5.ucode.zst for X200s-era Intel Wi-Fi.
 QEMU runit service check:
   dbus and NetworkManager were enabled and running.
 QEMU network helper check:
@@ -76,10 +78,10 @@ Package-suite note:
 ```text
 The extracted rootfs now contains the minimum live Wi-Fi/admin surface:
 sudo, su, sv, ip, dhcpcd, iw, rfkill, wpa_supplicant, wpa_passphrase, nmcli,
-NetworkManager, dbus-daemon, xbps-install, and wuci-network-connect. The full
-desktop/media/SDR package suite is still not release-closure proven because this
-host did not grant the root/chroot package transaction needed to bake every
-full-suite package.
+NetworkManager, dbus-daemon, linux-firmware-network, xbps-install, and
+wuci-network-connect. The full desktop/media/SDR package suite is still not
+release-closure proven because this host did not grant the root/chroot package
+transaction needed to bake every full-suite package.
 ```
 
 Do not describe v0 as production ready, package-closure proven, hardware-trace

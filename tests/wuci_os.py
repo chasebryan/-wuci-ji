@@ -1246,6 +1246,11 @@ def assert_remaster_squashfs_uses_live_safe_options() -> None:
     assert '"-no-xattrs",' in source
 
 
+def assert_debugfs_safe_path_quotes_firmware_names() -> None:
+    path = "usr/lib/firmware/brcm/brcmfmac43241b4-sdio.Intel Corp.-VALLEYVIEW C0 PLATFORM.txt.zst"
+    assert wuci_os._debugfs_safe_path(path) == f'"/{path}"'
+
+
 def make_tiny_extracted_rootfs(rootfs: Path) -> None:
     for directory in (
         "etc/runit",
@@ -1254,6 +1259,7 @@ def make_tiny_extracted_rootfs(rootfs: Path) -> None:
         "etc/sv/NetworkManager",
         "usr/bin",
         "usr/lib",
+        "usr/lib/firmware",
         "proc",
         "home",
         "root",
@@ -1283,6 +1289,7 @@ def make_tiny_extracted_rootfs(rootfs: Path) -> None:
         (rootfs / "usr/bin" / command).chmod(0o755)
     (rootfs / "usr/bin/init").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     (rootfs / "usr/bin/init").chmod(0o755)
+    (rootfs / "usr/lib/firmware/iwlwifi-5000-5.ucode.zst").write_bytes(b"firmware-fixture\n")
     (rootfs / "etc/passwd").write_text("root:x:0:0:root:/root:/bin/sh\n", encoding="utf-8")
     (rootfs / "etc/group").write_text("root:x:0:\nwheel:x:10:root\n", encoding="utf-8")
     (rootfs / "etc/shadow").write_text("root:*:0:0:99999:7:::\n", encoding="utf-8")
@@ -2178,6 +2185,7 @@ def main() -> int:
         assert_overlay_force_rebuild(tmp)
         assert_rootfs_overlay_identity_patch(tmp)
         assert_remaster_squashfs_uses_live_safe_options()
+        assert_debugfs_safe_path_quotes_firmware_names()
         assert_remaster_from_extracted_rootfs_is_wrapped(tmp)
         assert_overlay_tar_safeio(tmp)
         assert_tar_member_policy(tmp)
