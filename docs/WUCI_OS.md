@@ -23,8 +23,13 @@ scanning, jailbreak harnesses, malware logic, or network attack tooling.
 ## Default Profile
 
 The generated Wuci-OS overlay defaults to an XFCE4 desktop, `kitty` as the
-preferred terminal, `xfce4-terminal` as the fallback terminal, a ratpoison
-window-manager profile, and both `emacs` and `vim`.
+preferred terminal, Ghostty as the alternate terminal, `xfce4-terminal`/`xterm`
+as fallbacks, a ratpoison window-manager profile, and both `emacs` and `vim`.
+It includes Wi-Fi/network tooling around NetworkManager, firmware package
+groups, PipeWire/ALSA/Pulse audio helpers, Mesa/video helpers, Bluetooth,
+printing/scanning, desktop portals, SDR/radio packages for GNU Radio, Gqrx,
+RTL-SDR, HackRF, Airspy, SoapySDR, USB SDR access helpers, the Wuci splash image
+for bootloader menus, and an original generated Wuci-OS boot chime.
 
 The live/demo account profile is:
 
@@ -51,6 +56,10 @@ Run inside Wuci-OS:
 ```sh
 wuci-users-apply
 wuci-enter
+wuci-network-apply
+wuci-media-apply
+wuci-sdr-apply
+wuci-boot-chime
 wuci-dev-install
 wuci-security-apply
 wuci-security-status
@@ -129,7 +138,7 @@ Place the upstream musl live ISO in the repository root, then install it into
 the Wuci-OS source-evidence workspace:
 
 ```sh
-tools/wuci-os source install ./void-live-x86_64-musl-20250202-base.iso --force
+tools/wuci-os source install ./base-live-x86_64-musl-YYYYMMDD.iso --force
 tools/wuci-os source verify
 tools/wuci-os plan
 tools/wuci-os iso-plan
@@ -138,7 +147,13 @@ tools/wuci-os source-kit
 tools/wuci-os overlay --force
 tools/wuci-os keygen --force
 tools/wuci-os seal-overlay --force --ticker always
+tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages
 ```
+
+The beginning-to-end offline install checklist is
+[WUCI_OS_OFFLINE_INSTALL.md](WUCI_OS_OFFLINE_INSTALL.md). The ISO also carries it
+at `/wuci-os/OFFLINE-INSTALL.txt`, and the live profile exposes it at
+`/usr/share/wuci-os/OFFLINE-INSTALL.txt`.
 
 The source ISO is copied under `build/wuci-os/source/`, which is ignored by Git.
 The source ISO is an operator-supplied input, not repository source. Source ISO
@@ -154,10 +169,10 @@ roots, refuses manifest `image_path` values outside the source workspace, and
 requires a valid plain `.iso` `image_name`; the recorded path must name that
 direct ISO under the source workspace. Verification also requires Wuci-OS
 product identity, `operator_supplied: true`, and the current boundary-denial
-vector. Upstream base attribution must remain Void Linux, musl, live base ISO,
-and `VOID_LIVE`, with a release stamp derived from the installed ISO filename.
-Verification recomputes the Void live layout and requires it to match the layout
-evidence stored in the source manifest. Rollback staging re-opens existing files
+vector. Upstream base attribution remains in source evidence and license
+metadata, with a release stamp derived from the installed ISO filename.
+Verification recomputes the expected live layout and requires it to match the
+layout evidence stored in the source manifest. Rollback staging re-opens existing files
 with no-follow semantics and verifies the staged same-directory backup still
 matches the inspected file identity before it can be used for restore.
 `tools/wuci-os overlay --force` performs a deterministic rebuild of the overlay
@@ -203,6 +218,31 @@ rejected if they are visible in the source snapshot, because generated archive
 state is not onboard source evidence.
 This is archive evidence discipline, not a runtime containment claim.
 
+`tools/wuci-os final-iso --force` builds a bootable payload-preview ISO at
+`build/wuci-os/final/Wuci-OS-x86_64-musl.iso`. It preserves the upstream live ISO
+boot catalog, embeds `/wuci-os/` payloads, writes
+`Wuci-OS-x86_64-musl.iso.sha256`, emits `manifest.json`, and copies the Daylight
+seal manifest to `daylight-manifest.json`.
+
+`tools/wuci-os final-iso --force --remaster-rootfs` is the Wuci first-boot
+identity path. It rewrites ISOLINUX labels to `Wuci-Ji Systems / Wuci-OS
+x86_64-musl`, rewrites GRUB entries when GRUB configs are present, embeds the
+Wuci splash under `/boot/isolinux/wuci-splash.png` and
+`/boot/grub/wuci-splash.png`, applies the Wuci overlay into
+`LiveOS/squashfs.img`, replaces `/etc/os-release`, issue/MOTD, hostname,
+terminal defaults, update helpers, network/media helpers, and removes the upstream
+live login banner from the remastered rootfs.
+
+`--install-suite-packages` adds the finished suite package bake: Wi-Fi/network
+support, firmware, audio, video, Bluetooth, printing/scanning, portals, editors,
+SDR/radio software, USB SDR helpers, developer toolchains, and security
+packages. This requires host `xbps-install` with rootfs support, or root chroot
+access to a rootfs that already contains `/usr/bin/xbps-install`. If those tools
+are unavailable, the remaster reports a blocker instead of claiming that
+packages were baked. SDR package availability can vary by base snapshot, so the
+package-bake manifest records whether the suite completed fully or partially and
+lists any package names that were unavailable.
+
 ## Live Boot
 
 Inspect the QEMU plan first:
@@ -219,9 +259,11 @@ tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo
 
 The boot plan extracts `boot/vmlinuz` and `boot/initrd` from the source ISO into a
 transient `build/wuci-os/boot/` directory, attaches the ISO as read-only CD
-media, and appends `console=ttyS0,115200n8` for the terminal demo path. Wuci-OS
-also generates a deterministic source-kit tar so the current checkout is present
-inside the live system under `/opt/wuci-os/source/wuci-ji`. If QEMU does not
+media, and appends the fast-live kernel profile: serial console, `nomodeset`,
+reduced md/dm/LUKS/LVM autodetect, quieter udev/kernel logs, and blacklist rules
+for live RAID/Btrfs probing that is not needed by the Wuci workstation path.
+Wuci-OS also generates a deterministic source-kit tar so the current checkout is
+present inside the live system under `/opt/wuci-os/source/wuci-ji`. If QEMU does not
 support `virtio-9p-pci`, Wuci-OS attaches the generated overlay and source kit as
 read-only tar block devices. Existing overlay tar-drive payloads are only built
 after the overlay manifest passes the same current-content check used by the
@@ -256,25 +298,28 @@ Exit QEMU with `Ctrl-a x`.
 
 ## Next Build Lane
 
-The next Wuci-OS step is to add a finished bootable ISO lane:
+The current Wuci-OS ISO lane can build either a payload-preview ISO or a
+squashfs-remastered Wuci first-boot identity ISO. The next Wuci-OS step is to
+make the remastered distro lane routine on the target build host:
 
-1. fetch and review the upstream live-image source tooling into a reproducible
-   Wuci-OS build workspace,
-2. replace live boot banners, `/etc/os-release`, issue/MOTD, desktop defaults,
-   installer context, and package profile with Wuci-OS identity,
+1. install host `squashfs-tools` and package-baking support,
+2. boot-smoke-test the remastered ISO on BIOS and UEFI paths,
 3. build Wuci-Ji tools as XBPS packages where practical,
-4. emit Wuci-Ji receipts for generated ISO/rootfs artifacts,
-5. keep required upstream attribution in source evidence and license metadata,
+4. verify SDR hardware/udev behavior on target hardware,
+5. emit Wuci-Ji receipts for generated ISO/rootfs/package artifacts,
+6. keep required upstream attribution in source evidence and license metadata,
    while the running operator surface remains Wuci-OS.
 
-The intended final artifacts are:
+The current final artifacts are:
 
 ```text
 build/wuci-os/final/Wuci-OS-x86_64-musl.iso
 build/wuci-os/final/Wuci-OS-x86_64-musl.iso.sha256
 build/wuci-os/final/manifest.json
-build/wuci-os/final/wuci-os.iso.wj
 build/wuci-os/final/daylight-manifest.json
+build/wuci-os/final/rootfs-manifest.json
+build/wuci-os/final/wuci-os-overlay.tar
+build/wuci-os/final/wuci-os-source-kit.tar
 ```
 
 Most of this lane should move to Rust:
