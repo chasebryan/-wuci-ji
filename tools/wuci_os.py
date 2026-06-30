@@ -6771,6 +6771,7 @@ def remaster_live_rootfs(
             "-all-root",
             "-comp",
             "xz",
+            "-no-xattrs",
             "-no-progress",
         ],
         cwd=work_root,

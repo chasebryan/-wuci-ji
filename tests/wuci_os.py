@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import inspect
 import json
 import os
 import subprocess
@@ -1141,6 +1142,13 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "home/wj/.config/kitty/kitty.conf").is_file()
 
 
+def assert_remaster_squashfs_uses_live_safe_options() -> None:
+    source = inspect.getsource(wuci_os.remaster_live_rootfs)
+    assert '"-comp",' in source
+    assert '"xz",' in source
+    assert '"-no-xattrs",' in source
+
+
 def assert_overlay_tar_safeio(tmp: Path) -> None:
     overlay_root = tmp / "overlay-tar-safe"
     (overlay_root / "usr/local/bin").mkdir(parents=True)
@@ -1903,6 +1911,7 @@ def main() -> int:
         assert_overlay_profile(tmp)
         assert_overlay_force_rebuild(tmp)
         assert_rootfs_overlay_identity_patch(tmp)
+        assert_remaster_squashfs_uses_live_safe_options()
         assert_overlay_tar_safeio(tmp)
         assert_tar_member_policy(tmp)
         assert_daylight_keygen(tmp)
