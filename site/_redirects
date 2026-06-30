@@ -1,3 +1,4 @@
+https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301
 /repo https://github.com/chasebryan/-wuci-ji 302
 /readme https://github.com/chasebryan/-wuci-ji/blob/main/README.md 302
 /docs/security-boundary https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md 302
