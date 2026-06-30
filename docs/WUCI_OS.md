@@ -259,7 +259,7 @@ tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo
 
 The boot plan extracts `boot/vmlinuz` and `boot/initrd` from the source ISO into a
 transient `build/wuci-os/boot/` directory, attaches the ISO as read-only CD
-media, and appends the fast-live kernel profile: serial console, `nomodeset`,
+media, and appends the fast-live kernel profile: serial plus local console, `nomodeset`,
 reduced md/dm/LUKS/LVM autodetect, quieter udev/kernel logs, and blacklist rules
 for live RAID/Btrfs probing that is not needed by the Wuci workstation path.
 Wuci-OS also generates a deterministic source-kit tar so the current checkout is

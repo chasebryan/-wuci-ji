@@ -9,9 +9,14 @@ embedded in the ISO at `/wuci-os/OFFLINE-INSTALL.txt` and in the live system at
 1. Insert the Wuci-OS USB or attach the ISO.
 2. Open the firmware boot menu.
 3. Choose the Wuci-OS USB or virtual CD entry.
-4. Select `Wuci-Ji Systems / Wuci-OS x86_64-musl`.
+4. Select `Wuci-Ji Systems / Wuci-OS live`.
 5. Wait for the Wuci prompt, banner, or XFCE desktop.
-6. If the desktop does not start, log in as `wj`, press Enter at the password
+6. On legacy BIOS machines such as the ThinkPad X200s, a `no EFI` message is
+   expected and is not a failure.
+7. If the screen stays at `Booting the kernel` for more than 5-10 minutes,
+   reboot, press `Tab` on the Wuci boot entry, add `console=tty0` to the end of
+   the APPEND line, and boot again.
+8. If the desktop does not start, log in as `wj`, press Enter at the password
    prompt, and run `startx`.
 
 ## 2. First Checks

@@ -65,19 +65,37 @@ def assert_append_parsing() -> None:
     serial = wuci_os.serial_append_from_void(append)
     assert "initrd=" not in serial
     assert "console=ttyS0,115200n8" in serial
+    assert "console=tty0" in serial
     assert "nomodeset" in serial
     assert "rd.md=0" in serial
     assert "rd.luks=0" in serial
     assert "modprobe.blacklist=raid456,async_raid6_recov,dm_raid,md_mod,btrfs" in serial
     assert serial.count("console=ttyS0,115200n8") == 1
-    boot_menu = wuci_os.rewrite_isolinux_config_for_wuci(ISOLINUX)
-    assert "MENU LABEL Wuci-Ji Systems / Wuci-OS x86_64-musl" in boot_menu
+    assert serial.count("console=tty0") == 1
+    boot_menu = wuci_os.rewrite_isolinux_config_for_wuci(
+        ISOLINUX
+        + "\nLABEL linuxram\nMENU LABEL Void Linux x86_64-musl (RAM)\nKERNEL /boot/vmlinuz\nAPPEND initrd=/boot/initrd root=live:CDLABEL=VOID_LIVE rd.live.ram\n"
+        + "\nLABEL c\nMENU LABEL Boot first HD found by BIOS\nCOM32 chain.c32\nAPPEND hd0\n"
+        + "\nLABEL reboot\nMENU LABEL Re^boot\nCOM32 reboot.c32\n"
+    )
+    assert "MENU LABEL Wuci-Ji Systems / Wuci-OS live" in boot_menu
+    assert "MENU LABEL Wuci-OS live (copy to RAM)" in boot_menu
+    assert "MENU LABEL Boot first hard disk" in boot_menu
+    assert "MENU LABEL Reboot" in boot_menu
     assert "MENU BACKGROUND /boot/isolinux/wuci-splash.png" in boot_menu
     assert "initrd=/boot/initrd" in boot_menu
     assert "rd.auto=0" in boot_menu
+    assert "console=tty0" in boot_menu
+    assert "APPEND hd0 console=" not in boot_menu
     assert "Void Linux" not in boot_menu
-    grub = wuci_os.rewrite_grub_config_for_wuci("menuentry 'Void Linux' {\n linux /boot/vmlinuz\n}\n")
-    assert "menuentry 'Wuci-Ji Systems / Wuci-OS x86_64-musl'" in grub
+    grub = wuci_os.rewrite_grub_config_for_wuci(
+        "menuentry 'Void Linux' --id linux {\n linux /boot/vmlinuz\n}\n"
+        "menuentry 'Void Linux (RAM)' --id linuxram --hotkey r {\n linux /boot/vmlinuz\n}\n"
+        "menuentry 'System restart' --id restart {\n reboot\n}\n"
+    )
+    assert "menuentry 'Wuci-Ji Systems / Wuci-OS live' --id linux" in grub
+    assert "menuentry 'Wuci-OS live (copy to RAM)' --id linuxram --hotkey r" in grub
+    assert "menuentry 'Restart' --id restart" in grub
     assert "background_image /boot/grub/wuci-splash.png" in grub
     assert "Void Linux" not in grub
 
@@ -480,6 +498,7 @@ def assert_boot_plan_ready(tmp: Path) -> None:
     assert "pc,accel=kvm:tcg" in plan["argv"]
     assert "max" in plan["argv"]
     assert "console=ttyS0,115200n8" in plan["append"]
+    assert "console=tty0" in plan["append"]
     assert plan["boot_profile"]["mode"] == "fast-live"
     assert "rd.auto=0" in plan["append"]
     assert any("user,model=virtio-net-pci" == item for item in plan["argv"])
@@ -1800,15 +1819,16 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
     final_iso = Path(result["iso"]["path"])
     assert final_iso.is_file()
     boot_menu = wuci_os._extract_iso_text(final_iso, "boot/isolinux/isolinux.cfg")
-    assert "Wuci-OS x86_64-musl" in boot_menu
+    assert "Wuci-Ji Systems / Wuci-OS live" in boot_menu
     assert "wuci-splash.png" in boot_menu
     assert "rd.auto=0" in boot_menu
+    assert "console=tty0" in boot_menu
     assert "Void Linux" not in boot_menu
     grub_menu = wuci_os._extract_iso_text(final_iso, "boot/grub/grub.cfg")
     assert "background_image /boot/grub/wuci-splash.png" in grub_menu
     assert "Void Linux" not in grub_menu
     grub_void_menu = wuci_os._extract_iso_text(final_iso, "boot/grub/grub_void.cfg")
-    assert "Wuci-Ji Systems / Wuci-OS x86_64-musl" in grub_void_menu
+    assert "Wuci-Ji Systems / Wuci-OS live" in grub_void_menu
     assert "Void Linux" not in grub_void_menu
     iso = pycdlib.PyCdlib()
     iso.open(str(final_iso))

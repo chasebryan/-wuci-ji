@@ -221,6 +221,7 @@ TERMINAL_CANDIDATES = (
 
 FAST_BOOT_KERNEL_ARGS = (
     "console=ttyS0,115200n8",
+    "console=tty0",
     "nomodeset",
     "rd.md=0",
     "rd.dm=0",
@@ -239,6 +240,21 @@ FAST_BOOT_MODPROBE_BLACKLIST = (
     "md_mod",
     "btrfs",
 )
+
+BOOT_ENTRY_LABELS = {
+    "linux": "Wuci-Ji Systems / Wuci-OS live",
+    "linuxram": "Wuci-OS live (copy to RAM)",
+    "linuxnogfx": "Wuci-OS live (safe graphics)",
+    "linuxa11y": "Wuci-OS accessibility (speech)",
+    "linuxa11yram": "Wuci-OS accessibility (speech, copy to RAM)",
+    "linuxa11ynogfx": "Wuci-OS accessibility (speech, safe graphics)",
+    "c": "Boot first hard disk",
+    "memtest": "Wuci-OS memory test",
+    "uefifw": "UEFI firmware settings",
+    "restart": "Restart",
+    "reboot": "Reboot",
+    "poweroff": "Power off",
+}
 
 BASE_DEV_PACKAGES = (
     "ca-certificates",
@@ -664,6 +680,10 @@ def first_isolinux_append(text: str) -> str:
 
 
 def _append_kernel_arg(parts: list[str], required: str) -> None:
+    if required.startswith("console="):
+        if required not in parts:
+            parts.append(required)
+        return
     if "=" in required:
         prefix = required.split("=", 1)[0] + "="
         parts[:] = [part for part in parts if not part.startswith(prefix)]
@@ -673,7 +693,7 @@ def _append_kernel_arg(parts: list[str], required: str) -> None:
 
 def wuci_fast_boot_append(append: str, *, include_initrd: bool, fast_boot: bool = True) -> str:
     parts = [part for part in append.split() if include_initrd or not part.startswith("initrd=")]
-    required_args = FAST_BOOT_KERNEL_ARGS if fast_boot else ("console=ttyS0,115200n8", "nomodeset")
+    required_args = FAST_BOOT_KERNEL_ARGS if fast_boot else ("console=ttyS0,115200n8", "console=tty0", "nomodeset")
     for required in required_args:
         _append_kernel_arg(parts, required)
     return " ".join(parts)
@@ -683,20 +703,67 @@ def serial_append_from_void(append: str, *, fast_boot: bool = True) -> str:
     if fast_boot:
         return wuci_fast_boot_append(append, include_initrd=False)
     parts = [part for part in append.split() if not part.startswith("initrd=")]
-    for required in ("console=ttyS0,115200n8", "nomodeset"):
+    for required in ("console=ttyS0,115200n8", "console=tty0", "nomodeset"):
         _append_kernel_arg(parts, required)
     return " ".join(parts)
+
+
+def wuci_boot_entry_label(entry_id: str | None, original_label: str) -> str:
+    key = (entry_id or "").strip().strip('"').strip("'").lower()
+    if key in BOOT_ENTRY_LABELS:
+        return BOOT_ENTRY_LABELS[key]
+    lowered = original_label.lower()
+    if "void linux" in lowered or "wuci-os" in lowered:
+        if "speech" in lowered and "ram" in lowered:
+            return BOOT_ENTRY_LABELS["linuxa11yram"]
+        if "speech" in lowered and "graphics" in lowered:
+            return BOOT_ENTRY_LABELS["linuxa11ynogfx"]
+        if "speech" in lowered:
+            return BOOT_ENTRY_LABELS["linuxa11y"]
+        if "ram" in lowered:
+            return BOOT_ENTRY_LABELS["linuxram"]
+        if "graphics" in lowered:
+            return BOOT_ENTRY_LABELS["linuxnogfx"]
+        return BOOT_ENTRY_LABELS["linux"]
+    if "memtest" in lowered or "ram test" in lowered:
+        return BOOT_ENTRY_LABELS["memtest"]
+    if "restart" in lowered or "reboot" in lowered:
+        return BOOT_ENTRY_LABELS["restart"]
+    if "shutdown" in lowered or "power off" in lowered:
+        return BOOT_ENTRY_LABELS["poweroff"]
+    normalized = original_label.replace("^", "")
+    normalized = re.sub(r"Void Linux\s+[^\s()]+", "Wuci-OS", normalized)
+    normalized = normalized.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS")
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized or "Wuci-OS boot option"
+
+
+def _grub_entry_id(text: str) -> str | None:
+    match = re.search(r"--id(?:=|\s+)(?:[\"']?)([^\"'\s{]+)", text)
+    return match.group(1) if match else None
+
+
+def _replace_grub_title(line: str, label: str, keyword: str) -> str | None:
+    match = re.match(rf"^(\s*{keyword}\s+)([\"'])(.*?)(\2)(.*)$", line)
+    if not match:
+        return None
+    return f"{match.group(1)}{match.group(2)}{label}{match.group(4)}{match.group(5)}"
 
 
 def rewrite_isolinux_config_for_wuci(text: str) -> str:
     rows: list[str] = []
     inserted_title = False
     inserted_background = False
+    current_label: str | None = None
     for raw in text.splitlines():
         line = raw.rstrip("\n")
         stripped = line.strip()
         upper = stripped.upper()
         indent = line[: len(line) - len(line.lstrip())]
+        if upper.startswith("LABEL "):
+            current_label = stripped.split(maxsplit=1)[1].strip() if len(stripped.split(maxsplit=1)) == 2 else None
+            rows.append(line)
+            continue
         if upper.startswith("MENU TITLE "):
             rows.append(f"{indent}MENU TITLE Wuci-OS")
             inserted_title = True
@@ -706,11 +773,15 @@ def rewrite_isolinux_config_for_wuci(text: str) -> str:
             inserted_background = True
             continue
         if upper.startswith("MENU LABEL "):
-            rows.append(f"{indent}MENU LABEL Wuci-Ji Systems / Wuci-OS x86_64-musl")
+            original_label = stripped.split(maxsplit=2)[2] if len(stripped.split(maxsplit=2)) == 3 else ""
+            rows.append(f"{indent}MENU LABEL {wuci_boot_entry_label(current_label, original_label)}")
             continue
         if upper.startswith("APPEND "):
             append = stripped.split(maxsplit=1)[1] if len(stripped.split(maxsplit=1)) == 2 else ""
-            rows.append(f"{indent}APPEND {wuci_fast_boot_append(append, include_initrd=True)}")
+            if current_label and current_label.lower().startswith("linux"):
+                rows.append(f"{indent}APPEND {wuci_fast_boot_append(append, include_initrd=True)}")
+            else:
+                rows.append(line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
             continue
         rows.append(line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
     if not inserted_title:
@@ -728,18 +799,13 @@ def rewrite_grub_config_for_wuci(text: str) -> str:
         line = raw.rstrip("\n")
         stripped = line.strip()
         if stripped.startswith("menuentry "):
-            prefix = line[: len(line) - len(line.lstrip())]
-            suffix = ""
-            if "{" in stripped:
-                suffix = " " + stripped[stripped.index("{") :]
-            rows.append(f"{prefix}menuentry 'Wuci-Ji Systems / Wuci-OS x86_64-musl'{suffix}")
+            original = re.match(r"^\s*menuentry\s+([\"'])(.*?)(\1)", line)
+            original_label = original.group(2) if original else ""
+            label = wuci_boot_entry_label(_grub_entry_id(stripped), original_label)
+            rows.append(_replace_grub_title(line, label, "menuentry") or line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
             continue
         if stripped.startswith("submenu "):
-            prefix = line[: len(line) - len(line.lstrip())]
-            suffix = ""
-            if "{" in stripped:
-                suffix = " " + stripped[stripped.index("{") :]
-            rows.append(f"{prefix}submenu 'Wuci-Ji Systems recovery and tools'{suffix}")
+            rows.append(_replace_grub_title(line, "Wuci-Ji Systems recovery and tools", "submenu") or line.replace("Void Linux", "Wuci-OS").replace("Void", "Wuci-OS"))
             continue
         if stripped.startswith("background_image "):
             rows.append("background_image /boot/grub/wuci-splash.png")
@@ -1229,16 +1295,21 @@ Keep this file available during the install. It is copied into the ISO at
 1. Insert the Wuci-OS USB or attach the Wuci-OS ISO.
 2. Power on the machine and open the firmware boot menu.
 3. Choose the USB or virtual CD entry for Wuci-OS.
-4. In the boot menu choose `Wuci-Ji Systems / Wuci-OS x86_64-musl`.
+4. In the boot menu choose `Wuci-Ji Systems / Wuci-OS live`.
 5. Wait for the Wuci-OS prompt, banner, or XFCE desktop.
-6. If the desktop does not start, log in as `wj` and press Enter at the password prompt.
-7. If you are at a text prompt, run:
+6. On legacy BIOS machines such as the ThinkPad X200s, a `no EFI` message is
+   expected and is not a failure.
+7. If the screen stays at `Booting the kernel` for more than 5-10 minutes,
+   reboot, press `Tab` on the Wuci boot entry, add `console=tty0` to the end of
+   the APPEND line, and boot again.
+8. If the desktop does not start, log in as `wj` and press Enter at the password prompt.
+9. If you are at a text prompt, run:
 
 ```sh
 startx
 ```
 
-8. If `startx` is not available, stay in the text console and continue with the install steps.
+10. If `startx` is not available, stay in the text console and continue with the install steps.
 
 ## 2. Open A Terminal
 
@@ -6896,7 +6967,7 @@ def build_final_iso(
             "bytes": boot_splash_bytes,
             "digest_vector": boot_splash_digest,
             "menu_names": [
-                "Wuci-Ji Systems / Wuci-OS x86_64-musl",
+                "Wuci-Ji Systems / Wuci-OS live",
                 "Wuci-Ji Systems recovery and tools",
             ],
         },
