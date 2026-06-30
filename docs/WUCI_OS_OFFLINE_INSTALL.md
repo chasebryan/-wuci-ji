@@ -31,7 +31,7 @@ wuci-network-status
 wuci-media-status
 wuci-sdr-status
 wuci-source-status
-ls /usr/share/wuci-os/WUCI_DAYLIGHT_V9.md /usr/share/wuci-os/wuci-daylight-v9-sheet.png /usr/share/wuci-os/wuci-daylight-v9-spine.svg
+ls /usr/share/wuci-os/WUCI_DAYLIGHT_V9.md /usr/share/wuci-os/WUCI_DAYLIGHT_V10.md /usr/share/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md /usr/share/wuci-os/wuci-daylight-v9-sheet.png /usr/share/wuci-os/wuci-daylight-v9-spine.svg /usr/share/wuci-os/wuci-daylight-v10-scoreboard.png /usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png
 ```
 
 Open the preferred terminal with:
@@ -65,6 +65,41 @@ drive NetworkManager manually.
 If Wi-Fi does not work, use wired Ethernet if possible. If no network is
 available, continue the local install and run `sudo wuci-update` after first
 boot once networking is fixed.
+
+If `iw`, `nmcli`, or `wuci-network-connect` cannot see Wi-Fi hardware, check the
+kernel module closure before trying more passwords:
+
+```sh
+uname -r
+ls -ld /lib/modules/$(uname -r) /usr/lib/modules/$(uname -r)
+find /lib/modules/$(uname -r) /usr/lib/modules/$(uname -r) -iname '*cfg80211*' -o -iname '*mac80211*' -o -iname '*iwlwifi*' -o -iname '*mt7921*' 2>/dev/null
+lspci -nnk | grep -A4 -iE 'network|wireless|wifi'
+lsusb
+dmesg | grep -iE 'cfg80211|mac80211|nl80211|firmware|iwlwifi|usb|xhci|mt76|mt7921'
+```
+
+If `cfg80211` is missing for the running kernel, Wi-Fi cannot work on the
+built-in X200s adapter or the Netgear A8000 USB adapter. Use Ethernet, then run:
+
+```sh
+sudo xbps-install -S
+sudo xbps-install -f linux6.12
+sudo xbps-install -Sy linux-firmware linux-firmware-network linux-firmware-intel NetworkManager wpa_supplicant iw rfkill pciutils usbutils kmod
+sudo depmod -a "$(uname -r)"
+sudo reboot
+```
+
+After reboot:
+
+```sh
+sudo modprobe cfg80211
+sudo modprobe mac80211
+sudo modprobe iwlwifi
+sudo rfkill unblock all
+iw dev
+nmcli device status
+wuci-network-connect
+```
 
 ## 4. Media And SDR
 

@@ -17,8 +17,9 @@ release surface.
 
 The current local v0 evidence-candidate label is recorded in
 [`docs/WUCI_OS_V0_RELEASE.md`](WUCI_OS_V0_RELEASE.md), including the final ISO
-digest, boot-smoke evidence, embedded v9 payload paths, and release-gate
-blockers that still prevent a release-gate pass.
+digest, boot-smoke evidence, Daylight v8/v9/v10 payload paths, kernel hardware
+closure status, and release-gate blockers that still prevent a release-gate
+pass.
 
 Daylight v8 extends that lane in
 [`docs/WUCI_DAYLIGHT_V8.md`](WUCI_DAYLIGHT_V8.md): evidence sheaves, subtractive
@@ -34,6 +35,14 @@ gate sketch, and explicit attack-surface closure. The v9 target range is
 `990-995`, but current Wuci-OS builds still subtract release-ready claims until
 package closure, signature, ledger, QEMU trace binding, and hardware trace
 evidence exist.
+
+Daylight v10 compresses that model into
+[`docs/WUCI_DAYLIGHT_V10.md`](WUCI_DAYLIGHT_V10.md): a minimal verified release
+kernel with an initializer gate, standard crypto profile, meet-only proof
+kernel, freshness ledger, attack-surface closure calculus, boot-bound crypto
+wire, negative-evidence ledger, and conservative diagnostic utility. The v10
+utility score is evidence telemetry only; it cannot override the fail-closed
+publish gate.
 
 The Daylight v8 sheet is shipped at
 [`docs/wuci-os/assets/wuci-daylight-v8-sheet.png`](wuci-os/assets/wuci-daylight-v8-sheet.png)
@@ -51,6 +60,20 @@ embedded at `/wuci-os/wuci-daylight-v9-sheet.png` and
 `/usr/share/wuci-os/wuci-daylight-v9-sheet.png`. The editable companion SVG is
 embedded at `/wuci-os/wuci-daylight-v9-spine.svg` and
 `/usr/share/wuci-os/wuci-daylight-v9-spine.svg`.
+The Daylight v10 release-kernel text is embedded at
+`/wuci-os/WUCI_DAYLIGHT_V10.md` and
+`/usr/share/wuci-os/WUCI_DAYLIGHT_V10.md`. Its scoreboard image is shipped at
+[`docs/wuci-os/assets/wuci-daylight-v10-scoreboard.png`](wuci-os/assets/wuci-daylight-v10-scoreboard.png)
+and embedded at `/wuci-os/wuci-daylight-v10-scoreboard.png` and
+`/usr/share/wuci-os/wuci-daylight-v10-scoreboard.png`.
+The Daylight v13 Sovereign profile is a roadmap document, not a current crypto
+implementation claim. It is embedded at
+`/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md` and
+`/usr/share/wuci-os/WUCI_DAYLIGHT_V13_SOVEREIGN.md`. Its Sovereign Mathematics
+sheet is shipped at
+[`docs/wuci-os/assets/wuci-daylight-v13-sovereign-math.png`](wuci-os/assets/wuci-daylight-v13-sovereign-math.png)
+and embedded at `/wuci-os/wuci-daylight-v13-sovereign-math.png` and
+`/usr/share/wuci-os/wuci-daylight-v13-sovereign-math.png`.
 
 ## Boundary
 
@@ -72,6 +95,13 @@ groups, PipeWire/ALSA/Pulse audio helpers, Mesa/video helpers, Bluetooth,
 printing/scanning, desktop portals, SDR/radio packages for GNU Radio, Gqrx,
 RTL-SDR, HackRF, Airspy, SoapySDR, USB SDR access helpers, the Wuci splash image
 for bootloader menus, and an original generated Wuci-OS boot chime.
+
+Hardware Wi-Fi is a kernel closure claim, not just a userspace tool claim.
+Current builds must prove that the live rootfs contains a module tree matching
+the ISO boot kernel and that it provides `cfg80211`, `mac80211`, the X200s-era
+Intel `iwlwifi`/`iwldvm` path, Netgear A8000/MT7921U fallback modules, module
+metadata, udev hotplug files, and matching firmware. If that proof fails, the
+builder fails before calling the image hardware-Wi-Fi ready.
 
 The live/demo account profile is:
 
