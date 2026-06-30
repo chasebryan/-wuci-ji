@@ -13,10 +13,11 @@ embedded in the ISO at `/wuci-os/OFFLINE-INSTALL.txt` and in the live system at
 5. Wait for the Wuci prompt, banner, or XFCE desktop.
 6. On legacy BIOS machines such as the ThinkPad X200s, a `no EFI` message is
    expected and is not a failure.
-7. If the screen stays at `Booting the kernel` for more than 5-10 minutes,
-   reboot, press `Tab` on the Wuci boot entry, add `console=tty0` to the end of
-   the APPEND line, and boot again.
-8. If the desktop does not start, log in as `wj`, press Enter at the password
+7. The default Wuci live entry already includes `console=tty0` and
+   `rd.driver.pre=loop` for legacy BIOS live-root setup.
+8. If you see `losetup /dev/loop0 failed` or `failed to find root filesystem`,
+   stop using that USB image and reflash the newest Wuci-OS ISO.
+9. If the desktop does not start, log in as `wj`, press Enter at the password
    prompt, and run `startx`.
 
 ## 2. First Checks
@@ -30,6 +31,7 @@ wuci-network-status
 wuci-media-status
 wuci-sdr-status
 wuci-source-status
+ls /usr/share/wuci-os/WUCI_DAYLIGHT_V9.md /usr/share/wuci-os/wuci-daylight-v9-sheet.png /usr/share/wuci-os/wuci-daylight-v9-spine.svg
 ```
 
 Open the preferred terminal with:
@@ -42,12 +44,18 @@ wuci-terminal
 
 ```sh
 ip link
+sudo wuci-network-connect
 sudo wuci-network-apply
 nmcli device wifi list
-nmcli device wifi connect "YOUR_WIFI_NAME" --ask
+nmcli --ask device wifi connect "YOUR_WIFI_NAME"
 ip addr
 ping -c 3 1.1.1.1
 ```
+
+`wuci-network-connect` is the first-boot credential prompt. It asks for the
+Wi-Fi SSID and password locally; no network IDs or passwords are baked into the
+image. For noninteractive setup you may use `WUCI_WIFI_SSID`,
+`WUCI_WIFI_PASSWORD`, and optional `WUCI_WIFI_IFACE` / `WUCI_WIFI_HIDDEN=1`.
 
 If Wi-Fi does not work, use wired Ethernet if possible. If no network is
 available, continue the local install and run `sudo wuci-update` after first

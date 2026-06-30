@@ -10,6 +10,48 @@ live layout, and emits a serial-friendly QEMU boot plan. The upstream base
 lineage stays in source evidence and license/build metadata; it is not the
 operator-facing product identity.
 
+The lane follows the Substract Substrate model in
+[`docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md`](WUCI_OS_SUBSTRACT_SUBSTRATE.md):
+every public OS claim is either proven by local evidence or subtracted from the
+release surface.
+
+The current local v0 evidence-candidate label is recorded in
+[`docs/WUCI_OS_V0_RELEASE.md`](WUCI_OS_V0_RELEASE.md), including the final ISO
+digest, boot-smoke evidence, embedded v9 payload paths, and release-gate
+blockers that still prevent a release-gate pass.
+
+Daylight v8 extends that lane in
+[`docs/WUCI_DAYLIGHT_V8.md`](WUCI_DAYLIGHT_V8.md): evidence sheaves, subtractive
+capability algebra, meet-style gate algebra, transcript-bound cryptographic
+wire state, proof-carrying artifacts, boot/build bisimulation, double-entry
+ledger accounting, and claim subtraction.
+
+Daylight v9 locks v8 at `973/1000` and converts the remaining 27 points into a
+formal spine in [`docs/WUCI_DAYLIGHT_V9.md`](WUCI_DAYLIGHT_V9.md): a
+proof-carrying subtractive cryptographic operating substrate with a commutative
+evidence-sheaf condition, a Z3 fail-closed semilattice proof box, a Lean-style
+gate sketch, and explicit attack-surface closure. The v9 target range is
+`990-995`, but current Wuci-OS builds still subtract release-ready claims until
+package closure, signature, ledger, QEMU trace binding, and hardware trace
+evidence exist.
+
+The Daylight v8 sheet is shipped at
+[`docs/wuci-os/assets/wuci-daylight-v8-sheet.png`](wuci-os/assets/wuci-daylight-v8-sheet.png)
+and embedded at `/wuci-os/wuci-daylight-v8-sheet.png` and
+`/usr/share/wuci-os/wuci-daylight-v8-sheet.png`. The earlier Daylight/WUCI wire
+diagram is shipped at
+[`docs/wuci-os/assets/wuci-daylight-wire-model.png`](wuci-os/assets/wuci-daylight-wire-model.png).
+The ISO also embeds it at `/wuci-os/wuci-daylight-wire-model.png`, and the live
+rootfs carries it at `/usr/share/wuci-os/wuci-daylight-wire-model.png`.
+The Daylight v8 text is embedded at `/wuci-os/WUCI_DAYLIGHT_V8.md` and
+`/usr/share/wuci-os/WUCI_DAYLIGHT_V8.md`.
+The Daylight v9 text is embedded at `/wuci-os/WUCI_DAYLIGHT_V9.md` and
+`/usr/share/wuci-os/WUCI_DAYLIGHT_V9.md`; its primary formal-spine sheet is
+embedded at `/wuci-os/wuci-daylight-v9-sheet.png` and
+`/usr/share/wuci-os/wuci-daylight-v9-sheet.png`. The editable companion SVG is
+embedded at `/wuci-os/wuci-daylight-v9-spine.svg` and
+`/usr/share/wuci-os/wuci-daylight-v9-spine.svg`.
+
 ## Boundary
 
 Wuci-OS v0 does not claim runtime sandboxing, host containment, quantum safety,
@@ -121,11 +163,18 @@ the current package repository, but users should not need to learn the backend
 package-manager commands:
 
 ```sh
+sudo wuci-network-connect
 sudo wj update
 sudo wj install vim emacs kitty
 wj search rust
 wj info python3
 ```
+
+`wuci-network-connect` is the first-boot network credential prompt. It tries
+wired DHCP first, then asks locally for Wi-Fi credentials through NetworkManager
+or a `wpa_supplicant` fallback when those tools are present. `wj install`,
+`wj update`, and `wuci-update` call the prompt before repository sync if no
+network route exists.
 
 Daylight/WJSEAL is treated as a required evidence lane for every major generated
 component. The current implemented seal covers the generated overlay. The
@@ -231,7 +280,10 @@ Wuci splash under `/boot/isolinux/wuci-splash.png` and
 `/boot/grub/wuci-splash.png`, applies the Wuci overlay into
 `LiveOS/squashfs.img`, replaces `/etc/os-release`, issue/MOTD, hostname,
 terminal defaults, update helpers, network/media helpers, and removes the upstream
-live login banner from the remastered rootfs.
+live login banner from the remastered rootfs. Physical ISO boot entries preserve
+the upstream live-root discovery arguments and add only the legacy BIOS live
+compatibility profile: `console=tty0 rd.driver.pre=loop
+live.hostname=wuci-os-live`.
 
 `--install-suite-packages` adds the finished suite package bake: Wi-Fi/network
 support, firmware, audio, video, Bluetooth, printing/scanning, portals, editors,
@@ -242,6 +294,17 @@ are unavailable, the remaster reports a blocker instead of claiming that
 packages were baked. SDR package availability can vary by base snapshot, so the
 package-bake manifest records whether the suite completed fully or partially and
 lists any package names that were unavailable.
+
+Failed ISO candidates are negative evidence, not release bases. Record them
+with:
+
+```sh
+tools/wuci-os failure ingest path/to/failed.iso path/to/notes.json
+```
+
+The ingest lane writes a digest-addressed manifest under
+`build/wuci-os/failures/`, records the failed ISO digest and boot notes, and
+refuses to overwrite an existing specimen.
 
 ## Live Boot
 
@@ -257,11 +320,10 @@ Run the live base over the serial terminal:
 tools/wuci-os boot --qemu-bin /usr/libexec/qemu-kvm --allow-network --share-repo --run
 ```
 
-The boot plan extracts `boot/vmlinuz` and `boot/initrd` from the source ISO into a
-transient `build/wuci-os/boot/` directory, attaches the ISO as read-only CD
-media, and appends the fast-live kernel profile: serial plus local console, `nomodeset`,
-reduced md/dm/LUKS/LVM autodetect, quieter udev/kernel logs, and blacklist rules
-for live RAID/Btrfs probing that is not needed by the Wuci workstation path.
+The QEMU boot plan extracts `boot/vmlinuz` and `boot/initrd` from the source ISO
+into a transient `build/wuci-os/boot/` directory, attaches the ISO as read-only
+CD media, and appends the direct-kernel fast-live profile for VM runs. Physical
+ISO boot menus use the safer live-root compatibility profile described above.
 Wuci-OS also generates a deterministic source-kit tar so the current checkout is
 present inside the live system under `/opt/wuci-os/source/wuci-ji`. If QEMU does not
 support `virtio-9p-pci`, Wuci-OS attaches the generated overlay and source kit as

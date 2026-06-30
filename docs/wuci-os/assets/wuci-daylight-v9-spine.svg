@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2400" viewBox="0 0 1800 2400">
+  <rect width="1800" height="2400" fill="#050506"/>
+  <rect x="70" y="70" width="1660" height="2260" rx="18" fill="#0c0d10" stroke="#b51f2a" stroke-width="4"/>
+  <text x="900" y="150" text-anchor="middle" font-family="Georgia, serif" font-size="64" fill="#f4f0e8">Daylight v9</text>
+  <text x="900" y="215" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="30" fill="#d7d7d7">Proof-Carrying Subtractive Cryptographic Operating Substrate</text>
+  <text x="900" y="265" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" fill="#aeb7c5">v8 benchmark locked: 973/1000 | v9 target: 990-995</text>
+
+  <rect x="120" y="315" width="1560" height="160" rx="10" fill="#14161a" stroke="#6f7d95" stroke-width="2"/>
+  <text x="150" y="360" font-family="JetBrains Mono, Consolas, monospace" font-size="25" fill="#ffffff">Publish_D(ISO)=1 iff exists s in Gamma(X,F):</text>
+  <text x="150" y="405" font-family="JetBrains Mono, Consolas, monospace" font-size="24" fill="#e8d08a">Gate_D(s) AND FinalVerify_D(s) AND LedgerValid_D(L_T)</text>
+  <text x="150" y="450" font-family="JetBrains Mono, Consolas, monospace" font-size="24" fill="#e8d08a">AND Boot_D_strong(ISO) AND AttackSurface_D(s) subseteq Closed_D</text>
+
+  <rect x="120" y="525" width="500" height="560" rx="10" fill="#101217" stroke="#b51f2a" stroke-width="2"/>
+  <text x="150" y="570" font-family="Inter, Arial, sans-serif" font-size="30" fill="#ffffff">1) Evidence Sheaf</text>
+  <text x="370" y="625" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#f4f0e8">Source Evidence</text>
+  <text x="370" y="665" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#9ab8ff">|</text>
+  <text x="370" y="700" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#9ab8ff">v</text>
+  <text x="175" y="745" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">Package Evidence</text>
+  <text x="385" y="745" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#9ab8ff">----&gt;</text>
+  <text x="470" y="745" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">RootFS Evidence</text>
+  <text x="220" y="785" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">|</text>
+  <text x="505" y="785" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">|</text>
+  <text x="220" y="820" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">v</text>
+  <text x="505" y="820" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">v</text>
+  <text x="175" y="865" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">Overlay Evidence</text>
+  <text x="385" y="865" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#9ab8ff">----&gt;</text>
+  <text x="470" y="865" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">Final ISO Evidence</text>
+  <text x="220" y="905" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">|</text>
+  <text x="505" y="905" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">|</text>
+  <text x="220" y="940" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">v</text>
+  <text x="505" y="940" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#9ab8ff">v</text>
+  <text x="175" y="985" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">Boot Evidence</text>
+  <text x="385" y="985" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#9ab8ff">----&gt;</text>
+  <text x="470" y="985" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">Ledger Evidence</text>
+  <text x="150" y="1040" font-family="Inter, Arial, sans-serif" font-size="22" fill="#e8d08a">Only globally coherent evidence can publish.</text>
+
+  <rect x="650" y="525" width="500" height="560" rx="10" fill="#101217" stroke="#6f7d95" stroke-width="2"/>
+  <text x="680" y="570" font-family="Inter, Arial, sans-serif" font-size="30" fill="#ffffff">2) Subtractive Capability</text>
+  <text x="680" y="625" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#f4f0e8">C_{t+1} = C_t intersect</text>
+  <text x="680" y="665" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#f4f0e8">Verified_D(E_t) intersect</text>
+  <text x="680" y="705" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#f4f0e8">Policy_D(S_t) \ Forbidden_D</text>
+  <text x="680" y="770" font-family="Inter, Arial, sans-serif" font-size="26" fill="#ffffff">3) Meet-Semilattice Gate</text>
+  <text x="680" y="820" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#e8d08a">Gate_D(S) = AND_i g_i(S)</text>
+  <text x="680" y="860" font-family="JetBrains Mono, Consolas, monospace" font-size="22" fill="#e8d08a">exists i:g_i=0 =&gt; Gate=0</text>
+  <text x="680" y="925" font-family="Inter, Arial, sans-serif" font-size="26" fill="#ffffff">4) Z3 Proof Box</text>
+  <text x="680" y="975" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#a7f3d0">s.add(Not(Boot)); s.add(Gate)</text>
+  <text x="680" y="1010" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#a7f3d0">assert s.check() == unsat</text>
+  <text x="680" y="1050" font-family="Inter, Arial, sans-serif" font-size="20" fill="#d7d7d7">No additive score can mask a failed proof.</text>
+
+  <rect x="1180" y="525" width="500" height="560" rx="10" fill="#101217" stroke="#b51f2a" stroke-width="2"/>
+  <text x="1210" y="570" font-family="Inter, Arial, sans-serif" font-size="30" fill="#ffffff">5) Cryptographic Wire</text>
+  <text x="1210" y="625" font-family="JetBrains Mono, Consolas, monospace" font-size="21" fill="#f4f0e8">Open_priv(x)=1 =&gt;</text>
+  <text x="1210" y="665" font-family="JetBrains Mono, Consolas, monospace" font-size="21" fill="#f4f0e8">Verify_pub(H(x),W,P,L)=1</text>
+  <text x="1210" y="705" font-family="JetBrains Mono, Consolas, monospace" font-size="21" fill="#e8d08a">I(K_priv ; W_pub)=0</text>
+  <text x="1210" y="770" font-family="Inter, Arial, sans-serif" font-size="30" fill="#ffffff">6) Attack Closure</text>
+  <text x="1210" y="820" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">stale replay  -&gt; ledger AAD</text>
+  <text x="1210" y="855" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">ISO drift     -&gt; digest root</text>
+  <text x="1210" y="890" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">dep gap       -&gt; XBPS closure</text>
+  <text x="1210" y="925" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">key leakage   -&gt; noninterference</text>
+  <text x="1210" y="960" font-family="JetBrains Mono, Consolas, monospace" font-size="19" fill="#f4f0e8">boot w/o proof-&gt; bisimulation</text>
+  <text x="1210" y="1020" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#e8d08a">Publish =&gt; Surface subseteq Closed</text>
+
+  <rect x="120" y="1135" width="1560" height="180" rx="10" fill="#15120f" stroke="#e8d08a" stroke-width="2"/>
+  <text x="900" y="1185" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" fill="#ffffff">Middle Flow</text>
+  <text x="900" y="1240" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="24" fill="#f4f0e8">Void musl Source -&gt; Package Fixed Point -&gt; RootFS Normal Form -&gt; Evidence Sheaf -&gt; Merkle Root</text>
+  <text x="900" y="1285" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="24" fill="#f4f0e8">Daylight Seal -&gt; Boot Bisimulation -&gt; Final Manifest -&gt; Publish Gate</text>
+
+  <rect x="120" y="1365" width="760" height="520" rx="10" fill="#101217" stroke="#6f7d95" stroke-width="2"/>
+  <text x="150" y="1415" font-family="Inter, Arial, sans-serif" font-size="30" fill="#ffffff">Lean-Style Gate Sketch</text>
+  <text x="150" y="1470" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#f4f0e8">structure DaylightState where</text>
+  <text x="150" y="1510" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#f4f0e8">source_ok package_ok rootfs_ok boot_ok : Prop</text>
+  <text x="150" y="1550" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#f4f0e8">seal_ok ledger_ok final_ok sheaf_ok : Prop</text>
+  <text x="150" y="1590" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#f4f0e8">claims_proven : Prop</text>
+  <text x="150" y="1660" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#e8d08a">def Publish(s) := Gate s</text>
+  <text x="150" y="1710" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#a7f3d0">theorem fail_closed_boot:</text>
+  <text x="150" y="1750" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#a7f3d0">not s.boot_ok -&gt; not Publish s</text>
+  <text x="150" y="1810" font-family="Inter, Arial, sans-serif" font-size="22" fill="#d7d7d7">If any required proposition is false, Publish is impossible.</text>
+
+  <rect x="920" y="1365" width="760" height="520" rx="10" fill="#101217" stroke="#b51f2a" stroke-width="2"/>
+  <text x="950" y="1415" font-family="Inter, Arial, sans-serif" font-size="30" fill="#ffffff">Proof-Carrying Artifact v9</text>
+  <text x="950" y="1470" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#f4f0e8">Artifact_i = &lt;bytes,digest,policy,claims,</text>
+  <text x="950" y="1510" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#f4f0e8">proof,surface,closure&gt;</text>
+  <text x="950" y="1570" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#e8d08a">Valid iff H(bytes)=digest AND</text>
+  <text x="950" y="1610" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#e8d08a">Verify(proof,claims,policy)=1 AND</text>
+  <text x="950" y="1650" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#e8d08a">surface subseteq closure AND NoLeak=1</text>
+  <text x="950" y="1720" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#a7f3d0">leaf_i = H_D("daylight/leaf/v9" ||</text>
+  <text x="950" y="1760" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#a7f3d0">digest || H(policy) || H(claims) ||</text>
+  <text x="950" y="1800" font-family="JetBrains Mono, Consolas, monospace" font-size="20" fill="#a7f3d0">H(proof) || H(surface) || H(closure))</text>
+
+  <rect x="120" y="1935" width="1560" height="250" rx="10" fill="#14161a" stroke="#e8d08a" stroke-width="2"/>
+  <text x="900" y="1995" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="36" fill="#ffffff">NoProof_D(x) =&gt; NoClaim_D(x) =&gt; NoRelease_D(x)</text>
+  <text x="900" y="2060" text-anchor="middle" font-family="JetBrains Mono, Consolas, monospace" font-size="26" fill="#e8d08a">Publish_D(x)=1 =&gt; Proof_D(x)=1 AND Claim_D(x) subseteq Proven_D AND Surface_D(x) subseteq Closed_D</text>
+  <text x="900" y="2130" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="24" fill="#d7d7d7">Public proof authorizes the shape. Private cryptography only opens the already-authorized shape.</text>
+
+  <text x="1570" y="2260" text-anchor="middle" font-family="Brush Script MT, Segoe Script, cursive" font-size="78" fill="#f4f0e8">cb</text>
+</svg>
