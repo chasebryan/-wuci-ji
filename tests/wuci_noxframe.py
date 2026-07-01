@@ -775,6 +775,81 @@ def assert_boot_wordmark_hero() -> None:
     assert len({display_width(line) for line in narrow_scene}) == 1
 
 
+def assert_static_fullscreen_boot_gate() -> None:
+    def args(**over: object) -> argparse.Namespace:
+        base: dict[str, object] = {
+            "yes": False,
+            "no_boot_prompt": False,
+            "no_boot_animation": False,
+            "boot_renderer": "auto",
+        }
+        base.update(over)
+        return argparse.Namespace(**base)
+
+    generic = {"TERM": "xterm-256color"}
+    kitty = {"TERM": "xterm-kitty", "KITTY_WINDOW_ID": "1"}
+    tmux = {"TERM": "screen-256color", "TMUX": "/tmp/tmux"}
+
+    # A generic interactive terminal gets the one-shot full-screen splash.
+    assert wuci_black_ice.boot_static_fullscreen_active(
+        args(), env=generic, stdin_tty=True, stderr_tty=True
+    )
+    # tmux/SSH (reduced-motion) also qualifies -- painted once, no flicker.
+    assert wuci_black_ice.boot_static_fullscreen_active(
+        args(), env=tmux, stdin_tty=True, stderr_tty=True
+    )
+    # Rich terminals animate instead of using the static splash.
+    assert not wuci_black_ice.boot_static_fullscreen_active(
+        args(), env=kitty, stdin_tty=True, stderr_tty=True
+    )
+    # Non-ttys, GUI renderer, and opt-outs fall back to other paths.
+    assert not wuci_black_ice.boot_static_fullscreen_active(
+        args(), env=generic, stdin_tty=False, stderr_tty=True
+    )
+    assert not wuci_black_ice.boot_static_fullscreen_active(
+        args(boot_renderer="gui"), env=generic, stdin_tty=True, stderr_tty=True
+    )
+    assert not wuci_black_ice.boot_static_fullscreen_active(
+        args(no_boot_animation=True), env=generic, stdin_tty=True, stderr_tty=True
+    )
+    assert not wuci_black_ice.boot_static_fullscreen_active(
+        args(yes=True), env=generic, stdin_tty=True, stderr_tty=True
+    )
+
+
+def assert_console_ux_polish() -> None:
+    # A themed rail is exactly the requested width and never appends an ellipsis.
+    rail = wuci_black_ice.themed_rail("◇─◇─◇", 40)
+    assert display_width(rail) == 40
+    assert "…" not in rail and "..." not in rail
+
+    # Help decks carry a rule under the title but keep their locked contract.
+    compact = wuci_black_ice.console_help_text(["--compact"])
+    assert "noxframe help // compact" in compact
+    assert "─" in compact
+    fs_help = wuci_black_ice.console_help_text(["fs"])
+    assert "mkdir <dir>" in fs_help
+
+    # The countdown draws a progress bar and still prints the init line.
+    countdown_buffer = io.StringIO()
+    with contextlib.redirect_stderr(countdown_buffer):
+        wuci_black_ice.countdown(1, wuci_black_ice.Palette("never"))
+    countdown_text = countdown_buffer.getvalue()
+    assert "WUCI-JI SYSTEM INITIALIZED..." in countdown_text
+    assert "100%" in countdown_text
+    assert "█" in countdown_text
+
+    # The sign-off keeps the bilingual farewell inside a lattice frame.
+    goodbye_buffer = io.StringIO()
+    with contextlib.redirect_stdout(goodbye_buffer):
+        wuci_black_ice.print_goodbye(wuci_black_ice.Palette("never"))
+    goodbye_text = goodbye_buffer.getvalue()
+    assert "再见，黑客。" in goodbye_text
+    assert "Goodbye, Hacker." in goodbye_text
+    assert wuci_black_ice.BOOT_IDEOGRAPH_TEXT in goodbye_text
+    assert "◇" in goodbye_text
+
+
 def assert_console_exit(launcher: Path, tmp: Path) -> None:
     kaiju_iso_source = tmp / "kali-noxframe.iso"
     kaiju_iso_source.write_bytes(b"KAIJU NOXFRAME ISO\n")
@@ -1646,6 +1721,8 @@ def assert_launcher(launcher: Path) -> None:
         assert_boot_animation_frame()
         assert_boot_wordmark_hero()
         assert_terminal_color_depth()
+        assert_static_fullscreen_boot_gate()
+        assert_console_ux_polish()
         assert_console_exit(launcher, tmp)
         assert_console_multicommand_depth_exit_all(launcher, tmp)
         assert_codex_bridge_process(launcher, tmp)

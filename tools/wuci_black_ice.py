@@ -1221,17 +1221,21 @@ def console_command_names(category: str) -> str:
     )
 
 
+def _help_rule() -> str:
+    return "─" * min(60, max(24, terminal_columns() - 1))
+
+
 def console_help_text(args: list[str]) -> str:
     topic = args[0].lower() if args else ""
     if topic in {"--compact", "-c", "compact"}:
-        rows = ["noxframe help // compact", ""]
+        rows = ["noxframe help // compact", _help_rule(), ""]
         for category in CONSOLE_CATEGORIES:
             rows.append(f"{category:<9}: {console_command_names(category)}")
         rows.append("")
         rows.append("try: help substrate | help fs | help sys | man status | complete se")
         return "\n".join(rows)
     if topic in CONSOLE_CATEGORIES:
-        rows = [f"noxframe help // {topic}", "", "command        usage                         summary"]
+        rows = [f"noxframe help // {topic}", _help_rule(), "", "command        usage                         summary"]
         for spec in CONSOLE_COMMANDS:
             if spec.category == topic:
                 rows.append(
@@ -1242,11 +1246,12 @@ def console_help_text(args: list[str]) -> str:
     if topic:
         manual = console_man_text(topic)
         if manual is not None:
-            return f"noxframe help // {topic}\n\n{manual}"
+            return f"noxframe help // {topic}\n{_help_rule()}\n\n{manual}"
         return f"noxframe help // no match\n\nunknown topic: {topic}\ntry: help --compact"
 
     rows = [
         "noxframe help // operator console",
+        _help_rule(),
         "",
         *(f"{category:<9}: {console_command_names(category)}" for category in CONSOLE_CATEGORIES),
         "",
@@ -5212,15 +5217,22 @@ def print_banner(
 def countdown(seconds: int, palette: Palette) -> None:
     if seconds <= 0:
         return
+    bar_width = min(28, max(10, terminal_columns() - 44))
     for remaining in range(seconds, 0, -1):
-        label = BOOT_LINES[(seconds - remaining) % len(BOOT_LINES)]
+        elapsed = seconds - remaining
+        label = BOOT_LINES[elapsed % len(BOOT_LINES)]
+        filled = max(1, int(round(bar_width * (elapsed + 1) / seconds)))
+        bar = "█" * filled + "░" * (bar_width - filled)
+        pct = int(round(100 * (elapsed + 1) / seconds))
         sys.stderr.write(
-            f"{palette.paint('[BOOT]', palette.magenta)} {label} "
-            f"{palette.paint(str(remaining), palette.yellow)}\n"
+            f"{palette.paint('▓▓ BOOT', palette.magenta)} "
+            f"{palette.paint(bar, palette.red)} "
+            f"{palette.paint(f'{pct:3d}%', palette.yellow)}  "
+            f"{palette.paint(label, palette.dim)}\n"
         )
         sys.stderr.flush()
         time.sleep(1)
-    sys.stderr.write(palette.paint("[BOOT] WUCI-JI SYSTEM INITIALIZED...\n", palette.green))
+    sys.stderr.write(palette.paint("▓▓ WUCI-JI SYSTEM INITIALIZED...\n", palette.green))
     sys.stderr.flush()
 
 
@@ -5904,6 +5916,15 @@ def display_repo_path(root: Path, path: Path) -> str:
         return str(path)
 
 
+def themed_rail(unit: str, columns: int) -> str:
+    """A decorative rail exactly ``columns`` display cells wide, tiled from the
+    lattice ``unit`` (all rail glyphs are single-width). No ellipsis."""
+    if not unit or columns <= 0:
+        return ""
+    repeats = columns // display_width(unit) + 1
+    return (unit * repeats)[:columns]
+
+
 def print_console_line(text: str, *, color: str | None = None, palette: Palette | None = None) -> None:
     width = max(20, terminal_columns() - 1)
     rendered = fit_display(text, width)
@@ -5928,8 +5949,16 @@ def print_console_header(
         now=dt.datetime.now(dt.UTC),
     )
     theme = sync_session_lattice(session) if session is not None else depth_theme(0)
-    print_console_line("WUCI-JI SYSTEMS / NOXFRAME CONSOLE", color=theme.header_color, palette=palette)
-    print_console_line("bounded metadata console")
+    header_width = min(72, max(28, terminal_columns() - 1))
+    rail = themed_rail(theme.rail, header_width)
+    print_console_line(rail, color=theme.accent_color, palette=palette)
+    print_console_line(
+        f"WUCI-JI SYSTEMS // NOXFRAME CONSOLE   {BOOT_IDEOGRAPH_TEXT}",
+        color=theme.header_color,
+        palette=palette,
+    )
+    print_console_line(rail, color=theme.accent_color, palette=palette)
+    print_console_line("bounded metadata console  |  no host shell route")
     print_console_line("route: root > wuci-ji > daylight")
     if session is not None:
         print_console_line(lattice_status_line(session), color=theme.accent_color, palette=palette)
@@ -5947,11 +5976,18 @@ def print_console_header(
     else:
         print_console_line("commands: help --compact, man <cmd>, complete")
         print_console_line("          status, launch, self-release, clear, exit")
+    print_console_line(rail, color=theme.accent_color, palette=palette)
 
 
 def print_goodbye(palette: Palette) -> None:
+    theme = depth_theme(0)
+    width = min(46, max(20, terminal_columns() - 1))
+    rail = themed_rail(theme.rail, width)
+    print(palette.paint(rail, theme.accent_color))
     print(palette.paint("再见，黑客。", palette.yellow))
     print(palette.paint("Goodbye, Hacker.", palette.cyan))
+    print(palette.paint(f"{BOOT_IDEOGRAPH_TEXT} // NOXFRAME substrate closed", theme.header_color))
+    print(palette.paint(rail, theme.accent_color))
 
 
 def print_unavailable(spec: ConsoleCommandSpec) -> None:
