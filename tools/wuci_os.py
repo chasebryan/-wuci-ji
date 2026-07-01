@@ -56,6 +56,7 @@ DEFAULT_DAYLIGHT_V13_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v13-s
 DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png")
 DEFAULT_DAYLIGHT_V14C_MATH_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png")
 DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png")
+DEFAULT_DAYLIGHT_V15_SOLSTICE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png")
 DEFAULT_DAYLIGHT_V14C_PACKAGE_SOURCE = Path("daylight/v14c-plus")
 DEFAULT_DAYLIGHT_V15_PACKAGE_SOURCE = Path("daylight/v15-meridian")
 SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
@@ -1865,6 +1866,7 @@ def _xorriso_replay_final_iso(
     daylight_v14c_image_source: Path,
     daylight_v14c_math_source: Path,
     daylight_v14c_wide_source: Path,
+    daylight_v15_solstice_source: Path,
     readme_bytes: bytes,
     offline_install_bytes: bytes,
     daylight_v8_model_bytes: bytes,
@@ -1938,6 +1940,7 @@ def _xorriso_replay_final_iso(
         ("wuci-os/wuci-daylight-v14c-plus-ascendant.png", daylight_v14c_image_source, None, 0o644),
         ("wuci-os/wuci-daylight-v14c-plus-ascendant-math.png", daylight_v14c_math_source, None, 0o644),
         ("wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png", daylight_v14c_wide_source, None, 0o644),
+        ("wuci-os/wuci-daylight-v15-plus-solstice.png", daylight_v15_solstice_source, None, 0o644),
         ("wuci-os/README.txt", None, readme_bytes, 0o644),
         ("wuci-os/OFFLINE-INSTALL.txt", None, offline_install_bytes, 0o644),
         ("wuci-os/WUCI_DAYLIGHT_V8.md", None, daylight_v8_model_bytes, 0o644),
@@ -6195,23 +6198,93 @@ fi
     media_session_script = """#!/bin/sh
 set -eu
 
-runtime="${XDG_RUNTIME_DIR:-/tmp/wuci-runtime-$(id -u)}"
-mkdir -p "$runtime" 2>/dev/null || true
+uid=$(id -u)
+runtime_fallback="/tmp/wuci-runtime-$uid"
+
+runtime_owner_matches() {
+    candidate=$1
+    if [ -O "$candidate" ] 2>/dev/null; then
+        return 0
+    fi
+    if command -v stat >/dev/null 2>&1; then
+        owner=$(stat -c %u "$candidate" 2>/dev/null || printf '?')
+        [ "$owner" = "$uid" ]
+        return
+    fi
+    return 1
+}
+
+prepare_runtime() {
+    candidate=$1
+    [ -n "$candidate" ] || return 1
+    [ ! -L "$candidate" ] || return 1
+    if [ ! -e "$candidate" ]; then
+        mkdir -p "$candidate" 2>/dev/null || return 1
+    fi
+    [ -d "$candidate" ] || return 1
+    [ ! -L "$candidate" ] || return 1
+    runtime_owner_matches "$candidate" || return 1
+    chmod 700 "$candidate" 2>/dev/null || return 1
+    [ -w "$candidate" ] && [ -x "$candidate" ] || return 1
+    printf '%s\\n' "$candidate"
+}
+
+runtime=""
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    runtime=$(prepare_runtime "$XDG_RUNTIME_DIR" 2>/dev/null || true)
+fi
+if [ -z "$runtime" ]; then
+    runtime=$(prepare_runtime "$runtime_fallback" 2>/dev/null || true)
+fi
+if [ -z "$runtime" ]; then
+    printf 'wuci-media-session: cannot prepare a private runtime directory\\n' >&2
+    exit 1
+fi
 export XDG_RUNTIME_DIR="$runtime"
 
-start_once() {
+pipewire_ready() {
+    command -v pw-cli >/dev/null 2>&1 && pw-cli info 0 >/dev/null 2>&1
+}
+
+pulse_ready() {
+    command -v pactl >/dev/null 2>&1 && pactl info >/dev/null 2>&1
+}
+
+start_daemon() {
     name=$1
     shift
     command -v "$name" >/dev/null 2>&1 || return 0
-    if command -v pgrep >/dev/null 2>&1 && pgrep -x "$name" >/dev/null 2>&1; then
-        return 0
-    fi
-    "$@" >/tmp/wuci-"$name".log 2>&1 &
+    "$@" >>/tmp/wuci-"$name".log 2>&1 &
 }
 
-start_once pipewire pipewire
-start_once wireplumber wireplumber
-start_once pipewire-pulse pipewire-pulse
+wait_for() {
+    check=$1
+    attempts=0
+    while [ "$attempts" -lt 5 ]; do
+        if "$check"; then
+            return 0
+        fi
+        attempts=$((attempts + 1))
+        sleep 1
+    done
+    return 1
+}
+
+started_pipewire=0
+if ! pipewire_ready; then
+    start_daemon pipewire pipewire
+    started_pipewire=1
+    wait_for pipewire_ready || true
+fi
+
+if [ "$started_pipewire" = "1" ] || ! pgrep -x wireplumber >/dev/null 2>&1; then
+    start_daemon wireplumber wireplumber
+fi
+
+if ! pulse_ready; then
+    start_daemon pipewire-pulse pipewire-pulse
+    wait_for pulse_ready || true
+fi
 """
     media_apply_script = """#!/bin/sh
 set -eu
@@ -7136,6 +7209,12 @@ def create_overlay(
         _read_regular_bytes(daylight_v14c_wide, "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
         "Wuci-OS Daylight v14C+ Ascendant wide sheet",
     )
+    daylight_v15_solstice = repo_root() / DEFAULT_DAYLIGHT_V15_SOLSTICE_SOURCE
+    daylight_v15_solstice_info = _verified_regular_file_info(daylight_v15_solstice, "Wuci-OS Daylight v15+ Solstice notice")
+    _validate_png_bytes(
+        _read_regular_bytes(daylight_v15_solstice, "Wuci-OS Daylight v15+ Solstice notice"),
+        "Wuci-OS Daylight v15+ Solstice notice",
+    )
     daylight_v14c_package = repo_root() / DEFAULT_DAYLIGHT_V14C_PACKAGE_SOURCE
     try:
         daylight_v14c_package_info = os.lstat(daylight_v14c_package)
@@ -7273,6 +7352,15 @@ def create_overlay(
         mode=0o644,
     )
     written.append(str(daylight_v14c_wide_overlay_path))
+    daylight_v15_solstice_overlay_path = Path("usr/share/wuci-os/wuci-daylight-v15-plus-solstice.png")
+    daylight_v15_solstice_digest, daylight_v15_solstice_bytes = _copy_verified_regular_file(
+        daylight_v15_solstice,
+        root / daylight_v15_solstice_overlay_path,
+        "Wuci-OS overlay Daylight v15+ Solstice notice",
+        expected_info=daylight_v15_solstice_info,
+        mode=0o644,
+    )
+    written.append(str(daylight_v15_solstice_overlay_path))
     daylight_v14c_package_overlay_path = Path("usr/share/wuci-os/daylight/v14c-plus")
     daylight_v14c_package_records: list[dict[str, Any]] = []
     for source_path in sorted(daylight_v14c_package.rglob("*"), key=lambda item: item.relative_to(daylight_v14c_package).as_posix()):
@@ -7407,6 +7495,12 @@ def create_overlay(
             "source_path": str(daylight_v14c_wide),
             "bytes": daylight_v14c_wide_bytes,
             "digest_vector": daylight_v14c_wide_digest,
+        },
+        "daylight_v15_solstice": {
+            "path": str(daylight_v15_solstice_overlay_path),
+            "source_path": str(daylight_v15_solstice),
+            "bytes": daylight_v15_solstice_bytes,
+            "digest_vector": daylight_v15_solstice_digest,
         },
         "daylight_v14c_execution_package": {
             "path": str(daylight_v14c_package_overlay_path),
@@ -9951,6 +10045,11 @@ def build_final_iso(
     _validate_png_bytes(daylight_v14c_wide_data, "Wuci-OS Daylight v14C+ Ascendant wide sheet")
     daylight_v14c_wide_digest = digest_vector(daylight_v14c_wide_data)
     daylight_v14c_wide_bytes = len(daylight_v14c_wide_data)
+    daylight_v15_solstice_source = repo_root() / DEFAULT_DAYLIGHT_V15_SOLSTICE_SOURCE
+    daylight_v15_solstice_data = _read_regular_bytes(daylight_v15_solstice_source, "Wuci-OS Daylight v15+ Solstice notice")
+    _validate_png_bytes(daylight_v15_solstice_data, "Wuci-OS Daylight v15+ Solstice notice")
+    daylight_v15_solstice_digest = digest_vector(daylight_v15_solstice_data)
+    daylight_v15_solstice_bytes = len(daylight_v15_solstice_data)
     original_boot_menu = _extract_iso_text(source_iso, "boot/isolinux/isolinux.cfg")
     wuci_boot_menu = rewrite_isolinux_config_for_wuci(original_boot_menu) if original_boot_menu else ""
     grub_rewrites: dict[str, str] = {}
@@ -10157,6 +10256,9 @@ def build_final_iso(
             "daylight_v14c_wide_path": str(DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE),
             "daylight_v14c_wide_bytes": daylight_v14c_wide_bytes,
             "daylight_v14c_wide_digest_vector": daylight_v14c_wide_digest,
+            "daylight_v15_solstice_path": str(DEFAULT_DAYLIGHT_V15_SOLSTICE_SOURCE),
+            "daylight_v15_solstice_bytes": daylight_v15_solstice_bytes,
+            "daylight_v15_solstice_digest_vector": daylight_v15_solstice_digest,
             "iso_paths": [
                 "/wuci-os/WUCI_DAYLIGHT_V8.md",
                 "/wuci-os/WUCI_DAYLIGHT_V9.md",
@@ -10170,6 +10272,7 @@ def build_final_iso(
                 "/wuci-os/wuci-daylight-v14c-plus-ascendant.png",
                 "/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
                 "/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
+                "/wuci-os/wuci-daylight-v15-plus-solstice.png",
                 "/wuci-os/wuci-daylight-wire-model.png",
                 f"/opt/wuci-os/source/wuci-ji/{SUBSTRACT_MODEL_DOC.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DAYLIGHT_V8_MODEL_DOC.as_posix()}",
@@ -10185,6 +10288,7 @@ def build_final_iso(
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_IMAGE_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_MATH_SOURCE.as_posix()}",
                 f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE.as_posix()}",
+                f"/opt/wuci-os/source/wuci-ji/{DEFAULT_DAYLIGHT_V15_SOLSTICE_SOURCE.as_posix()}",
             ],
         },
         "payloads": {
@@ -10249,6 +10353,7 @@ def build_final_iso(
         "  /wuci-os/wuci-daylight-v14c-plus-ascendant.png\n"
         "  /wuci-os/wuci-daylight-v14c-plus-ascendant-math.png\n"
         "  /wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png\n"
+        "  /wuci-os/wuci-daylight-v15-plus-solstice.png\n"
         "  /wuci-os/wuci-daylight-wire-model.png\n"
         "  /wuci-os/OFFLINE-INSTALL.txt\n"
     ).encode("utf-8")
@@ -10474,6 +10579,16 @@ def build_final_iso(
             )
         )
         payload_records.append(
+            _iso_add_local_file(
+                iso,
+                daylight_v15_solstice_source,
+                iso_path="/WUCI_OS/D15SOLST.PNG;1",
+                rr_name="wuci-daylight-v15-plus-solstice.png",
+                joliet_path="/wuci-os/wuci-daylight-v15-plus-solstice.png",
+                label="Wuci-OS Daylight v15+ Solstice notice",
+            )
+        )
+        payload_records.append(
             _iso_add_bytes(
                 iso,
                 readme_bytes,
@@ -10626,6 +10741,7 @@ def build_final_iso(
                     daylight_v14c_image_source=daylight_v14c_image_source,
                     daylight_v14c_math_source=daylight_v14c_math_source,
                     daylight_v14c_wide_source=daylight_v14c_wide_source,
+                    daylight_v15_solstice_source=daylight_v15_solstice_source,
                     readme_bytes=readme_bytes,
                     offline_install_bytes=offline_install_bytes,
                     daylight_v8_model_bytes=daylight_v8_model_data,
@@ -10682,6 +10798,7 @@ def build_final_iso(
         ("wuci-os/wuci-daylight-v14c-plus-ascendant.png", "Wuci-OS Daylight v14C+ Ascendant candidate sheet"),
         ("wuci-os/wuci-daylight-v14c-plus-ascendant-math.png", "Wuci-OS Daylight v14C+ Ascendant math sheet"),
         ("wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png", "Wuci-OS Daylight v14C+ Ascendant wide sheet"),
+        ("wuci-os/wuci-daylight-v15-plus-solstice.png", "Wuci-OS Daylight v15+ Solstice notice"),
         ("wuci-os/wuci-daylight-wire-model.png", "Wuci-OS Daylight wire model diagram"),
         ("boot/isolinux/wuci-splash.png", "Wuci-OS ISOLINUX boot splash"),
         ("boot/grub/wuci-splash.png", "Wuci-OS GRUB boot splash"),

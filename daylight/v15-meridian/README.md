@@ -1,6 +1,6 @@
 # Daylight v15 Meridian Execution Package
 
-![Daylight v15 Meridian evidence-derived sovereign mathematics sheet](../../site/assets/wuci-daylight-v15-meridian.png)
+![Daylight v15+ Solstice evidence-derived solstice mathematics public notice](assets/wuci-daylight-v15-plus-solstice.png)
 
 Meridian is the successor to the [Daylight v14C+](../v14c-plus/) execution package.
 It keeps the v14C+ doctrine and exact-rational arithmetic and fixes the one weakness

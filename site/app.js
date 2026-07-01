@@ -1,4 +1,72 @@
 (function () {
+  // Header scroll effect
+  var header = document.querySelector("[data-header]");
+  if (header) {
+    var scrollThreshold = 60;
+    var ticking = false;
+
+    function updateHeader() {
+      if (window.scrollY > scrollThreshold) {
+        header.classList.add("is-scrolled");
+      } else {
+        header.classList.remove("is-scrolled");
+      }
+      ticking = false;
+    }
+
+    window.addEventListener("scroll", function () {
+      if (!ticking) {
+        requestAnimationFrame(updateHeader);
+        ticking = true;
+      }
+    }, { passive: true });
+
+    updateHeader();
+  }
+
+  // Gallery lightbox
+  function setupLightbox() {
+    var figures = document.querySelectorAll(".image-grid figure");
+    if (!figures.length) return;
+
+    var lightbox = document.createElement("div");
+    lightbox.className = "lightbox";
+    lightbox.innerHTML = '<button class="lightbox-close" aria-label="Close">&times;</button><img src="" alt="">';
+    document.body.appendChild(lightbox);
+
+    var lightboxImg = lightbox.querySelector("img");
+    var closeBtn = lightbox.querySelector(".lightbox-close");
+
+    figures.forEach(function (figure) {
+      figure.addEventListener("click", function () {
+        var img = figure.querySelector("img");
+        if (img) {
+          lightboxImg.src = img.src;
+          lightboxImg.alt = img.alt;
+          lightbox.classList.add("is-active");
+          document.body.style.overflow = "hidden";
+        }
+      });
+    });
+
+    function closeLightbox() {
+      lightbox.classList.remove("is-active");
+      document.body.style.overflow = "";
+    }
+
+    closeBtn.addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", function (e) {
+      if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && lightbox.classList.contains("is-active")) {
+        closeLightbox();
+      }
+    });
+  }
+  setupLightbox();
+
+  // Copy buttons
   var buttons = document.querySelectorAll("[data-copy]");
 
   buttons.forEach(function (button) {

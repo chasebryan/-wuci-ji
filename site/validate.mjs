@@ -16,6 +16,7 @@ const requiredFiles = [
   "sitemap.xml",
   "site.webmanifest",
   "assets/wuci-daylight-v15-meridian-banner.png",
+  "assets/wuci-daylight-v15-plus-solstice.png",
   "assets/wuci-daylight-v15-meridian.png",
   "assets/wuci-v15-mae-meridian-authorized-envelope.jpeg",
   "assets/wuci-daylight-v14c-plus-ascendant-wide.png",
@@ -71,7 +72,8 @@ async function assertIndexReferences() {
     'property="og:image"',
     'name="twitter:card"',
     'href="#encrypt"',
-    'href="#mae"',
+    'href="#solstice"',
+    'id="mae"',
     'data-meridian-workbench'
   ]) {
     if (!index.includes(required)) {

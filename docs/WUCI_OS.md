@@ -87,6 +87,12 @@ The executable v14C+ package is also copied into the live rootfs at
 `wuci-daylight-v14c-plus verify` to verify the packaged scorecard, or
 `wuci-daylight-v14c-plus score` to regenerate the candidate scorecard from the
 frozen package inputs into `/tmp`.
+The Daylight v15+ Solstice notice is a public evidence visual for the current
+v15 scoring boundary, not production authority or external certification. It is
+shipped at
+[`docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png`](wuci-os/assets/wuci-daylight-v15-plus-solstice.png)
+and embedded under `/wuci-os/` and `/usr/share/wuci-os/` with the matching
+filename.
 
 ## Boundary
 

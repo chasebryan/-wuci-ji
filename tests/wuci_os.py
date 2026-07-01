@@ -135,6 +135,8 @@ def assert_core_policy() -> None:
     assert daylight_v14c_math_png.startswith(wuci_os.PNG_SIGNATURE)
     daylight_v14c_wide_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png").read_bytes()
     assert daylight_v14c_wide_png.startswith(wuci_os.PNG_SIGNATURE)
+    daylight_v15_solstice_png = (REPO / "docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png").read_bytes()
+    assert daylight_v15_solstice_png.startswith(wuci_os.PNG_SIGNATURE)
     assert wuci_os.safe_iso_name("void-live-x86_64-musl-20250202-base.iso")
     for bad in ("../void.iso", "/tmp/void.iso", "void.img", ".iso"):
         try:
@@ -1009,6 +1011,13 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "NetworkManager" in files["usr/local/bin/wuci-network-apply"]
     assert "linux-firmware-network" in files["usr/local/bin/wuci-network-apply"]
     assert "nmcli --ask device wifi connect SSID" in files["usr/local/bin/wuci-network-apply"]
+    media_session = files["usr/local/bin/wuci-media-session"]
+    assert "prepare_runtime()" in media_session
+    assert "runtime_fallback=\"/tmp/wuci-runtime-$uid\"" in media_session
+    assert "runtime_owner_matches" in media_session
+    assert "pw-cli info 0" in media_session
+    assert "pactl info" in media_session
+    assert "started_pipewire=1" in media_session
     assert "pipewire" in files["usr/local/bin/wuci-media-apply"]
     assert "mesa-vulkan-radeon" in files["usr/local/bin/wuci-media-apply"]
     assert "xdg-desktop-portal-gtk" in files["usr/local/bin/wuci-media-apply"]
@@ -1193,6 +1202,84 @@ def assert_overlay_profile(tmp: Path) -> None:
         assert proc.returncode == 0, f"{relative}: {proc.stderr}"
 
 
+def assert_media_session_runtime_fallback(tmp: Path) -> None:
+    script = tmp / "wuci-media-session"
+    script.write_text(wuci_os.overlay_files()["usr/local/bin/wuci-media-session"], encoding="utf-8")
+    script.chmod(0o755)
+
+    fake_bin = tmp / "media-bin"
+    fake_bin.mkdir()
+    fake_uid = f"424242{os.getpid()}"
+    fallback = Path("/tmp") / f"wuci-runtime-{fake_uid}"
+    if fallback.exists():
+        shutil.rmtree(fallback)
+
+    bad_parent = tmp / "runtime-parent"
+    bad_parent.mkdir()
+    bad_parent.chmod(0o500)
+    bad_runtime = bad_parent / "runtime"
+
+    def fake_command(name: str, body: str) -> None:
+        path = fake_bin / name
+        path.write_text("#!/bin/sh\nset -eu\n" + body, encoding="utf-8")
+        path.chmod(0o755)
+
+    fake_command(
+        "id",
+        f"""if [ "${{1:-}}" = "-u" ]; then
+    printf '{fake_uid}\\n'
+else
+    exec /usr/bin/id "$@"
+fi
+""",
+    )
+    fake_command(
+        "pw-cli",
+        """if [ -f "$XDG_RUNTIME_DIR/pipewire.started" ]; then
+    exit 0
+fi
+exit 1
+""",
+    )
+    fake_command(
+        "pactl",
+        """if [ -f "$XDG_RUNTIME_DIR/pulse.started" ]; then
+    exit 0
+fi
+exit 1
+""",
+    )
+    fake_command("pipewire", "printf 'pipewire\\n' >\"$XDG_RUNTIME_DIR/pipewire.started\"\n")
+    fake_command("wireplumber", "printf 'wireplumber\\n' >\"$XDG_RUNTIME_DIR/wireplumber.started\"\n")
+    fake_command("pipewire-pulse", "printf 'pulse\\n' >\"$XDG_RUNTIME_DIR/pulse.started\"\n")
+    fake_command("pgrep", "exit 1\n")
+    fake_command("sleep", "exit 0\n")
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env["XDG_RUNTIME_DIR"] = str(bad_runtime)
+    try:
+        proc = subprocess.run(
+            ["sh", str(script)],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert not bad_runtime.exists()
+        assert fallback.is_dir()
+        assert oct(fallback.stat().st_mode & 0o777) == "0o700"
+        assert (fallback / "pipewire.started").read_text(encoding="utf-8") == "pipewire\n"
+        assert (fallback / "wireplumber.started").read_text(encoding="utf-8") == "wireplumber\n"
+        assert (fallback / "pulse.started").read_text(encoding="utf-8") == "pulse\n"
+    finally:
+        bad_parent.chmod(0o700)
+        if fallback.exists():
+            shutil.rmtree(fallback)
+
+
 def assert_overlay_force_rebuild(tmp: Path) -> None:
     wallpaper = REPO / "docs" / "wuci-os" / "assets" / "wallpaper1.png"
     overlay_root = tmp / "overlay-force"
@@ -1358,6 +1445,7 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-math.png").is_file()
     assert (rootfs / "usr/share/wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png").is_file()
+    assert (rootfs / "usr/share/wuci-os/wuci-daylight-v15-plus-solstice.png").is_file()
     assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/README.md").is_file()
     assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/src/cli.py").is_file()
     assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/rules/weights.v13.json").is_file()
@@ -2027,6 +2115,7 @@ def assert_source_kit(tmp: Path) -> None:
     assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png" for record in result["files"])
     assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png" for record in result["files"])
     assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png" for record in result["files"])
+    assert any(record["path"] == "docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png" for record in result["files"])
     assert any(record["path"] == "daylight/v14c-plus/README.md" for record in result["files"])
     assert any(record["path"] == "daylight/v14c-plus/src/scoring.py" for record in result["files"])
     assert any(record["path"] == "daylight/v14c-plus/rules/weights.v13.json" for record in result["files"])
@@ -2056,6 +2145,7 @@ def assert_source_kit(tmp: Path) -> None:
     assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png" in names
     assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png" in names
     assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png" in names
+    assert "opt/wuci-os/source/wuci-ji/docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png" in names
     assert "opt/wuci-os/source/wuci-ji/daylight/v14c-plus/README.md" in names
     assert "opt/wuci-os/source/wuci-ji/daylight/v14c-plus/src/scoring.py" in names
     assert "opt/wuci-os/source/wuci-ji/daylight/v14c-plus/rules/weights.v13.json" in names
@@ -2374,6 +2464,7 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
     assert result["substract_substrate_model"]["daylight_v14c_image_path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant.png"
     assert result["substract_substrate_model"]["daylight_v14c_math_path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-math.png"
     assert result["substract_substrate_model"]["daylight_v14c_wide_path"] == "docs/wuci-os/assets/wuci-daylight-v14c-plus-ascendant-wide.png"
+    assert result["substract_substrate_model"]["daylight_v15_solstice_path"] == "docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png"
     assert "boot/grub/grub.cfg" in result["payload_policy"]["grub_entries_rewritten"]
     assert result["rootfs_remaster"]["status"] == "not-requested"
     assert "wuci-update" in result["self_host_payloads"]["update_command"]
@@ -2421,6 +2512,7 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
         "wuci-os/wuci-daylight-v14c-plus-ascendant.png",
         "wuci-os/wuci-daylight-v14c-plus-ascendant-math.png",
         "wuci-os/wuci-daylight-v14c-plus-ascendant-wide.png",
+        "wuci-os/wuci-daylight-v15-plus-solstice.png",
         "wuci-os/boot-splash.svg",
         "boot/isolinux/wuci-splash.png",
         "boot/grub/wuci-splash.png",
@@ -2527,6 +2619,7 @@ def main() -> int:
         assert_boot_cleanup_safeio(tmp)
         assert_overlay_profile(tmp)
         assert_live_update(tmp)
+        assert_media_session_runtime_fallback(tmp)
         assert_overlay_force_rebuild(tmp)
         assert_rootfs_overlay_identity_patch(tmp)
         assert_remaster_squashfs_uses_live_safe_options()
