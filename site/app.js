@@ -1,32 +1,7 @@
 (function () {
-  // Header scroll effect
-  var header = document.querySelector("[data-header]");
-  if (header) {
-    var scrollThreshold = 60;
-    var ticking = false;
-
-    function updateHeader() {
-      if (window.scrollY > scrollThreshold) {
-        header.classList.add("is-scrolled");
-      } else {
-        header.classList.remove("is-scrolled");
-      }
-      ticking = false;
-    }
-
-    window.addEventListener("scroll", function () {
-      if (!ticking) {
-        requestAnimationFrame(updateHeader);
-        ticking = true;
-      }
-    }, { passive: true });
-
-    updateHeader();
-  }
-
   // Gallery lightbox
   function setupLightbox() {
-    var figures = document.querySelectorAll(".image-grid figure");
+    var figures = document.querySelectorAll("main figure");
     if (!figures.length) return;
 
     var lightbox = document.createElement("div");
@@ -37,14 +12,26 @@
     var lightboxImg = lightbox.querySelector("img");
     var closeBtn = lightbox.querySelector(".lightbox-close");
 
+    function openFigure(figure) {
+      var img = figure.querySelector("img");
+      if (img) {
+        lightboxImg.src = img.src;
+        lightboxImg.alt = img.alt;
+        lightbox.classList.add("is-active");
+        document.body.style.overflow = "hidden";
+      }
+    }
+
     figures.forEach(function (figure) {
+      figure.setAttribute("role", "button");
+      figure.setAttribute("tabindex", "0");
       figure.addEventListener("click", function () {
-        var img = figure.querySelector("img");
-        if (img) {
-          lightboxImg.src = img.src;
-          lightboxImg.alt = img.alt;
-          lightbox.classList.add("is-active");
-          document.body.style.overflow = "hidden";
+        openFigure(figure);
+      });
+      figure.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openFigure(figure);
         }
       });
     });
