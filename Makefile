@@ -125,6 +125,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-solstice-score daylight-solstice-verify daylight-solstice-artifact daylight-solstice-frontier daylight-solstice-external-demo daylight-solstice-test daylight-solstice-ci
 .PHONY: daylight-zenith-verify daylight-zenith-report daylight-zenith-test daylight-zenith-ci
 .PHONY: daylight-analemma-verify daylight-analemma-report daylight-analemma-test daylight-analemma-ci
+.PHONY: daylight-v16-awe-test
 
 all: check-native $(TARGET)
 
@@ -260,6 +261,9 @@ daylight-analemma-test:
 
 daylight-analemma-ci: daylight-analemma-verify daylight-analemma-report daylight-analemma-test
 	@echo "daylight-analemma-ci: complete"
+
+daylight-v16-awe-test:
+	PYTHONPATH=daylight/v16-analemma-crypto $(PYTHON) -m unittest discover -s daylight/v16-analemma-crypto/tests -t daylight/v16-analemma-crypto
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
