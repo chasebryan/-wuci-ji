@@ -5918,11 +5918,16 @@ def display_repo_path(root: Path, path: Path) -> str:
 
 def themed_rail(unit: str, columns: int) -> str:
     """A decorative rail exactly ``columns`` display cells wide, tiled from the
-    lattice ``unit`` (all rail glyphs are single-width). No ellipsis."""
+    lattice ``unit`` (all rail glyphs are single-width). No ellipsis.
+
+    Lattice units like ``◇─◇─◇`` both start and end with a node, so naive
+    tiling doubles it at the seam (``◇─◇─◇◇─◇─◇``). Dropping the trailing node
+    yields an evenly spaced period (``◇─◇─◇─◇─``)."""
     if not unit or columns <= 0:
         return ""
-    repeats = columns // display_width(unit) + 1
-    return (unit * repeats)[:columns]
+    period = unit[:-1] if len(unit) > 1 and unit[-1] == unit[0] else unit
+    repeats = columns // display_width(period) + 1
+    return (period * repeats)[:columns]
 
 
 def print_console_line(text: str, *, color: str | None = None, palette: Palette | None = None) -> None:
