@@ -440,8 +440,9 @@ needs no assembler, linker, or Zig.
 ## Daylight v17 Singularity
 
 Daylight v17 Singularity is the deterministic residue-collapse research scoring
-layer under `daylight/v17-singularity`. It computes AM+ from committed integer
-proof-field closure state, integer micro-omega debt, and canonical digests. It
+layer under `daylight/v17-singularity`. The v17.1 Event Horizon kernel computes
+AM+ from committed proof atoms, integer micro-omega debt, weakest-field
+governance, and canonical digests. It
 does not modify Daylight v15/v16 M scores and does not claim production
 certification, runtime containment, FIPS validation, external certification, or
 whole-system post-quantum safety.
@@ -450,9 +451,15 @@ whole-system post-quantum safety.
 make daylight-v17-singularity-test
 make daylight-v17-singularity-score
 make daylight-v17-singularity-fixture-demo
+make daylight-v17-singularity-declaration-gate
 ```
 
 `daylight-v17-singularity-score` regenerates the committed baseline scorecard.
 `daylight-v17-singularity-fixture-demo` regenerates the declaration fixture,
 which reaches `999,999,999 AM+` only as a math fixture with `fixture=true` and
 `claim_usable=false`.
+`daylight-v17-singularity-declaration-gate` runs the Event Horizon checks:
+proof-atom verification, weakest-field scoring, scorecard digest verification,
+fracture mutations, in-repo agreement-vector checks, and open-critical-break
+refusal. Independent Rust/Zig/Lean verifier lanes are not claimed by this
+target.

@@ -1,64 +1,29 @@
 {
-  "boundary": "research scoring layer; not external certification",
+  "boundary": "current proof-atom score; research scoring layer; not external certification",
   "boundary_claims": {
     "external_certification_claim": false,
     "production_allowed": false,
     "runtime_containment_claim": false,
     "whole_system_post_quantum_safety_claim": false
   },
-  "candidate": "daylight-v17-baseline",
+  "candidate": "daylight-v17-current-event-horizon",
   "claim_usable": true,
   "collapse_flags": {
     "forged_scorecard_accepted": false,
+    "implementation_disagreement": false,
+    "manual_score_accepted": false,
     "manual_score_detected": false,
     "opens_without_policy_evidence": false,
-    "severe_boundary_overclaim": false
+    "parser_ambiguity": false,
+    "production_overclaim": false,
+    "runtime_containment_overclaim": false,
+    "severe_boundary_overclaim": false,
+    "unsigned_external_credit": false,
+    "whole_system_pq_overclaim": false
   },
   "contradiction_debt": 0,
   "critical_break_debt": 0,
   "debt_uomega": 0,
-  "fields": {
-    "F1": {
-      "possible_credit": 1000000,
-      "verified_credit": 998900
-    },
-    "F10": {
-      "possible_credit": 1000,
-      "verified_credit": 500
-    },
-    "F2": {
-      "possible_credit": 1000000,
-      "verified_credit": 0
-    },
-    "F3": {
-      "possible_credit": 1000,
-      "verified_credit": 625
-    },
-    "F4": {
-      "possible_credit": 1000,
-      "verified_credit": 600
-    },
-    "F5": {
-      "possible_credit": 1000,
-      "verified_credit": 200
-    },
-    "F6": {
-      "possible_credit": 1000,
-      "verified_credit": 0
-    },
-    "F7": {
-      "possible_credit": 1000,
-      "verified_credit": 0
-    },
-    "F8": {
-      "possible_credit": 1000,
-      "verified_credit": 500
-    },
-    "F9": {
-      "possible_credit": 1000,
-      "verified_credit": 0
-    }
-  },
   "fixture": false,
   "overclaim_debt_uomega": 0,
   "score_inflation_M": 0,

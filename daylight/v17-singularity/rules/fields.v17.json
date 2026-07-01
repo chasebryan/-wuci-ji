@@ -6,65 +6,76 @@
       "alpha": "1/1",
       "description": "Conservative claim closure.",
       "id": "F1",
-      "name": "ClaimClosure"
+      "name": "ClaimClosure",
+      "threshold": "998900/1000000"
     },
     {
       "alpha": "5/4",
       "description": "Self-progress closure from regenerated proof state.",
       "id": "F2",
-      "name": "SelfProgress"
+      "name": "SelfProgress",
+      "threshold": "950000/1000000"
     },
     {
       "alpha": "3/2",
       "description": "Hermetic artifact closure.",
       "id": "F3",
-      "name": "HermeticArtifact"
+      "name": "HermeticArtifact",
+      "threshold": "990000/1000000"
     },
     {
       "alpha": "5/4",
       "description": "Replay-depth closure.",
       "id": "F4",
-      "name": "ReplayDepth"
+      "name": "ReplayDepth",
+      "threshold": "975000/1000000"
     },
     {
       "alpha": "3/2",
       "description": "Multi-implementation agreement closure.",
       "id": "F5",
-      "name": "MultiImplementation"
+      "name": "MultiImplementation",
+      "threshold": "975000/1000000"
     },
     {
       "alpha": "5/4",
       "description": "Adversarial fuzzing evidence closure.",
       "id": "F6",
-      "name": "AdversarialFuzzing"
+      "name": "AdversarialFuzzing",
+      "threshold": "950000/1000000"
     },
     {
       "alpha": "3/2",
       "description": "Formal proof closure.",
       "id": "F7",
-      "name": "FormalProof"
+      "name": "FormalProof",
+      "threshold": "950000/1000000"
     },
     {
       "alpha": "3/2",
       "description": "Crypto construction evidence closure.",
       "id": "F8",
-      "name": "CryptoConstruction"
+      "name": "CryptoConstruction",
+      "threshold": "950000/1000000"
     },
     {
       "alpha": "5/4",
       "description": "Public falsification program closure.",
       "id": "F9",
-      "name": "PublicFalsification"
+      "name": "PublicFalsification",
+      "threshold": "950000/1000000"
     },
     {
       "alpha": "3/2",
       "description": "Boundary discipline closure.",
       "id": "F10",
-      "name": "BoundaryDiscipline"
+      "name": "BoundaryDiscipline",
+      "threshold": "990000/1000000"
     }
   ],
   "perfect_reserved": 1000000000,
   "scale": 1000000000,
   "unit": "AM+",
-  "version": "daylight-v17-singularity-fields-v0.1"
+  "version": "daylight-v17-singularity-fields-v0.1",
+  "weak_governor_kappa": 5
 }

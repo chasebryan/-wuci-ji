@@ -1,0 +1,115 @@
+{
+  "proof_atoms": [
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "3beb544d6de039dd4709e9b78a52faf5c76047a14ad15e9cb40021fa0f3335fa",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F1",
+      "id": "F1.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "3046537d5241ede9cb2e3d2e22853037d2a6cae2b0c90de1a0ed659a39cdf3b5",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F2",
+      "id": "F2.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "0a2532c02ecd12537dc26a493527e7566b8155e0c60c5bc58d9fd79e5fa41a21",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F3",
+      "id": "F3.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "767eb93690cca5ae6257d021a00f0d0a43e5db57d8586c5cb911c50eef73999a",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F4",
+      "id": "F4.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "a0971b979b7b62d03b68821037bfc21aa437b5749b27deaec4a1389ec56454a9",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F5",
+      "id": "F5.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "3759aa79b8f2bf1422581d5b5045476fbc89a444d638211d8c4c57fb135de90c",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F6",
+      "id": "F6.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "a2fa11337a0abcc1df3c41bd7d7fd648df3fdd03448b79688ace2872da7d6553",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F7",
+      "id": "F7.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "bd0241d4b81dcc0e6e83200c9764c6a7e7f13d33778a02c04dc1b8163f8a3c46",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F8",
+      "id": "F8.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "819b427ea69401de5f03a4ea72a468649b6ce7cd7ab6beb78bd9ed6dde8fcfce",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F9",
+      "id": "F9.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    },
+    {
+      "collapse_if_failed": false,
+      "credit": 1000,
+      "evidence_digest": "3bf9fec4e348b6c0b99b4f0a6a8287f242c73ad41a78f6818dd63fb9a19b0ffa",
+      "evidence_path": "daylight/v17-singularity/examples/proof-evidence.declaration-fixture.v17.json",
+      "field": "F10",
+      "id": "F10.fixture_closed",
+      "replay_required": true,
+      "stale_after_days": 365,
+      "verifier_command": "record-valid"
+    }
+  ],
+  "version": "daylight-v17.1-event-horizon-proof-atoms-v0.1"
+}

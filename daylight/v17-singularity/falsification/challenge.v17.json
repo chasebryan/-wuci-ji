@@ -1,0 +1,21 @@
+{
+  "goal": "Every plausible fake high-number path must reject or collapse.",
+  "mutation_classes": [
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6",
+    "M7",
+    "M8",
+    "M9",
+    "M10",
+    "M11",
+    "M12",
+    "M13",
+    "M14",
+    "M15"
+  ],
+  "version": "daylight-v17.1-falsification-challenge-v0.1"
+}

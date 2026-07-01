@@ -69,7 +69,13 @@ class CLITests(unittest.TestCase):
             self.assertFalse(data["claim_usable"])
             self.assertEqual(data["boundary"]["production_allowed"], False)
 
+    def test_declaration_gate_refuses_current_state(self) -> None:
+        result = self._run("declaration-gate", "--format", "json")
+        data = json.loads(result.stdout)
+        self.assertEqual(data["decision"], "declaration_refused")
+        self.assertTrue(data["fracture_suite"]["passed"])
+        self.assertTrue(data["cross_verifier_agreement"]["passed"])
+
 
 if __name__ == "__main__":
     unittest.main()
-

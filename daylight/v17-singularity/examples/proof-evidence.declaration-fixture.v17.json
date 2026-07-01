@@ -1,0 +1,105 @@
+{
+  "records": [
+    {
+      "age_days": 0,
+      "atom_id": "F1.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F2.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F3.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F4.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F5.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F6.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F7.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F8.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F9.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F10.fixture_closed",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    }
+  ],
+  "version": "daylight-v17.1-event-horizon-proof-evidence-v0.1"
+}

@@ -191,16 +191,14 @@ See [docs/WUCI_DAYLIGHT_V16_ANALEMMA.md](docs/WUCI_DAYLIGHT_V16_ANALEMMA.md).
 ## Daylight v17 Singularity
 
 Daylight v17 Singularity under [daylight/v17-singularity/](daylight/v17-singularity/)
-is a deterministic residue-collapse research scoring layer. It does not replace
-Daylight v15/v16 and does not inflate the conservative Daylight M score.
+is a deterministic residue-collapse research scoring layer. Its v17.1 Event
+Horizon kernel derives field closure from proof atoms and applies a weakest-field
+governor, so a strong field cannot average away a neglected one. It does not
+replace Daylight v15/v16 and does not inflate the conservative Daylight M score.
 
 ```text
-S_AM+(t) = floor(10^9 * (1 - exp(-Omega(t))))
-
-Omega(t) = sum_i alpha_i[-ln(1 - C_i(t))]
-           - Debt(t)
-           - OverclaimDebt(t)
-           - StalenessDebt(t)
+Omega_eff = max(0, min(Omega_sum, 5 * min_i Omega_i) - debts)
+S_AM+(t) = min(999999999, floor(10^9 * (1 - exp(-Omega_eff))))
 ```
 
 The declaration threshold is `Omega(t) >= ln(10^9)`. The maximum declaration is
@@ -212,13 +210,16 @@ declaration fixture demonstrates the equation only and is marked
 make daylight-v17-singularity-score
 make daylight-v17-singularity-verify
 make daylight-v17-singularity-fixture-demo
+make daylight-v17-singularity-declaration-gate
 make daylight-v17-singularity-test
 make daylight-v17-singularity-doctor
 ```
 
 Singularity is not production certification, not runtime containment evidence,
 not FIPS validation, not external certification, and not a whole-system
-post-quantum safety claim.
+post-quantum safety claim. The current declaration gate includes an in-repo
+agreement-vector check; independent Rust/Zig/Lean verifier lanes remain future
+work and are not claimed here.
 
 ## System Shape
 

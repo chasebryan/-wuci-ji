@@ -16,6 +16,7 @@ UNIT = "AM+"
 VERSION = "daylight-v17-singularity-scorecard-v0.1"
 EPSILON_DENOMINATOR = 1_000_000_000_000
 UOMEGA_DENOMINATOR = 1_000_000
+WEAK_GOVERNOR_KAPPA = 5
 OMEGA_THRESHOLD_DECIMAL_TEXT = "20.723265836946411156161923092159277868409913397658"
 OMEGA_THRESHOLD = Decimal(OMEGA_THRESHOLD_DECIMAL_TEXT)
 
@@ -107,6 +108,8 @@ def field_curvature(closure: Decimal) -> Decimal:
 def score_from_omega(omega: Decimal, *, collapse: bool = False) -> tuple[int, Decimal]:
     if collapse:
         return 0, Decimal(1)
+    if omega <= 0:
+        return 0, Decimal(1)
     residue = (-omega).exp()
     raw_score = Decimal(B) * (Decimal(1) - residue)
     score = int(raw_score.to_integral_value(rounding=ROUND_FLOOR))
@@ -119,10 +122,32 @@ def score_from_omega(omega: Decimal, *, collapse: bool = False) -> tuple[int, De
     return score, residue
 
 
+def effective_omega(
+    *,
+    omega_sum: Decimal,
+    omega_min: Decimal,
+    debt_omega: Decimal,
+    overclaim_debt_omega: Decimal,
+    staleness_debt_omega: Decimal,
+    kappa: int = WEAK_GOVERNOR_KAPPA,
+) -> dict[str, Decimal]:
+    omega_weak = Decimal(kappa) * omega_min
+    governed = min(omega_sum, omega_weak)
+    effective = governed - debt_omega - overclaim_debt_omega - staleness_debt_omega
+    if effective < 0:
+        effective = Decimal(0)
+    return {
+        "omega_weak": omega_weak,
+        "omega_governed": governed,
+        "omega_eff": effective,
+    }
+
+
 def declared(
     *,
     omega: Decimal,
     score_am_plus: int,
+    field_thresholds_pass: bool,
     contradiction_debt: int,
     critical_break_debt: int,
     score_inflation_M: int,
@@ -131,6 +156,7 @@ def declared(
     return (
         omega >= OMEGA_THRESHOLD
         and score_am_plus == DECLARATION_TARGET_AM_PLUS
+        and field_thresholds_pass
         and contradiction_debt == 0
         and critical_break_debt == 0
         and score_inflation_M == 0

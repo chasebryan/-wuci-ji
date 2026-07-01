@@ -1,0 +1,127 @@
+{
+  "records": [
+    {
+      "age_days": 0,
+      "atom_id": "F1.claim_scorecard_regenerated",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F2.self_progress_floor",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F3.artifact_manifest",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F3.output_ledger",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F4.replay_depth_verified",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F5.implementation_agreement",
+      "families": [
+        "python",
+        "rust",
+        "third"
+      ],
+      "fixture_material_used": false,
+      "implementation_disagreement": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F6.fuzzing_verified",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F7.formal_verified",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F8.crypto_verified",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F9.falsification_verified",
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    },
+    {
+      "age_days": 0,
+      "atom_id": "F10.boundary_nonclaim",
+      "boundary": {
+        "external_certification_claim": false,
+        "production_allowed": false,
+        "runtime_containment_claim": false,
+        "whole_system_post_quantum_safety_claim": false
+      },
+      "fixture_material_used": false,
+      "replay": {
+        "transcript_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "valid": true
+      },
+      "valid": true
+    }
+  ],
+  "version": "daylight-v17.1-event-horizon-proof-evidence-v0.1"
+}

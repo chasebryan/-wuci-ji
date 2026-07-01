@@ -9,7 +9,10 @@ from typing import Any
 
 from . import __version__
 from .canonical_json import json_bytes, load_json_no_floats
+from . import event_horizon
+from . import falsification
 from . import registry
+from . import proof_atoms
 from . import scorecard
 from .singularity_math import OMEGA_THRESHOLD, decimal_text, require_decimal_runtime
 
@@ -19,6 +22,7 @@ DEFAULT_BASELINE_STATE = PACKAGE_ROOT / "examples" / "state.baseline.json"
 DEFAULT_BASELINE_SCORECARD = PACKAGE_ROOT / "examples" / "expected-scorecard.baseline.v17.json"
 DEFAULT_FIXTURE_STATE = PACKAGE_ROOT / "examples" / "state.declaration-fixture.json"
 DEFAULT_FIXTURE_SCORECARD = PACKAGE_ROOT / "examples" / "expected-scorecard.declaration-fixture.v17.json"
+DEFAULT_FIXTURE_ATOMS = PACKAGE_ROOT / "examples" / "proof-atoms.declaration-fixture.v17.json"
 
 
 def _print_json(value: Any) -> None:
@@ -48,13 +52,13 @@ def _write_or_print(card: dict[str, Any], out: str | None, output_format: str) -
 
 
 def cmd_score(args: argparse.Namespace) -> int:
-    card = scorecard.build_scorecard_from_paths(state_path=args.state, fields_path=args.fields)
+    card = scorecard.build_scorecard_from_paths(state_path=args.state, fields_path=args.fields, proof_atoms_path=args.atoms)
     _write_or_print(card, args.out, args.format)
     return 0
 
 
 def cmd_verify_scorecard(args: argparse.Namespace) -> int:
-    scorecard.verify_scorecard_path(scorecard_path=args.scorecard, state_path=args.state, fields_path=args.fields)
+    scorecard.verify_scorecard_path(scorecard_path=args.scorecard, state_path=args.state, fields_path=args.fields, proof_atoms_path=args.atoms)
     if args.format == "json":
         _print_json({"ok": True, "scorecard": str(args.scorecard)})
     else:
@@ -74,12 +78,14 @@ def cmd_explain(args: argparse.Namespace) -> int:
 def cmd_doctor(args: argparse.Namespace) -> int:
     require_decimal_runtime()
     fields_registry = registry.load_fields_registry(args.fields)
+    atom_registry = proof_atoms.load_proof_atom_registry(args.atoms)
     payload = {
         "ok": True,
         "decimal_ln_exp": True,
         "alpha_sum": f"{registry.alpha_sum(fields_registry).numerator}/{registry.alpha_sum(fields_registry).denominator}",
         "omega_threshold_decimal": decimal_text(OMEGA_THRESHOLD),
         "fields_digest": registry.proof_registry_digest(fields_registry),
+        "proof_atom_digest": proof_atoms.proof_atom_registry_digest(atom_registry),
     }
     if args.format == "json":
         _print_json(payload)
@@ -91,10 +97,32 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def cmd_fixture_demo(args: argparse.Namespace) -> int:
-    card = scorecard.build_scorecard_from_paths(state_path=args.state, fields_path=args.fields)
+    card = scorecard.build_scorecard_from_paths(state_path=args.state, fields_path=args.fields, proof_atoms_path=args.atoms)
     if not card["fixture"] or card["claim_usable"] is not False:
         raise ValueError("fixture demo state must be fixture=true and claim_usable=false")
     _write_or_print(card, args.out, args.format)
+    return 0
+
+
+def cmd_declaration_gate(args: argparse.Namespace) -> int:
+    result = event_horizon.run_declaration_gate(
+        state_path=args.state,
+        fields_path=args.fields,
+        proof_atoms_path=args.atoms,
+        open_breaks_path=args.open_breaks,
+    )
+    if args.format == "json":
+        _print_json(result)
+    else:
+        print("Daylight v17.1 Event Horizon")
+        print(f"decision: {result['decision']}")
+        print(f"score_AM_plus: {result['score_AM_plus']}")
+        print(f"omega_eff: {result['omega_eff_decimal']}")
+        print(f"omega_weak: {result['omega_weak_decimal']}")
+        print(f"weakest_field: {result['weakest_field']}")
+        print(f"fracture_suite: {result['fracture_suite']['passed']}")
+        print(f"cross_verifier_agreement: {result['cross_verifier_agreement']['passed']}")
+        print(f"open_critical_breaks: {result['falsification']['open_critical_breaks']}")
     return 0
 
 
@@ -106,6 +134,7 @@ def build_parser() -> argparse.ArgumentParser:
     score = sub.add_parser("score")
     score.add_argument("--state", required=True)
     score.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    score.add_argument("--atoms", default=str(proof_atoms.DEFAULT_PROOF_ATOMS_PATH))
     score.add_argument("--out")
     score.add_argument("--format", choices=("text", "json"), default="text")
     score.set_defaults(func=cmd_score)
@@ -114,6 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("scorecard")
     verify.add_argument("--state", required=True)
     verify.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    verify.add_argument("--atoms", default=str(proof_atoms.DEFAULT_PROOF_ATOMS_PATH))
     verify.add_argument("--format", choices=("text", "json"), default="text")
     verify.set_defaults(func=cmd_verify_scorecard)
 
@@ -124,15 +154,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    doctor.add_argument("--atoms", default=str(proof_atoms.DEFAULT_PROOF_ATOMS_PATH))
     doctor.add_argument("--format", choices=("text", "json"), default="text")
     doctor.set_defaults(func=cmd_doctor)
 
     fixture = sub.add_parser("fixture-demo")
     fixture.add_argument("--state", default=str(DEFAULT_FIXTURE_STATE))
     fixture.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    fixture.add_argument("--atoms", default=str(DEFAULT_FIXTURE_ATOMS))
     fixture.add_argument("--out", default=str(DEFAULT_FIXTURE_SCORECARD))
     fixture.add_argument("--format", choices=("text", "json"), default="text")
     fixture.set_defaults(func=cmd_fixture_demo)
+
+    gate = sub.add_parser("declaration-gate")
+    gate.add_argument("--state", default=str(DEFAULT_BASELINE_STATE))
+    gate.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    gate.add_argument("--atoms", default=str(proof_atoms.DEFAULT_PROOF_ATOMS_PATH))
+    gate.add_argument("--open-breaks", default=str(falsification.DEFAULT_OPEN_BREAKS))
+    gate.add_argument("--format", choices=("text", "json"), default="text")
+    gate.set_defaults(func=cmd_declaration_gate)
     return parser
 
 

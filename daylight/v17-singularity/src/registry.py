@@ -35,6 +35,18 @@ FIELD_NAMES = [
     "BoundaryDiscipline",
 ]
 EXPECTED_ALPHA = ["1/1", "5/4", "3/2", "5/4", "3/2", "5/4", "3/2", "3/2", "5/4", "3/2"]
+EXPECTED_THRESHOLDS = [
+    "998900/1000000",
+    "950000/1000000",
+    "990000/1000000",
+    "975000/1000000",
+    "975000/1000000",
+    "950000/1000000",
+    "950000/1000000",
+    "950000/1000000",
+    "950000/1000000",
+    "990000/1000000",
+]
 EXPECTED_ALPHA_SUM = Fraction(27, 2)
 
 
@@ -62,6 +74,8 @@ def validate_fields_registry(registry: dict[str, Any]) -> None:
         raise RegistryError("field registry declaration target mismatch")
     if registry.get("epsilon_denominator") != EPSILON_DENOMINATOR:
         raise RegistryError("field registry epsilon denominator mismatch")
+    if registry.get("weak_governor_kappa") != 5:
+        raise RegistryError("field registry weak governor kappa must be 5")
     fields = registry.get("fields")
     if not isinstance(fields, list) or len(fields) != 10:
         raise RegistryError("field registry must contain exactly ten fields")
@@ -82,7 +96,10 @@ def validate_fields_registry(registry: dict[str, Any]) -> None:
         seen.add(field["id"])
         if field.get("alpha") != expected_alpha:
             raise RegistryError(f"{expected_id} alpha must be {expected_alpha}")
+        if field.get("threshold") != EXPECTED_THRESHOLDS[index]:
+            raise RegistryError(f"{expected_id} threshold must be {EXPECTED_THRESHOLDS[index]}")
         alpha_sum += parse_rational_alpha(field.get("alpha"))
+        parse_rational_alpha(field.get("threshold"))
         if not isinstance(field.get("description"), str) or not field["description"]:
             raise RegistryError(f"{expected_id} requires a description")
     if alpha_sum != EXPECTED_ALPHA_SUM:
@@ -100,4 +117,9 @@ def alpha_sum(registry: dict[str, Any]) -> Fraction:
 def proof_registry_digest(registry: dict[str, Any]) -> str:
     validate_fields_registry(registry)
     return canonical_sha256(registry, D_FIELDS)
+
+
+def field_thresholds(registry: dict[str, Any]) -> dict[str, Fraction]:
+    validate_fields_registry(registry)
+    return {field["id"]: parse_rational_alpha(field["threshold"]) for field in registry["fields"]}
 
