@@ -1,0 +1,18 @@
+{
+  "version": "daylight-v13-weight-vector",
+  "scale": "M",
+  "weights": [
+    ["q1_doctrine_master_law", "160/1000"],
+    ["q2_formalism_mathematical_density", "110/1000"],
+    ["q3_negative_evidence_subtractive_capability", "160/1000"],
+    ["q4_gate_algebra_fail_closed_enforcement", "130/1000"],
+    ["q5_evidence_sheaf_release_engineering", "100/1000"],
+    ["q6_surface_closure_boundary_semantics", "70/1000"],
+    ["q7_adversarial_survival_model", "30/1000"],
+    ["q8_cryptographic_number_theoretic_margin", "80/1000"],
+    ["q9_statistical_confidence_reproducibility", "50/1000"],
+    ["q10_implementation_traceability", "70/1000"],
+    ["q11_external_falsification_readiness", "20/1000"],
+    ["q12_communication_overall", "20/1000"]
+  ]
+}

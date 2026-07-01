@@ -1,0 +1,15 @@
+{
+  "command": "score",
+  "corpus_snapshot_digest": "26cfd0ba1295779de24622fd16e67090015f964ae08295bc5272a2569f2901f7",
+  "created_at_utc": "2026-07-01T00:00:00Z",
+  "environment_digest": "3625b1d4e808ef45c2303d8043ad96f750ebb05ed7950b0ba7444b589d3eb422",
+  "external_rootset_digest": "7021ea29c34f418c2fd24e56e5f5e188f54729730f0d95c58fd7131227c0549e",
+  "harness_digest": "3cd3104eedfb0d44f990a7a302c705e6081e00f2e7ecbee1756c7016d38d432e",
+  "input_ledger_head": "fda688204a43bef2db5ae1ccaad031e7eaff2d5bb7258c6b0b790bda31ad1ef5",
+  "obligations_digest": "ccd510b980b5eae13ef5f3dc8129d473bf1b0f1485e3260d82dc26ccf1df0ccd",
+  "receipt_version": "daylight-v15-solstice-receipt-v0.1",
+  "result": "pass",
+  "score_body_digest": "7b67ca35cb57e80c56bca7b05b2338f9b5ca8eda72d9e841982112314ac2b660",
+  "source_digest": "0eed2ceb18f7794f0fd146c3577f7c92c942d41e1474822c50c77e3aa1580db5",
+  "weight_vector_digest": "367a472bb1dcdd36bc51025f4556cd1c86ed4c90ccf1e92241ceb3dbf017ce7d"
+}

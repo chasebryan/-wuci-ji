@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v16 Zenith Resolution",
+  "type": "object",
+  "required": [
+    "resolution_version",
+    "zenith_axis_digest",
+    "zenith_obligation_digest",
+    "solstice_scorecard_digest",
+    "solstice_artifact_manifest_digest",
+    "closed_zenith_obligations",
+    "open_zenith_obligations",
+    "axis_values",
+    "axis_contributions_M",
+    "zenith_assurance_M"
+  ],
+  "properties": {
+    "resolution_version": {"type": "string", "const": "daylight-v16-zenith-resolution-v0.1"},
+    "zenith_axis_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "zenith_obligation_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "solstice_scorecard_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "solstice_artifact_manifest_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "closed_zenith_obligations": {"type": "array", "items": {"type": "string"}},
+    "open_zenith_obligations": {"type": "array", "items": {"type": "string"}},
+    "axis_values": {"type": "object"},
+    "axis_contributions_M": {"type": "object"},
+    "zenith_assurance_M": {"type": "integer", "minimum": 0, "maximum": 1000000}
+  }
+}

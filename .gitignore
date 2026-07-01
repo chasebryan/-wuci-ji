@@ -4,6 +4,7 @@ node_modules/
 .env
 .env.local
 .dev.vars
+.private/
 .tools/
 .wrangler/
 tools/wuci-pq-fips204-verify/target/

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daylight-zenith"
+version = "16.0.0"
+description = "Daylight v16 Zenith: public assurance verifier layer over Daylight v15+ Solstice."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Wuci-Ji" }]
+keywords = ["daylight", "zenith", "assurance", "verification", "supply-chain", "wuci-ji"]
+dependencies = []
+
+[project.scripts]
+daylight-zenith = "src.cli:main"
+
+[tool.setuptools]
+packages = ["src"]

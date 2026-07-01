@@ -1,0 +1,502 @@
+{
+  "artifact_manifest_digest": null,
+  "candidate": "DAYLIGHT v15+ SOLSTICE HERMETIC FRONTIER",
+  "generated": true,
+  "input_ledger_head": "fda688204a43bef2db5ae1ccaad031e7eaff2d5bb7258c6b0b790bda31ad1ef5",
+  "manual_edit_allowed": false,
+  "manual_override": false,
+  "output_ledger_head": "b2fda12bb133194dbb692b30e40880dd07d733754cb145c448c1712178b3e9b3",
+  "reproducibility_receipt_digest": "dfdcf0e3303fdb82677c862a1baa612075b14e43ec6eb85b41aa1ec211e7aa95",
+  "score_body": {
+    "claim_boundary": {
+      "external_certification_claim": false,
+      "production_allowed": false,
+      "runtime_containment_claim": false,
+      "whole_system_post_quantum_safety_claim": false
+    },
+    "closed_obligations": [
+      {
+        "evidence_class": "claim",
+        "evidence_digest": "0f2a78bc25bc3c03bcc1b02142d3dcb91701241f0479439be9f3ecd8431a5940",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q1.doctrine_claim_bound",
+        "q_id": "q1_doctrine_master_law",
+        "scope": "internal",
+        "semantic_verifier_digest": "5f313388507c6ae4998b90db28f7091c8023b809fd62e913c77aa6024f828a9a",
+        "weight": 300
+      },
+      {
+        "evidence_class": "test",
+        "evidence_digest": "9212f2ae16244eb167788b703d052065e39d2dc96932f8d389511abfaa881a56",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q1.master_law_executable",
+        "q_id": "q1_doctrine_master_law",
+        "scope": "internal",
+        "semantic_verifier_digest": "360b2e6ac444121d2ceb5d7938faaa35b7575b65a2536fd5c3a1d87ccddcb36d",
+        "weight": 700
+      },
+      {
+        "evidence_class": "test",
+        "evidence_digest": "9212f2ae16244eb167788b703d052065e39d2dc96932f8d389511abfaa881a56",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q10.implementation_tests",
+        "q_id": "q10_implementation_traceability",
+        "scope": "internal",
+        "semantic_verifier_digest": "360b2e6ac444121d2ceb5d7938faaa35b7575b65a2536fd5c3a1d87ccddcb36d",
+        "weight": 399
+      },
+      {
+        "evidence_class": "traceability_map",
+        "evidence_digest": "e5f732477950c705840a8e38ce04067bbd0199b7dcaac4c425e186b2b96de2be",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q10.traceability_map",
+        "q_id": "q10_implementation_traceability",
+        "scope": "internal",
+        "semantic_verifier_digest": "e5e8d55e4912efa3d7097e482b03a0f1764e18be35fdb50df5bb4ee2ebf17e12",
+        "weight": 600
+      },
+      {
+        "evidence_class": "corpus_snapshot",
+        "evidence_digest": "313a60d43dab0ee44b1c6ec2df31a4ca60d7077deac042843bd5daefcc1bda9e",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q11.falsification_corpus_snapshot",
+        "q_id": "q11_external_falsification_readiness",
+        "scope": "internal",
+        "semantic_verifier_digest": "c16fa409f0b5f2131f79698da5f7ad6c776b66d141fc13824095bd93cd70e761",
+        "weight": 390
+      },
+      {
+        "evidence_class": "adversarial_run",
+        "evidence_digest": "1141006e40e205867a974912a52994b1630cd83afeb12a2aa17e197e8afc7134",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q11.falsification_harness",
+        "q_id": "q11_external_falsification_readiness",
+        "scope": "internal",
+        "semantic_verifier_digest": "f78ef9854276e450c592ac519030ccd02aa460494ada05b5d9d7675c36c4081a",
+        "weight": 600
+      },
+      {
+        "evidence_class": "claim",
+        "evidence_digest": "0f2a78bc25bc3c03bcc1b02142d3dcb91701241f0479439be9f3ecd8431a5940",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q12.claim_communication",
+        "q_id": "q12_communication_overall",
+        "scope": "internal",
+        "semantic_verifier_digest": "5f313388507c6ae4998b90db28f7091c8023b809fd62e913c77aa6024f828a9a",
+        "weight": 299
+      },
+      {
+        "evidence_class": "doc",
+        "evidence_digest": "e800e7136b730681ca3e4a120e0f116fee2f9890a09b6ffcf2a36bd50da81f90",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q12.documentation_complete",
+        "q_id": "q12_communication_overall",
+        "scope": "internal",
+        "semantic_verifier_digest": "19387af8fe6cca8d77f743d43ef75fbf6bc39d28117ab3abc26c98fba2c5c939",
+        "weight": 700
+      },
+      {
+        "evidence_class": "proof",
+        "evidence_digest": "b1f5fb709f6b3ff77df515a8c983388fa364c923c52d19560ac0a1f784bf9ccf",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q2.exact_rational_proof",
+        "q_id": "q2_formalism_mathematical_density",
+        "scope": "internal",
+        "semantic_verifier_digest": "db7573126a9a72b5a8deef92df6d4f0850a90ae1a8b352fe7737f08e7a55c7e6",
+        "weight": 500
+      },
+      {
+        "evidence_class": "test",
+        "evidence_digest": "9212f2ae16244eb167788b703d052065e39d2dc96932f8d389511abfaa881a56",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q2.formal_density_tests",
+        "q_id": "q2_formalism_mathematical_density",
+        "scope": "internal",
+        "semantic_verifier_digest": "360b2e6ac444121d2ceb5d7938faaa35b7575b65a2536fd5c3a1d87ccddcb36d",
+        "weight": 499
+      },
+      {
+        "evidence_class": "downgrade",
+        "evidence_digest": "4bb89f2286456da4708bc7bc5a59a52a64f4f4fea8b9ae93610058082ef4fba0",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q3.downgrade_machine",
+        "q_id": "q3_negative_evidence_subtractive_capability",
+        "scope": "internal",
+        "semantic_verifier_digest": "d1438ccf59f5fa35640ce13e6e9f18006f9a3d86287cba8ccb31f72637ec1704",
+        "weight": 400
+      },
+      {
+        "evidence_class": "corpus_snapshot",
+        "evidence_digest": "313a60d43dab0ee44b1c6ec2df31a4ca60d7077deac042843bd5daefcc1bda9e",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q3.subtractive_corpus",
+        "q_id": "q3_negative_evidence_subtractive_capability",
+        "scope": "internal",
+        "semantic_verifier_digest": "c16fa409f0b5f2131f79698da5f7ad6c776b66d141fc13824095bd93cd70e761",
+        "weight": 600
+      },
+      {
+        "evidence_class": "test",
+        "evidence_digest": "9212f2ae16244eb167788b703d052065e39d2dc96932f8d389511abfaa881a56",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q4.fail_closed_tests",
+        "q_id": "q4_gate_algebra_fail_closed_enforcement",
+        "scope": "internal",
+        "semantic_verifier_digest": "360b2e6ac444121d2ceb5d7938faaa35b7575b65a2536fd5c3a1d87ccddcb36d",
+        "weight": 600
+      },
+      {
+        "evidence_class": "harness_execution",
+        "evidence_digest": "9e90c0b1fff2316565ee06b9a36ebaff0ed7bed55b9ded33634a8a066bdd5d4d",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q4.gate_harness_execution",
+        "q_id": "q4_gate_algebra_fail_closed_enforcement",
+        "scope": "internal",
+        "semantic_verifier_digest": "15d86ef5b12ea28f64ce39347dde0a10e48575194094d81c48ee612a301ac2be",
+        "weight": 400
+      },
+      {
+        "evidence_class": "build",
+        "evidence_digest": "5333344084ec4897ad62653c8d7129659cdb823433883b9ef0a6aefd74bfc89b",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q5.evidence_sheaf_build",
+        "q_id": "q5_evidence_sheaf_release_engineering",
+        "scope": "internal",
+        "semantic_verifier_digest": "1f4e509c5f25b85f8fdaa16b8214e2407b04ad79d5a121213e3e816379ed4724",
+        "weight": 500
+      },
+      {
+        "evidence_class": "release_repro",
+        "evidence_digest": "d95bf53e0e0e7e0bae987fc6eda115410ec54a41fe841272510dc0e538b3b41c",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q5.release_reproduction",
+        "q_id": "q5_evidence_sheaf_release_engineering",
+        "scope": "internal",
+        "semantic_verifier_digest": "6713d3c8c2612b914258a6412dbcb0bafbc148aaf323eb99869cfc3947c36685",
+        "weight": 499
+      },
+      {
+        "evidence_class": "test",
+        "evidence_digest": "9212f2ae16244eb167788b703d052065e39d2dc96932f8d389511abfaa881a56",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q6.boundary_matrix_tests",
+        "q_id": "q6_surface_closure_boundary_semantics",
+        "scope": "internal",
+        "semantic_verifier_digest": "360b2e6ac444121d2ceb5d7938faaa35b7575b65a2536fd5c3a1d87ccddcb36d",
+        "weight": 500
+      },
+      {
+        "evidence_class": "adversarial_run",
+        "evidence_digest": "1141006e40e205867a974912a52994b1630cd83afeb12a2aa17e197e8afc7134",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q6.surface_adversarial_run",
+        "q_id": "q6_surface_closure_boundary_semantics",
+        "scope": "internal",
+        "semantic_verifier_digest": "f78ef9854276e450c592ac519030ccd02aa460494ada05b5d9d7675c36c4081a",
+        "weight": 498
+      },
+      {
+        "evidence_class": "adversarial_input",
+        "evidence_digest": "fc8c7d904d7b4e04b642b0c2ed5bb75ac43d84dbe99f9ae49e5d42300d5496b3",
+        "evidence_kind": "corpus",
+        "obligation_id": "o.q7.modeled_adversary_corpus",
+        "q_id": "q7_adversarial_survival_model",
+        "scope": "internal",
+        "semantic_verifier_digest": "f77f6dc7d533a398765e0d5832e07a31ec60733cbca25260640f01aa5e0c881c",
+        "weight": 600
+      },
+      {
+        "evidence_class": "transcript_mismatch",
+        "evidence_digest": "511edf91cc69fc07e090a908295df55bface20acd24def0d9106d8f4ae0776af",
+        "evidence_kind": "corpus",
+        "obligation_id": "o.q7.transcript_survival_corpus",
+        "q_id": "q7_adversarial_survival_model",
+        "scope": "internal",
+        "semantic_verifier_digest": "eb044aac4101cb37f861674924a630f4c9f37fe3095dd21a9590ef98de2bf117",
+        "weight": 395
+      },
+      {
+        "evidence_class": "source",
+        "evidence_digest": "3fe218dc6336e4d159509d5683a4f62f98848150f0d2ab39bb32e4bb52206bd2",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q8.classical_margin_source",
+        "q_id": "q8_cryptographic_number_theoretic_margin",
+        "scope": "internal",
+        "semantic_verifier_digest": "706849c7af2a4fa8584a52c63b2c65507e05f0c24d18b2d3894329dc8bd76dd9",
+        "weight": 500
+      },
+      {
+        "evidence_class": "test",
+        "evidence_digest": "9212f2ae16244eb167788b703d052065e39d2dc96932f8d389511abfaa881a56",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q8.kat_vector_tests",
+        "q_id": "q8_cryptographic_number_theoretic_margin",
+        "scope": "internal",
+        "semantic_verifier_digest": "360b2e6ac444121d2ceb5d7938faaa35b7575b65a2536fd5c3a1d87ccddcb36d",
+        "weight": 498
+      },
+      {
+        "evidence_class": "harness_execution",
+        "evidence_digest": "9e90c0b1fff2316565ee06b9a36ebaff0ed7bed55b9ded33634a8a066bdd5d4d",
+        "evidence_kind": "ledger",
+        "obligation_id": "o.q9.reproducibility_harness",
+        "q_id": "q9_statistical_confidence_reproducibility",
+        "scope": "internal",
+        "semantic_verifier_digest": "15d86ef5b12ea28f64ce39347dde0a10e48575194094d81c48ee612a301ac2be",
+        "weight": 500
+      },
+      {
+        "evidence_class": "statistical_outlier",
+        "evidence_digest": "b5f9c25fa0a05335508d80014e45ba3da834852323a1c3356382a0cdc5ea7090",
+        "evidence_kind": "corpus",
+        "obligation_id": "o.q9.statistical_outlier_corpus",
+        "q_id": "q9_statistical_confidence_reproducibility",
+        "scope": "internal",
+        "semantic_verifier_digest": "c79df2b8d9ccc8ee0538c9063b3a33507fe1fa54825f39173446abdfa2df3593",
+        "weight": 497
+      }
+    ],
+    "corpus_snapshot_digest": "26cfd0ba1295779de24622fd16e67090015f964ae08295bc5272a2569f2901f7",
+    "evidence_resolution_digest": "5b336198d544bb0885f7e511a3a6ad91683cdfcb1cce2dfe6ead18ad4b8097bb",
+    "external_residue_M": 1100,
+    "external_rootset_digest": "7021ea29c34f418c2fd24e56e5f5e188f54729730f0d95c58fd7131227c0549e",
+    "final_score_M": 998900,
+    "input_ledger_head": "fda688204a43bef2db5ae1ccaad031e7eaff2d5bb7258c6b0b790bda31ad1ef5",
+    "internal_ceiling_M": 998900,
+    "obligations_digest": "ccd510b980b5eae13ef5f3dc8129d473bf1b0f1485e3260d82dc26ccf1df0ccd",
+    "obligations_version": "daylight-v15-solstice-obligations-v0.1",
+    "open_external_residue_M": 1100,
+    "open_internal_residue_M": 0,
+    "open_obligations": [
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "provenance-auditor",
+        "obligation_id": "o.q10.external_provenance_audit",
+        "q_id": "q10_implementation_traceability",
+        "scope": "external",
+        "weight": 1
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "external-falsifier",
+        "obligation_id": "o.q11.external_falsification_program",
+        "q_id": "q11_external_falsification_readiness",
+        "scope": "external",
+        "weight": 10
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "communication-reviewer",
+        "obligation_id": "o.q12.external_communication_review",
+        "q_id": "q12_communication_overall",
+        "scope": "external",
+        "weight": 1
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "formal-methods-auditor",
+        "obligation_id": "o.q2.external_formal_methods_audit",
+        "q_id": "q2_formalism_mathematical_density",
+        "scope": "external",
+        "weight": 1
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "release-reproduction-auditor",
+        "obligation_id": "o.q5.external_downstream_packaging_audit",
+        "q_id": "q5_evidence_sheaf_release_engineering",
+        "scope": "external",
+        "weight": 1
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "boundary-fuzz-auditor",
+        "obligation_id": "o.q6.external_boundary_fuzz_audit",
+        "q_id": "q6_surface_closure_boundary_semantics",
+        "scope": "external",
+        "weight": 2
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "red-team",
+        "obligation_id": "o.q7.external_red_team",
+        "q_id": "q7_adversarial_survival_model",
+        "scope": "external",
+        "weight": 5
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "post-quantum-crypto-auditor",
+        "obligation_id": "o.q8.external_pq_crypto_audit",
+        "q_id": "q8_cryptographic_number_theoretic_margin",
+        "scope": "external",
+        "weight": 2
+      },
+      {
+        "evidence_class": "external_attestation",
+        "evidence_kind": "ledger",
+        "external_role": "independent-replicator",
+        "obligation_id": "o.q9.external_independent_replication",
+        "q_id": "q9_statistical_confidence_reproducibility",
+        "scope": "external",
+        "weight": 3
+      }
+    ],
+    "perfect_score_M": 1000000,
+    "q_vector": [
+      [
+        "q1_doctrine_master_law",
+        "1/1"
+      ],
+      [
+        "q2_formalism_mathematical_density",
+        "999/1000"
+      ],
+      [
+        "q3_negative_evidence_subtractive_capability",
+        "1/1"
+      ],
+      [
+        "q4_gate_algebra_fail_closed_enforcement",
+        "1/1"
+      ],
+      [
+        "q5_evidence_sheaf_release_engineering",
+        "999/1000"
+      ],
+      [
+        "q6_surface_closure_boundary_semantics",
+        "499/500"
+      ],
+      [
+        "q7_adversarial_survival_model",
+        "199/200"
+      ],
+      [
+        "q8_cryptographic_number_theoretic_margin",
+        "499/500"
+      ],
+      [
+        "q9_statistical_confidence_reproducibility",
+        "997/1000"
+      ],
+      [
+        "q10_implementation_traceability",
+        "999/1000"
+      ],
+      [
+        "q11_external_falsification_readiness",
+        "99/100"
+      ],
+      [
+        "q12_communication_overall",
+        "999/1000"
+      ]
+    ],
+    "residue_to_perfect_M": 1100,
+    "score_body_version": "daylight-v15-solstice-score-body-v0.1",
+    "term_contributions_M": [
+      {
+        "contribution_M": 160000,
+        "label": "Doctrine & Master Law",
+        "q_id": "q1_doctrine_master_law",
+        "q_value": "1/1",
+        "weight": "4/25"
+      },
+      {
+        "contribution_M": 109890,
+        "label": "Formalism & Mathematical Density",
+        "q_id": "q2_formalism_mathematical_density",
+        "q_value": "999/1000",
+        "weight": "11/100"
+      },
+      {
+        "contribution_M": 160000,
+        "label": "Negative Evidence / Subtractive Capability",
+        "q_id": "q3_negative_evidence_subtractive_capability",
+        "q_value": "1/1",
+        "weight": "4/25"
+      },
+      {
+        "contribution_M": 130000,
+        "label": "Gate Algebra & Fail-Closed Enforcement",
+        "q_id": "q4_gate_algebra_fail_closed_enforcement",
+        "q_value": "1/1",
+        "weight": "13/100"
+      },
+      {
+        "contribution_M": 99900,
+        "label": "Evidence Sheaf & Release Engineering",
+        "q_id": "q5_evidence_sheaf_release_engineering",
+        "q_value": "999/1000",
+        "weight": "1/10"
+      },
+      {
+        "contribution_M": 69860,
+        "label": "Surface Closure & Boundary Semantics",
+        "q_id": "q6_surface_closure_boundary_semantics",
+        "q_value": "499/500",
+        "weight": "7/100"
+      },
+      {
+        "contribution_M": 29850,
+        "label": "Adversarial Survival Model",
+        "q_id": "q7_adversarial_survival_model",
+        "q_value": "199/200",
+        "weight": "3/100"
+      },
+      {
+        "contribution_M": 79840,
+        "label": "Cryptographic / Number-Theoretic Margin",
+        "q_id": "q8_cryptographic_number_theoretic_margin",
+        "q_value": "499/500",
+        "weight": "2/25"
+      },
+      {
+        "contribution_M": 49850,
+        "label": "Statistical Confidence & Reproducibility",
+        "q_id": "q9_statistical_confidence_reproducibility",
+        "q_value": "997/1000",
+        "weight": "1/20"
+      },
+      {
+        "contribution_M": 69930,
+        "label": "Implementation Traceability",
+        "q_id": "q10_implementation_traceability",
+        "q_value": "999/1000",
+        "weight": "7/100"
+      },
+      {
+        "contribution_M": 19800,
+        "label": "External Falsification Readiness",
+        "q_id": "q11_external_falsification_readiness",
+        "q_value": "99/100",
+        "weight": "1/50"
+      },
+      {
+        "contribution_M": 19980,
+        "label": "Communication / Overall",
+        "q_id": "q12_communication_overall",
+        "q_value": "999/1000",
+        "weight": "1/50"
+      }
+    ],
+    "unified_score_decimal": "0.998900",
+    "unified_score_rational": "9989/10000",
+    "weight_vector_digest": "367a472bb1dcdd36bc51025f4556cd1c86ed4c90ccf1e92241ceb3dbf017ce7d",
+    "weight_vector_ref": "daylight-v13-weight-vector"
+  },
+  "score_body_digest": "7b67ca35cb57e80c56bca7b05b2338f9b5ca8eda72d9e841982112314ac2b660",
+  "score_entry_digest": "18c7692486261f73d7a39e09507e20340503001405023579299cf7fc42e59a90",
+  "scorecard_digest": "a4989562ebeac2421a2c13cb8c417d7cd33d48957c79cbcfed7a55219527f4a6",
+  "scorecard_version": "daylight-v15-solstice-scorecard-v0.1",
+  "status": "solstice_internal_ceiling_external_frontier_open"
+}

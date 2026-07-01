@@ -122,6 +122,9 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wuci-kaiju-test wuci-os-test
 .PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
 .PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci daylight-meridian-envelope-demo daylight-meridian-envelope-test daylight-meridian-vault-test daylight-meridian-vault-demo
+.PHONY: daylight-solstice-score daylight-solstice-verify daylight-solstice-artifact daylight-solstice-frontier daylight-solstice-external-demo daylight-solstice-test daylight-solstice-ci
+.PHONY: daylight-zenith-verify daylight-zenith-report daylight-zenith-test daylight-zenith-ci
+.PHONY: daylight-analemma-verify daylight-analemma-report daylight-analemma-test daylight-analemma-ci
 
 all: check-native $(TARGET)
 
@@ -210,6 +213,53 @@ daylight-meridian-package:
 
 daylight-meridian-ci: daylight-meridian-test daylight-meridian-smoke daylight-meridian-vault-demo daylight-meridian-artifact
 	@echo "daylight-meridian-ci: complete"
+
+daylight-solstice-score:
+	PYTHONPATH=daylight/v15-solstice $(PYTHON) -m src.cli score --ledger daylight/v15-solstice/examples/ledger.seed.jsonl --corpus daylight/v15-solstice/examples/corpus.seed.jsonl --rootset daylight/v15-solstice/rules/external-rootset.solstice.json --out daylight/v15-solstice/examples/expected-scorecard.v15-solstice.json --receipt daylight/v15-solstice/examples/reproducibility-receipt.v15-solstice.json --output-ledger daylight/v15-solstice/examples/output-ledger.v15-solstice.jsonl
+
+daylight-solstice-verify: daylight-solstice-score
+	PYTHONPATH=daylight/v15-solstice $(PYTHON) -m src.cli verify-scorecard daylight/v15-solstice/examples/expected-scorecard.v15-solstice.json --ledger daylight/v15-solstice/examples/ledger.seed.jsonl --corpus daylight/v15-solstice/examples/corpus.seed.jsonl --rootset daylight/v15-solstice/rules/external-rootset.solstice.json --receipt daylight/v15-solstice/examples/reproducibility-receipt.v15-solstice.json --output-ledger daylight/v15-solstice/examples/output-ledger.v15-solstice.jsonl
+
+daylight-solstice-frontier:
+	PYTHONPATH=daylight/v15-solstice $(PYTHON) -m src.cli frontier --ledger daylight/v15-solstice/examples/ledger.seed.jsonl --corpus daylight/v15-solstice/examples/corpus.seed.jsonl --rootset daylight/v15-solstice/rules/external-rootset.solstice.json
+
+daylight-solstice-artifact:
+	PYTHONPATH=daylight/v15-solstice $(PYTHON) -m src.cli artifact --ledger daylight/v15-solstice/examples/ledger.seed.jsonl --corpus daylight/v15-solstice/examples/corpus.seed.jsonl --rootset daylight/v15-solstice/rules/external-rootset.solstice.json --out-dir build/daylight/v15-solstice --command-label "make daylight-solstice-artifact"
+
+daylight-solstice-external-demo:
+	PYTHONPATH=daylight/v15-solstice $(PYTHON) -m unittest tests.test_signed_external_credit
+
+daylight-solstice-test:
+	PYTHONPATH=daylight/v15-solstice $(PYTHON) -m unittest discover -s daylight/v15-solstice/tests -t daylight/v15-solstice
+
+daylight-solstice-ci: daylight-solstice-verify daylight-solstice-test daylight-solstice-artifact
+	@echo "daylight-solstice-ci: complete"
+
+daylight-zenith-verify: daylight-solstice-artifact
+	PYTHONPATH=daylight/v16-zenith $(PYTHON) -m src.cli verify-artifact build/daylight/v15-solstice
+
+daylight-zenith-report: daylight-solstice-artifact
+	PYTHONPATH=daylight/v16-zenith $(PYTHON) -m src.cli report build/daylight/v15-solstice --out-dir build/daylight/v16-zenith
+	PYTHONPATH=daylight/v16-zenith $(PYTHON) -m src.cli verify-report build/daylight/v16-zenith
+
+daylight-zenith-test:
+	PYTHONPATH=daylight/v16-zenith $(PYTHON) -m unittest discover -s daylight/v16-zenith/tests -t daylight/v16-zenith
+
+daylight-zenith-ci: daylight-zenith-verify daylight-zenith-report daylight-zenith-test
+	@echo "daylight-zenith-ci: complete"
+
+daylight-analemma-verify: daylight-solstice-artifact
+	PYTHONPATH=daylight/v16-analemma $(PYTHON) -m src.cli verify-artifact build/daylight/v15-solstice
+
+daylight-analemma-report: daylight-solstice-artifact
+	PYTHONPATH=daylight/v16-analemma $(PYTHON) -m src.cli report build/daylight/v15-solstice --out-dir build/daylight/v16-analemma
+	PYTHONPATH=daylight/v16-analemma $(PYTHON) -m src.cli verify-report build/daylight/v16-analemma
+
+daylight-analemma-test:
+	PYTHONPATH=daylight/v16-analemma $(PYTHON) -m unittest discover -s daylight/v16-analemma/tests -t daylight/v16-analemma
+
+daylight-analemma-ci: daylight-analemma-verify daylight-analemma-report daylight-analemma-test
+	@echo "daylight-analemma-ci: complete"
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

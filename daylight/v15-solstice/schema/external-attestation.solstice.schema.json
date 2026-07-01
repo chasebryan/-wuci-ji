@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight v15+ Solstice External Attestation",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "attestation_version",
+    "obligation_id",
+    "external_role",
+    "external_signer_id",
+    "reviewer_identity",
+    "root_key_digest",
+    "reviewed_commit",
+    "report_digest",
+    "artifact_digest_target",
+    "transcript_reference",
+    "signature_namespace",
+    "signature",
+    "fixture_material_used",
+    "network_required",
+    "offensive_tooling_included",
+    "non_claims"
+  ],
+  "properties": {
+    "attestation_version": {"type": "string", "const": "daylight-v15-solstice-external-attestation-v0.1"},
+    "obligation_id": {"type": "string", "minLength": 1},
+    "external_role": {"type": "string", "minLength": 1},
+    "external_signer_id": {"type": "string", "minLength": 1},
+    "reviewer_identity": {"type": "string", "minLength": 1},
+    "root_key_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reviewed_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "report_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact_digest_target": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "transcript_reference": {"type": "string", "minLength": 1},
+    "signature_namespace": {"type": "string", "const": "DAYLIGHT-v15-SOLSTICE-EXTERNAL-ATTESTATION"},
+    "signature": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fixture_material_used": {"type": "boolean", "const": false},
+    "network_required": {"type": "boolean"},
+    "offensive_tooling_included": {"type": "boolean", "const": false},
+    "non_claims": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wuci-ji.local/daylight/v16-analemma/schema/analemma-report.schema.json",
+  "title": "Daylight v16 Analemma Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "report_version",
+    "name",
+    "version",
+    "D_claim_M",
+    "A_self_A",
+    "E_trust_M",
+    "C_level",
+    "analemma_registry_digest",
+    "baseline_proof_mass",
+    "closed_credit",
+    "proof_mass",
+    "proof_mass_growth_basis_points",
+    "regression_debt",
+    "staleness_debt",
+    "delta_since_baseline_A",
+    "delta_since_previous_A",
+    "delta_since_best_A",
+    "score_inflation_M",
+    "closed_units",
+    "open_units",
+    "non_claims"
+  ],
+  "properties": {
+    "report_version": {"const": "daylight-v16-analemma-report-v0.1"},
+    "name": {"const": "Daylight v16 Analemma"},
+    "version": {"const": "daylight-v16-analemma-v0.1"},
+    "D_claim_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "A_self_A": {"type": "integer", "minimum": 0},
+    "E_trust_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "C_level": {"type": "string", "minLength": 1},
+    "analemma_registry_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "baseline_release": {"type": "string", "minLength": 1},
+    "baseline_proof_mass": {"type": "integer", "minimum": 1},
+    "closed_credit": {"type": "integer", "minimum": 0},
+    "proof_mass": {"type": "integer", "minimum": 0},
+    "proof_mass_growth_basis_points": {"type": "integer"},
+    "regression_debt": {"type": "integer", "minimum": 0},
+    "staleness_debt": {"type": "integer", "minimum": 0},
+    "regression_debt_A": {"type": "integer", "minimum": 0},
+    "staleness_debt_A": {"type": "integer", "minimum": 0},
+    "delta_since_baseline_A": {"type": "integer"},
+    "delta_since_previous_A": {"type": "integer"},
+    "delta_since_best_A": {"type": "integer"},
+    "score_inflation_M": {"const": 0},
+    "closed_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "open_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "reopened_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "stale_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}

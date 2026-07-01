@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wuci-ji.local/daylight/v16-analemma/schema/analemma-resolution.schema.json",
+  "title": "Daylight v16 Analemma Resolution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "resolution_version",
+    "analemma_registry_digest",
+    "solstice_scorecard_digest",
+    "solstice_artifact_manifest_digest",
+    "closed_units",
+    "open_units",
+    "reopened_units",
+    "stale_units",
+    "closed_credit",
+    "regression_debt",
+    "staleness_debt",
+    "proof_mass"
+  ],
+  "properties": {
+    "resolution_version": {"const": "daylight-v16-analemma-resolution-v0.1"},
+    "analemma_registry_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "solstice_scorecard_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "solstice_artifact_manifest_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "closed_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "open_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "reopened_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "stale_units": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "closed_credit": {"type": "integer", "minimum": 0},
+    "regression_debt": {"type": "integer", "minimum": 0},
+    "staleness_debt": {"type": "integer", "minimum": 0},
+    "proof_mass": {"type": "integer", "minimum": 0}
+  }
+}

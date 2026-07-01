@@ -119,6 +119,75 @@ audits). A perfect `1,000,000M` is reachable only by closing those with genuine
 non-harness external attestations; claiming it from inside the repository is exactly
 the overclaim `ManualScore(x) -> Reject(x)` forbids.
 
+## Daylight v15+ Solstice
+
+Daylight v15+ Solstice under [daylight/v15-solstice/](daylight/v15-solstice/) is
+the hermetic frontier layer over Meridian. It pins the v13 weight vector by
+digest, hashes the evidence resolution, requires semantic/replay-bound closure,
+proves the output-ledger scorecard append, and treats external attestations as
+signed rootset-governed evidence rather than signer strings. The default repo
+evidence remains the honest internal ceiling: `998,900M / 1,000,000M`, with
+`1,100M` open external residue and no production/runtime/PQ/certification claim.
+
+```sh
+make daylight-solstice-ci
+make daylight-solstice-frontier
+make daylight-solstice-artifact
+make daylight-solstice-external-demo
+```
+
+See [docs/WUCI_DAYLIGHT_V15_SOLSTICE.md](docs/WUCI_DAYLIGHT_V15_SOLSTICE.md).
+
+## Daylight v16 Zenith
+
+Daylight v16 Zenith under [daylight/v16-zenith/](daylight/v16-zenith/) is a
+public assurance verifier over the Solstice artifact. It does not inflate the
+score: `ZenithAdjustedScore_M = SolsticeScore_M`. Instead it computes a separate
+`ZenithAssurance_M` and level over reproducibility, provenance,
+multi-implementation agreement, fuzzing, signed external reviews, transparency
+logging, falsification, and boundary discipline. The current repo-owned artifact
+is expected to remain `998,900M` and verify at `Z3_HERMETIC_SOLSTICE`; public
+external evidence is required for `Z6_PUBLIC_EXTERNAL_STANDARD`.
+
+```sh
+make daylight-zenith-ci
+make daylight-zenith-report
+make daylight-zenith-verify
+```
+
+See [docs/WUCI_DAYLIGHT_V16_ZENITH.md](docs/WUCI_DAYLIGHT_V16_ZENITH.md).
+
+## Daylight v16 Analemma
+
+Daylight v16 Analemma under [daylight/v16-analemma/](daylight/v16-analemma/)
+adds self-progress proof-mass scoring over the Solstice artifact. It separates
+the conservative claim score from internal progress:
+
+```text
+D_claim = conservative Solstice claim score
+A_self  = self-relative proof-mass score
+E_trust = external trust / attestation index
+C_level = claim authority level
+```
+
+The current Solstice artifact remains `D_claim_M = 998,900M / 1,000,000M`.
+Analemma sets that artifact as the baseline `A_self_A = 1,000,000A`; future
+verified proof mass can raise `A_self_A` without changing the Daylight M-score.
+Manual credit, float values, registry credit tampering, and claim-score overrides
+are rejected.
+
+The designed next-score example is `1,240,000A` only after `+120,000` verified
+proof credits over a `500,000`-credit baseline. Until that proof mass is
+registered and verified, the implemented Analemma baseline remains `1,000,000A`.
+
+```sh
+make daylight-analemma-ci
+make daylight-analemma-report
+make daylight-analemma-verify
+```
+
+See [docs/WUCI_DAYLIGHT_V16_ANALEMMA.md](docs/WUCI_DAYLIGHT_V16_ANALEMMA.md).
+
 ## System Shape
 
 ```text

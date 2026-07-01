@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daylight-analemma"
+version = "16.0.0"
+description = "Daylight v16 Analemma: self-progress proof-mass scoring over Daylight Solstice artifacts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Wuci-Ji" }]
+keywords = ["daylight", "analemma", "self-progress", "proof-mass", "verification", "wuci-ji"]
+dependencies = []
+
+[project.scripts]
+daylight-analemma = "src.cli:main"
+
+[tool.setuptools]
+packages = ["src"]

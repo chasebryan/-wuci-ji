@@ -1,0 +1,14 @@
+{
+  "example_version": "daylight-v16-analemma-designed-next-score-v0.1",
+  "status": "designed_target_not_current_claim",
+  "D_claim_M": 998900,
+  "P_t0": 500000,
+  "P_t1": 620000,
+  "added_verified_proof_credits": 120000,
+  "A_self_A": 1240000,
+  "delta_since_baseline_A": 240000,
+  "proof_mass_growth_basis_points": 2400,
+  "score_inflation_M": 0,
+  "claimable_when": "the proof-unit registry contains and verifiers close 120000 additional proof credits over the 500000-credit baseline",
+  "public_phrase": "Daylight remains 998,900M on conservative claim closure. Analemma measures self-progress at 1,240,000A. The number did not inflate; the proof mass grew by 24%."
+}

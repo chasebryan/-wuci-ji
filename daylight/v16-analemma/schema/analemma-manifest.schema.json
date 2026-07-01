@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wuci-ji.local/daylight/v16-analemma/schema/analemma-manifest.schema.json",
+  "title": "Daylight v16 Analemma Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "artifact",
+    "generated_date",
+    "inputs",
+    "outputs",
+    "analemma_registry_digest",
+    "analemma_report_digest",
+    "analemma_resolution_digest",
+    "D_claim_M",
+    "A_self_A",
+    "E_trust_M",
+    "C_level",
+    "score_inflation_M",
+    "analemma_manifest_digest"
+  ],
+  "properties": {
+    "manifest_version": {"const": "daylight-v16-analemma-manifest-v0.1"},
+    "artifact": {"const": "Daylight v16 Analemma"},
+    "generated_date": {"type": "string", "minLength": 1},
+    "inputs": {"type": "object"},
+    "outputs": {"type": "object"},
+    "analemma_registry_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "analemma_report_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "analemma_resolution_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "D_claim_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "A_self_A": {"type": "integer", "minimum": 0},
+    "E_trust_M": {"type": "integer", "minimum": 0, "maximum": 1000000},
+    "C_level": {"type": "string", "minLength": 1},
+    "score_inflation_M": {"const": 0},
+    "analemma_manifest_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

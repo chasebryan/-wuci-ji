@@ -1,0 +1,243 @@
+{
+  "version": "daylight-v16-analemma-proof-units-v0.1",
+  "baseline_release": "daylight-v15-solstice-t0",
+  "baseline_proof_mass": 106000,
+  "regression_multiplier": 2,
+  "stale_penalty": 1,
+  "layer_multipliers": {
+    "structural": 100,
+    "executable": 200,
+    "replayable": 300,
+    "cross_implementation": 400,
+    "adversarial_fuzzed": 500,
+    "formal_model_checked": 600,
+    "provider_hardened": 700,
+    "signed_external_review": 800,
+    "production_authority": 1000
+  },
+  "impact_weights": {
+    "tiny": 1,
+    "small": 2,
+    "medium": 5,
+    "high": 10,
+    "critical": 20
+  },
+  "difficulty_weights": {
+    "routine": 1,
+    "moderate": 2,
+    "hard": 4,
+    "frontier": 8,
+    "sovereign": 16
+  },
+  "proof_units": [
+    {
+      "id": "a.solstice.scorecard.structural",
+      "parent_obligation": "z1.solstice_verify_pass",
+      "domain": "artifact_closure",
+      "layer": "structural",
+      "impact": "critical",
+      "difficulty": "routine",
+      "base_credit": 2000,
+      "verifier": "verify_solstice_scorecard_present",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.artifact.executable",
+      "parent_obligation": "z1.solstice_verify_pass",
+      "domain": "artifact_closure",
+      "layer": "executable",
+      "impact": "critical",
+      "difficulty": "moderate",
+      "base_credit": 8000,
+      "verifier": "verify_solstice_artifact_valid",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.output_ledger.replayable",
+      "parent_obligation": "z1.output_ledger_transition",
+      "domain": "artifact_closure",
+      "layer": "replayable",
+      "impact": "critical",
+      "difficulty": "hard",
+      "base_credit": 24000,
+      "verifier": "verify_output_ledger_transition",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.manifest.replayable",
+      "parent_obligation": "z1.manifest_closure",
+      "domain": "artifact_closure",
+      "layer": "replayable",
+      "impact": "critical",
+      "difficulty": "hard",
+      "base_credit": 24000,
+      "verifier": "verify_manifest_closure",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.weights.structural",
+      "parent_obligation": "z1.weight_vector_pinned",
+      "domain": "artifact_closure",
+      "layer": "structural",
+      "impact": "high",
+      "difficulty": "moderate",
+      "base_credit": 2000,
+      "verifier": "verify_weight_vector_pinned",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.resolution.replayable",
+      "parent_obligation": "z1.solstice_verify_pass",
+      "domain": "evidence_resolution",
+      "layer": "replayable",
+      "impact": "high",
+      "difficulty": "hard",
+      "base_credit": 12000,
+      "verifier": "verify_evidence_resolution_bound",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.semantic_corpus.replayable",
+      "parent_obligation": "z5.corpus_replay",
+      "domain": "semantic_replay",
+      "layer": "replayable",
+      "impact": "high",
+      "difficulty": "hard",
+      "base_credit": 12000,
+      "verifier": "verify_semantic_corpus_replay",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.claim_boundary.structural",
+      "parent_obligation": "z1.claim_boundary_encoded",
+      "domain": "boundary",
+      "layer": "structural",
+      "impact": "high",
+      "difficulty": "moderate",
+      "base_credit": 2000,
+      "verifier": "verify_claim_boundary_encoded",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.solstice.manual_score.executable",
+      "parent_obligation": "z1.no_manual_score_surface",
+      "domain": "tamper_resistance",
+      "layer": "executable",
+      "impact": "high",
+      "difficulty": "moderate",
+      "base_credit": 4000,
+      "verifier": "verify_manual_score_surface_closed",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.analemma.no_score_inflation.executable",
+      "parent_obligation": "analemma.no_claim_score_inflation",
+      "domain": "score_separation",
+      "layer": "executable",
+      "impact": "critical",
+      "difficulty": "hard",
+      "base_credit": 16000,
+      "verifier": "verify_no_claim_score_inflation",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.zenith.report.replayable",
+      "parent_obligation": "zenith.report_valid",
+      "domain": "public_assurance",
+      "layer": "replayable",
+      "impact": "high",
+      "difficulty": "moderate",
+      "base_credit": 6000,
+      "verifier": "verify_zenith_report_valid",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.release.rebuilds.cross_implementation",
+      "parent_obligation": "z3.rebuild_three",
+      "domain": "reproducible_build",
+      "layer": "cross_implementation",
+      "impact": "critical",
+      "difficulty": "frontier",
+      "base_credit": 64000,
+      "verifier": "verify_three_rebuilds",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.verifier.cross_impl_agreement",
+      "parent_obligation": "z4.intermediate_digest_agreement",
+      "domain": "implementation_agreement",
+      "layer": "cross_implementation",
+      "impact": "critical",
+      "difficulty": "frontier",
+      "base_credit": 64000,
+      "verifier": "verify_cross_impl_agreement",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.fuzz.parser.adversarial",
+      "parent_obligation": "z6.parser_fuzz",
+      "domain": "fuzzing",
+      "layer": "adversarial_fuzzed",
+      "impact": "high",
+      "difficulty": "hard",
+      "base_credit": 20000,
+      "verifier": "verify_parser_fuzz_clean",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.fuzz.artifact.adversarial",
+      "parent_obligation": "z6.artifact_fuzz",
+      "domain": "fuzzing",
+      "layer": "adversarial_fuzzed",
+      "impact": "high",
+      "difficulty": "hard",
+      "base_credit": 20000,
+      "verifier": "verify_artifact_fuzz_clean",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.model.rejection_rules.formal",
+      "parent_obligation": "zenith.rejection_model",
+      "domain": "formal_model",
+      "layer": "formal_model_checked",
+      "impact": "critical",
+      "difficulty": "frontier",
+      "base_credit": 96000,
+      "verifier": "verify_formal_rejection_model",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.crypto.provider_vectors.hardened",
+      "parent_obligation": "zenith.provider_vectors",
+      "domain": "crypto_provider",
+      "layer": "provider_hardened",
+      "impact": "high",
+      "difficulty": "frontier",
+      "base_credit": 56000,
+      "verifier": "verify_provider_pq_vectors",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.external.review.signed",
+      "parent_obligation": "z7.two_independent_reviews",
+      "domain": "external_review",
+      "layer": "signed_external_review",
+      "impact": "critical",
+      "difficulty": "frontier",
+      "base_credit": 128000,
+      "verifier": "verify_signed_external_review_set",
+      "claim_scope": "self_progress"
+    },
+    {
+      "id": "a.production.authority",
+      "parent_obligation": "z10.production_authority_gate",
+      "domain": "production_authority",
+      "layer": "production_authority",
+      "impact": "critical",
+      "difficulty": "sovereign",
+      "base_credit": 320000,
+      "verifier": "verify_production_authority",
+      "claim_scope": "claim_authority"
+    }
+  ]
+}
