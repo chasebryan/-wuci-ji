@@ -1072,6 +1072,98 @@ def terminal_lines(default: int = 32) -> int:
     return max(12, shutil.get_terminal_size(fallback=(DEFAULT_TERMINAL_COLUMNS, default)).lines)
 
 
+COLOR_DEPTHS = ("none", "basic", "256", "truecolor")
+_TRUECOLOR_TERM_PROGRAMS = ("iterm", "wezterm", "ghostty", "vscode", "hyper")
+_TRUECOLOR_TERM_TOKENS = ("kitty", "wezterm", "ghostty", "iterm", "direct", "truecolor")
+
+
+def terminal_color_depth(
+    env: dict[str, str] | None = None,
+    *,
+    is_tty: bool | None = None,
+) -> str:
+    """Classify how much color the active terminal can render.
+
+    Returns one of ``truecolor`` (24-bit), ``256`` (xterm 256-color cube),
+    ``basic`` (the 16 ANSI colors), or ``none``. The NOXFRAME boot scene is
+    quantized to this depth so terminals without 24-bit color -- macOS
+    Terminal.app, the Linux console, a QEMU/Kaiju serial console, plain xterm,
+    and many tmux/SSH sessions -- still get a colored scene instead of the raw
+    ``38;2`` codes collapsing into a bare monochrome sketch.
+    """
+    env = os.environ if env is None else env
+    override = env.get("NOXFRAME_COLOR_DEPTH", "").strip().lower()
+    if override in COLOR_DEPTHS:
+        return override
+    # Honor the community NO_COLOR convention: any non-empty value disables color.
+    if env.get("NO_COLOR"):
+        return "none"
+    if is_tty is None:
+        is_tty = sys.stderr.isatty()
+    if not is_tty:
+        return "none"
+    term = env.get("TERM", "").lower()
+    if term in {"", "dumb"}:
+        return "none"
+    term_program = env.get("TERM_PROGRAM", "").lower()
+    colorterm = env.get("COLORTERM", "").lower()
+    if (
+        colorterm in {"truecolor", "24bit"}
+        or env.get("KITTY_WINDOW_ID")
+        or env.get("WEZTERM_PANE")
+        or env.get("GHOSTTY_RESOURCES_DIR")
+        or any(token in term for token in _TRUECOLOR_TERM_TOKENS)
+        or any(token in term_program for token in _TRUECOLOR_TERM_PROGRAMS)
+    ):
+        return "truecolor"
+    if "256color" in term or "256" in colorterm:
+        return "256"
+    return "basic"
+
+
+def rgb_to_xterm256(r: int, g: int, b: int) -> int:
+    """Map a 24-bit color to the nearest xterm-256 palette index."""
+    def channel(value: int) -> int:
+        value = max(0, min(255, value))
+        if value < 48:
+            return 0
+        if value < 115:
+            return 1
+        return (value - 35) // 40
+
+    # Prefer the 24-step grayscale ramp for near-neutral colors: it is finer
+    # than the 6x6x6 cube and keeps the dark void gradient smooth.
+    if abs(r - g) < 12 and abs(g - b) < 12 and abs(r - b) < 12:
+        gray = round((r + g + b) / 3)
+        if gray < 8:
+            return 16
+        if gray > 248:
+            return 231
+        return 232 + min(23, (gray - 8) // 10)
+    r6, g6, b6 = channel(r), channel(g), channel(b)
+    return 16 + 36 * r6 + 6 * g6 + b6
+
+
+_ANSI16_RGB = (
+    (0, 0, 0), (170, 0, 0), (0, 170, 0), (170, 85, 0),
+    (0, 0, 170), (170, 0, 170), (0, 170, 170), (170, 170, 170),
+    (85, 85, 85), (255, 85, 85), (85, 255, 85), (255, 255, 85),
+    (85, 85, 255), (255, 85, 255), (85, 255, 255), (255, 255, 255),
+)
+
+
+def rgb_to_ansi16(r: int, g: int, b: int) -> int:
+    """Map a 24-bit color to the nearest of the 16 base ANSI colors (0-15)."""
+    best_index = 0
+    best_distance = None
+    for index, (cr, cg, cb) in enumerate(_ANSI16_RGB):
+        distance = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
+        if best_distance is None or distance < best_distance:
+            best_distance = distance
+            best_index = index
+    return best_index
+
+
 def fit_display(text: str, width: int) -> str:
     if display_width(text) <= width:
         return text
@@ -4010,10 +4102,9 @@ def maybe_open_mechanics_terminal(root: Path, args: argparse.Namespace, palette:
         if should_handoff_to_mechanics_terminal(args, env=env):
             sys.stderr.write(
                 palette.paint(
-                    "NOXFRAME mechanics terminal not found; install kitty "
-                    f"or use {MECHANICS_TERMINAL_HINT}. "
-                    "Using the reduced terminal profile.\n",
-                    palette.yellow,
+                    "NOXFRAME rendering the boot scene in this terminal. "
+                    f"{MECHANICS_TERMINAL_HINT} (or kitty) add the animated boot.\n",
+                    palette.cyan,
                 )
             )
             sys.stderr.flush()
@@ -4033,7 +4124,7 @@ def maybe_open_mechanics_terminal(root: Path, args: argparse.Namespace, palette:
     except OSError as exc:
         sys.stderr.write(
             palette.paint(
-                f"NOXFRAME could not open kitty ({exc}); using the reduced terminal profile.\n",
+                f"NOXFRAME could not open kitty ({exc}); rendering the boot scene here instead.\n",
                 palette.yellow,
             )
         )
@@ -4057,6 +4148,45 @@ def boot_animation_active(args: argparse.Namespace) -> bool:
         and sys.stderr.isatty()
         and getattr(args, "boot_renderer", "auto") != "gui"
         and detect_boot_terminal().rich_animation
+    )
+
+
+def boot_static_fullscreen_active(
+    args: argparse.Namespace,
+    *,
+    env: dict[str, str] | None = None,
+    stdin_tty: bool | None = None,
+    stderr_tty: bool | None = None,
+) -> bool:
+    """Whether a reduced-motion terminal should get the one-shot full-screen
+    splash: painted once, prompt embedded, no animation loop.
+
+    This is the tmux/SSH/generic-terminal "arrival" screen. It requires an
+    interactive TTY, a non-rich, non-dumb terminal (rich terminals animate
+    instead), and the standard prompt escapes. `--no-boot-animation` opts back
+    out to the classic scrolling banner + inline prompt.
+    """
+    if args.yes or args.no_boot_prompt or getattr(args, "no_boot_animation", False):
+        return False
+    if getattr(args, "boot_renderer", "auto") == "gui":
+        return False
+    stdin_tty = sys.stdin.isatty() if stdin_tty is None else stdin_tty
+    stderr_tty = sys.stderr.isatty() if stderr_tty is None else stderr_tty
+    if not (stdin_tty and stderr_tty):
+        return False
+    profile = detect_boot_terminal(env)
+    if profile.rich_animation or profile.name == "dumb":
+        return False
+    return True
+
+
+def boot_fullscreen_active(args: argparse.Namespace) -> bool:
+    """True when the boot paints its own full-screen scene, so the caller
+    should not also print the scrolling pre-banner."""
+    return (
+        boot_animation_active(args)
+        or boot_gui_candidate(args)
+        or boot_static_fullscreen_active(args)
     )
 
 
@@ -4112,6 +4242,27 @@ def prompt_boot_plain(prompt: str, palette: Palette) -> bool:
     return boot_answer_allows(answer)
 
 
+def prompt_boot_static(prompt: str, palette: Palette) -> bool:
+    """Paint the full-screen boot scene exactly once (prompt embedded), then
+    read the answer with normal line editing. No animation loop, no repeated
+    clears -- a reduced-motion "arrival" splash for tmux/SSH/generic terminals."""
+    depth = terminal_color_depth() if palette.enabled else "none"
+    print_banner(
+        palette,
+        frame=0,
+        full_screen=True,
+        prompt=prompt,
+        color_depth=depth,
+    )
+    # Drop the reader onto a clean line beneath the painted scene.
+    rows = max(14, terminal_lines() - 1)
+    sys.stderr.write(f"\x1b[{rows + 1};1H")
+    sys.stderr.write(palette.paint("boot> ", palette.red))
+    sys.stderr.flush()
+    answer = sys.stdin.readline()
+    return boot_answer_allows(answer)
+
+
 def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
     terminal_profile = detect_boot_terminal()
     if not terminal_profile.rich_animation:
@@ -4129,6 +4280,7 @@ def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
     new_attrs[6][termios.VTIME] = 0
     answer = ""
     frame = 0
+    depth = terminal_color_depth() if palette.enabled else "none"
     try:
         termios.tcsetattr(fd, termios.TCSADRAIN, new_attrs)
     except termios.error:
@@ -4144,6 +4296,7 @@ def prompt_boot_animated(prompt: str, palette: Palette) -> bool:
                 prompt=prompt,
                 answer=answer,
                 clear_screen=frame == 0,
+                color_depth=depth,
             )
             ready, _, _ = select.select([sys.stdin], [], [], terminal_profile.frame_delay)
             if ready:
@@ -4441,6 +4594,8 @@ def confirm_boot(args: argparse.Namespace, palette: Palette) -> bool:
             return graphical_answer
     if boot_animation_active(args):
         return prompt_boot_animated(prompt, palette)
+    if boot_static_fullscreen_active(args):
+        return prompt_boot_static(prompt, palette)
     return prompt_boot_plain(prompt, palette)
 
 
@@ -4672,6 +4827,29 @@ def banner_inner_width(columns: int | None = None, *, full_width: bool = False) 
     return min(MAX_BANNER_INNER_WIDTH, usable)
 
 
+# A compact 5-row block font for the boot wordmark. Only the glyphs needed to
+# spell "WUCI-JI" are defined; each glyph is a tuple of equal-width rows.
+_BOOT_BLOCK_FONT: dict[str, tuple[str, ...]] = {
+    "W": ("█   █", "█   █", "█ █ █", "██ ██", "█   █"),
+    "U": ("█   █", "█   █", "█   █", "█   █", " ███ "),
+    "C": (" ████", "█    ", "█    ", "█    ", " ████"),
+    "I": ("███", " █ ", " █ ", " █ ", "███"),
+    "J": ("   █", "   █", "   █", "█  █", " ██ "),
+    "-": ("     ", "     ", " ███ ", "     ", "     "),
+    " ": ("  ", "  ", "  ", "  ", "  "),
+}
+_BOOT_BLOCK_HEIGHT = 5
+
+
+def boot_block_word(word: str, *, gap: int = 1) -> list[str]:
+    """Render ``word`` as rows of block-font text (missing glyphs are skipped)."""
+    glyphs = [_BOOT_BLOCK_FONT[ch] for ch in word if ch in _BOOT_BLOCK_FONT]
+    if not glyphs:
+        return []
+    separator = " " * gap
+    return [separator.join(glyph[row] for glyph in glyphs) for row in range(_BOOT_BLOCK_HEIGHT)]
+
+
 def print_banner(
     palette: Palette,
     *,
@@ -4680,7 +4858,16 @@ def print_banner(
     prompt: str | None = None,
     answer: str = "",
     clear_screen: bool = True,
+    color_depth: str | None = None,
 ) -> None:
+    if color_depth is None:
+        color_depth = terminal_color_depth() if palette.enabled else "none"
+    elif not palette.enabled:
+        color_depth = "none"
+    # On 16-color terminals the per-cell gradient backgrounds have no faithful
+    # rendering and only muddy the foreground art, so drop them and keep the
+    # crimson/violet glyphs legible instead.
+    drop_background = color_depth == "basic"
     width = max(
         MIN_BANNER_INNER_WIDTH,
         terminal_columns() - 1 if full_screen else banner_inner_width(full_width=False),
@@ -4723,15 +4910,30 @@ def print_banner(
         bg: tuple[int, int, int] | None,
         bold: bool,
     ) -> str:
-        if not palette.enabled:
+        if not palette.enabled or color_depth == "none":
             return ""
+        if drop_background:
+            bg = None
         codes = []
         if bold:
             codes.append("1")
-        if fg is not None:
-            codes.append(f"38;2;{fg[0]};{fg[1]};{fg[2]}")
-        if bg is not None:
-            codes.append(f"48;2;{bg[0]};{bg[1]};{bg[2]}")
+        if color_depth == "truecolor":
+            if fg is not None:
+                codes.append(f"38;2;{fg[0]};{fg[1]};{fg[2]}")
+            if bg is not None:
+                codes.append(f"48;2;{bg[0]};{bg[1]};{bg[2]}")
+        elif color_depth == "256":
+            if fg is not None:
+                codes.append(f"38;5;{rgb_to_xterm256(*fg)}")
+            if bg is not None:
+                codes.append(f"48;5;{rgb_to_xterm256(*bg)}")
+        else:  # basic 16-color
+            if fg is not None:
+                index = rgb_to_ansi16(*fg)
+                codes.append(str((90 + index - 8) if index >= 8 else (30 + index)))
+            if bg is not None:
+                index = rgb_to_ansi16(*bg)
+                codes.append(str((100 + index - 8) if index >= 8 else (40 + index)))
         return f"\x1b[{';'.join(codes)}m" if codes else ""
 
     def put(
@@ -4894,31 +5096,57 @@ def print_banner(
 
     title_center = int(width * (0.38 if width >= 74 else 0.50))
     title_y = max(2, int(rows * 0.44))
-    title = "WUCI-JI"
-    title_x = centered_x(title, title_center)
-    clear_span(title_x - 3, title_y, display_width(title) + 6)
-    put_text(title, title_x, title_y, fg=(255, 238, 245), bold=True)
+
+    word_rows = boot_block_word("WUCI-JI")
+    word_w = max((display_width(line) for line in word_rows), default=0)
+    word_left = title_center - word_w // 2
+    hero = (
+        bool(word_rows)
+        and width >= 74
+        and (rows - title_y) >= (_BOOT_BLOCK_HEIGHT + 6)
+        and word_left > 1
+        and word_left + word_w + 2 <= grid_left
+    )
+
+    if hero:
+        # The station header carries the literal wordmark; the block art below is
+        # the hero. Each row is shaded from bright bone to hot crimson.
+        put_text("WUCI-JI // NOXFRAME SUBSTRATE", 2, max(0, grid_top - 1), fg=(158, 36, 68))
+        for row, line in enumerate(word_rows):
+            y = title_y + row
+            clear_span(word_left - 1, y, word_w + 2)
+            shade = blend((255, 238, 245), (255, 80, 122), row / max(1, _BOOT_BLOCK_HEIGHT - 1))
+            put_text(line, word_left, y, fg=shade, bold=True)
+        subtitle_y = min(rows - 1, title_y + _BOOT_BLOCK_HEIGHT + 1)
+    else:
+        title = "WUCI-JI"
+        title_x = centered_x(title, title_center)
+        clear_span(title_x - 3, title_y, display_width(title) + 6)
+        put_text(title, title_x, title_y, fg=(255, 238, 245), bold=True)
+        subtitle_y = min(rows - 1, title_y + 2)
+
     subtitle = "Wuci-Ji Systems Substrate"
     subtitle_x = centered_x(subtitle, title_center)
-    clear_span(subtitle_x - 3, min(rows - 1, title_y + 2), display_width(subtitle) + 6)
-    put_text(subtitle, subtitle_x, min(rows - 1, title_y + 2), fg=(255, 111, 143))
+    clear_span(subtitle_x - 3, subtitle_y, display_width(subtitle) + 6)
+    put_text(subtitle, subtitle_x, subtitle_y, fg=(255, 111, 143))
 
+    mode_y = min(rows - 1, subtitle_y + 2)
     if width >= 74:
         mode = f"NOXFRAME // {BOOT_IDEOGRAPH_TEXT}"
         mode_x = centered_x(mode, title_center)
-        clear_span(mode_x - 2, min(rows - 1, title_y + 4), display_width(mode) + 4)
-        put_text(mode, mode_x, min(rows - 1, title_y + 4), fg=(184, 117, 255), bold=True)
+        clear_span(mode_x - 2, mode_y, display_width(mode) + 4)
+        put_text(mode, mode_x, mode_y, fg=(184, 117, 255), bold=True)
     else:
         ideograph_x = centered_x(BOOT_IDEOGRAPH_TEXT, title_center)
-        clear_span(ideograph_x - 2, min(rows - 1, title_y + 4), display_width(BOOT_IDEOGRAPH_TEXT) + 4)
-        put_text(BOOT_IDEOGRAPH_TEXT, ideograph_x, min(rows - 1, title_y + 4), fg=(184, 117, 255), bold=True)
+        clear_span(ideograph_x - 2, mode_y, display_width(BOOT_IDEOGRAPH_TEXT) + 4)
+        put_text(BOOT_IDEOGRAPH_TEXT, ideograph_x, mode_y, fg=(184, 117, 255), bold=True)
 
     if prompt is not None:
         question = BOOT_VOICE_TEXT if prompt == BOOT_PROMPT else prompt.strip()
         prompt_field = int(width * 0.70) if width >= 74 else width
         prompt_width = min(prompt_field - 6, 56)
         prompt_lines = wrap_words(question, prompt_width)
-        prompt_start = min(rows - len(prompt_lines) - 2, max(title_y + 6, int(rows * 0.70)))
+        prompt_start = min(rows - len(prompt_lines) - 2, max(mode_y + 2, int(rows * 0.70)))
         for index, line in enumerate(prompt_lines):
             line_x = centered_x(line, title_center)
             clear_span(line_x - 2, prompt_start + index, display_width(line) + 4)
@@ -4939,18 +5167,31 @@ def print_banner(
             bold=True,
         )
 
+    escape_cache: dict[tuple[tuple[int, int, int] | None, tuple[int, int, int] | None, bool], str] = {}
+
+    def cell_escape(fg: tuple[int, int, int] | None, bg: tuple[int, int, int] | None, bold: bool) -> str:
+        key = (fg, bg, bold)
+        cached = escape_cache.get(key)
+        if cached is None:
+            cached = ansi_prefix(fg, bg, bold)
+            escape_cache[key] = cached
+        return cached
+
     def render_line(row: list[Cell]) -> str:
         rendered: list[str] = []
-        active: tuple[tuple[int, int, int] | None, tuple[int, int, int] | None, bool] | None = None
+        # Dedup on the emitted escape string, not the raw truecolor tuple, so
+        # neighbors that quantize to the same 256/16-color code collapse into a
+        # single run. This keeps output compact on slow serial/SSH terminals.
+        active: str | None = None
         for char, fg, bg, bold in row:
-            style = (fg, bg, bold)
-            if palette.enabled and style != active:
-                if active is not None:
+            escape = cell_escape(fg, bg, bold) if palette.enabled else ""
+            if palette.enabled and escape != active:
+                if active:
                     rendered.append("\x1b[0m")
-                rendered.append(ansi_prefix(fg, bg, bold))
-                active = style
+                rendered.append(escape)
+                active = escape
             rendered.append(char)
-        if palette.enabled and active is not None:
+        if palette.enabled and active:
             rendered.append("\x1b[0m")
         return "".join(rendered)
 
@@ -6888,7 +7129,7 @@ def main() -> int:
     if maybe_open_mechanics_terminal(root, args, palette):
         return 0
 
-    if not boot_animation_active(args):
+    if not boot_fullscreen_active(args):
         print_banner(palette)
     if not confirm_boot(args, palette):
         sys.stderr.write(palette.paint("WUCI-JI substrate boot declined\n", palette.red))

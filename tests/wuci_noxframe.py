@@ -681,6 +681,100 @@ def assert_boot_animation_frame() -> None:
     assert len({display_width(line) for line in scene}) == 1
 
 
+def assert_terminal_color_depth() -> None:
+    depth = wuci_black_ice.terminal_color_depth
+    # 24-bit terminals advertise truecolor or a known rich TERM.
+    assert depth({"TERM": "xterm-256color", "COLORTERM": "truecolor"}, is_tty=True) == "truecolor"
+    assert depth({"TERM": "xterm-kitty", "KITTY_WINDOW_ID": "1"}, is_tty=True) == "truecolor"
+    # macOS Terminal.app and similar are 256-color only, not truecolor.
+    assert depth({"TERM": "xterm-256color", "TERM_PROGRAM": "Apple_Terminal"}, is_tty=True) == "256"
+    # Plain xterm / linux console / serial fall back to the 16 base colors.
+    assert depth({"TERM": "xterm"}, is_tty=True) == "basic"
+    assert depth({"TERM": "linux"}, is_tty=True) == "basic"
+    # No color surfaces: dumb terminals, non-ttys, and the NO_COLOR convention.
+    assert depth({"TERM": "dumb"}, is_tty=True) == "none"
+    assert depth({"TERM": "xterm-256color", "COLORTERM": "truecolor"}, is_tty=False) == "none"
+    assert depth({"TERM": "xterm-256color", "COLORTERM": "truecolor", "NO_COLOR": "1"}, is_tty=True) == "none"
+    # Operators can force a depth for any terminal.
+    assert depth({"TERM": "dumb", "NOXFRAME_COLOR_DEPTH": "256"}, is_tty=True) == "256"
+
+    # Quantizers stay inside their palette ranges and keep pure colors distinct.
+    assert 16 <= wuci_black_ice.rgb_to_xterm256(132, 6, 31) <= 255
+    assert wuci_black_ice.rgb_to_xterm256(0, 0, 0) == 16
+    assert 0 <= wuci_black_ice.rgb_to_ansi16(255, 80, 122) <= 15
+    assert wuci_black_ice.rgb_to_ansi16(0, 0, 0) == 0
+
+    def banner(color_depth: str) -> str:
+        buffer = io.StringIO()
+        with contextlib.redirect_stderr(buffer):
+            wuci_black_ice.print_banner(
+                wuci_black_ice.Palette("always"),
+                full_screen=True,
+                prompt=wuci_black_ice.BOOT_PROMPT,
+                color_depth=color_depth,
+            )
+        return buffer.getvalue()
+
+    # 256-color rendering emits indexed color and never raw 24-bit escapes.
+    scene_256 = banner("256")
+    assert "38;5;" in scene_256 and "48;5;" in scene_256
+    assert "38;2;" not in scene_256 and "48;2;" not in scene_256
+    assert "WUCI-JI" in scene_256
+    # Basic rendering drops the per-cell gradient background but keeps color.
+    scene_basic = banner("basic")
+    assert "48;5;" not in scene_basic and "48;2;" not in scene_basic
+    assert "\x1b[" in scene_basic
+    assert "WUCI-JI" in scene_basic
+    # A none depth is monochrome even with color "always".
+    scene_none = banner("none")
+    assert "\x1b[3" not in scene_none and "\x1b[4" not in scene_none
+    assert "WUCI-JI" in scene_none
+
+
+def assert_boot_wordmark_hero() -> None:
+    # The block-letter font spells the wordmark exactly.
+    word = wuci_black_ice.boot_block_word("WUCI-JI")
+    assert len(word) == wuci_black_ice._BOOT_BLOCK_HEIGHT
+    assert len({len(line) for line in word}) == 1  # every row is the same width
+    assert any("█" in line for line in word)
+
+    def render(columns: int, lines: int) -> str:
+        saved = {k: os.environ.get(k) for k in ("COLUMNS", "LINES")}
+        os.environ["COLUMNS"] = str(columns)
+        os.environ["LINES"] = str(lines)
+        try:
+            buffer = io.StringIO()
+            with contextlib.redirect_stderr(buffer):
+                wuci_black_ice.print_banner(
+                    wuci_black_ice.Palette("never"),
+                    frame=1,
+                    full_screen=True,
+                    prompt=wuci_black_ice.BOOT_PROMPT,
+                )
+            return buffer.getvalue()
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+    # A wide terminal renders the block-art hero and the station header.
+    wide = render(100, 30)
+    assert "█" in wide
+    assert "WUCI-JI // NOXFRAME SUBSTRATE" in wide
+    assert "Wuci-Ji Systems Substrate" in wide
+    wide_scene = [line for line in strip_ansi(wide.replace("\033[2J\033[H", "")).splitlines() if line]
+    assert len({display_width(line) for line in wide_scene}) == 1
+
+    # A narrow terminal falls back to the plain wordmark without block glyphs.
+    narrow = render(58, 26)
+    assert "█" not in narrow
+    assert "WUCI-JI" in narrow
+    narrow_scene = [line for line in strip_ansi(narrow.replace("\033[2J\033[H", "")).splitlines() if line]
+    assert len({display_width(line) for line in narrow_scene}) == 1
+
+
 def assert_console_exit(launcher: Path, tmp: Path) -> None:
     kaiju_iso_source = tmp / "kali-noxframe.iso"
     kaiju_iso_source.write_bytes(b"KAIJU NOXFRAME ISO\n")
@@ -1550,6 +1644,8 @@ def assert_launcher(launcher: Path) -> None:
         assert_substrate_commands(launcher, tmp)
         assert_boot_prompt_and_banner(launcher, tmp)
         assert_boot_animation_frame()
+        assert_boot_wordmark_hero()
+        assert_terminal_color_depth()
         assert_console_exit(launcher, tmp)
         assert_console_multicommand_depth_exit_all(launcher, tmp)
         assert_codex_bridge_process(launcher, tmp)

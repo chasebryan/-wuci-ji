@@ -21,13 +21,36 @@ Welcome to the Wuci-Ji system substrate, hacker. Would you like to enter your sy
 ```
 
 When stdin and stderr are both attached to a TTY, that prompt is shown inside a
-NOXFRAME boot frame. `--boot-renderer auto` profiles the terminal first:
-the rich mechanics-terminal boot requires Kitty, WezTerm, Ghostty, iTerm2, or a
-similar terminal. If the launch starts from a generic local terminal and `kitty`
-is installed, NOXFRAME opens a Kitty window and continues there. Tmux, SSH,
-dumb, unknown, and generic terminals otherwise use a reduced-motion screen that
-avoids rapid full-screen clearing and prints an install hint instead of forcing
-the rich renderer. `--no-terminal-handoff` keeps the current terminal.
+NOXFRAME boot frame. Every terminal gets the full crimson/violet Wuci-Ji boot
+scene, not just the mechanics terminals: a block-letter `WUCI-JI` wordmark shaded
+from bone to hot crimson, a live matrix lattice with data rails, a station
+header, the `无此机系统` identity line, and the boot question. On terminals too
+narrow for the block art (under ~74 columns) the wordmark falls back to a plain
+label so the layout stays intact. `--boot-renderer auto` profiles the terminal
+first: the rich *animated* boot (the redrawing lattice) requires Kitty, WezTerm,
+Ghostty, iTerm2, or a similar terminal. Tmux, SSH, dumb, unknown, and generic
+terminals use a reduced-motion screen that avoids rapid full-screen clearing
+while still painting the same static scene.
+
+The scene is rendered to whatever color the terminal actually supports, so it
+looks right everywhere instead of collapsing into a bare monochrome sketch on
+terminals without 24-bit color:
+
+- 24-bit truecolor terminals (advertising `COLORTERM=truecolor`, or Kitty /
+  WezTerm / Ghostty / iTerm2) get the full smooth gradient.
+- 256-color terminals (macOS Terminal.app, most `*-256color` TERMs) get the
+  scene quantized to the xterm-256 palette, gradient included.
+- 16-color terminals (plain xterm, the Linux console, a QEMU/Kaiju serial
+  console) drop the per-cell gradient background and keep the crimson/violet
+  glyph art legible against the default background.
+- `NO_COLOR` (any non-empty value) and dumb/non-TTY targets render monochrome.
+
+Set `NOXFRAME_COLOR_DEPTH` to `truecolor`, `256`, `basic`, or `none` to override
+the automatic detection for a specific terminal.
+
+If the launch starts from a generic local terminal and `kitty` is installed,
+NOXFRAME can open a Kitty window and continue there for the animated boot;
+`--no-terminal-handoff` keeps the current terminal.
 `--boot-renderer gui` explicitly opens a stdlib graphical canvas with a
 black/crimson Wuci-Ji Systems console, box-grid lattice, modular motion
 matrices, data rails, strategic pink/purple signal accents, and the

@@ -40,18 +40,21 @@
     <a class="skip-link" href="#top">Skip to content</a>
     <header class="site-header" data-header>
       <a class="brand" href="#top" aria-label="No Such Machine home">
-        <img
-          class="brand-mark"
-          src="assets/no-such-machine-emblem.png"
-          alt=""
-          aria-hidden="true"
-          width="42"
-          height="42"
-          decoding="async"
-        >
+        <picture>
+          <source srcset="assets/no-such-machine-emblem.webp" type="image/webp">
+          <img
+            class="brand-mark"
+            src="assets/no-such-machine-emblem.png"
+            alt=""
+            aria-hidden="true"
+            width="42"
+            height="42"
+            decoding="async"
+          >
+        </picture>
         <span>No Such Machine</span>
       </a>
-      <nav class="site-nav" aria-label="Primary navigation">
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
         <a href="#challenge">Challenge</a>
         <a href="#encrypt">Encrypt</a>
         <a href="#mae">MAE</a>
@@ -59,21 +62,34 @@
         <a href="#os">Wuci-OS</a>
         <a href="#commands">Commands</a>
         <a href="#boundary">Boundary</a>
+        <a class="nav-repo" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
       </nav>
       <a class="repo-link" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-controls="site-nav"
+        aria-expanded="false"
+        aria-label="Toggle navigation menu"
+      >
+        <span class="nav-toggle-bars" aria-hidden="true"></span>
+      </button>
     </header>
 
     <main id="top">
       <section class="hero" aria-labelledby="hero-title">
-        <img
-          class="hero-image"
-          src="assets/wuci-daylight-v15-meridian-banner.png"
-          alt="Daylight v15 Meridian evidence-derived sovereign mathematics banner"
-          width="2172"
-          height="724"
-          fetchpriority="high"
-          decoding="async"
-        >
+        <picture>
+          <source srcset="assets/wuci-daylight-v15-meridian-banner.webp" type="image/webp">
+          <img
+            class="hero-image"
+            src="assets/wuci-daylight-v15-meridian-banner.png"
+            alt="Daylight v15 Meridian evidence-derived sovereign mathematics banner"
+            width="2172"
+            height="724"
+            fetchpriority="high"
+            decoding="async"
+          >
+        </picture>
         <div class="hero-shade" aria-hidden="true"></div>
         <div class="hero-content">
           <p class="eyebrow">Daylight v15 Meridian evidence surface</p>
@@ -300,14 +316,17 @@
           </a>
         </div>
         <figure class="mae-plate">
-          <img
-            src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg"
-            alt="WUCI v15 MAE Meridian Authorized Envelope visual map"
-            width="1672"
-            height="941"
-            loading="lazy"
-            decoding="async"
-          >
+          <picture>
+            <source srcset="assets/wuci-v15-mae-meridian-authorized-envelope.webp" type="image/webp">
+            <img
+              src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg"
+              alt="WUCI v15 MAE Meridian Authorized Envelope visual map"
+              width="1672"
+              height="941"
+              loading="lazy"
+              decoding="async"
+            >
+          </picture>
           <figcaption>
             WUCI v15 MAE: evidence-bound cryptographic gate, 30 June 2026.
           </figcaption>
@@ -355,14 +374,17 @@
 
       <section class="split-section" id="os" aria-labelledby="os-title">
         <div class="split-media">
-          <img
-            src="assets/wuci-daylight-v15-meridian.png"
-            alt="Wuci Daylight v15 Meridian sheet"
-            width="1672"
-            height="941"
-            loading="lazy"
-            decoding="async"
-          >
+          <picture>
+            <source srcset="assets/wuci-daylight-v15-meridian.webp" type="image/webp">
+            <img
+              src="assets/wuci-daylight-v15-meridian.png"
+              alt="Wuci Daylight v15 Meridian sheet"
+              width="1672"
+              height="941"
+              loading="lazy"
+              decoding="async"
+            >
+          </picture>
         </div>
         <div class="split-copy">
           <p class="eyebrow">Wuci-OS image lane</p>
@@ -426,19 +448,31 @@
         </div>
         <div class="image-grid">
           <figure>
-            <img src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg" alt="WUCI v15 MAE Meridian Authorized Envelope sheet" width="1672" height="941" loading="lazy" decoding="async">
+            <picture>
+              <source srcset="assets/wuci-v15-mae-meridian-authorized-envelope.webp" type="image/webp">
+              <img src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg" alt="WUCI v15 MAE Meridian Authorized Envelope sheet" width="1672" height="941" loading="lazy" decoding="async">
+            </picture>
             <figcaption>WUCI v15 MAE envelope</figcaption>
           </figure>
           <figure>
-            <img src="assets/wuci-daylight-v15-meridian.png" alt="Daylight v15 Meridian evidence sheet" width="1672" height="941" loading="lazy" decoding="async">
+            <picture>
+              <source srcset="assets/wuci-daylight-v15-meridian.webp" type="image/webp">
+              <img src="assets/wuci-daylight-v15-meridian.png" alt="Daylight v15 Meridian evidence sheet" width="1672" height="941" loading="lazy" decoding="async">
+            </picture>
             <figcaption>Daylight v15 Meridian</figcaption>
           </figure>
           <figure>
-            <img src="assets/wuci-daylight-wire-model.png" alt="Daylight and Wuci wire model" width="1491" height="1055" loading="lazy" decoding="async">
+            <picture>
+              <source srcset="assets/wuci-daylight-wire-model.webp" type="image/webp">
+              <img src="assets/wuci-daylight-wire-model.png" alt="Daylight and Wuci wire model" width="1491" height="1055" loading="lazy" decoding="async">
+            </picture>
             <figcaption>Daylight/Wuci wire model</figcaption>
           </figure>
           <figure>
-            <img src="assets/wuci-daylight-v10-scoreboard.png" alt="Daylight v10 scoreboard" width="1672" height="941" loading="lazy" decoding="async">
+            <picture>
+              <source srcset="assets/wuci-daylight-v10-scoreboard.webp" type="image/webp">
+              <img src="assets/wuci-daylight-v10-scoreboard.png" alt="Daylight v10 scoreboard" width="1672" height="941" loading="lazy" decoding="async">
+            </picture>
             <figcaption>Daylight v10 scoreboard</figcaption>
           </figure>
           <figure>
