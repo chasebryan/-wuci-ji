@@ -874,6 +874,7 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wpa_passphrase",
         "usr/local/bin/xbps-install",
         "usr/local/bin/wuci-source-status",
+        "usr/local/bin/wuci-selfupdate",
         "usr/local/bin/wuci-enter",
         "usr/local/bin/wuci-guide",
         "usr/local/bin/wuci-auto",
@@ -995,6 +996,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "enable_service udevd" in files["usr/local/bin/wuci-network-apply"]
     assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
     assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
+    # wuci-update prefers the measured, digest-verified overlay sync after a pull.
+    assert "wuci-selfupdate --apply --source \"$repo\"" in files["usr/local/bin/wuci-update"]
     assert "xbps-install -Syu" in files["usr/local/bin/wuci-update"]
     assert "wuci-network-connect" in files["usr/local/bin/wuci-update"]
     assert "git clone" in files["usr/local/bin/wuci-update"]
@@ -1032,6 +1035,15 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "1,000,000M still requires external attestation" in meridian
     assert "daylight-meridian|meridian|v15)" in files["usr/local/bin/wj"]
     assert "exec wuci-daylight-meridian vault" in files["usr/local/bin/wj"]
+    # Live no-reflash updater: git pull + measured overlay sync onto the running root.
+    selfupdate = files["usr/local/bin/wuci-selfupdate"]
+    assert "live-update" in selfupdate
+    assert "git -C \"$src\" pull --ff-only" in selfupdate
+    assert "/opt/wuci-os/source/wuci-ji" in selfupdate
+    assert "xbps-install -Su" in selfupdate  # honest scope: base packages are separate
+    assert "selfupdate)" in files["usr/local/bin/wj"]
+    assert "exec wuci-selfupdate" in files["usr/local/bin/wj"]
+    assert "wj selfupdate" in files["usr/local/bin/wj"]
     assert "Daylight v15 Meridian package present" in files["usr/local/bin/wuci-daylight-status"]
     assert "daylight-v14c" in files["usr/local/bin/wj"]
     assert "/opt/wuci-os/source/wuci-ji" in files["usr/local/bin/wuci-source-status"]
@@ -2455,6 +2467,48 @@ def assert_cli(tmp: Path) -> None:
     assert payload["status"] == "blocked"
 
 
+def assert_live_update(tmp: Path) -> None:
+    target = tmp / "live-root"
+    (target / "usr").mkdir(parents=True)
+
+    preview = wuci_os.live_update_system(target_root=target, apply=False, ticker_mode="never")
+    assert preview["schema"] == wuci_os.LIVE_UPDATE_SCHEMA
+    assert preview["mode"] == "preview"
+    assert preview["counts"]["files"] > 0
+    # An empty root means every presented file is an add, and nothing is written yet.
+    assert preview["counts"]["add"] == preview["counts"]["files"]
+    assert preview["counts"]["applied"] == 0
+    assert not (target / "usr/local/bin/wj").exists()
+    # The build-only overlay manifest is never synced onto a live system.
+    assert preview["counts"]["skipped_metadata"] >= 1
+    assert all(c["path"] != "usr/share/wuci-os/overlay-manifest.json" for c in preview["changes"])
+
+    applied = wuci_os.live_update_system(target_root=target, apply=True, ticker_mode="never")
+    assert applied["mode"] == "applied"
+    assert applied["counts"]["applied"] == applied["counts"]["files"]
+    # Every written file is re-read and verified by digest (fail-closed otherwise).
+    assert applied["counts"]["verified"] == applied["counts"]["applied"]
+    wj = target / "usr/local/bin/wj"
+    assert wj.is_file()
+    assert os.access(wj, os.X_OK)
+    assert not (target / "usr/share/wuci-os/overlay-manifest.json").exists()
+
+    # A second apply is a true no-op: timestamp-only churn is normalized away.
+    again = wuci_os.live_update_system(target_root=target, apply=True, ticker_mode="never")
+    assert again["counts"]["add"] == 0
+    assert again["counts"]["update"] == 0
+    assert again["counts"]["applied"] == 0
+    assert again["counts"]["unchanged"] == again["counts"]["files"]
+
+    # A functional change on disk is detected and re-synced back to the presented bytes.
+    presented = wj.read_bytes()
+    wj.write_bytes(b"#!/bin/sh\necho tampered\n")
+    drift = wuci_os.live_update_system(target_root=target, apply=False, ticker_mode="never")
+    assert any(c["path"] == "usr/local/bin/wj" and c["status"] == "update" for c in drift["changes"])
+    wuci_os.live_update_system(target_root=target, apply=True, ticker_mode="never")
+    assert wj.read_bytes() == presented
+
+
 def main() -> int:
     parser_quiet = "--quiet" in sys.argv
     with tempfile.TemporaryDirectory(prefix="wuci-os-test-") as tmp_name:
@@ -2472,6 +2526,7 @@ def main() -> int:
         assert_boot_payload_cleanup_reports_tampered_artifact(tmp)
         assert_boot_cleanup_safeio(tmp)
         assert_overlay_profile(tmp)
+        assert_live_update(tmp)
         assert_overlay_force_rebuild(tmp)
         assert_rootfs_overlay_identity_patch(tmp)
         assert_remaster_squashfs_uses_live_safe_options()

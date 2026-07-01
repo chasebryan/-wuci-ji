@@ -2458,6 +2458,168 @@ def clear_overlay_root_for_rebuild(overlay_root: Path) -> None:
             raise WuciOSError(f"could not clear overlay rebuild path: {rel}") from exc
 
 
+LIVE_UPDATE_SCHEMA = "wuci-os-live-update-v1"
+
+# The overlay manifest is a build record that re-digests the timestamped
+# packages.json, so it can never be byte-stable across two builds. It is metadata
+# about the build, not a functional system file, so live-update does not sync it.
+_LIVE_UPDATE_METADATA_SKIP = {"usr/share/wuci-os/overlay-manifest.json"}
+
+
+def _strip_build_timestamps(value: Any) -> Any:
+    """Return a copy of a decoded-JSON value with every ``created_utc`` removed."""
+    if isinstance(value, dict):
+        return {k: _strip_build_timestamps(v) for k, v in value.items() if k != "created_utc"}
+    if isinstance(value, list):
+        return [_strip_build_timestamps(item) for item in value]
+    return value
+
+
+def _overlay_file_is_current(target_file: Path, staging_bytes: bytes, old_sha: str | None, new_sha: str) -> bool:
+    """True when the live file already matches the presented one.
+
+    Byte-identical files match directly. Files that differ only by an embedded
+    ``created_utc`` build stamp (e.g. packages.json) are treated as current so a
+    pure timestamp never counts as a functional change.
+    """
+    if old_sha is None:
+        return False
+    if old_sha == new_sha:
+        return True
+    try:
+        target_json = json.loads(target_file.read_bytes())
+        staging_json = json.loads(staging_bytes)
+    except (ValueError, OSError):
+        return False
+    return _strip_build_timestamps(target_json) == _strip_build_timestamps(staging_json)
+
+
+def _apply_overlay_file_to_target(staging_file: Path, target_file: Path, mode: int) -> None:
+    """Atomically install one overlay file into a live root (tmp write + rename)."""
+    if target_file.is_symlink():
+        raise WuciOSError(f"live update refuses to overwrite a symlink: {target_file}")
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    data = staging_file.read_bytes()
+    tmp = target_file.with_name(target_file.name + ".wuci-update.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    try:
+        os.write(fd, data)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.chmod(tmp, mode)
+    os.replace(tmp, target_file)
+
+
+def live_update_system(
+    *,
+    target_root: Path = Path("/"),
+    apply: bool = False,
+    ticker_mode: str = "auto",
+) -> dict[str, Any]:
+    """Measure (and optionally apply) the repo-presented overlay onto a live root.
+
+    This is the no-reflash update path: it regenerates the Wuci-OS overlay that the
+    repository *presents* into an isolated staging directory, then compares it, file
+    by file, against ``target_root`` by content digest. In preview mode it only
+    measures (add/update/unchanged per file). With ``apply=True`` it installs every
+    changed file atomically and then re-reads it and verifies its digest against the
+    freshly built overlay. Fail-closed: any post-write digest mismatch aborts.
+
+    Scope: the Wuci overlay layer only -- ``/usr/local/bin`` commands,
+    ``/usr/share/wuci-os`` (including the Daylight execution packages), ``os-release``
+    identity, ``profile.d``, autostart, and skel. It never removes files and never
+    touches the kernel or base xbps packages; those update with ``xbps-install -Su``.
+    """
+    target_root = Path(target_root)
+    if not (target_root / "usr").is_dir():
+        raise WuciOSError(f"target root does not look like a system root: {target_root}")
+
+    staging_parent = tempfile.mkdtemp(prefix="wuci-live-update.")
+    staging = Path(staging_parent) / "overlay"
+    try:
+        create_overlay(staging, force=True)
+        records = overlay_file_records(staging, ticker_mode=ticker_mode)
+        changes: list[dict[str, Any]] = []
+        counts = {
+            "files": 0, "directories": 0, "unchanged": 0,
+            "update": 0, "add": 0, "applied": 0, "verified": 0, "skipped_metadata": 0,
+        }
+        for record in records:
+            rel = str(record["path"])
+            if record.get("type") == "directory":
+                counts["directories"] += 1
+                if apply:
+                    (target_root / rel).mkdir(parents=True, exist_ok=True)
+                continue
+            if rel in _LIVE_UPDATE_METADATA_SKIP:
+                counts["skipped_metadata"] += 1
+                continue
+            counts["files"] += 1
+            staging_file = staging / rel
+            target_file = target_root / rel
+            new_sha = record["digest_vector"]["sha256"]
+            mode = int(str(record["mode"]), 0)
+            old_sha: str | None = None
+            if target_file.is_file() and not target_file.is_symlink():
+                old_sha = hashlib.sha256(target_file.read_bytes()).hexdigest()
+            if _overlay_file_is_current(target_file, staging_file.read_bytes(), old_sha, new_sha):
+                counts["unchanged"] += 1
+                continue
+            status = "add" if old_sha is None else "update"
+            counts[status] += 1
+            applied = False
+            verified = False
+            if apply:
+                _apply_overlay_file_to_target(staging_file, target_file, mode)
+                counts["applied"] += 1
+                applied = True
+                written = hashlib.sha256(target_file.read_bytes()).hexdigest()
+                if written != new_sha:
+                    raise WuciOSError(
+                        f"live update verification failed for {rel}: wrote {written}, expected {new_sha}"
+                    )
+                counts["verified"] += 1
+                verified = True
+            changes.append(
+                {
+                    "path": rel,
+                    "status": status,
+                    "old_sha256": old_sha,
+                    "new_sha256": new_sha,
+                    "bytes": record.get("bytes"),
+                    "mode": record.get("mode"),
+                    "applied": applied,
+                    "verified": verified,
+                }
+            )
+        overlay_fingerprint = hashlib.sha256(
+            "\n".join(
+                f"{r['path']}:{r.get('digest_vector', {}).get('sha256', 'dir')}" for r in records
+            ).encode("utf-8")
+        ).hexdigest()
+    finally:
+        shutil.rmtree(staging_parent, ignore_errors=True)
+
+    return {
+        "schema": LIVE_UPDATE_SCHEMA,
+        "created_utc": utc_now(),
+        "product": PRODUCT_NAME,
+        "image_id": IMAGE_ID,
+        "target_root": str(target_root),
+        "source_root": str(repo_root()),
+        "mode": "applied" if apply else "preview",
+        "overlay_fingerprint_sha256": overlay_fingerprint,
+        "counts": counts,
+        "changes": changes,
+        "scope_note": (
+            "Wuci overlay layer only (commands, /usr/share/wuci-os incl. Daylight "
+            "packages, os-release, profile.d, autostart, skel). Kernel and base "
+            "packages are untouched; update those with xbps-install -Su."
+        ),
+    }
+
+
 def _fsync_parent(path: Path) -> None:
     try:
         fd = os.open(str(path.parent), os.O_RDONLY | wuci_kaiju._cloexec())
@@ -4561,6 +4723,76 @@ fi
 printf 'wuci-install-target-activate: complete\\n'
 printf 'next: chroot %s /usr/local/bin/wuci-status\\n' "$target"
 """
+    selfupdate_script = """#!/bin/sh
+set -eu
+
+# Update this running system from the repository the machine already carries,
+# without flashing a new ISO. It regenerates the Wuci overlay the repo presents
+# and syncs it onto / with per-file digest measurement and verification.
+
+src=${WUCI_SOURCE:-/opt/wuci-os/source/wuci-ji}
+apply=0
+do_pull=0
+pass=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --apply) apply=1 ;;
+        --pull) do_pull=1 ;;
+        --json) pass="$pass --json" ;;
+        --root)
+            [ "$#" -ge 2 ] || { printf 'wuci-selfupdate: --root needs a value\\n' >&2; exit 2; }
+            pass="$pass --root $2"; shift ;;
+        --source)
+            [ "$#" -ge 2 ] || { printf 'wuci-selfupdate: --source needs a value\\n' >&2; exit 2; }
+            src=$2; shift ;;
+        --help|-h)
+            cat <<'TEXT'
+wuci-selfupdate - update this running system from the repo, no reflash
+
+  wuci-selfupdate                 measure what the repo overlay would change (preview)
+  wuci-selfupdate --apply         apply changed files atomically, verify each by digest
+  wuci-selfupdate --pull          git pull the source repo first, then measure
+  wuci-selfupdate --pull --apply  git pull, then apply what changed
+  wuci-selfupdate --json          emit the machine-readable receipt
+
+Source repo:  $WUCI_SOURCE or /opt/wuci-os/source/wuci-ji
+Scope: the Wuci overlay layer (commands, /usr/share/wuci-os incl. Daylight
+packages, os-release, profile.d, autostart, skel). It never removes files and
+never touches the kernel or base packages; update those with: xbps-install -Su
+TEXT
+            exit 0 ;;
+        *) printf 'wuci-selfupdate: unknown argument: %s\\n' "$1" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+if [ ! -f "$src/tools/wuci_os.py" ]; then
+    printf 'wuci-selfupdate: no repo source at %s\\n' "$src" >&2
+    printf 'wuci-selfupdate: clone the repo there, or set WUCI_SOURCE=/path/to/wuci-ji\\n' >&2
+    exit 1
+fi
+command -v python3 >/dev/null 2>&1 || { printf 'wuci-selfupdate: python3 is required\\n' >&2; exit 127; }
+
+# git pull runs as the invoking user (who holds the git credentials), before any
+# privilege escalation for --apply.
+if [ "$do_pull" = 1 ]; then
+    command -v git >/dev/null 2>&1 || { printf 'wuci-selfupdate: git is required for --pull\\n' >&2; exit 127; }
+    printf 'wuci-selfupdate: git pull --ff-only in %s\\n' "$src"
+    git -C "$src" pull --ff-only
+fi
+
+args="live-update $pass"
+if [ "$apply" = 1 ]; then
+    args="$args --apply"
+    if [ "$(id -u)" != 0 ]; then
+        # Applying writes into /, which needs root; measurement does not.
+        exec sudo WUCI_SOURCE="$src" python3 "$src/tools/wuci_os.py" $args
+    fi
+fi
+# shellcheck disable=SC2086
+exec python3 "$src/tools/wuci_os.py" $args
+"""
     wait_run_script = """#!/bin/sh
 set -eu
 
@@ -4637,6 +4869,7 @@ Usage:
   wj meridian [cmd]               Daylight v15 Meridian (verify|score|frontier|gate|doctor)
   wj vault [cmd]                  evidence-gated, fail-closed Meridian vault
   wj enter [user]                 enter WJ>_ operator shell
+  wj selfupdate [--pull][--apply] update this system live from the repo (no reflash)
   wj attest                       run local proof marker
 
 Examples:
@@ -4785,6 +5018,9 @@ case "$cmd" in
         ;;
     enter|shell)
         exec wuci-enter "$@"
+        ;;
+    selfupdate)
+        exec wuci-selfupdate "$@"
         ;;
     attest)
         exec wuci-attest "$@"
@@ -6425,7 +6661,10 @@ if [ "$source" -eq 1 ]; then
     after=$(git -C "$repo" rev-parse HEAD)
     printf 'wuci-update: repo %s -> %s on %s\\n' "$before" "$after" "$branch"
 
-    if [ -x "$repo/tools/wuci-os" ]; then
+    if command -v wuci-selfupdate >/dev/null 2>&1; then
+        # Preferred: measured, digest-verified overlay sync onto the running root.
+        run_wait "measured overlay update" wuci-selfupdate --apply --source "$repo"
+    elif [ -x "$repo/tools/wuci-os" ]; then
         run_wait "wuci-os overlay refresh" "$repo/tools/wuci-os" overlay --force
         if [ "$(id -u)" = "0" ] && [ -x "$repo/tools/wuci-os-live-activate" ]; then
             WUCI_OS_OVERLAY="$repo/build/wuci-os/overlay" "$repo/tools/wuci-os-live-activate" || true
@@ -6754,6 +6993,7 @@ done
         "usr/local/bin/INSTALL": auto_install_script,
         "usr/local/bin/wuci-install": install_script,
         "usr/local/bin/wuci-install-target-activate": install_target_activate_script,
+        "usr/local/bin/wuci-selfupdate": selfupdate_script,
         "usr/local/bin/wuci-wallpaper": wallpaper_script,
         "usr/local/bin/wuci-terminal": terminal_script.replace("__TERMINAL_CANDIDATES__", sh_words(TERMINAL_CANDIDATES)),
         "usr/local/bin/wuci-boot-chime": boot_chime_script,
@@ -10650,6 +10890,35 @@ def command_overlay(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_live_update(args: argparse.Namespace) -> int:
+    receipt = live_update_system(
+        target_root=Path(args.root),
+        apply=args.apply,
+        ticker_mode=getattr(args, "ticker", "auto"),
+    )
+    if args.json:
+        print(json.dumps(receipt, indent=2, sort_keys=True))
+        return 0
+    counts = receipt["counts"]
+    print(f"wuci-os live-update: {receipt['mode']} (target {receipt['target_root']})")
+    print(f"source: {receipt['source_root']}")
+    print(f"overlay-fingerprint-sha256: {receipt['overlay_fingerprint_sha256']}")
+    print(
+        f"files: {counts['files']} | add: {counts['add']} | update: {counts['update']} | "
+        f"unchanged: {counts['unchanged']}"
+    )
+    for change in receipt["changes"]:
+        marker = "+" if change["status"] == "add" else "~"
+        print(f"  {marker} {change['path']} ({change['status']})")
+    if receipt["mode"] == "applied":
+        print(f"applied: {counts['applied']} | verified-by-digest: {counts['verified']}")
+    elif receipt["changes"]:
+        print("preview only; re-run with --apply (as root) to write these changes")
+    else:
+        print("system already matches the repo-presented overlay")
+    return 0
+
+
 def command_keygen(args: argparse.Namespace) -> int:
     key_path = resolve_repo_path(args.out, DEFAULT_SEAL_ROOT / "wuci-os-overlay.key")
     result = generate_keyfile(key_path, force=args.force)
@@ -10816,6 +11085,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     overlay_parser.add_argument("--force", action="store_true", help="replace files in an existing overlay directory")
     overlay_parser.add_argument("--json", action="store_true", help="emit JSON overlay manifest")
 
+    live_update_parser = subparsers.add_parser(
+        "live-update",
+        help="measure/apply the repo-presented overlay onto a live system root (no reflash)",
+    )
+    live_update_parser.add_argument("--root", default="/", help="system root to update (default: /)")
+    live_update_parser.add_argument("--apply", action="store_true", help="write changed files atomically and verify each by digest")
+    live_update_parser.add_argument("--json", action="store_true", help="emit the JSON update receipt")
+    wuci_progress.add_ticker_arg(live_update_parser)
+
     keygen_parser = subparsers.add_parser("keygen", help="create a local Wuci-OS Daylight/WJSEAL overlay keyfile")
     keygen_parser.add_argument("--out", help="keyfile path")
     keygen_parser.add_argument("--force", action="store_true", help="replace an existing keyfile")
@@ -10885,6 +11163,8 @@ def main(argv: list[str] | None = None) -> int:
             return command_source_kit(args)
         if args.command == "overlay":
             return command_overlay(args)
+        if args.command == "live-update":
+            return command_live_update(args)
         if args.command == "keygen":
             return command_keygen(args)
         if args.command == "seal-overlay":

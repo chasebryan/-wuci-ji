@@ -226,6 +226,25 @@ component. The current implemented seal covers the generated overlay. The
 finished ISO lane must additionally seal the final ISO, rootfs manifest, package
 metadata, install profile, and release receipt bundle.
 
+### Live update without reflashing
+
+A running system updates itself from the repository it already carries — no new
+ISO, no reinstall:
+
+```sh
+wj selfupdate                 # preview what the repo overlay would change
+wj selfupdate --pull --apply  # git pull, then apply the measured changes
+```
+
+`wuci-selfupdate` regenerates the overlay the repository presents and syncs it
+onto the live root with per-file digest measurement, atomic writes, and
+post-write verification (fail-closed). It updates the Wuci overlay layer only
+(commands, `/usr/share/wuci-os` including the Daylight packages, `os-release`,
+`profile.d`, autostart, skel); the kernel and base packages update separately
+with `sudo xbps-install -Su`. `wj os-update` / `wuci-update` also use this
+measured path after a repository pull. See
+[WUCI_OS_LIVE_UPDATE.md](WUCI_OS_LIVE_UPDATE.md).
+
 ## Source Install
 
 Place the upstream musl live ISO in the repository root, then install it into
