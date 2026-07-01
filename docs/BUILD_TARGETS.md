@@ -436,3 +436,23 @@ obligation logic. See
 `daylight-meridian-test` and the CI lane stay standalone (not folded into
 `make test`), matching the v14C+ package convention. The lane is Python-only and
 needs no assembler, linker, or Zig.
+
+## Daylight v17 Singularity
+
+Daylight v17 Singularity is the deterministic residue-collapse research scoring
+layer under `daylight/v17-singularity`. It computes AM+ from committed integer
+proof-field closure state, integer micro-omega debt, and canonical digests. It
+does not modify Daylight v15/v16 M scores and does not claim production
+certification, runtime containment, FIPS validation, external certification, or
+whole-system post-quantum safety.
+
+```sh
+make daylight-v17-singularity-test
+make daylight-v17-singularity-score
+make daylight-v17-singularity-fixture-demo
+```
+
+`daylight-v17-singularity-score` regenerates the committed baseline scorecard.
+`daylight-v17-singularity-fixture-demo` regenerates the declaration fixture,
+which reaches `999,999,999 AM+` only as a math fixture with `fixture=true` and
+`claim_usable=false`.

@@ -1,0 +1,67 @@
+{
+  "boundary": "fixture demonstration only; not external certification",
+  "boundary_claims": {
+    "external_certification_claim": false,
+    "production_allowed": false,
+    "runtime_containment_claim": false,
+    "whole_system_post_quantum_safety_claim": false
+  },
+  "candidate": "daylight-v17-declaration-fixture",
+  "claim_usable": false,
+  "collapse_flags": {
+    "forged_scorecard_accepted": false,
+    "manual_score_detected": false,
+    "opens_without_policy_evidence": false,
+    "severe_boundary_overclaim": false
+  },
+  "contradiction_debt": 0,
+  "critical_break_debt": 0,
+  "debt_uomega": 0,
+  "fields": {
+    "F1": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F10": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F2": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F3": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F4": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F5": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F6": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F7": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F8": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    },
+    "F9": {
+      "possible_credit": 1000,
+      "verified_credit": 1000
+    }
+  },
+  "fixture": true,
+  "overclaim_debt_uomega": 0,
+  "score_inflation_M": 0,
+  "staleness_debt_uomega": 0,
+  "version": "daylight-v17-singularity-state-v0.1"
+}

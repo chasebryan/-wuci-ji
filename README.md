@@ -188,6 +188,38 @@ make daylight-analemma-verify
 
 See [docs/WUCI_DAYLIGHT_V16_ANALEMMA.md](docs/WUCI_DAYLIGHT_V16_ANALEMMA.md).
 
+## Daylight v17 Singularity
+
+Daylight v17 Singularity under [daylight/v17-singularity/](daylight/v17-singularity/)
+is a deterministic residue-collapse research scoring layer. It does not replace
+Daylight v15/v16 and does not inflate the conservative Daylight M score.
+
+```text
+S_AM+(t) = floor(10^9 * (1 - exp(-Omega(t))))
+
+Omega(t) = sum_i alpha_i[-ln(1 - C_i(t))]
+           - Debt(t)
+           - OverclaimDebt(t)
+           - StalenessDebt(t)
+```
+
+The declaration threshold is `Omega(t) >= ln(10^9)`. The maximum declaration is
+`999,999,999 AM+`; `1,000,000,000 AM+` is mathematically reserved. The committed
+declaration fixture demonstrates the equation only and is marked
+`fixture: true`, `claim_usable: false`.
+
+```sh
+make daylight-v17-singularity-score
+make daylight-v17-singularity-verify
+make daylight-v17-singularity-fixture-demo
+make daylight-v17-singularity-test
+make daylight-v17-singularity-doctor
+```
+
+Singularity is not production certification, not runtime containment evidence,
+not FIPS validation, not external certification, and not a whole-system
+post-quantum safety claim.
+
 ## System Shape
 
 ```text

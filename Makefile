@@ -126,7 +126,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-zenith-verify daylight-zenith-report daylight-zenith-test daylight-zenith-ci
 .PHONY: daylight-analemma-verify daylight-analemma-report daylight-analemma-test daylight-analemma-ci
 .PHONY: daylight-v16-awe-test
-.PHONY: daylight-v17-singularity-test
+.PHONY: daylight-v17-singularity-score daylight-v17-singularity-verify daylight-v17-singularity-test daylight-v17-singularity-doctor daylight-v17-singularity-fixture-demo
 
 all: check-native $(TARGET)
 
@@ -265,6 +265,19 @@ daylight-analemma-ci: daylight-analemma-verify daylight-analemma-report daylight
 
 daylight-v16-awe-test:
 	PYTHONPATH=daylight/v16-analemma-crypto $(PYTHON) -m unittest discover -s daylight/v16-analemma-crypto/tests -t daylight/v16-analemma-crypto
+
+daylight-v17-singularity-score:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli score --state daylight/v17-singularity/examples/state.baseline.json --out daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json --format text
+
+daylight-v17-singularity-verify:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json --state daylight/v17-singularity/examples/state.baseline.json --format text
+
+daylight-v17-singularity-doctor:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli doctor --format text
+
+daylight-v17-singularity-fixture-demo:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli fixture-demo --state daylight/v17-singularity/examples/state.declaration-fixture.json --out daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json --state daylight/v17-singularity/examples/state.declaration-fixture.json --format text
 
 daylight-v17-singularity-test:
 	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m unittest discover -s daylight/v17-singularity/tests -t daylight/v17-singularity

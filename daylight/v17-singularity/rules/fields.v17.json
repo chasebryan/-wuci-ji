@@ -1,0 +1,70 @@
+{
+  "declaration_target": 999999999,
+  "epsilon_denominator": 1000000000000,
+  "fields": [
+    {
+      "alpha": "1/1",
+      "description": "Conservative claim closure.",
+      "id": "F1",
+      "name": "ClaimClosure"
+    },
+    {
+      "alpha": "5/4",
+      "description": "Self-progress closure from regenerated proof state.",
+      "id": "F2",
+      "name": "SelfProgress"
+    },
+    {
+      "alpha": "3/2",
+      "description": "Hermetic artifact closure.",
+      "id": "F3",
+      "name": "HermeticArtifact"
+    },
+    {
+      "alpha": "5/4",
+      "description": "Replay-depth closure.",
+      "id": "F4",
+      "name": "ReplayDepth"
+    },
+    {
+      "alpha": "3/2",
+      "description": "Multi-implementation agreement closure.",
+      "id": "F5",
+      "name": "MultiImplementation"
+    },
+    {
+      "alpha": "5/4",
+      "description": "Adversarial fuzzing evidence closure.",
+      "id": "F6",
+      "name": "AdversarialFuzzing"
+    },
+    {
+      "alpha": "3/2",
+      "description": "Formal proof closure.",
+      "id": "F7",
+      "name": "FormalProof"
+    },
+    {
+      "alpha": "3/2",
+      "description": "Crypto construction evidence closure.",
+      "id": "F8",
+      "name": "CryptoConstruction"
+    },
+    {
+      "alpha": "5/4",
+      "description": "Public falsification program closure.",
+      "id": "F9",
+      "name": "PublicFalsification"
+    },
+    {
+      "alpha": "3/2",
+      "description": "Boundary discipline closure.",
+      "id": "F10",
+      "name": "BoundaryDiscipline"
+    }
+  ],
+  "perfect_reserved": 1000000000,
+  "scale": 1000000000,
+  "unit": "AM+",
+  "version": "daylight-v17-singularity-fields-v0.1"
+}

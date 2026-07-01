@@ -3,120 +3,136 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
 from . import __version__
-from . import singularity
-from .canonical_json import CanonicalJSONError, json_bytes, load_json_path
+from .canonical_json import json_bytes, load_json_no_floats
+from . import registry
+from . import scorecard
+from .singularity_math import OMEGA_THRESHOLD, decimal_text, require_decimal_runtime
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_SOLSTICE = REPO_ROOT / "build" / "daylight" / "v15-solstice"
-DEFAULT_ZENITH = REPO_ROOT / "build" / "daylight" / "v16-zenith"
-DEFAULT_ANALEMMA = REPO_ROOT / "build" / "daylight" / "v16-analemma"
-DEFAULT_OUT = REPO_ROOT / "build" / "daylight" / "v17-singularity"
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BASELINE_STATE = PACKAGE_ROOT / "examples" / "state.baseline.json"
+DEFAULT_BASELINE_SCORECARD = PACKAGE_ROOT / "examples" / "expected-scorecard.baseline.v17.json"
+DEFAULT_FIXTURE_STATE = PACKAGE_ROOT / "examples" / "state.declaration-fixture.json"
+DEFAULT_FIXTURE_SCORECARD = PACKAGE_ROOT / "examples" / "expected-scorecard.declaration-fixture.v17.json"
 
 
-def _optional_path(value: str | None) -> Path | None:
-    return Path(value) if value else None
-
-
-def _json_dump(value: Any) -> None:
+def _print_json(value: Any) -> None:
     sys.stdout.buffer.write(json_bytes(value))
 
 
-def _summary(scorecard: dict[str, Any]) -> str:
-    collapse = scorecard["collapse_state"]
+def _text_summary(card: dict[str, Any]) -> str:
     return (
-        f"{scorecard['name']}\n"
-        f"  score_AM_plus:       {scorecard['score_AM_plus']} / {scorecard['perfect_reserved_AM_plus']}\n"
-        f"  declared:            {scorecard['declared']}\n"
-        f"  omega:               {scorecard['omega']}\n"
-        f"  residue:             {scorecard['residue']}\n"
-        f"  threshold_ln_B:      {scorecard['threshold_ln_B']}\n"
-        f"  collapsed:           {collapse['collapsed']}\n"
-        f"  collapse_reasons:    {', '.join(collapse['reasons']) if collapse['reasons'] else 'none'}"
+        "Daylight v17 Singularity\n"
+        f"score_AM_plus: {card['score_AM_plus']}\n"
+        f"unit: {card['unit']}\n"
+        f"omega: {card['omega_decimal']}\n"
+        f"residue: {card['residue_decimal']}\n"
+        f"declared: {str(card['declared']).lower()}\n"
+        f"status: {card['status']}\n"
+        "boundary: research scoring layer, not certification"
     )
+
+
+def _write_or_print(card: dict[str, Any], out: str | None, output_format: str) -> None:
+    if out:
+        Path(out).write_bytes(json_bytes(card))
+    if output_format == "json":
+        _print_json(card)
+    else:
+        print(_text_summary(card))
 
 
 def cmd_score(args: argparse.Namespace) -> int:
-    scorecard, _ = singularity.build_scorecard(
-        solstice_artifact_dir=Path(args.solstice_artifact),
-        zenith_report_dir=_optional_path(args.zenith_report),
-        analemma_report_dir=_optional_path(args.analemma_report),
-        evidence_path=_optional_path(args.evidence),
-        registry_path=Path(args.registry),
-    )
-    if args.json:
-        _json_dump(scorecard)
-    else:
-        print(_summary(scorecard))
-    return 0
-
-
-def cmd_report(args: argparse.Namespace) -> int:
-    manifest = singularity.build_report_artifact(
-        solstice_artifact_dir=Path(args.solstice_artifact),
-        zenith_report_dir=_optional_path(args.zenith_report),
-        analemma_report_dir=_optional_path(args.analemma_report),
-        evidence_path=_optional_path(args.evidence),
-        registry_path=Path(args.registry),
-        out_dir=Path(args.out_dir),
-    )
-    print(f"singularity report written to {args.out_dir}")
-    print(f"  score_AM_plus: {manifest['score_AM_plus']} / {singularity.S_PERFECT_RESERVED}")
-    print(f"  declared: {manifest['declared']}")
-    print(f"  collapsed: {manifest['collapse_state']['collapsed']}")
-    return 0
-
-
-def cmd_verify_report(args: argparse.Namespace) -> int:
-    singularity.verify_report_dir(Path(args.report_dir))
-    print("singularity report: pass")
+    card = scorecard.build_scorecard_from_paths(state_path=args.state, fields_path=args.fields)
+    _write_or_print(card, args.out, args.format)
     return 0
 
 
 def cmd_verify_scorecard(args: argparse.Namespace) -> int:
-    scorecard = load_json_path(args.scorecard)
-    singularity.verify_scorecard_integrity(scorecard)
-    print("singularity scorecard: pass")
+    scorecard.verify_scorecard_path(scorecard_path=args.scorecard, state_path=args.state, fields_path=args.fields)
+    if args.format == "json":
+        _print_json({"ok": True, "scorecard": str(args.scorecard)})
+    else:
+        print("daylight-v17-singularity: scorecard verified")
+    return 0
+
+
+def cmd_explain(args: argparse.Namespace) -> int:
+    card = load_json_no_floats(args.scorecard)
+    if args.format == "json":
+        _print_json(card)
+    else:
+        print(_text_summary(card))
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    require_decimal_runtime()
+    fields_registry = registry.load_fields_registry(args.fields)
+    payload = {
+        "ok": True,
+        "decimal_ln_exp": True,
+        "alpha_sum": f"{registry.alpha_sum(fields_registry).numerator}/{registry.alpha_sum(fields_registry).denominator}",
+        "omega_threshold_decimal": decimal_text(OMEGA_THRESHOLD),
+        "fields_digest": registry.proof_registry_digest(fields_registry),
+    }
+    if args.format == "json":
+        _print_json(payload)
+    else:
+        print("daylight-v17-singularity: doctor pass")
+        print(f"alpha_sum: {payload['alpha_sum']}")
+        print(f"omega_threshold_decimal: {payload['omega_threshold_decimal']}")
+    return 0
+
+
+def cmd_fixture_demo(args: argparse.Namespace) -> int:
+    card = scorecard.build_scorecard_from_paths(state_path=args.state, fields_path=args.fields)
+    if not card["fixture"] or card["claim_usable"] is not False:
+        raise ValueError("fixture demo state must be fixture=true and claim_usable=false")
+    _write_or_print(card, args.out, args.format)
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="daylight-singularity", description="Daylight v17 Singularity residue-collapse verifier")
-    parser.add_argument("--version", action="version", version=f"daylight-singularity {__version__}")
+    parser = argparse.ArgumentParser(prog="daylight-v17-singularity")
+    parser.add_argument("--version", action="version", version=f"daylight-v17-singularity {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    common: dict[str, Any] = {}
-    score = sub.add_parser("score", help="compute the v17 Singularity scorecard")
-    score.add_argument("--solstice-artifact", default=str(DEFAULT_SOLSTICE))
-    score.add_argument("--zenith-report", default=str(DEFAULT_ZENITH))
-    score.add_argument("--analemma-report", default=str(DEFAULT_ANALEMMA))
-    score.add_argument("--evidence")
-    score.add_argument("--registry", default=str(singularity.DEFAULT_REGISTRY))
-    score.add_argument("--json", action="store_true")
+    score = sub.add_parser("score")
+    score.add_argument("--state", required=True)
+    score.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    score.add_argument("--out")
+    score.add_argument("--format", choices=("text", "json"), default="text")
     score.set_defaults(func=cmd_score)
 
-    report = sub.add_parser("report", help="write Singularity scorecard, resolution, manifest, and SHA256SUMS")
-    report.add_argument("--solstice-artifact", default=str(DEFAULT_SOLSTICE))
-    report.add_argument("--zenith-report", default=str(DEFAULT_ZENITH))
-    report.add_argument("--analemma-report", default=str(DEFAULT_ANALEMMA))
-    report.add_argument("--evidence")
-    report.add_argument("--registry", default=str(singularity.DEFAULT_REGISTRY))
-    report.add_argument("--out-dir", default=str(DEFAULT_OUT))
-    report.set_defaults(func=cmd_report)
+    verify = sub.add_parser("verify-scorecard")
+    verify.add_argument("scorecard")
+    verify.add_argument("--state", required=True)
+    verify.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    verify.add_argument("--format", choices=("text", "json"), default="text")
+    verify.set_defaults(func=cmd_verify_scorecard)
 
-    verify_report = sub.add_parser("verify-report", help="verify a generated Singularity report directory")
-    verify_report.add_argument("report_dir", nargs="?", default=str(DEFAULT_OUT))
-    verify_report.set_defaults(func=cmd_verify_report)
+    explain = sub.add_parser("explain")
+    explain.add_argument("--scorecard", required=True)
+    explain.add_argument("--format", choices=("text", "json"), default="text")
+    explain.set_defaults(func=cmd_explain)
 
-    verify_scorecard = sub.add_parser("verify-scorecard", help="verify internal scorecard anti-fake invariants")
-    verify_scorecard.add_argument("scorecard")
-    verify_scorecard.set_defaults(func=cmd_verify_scorecard)
+    doctor = sub.add_parser("doctor")
+    doctor.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    doctor.add_argument("--format", choices=("text", "json"), default="text")
+    doctor.set_defaults(func=cmd_doctor)
+
+    fixture = sub.add_parser("fixture-demo")
+    fixture.add_argument("--state", default=str(DEFAULT_FIXTURE_STATE))
+    fixture.add_argument("--fields", default=str(registry.DEFAULT_FIELDS_PATH))
+    fixture.add_argument("--out", default=str(DEFAULT_FIXTURE_SCORECARD))
+    fixture.add_argument("--format", choices=("text", "json"), default="text")
+    fixture.set_defaults(func=cmd_fixture_demo)
     return parser
 
 
@@ -125,11 +141,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return int(args.func(args))
-    except (OSError, KeyError, ValueError, CanonicalJSONError, singularity.SingularityError) as exc:
-        print(f"daylight-singularity: {type(exc).__name__}: {exc}", file=sys.stderr)
+    except (OSError, KeyError, ValueError) as exc:
+        print(f"daylight-v17-singularity: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

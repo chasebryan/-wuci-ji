@@ -1,51 +1,53 @@
 # Daylight v17 Singularity
 
-Daylight v17 Singularity is an executable residue-collapse scorecard layer over
-the existing Solstice, Zenith, Analemma, and D16-AWE evidence lanes.
-
-It implements:
+Daylight v17 Singularity is a residue-collapse research scoring layer. It does
+not replace Daylight v15/v16, does not inflate the conservative Daylight M
+score, and does not certify production cryptography.
 
 ```text
 S_AM+(t) = floor(10^9 * (1 - exp(-Omega(t))))
 
-Omega(t) =
-  sum_i alpha_i * [-ln(1 - C_i(t))]
-  - Debt(t)
-  - OverclaimDebt(t)
-  - StalenessDebt(t)
+Omega(t) = sum_i alpha_i[-ln(1 - C_i(t))]
+           - Debt(t)
+           - OverclaimDebt(t)
+           - StalenessDebt(t)
 ```
 
-The perfect score `1,000,000,000 AM+` is reserved. The declaration target is
-`999,999,999 AM+`, reached only when regenerated evidence drives residue below
-one part per billion and no collapse or score-inflation condition is present.
+Declaration requires:
 
-This package is not a production authority, runtime sandbox, whole-system
-post-quantum safety claim, external certification claim, or new primitive
-security claim. It measures verifier evidence and rejects typed scores.
-
-## Files
-
-- `src/singularity.py` computes field closures, curvature, debt, residue, score,
-  scorecard digests, and report artifacts.
-- `src/v16_bridge.py` verifies and imports existing Daylight v15/v16 artifacts.
-- `rules/field-registry.v17.json` defines the ten fields and their proof-unit
-  credit surfaces.
-- `tests/` covers the equation, anti-fake checks, score-inflation rejection,
-  collapse rules, and report artifact verification.
-- `assets/singularity.jpg` is the supplied v17 Singularity visual notice.
-
-## CLI
-
-```sh
-PYTHONPATH=daylight/v17-singularity python3 -m src.cli score --json
-PYTHONPATH=daylight/v17-singularity python3 -m src.cli report
-PYTHONPATH=daylight/v17-singularity python3 -m src.cli verify-report
-PYTHONPATH=daylight/v17-singularity python3 -m src.cli verify-scorecard build/daylight/v17-singularity/singularity-scorecard.json
+```text
+Omega(t) >= ln(10^9)
 ```
 
-## Test
+The maximum declared score is `999,999,999 AM+`. The perfect score
+`1,000,000,000 AM+` is reserved.
+
+AM+ is computed from deterministic proof-field closure and debt. Field closure
+comes only from integer `verified_credit` and `possible_credit` state. JSON
+floats are rejected. Binary floats are not used in the score path.
+
+## Non-Claims
+
+- Daylight v17 Singularity is a research scoring layer.
+- AM+ does not modify the conservative Daylight M score.
+- `999,999,999 AM+` is a residue-collapse declaration, not production certification.
+- `1,000,000,000 AM+` is mathematically reserved.
+- No manual score is accepted.
+
+The boundary remains explicit: no production authority, no runtime containment
+claim, no FIPS validation claim, no external certification claim, and no
+whole-system post-quantum safety claim.
+
+## Commands
 
 ```sh
+make daylight-v17-singularity-score
+make daylight-v17-singularity-verify
+make daylight-v17-singularity-fixture-demo
 make daylight-v17-singularity-test
+make daylight-v17-singularity-doctor
 ```
 
+The declaration fixture intentionally produces `999,999,999 AM+` with
+`fixture: true` and `claim_usable: false`. It is a math fixture only, not
+external certification.
