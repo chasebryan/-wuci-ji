@@ -126,6 +126,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-zenith-verify daylight-zenith-report daylight-zenith-test daylight-zenith-ci
 .PHONY: daylight-analemma-verify daylight-analemma-report daylight-analemma-test daylight-analemma-ci
 .PHONY: daylight-v16-awe-test
+.PHONY: daylight-v17-singularity-test
 
 all: check-native $(TARGET)
 
@@ -264,6 +265,9 @@ daylight-analemma-ci: daylight-analemma-verify daylight-analemma-report daylight
 
 daylight-v16-awe-test:
 	PYTHONPATH=daylight/v16-analemma-crypto $(PYTHON) -m unittest discover -s daylight/v16-analemma-crypto/tests -t daylight/v16-analemma-crypto
+
+daylight-v17-singularity-test:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m unittest discover -s daylight/v17-singularity/tests -t daylight/v17-singularity
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
