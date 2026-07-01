@@ -21,6 +21,23 @@ headers, redirects, or local references are missing.
 The repository includes `.nvmrc`, `.node-version`, `package.json`, and
 `package-lock.json` so the root build has a concrete Node/npm setup.
 
+## Daylight evidence binding
+
+The headline AM+ number on the site is bound to committed Daylight evidence so
+it cannot silently drift. `site/daylight-status.json` is generated from
+`daylight/v17-singularity/examples/current-scorecard.v17.json`, and the build
+validator fails if the number displayed in `index.html` (or any
+`data-am-plus` hook) disagrees with it, or if the status file's score and
+scorecard digest disagree with the committed scorecard.
+
+```sh
+make site-daylight-status        # regenerate site/daylight-status.json from evidence
+make site-validate               # check staleness, then run the site validator
+```
+
+When the v17 scorecard changes, run `make site-daylight-status` and update the
+displayed number; the build refuses a stale site until they match.
+
 Cloudflare Pages also supports static HTML sites without a framework. For no
 framework, Cloudflare documents a custom build command and a custom build output
 directory; the build output directory is where the site content lives.

@@ -67,8 +67,26 @@ external certification.
 
 The current committed proof-atom score is written to
 `examples/current-scorecard.v17.json`. The Event Horizon declaration gate
-refuses it by default even though the fracture suite and in-repo agreement
-vector pass, because the weakest-field governor keeps `Omega_eff` below
-`ln(10^9)`. Independent Rust/Zig/Lean verifier lanes remain future work; the
-current agreement check is deliberately reported as an in-repo kernel check, not
-external certification.
+refuses it by default even though the fracture suite and cross-verifier
+agreement pass, because the weakest-field governor keeps `Omega_eff` below
+`ln(10^9)`.
+
+## Cross-verifier agreement
+
+The gate's `cross_verifier_agreement` check compares two separate derivations of
+one agreement vector (both registry digests, the field-closure digest,
+`omega_sum`, `omega_weak`, `omega`, `score_AM_plus`, `collapse`, and the
+scorecard digest):
+
+- `scorecard_claimed` — the values the scorecard asserts about itself.
+- `independent_rederivation` — the same values rebuilt from the raw registry,
+  proof atoms, and state by `src/independent_score.py`, with every digest
+  recomputed and the AM+ integer computed by two independent arithmetic routes
+  (`floor(B(1 - e^-w))` and `B - ceil(B·e^-w)`).
+
+Agreement fails if any element differs, so a scorecard that publishes a number
+its evidence cannot regenerate is refused even when its own digest is internally
+consistent (`tests/test_cross_verifier_agreement.py`). This is an **in-repo**
+second derivation that shares the `Decimal` ln/exp kernel; it is deliberately
+*not* reported as an independent external or second-language verifier.
+Independent Rust/Zig/Lean verifier lanes remain future work.

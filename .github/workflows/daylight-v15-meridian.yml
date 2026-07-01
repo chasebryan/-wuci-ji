@@ -7,6 +7,9 @@ on:
       - feature/daylight-v15-meridian-real-artifact
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   daylight-v15-meridian:
     runs-on: ubuntu-latest
@@ -38,5 +41,11 @@ jobs:
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
         with:
           name: daylight-v15-meridian-artifact
-          path: build/daylight/v15-meridian/
+          # Public evidence excludes private material: never ship vault/demo
+          # keys or plaintext secrets produced by the smoke and vault lanes.
+          path: |
+            build/daylight/v15-meridian/
+            !build/daylight/v15-meridian/**/*.key
+            !build/daylight/v15-meridian/**/vault-work/**
+            !build/daylight/v15-meridian/smoke-secret.*
           if-no-files-found: warn

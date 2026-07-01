@@ -21,7 +21,7 @@ def run_declaration_gate(
     card = scorecard.build_scorecard(state, fields, atoms)
     scorecard.verify_scorecard_object(card, state, fields, atoms)
     fracture_result = fracture.run_fracture_suite(state, fields, atoms, card)
-    agreement_result = agreement.check_cross_verifier_agreement(card)
+    agreement_result = agreement.check_cross_verifier_agreement(card, state, fields, atoms)
     falsification_result = falsification.verify_no_critical_open_breaks(open_breaks_path)
     allowed = (
         card["declared"]

@@ -127,6 +127,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-analemma-verify daylight-analemma-report daylight-analemma-test daylight-analemma-ci
 .PHONY: daylight-v16-awe-test
 .PHONY: daylight-v17-singularity-score daylight-v17-singularity-verify daylight-v17-singularity-test daylight-v17-singularity-doctor daylight-v17-singularity-fixture-demo daylight-v17-singularity-declaration-gate
+.PHONY: site-daylight-status site-daylight-status-check site-validate
 
 all: check-native $(TARGET)
 
@@ -286,6 +287,15 @@ daylight-v17-singularity-declaration-gate:
 
 daylight-v17-singularity-test:
 	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m unittest discover -s daylight/v17-singularity/tests -t daylight/v17-singularity
+
+site-daylight-status:
+	$(PYTHON) tools/site_daylight_status.py
+
+site-daylight-status-check:
+	$(PYTHON) tools/site_daylight_status.py --check
+
+site-validate: site-daylight-status-check
+	node site/validate.mjs
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
