@@ -7,6 +7,10 @@ before, gaining the Meridian authorization logic on top.
 
 Everything runs offline — pure Python standard library, no network, no `pip`.
 
+The underlying vault primitive (model, CLI, `wj vault` on Wuci-OS, build lanes) is
+documented in [WUCI_DAYLIGHT_V15_MERIDIAN_VAULT.md](WUCI_DAYLIGHT_V15_MERIDIAN_VAULT.md);
+this page is the host-install path built on it.
+
 ## What "Meridian logic" adds over a plain encrypted file
 
 A Meridian Authorized Envelope (MAE) binds an **evidence base** (a frozen Daylight
