@@ -181,6 +181,9 @@ pre {
   width: 42px;
   height: 42px;
   object-fit: contain;
+  border: 1px solid rgba(244, 241, 232, 0.28);
+  border-radius: 50%;
+  background: #f0f0ed;
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 20px var(--green-glow));
   flex: 0 0 auto;
   transition: filter 300ms ease, transform 300ms ease;
@@ -310,11 +313,11 @@ pre {
 
 .hero {
   position: relative;
-  min-height: clamp(600px, 80svh, 820px);
+  min-height: 760px;
   overflow: hidden;
   display: grid;
-  align-items: end;
-  padding: 120px clamp(20px, 5vw, 72px) 68px;
+  align-items: center;
+  padding: 108px clamp(20px, 5vw, 72px) 56px;
   isolation: isolate;
 }
 
@@ -342,8 +345,8 @@ pre {
 .hero-shade {
   z-index: -2;
   background:
-    linear-gradient(90deg, rgba(15, 20, 17, 0.95) 0%, rgba(15, 20, 17, 0.78) 38%, rgba(15, 20, 17, 0.18) 100%),
-    linear-gradient(0deg, rgba(15, 20, 17, 0.96) 0%, rgba(15, 20, 17, 0.04) 58%);
+    linear-gradient(90deg, rgba(8, 12, 10, 0.98) 0%, rgba(10, 15, 12, 0.84) 36%, rgba(15, 20, 17, 0.34) 70%, rgba(15, 20, 17, 0.08) 100%),
+    linear-gradient(0deg, rgba(15, 20, 17, 0.92) 0%, rgba(15, 20, 17, 0.08) 58%);
 }
 
 .hero-shade::before {
@@ -356,7 +359,8 @@ pre {
 
 .hero-content {
   max-width: 840px;
-  animation: fadeSlideUp 0.8s ease-out both;
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes fadeSlideUp {
@@ -375,10 +379,9 @@ pre {
   color: var(--amber);
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0;
   text-transform: uppercase;
   text-shadow: 0 0 30px var(--amber-glow);
-  animation: fadeSlideUp 0.8s ease-out 0.1s both;
 }
 
 h1,
@@ -391,44 +394,41 @@ p {
 h1 {
   margin-bottom: 20px;
   max-width: 12ch;
-  font-size: clamp(3.4rem, 8.4vw, 7.8rem);
+  font-size: 6.6rem;
   line-height: 0.9;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   background: linear-gradient(135deg, var(--ink) 0%, var(--muted) 50%, var(--ink) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: fadeSlideUp 0.8s ease-out 0.2s both;
 }
 
 h2 {
   margin-bottom: 18px;
   max-width: 14ch;
-  font-size: clamp(2rem, 4vw, 4rem);
+  font-size: 3.5rem;
   line-height: 1.05;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 h3 {
   margin-bottom: 9px;
   font-size: 1.08rem;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
 }
 
 .hero-copy {
   max-width: 690px;
   margin-bottom: 32px;
   color: var(--muted);
-  font-size: clamp(1.06rem, 1.8vw, 1.36rem);
+  font-size: 1.18rem;
   line-height: 1.6;
-  animation: fadeSlideUp 0.8s ease-out 0.3s both;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  animation: fadeSlideUp 0.8s ease-out 0.4s both;
 }
 
 .hero-metrics {
@@ -439,7 +439,6 @@ h3 {
   border: 1px solid rgba(244, 241, 232, 0.18);
   background: rgba(8, 11, 9, 0.58);
   backdrop-filter: blur(10px);
-  animation: fadeSlideUp 0.8s ease-out 0.5s both;
 }
 
 .hero-metrics div {
@@ -477,7 +476,7 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 2px;
   font-weight: 740;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   overflow: hidden;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -583,6 +582,8 @@ h3 {
 .challenge-section,
 .encryptor-section,
 .daylight-stack,
+.aperture-section,
+.assurance-section,
 .solstice-section,
 .mae-plate-section,
 .split-section,
@@ -740,7 +741,7 @@ h3 {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.76rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
 .readiness-item strong {
@@ -863,7 +864,7 @@ h3 {
 .stage-copy h3 {
   max-width: 18ch;
   margin: 0;
-  font-size: clamp(1.35rem, 2.6vw, 2.5rem);
+  font-size: 2rem;
   line-height: 1.08;
 }
 
@@ -888,6 +889,204 @@ h3 {
   color: #dce8dc;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.86rem;
+}
+
+.aperture-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1.18fr);
+  gap: clamp(30px, 5vw, 76px);
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, #f0f0ed 0%, #d8dad7 100%);
+  color: #1a1f1b;
+}
+
+.aperture-copy p {
+  max-width: 680px;
+  color: #48514a;
+  font-size: 1.06rem;
+}
+
+.aperture-copy h2 {
+  max-width: 13ch;
+  color: #111612;
+}
+
+.aperture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.aperture-panel {
+  border: 1px solid rgba(22, 28, 24, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 22px 70px rgba(15, 20, 17, 0.18);
+}
+
+.verification-list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: rgba(22, 28, 24, 0.16);
+}
+
+.verification-list div {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.34fr) minmax(0, 1fr);
+  gap: 20px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.verification-list dt {
+  color: #7d1c21;
+  font-weight: 800;
+}
+
+.verification-list dd {
+  margin: 0;
+  color: #38413a;
+  overflow-wrap: anywhere;
+}
+
+.verification-list code {
+  color: #151b17;
+}
+
+.aperture-section .button.primary {
+  background: #7d1c21;
+  border-color: #7d1c21;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(125, 28, 33, 0.18);
+}
+
+.aperture-section .button.secondary {
+  background: rgba(255, 255, 255, 0.66);
+  border-color: rgba(22, 28, 24, 0.24);
+  color: #171d19;
+}
+
+.assurance-section {
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, #101611 0%, #0b0f0d 100%);
+}
+
+.assurance-heading h2 {
+  max-width: 14ch;
+}
+
+.assurance-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.46fr);
+  gap: clamp(20px, 4vw, 48px);
+  align-items: start;
+}
+
+.assurance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.assurance-card,
+.assurance-runbook {
+  background: linear-gradient(180deg, #151c18 0%, #111713 100%);
+}
+
+.assurance-card {
+  min-height: 260px;
+  padding: 26px;
+}
+
+.assurance-card span,
+.assurance-card em {
+  display: block;
+  font-style: normal;
+}
+
+.assurance-card span {
+  margin-bottom: 16px;
+  color: var(--amber);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.assurance-card h3 {
+  margin-bottom: 14px;
+  font-size: 1.4rem;
+  line-height: 1.12;
+}
+
+.assurance-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.assurance-card em {
+  margin-top: 22px;
+  color: var(--cyan);
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+.assurance-runbook {
+  border: 1px solid var(--line);
+  padding: 26px;
+}
+
+.assurance-runbook h3 {
+  margin-bottom: 18px;
+  color: var(--green);
+}
+
+.assurance-runbook ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: review-step;
+}
+
+.assurance-runbook li {
+  counter-increment: review-step;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(244, 241, 232, 0.12);
+  background: rgba(244, 241, 232, 0.035);
+}
+
+.assurance-runbook li::before {
+  content: counter(review-step, decimal-leading-zero);
+  color: var(--amber);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.assurance-runbook code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.assurance-runbook p {
+  margin: 22px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 .solstice-section {
@@ -987,7 +1186,7 @@ h3 {
   cursor: pointer;
   font: inherit;
   font-weight: 780;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   transition: color 200ms ease, background 200ms ease;
 }
 
@@ -1728,6 +1927,8 @@ figure:hover figcaption {
   .stage-grid,
   .challenge-section,
   .encryptor-section,
+  .aperture-section,
+  .assurance-layout,
   .stage-card.is-current,
   .solstice-section,
   .mae-plate-section,
@@ -1791,11 +1992,11 @@ figure:hover figcaption {
   }
 
   h1 {
-    font-size: clamp(2.8rem, 14vw, 4.2rem);
+    font-size: 3.4rem;
   }
 
   h2 {
-    font-size: clamp(1.8rem, 8vw, 2.6rem);
+    font-size: 2.2rem;
   }
 
   .hero-copy {
@@ -1816,6 +2017,8 @@ figure:hover figcaption {
   .section,
   .challenge-section,
   .encryptor-section,
+  .aperture-section,
+  .assurance-section,
   .daylight-stack,
   .solstice-section,
   .mae-plate-section,
@@ -1839,12 +2042,22 @@ figure:hover figcaption {
   }
 
   .challenge-actions,
-  .readiness-board {
+  .readiness-board,
+  .assurance-grid {
     grid-template-columns: 1fr;
   }
 
   .challenge-actions {
     display: grid;
+  }
+
+  .aperture-actions {
+    display: grid;
+  }
+
+  .verification-list div {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .section-heading {

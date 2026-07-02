@@ -1,0 +1,9 @@
+Contact: https://github.com/chasebryan/-wuci-ji/issues
+Expires: 2027-07-02T00:00:00Z
+Preferred-Languages: en
+Canonical: https://nosuchmachine.net/.well-known/security.txt
+Policy: https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md
+
+This project is a defensive research artifact. Do not use this contact path for
+network attack activity, exploit generation, offensive scanning, private-key
+material, or secret-bearing transcripts.
