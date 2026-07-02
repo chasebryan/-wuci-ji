@@ -48,7 +48,11 @@
     "/hosting-requirements.json",
     "/claim-evidence.json",
     "/assets/wuci-ji-official-emblem.jpg",
-    "/assets/wuci-ji-v2-aperture-bastion.jpeg"
+    "/assets/wuci-ji-v2-aperture-bastion.jpeg",
+    "/assets/daylight-v20-gate-fixture-score-surface.webp",
+    "/assets/daylight-v20-gate-fixture-score-surface.png",
+    "/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
+    "/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.png"
   ],
   "deployment_controls": [
     {
