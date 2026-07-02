@@ -42,6 +42,7 @@ research system.
 | Production blockers | [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) |
 | Daylight workspace | [daylight-equation/](daylight-equation/) |
 | Daylight v14C+ execution package | [daylight/v14c-plus/](daylight/v14c-plus/) |
+| Daylight v20 external evidence packet | [docs/DAYLIGHT_V20_REVIEWER_PACKET.md](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) |
 
 ## Daylight C+ / v14C+
 
@@ -351,6 +352,51 @@ make daylight-v19-aperture-bastion-ci
 
 See [docs/WUCI_JI_V2_APERTURE_BASTION.md](docs/WUCI_JI_V2_APERTURE_BASTION.md)
 and [docs/APERTURE_BASTION_SECURITY_BOUNDARY.md](docs/APERTURE_BASTION_SECURITY_BOUNDARY.md).
+
+## Daylight v20 Aperture Singularity Gate
+
+Daylight v20 under
+[daylight/v20-aperture-singularity/](daylight/v20-aperture-singularity/) is the
+public evidence intake/control layer above Aperture Bastion and v17
+Singularity. It binds the v19 review capsule, proof-field closure, independent
+verifier vectors, reproducible-build receipts, falsification results, boundary
+debt, and external attestations into a deterministic gate. The committed
+fixture is intentionally non-claim-usable and declaration is refused until real
+external evidence is cryptographically verified.
+
+The public reviewer packet is on `main`:
+
+| Packet file | Purpose |
+| --- | --- |
+| [docs/DAYLIGHT_V20_REVIEWER_PACKET.md](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) | Reviewer checklist and required evidence slots. |
+| [docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md](docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md) | External evidence bundle protocol and fail-closed rules. |
+| [docs/DAYLIGHT_V20_INDEPENDENT_REBUILD_RECEIPT.md](docs/DAYLIGHT_V20_INDEPENDENT_REBUILD_RECEIPT.md) | Independent rebuild receipt contract. |
+| [docs/DAYLIGHT_V20_FIREWALL_PROFILE_REVIEW.md](docs/DAYLIGHT_V20_FIREWALL_PROFILE_REVIEW.md) | External firewall profile review contract. |
+| [docs/DAYLIGHT_V20_VERIFIER_VECTOR_CONTRACT.md](docs/DAYLIGHT_V20_VERIFIER_VECTOR_CONTRACT.md) | Claim-usable third-verifier vector contract. |
+| [docs/DAYLIGHT_V20_ATTESTATION_VERIFICATION.md](docs/DAYLIGHT_V20_ATTESTATION_VERIFICATION.md) | Pinned attestation verification boundary. |
+
+The schemas and examples live under
+[daylight/v20-aperture-singularity/schema/](daylight/v20-aperture-singularity/schema/)
+and
+[daylight/v20-aperture-singularity/examples/](daylight/v20-aperture-singularity/examples/).
+The pinned verification-material registry is
+[daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json](daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json).
+
+```sh
+make daylight-v20-aperture-singularity-ci
+make daylight-v20-aperture-singularity-public-artifact
+make daylight-v20-aperture-singularity-external-evidence
+make daylight-v20-score-ceiling-report
+```
+
+Current repository-owned v20 evidence reaches its internal ceiling, but not a
+Singularity declaration. The gate keeps
+`singularity_possible_without_external_validation: false` until real external
+reviewer evidence, independent rebuilds, three distinct claim-usable verifier
+families, and real pinned cryptographic attestation verification exist. It is
+not production cryptography, runtime containment, FIPS validation, government
+validation, external certification, post-quantum safety, or an independent
+audit.
 
 ## System Shape
 
