@@ -688,6 +688,37 @@ h3 {
   margin-top: 28px;
 }
 
+.challenge-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.56fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.challenge-poster {
+  margin: 0;
+  border: 1px solid var(--line);
+  background: #0e1410;
+}
+
+.challenge-poster img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1122 / 1402;
+  object-fit: cover;
+}
+
+.challenge-poster figcaption {
+  padding: 12px 14px;
+  color: var(--quiet);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: 1px solid var(--line);
+}
+
 .readiness-board {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1829,6 +1860,7 @@ figure:hover figcaption {
   .image-grid,
   .stage-grid,
   .challenge-section,
+  .challenge-panel,
   .meridian-section,
   .aperture-section,
   .assurance-layout,

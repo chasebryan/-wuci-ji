@@ -34,6 +34,7 @@ const requiredFiles = [
   "assets/daylight-v17-singularity.jpg",
   "assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
   "assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png",
+  "assets/daylight-v20-public-challenge-780thc.jpg",
   "assets/daylight-v20-gate-fixture-score-surface.webp",
   "assets/daylight-v20-gate-fixture-score-surface.png",
   "assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
@@ -124,8 +125,10 @@ async function assertIndexReferences() {
     'rel="preload"',
     'rel="apple-touch-icon"',
     'property="og:image"',
+    'https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg',
     'name="twitter:card"',
     'href="aperture-status.json"',
+    'href="/daylight-v20-aperture-singularity-status.json"',
     'href="#meridian"',
     'href="#aperture"',
     'href="#assurance"',
@@ -155,6 +158,15 @@ async function assertIndexReferences() {
     'assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png',
     'Daylight v20 repo-owned score surface',
     '999,801,305 AM+',
+    'assets/daylight-v20-public-challenge-780thc.jpg',
+    'Daylight v20 public challenge',
+    'Review the evidence. Reproduce the lane.',
+    'repo_owned_code_gap_count = 0',
+    'repo_owned_ceiling_reached = true',
+    'singularity_possible_without_external_validation = false',
+    'declaration_allowed = false',
+    'Technical review requested',
+    'No endorsement is requested or implied',
     'repo-owned ceiling score surface, non-declaration',
     'assets/daylight-v20-gate-fixture-score-surface.webp',
     'assets/daylight-v20-gate-fixture-score-surface.png',
@@ -646,6 +658,8 @@ async function assertSearchDiscoveryFiles() {
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp</image:loc>",
     "<image:title>Daylight v20 Gate repo-owned score surface</image:title>",
+    "<image:loc>https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg</image:loc>",
+    "<image:title>Daylight v20 public challenge</image:title>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-fixture-score-surface.webp</image:loc>",
     "<image:title>Daylight v20 Gate fixture surface</image:title>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp</image:loc>",
@@ -690,6 +704,12 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/claim-evidence.json",
     "https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json",
     "https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
+    "https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg",
+    "repo_owned_code_gap_count = 0",
+    "repo_owned_ceiling_reached = true",
+    "singularity_possible_without_external_validation = false",
+    "declaration_allowed = false",
+    "No endorsement is requested or implied",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -950,6 +970,7 @@ async function assertHostingRequirements() {
     "/assets/wuci-ji-v2-aperture-bastion.jpeg",
     "/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
     "/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png",
+    "/assets/daylight-v20-public-challenge-780thc.jpg",
     "/assets/daylight-v20-gate-fixture-score-surface.webp",
     "/assets/daylight-v20-gate-fixture-score-surface.png",
     "/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
@@ -1017,6 +1038,7 @@ async function assertClaimEvidenceMap() {
     "public-artifact-firewall",
     "daylight-score-binding",
     "daylight-v20-aperture-singularity-score-surface",
+    "daylight-v20-public-challenge",
     "read-only-public-meridian-surface",
     "hosted-tls-requirements",
     "research-discovery-metadata"
@@ -1107,6 +1129,21 @@ async function assertClaimEvidenceMap() {
   ]) {
     if (v20ScoreClaim?.evidence_values?.[key] !== daylightV20[key]) {
       fail(`claim-evidence.json v20 ${key} must match daylight-v20-aperture-singularity-status.json`);
+    }
+  }
+  const v20ChallengeClaim = claims.get("daylight-v20-public-challenge");
+  if (v20ChallengeClaim?.evidence_values?.poster_sha256 !== await sha256Hex("assets/daylight-v20-public-challenge-780thc.jpg")) {
+    fail("claim-evidence.json v20 public challenge poster_sha256 must match asset bytes");
+  }
+  for (const [claimKey, statusKey] of [
+    ["score_AM_plus", "score_AM_plus"],
+    ["repo_owned_code_gap_count", "repo_owned_code_gap_count"],
+    ["repo_owned_ceiling_reached", "repo_owned_ceiling_reached"],
+    ["singularity_possible_without_external_validation", "singularity_possible_without_external_validation"],
+    ["declaration_allowed", "declared"]
+  ]) {
+    if (v20ChallengeClaim?.evidence_values?.[claimKey] !== daylightV20[statusKey]) {
+      fail(`claim-evidence.json v20 public challenge ${claimKey} must match daylight-v20-aperture-singularity-status.json`);
     }
   }
   const hostClaim = claims.get("hosted-tls-requirements");

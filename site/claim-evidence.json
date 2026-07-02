@@ -137,6 +137,39 @@
       ]
     },
     {
+      "id": "daylight-v20-public-challenge",
+      "public_claim": "The website publishes a bounded Daylight v20 public technical review challenge: review the evidence, reproduce the lane, and challenge the claim surface without implying endorsement.",
+      "status": "local-evidence-bound; public-review-request",
+      "evidence_paths": [
+        "site/index.html",
+        "site/llms.txt",
+        "site/sitemap.xml",
+        "site/assets/daylight-v20-public-challenge-780thc.jpg",
+        "site/daylight-v20-aperture-singularity-status.json",
+        "docs/DAYLIGHT_V20_REVIEWER_PACKET.md",
+        "docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md"
+      ],
+      "evidence_values": {
+        "poster_sha256": "f866cec5314a142d77074b786bd920b0c9d991b9dc5ca73de4a914683401b172",
+        "score_AM_plus": 999801305,
+        "repo_owned_code_gap_count": 0,
+        "repo_owned_ceiling_reached": true,
+        "singularity_possible_without_external_validation": false,
+        "declaration_allowed": false
+      },
+      "validation_commands": [
+        "make daylight-v20-aperture-singularity-ci",
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "endorsement",
+        "Singularity declaration",
+        "external validation",
+        "government validation",
+        "independent audit"
+      ]
+    },
+    {
       "id": "read-only-public-meridian-surface",
       "public_claim": "The public website is a read-only review surface and does not ship browser file encryption, decryption, private-key handling, or file-opening controls.",
       "status": "local-and-hosted-gated",
