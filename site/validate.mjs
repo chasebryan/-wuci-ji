@@ -7,6 +7,7 @@ const siteRoot = new URL(".", import.meta.url);
 
 const requiredFiles = [
   "index.html",
+  "CNAME",
   "404.html",
   "styles.css",
   "app.js",
@@ -48,6 +49,13 @@ async function assertRequiredFiles() {
     if (!(await exists(file))) {
       fail(`missing required file: site/${file}`);
     }
+  }
+}
+
+async function assertCustomDomain() {
+  const cname = (await readFile(new URL("CNAME", siteRoot), "utf8")).trim();
+  if (cname !== "nosuchmachine.net") {
+    fail("site/CNAME must contain exactly nosuchmachine.net");
   }
 }
 
@@ -238,6 +246,7 @@ async function assertNoRootDeployArtifacts() {
 }
 
 await assertRequiredFiles();
+await assertCustomDomain();
 await assertIndexReferences();
 await assertAssetSizes();
 await assertCloudflareFiles();

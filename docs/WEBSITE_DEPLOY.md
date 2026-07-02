@@ -16,7 +16,7 @@ Node version: 22
 ```
 
 `npm run build` validates the static site and exits nonzero if required assets,
-headers, redirects, or local references are missing.
+custom domain binding, headers, redirects, or local references are missing.
 
 The repository includes `.nvmrc`, `.node-version`, `package.json`, and
 `package-lock.json` so the root build has a concrete Node/npm setup.
@@ -85,6 +85,7 @@ http://127.0.0.1:8788
 
 ```text
 site/index.html
+site/CNAME
 site/404.html
 site/styles.css
 site/app.js
