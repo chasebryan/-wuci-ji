@@ -3,6 +3,7 @@ from pathlib import Path
 
 from src import boundary_debt
 from src import external_attestation
+from src import external_evidence
 from src import falsification
 from src import firewall_profile
 from src import public_artifact
@@ -96,8 +97,35 @@ class BundleSchemaTests(unittest.TestCase):
                     "cases",
                 },
             ),
+            (
+                public_artifact.EXTERNAL_EVIDENCE_BUNDLE_SCHEMA_FILENAME,
+                external_evidence.SCHEMA_ID,
+                external_evidence.SCHEMA_VERSION,
+                external_evidence.REQUIRED_BUNDLE_FIELDS,
+            ),
         ]
-        self.assertEqual({item[0] for item in cases}, set(public_artifact.EVIDENCE_SCHEMA_FILENAMES))
+        fragment_cases = [
+            (
+                public_artifact.INDEPENDENT_REBUILD_RECEIPT_SCHEMA_FILENAME,
+                external_evidence.REQUIRED_REBUILD_RECEIPT_FIELDS,
+            ),
+            (
+                public_artifact.FIREWALL_PROFILE_REVIEW_SCHEMA_FILENAME,
+                external_evidence.REQUIRED_FIREWALL_REVIEW_FIELDS,
+            ),
+            (
+                public_artifact.VERIFIER_VECTOR_CLAIM_USABLE_SCHEMA_FILENAME,
+                external_evidence.REQUIRED_VERIFIER_VECTOR_FIELDS,
+            ),
+            (
+                public_artifact.PINNED_ATTESTATION_SCHEMA_FILENAME,
+                external_evidence.REQUIRED_PINNED_ATTESTATION_FIELDS,
+            ),
+        ]
+        self.assertEqual(
+            {item[0] for item in cases} | {item[0] for item in fragment_cases},
+            set(public_artifact.EVIDENCE_SCHEMA_FILENAMES),
+        )
         for filename, schema_id, schema_version, required in cases:
             schema = load_json_no_floats(ROOT / "schema" / filename)
             self.assertEqual(schema["$id"], filename)
@@ -105,6 +133,12 @@ class BundleSchemaTests(unittest.TestCase):
             self.assertFalse(schema["additionalProperties"])
             self.assertEqual(schema["properties"]["schema_id"]["const"], schema_id)
             self.assertEqual(schema["properties"]["schema_version"]["const"], schema_version)
+            self.assertEqual(set(schema["required"]), set(required))
+        for filename, required in fragment_cases:
+            schema = load_json_no_floats(ROOT / "schema" / filename)
+            self.assertEqual(schema["$id"], filename)
+            self.assertEqual(schema["type"], "object")
+            self.assertFalse(schema["additionalProperties"])
             self.assertEqual(set(schema["required"]), set(required))
 
     def test_nested_schema_fields_track_digest_bound_rows(self):

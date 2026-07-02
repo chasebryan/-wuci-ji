@@ -1,5 +1,5 @@
 {
-  "bundle_digest": "1812875b5a853fc287cf2857c8cae00749b21f480cf1a25b94368ba776f4d9e8",
+  "bundle_digest": "682f3b484b948310d4fd0b01dc2f643d37caf598a9050da28c87e7f26c89f14d",
   "claim_usable_verifier_vectors": [
     {
       "attestation_ref": "demo-att-vector-1",
@@ -45,7 +45,7 @@
       "profile_digest": "42c87c1578b1c097965dd3075612e795c2ebf2c3a5d59ba0abe91ed6d4a92214",
       "review_id": "demo-firewall-review-1",
       "review_scope": "aperture-public-artifact-firewall-profile",
-      "reviewed_rules_digest": "98afc97f708bc7f636181efad5833b719475f592003084b1e88062a026de2af4",
+      "reviewed_rules_digest": "fe78d6bbb8c29475512bbbfc2331ef3cc725f10d8bc174ac778e5cb9332d9635",
       "reviewer_identity": "example-firewall-reviewer.example.org",
       "reviewer_independence_class": "external"
     }
@@ -122,8 +122,8 @@
       "signature_algorithm": "ed25519",
       "signer_identity": "example-firewall-reviewer.example.org",
       "signer_independence_class": "external",
-      "statement_digest": "b618e6842d9b753b0cac17416e0280bc179b4ff767c5c87316a0e0ad9af9814d",
-      "subject_digest": "f42cb7fd7bb03f8193a0677323d5a0809527016eec49c71f984c969bc16fc189",
+      "statement_digest": "c362720128798bddb028e306d3cbe745ccb90d6efc18ec6c2cdb15d3c8ef2fe2",
+      "subject_digest": "43f267e11a5106afd3523ca2e99d9141eb2bca97a7b29c06bd4b286d8214febf",
       "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
     },
     {

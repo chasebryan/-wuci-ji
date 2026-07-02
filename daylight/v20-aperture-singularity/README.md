@@ -109,6 +109,7 @@ implemented` and cannot open declaration.
 
 `make daylight-v20-aperture-singularity-public-artifact` emits a public-review
 directory with the v20 capsule, documentation schemas for every evidence bundle,
+external-evidence intake schemas, reviewer protocol docs,
 the verifier bundle, external-attestation bundle, reproducible-build bundle,
 falsification bundle, boundary-debt report, firewall-profile expansion bundle,
 external-evidence slot contracts, artifact manifest, omega scorecard, blocker

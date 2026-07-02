@@ -45,7 +45,7 @@
       "profile_digest": "42c87c1578b1c097965dd3075612e795c2ebf2c3a5d59ba0abe91ed6d4a92214",
       "review_id": "demo-firewall-review-1",
       "review_scope": "aperture-public-artifact-firewall-profile",
-      "reviewed_rules_digest": "98afc97f708bc7f636181efad5833b719475f592003084b1e88062a026de2af4",
+      "reviewed_rules_digest": "fe78d6bbb8c29475512bbbfc2331ef3cc725f10d8bc174ac778e5cb9332d9635",
       "reviewer_identity": "example-firewall-reviewer.example.org",
       "reviewer_independence_class": "external"
     }
@@ -122,8 +122,8 @@
       "signature_algorithm": "ed25519",
       "signer_identity": "example-firewall-reviewer.example.org",
       "signer_independence_class": "external",
-      "statement_digest": "e2643c5dc0fd3f7e865477e4ef7d556a615f7bba6200845f25b377072ecb4d7b",
-      "subject_digest": "425fcfc20c49da6f05295ec866af9481bb134d0d486d769028db48463319c646",
+      "statement_digest": "29661100673262e1cc74d29f17e0eba3cb5495f6e4ec879db4452e357af098fe",
+      "subject_digest": "006bd0bdc6abada73ffe5c13c9fe479138cf9d2b82dac9e9d00abd54113ae2e9",
       "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
     },
     {

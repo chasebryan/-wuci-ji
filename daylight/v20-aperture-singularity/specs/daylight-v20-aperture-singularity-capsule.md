@@ -205,6 +205,17 @@ The v20 public artifact contains:
 - `falsification-survival.bundle.schema.json`
 - `boundary-debt.report.schema.json`
 - `firewall-profile-expansion.bundle.schema.json`
+- `external-evidence.bundle.schema.json`
+- `independent-rebuild-receipt.schema.json`
+- `firewall-profile-review.schema.json`
+- `verifier-vector-claim-usable.schema.json`
+- `pinned-attestation.schema.json`
+- `DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md`
+- `DAYLIGHT_V20_REVIEWER_PACKET.md`
+- `DAYLIGHT_V20_INDEPENDENT_REBUILD_RECEIPT.md`
+- `DAYLIGHT_V20_FIREWALL_PROFILE_REVIEW.md`
+- `DAYLIGHT_V20_VERIFIER_VECTOR_CONTRACT.md`
+- `DAYLIGHT_V20_ATTESTATION_VERIFICATION.md`
 - `verifier-agreement.bundle.json`
 - `external-attestation.bundle.json`
 - `reproducible-build.bundle.json`
