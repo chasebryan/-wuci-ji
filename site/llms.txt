@@ -1,0 +1,38 @@
+# Wuci-Ji v2 — Aperture Bastion
+
+Site: https://nosuchmachine.net/
+Repository: https://github.com/chasebryan/-wuci-ji
+Official emblem: https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
+Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9
+Machine status: https://nosuchmachine.net/aperture-status.json
+Daylight status: https://nosuchmachine.net/daylight-status.json
+
+Wuci-Ji is a defensive research artifact for evidence-bound release and review
+lanes. Wuci-Ji v2 Aperture Bastion adds a public-review layer that produces
+deterministic Aperture Review Capsules, binds subject bytes and public manifest
+entries to digests, and runs a strict public artifact firewall before release.
+
+Primary review paths:
+
+- v2 overview: https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_JI_V2_APERTURE_BASTION.md
+- security boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md
+- pass report: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md
+- repository boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md
+
+Local validation handles:
+
+- make daylight-v19-aperture-bastion-ci
+- make daylight-public-artifact-firewall
+- make site-validate
+
+Non-claims:
+
+- not production cryptography
+- not runtime sandboxing
+- not host-cleanliness proof
+- not whole-system post-quantum safety
+- not FIPS validation
+- not government validation
+- not external certification
+- not independent audit completion
+- not a perfect score claim from repository-owned evidence

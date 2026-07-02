@@ -1,6 +1,12 @@
+http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301
+http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301
 https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301
 /repo https://github.com/chasebryan/-wuci-ji 302
 /readme https://github.com/chasebryan/-wuci-ji/blob/main/README.md 302
 /docs/security-boundary https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md 302
+/docs/aperture-bastion https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_JI_V2_APERTURE_BASTION.md 302
+/docs/aperture-boundary https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md 302
+/docs/aperture-pass-report https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md 302
 /docs/wuci-os https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_OS.md 302
 /docs/production-readiness https://github.com/chasebryan/-wuci-ji/blob/main/docs/PRODUCTION_READINESS.md 302
+/security.txt /.well-known/security.txt 301

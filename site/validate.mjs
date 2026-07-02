@@ -16,7 +16,14 @@ const requiredFiles = [
   "robots.txt",
   "sitemap.xml",
   "site.webmanifest",
+  "llms.txt",
+  "humans.txt",
+  "security.txt",
+  ".well-known/security.txt",
   "daylight-status.json",
+  "aperture-status.json",
+  "assets/wuci-ji-official-emblem.jpg",
+  "assets/wuci-ji-v2-aperture-bastion.jpeg",
   "assets/wuci-daylight-v15-meridian-banner.png",
   "assets/daylight-v17-singularity.jpg",
   "assets/daylight-v16-analemma.png",
@@ -77,16 +84,41 @@ async function assertIndexReferences() {
   }
   for (const required of [
     'name="robots"',
+    'name="application-name" content="Wuci-Ji"',
     'rel="canonical"',
     'rel="sitemap"',
+    'rel="author"',
+    'rel="alternate"',
+    'itemtype="https://schema.org/SoftwareSourceCode"',
+    'itemprop="codeRepository"',
+    'itemprop="logo"',
     'rel="manifest"',
+    'rel="preload"',
+    'rel="apple-touch-icon"',
     'property="og:image"',
     'name="twitter:card"',
+    'href="aperture-status.json"',
     'href="#encrypt"',
+    'href="#aperture"',
+    'href="#assurance"',
     'href="#daylight"',
+    'id="aperture"',
+    'id="assurance"',
     'id="catalog"',
     'id="mae"',
-    'data-meridian-workbench'
+    'data-meridian-workbench',
+    'Wuci-Ji v2 — Aperture Bastion',
+    'assets/wuci-ji-official-emblem.jpg',
+    'Official Wuci-Ji emblem',
+    'Every public claim needs a local handle.',
+    'https://nosuchmachine.net/',
+    'https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg',
+    'https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg',
+    'make daylight-public-artifact-firewall',
+    '28564990503',
+    'v2.0.0-aperture-bastion',
+    'ce077fea615528634ad27fec516fdb402f101602',
+    '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0'
   ]) {
     if (!index.includes(required)) {
       fail(`index.html is missing SEO or encryptor marker: ${required}`);
@@ -96,10 +128,122 @@ async function assertIndexReferences() {
   // itself must carry the CSP and referrer policy.
   for (const required of [
     'http-equiv="Content-Security-Policy"',
+    'upgrade-insecure-requests',
     'name="referrer"'
   ]) {
     if (!index.includes(required)) {
       fail(`index.html is missing in-document security policy: ${required}`);
+    }
+  }
+}
+
+async function assertNotFoundPage() {
+  const notFound = await readFile(new URL("404.html", siteRoot), "utf8");
+  for (const required of [
+    'name="robots" content="noindex, follow"',
+    'rel="canonical" href="https://nosuchmachine.net/"',
+    'assets/wuci-ji-official-emblem.jpg',
+    'http-equiv="Content-Security-Policy"',
+    'upgrade-insecure-requests',
+    'name="referrer"'
+  ]) {
+    if (!notFound.includes(required)) {
+      fail(`404.html is missing discovery or security marker: ${required}`);
+    }
+  }
+}
+
+async function assertApertureStatusBinding() {
+  const status = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
+  if (status === null) {
+    fail("site/aperture-status.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "wuci-aperture-site-status-v1",
+    project: "wuci-ji",
+    layer: "Wuci-Ji v2 — Aperture Bastion",
+    release_tag: "v2.0.0-aperture-bastion",
+    commit: "ce077fea615528634ad27fec516fdb402f101602",
+    capsule_digest: "9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0",
+    firewall_profile_id: "aperture-bastion-public-v1",
+    hosted_artifact_diff: "matched local firewalled artifact"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (status[key] !== value) {
+      fail(`aperture-status.json ${key} does not match expected value`);
+    }
+  }
+  if (status.public_artifact_file_count !== 8) {
+    fail("aperture-status.json public_artifact_file_count must be 8");
+  }
+  if (typeof status.firewall_profile_digest !== "string" || !/^[0-9a-f]{64}$/.test(status.firewall_profile_digest)) {
+    fail("aperture-status.json firewall_profile_digest must be sha256 hex");
+  }
+  if (!Number.isInteger(status.hosted_run_id) || status.hosted_run_id <= 0) {
+    fail("aperture-status.json hosted_run_id must be a positive integer");
+  }
+  if (!Array.isArray(status.non_claims)) {
+    fail("aperture-status.json non_claims must be a list");
+    return;
+  }
+  const index = await readFile(new URL("index.html", siteRoot), "utf8");
+  for (const required of [
+    status.release_tag,
+    status.commit,
+    status.capsule_digest,
+    status.firewall_profile_id
+  ]) {
+    if (!index.includes(required)) {
+      fail(`index.html does not display Aperture status value: ${required}`);
+    }
+  }
+  for (const requiredNonClaim of [
+    "not production cryptography",
+    "not runtime sandboxing",
+    "not host-cleanliness proof",
+    "not whole-system post-quantum safety",
+    "not FIPS validation",
+    "not government validation",
+    "not external certification",
+    "not independent audit completion",
+    "not a perfect score claim from repository-owned evidence"
+  ]) {
+    if (!status.non_claims.includes(requiredNonClaim)) {
+      fail(`aperture-status.json missing non-claim: ${requiredNonClaim}`);
+    }
+  }
+}
+
+async function assertClaimBoundaryLanguage() {
+  const index = await readFile(new URL("index.html", siteRoot), "utf8");
+  const normalized = index.replace(/\s+/g, " ");
+  for (const required of [
+    "not production cryptography",
+    "not a general runtime sandbox",
+    "not host-cleanliness proof",
+    "not whole-system post-quantum secure",
+    "not FIPS validation",
+    "not government validation",
+    "not external certification",
+    "not independently audited"
+  ]) {
+    if (!normalized.includes(required)) {
+      fail(`index.html is missing claim-boundary text: ${required}`);
+    }
+  }
+  for (const forbidden of [
+    "production-ready cryptography",
+    "runtime sandboxing guaranteed",
+    "host cleanliness proof",
+    "post-quantum safe",
+    "FIPS validated",
+    "government validated",
+    "externally certified",
+    "independently audited by"
+  ]) {
+    if (normalized.includes(forbidden)) {
+      fail(`index.html contains unsupported release claim: ${forbidden}`);
     }
   }
 }
@@ -135,6 +279,23 @@ async function assertCloudflareFiles() {
       fail(`site/_headers is missing security header: ${requiredHeader}`);
     }
   }
+  for (const requiredHeader of [
+    "/aperture-status.json",
+    "/daylight-status.json",
+    "Content-Type: application/json; charset=utf-8",
+    "Cache-Control: no-store",
+    "/.well-known/security.txt",
+    "/security.txt",
+    "/llms.txt",
+    "/humans.txt",
+    "Content-Type: text/plain; charset=utf-8",
+    "/assets/*",
+    "Cache-Control: public, max-age=31536000, immutable"
+  ]) {
+    if (!headers.includes(requiredHeader)) {
+      fail(`site/_headers is missing deploy metadata: ${requiredHeader}`);
+    }
+  }
   for (const requiredDirective of [
     "default-src 'self'",
     "script-src 'self'",
@@ -147,9 +308,27 @@ async function assertCloudflareFiles() {
     }
   }
   const redirects = await readFile(new URL("_redirects", siteRoot), "utf8");
-  for (const route of ["/repo", "/readme", "/docs/security-boundary", "/docs/wuci-os"]) {
+  for (const route of [
+    "/repo",
+    "/readme",
+    "/docs/security-boundary",
+    "/docs/aperture-bastion",
+    "/docs/aperture-boundary",
+    "/docs/aperture-pass-report",
+    "/docs/wuci-os"
+  ]) {
     if (!redirects.includes(`${route} `)) {
       fail(`site/_redirects is missing route: ${route}`);
+    }
+  }
+  for (const redirect of [
+    "http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301",
+    "http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301",
+    "https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301",
+    "/security.txt /.well-known/security.txt 301"
+  ]) {
+    if (!redirects.includes(redirect)) {
+      fail(`site/_redirects is missing canonical HTTPS redirect: ${redirect}`);
     }
   }
 }
@@ -225,13 +404,104 @@ async function assertSearchDiscoveryFiles() {
   if (!robots.includes("Sitemap: https://nosuchmachine.net/sitemap.xml")) {
     fail("robots.txt is missing sitemap declaration");
   }
+  if (!robots.includes("Host: nosuchmachine.net")) {
+    fail("robots.txt is missing canonical host declaration");
+  }
   const sitemap = await readFile(new URL("sitemap.xml", siteRoot), "utf8");
   if (!sitemap.includes("<loc>https://nosuchmachine.net/</loc>")) {
     fail("sitemap.xml is missing canonical root URL");
   }
+  for (const required of [
+    "xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\"",
+    "<image:loc>https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg</image:loc>",
+    "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
+    "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
+    "<loc>https://nosuchmachine.net/daylight-status.json</loc>"
+  ]) {
+    if (!sitemap.includes(required)) {
+      fail(`sitemap.xml is missing discovery marker: ${required}`);
+    }
+  }
+  if (!sitemap.includes("<lastmod>2026-07-02</lastmod>")) {
+    fail("sitemap.xml lastmod must reflect the Aperture Bastion site update");
+  }
   const manifest = JSON.parse(await readFile(new URL("site.webmanifest", siteRoot), "utf8"));
-  if (manifest.name !== "No Such Machine" || manifest.start_url !== "/") {
+  if (manifest.name !== "Wuci-Ji" || manifest.short_name !== "Wuci-Ji" || manifest.start_url !== "/") {
     fail("site.webmanifest has unexpected identity or start_url");
+  }
+  if (!manifest.description.includes("Wuci-Ji v2 Aperture Bastion")) {
+    fail("site.webmanifest must describe the Aperture Bastion surface");
+  }
+  if (!manifest.icons.some((icon) => icon.src === "/assets/wuci-ji-official-emblem.jpg" && icon.type === "image/jpeg")) {
+    fail("site.webmanifest must expose the official Wuci-Ji emblem");
+  }
+}
+
+async function assertPublicTextDiscovery() {
+  const llms = await readFile(new URL("llms.txt", siteRoot), "utf8");
+  for (const required of [
+    "Wuci-Ji v2 — Aperture Bastion",
+    "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
+    "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
+    "https://nosuchmachine.net/aperture-status.json",
+    "make daylight-v19-aperture-bastion-ci",
+    "not production cryptography",
+    "not runtime sandboxing",
+    "not external certification"
+  ]) {
+    if (!llms.includes(required)) {
+      fail(`llms.txt is missing required research-agent marker: ${required}`);
+    }
+  }
+  const humans = await readFile(new URL("humans.txt", siteRoot), "utf8");
+  if (
+    !humans.includes("No Such Machine") ||
+    !humans.includes("make site-validate") ||
+    !humans.includes("https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg") ||
+    !humans.includes("716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9")
+  ) {
+    fail("humans.txt is missing project identity or validation handle");
+  }
+  for (const securityPath of ["security.txt", ".well-known/security.txt"]) {
+    const security = await readFile(new URL(securityPath, siteRoot), "utf8");
+    for (const required of [
+      "Contact: https://github.com/chasebryan/-wuci-ji/issues",
+      "Expires: 2027-07-02T00:00:00Z",
+      "Canonical: https://nosuchmachine.net/.well-known/security.txt",
+      "Policy: https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md"
+    ]) {
+      if (!security.includes(required)) {
+        fail(`${securityPath} is missing security.txt marker: ${required}`);
+      }
+    }
+  }
+}
+
+async function assertNoInsecurePublicUrls() {
+  for (const file of [
+    "index.html",
+    "404.html",
+    "robots.txt",
+    "sitemap.xml",
+    "site.webmanifest",
+    "llms.txt",
+    "humans.txt",
+    "security.txt",
+    ".well-known/security.txt"
+  ]) {
+    const text = await readFile(new URL(file, siteRoot), "utf8");
+    const insecureUrls = Array.from(text.matchAll(/http:\/\/[^"'\s<>]+/g)).map((match) => match[0]);
+    for (const url of insecureUrls) {
+      if (
+        url.startsWith("http://127.0.0.1") ||
+        url.startsWith("http://localhost") ||
+        url === "http://www.sitemaps.org/schemas/sitemap/0.9" ||
+        url === "http://www.google.com/schemas/sitemap-image/1.1"
+      ) {
+        continue;
+      }
+      fail(`site/${file} contains non-local insecure URL: ${url}`);
+    }
   }
 }
 
@@ -248,10 +518,15 @@ async function assertNoRootDeployArtifacts() {
 await assertRequiredFiles();
 await assertCustomDomain();
 await assertIndexReferences();
+await assertNotFoundPage();
 await assertAssetSizes();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
+await assertPublicTextDiscovery();
+await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
+await assertApertureStatusBinding();
+await assertClaimBoundaryLanguage();
 await assertNoRootDeployArtifacts();
 
 if (process.exitCode) {

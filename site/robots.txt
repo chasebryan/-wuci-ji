@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://nosuchmachine.net/sitemap.xml
+Host: nosuchmachine.net

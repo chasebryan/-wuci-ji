@@ -2,7 +2,48 @@
 
 The website is a static site in `site/`. Deploy from the repository root.
 
+## GitHub Pages Deploy
+
+The repository includes `.github/workflows/pages.yml`. On pushes to `main`
+that touch the site, the workflow runs `make site-validate`, uploads `site/`,
+and deploys it through GitHub Pages.
+
+Required repository settings:
+
+```text
+Pages source: GitHub Actions
+Custom domain: nosuchmachine.net
+Enforce HTTPS: enabled
+```
+
+Required DNS:
+
+```text
+nosuchmachine.net      A/AAAA or ALIAS/ANAME for GitHub Pages
+www.nosuchmachine.net  CNAME to chasebryan.github.io
+```
+
+After each DNS or Pages settings change, verify:
+
+```sh
+curl -I https://nosuchmachine.net/
+curl -I http://nosuchmachine.net/
+curl -I https://www.nosuchmachine.net/
+curl -I https://nosuchmachine.net/.well-known/security.txt
+curl -I https://nosuchmachine.net/sitemap.xml
+```
+
+The expected hosted state is a valid HTTPS certificate, canonical
+`https://nosuchmachine.net/`, HTTP redirected to HTTPS, `www` redirected to the
+apex domain, and `/.well-known/security.txt` served as public text. GitHub
+Pages controls certificate issuance and the Enforce HTTPS toggle; repository
+files cannot prove that hosted setting by themselves.
+
 ## Cloudflare Pages Git Deploy
+
+Cloudflare Pages is an alternate deploy path. Unlike GitHub Pages, it honors
+`site/_headers` and `site/_redirects`, so those files are kept as checked
+deployment metadata even when the active hosted path is GitHub Pages.
 
 Use these settings:
 
@@ -37,6 +78,32 @@ make site-validate               # check staleness, then run the site validator
 
 When the v17 scorecard changes, run `make site-daylight-status` and update the
 displayed number; the build refuses a stale site until they match.
+
+## Discoverability and HTTPS metadata
+
+The static artifact includes:
+
+```text
+site/sitemap.xml
+site/robots.txt
+site/site.webmanifest
+site/llms.txt
+site/humans.txt
+site/security.txt
+site/.well-known/security.txt
+site/aperture-status.json
+site/daylight-status.json
+```
+
+`site/index.html` carries canonical HTTPS metadata, Open Graph/Twitter image
+metadata, local microdata for the Wuci-Ji v2 Aperture Bastion source surface,
+and in-document CSP/referrer policy because GitHub Pages does not serve
+`_headers`.
+
+`site/_headers` additionally pins HSTS, CSP, plain-text content types, JSON
+content types, and cache policy for hosts that support static header files.
+This is a deployment signal, not proof that the public host is currently
+serving those headers.
 
 Cloudflare Pages also supports static HTML sites without a framework. For no
 framework, Cloudflare documents a custom build command and a custom build output
@@ -91,5 +158,14 @@ site/styles.css
 site/app.js
 site/_headers
 site/_redirects
+site/robots.txt
+site/sitemap.xml
+site/site.webmanifest
+site/llms.txt
+site/humans.txt
+site/security.txt
+site/.well-known/security.txt
+site/aperture-status.json
+site/daylight-status.json
 site/assets/
 ```

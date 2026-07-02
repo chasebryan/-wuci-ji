@@ -1,13 +1,19 @@
 {
-  "name": "No Such Machine",
-  "short_name": "NSM",
-  "description": "Wuci-Ji and Wuci-OS research artifacts with explicit evidence boundaries.",
+  "name": "Wuci-Ji",
+  "short_name": "Wuci-Ji",
+  "description": "Wuci-Ji v2 Aperture Bastion and related research artifacts with explicit evidence boundaries.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f1411",
   "theme_color": "#0f1411",
   "icons": [
+    {
+      "src": "/assets/wuci-ji-official-emblem.jpg",
+      "sizes": "400x400",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
     {
       "src": "/favicon.png",
       "sizes": "512x512",
