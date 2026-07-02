@@ -1,4 +1,23 @@
 (function () {
+  // Host-side HTTPS enforcement still belongs in Cloudflare/GitHub Pages.
+  // This fallback only upgrades real browser visits that reach the static app
+  // over plain HTTP while that host-side setting is being verified.
+  function enforceCanonicalHttps() {
+    var host = window.location.hostname;
+    if (
+      window.location.protocol === "http:" &&
+      (host === "nosuchmachine.net" || host === "www.nosuchmachine.net")
+    ) {
+      window.location.replace(
+        "https://nosuchmachine.net" +
+          window.location.pathname +
+          window.location.search +
+          window.location.hash
+      );
+    }
+  }
+  enforceCanonicalHttps();
+
   // Gallery lightbox
   function setupLightbox() {
     var figures = document.querySelectorAll("main figure");
