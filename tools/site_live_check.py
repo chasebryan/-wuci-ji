@@ -208,6 +208,12 @@ def run_checks() -> list[Check]:
     checks.extend(check_readonly_meridian_surface())
     checks.extend(
         check_json_asset(
+            "codemeta.json",
+            {"@context", "@type", "name", "codeRepository", "license", "additionalProperty"},
+        )
+    )
+    checks.extend(
+        check_json_asset(
             "aperture-status.json",
             {"schema", "project", "layer", "release_tag", "capsule_digest", "non_claims"},
         )

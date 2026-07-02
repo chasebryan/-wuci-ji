@@ -46,9 +46,9 @@ fresh evidence, required discovery metadata, CodeMeta JSON-LD research software
 metadata, canonical HTTPS metadata, official Wuci-Ji imagery, and
 claim-boundary text. `site-live-check` probes the deployed public host and
 fails unless the HTTPS apex, server-side HTTP to HTTPS redirect, `www`
-redirect, HSTS header, discovery files, status JSON, and official image assets
-are live. It is a hosted deployment gate, not a proof of host cleanliness or
-runtime containment.
+redirect, HSTS header, discovery files, CodeMeta JSON-LD, status JSON, and
+official image assets are live. It is a hosted deployment gate, not a proof of
+host cleanliness or runtime containment.
 
 ## Native Proof Lanes
 

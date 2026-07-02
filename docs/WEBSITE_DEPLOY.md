@@ -37,8 +37,8 @@ files cannot prove that hosted setting by themselves.
 
 `make site-live-check` is intentionally stricter than `make site-validate`: it
 checks the deployed public host and fails if HTTP still serves `200 OK`, HSTS is
-missing, discovery files are unavailable, or the official Wuci-Ji assets are
-not live.
+missing, discovery files or `codemeta.json` are unavailable, or the official
+Wuci-Ji assets are not live.
 
 `site/app.js` includes a browser-side fallback that redirects
 `http://nosuchmachine.net/` and `http://www.nosuchmachine.net/` visits to the
