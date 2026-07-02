@@ -1496,6 +1496,8 @@ h3 {
 
 .copy-button:focus-visible,
 .button:focus-visible,
+.lightbox-close:focus-visible,
+main figure:focus-visible,
 .site-nav a:focus-visible,
 .repo-link:focus-visible,
 .text-link:focus-visible {
@@ -1622,11 +1624,16 @@ figure:hover figcaption {
   backdrop-filter: blur(20px);
   opacity: 0;
   visibility: hidden;
-  transition: all 300ms ease;
+  transition: opacity 300ms ease, backdrop-filter 300ms ease;
 }
 
 .lightbox.is-active {
   opacity: 1;
+  visibility: visible;
+}
+
+.lightbox.is-active .lightbox-close,
+.lightbox.is-active img {
   visibility: visible;
 }
 
@@ -1655,7 +1662,7 @@ figure:hover figcaption {
   color: var(--ink);
   font-size: 1.5rem;
   cursor: pointer;
-  transition: all 200ms ease;
+  transition: background 200ms ease, border-color 200ms ease, color 200ms ease;
 }
 
 .lightbox-close:hover {

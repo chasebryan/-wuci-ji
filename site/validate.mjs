@@ -198,6 +198,41 @@ async function assertNoPublicBrowserCrypto() {
   }
 }
 
+async function assertInteractiveAccessibility() {
+  const app = await readFile(new URL("app.js", siteRoot), "utf8");
+  const styles = await readFile(new URL("styles.css", siteRoot), "utf8");
+  for (const required of [
+    'lightbox.setAttribute("role", "dialog")',
+    'lightbox.setAttribute("aria-modal", "true")',
+    'lightbox.setAttribute("aria-hidden", "true")',
+    'lightbox.setAttribute("aria-label", "Image preview")',
+    'closeBtn.setAttribute("tabindex", "-1")',
+    "function setPageHidden(hidden)",
+    'region.setAttribute("inert", "")',
+    'figure.setAttribute("aria-label", "Open larger view: " + label.trim())',
+    'lightbox.setAttribute("aria-hidden", "false")',
+    "closeBtn.focus({ preventScroll: true })",
+    "window.requestAnimationFrame(function ()",
+    "lastActiveElement.focus()",
+    'e.key === "Tab" && lightbox.classList.contains("is-active")'
+  ]) {
+    if (!app.includes(required)) {
+      fail(`app.js is missing interactive accessibility marker: ${required}`);
+    }
+  }
+  for (const required of [
+    ".lightbox-close:focus-visible",
+    "main figure:focus-visible",
+    "transition: opacity 300ms ease, backdrop-filter 300ms ease;",
+    "transition: background 200ms ease, border-color 200ms ease, color 200ms ease;",
+    ".lightbox.is-active .lightbox-close"
+  ]) {
+    if (!styles.includes(required)) {
+      fail(`styles.css is missing interactive focus marker: ${required}`);
+    }
+  }
+}
+
 async function assertNotFoundPage() {
   const notFound = await readFile(new URL("404.html", siteRoot), "utf8");
   for (const required of [
@@ -999,6 +1034,7 @@ await assertIndexReferences();
 await assertNotFoundPage();
 await assertBrowserHttpsFallback();
 await assertNoPublicBrowserCrypto();
+await assertInteractiveAccessibility();
 await assertAssetSizes();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
