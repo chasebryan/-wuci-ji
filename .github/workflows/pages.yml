@@ -32,10 +32,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Validate static site artifact
-        run: |
-          test -f site/index.html
-          test -f site/CNAME
-          grep -qx 'nosuchmachine.net' site/CNAME
+        run: make site-validate
 
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
