@@ -18,6 +18,7 @@ const requiredFiles = [
   "sitemap.xml",
   "site.webmanifest",
   "codemeta.json",
+  "citation.cff",
   "hosting-requirements.json",
   "claim-evidence.json",
   "llms.txt",
@@ -105,6 +106,7 @@ async function assertIndexReferences() {
     'rel="sitemap"',
     'rel="author"',
     'rel="alternate"',
+    'type="text/plain" href="/citation.cff"',
     'type="application/ld+json" href="/codemeta.json"',
     'type="application/json" href="/hosting-requirements.json"',
     'type="application/json" href="/claim-evidence.json"',
@@ -136,6 +138,7 @@ async function assertIndexReferences() {
     'Every public claim needs a local handle.',
     'Claims, evidence, metadata, and host gates in one place.',
     'claim-evidence.json',
+    'citation.cff',
     'hosting-requirements.json',
     'https://nosuchmachine.net/',
     'https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg',
@@ -357,6 +360,7 @@ async function assertCloudflareFiles() {
     "/aperture-status.json",
     "/daylight-status.json",
     "/codemeta.json",
+    "/citation.cff",
     "/hosting-requirements.json",
     "/claim-evidence.json",
     "Content-Type: application/json; charset=utf-8",
@@ -500,6 +504,7 @@ async function assertSearchDiscoveryFiles() {
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
     "<loc>https://nosuchmachine.net/codemeta.json</loc>",
+    "<loc>https://nosuchmachine.net/citation.cff</loc>",
     "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>",
     "<loc>https://nosuchmachine.net/claim-evidence.json</loc>"
   ]) {
@@ -530,6 +535,7 @@ async function assertPublicTextDiscovery() {
     "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
     "https://nosuchmachine.net/aperture-status.json",
     "https://nosuchmachine.net/codemeta.json",
+    "https://nosuchmachine.net/citation.cff",
     "https://nosuchmachine.net/hosting-requirements.json",
     "https://nosuchmachine.net/claim-evidence.json",
     "make daylight-v19-aperture-bastion-ci",
@@ -546,6 +552,7 @@ async function assertPublicTextDiscovery() {
     !humans.includes("No Such Machine") ||
     !humans.includes("make site-validate") ||
     !humans.includes("https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg") ||
+    !humans.includes("https://nosuchmachine.net/citation.cff") ||
     !humans.includes("716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9")
   ) {
     fail("humans.txt is missing project identity or validation handle");
@@ -576,6 +583,7 @@ async function assertResearchMetadata() {
     "@id": "https://nosuchmachine.net/codemeta.json",
     "@type": "SoftwareSourceCode",
     name: "Wuci-Ji v2 — Aperture Bastion",
+    citation: "https://nosuchmachine.net/citation.cff",
     codeRepository: "https://github.com/chasebryan/-wuci-ji",
     contIntegration: "https://github.com/chasebryan/-wuci-ji/actions/workflows/daylight-v19-aperture-bastion.yml",
     identifier: "wuci-ji-v2-aperture-bastion",
@@ -670,6 +678,58 @@ async function assertResearchMetadata() {
   }
 }
 
+async function assertCitationMetadata() {
+  const rootCitation = await readFile(new URL("../CITATION.cff", siteRoot), "utf8");
+  const siteCitation = await readFile(new URL("citation.cff", siteRoot), "utf8");
+  if (rootCitation !== siteCitation) {
+    fail("site/citation.cff must match root CITATION.cff exactly");
+  }
+  for (const required of [
+    "cff-version: 1.2.0",
+    "message: \"If you use this research software artifact, cite it using the metadata in this file.\"",
+    "title: \"Wuci-Ji v2 — Aperture Bastion\"",
+    "type: software",
+    "name: \"No Such Machine\"",
+    "version: \"v2.0.0-aperture-bastion\"",
+    "date-released: \"2026-07-02\"",
+    "repository-code: \"https://github.com/chasebryan/-wuci-ji\"",
+    "url: \"https://nosuchmachine.net/\"",
+    "license: \"Apache-2.0\"",
+    "defensive research",
+    "public evidence",
+    "claim-bounded release",
+    "cryptographic research",
+    "high-assurance research",
+    "not production cryptography",
+    "not runtime sandboxing",
+    "not host-cleanliness proof",
+    "not whole-system post-quantum safety",
+    "not FIPS validation",
+    "not government validation",
+    "not external certification",
+    "not independent audit completion",
+    "not a perfect score claim from repository-owned evidence"
+  ]) {
+    if (!siteCitation.includes(required)) {
+      fail(`citation.cff is missing required citation marker: ${required}`);
+    }
+  }
+  for (const [label, pattern] of [
+    ["production-ready cryptography", /production-ready cryptography/],
+    ["runtime sandboxing guaranteed", /runtime sandboxing guaranteed/],
+    ["host cleanliness proof", /host cleanliness proof/],
+    ["post-quantum safe", /post-quantum safe\b/],
+    ["FIPS validated", /FIPS validated/],
+    ["government validated", /government validated/],
+    ["externally certified", /externally certified/],
+    ["independently audited by", /independently audited by/]
+  ]) {
+    if (pattern.test(siteCitation)) {
+      fail(`citation.cff contains unsupported release claim: ${label}`);
+    }
+  }
+}
+
 async function assertHostingRequirements() {
   const requirements = await readJsonOrNull(new URL("hosting-requirements.json", siteRoot));
   if (requirements === null) {
@@ -730,6 +790,7 @@ async function assertHostingRequirements() {
     "/aperture-status.json",
     "/daylight-status.json",
     "/codemeta.json",
+    "/citation.cff",
     "/hosting-requirements.json",
     "/claim-evidence.json",
     "/assets/wuci-ji-official-emblem.jpg",
@@ -873,6 +934,16 @@ async function assertClaimEvidenceMap() {
   ) {
     fail("claim-evidence.json hosted TLS redirect fields must target the HTTPS apex");
   }
+  const researchClaim = claims.get("research-discovery-metadata");
+  if (!Array.isArray(researchClaim?.evidence_paths) || !researchClaim.evidence_paths.includes("CITATION.cff")) {
+    fail("claim-evidence.json research-discovery-metadata must reference root CITATION.cff");
+  }
+  if (!Array.isArray(researchClaim?.evidence_paths) || !researchClaim.evidence_paths.includes("site/citation.cff")) {
+    fail("claim-evidence.json research-discovery-metadata must reference site/citation.cff");
+  }
+  if (researchClaim?.evidence_values?.citation !== "https://nosuchmachine.net/citation.cff") {
+    fail("claim-evidence.json research-discovery-metadata citation URL must match public endpoint");
+  }
   for (const required of aperture.non_claims) {
     if (!Array.isArray(claimMap.non_claims) || !claimMap.non_claims.includes(required)) {
       fail(`claim-evidence.json non_claims are missing ${required}`);
@@ -888,6 +959,7 @@ async function assertNoInsecurePublicUrls() {
     "sitemap.xml",
     "site.webmanifest",
     "codemeta.json",
+    "citation.cff",
     "hosting-requirements.json",
     "claim-evidence.json",
     "llms.txt",
@@ -932,6 +1004,7 @@ await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
 await assertPublicTextDiscovery();
 await assertResearchMetadata();
+await assertCitationMetadata();
 await assertHostingRequirements();
 await assertClaimEvidenceMap();
 await assertNoInsecurePublicUrls();

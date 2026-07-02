@@ -20,6 +20,10 @@
   Content-Type: application/ld+json; charset=utf-8
   Cache-Control: public, max-age=86400
 
+/citation.cff
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400
+
 /hosting-requirements.json
   Content-Type: application/json; charset=utf-8
   Cache-Control: no-store

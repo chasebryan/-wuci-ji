@@ -155,12 +155,15 @@
       "public_claim": "The site publishes machine-readable research software metadata for crawlers, archival tools, and research agents.",
       "status": "local-static-artifact",
       "evidence_paths": [
+        "CITATION.cff",
+        "site/citation.cff",
         "site/codemeta.json",
         "site/llms.txt",
         "site/sitemap.xml"
       ],
       "evidence_values": {
         "codemeta_context": "https://w3id.org/codemeta/3.0",
+        "citation": "https://nosuchmachine.net/citation.cff",
         "license": "https://spdx.org/licenses/Apache-2.0"
       },
       "validation_commands": [

@@ -203,6 +203,7 @@ def run_checks() -> list[Check]:
     checks.extend(check_redirects())
     checks.extend(check_text_asset(".well-known/security.txt", ["Contact:", "Policy:", "Canonical:"]))
     checks.extend(check_text_asset("llms.txt", ["Wuci-Ji v2", "not production cryptography"]))
+    checks.extend(check_text_asset("citation.cff", ["Wuci-Ji v2", "not production cryptography", "repository-code:"]))
     checks.extend(check_text_asset("sitemap.xml", ["https://nosuchmachine.net/", "wuci-ji-official-emblem.jpg"]))
     checks.extend(check_text_asset("app.js", ["enforceCanonicalHttps", "https://nosuchmachine.net"]))
     checks.extend(check_readonly_meridian_surface())

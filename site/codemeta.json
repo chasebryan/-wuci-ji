@@ -6,6 +6,7 @@
   "alternateName": "Wuci-Ji",
   "description": "Defensive, evidence-bound research software for public review capsules, firewalled public artifacts, and claim-bounded Daylight proof lanes.",
   "applicationCategory": "Research software",
+  "citation": "https://nosuchmachine.net/citation.cff",
   "codeRepository": "https://github.com/chasebryan/-wuci-ji",
   "contIntegration": "https://github.com/chasebryan/-wuci-ji/actions/workflows/daylight-v19-aperture-bastion.yml",
   "dateModified": "2026-07-02",

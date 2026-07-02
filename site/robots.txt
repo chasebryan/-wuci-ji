@@ -6,6 +6,7 @@ Host: nosuchmachine.net
 
 # Research software metadata:
 # https://nosuchmachine.net/codemeta.json
+# https://nosuchmachine.net/citation.cff
 
 # Hosted TLS requirements:
 # https://nosuchmachine.net/hosting-requirements.json

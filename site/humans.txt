@@ -16,6 +16,9 @@ Official emblem SHA-256:
 Research metadata:
 https://nosuchmachine.net/codemeta.json
 
+Citation metadata:
+https://nosuchmachine.net/citation.cff
+
 Hosted TLS requirements:
 https://nosuchmachine.net/hosting-requirements.json
 
