@@ -7,7 +7,7 @@ Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09
 Machine status: https://nosuchmachine.net/aperture-status.json
 Daylight status: https://nosuchmachine.net/daylight-status.json
 Daylight v20 Aperture Singularity status: https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json
-Daylight v20 repo-owned score surface: https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp
+Daylight v20 repo-owned score surface: https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp
 Research metadata: https://nosuchmachine.net/codemeta.json
 Citation metadata: https://nosuchmachine.net/citation.cff
 Hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json

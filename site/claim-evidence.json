@@ -108,8 +108,8 @@
       "status": "local-evidence-bound; declaration-refused",
       "evidence_paths": [
         "site/daylight-v20-aperture-singularity-status.json",
-        "site/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp",
-        "site/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png",
+        "site/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
+        "site/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png",
         "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json"
       ],
       "evidence_values": {

@@ -210,7 +210,7 @@ def run_checks() -> list[Check]:
             [
                 "https://nosuchmachine.net/",
                 "wuci-ji-official-emblem.jpg",
-                "daylight-v20-gate-repo-owned-ceiling-score-surface.webp",
+                "daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
                 "daylight-v20-gate-fixture-score-surface.webp",
                 "daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
             ],
@@ -251,8 +251,8 @@ def run_checks() -> list[Check]:
     )
     checks.extend(check_binary_asset("assets/wuci-ji-official-emblem.jpg", "image/jpeg"))
     checks.extend(check_binary_asset("assets/wuci-ji-v2-aperture-bastion.jpeg", "image/jpeg"))
-    checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp", "image/webp"))
-    checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png", "image/png"))
+    checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp", "image/webp"))
+    checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png", "image/png"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-fixture-score-surface.webp", "image/webp"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-fixture-score-surface.png", "image/png"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp", "image/webp"))
