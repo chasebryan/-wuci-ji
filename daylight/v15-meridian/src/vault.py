@@ -371,8 +371,9 @@ def init_vault(
         config["key_mode"] = "keyfile"
         _write_private(root / "vault.key", secrets.token_bytes(KEY_LEN).hex().encode("ascii"))
 
-    (root / "vault.json").write_text(
-        json.dumps(config, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+    _write_private(
+        root / "vault.json",
+        (json.dumps(config, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
     )
     try:
         os.chmod(root, 0o700)

@@ -122,6 +122,10 @@ if [ "$use_passphrase" = "1" ]; then
         [ -n "$PASSPHRASE" ] || die "empty passphrase rejected"
         [ "$PASSPHRASE" = "$_confirm" ] || die "passphrases did not match"
     fi
+    # Hand the passphrase to the CLI through the environment, never argv:
+    # command lines are world-readable in /proc while a process runs.
+    MERIDIAN_PASSPHRASE=$PASSPHRASE
+    export MERIDIAN_PASSPHRASE
 fi
 
 # 1. Install the package offline.
@@ -159,7 +163,7 @@ if [ "$do_vault" = "1" ]; then
     if [ -f "$VAULT/vault.json" ]; then
         printf 'A vault already exists at %s; keeping it.\n' "$VAULT"
     elif [ "$use_passphrase" = "1" ]; then
-        mc vault init --min-score "$min_score" --passphrase "$PASSPHRASE"
+        mc vault init --min-score "$min_score" --passphrase-env MERIDIAN_PASSPHRASE
     else
         mc vault init --min-score "$min_score"
     fi
@@ -170,7 +174,7 @@ if [ "$do_autoseal" = "1" ]; then
     say "Auto-seal common secret files into the vault"
     set -- vault autoseal
     [ "$remove_originals" = "1" ] && set -- "$@" --remove-original
-    [ "$use_passphrase" = "1" ] && set -- "$@" --passphrase "$PASSPHRASE"
+    [ "$use_passphrase" = "1" ] && set -- "$@" --passphrase-env MERIDIAN_PASSPHRASE
     mc "$@" || true
 fi
 
@@ -188,6 +192,10 @@ if [ -n "$luks_device" ]; then
     luks_name=$(printf '%s' "$luks_device" | tr -c 'A-Za-z0-9_.-' '_')
     keytmp=$(mktemp)
     chmod 0600 "$keytmp"
+    # Never leave a raw LUKS key on disk if a later step fails. The volume is
+    # freshly formatted and empty at every point this can fire, so wiping the
+    # key loses no data; re-run the installer to format and seal again.
+    trap 'rm -f "$keytmp"' EXIT INT TERM
     "$PY" - "$keytmp" <<'GENKEY'
 import os, sys
 with open(sys.argv[1], "wb") as handle:
@@ -197,9 +205,10 @@ GENKEY
         || die "luksFormat failed"
     say "Seal the LUKS key into the Meridian vault (fail-closed on degraded evidence)"
     set -- vault seal "$keytmp" --name "luks-$luks_name" --remove-original
-    [ "$use_passphrase" = "1" ] && set -- "$@" --passphrase "$PASSPHRASE"
+    [ "$use_passphrase" = "1" ] && set -- "$@" --passphrase-env MERIDIAN_PASSPHRASE
     mc "$@"
     rm -f "$keytmp"
+    trap - EXIT INT TERM
     say "Install the meridian-luks-unlock helper"
     cat > "$BIN/meridian-luks-unlock" <<UNLOCK
 #!/bin/sh

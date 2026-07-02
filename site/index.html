@@ -3,6 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Defense-in-depth: the GitHub Pages deploy path ignores _headers, so the
+         script/style/object policy must also travel inside the document. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta
       name="description"
       content="No Such Machine publishes the Wuci-Ji and Wuci-OS research surface: sealed artifacts, receipt-bound release, and public evidence for defensive proof lanes."
@@ -103,7 +107,7 @@
           <dl class="hero-metrics" aria-label="Current Daylight posture">
             <div>
               <dt>Current AM+</dt>
-              <dd>999,999,687</dd>
+              <dd data-am-plus="999999687">999,999,687</dd>
             </div>
             <div>
               <dt>Gate</dt>
@@ -163,10 +167,11 @@
                 whole AM+ declaration.
               </p>
               <ul class="stage-facts">
-                <li>Current scorecard: 999,999,687 AM+</li>
+                <li data-am-plus="999999687">Current scorecard: 999,999,687 AM+</li>
                 <li>Declaration gate: refused by design</li>
                 <li>Fixture 999,999,999 AM+ is not claim-usable</li>
               </ul>
+              <a class="text-link" href="daylight-status.json">Verify the current AM+ number</a>
             </div>
           </article>
 

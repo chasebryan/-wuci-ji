@@ -384,7 +384,10 @@ def cmd_artifact(args: argparse.Namespace) -> int:
 
 def _load_caller_key(args: argparse.Namespace) -> bytes:
     if getattr(args, "keyfile", None):
-        text = Path(args.keyfile).read_text(encoding="utf-8").strip()
+        keyfile = Path(args.keyfile)
+        if keyfile.is_symlink():
+            raise CommandError(f"refusing symlinked keyfile: {keyfile}")
+        text = keyfile.read_text(encoding="utf-8").strip()
     elif getattr(args, "key", None):
         text = args.key.strip()
     else:
@@ -627,7 +630,7 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_cmd.set_defaults(func=cmd_artifact)
 
     seal = sub.add_parser("seal", help="encrypt: authorize from evidence/policy, then AEAD-seal")
-    seal.add_argument("--key", help="32-byte caller key as 64 hex characters")
+    seal.add_argument("--key", help="32-byte caller key as 64 hex characters (visible in process lists; prefer --keyfile)")
     seal.add_argument("--keyfile", help="file containing the 64-hex caller key")
     seal.add_argument("--ledger", default=str(DEFAULT_LEDGER))
     seal.add_argument("--corpus", default=str(DEFAULT_CORPUS))
@@ -636,11 +639,18 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument("--in", dest="in_path", help="plaintext input file (default: --message or stdin)")
     seal.add_argument("--message", help="plaintext as a string")
     seal.add_argument("--out", help="sealed output path (default: stdout)")
-    seal.add_argument("--nonce", help="12-byte nonce as 24 hex chars (default: random)")
+    seal.add_argument(
+        "--nonce",
+        help=(
+            "12-byte nonce as 24 hex chars (default: random). Fixed nonces exist for "
+            "reproducible demo fixtures only: sealing two different plaintexts with the "
+            "same key, policy, evidence, and nonce forfeits confidentiality."
+        ),
+    )
     seal.set_defaults(func=cmd_seal)
 
     open_cmd = sub.add_parser("open", help="decrypt: re-authorize from evidence, then AEAD-open (fail-closed)")
-    open_cmd.add_argument("--key", help="32-byte caller key as 64 hex characters")
+    open_cmd.add_argument("--key", help="32-byte caller key as 64 hex characters (visible in process lists; prefer --keyfile)")
     open_cmd.add_argument("--keyfile", help="file containing the 64-hex caller key")
     open_cmd.add_argument("--ledger", default=str(DEFAULT_LEDGER))
     open_cmd.add_argument("--corpus", default=str(DEFAULT_CORPUS))
@@ -657,7 +667,7 @@ def build_parser() -> argparse.ArgumentParser:
     vault_sub = vault_cmd.add_subparsers(dest="vault_command", required=True)
 
     def _add_passphrase_flags(parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--passphrase", help="vault passphrase (passphrase-mode vaults)")
+        parser.add_argument("--passphrase", help="vault passphrase (visible in process lists; prefer --passphrase-env)")
         parser.add_argument("--passphrase-env", help="read the passphrase from this environment variable")
 
     v_init = vault_sub.add_parser("init", help="create a vault bound to this host's Daylight v15 evidence")

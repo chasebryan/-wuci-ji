@@ -133,6 +133,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v17-singularity-score daylight-v17-singularity-verify daylight-v17-singularity-test daylight-v17-singularity-doctor daylight-v17-singularity-fixture-demo daylight-v17-singularity-declaration-gate
 .PHONY: daylight-horizon-alpha-test daylight-horizon-alpha-vault-demo daylight-horizon-alpha-release-demo
 .PHONY: daylight-v18-bastion-measure daylight-v18-bastion-verify daylight-v18-bastion-test daylight-v18-bastion-transition-demo daylight-v18-bastion-transition-test daylight-v18-bastion-transition-ledger-verify
+.PHONY: site-daylight-status site-daylight-status-check site-validate
 
 all: check-native $(TARGET)
 
@@ -389,6 +390,15 @@ daylight-v18-bastion-transition-demo:
 	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli transition-ledger-verify --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
 	@if PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli tamper-check --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --format text; then echo "expected tamper-check without transition to fail"; exit 1; else echo "tamper without transition rejected"; fi
 	DAYLIGHT_BASTION_PASSPHRASE=daylight-v18-fixture-passphrase PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli tamper-check --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --transition daylight/v18-bastion/examples/transition-record.v18.json --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
+
+site-daylight-status:
+	$(PYTHON) tools/site_daylight_status.py
+
+site-daylight-status-check:
+	$(PYTHON) tools/site_daylight_status.py --check
+
+site-validate: site-daylight-status-check
+	node site/validate.mjs
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

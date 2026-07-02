@@ -1,0 +1,16 @@
+{
+  "boundary": "research scoring layer; not production certification",
+  "declaration": "refused",
+  "declaration_target_AM_plus": 999999999,
+  "declared": false,
+  "kernel": "daylight-v17.1-event-horizon",
+  "layer": "daylight-v17-singularity",
+  "perfect_reserved_AM_plus": 1000000000,
+  "regenerate": "make site-daylight-status",
+  "score_AM_plus": 999999687,
+  "scorecard_digest": "6debccd2631146bead454d475789060d3aad50ef2d7b18b60d7960ce67bddd3d",
+  "source": "daylight/v17-singularity/examples/current-scorecard.v17.json",
+  "status": "singularity_candidate",
+  "unit": "AM+",
+  "weakest_field": "F2"
+}
