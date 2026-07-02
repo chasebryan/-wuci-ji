@@ -1,0 +1,62 @@
+{
+  "schema": "wuci-daylight-v20-aperture-singularity-site-status-v1",
+  "project": "wuci-ji",
+  "layer": "Daylight v20 - Aperture Singularity Gate",
+  "release_tag": "v20-aperture-singularity-fixture",
+  "score_tag": "v20-aperture-singularity-score-999680000",
+  "score_commit": "ebd8521c441e9a4af494ea1565e3644bc75ee263",
+  "source": "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json",
+  "capsule_digest": "84b99f30eed9a46983ad5ebb4cf28f919d71365bf442a0ac085ea323784147e3",
+  "score_AM_plus": 999680000,
+  "unit": "AM+",
+  "omega_eff": "8.047189562170501873003796666130938197628006771342588609563239457370894938538288823150669390465898055",
+  "omega_threshold": "20.723265837",
+  "declaration": "refused",
+  "declared": false,
+  "fixture": true,
+  "claim_usable": false,
+  "repo_owned_code_gap_count": 0,
+  "external_evidence_required_count": 4,
+  "validation": [
+    "make daylight-v20-aperture-singularity-ci",
+    "make daylight-v19-aperture-bastion-ci",
+    "make daylight-v17-event-horizon-test",
+    "make daylight-public-artifact-firewall",
+    "make site-validate"
+  ],
+  "remaining_external_evidence": [
+    "independent rebuild receipts",
+    "external firewall-profile review",
+    "non-fixture 3-of-3 verifier vectors",
+    "pinned cryptographic attestation verification"
+  ],
+  "blockers": [
+    "omega_eff below declaration threshold",
+    "score_AM_plus below declaration target",
+    "field threshold failure",
+    "field threshold failed: reproducible_build",
+    "field threshold failed: aperture_firewall_boundary",
+    "field threshold failed: independent_verifier_quorum",
+    "field threshold failed: external_attestation",
+    "cross_verifier_agreement_passed=false",
+    "verifier vectors are fixture evidence",
+    "verifier vectors are not claim-usable",
+    "fixture=true",
+    "claim_usable=false",
+    "external attestation not cryptographically verified",
+    "reproducible build receipts are fixture evidence",
+    "reproducible build receipts are not claim-usable",
+    "reproducible build source commit does not match capsule source commit"
+  ],
+  "non_claims": [
+    "not production cryptography",
+    "not runtime containment",
+    "not host cleanliness proof",
+    "not FIPS validated",
+    "not government validated",
+    "not externally certified",
+    "not whole-system post-quantum safe",
+    "not an independent audit",
+    "not a perfect Daylight score claim from repository-owned evidence"
+  ]
+}

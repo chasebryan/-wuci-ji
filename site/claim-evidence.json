@@ -103,6 +103,37 @@
       ]
     },
     {
+      "id": "daylight-v20-aperture-singularity-score-surface",
+      "public_claim": "The Daylight v20 Gate repo-owned ceiling score surface is bound to the committed v20 Aperture Singularity capsule and remains a non-declaration.",
+      "status": "local-evidence-bound; declaration-refused",
+      "evidence_paths": [
+        "site/daylight-v20-aperture-singularity-status.json",
+        "site/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp",
+        "site/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png",
+        "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json"
+      ],
+      "evidence_values": {
+        "score_AM_plus": 999680000,
+        "unit": "AM+",
+        "capsule_digest": "84b99f30eed9a46983ad5ebb4cf28f919d71365bf442a0ac085ea323784147e3",
+        "declared": false,
+        "fixture": true,
+        "claim_usable": false,
+        "repo_owned_code_gap_count": 0
+      },
+      "validation_commands": [
+        "make daylight-v20-aperture-singularity-ci",
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "Singularity declaration",
+        "external validation",
+        "independent audit",
+        "production cryptography",
+        "runtime containment"
+      ]
+    },
+    {
       "id": "read-only-public-meridian-surface",
       "public_claim": "The public website is a read-only review surface and does not ship browser file encryption, decryption, private-key handling, or file-opening controls.",
       "status": "local-and-hosted-gated",

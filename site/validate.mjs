@@ -27,10 +27,13 @@ const requiredFiles = [
   ".well-known/security.txt",
   "daylight-status.json",
   "aperture-status.json",
+  "daylight-v20-aperture-singularity-status.json",
   "assets/wuci-ji-official-emblem.jpg",
   "assets/wuci-ji-v2-aperture-bastion.jpeg",
   "assets/wuci-daylight-v15-meridian-banner.png",
   "assets/daylight-v17-singularity.jpg",
+  "assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp",
+  "assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png",
   "assets/daylight-v20-gate-fixture-score-surface.webp",
   "assets/daylight-v20-gate-fixture-score-surface.png",
   "assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
@@ -144,9 +147,15 @@ async function assertIndexReferences() {
     'claim-evidence.json',
     'citation.cff',
     'hosting-requirements.json',
+    'daylight-v20-aperture-singularity-status.json',
     'https://nosuchmachine.net/',
     'https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg',
     'https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg',
+    'assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp',
+    'assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png',
+    'Daylight v20 repo-owned score surface',
+    '999,680,000 AM+',
+    'repo-owned ceiling score surface, non-declaration',
     'assets/daylight-v20-gate-fixture-score-surface.webp',
     'assets/daylight-v20-gate-fixture-score-surface.png',
     'Daylight v20 Gate fixture surface',
@@ -539,6 +548,79 @@ async function assertDaylightStatusBinding() {
   }
 }
 
+async function assertDaylightV20ApertureSingularityStatusBinding() {
+  const status = await readJsonOrNull(new URL("daylight-v20-aperture-singularity-status.json", siteRoot));
+  if (status === null) {
+    fail("site/daylight-v20-aperture-singularity-status.json is missing or not valid JSON");
+    return;
+  }
+  if (status.schema !== "wuci-daylight-v20-aperture-singularity-site-status-v1") {
+    fail("daylight-v20-aperture-singularity-status.json schema is unsupported");
+  }
+  if (status.layer !== "Daylight v20 - Aperture Singularity Gate") {
+    fail("daylight-v20-aperture-singularity-status.json layer is unsupported");
+  }
+  if (!Number.isInteger(status.score_AM_plus) || status.score_AM_plus < 0) {
+    fail("daylight-v20-aperture-singularity-status.json score_AM_plus must be a non-negative integer");
+  }
+  if (status.unit !== "AM+") {
+    fail("daylight-v20-aperture-singularity-status.json unit must be AM+");
+  }
+  if (typeof status.capsule_digest !== "string" || !/^[0-9a-f]{64}$/.test(status.capsule_digest)) {
+    fail("daylight-v20-aperture-singularity-status.json capsule_digest must be sha256 hex");
+  }
+  if (status.declared !== false || status.declaration !== "refused") {
+    fail("daylight-v20-aperture-singularity-status.json must remain declaration-refused");
+  }
+  if (status.fixture !== true || status.claim_usable !== false) {
+    fail("daylight-v20-aperture-singularity-status.json must keep fixture=true and claim_usable=false");
+  }
+  if (status.repo_owned_code_gap_count !== 0 || status.external_evidence_required_count !== 4) {
+    fail("daylight-v20-aperture-singularity-status.json evidence gap counts changed unexpectedly");
+  }
+
+  const index = await readFile(new URL("index.html", siteRoot), "utf8");
+  const displayed = withCommas(status.score_AM_plus);
+  if (!index.includes(displayed)) {
+    fail(`index.html does not display the v20 Aperture Singularity AM+ number: ${displayed}`);
+  }
+  const hooks = Array.from(index.matchAll(/data-v20-am-plus="([0-9]+)"/g)).map((match) => match[1]);
+  if (hooks.length === 0) {
+    fail("index.html is missing a data-v20-am-plus evidence hook");
+  }
+  for (const hook of hooks) {
+    if (hook !== String(status.score_AM_plus)) {
+      fail(`index.html data-v20-am-plus="${hook}" does not match v20 evidence ${status.score_AM_plus}`);
+    }
+  }
+
+  const capsule = await readJsonOrNull(new URL(`../${status.source}`, siteRoot));
+  if (capsule === null) {
+    console.log(`site build: note: ${status.source} absent, skipped v20 capsule cross-check`);
+    return;
+  }
+  const comparisons = {
+    capsule_digest: capsule.capsule_digest,
+    score_AM_plus: capsule.score_AM_plus,
+    omega_eff: capsule.omega_eff,
+    release_tag: capsule.release_tag,
+    declared: capsule.declaration_allowed,
+    fixture: capsule.fixture,
+    claim_usable: capsule.claim_usable
+  };
+  for (const [key, expected] of Object.entries(comparisons)) {
+    if (status[key] !== expected) {
+      fail(`daylight-v20-aperture-singularity-status.json ${key} does not match committed capsule`);
+    }
+  }
+  if (!Array.isArray(status.blockers) || JSON.stringify(status.blockers) !== JSON.stringify(capsule.blockers)) {
+    fail("daylight-v20-aperture-singularity-status.json blockers do not match committed capsule");
+  }
+  if (!Array.isArray(status.non_claims) || JSON.stringify(status.non_claims) !== JSON.stringify(capsule.non_claims)) {
+    fail("daylight-v20-aperture-singularity-status.json non_claims do not match committed capsule");
+  }
+}
+
 async function assertSearchDiscoveryFiles() {
   const robots = await readFile(new URL("robots.txt", siteRoot), "utf8");
   if (!robots.includes("Sitemap: https://nosuchmachine.net/sitemap.xml")) {
@@ -555,12 +637,15 @@ async function assertSearchDiscoveryFiles() {
     "xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\"",
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg</image:loc>",
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
+    "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp</image:loc>",
+    "<image:title>Daylight v20 Gate repo-owned score surface</image:title>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-fixture-score-surface.webp</image:loc>",
     "<image:title>Daylight v20 Gate fixture surface</image:title>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp</image:loc>",
     "<image:title>Daylight v20 Gate heuristic comparison</image:title>",
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
+    "<loc>https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json</loc>",
     "<loc>https://nosuchmachine.net/codemeta.json</loc>",
     "<loc>https://nosuchmachine.net/citation.cff</loc>",
     "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>",
@@ -596,6 +681,8 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/citation.cff",
     "https://nosuchmachine.net/hosting-requirements.json",
     "https://nosuchmachine.net/claim-evidence.json",
+    "https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json",
+    "https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -847,12 +934,15 @@ async function assertHostingRequirements() {
     "/.well-known/security.txt",
     "/aperture-status.json",
     "/daylight-status.json",
+    "/daylight-v20-aperture-singularity-status.json",
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
     "/claim-evidence.json",
     "/assets/wuci-ji-official-emblem.jpg",
     "/assets/wuci-ji-v2-aperture-bastion.jpeg",
+    "/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp",
+    "/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png",
     "/assets/daylight-v20-gate-fixture-score-surface.webp",
     "/assets/daylight-v20-gate-fixture-score-surface.png",
     "/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
@@ -919,6 +1009,7 @@ async function assertClaimEvidenceMap() {
     "aperture-review-capsule",
     "public-artifact-firewall",
     "daylight-score-binding",
+    "daylight-v20-aperture-singularity-score-surface",
     "read-only-public-meridian-surface",
     "hosted-tls-requirements",
     "research-discovery-metadata"
@@ -952,8 +1043,9 @@ async function assertClaimEvidenceMap() {
 
   const aperture = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
   const daylight = await readJsonOrNull(new URL("daylight-status.json", siteRoot));
-  if (aperture === null || daylight === null) {
-    fail("claim-evidence.json cross-check requires aperture-status.json and daylight-status.json");
+  const daylightV20 = await readJsonOrNull(new URL("daylight-v20-aperture-singularity-status.json", siteRoot));
+  if (aperture === null || daylight === null || daylightV20 === null) {
+    fail("claim-evidence.json cross-check requires aperture-status.json, daylight-status.json, and daylight-v20-aperture-singularity-status.json");
     return;
   }
 
@@ -984,6 +1076,22 @@ async function assertClaimEvidenceMap() {
   }
   if (scoreClaim?.evidence_values?.declared !== daylight.declared) {
     fail("claim-evidence.json Daylight declared flag must match daylight-status.json");
+  }
+  const v20ScoreClaim = claims.get("daylight-v20-aperture-singularity-score-surface");
+  if (v20ScoreClaim?.evidence_values?.score_AM_plus !== daylightV20.score_AM_plus) {
+    fail("claim-evidence.json v20 score must match daylight-v20-aperture-singularity-status.json");
+  }
+  if (v20ScoreClaim?.evidence_values?.capsule_digest !== daylightV20.capsule_digest) {
+    fail("claim-evidence.json v20 capsule digest must match daylight-v20-aperture-singularity-status.json");
+  }
+  if (v20ScoreClaim?.evidence_values?.declared !== daylightV20.declared) {
+    fail("claim-evidence.json v20 declared flag must match daylight-v20-aperture-singularity-status.json");
+  }
+  if (v20ScoreClaim?.evidence_values?.fixture !== daylightV20.fixture || v20ScoreClaim?.evidence_values?.claim_usable !== daylightV20.claim_usable) {
+    fail("claim-evidence.json v20 fixture and claim_usable values must match daylight-v20-aperture-singularity-status.json");
+  }
+  if (v20ScoreClaim?.evidence_values?.repo_owned_code_gap_count !== daylightV20.repo_owned_code_gap_count) {
+    fail("claim-evidence.json v20 repo_owned_code_gap_count must match daylight-v20-aperture-singularity-status.json");
   }
   const hostClaim = claims.get("hosted-tls-requirements");
   if (hostClaim?.evidence_values?.canonical_url !== "https://nosuchmachine.net/") {
@@ -1073,6 +1181,7 @@ await assertHostingRequirements();
 await assertClaimEvidenceMap();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
+await assertDaylightV20ApertureSingularityStatusBinding();
 await assertApertureStatusBinding();
 await assertClaimBoundaryLanguage();
 await assertNoRootDeployArtifacts();

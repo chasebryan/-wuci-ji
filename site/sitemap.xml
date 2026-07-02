@@ -19,6 +19,11 @@
       <image:caption>Official Wuci-Ji project emblem.</image:caption>
     </image:image>
     <image:image>
+      <image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp</image:loc>
+      <image:title>Daylight v20 Gate repo-owned score surface</image:title>
+      <image:caption>Daylight v20 Gate 999,680,000 AM+ repo-owned ceiling score surface, marked non-declaration.</image:caption>
+    </image:image>
+    <image:image>
       <image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-fixture-score-surface.webp</image:loc>
       <image:title>Daylight v20 Gate fixture surface</image:title>
       <image:caption>Daylight v20 Gate fixture score surface, marked non-declaration.</image:caption>
@@ -37,6 +42,12 @@
   </url>
   <url>
     <loc>https://nosuchmachine.net/daylight-status.json</loc>
+    <lastmod>2026-07-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json</loc>
     <lastmod>2026-07-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.4</priority>
