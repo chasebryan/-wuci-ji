@@ -25,25 +25,56 @@
 
     var lightbox = document.createElement("div");
     lightbox.className = "lightbox";
+    lightbox.setAttribute("role", "dialog");
+    lightbox.setAttribute("aria-modal", "true");
+    lightbox.setAttribute("aria-hidden", "true");
+    lightbox.setAttribute("aria-label", "Image preview");
     lightbox.innerHTML = '<button class="lightbox-close" aria-label="Close">&times;</button><img src="" alt="">';
     document.body.appendChild(lightbox);
 
     var lightboxImg = lightbox.querySelector("img");
     var closeBtn = lightbox.querySelector(".lightbox-close");
+    var pageRegions = Array.prototype.slice.call(document.querySelectorAll(".site-header, main, .site-footer"));
+    var lastActiveElement = null;
+    closeBtn.setAttribute("tabindex", "-1");
+
+    function setPageHidden(hidden) {
+      pageRegions.forEach(function (region) {
+        if (hidden) {
+          region.setAttribute("aria-hidden", "true");
+          region.setAttribute("inert", "");
+        } else {
+          region.removeAttribute("aria-hidden");
+          region.removeAttribute("inert");
+        }
+      });
+    }
 
     function openFigure(figure) {
       var img = figure.querySelector("img");
       if (img) {
+        lastActiveElement = document.activeElement;
         lightboxImg.src = img.src;
         lightboxImg.alt = img.alt;
+        lightbox.setAttribute("aria-hidden", "false");
+        closeBtn.removeAttribute("tabindex");
         lightbox.classList.add("is-active");
         document.body.style.overflow = "hidden";
+        closeBtn.focus({ preventScroll: true });
+        window.requestAnimationFrame(function () {
+          closeBtn.focus({ preventScroll: true });
+        });
+        setPageHidden(true);
       }
     }
 
     figures.forEach(function (figure) {
+      var img = figure.querySelector("img");
+      var caption = figure.querySelector("figcaption");
+      var label = caption ? caption.textContent : img ? img.alt : "image";
       figure.setAttribute("role", "button");
       figure.setAttribute("tabindex", "0");
+      figure.setAttribute("aria-label", "Open larger view: " + label.trim());
       figure.addEventListener("click", function () {
         openFigure(figure);
       });
@@ -57,7 +88,14 @@
 
     function closeLightbox() {
       lightbox.classList.remove("is-active");
+      lightbox.setAttribute("aria-hidden", "true");
+      closeBtn.setAttribute("tabindex", "-1");
+      setPageHidden(false);
       document.body.style.overflow = "";
+      if (lastActiveElement && document.contains(lastActiveElement) && typeof lastActiveElement.focus === "function") {
+        lastActiveElement.focus();
+      }
+      lastActiveElement = null;
     }
 
     closeBtn.addEventListener("click", closeLightbox);
@@ -67,6 +105,10 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && lightbox.classList.contains("is-active")) {
         closeLightbox();
+      }
+      if (e.key === "Tab" && lightbox.classList.contains("is-active")) {
+        e.preventDefault();
+        closeBtn.focus({ preventScroll: true });
       }
     });
   }
