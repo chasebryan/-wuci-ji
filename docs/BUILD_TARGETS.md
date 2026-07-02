@@ -290,6 +290,38 @@ transition, tamper, no-float, path-safety, and CLI tests.
 and ledgered transition, then accepts the fixture transition. The fixture
 passphrase is demonstration-only and not production security.
 
+## Wuci-Ji v2 — Aperture Bastion (Daylight v19)
+
+Aperture Bastion under `daylight/v19-aperture-bastion` produces
+deterministic, claim-bounded Aperture Review Capsules and runs a strict
+public artifact firewall before anything is uploaded. It is not production
+cryptography, runtime containment, host cleanliness, FIPS validation,
+government validation, external certification, whole-system post-quantum
+safety, or an independent audit.
+
+```sh
+make daylight-v19-aperture-bastion-doctor
+make daylight-v19-aperture-bastion-capsule-demo
+make daylight-v19-aperture-bastion-verify
+make daylight-v19-aperture-bastion-public-artifact
+make daylight-v19-aperture-bastion-firewall
+make daylight-v19-aperture-bastion-test
+make daylight-v19-aperture-bastion-ci
+make aperture-bastion-doctor
+make aperture-bastion-test
+make aperture-bastion-ci
+```
+
+`daylight-v19-aperture-bastion-verify` re-verifies the committed fixture
+capsule `daylight/v19-aperture-bastion/examples/expected-capsule.v19.json`.
+`daylight-v19-aperture-bastion-capsule-demo` builds a live capsule over the
+example subject with v18 vector-chain, v18 transition-ledger, v15 Meridian,
+v17 Event Horizon, and policy evidence references, then verifies it with
+`--require-evidence`. `daylight-v19-aperture-bastion-public-artifact` emits
+the public directory and `daylight-v19-aperture-bastion-firewall` scans it,
+writing the report outside the public root only on a pass. See
+`docs/WUCI_JI_V2_APERTURE_BASTION.md`.
+
 `daylight-v6-reference-negative-corpus-test` checks the Rust Daylight v6
 reference negative corpus in
 `daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt`.

@@ -1,0 +1,71 @@
+{
+  "allowed_extra_files": [],
+  "capsule_digest": "9021b8e1a7711b4a4f9c30e2d4ccb35106b56af8fdd6054cde99aaf9aae83d20",
+  "claim_boundary": {
+    "boundary_version": "aperture-claim-boundary-v1",
+    "external_certification": false,
+    "fips_validation": false,
+    "government_validation": false,
+    "host_cleanliness": false,
+    "independent_audit_completed": false,
+    "perfect_daylight_score_from_repo_evidence": false,
+    "production_cryptography": false,
+    "runtime_containment": false,
+    "statement": "Aperture Bastion binds subjects, evidence references, and public files to deterministic digests. It grants no authority beyond those digest bindings.",
+    "whole_system_post_quantum_safety": false
+  },
+  "evidence_refs": [],
+  "firewall_result": {
+    "checked_file_count": 1,
+    "passed": true,
+    "phase": "pre-publication",
+    "profile_id": "aperture-bastion-public-v1"
+  },
+  "fixture": true,
+  "forbidden_private_material_profile": {
+    "profile_digest": "d191c651b963806015e1c779fcf72ab7d84cac9c0090f5beeb38a108e3329878",
+    "profile_id": "aperture-bastion-public-v1"
+  },
+  "generated_by": "daylight-v19-aperture-bastion/0.1.0",
+  "input_subjects": [
+    {
+      "subject_path": "daylight/v19-aperture-bastion/examples/example-subject.bin",
+      "subject_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "subject_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+      "subject_size_bytes": 84
+    }
+  ],
+  "layer_name": "Wuci-Ji v2 \u2014 Aperture Bastion",
+  "non_claims": [
+    "not FIPS validated",
+    "not a perfect Daylight score claim from repository-owned evidence",
+    "not an independent audit",
+    "not externally certified",
+    "not government validated",
+    "not host cleanliness proof",
+    "not production cryptography",
+    "not runtime containment or sandboxing",
+    "not whole-system post-quantum safe"
+  ],
+  "optional_binaric_vector_digest": null,
+  "optional_event_horizon_scorecard_digest": null,
+  "optional_meridian_scorecard_digest": null,
+  "optional_policy_digest": null,
+  "optional_transition_ledger_head": null,
+  "project": "wuci-ji",
+  "public_manifest": [
+    {
+      "path": "daylight/v19-aperture-bastion/examples/example-subject.bin",
+      "sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "size_bytes": 84
+    }
+  ],
+  "public_sha256sums": "a0d4808a787dfb916b24f6769cd3e8805ebbd6022b62eec18c93a43015474d56",
+  "repo_commit": "fixture",
+  "repo_dirty_state": "fixture",
+  "schema_id": "daylight-v19-aperture-review-capsule",
+  "schema_version": "0.1.0",
+  "subject_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+  "subject_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+  "subject_size": 84
+}

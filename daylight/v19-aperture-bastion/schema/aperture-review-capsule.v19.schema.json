@@ -1,0 +1,198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "daylight-v19-aperture-review-capsule.schema.json",
+  "title": "Aperture Review Capsule (Daylight v19)",
+  "description": "Documentation schema for the Aperture Review Capsule. The enforced validator is src/capsule.py:validate_capsule_shape, which is stricter than this schema: it recomputes capsule_digest and public_sha256sums, enforces exact claim-boundary values, cross-checks optional_* digests against evidence_refs, and applies the private-material name profile to every manifest path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "project",
+    "layer_name",
+    "generated_by",
+    "repo_commit",
+    "repo_dirty_state",
+    "fixture",
+    "input_subjects",
+    "subject_sha256",
+    "subject_sha3_512",
+    "subject_size",
+    "optional_binaric_vector_digest",
+    "optional_transition_ledger_head",
+    "optional_meridian_scorecard_digest",
+    "optional_event_horizon_scorecard_digest",
+    "optional_policy_digest",
+    "evidence_refs",
+    "public_manifest",
+    "allowed_extra_files",
+    "public_sha256sums",
+    "claim_boundary",
+    "non_claims",
+    "forbidden_private_material_profile",
+    "firewall_result",
+    "capsule_digest"
+  ],
+  "properties": {
+    "schema_id": {"const": "daylight-v19-aperture-review-capsule"},
+    "schema_version": {"const": "0.1.0"},
+    "project": {"const": "wuci-ji"},
+    "layer_name": {"const": "Wuci-Ji v2 — Aperture Bastion"},
+    "generated_by": {"type": "string", "pattern": "^daylight-v19-aperture-bastion/"},
+    "repo_commit": {
+      "type": "string",
+      "description": "40-hex git commit, or 'unknown' outside git, or 'fixture' for fixture capsules."
+    },
+    "repo_dirty_state": {"enum": ["clean", "dirty", "unknown", "fixture"]},
+    "fixture": {"type": "boolean"},
+    "input_subjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject_path", "subject_sha256", "subject_sha3_512", "subject_size_bytes"],
+        "properties": {
+          "subject_path": {"type": "string", "description": "Normalized repo-relative POSIX path."},
+          "subject_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "subject_sha3_512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+          "subject_size_bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "subject_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "subject_sha3_512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+    "subject_size": {"type": "integer", "minimum": 0},
+    "optional_binaric_vector_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Head v18 binaric vector_digest, recomputed and chain-checked at build."
+    },
+    "optional_transition_ledger_head": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Recomputed v18 transition ledger head."
+    },
+    "optional_meridian_scorecard_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the exact Meridian scorecard file bytes."
+    },
+    "optional_event_horizon_scorecard_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the exact Event Horizon scorecard file bytes."
+    },
+    "optional_policy_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the exact policy file bytes."
+    },
+    "evidence_refs": {
+      "type": "array",
+      "description": "Detail records for the optional_* digests, sorted by kind, at most one per kind.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "paths", "file_sha256s"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "binaric-vector-chain",
+              "event-horizon-scorecard",
+              "meridian-scorecard",
+              "policy",
+              "transition-ledger"
+            ]
+          },
+          "paths": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+          "file_sha256s": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+        }
+      }
+    },
+    "public_manifest": {
+      "type": "array",
+      "description": "Sorted, unique, repo-relative public files published alongside the capsule.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "size_bytes"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "allowed_extra_files": {
+      "type": "array",
+      "description": "Explicitly allowed unpinned extra file names in the public root; still firewall-scanned and required in SHA256SUMS.",
+      "items": {"type": "string"}
+    },
+    "public_sha256sums": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the canonical sums text over public_manifest ('<sha256>  <path>\\n' per entry, sorted by path)."
+    },
+    "claim_boundary": {
+      "type": "object",
+      "description": "Every authority claim key must be exactly false; the enforced validator rejects true values even when capsule_digest is recomputed.",
+      "additionalProperties": false,
+      "required": [
+        "boundary_version",
+        "statement",
+        "production_cryptography",
+        "runtime_containment",
+        "host_cleanliness",
+        "fips_validation",
+        "government_validation",
+        "external_certification",
+        "whole_system_post_quantum_safety",
+        "independent_audit_completed",
+        "perfect_daylight_score_from_repo_evidence"
+      ],
+      "properties": {
+        "boundary_version": {"const": "aperture-claim-boundary-v1"},
+        "statement": {"type": "string"},
+        "production_cryptography": {"const": false},
+        "runtime_containment": {"const": false},
+        "host_cleanliness": {"const": false},
+        "fips_validation": {"const": false},
+        "government_validation": {"const": false},
+        "external_certification": {"const": false},
+        "whole_system_post_quantum_safety": {"const": false},
+        "independent_audit_completed": {"const": false},
+        "perfect_daylight_score_from_repo_evidence": {"const": false}
+      }
+    },
+    "non_claims": {
+      "type": "array",
+      "description": "Sorted unique strings; must include every mandatory non-claim.",
+      "items": {"type": "string"}
+    },
+    "forbidden_private_material_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "profile_digest"],
+      "properties": {
+        "profile_id": {"const": "aperture-bastion-public-v1"},
+        "profile_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "firewall_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "profile_id", "checked_file_count", "passed"],
+      "properties": {
+        "phase": {"const": "pre-publication"},
+        "profile_id": {"const": "aperture-bastion-public-v1"},
+        "checked_file_count": {"type": "integer", "minimum": 0},
+        "passed": {"const": true}
+      }
+    },
+    "capsule_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 over 'DAYLIGHT-v19-APERTURE-REVIEW-CAPSULE:' + canonical JSON of the capsule without capsule_digest."
+    }
+  }
+}

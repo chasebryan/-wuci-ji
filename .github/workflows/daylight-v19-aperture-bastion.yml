@@ -1,0 +1,40 @@
+name: daylight-v19-aperture-bastion
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  daylight-v19-aperture-bastion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5
+        with:
+          python-version: "3.12"
+
+      - name: Show toolchain
+        run: python3 --version
+
+      - name: Aperture Bastion CI lane
+        run: make daylight-v19-aperture-bastion-ci
+
+      - name: Public evidence firewall
+        run: |
+          make daylight-v19-aperture-bastion-firewall
+          make daylight-public-artifact-firewall
+
+      - name: Upload public artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        with:
+          name: daylight-v19-aperture-bastion-public-artifact
+          path: build/daylight/v19-aperture-bastion-public/
+          if-no-files-found: error
