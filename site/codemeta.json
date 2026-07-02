@@ -1,0 +1,76 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@id": "https://nosuchmachine.net/codemeta.json",
+  "@type": "SoftwareSourceCode",
+  "name": "Wuci-Ji v2 — Aperture Bastion",
+  "alternateName": "Wuci-Ji",
+  "description": "Defensive, evidence-bound research software for public review capsules, firewalled public artifacts, and claim-bounded Daylight proof lanes.",
+  "applicationCategory": "Research software",
+  "codeRepository": "https://github.com/chasebryan/-wuci-ji",
+  "contIntegration": "https://github.com/chasebryan/-wuci-ji/actions/workflows/daylight-v19-aperture-bastion.yml",
+  "dateModified": "2026-07-02",
+  "identifier": "wuci-ji-v2-aperture-bastion",
+  "image": "https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg",
+  "isAccessibleForFree": true,
+  "issueTracker": "https://github.com/chasebryan/-wuci-ji/issues",
+  "keywords": [
+    "Aperture Bastion",
+    "Daylight",
+    "defensive research",
+    "public evidence",
+    "claim-bounded release",
+    "cryptographic research",
+    "high-assurance research"
+  ],
+  "license": "https://spdx.org/licenses/Apache-2.0",
+  "logo": "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
+  "operatingSystem": [
+    "Linux"
+  ],
+  "programmingLanguage": [
+    "Python",
+    "x86_64 assembly",
+    "JavaScript",
+    "Rust",
+    "Zig"
+  ],
+  "readme": "https://github.com/chasebryan/-wuci-ji/blob/main/README.md",
+  "runtimePlatform": [
+    "stdlib Python",
+    "static HTML"
+  ],
+  "softwareVersion": "v2.0.0-aperture-bastion",
+  "url": "https://nosuchmachine.net/",
+  "additionalProperty": [
+    {
+      "@type": "PropertyValue",
+      "name": "public-review-layer",
+      "value": "Aperture Review Capsule"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "capsule-digest",
+      "value": "9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "firewall-profile",
+      "value": "aperture-bastion-public-v1"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "hosted-artifact-diff",
+      "value": "matched local firewalled artifact"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "local-validation",
+      "value": "make daylight-v19-aperture-bastion-ci; make daylight-public-artifact-firewall; make site-validate"
+    },
+    {
+      "@type": "PropertyValue",
+      "name": "non-claims",
+      "value": "not production cryptography; not runtime sandboxing; not host-cleanliness proof; not whole-system post-quantum safety; not FIPS validation; not government validation; not external certification; not independent audit completion; not a perfect score claim from repository-owned evidence"
+    }
+  ]
+}

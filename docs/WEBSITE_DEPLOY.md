@@ -94,6 +94,7 @@ The static artifact includes:
 site/sitemap.xml
 site/robots.txt
 site/site.webmanifest
+site/codemeta.json
 site/llms.txt
 site/humans.txt
 site/security.txt
@@ -104,8 +105,14 @@ site/daylight-status.json
 
 `site/index.html` carries canonical HTTPS metadata, Open Graph/Twitter image
 metadata, local microdata for the Wuci-Ji v2 Aperture Bastion source surface,
-and in-document CSP/referrer policy because GitHub Pages does not serve
-`_headers`.
+a CodeMeta JSON-LD pointer at `site/codemeta.json`, and in-document
+CSP/referrer policy because GitHub Pages does not serve `_headers`.
+
+`site/codemeta.json` is the machine-readable research software identity for
+crawlers, archival tools, and research agents. The site validator checks that
+it remains bound to the public repository, official imagery, Aperture capsule
+digest, firewall profile, local validation handles, Apache-2.0 license, and
+explicit non-claims.
 
 `site/_headers` additionally pins HSTS, CSP, plain-text content types, JSON
 content types, and cache policy for hosts that support static header files.
@@ -168,6 +175,7 @@ site/_redirects
 site/robots.txt
 site/sitemap.xml
 site/site.webmanifest
+site/codemeta.json
 site/llms.txt
 site/humans.txt
 site/security.txt

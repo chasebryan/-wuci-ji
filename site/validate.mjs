@@ -16,6 +16,7 @@ const requiredFiles = [
   "robots.txt",
   "sitemap.xml",
   "site.webmanifest",
+  "codemeta.json",
   "llms.txt",
   "humans.txt",
   "security.txt",
@@ -89,6 +90,7 @@ async function assertIndexReferences() {
     'rel="sitemap"',
     'rel="author"',
     'rel="alternate"',
+    'type="application/ld+json" href="/codemeta.json"',
     'itemtype="https://schema.org/SoftwareSourceCode"',
     'itemprop="codeRepository"',
     'itemprop="logo"',
@@ -332,7 +334,9 @@ async function assertCloudflareFiles() {
   for (const requiredHeader of [
     "/aperture-status.json",
     "/daylight-status.json",
+    "/codemeta.json",
     "Content-Type: application/json; charset=utf-8",
+    "Content-Type: application/ld+json; charset=utf-8",
     "Cache-Control: no-store",
     "/.well-known/security.txt",
     "/security.txt",
@@ -466,7 +470,8 @@ async function assertSearchDiscoveryFiles() {
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg</image:loc>",
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
-    "<loc>https://nosuchmachine.net/daylight-status.json</loc>"
+    "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
+    "<loc>https://nosuchmachine.net/codemeta.json</loc>"
   ]) {
     if (!sitemap.includes(required)) {
       fail(`sitemap.xml is missing discovery marker: ${required}`);
@@ -494,6 +499,7 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
     "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
     "https://nosuchmachine.net/aperture-status.json",
+    "https://nosuchmachine.net/codemeta.json",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -527,6 +533,111 @@ async function assertPublicTextDiscovery() {
   }
 }
 
+async function assertResearchMetadata() {
+  const metadata = await readJsonOrNull(new URL("codemeta.json", siteRoot));
+  if (metadata === null) {
+    fail("site/codemeta.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    "@context": "https://w3id.org/codemeta/3.0",
+    "@id": "https://nosuchmachine.net/codemeta.json",
+    "@type": "SoftwareSourceCode",
+    name: "Wuci-Ji v2 — Aperture Bastion",
+    codeRepository: "https://github.com/chasebryan/-wuci-ji",
+    contIntegration: "https://github.com/chasebryan/-wuci-ji/actions/workflows/daylight-v19-aperture-bastion.yml",
+    identifier: "wuci-ji-v2-aperture-bastion",
+    image: "https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg",
+    issueTracker: "https://github.com/chasebryan/-wuci-ji/issues",
+    license: "https://spdx.org/licenses/Apache-2.0",
+    logo: "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
+    readme: "https://github.com/chasebryan/-wuci-ji/blob/main/README.md",
+    softwareVersion: "v2.0.0-aperture-bastion",
+    url: "https://nosuchmachine.net/"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (metadata[key] !== value) {
+      fail(`codemeta.json ${key} does not match expected value`);
+    }
+  }
+  for (const [key, requiredValues] of Object.entries({
+    keywords: [
+      "Aperture Bastion",
+      "defensive research",
+      "public evidence",
+      "claim-bounded release",
+      "cryptographic research",
+      "high-assurance research"
+    ],
+    programmingLanguage: ["Python", "x86_64 assembly", "JavaScript", "Rust", "Zig"],
+    runtimePlatform: ["stdlib Python", "static HTML"]
+  })) {
+    if (!Array.isArray(metadata[key])) {
+      fail(`codemeta.json ${key} must be a list`);
+      continue;
+    }
+    for (const required of requiredValues) {
+      if (!metadata[key].includes(required)) {
+        fail(`codemeta.json ${key} is missing ${required}`);
+      }
+    }
+  }
+  if (!metadata.isAccessibleForFree) {
+    fail("codemeta.json must mark the public research surface as accessible for free");
+  }
+
+  if (!Array.isArray(metadata.additionalProperty)) {
+    fail("codemeta.json additionalProperty must be a list");
+    return;
+  }
+  const properties = new Map(metadata.additionalProperty.map((entry) => [entry.name, entry.value]));
+  const aperture = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
+  if (aperture === null) {
+    fail("site/aperture-status.json is missing or not valid JSON");
+    return;
+  }
+  if (properties.get("capsule-digest") !== aperture.capsule_digest) {
+    fail("codemeta.json capsule digest must match aperture-status.json");
+  }
+  if (properties.get("firewall-profile") !== aperture.firewall_profile_id) {
+    fail("codemeta.json firewall profile must match aperture-status.json");
+  }
+  if (properties.get("hosted-artifact-diff") !== aperture.hosted_artifact_diff) {
+    fail("codemeta.json hosted artifact diff must match aperture-status.json");
+  }
+  const validation = properties.get("local-validation");
+  for (const required of [
+    "make daylight-v19-aperture-bastion-ci",
+    "make daylight-public-artifact-firewall",
+    "make site-validate"
+  ]) {
+    if (typeof validation !== "string" || !validation.includes(required)) {
+      fail(`codemeta.json local-validation is missing ${required}`);
+    }
+  }
+  const nonClaims = properties.get("non-claims");
+  for (const required of aperture.non_claims) {
+    if (typeof nonClaims !== "string" || !nonClaims.includes(required)) {
+      fail(`codemeta.json non-claims are missing ${required}`);
+    }
+  }
+  const normalized = JSON.stringify(metadata).replace(/\s+/g, " ");
+  for (const [label, pattern] of [
+    ["production-ready cryptography", /production-ready cryptography/],
+    ["runtime sandboxing guaranteed", /runtime sandboxing guaranteed/],
+    ["host cleanliness proof", /host cleanliness proof/],
+    ["post-quantum safe", /post-quantum safe\b/],
+    ["FIPS validated", /FIPS validated/],
+    ["government validated", /government validated/],
+    ["externally certified", /externally certified/],
+    ["independently audited by", /independently audited by/]
+  ]) {
+    if (pattern.test(normalized)) {
+      fail(`codemeta.json contains unsupported release claim: ${label}`);
+    }
+  }
+}
+
 async function assertNoInsecurePublicUrls() {
   for (const file of [
     "index.html",
@@ -534,6 +645,7 @@ async function assertNoInsecurePublicUrls() {
     "robots.txt",
     "sitemap.xml",
     "site.webmanifest",
+    "codemeta.json",
     "llms.txt",
     "humans.txt",
     "security.txt",
@@ -575,6 +687,7 @@ await assertAssetSizes();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
 await assertPublicTextDiscovery();
+await assertResearchMetadata();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
 await assertApertureStatusBinding();

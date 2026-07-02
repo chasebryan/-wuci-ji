@@ -13,6 +13,9 @@ https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
 Official emblem SHA-256:
 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9
 
+Research metadata:
+https://nosuchmachine.net/codemeta.json
+
 Purpose:
 Defensive, evidence-bound, public-review research artifacts with explicit
 claim boundaries.
