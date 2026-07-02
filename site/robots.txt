@@ -3,3 +3,13 @@ Allow: /
 
 Sitemap: https://nosuchmachine.net/sitemap.xml
 Host: nosuchmachine.net
+
+# Research software metadata:
+# https://nosuchmachine.net/codemeta.json
+# https://nosuchmachine.net/citation.cff
+
+# Hosted TLS requirements:
+# https://nosuchmachine.net/hosting-requirements.json
+
+# Public claim/evidence map:
+# https://nosuchmachine.net/claim-evidence.json

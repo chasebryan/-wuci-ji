@@ -6,6 +6,10 @@ Official emblem: https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
 Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9
 Machine status: https://nosuchmachine.net/aperture-status.json
 Daylight status: https://nosuchmachine.net/daylight-status.json
+Research metadata: https://nosuchmachine.net/codemeta.json
+Citation metadata: https://nosuchmachine.net/citation.cff
+Hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
+Claim/evidence map: https://nosuchmachine.net/claim-evidence.json
 
 Wuci-Ji is a defensive research artifact for evidence-bound release and review
 lanes. Wuci-Ji v2 Aperture Bastion adds a public-review layer that produces
@@ -18,6 +22,10 @@ Primary review paths:
 - security boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md
 - pass report: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md
 - repository boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md
+- CodeMeta JSON-LD: https://nosuchmachine.net/codemeta.json
+- citation metadata: https://nosuchmachine.net/citation.cff
+- hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
+- claim/evidence map: https://nosuchmachine.net/claim-evidence.json
 
 Local validation handles:
 

@@ -1,5 +1,6 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { constants } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
@@ -16,6 +17,10 @@ const requiredFiles = [
   "robots.txt",
   "sitemap.xml",
   "site.webmanifest",
+  "codemeta.json",
+  "citation.cff",
+  "hosting-requirements.json",
+  "claim-evidence.json",
   "llms.txt",
   "humans.txt",
   "security.txt",
@@ -45,6 +50,18 @@ function fail(message) {
 async function exists(relativePath) {
   try {
     await access(new URL(relativePath, siteRoot), constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function existsInRepo(relativePath) {
+  if (relativePath.startsWith("/") || relativePath.includes("..")) {
+    return false;
+  }
+  try {
+    await access(new URL(`../${relativePath}`, siteRoot), constants.R_OK);
     return true;
   } catch {
     return false;
@@ -89,6 +106,10 @@ async function assertIndexReferences() {
     'rel="sitemap"',
     'rel="author"',
     'rel="alternate"',
+    'type="text/plain" href="/citation.cff"',
+    'type="application/ld+json" href="/codemeta.json"',
+    'type="application/json" href="/hosting-requirements.json"',
+    'type="application/json" href="/claim-evidence.json"',
     'itemtype="https://schema.org/SoftwareSourceCode"',
     'itemprop="codeRepository"',
     'itemprop="logo"',
@@ -101,9 +122,11 @@ async function assertIndexReferences() {
     'href="#meridian"',
     'href="#aperture"',
     'href="#assurance"',
+    'href="#review"',
     'href="#daylight"',
     'id="aperture"',
     'id="assurance"',
+    'id="review"',
     'id="catalog"',
     'id="mae"',
     'id="meridian"',
@@ -113,6 +136,10 @@ async function assertIndexReferences() {
     'assets/wuci-ji-official-emblem.jpg',
     'Official Wuci-Ji emblem',
     'Every public claim needs a local handle.',
+    'Claims, evidence, metadata, and host gates in one place.',
+    'claim-evidence.json',
+    'citation.cff',
+    'hosting-requirements.json',
     'https://nosuchmachine.net/',
     'https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg',
     'https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg',
@@ -332,7 +359,12 @@ async function assertCloudflareFiles() {
   for (const requiredHeader of [
     "/aperture-status.json",
     "/daylight-status.json",
+    "/codemeta.json",
+    "/citation.cff",
+    "/hosting-requirements.json",
+    "/claim-evidence.json",
     "Content-Type: application/json; charset=utf-8",
+    "Content-Type: application/ld+json; charset=utf-8",
     "Cache-Control: no-store",
     "/.well-known/security.txt",
     "/security.txt",
@@ -393,6 +425,10 @@ async function readJsonOrNull(url) {
   } catch {
     return null;
   }
+}
+
+async function sha256Hex(relativePath) {
+  return createHash("sha256").update(await readFile(new URL(relativePath, siteRoot))).digest("hex");
 }
 
 // Daylight doctrine: the site may not display a number the evidence cannot
@@ -466,7 +502,11 @@ async function assertSearchDiscoveryFiles() {
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg</image:loc>",
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
-    "<loc>https://nosuchmachine.net/daylight-status.json</loc>"
+    "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
+    "<loc>https://nosuchmachine.net/codemeta.json</loc>",
+    "<loc>https://nosuchmachine.net/citation.cff</loc>",
+    "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>",
+    "<loc>https://nosuchmachine.net/claim-evidence.json</loc>"
   ]) {
     if (!sitemap.includes(required)) {
       fail(`sitemap.xml is missing discovery marker: ${required}`);
@@ -494,6 +534,10 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
     "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
     "https://nosuchmachine.net/aperture-status.json",
+    "https://nosuchmachine.net/codemeta.json",
+    "https://nosuchmachine.net/citation.cff",
+    "https://nosuchmachine.net/hosting-requirements.json",
+    "https://nosuchmachine.net/claim-evidence.json",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -508,6 +552,7 @@ async function assertPublicTextDiscovery() {
     !humans.includes("No Such Machine") ||
     !humans.includes("make site-validate") ||
     !humans.includes("https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg") ||
+    !humans.includes("https://nosuchmachine.net/citation.cff") ||
     !humans.includes("716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9")
   ) {
     fail("humans.txt is missing project identity or validation handle");
@@ -527,6 +572,385 @@ async function assertPublicTextDiscovery() {
   }
 }
 
+async function assertResearchMetadata() {
+  const metadata = await readJsonOrNull(new URL("codemeta.json", siteRoot));
+  if (metadata === null) {
+    fail("site/codemeta.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    "@context": "https://w3id.org/codemeta/3.0",
+    "@id": "https://nosuchmachine.net/codemeta.json",
+    "@type": "SoftwareSourceCode",
+    name: "Wuci-Ji v2 — Aperture Bastion",
+    citation: "https://nosuchmachine.net/citation.cff",
+    codeRepository: "https://github.com/chasebryan/-wuci-ji",
+    contIntegration: "https://github.com/chasebryan/-wuci-ji/actions/workflows/daylight-v19-aperture-bastion.yml",
+    identifier: "wuci-ji-v2-aperture-bastion",
+    image: "https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg",
+    issueTracker: "https://github.com/chasebryan/-wuci-ji/issues",
+    license: "https://spdx.org/licenses/Apache-2.0",
+    logo: "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
+    readme: "https://github.com/chasebryan/-wuci-ji/blob/main/README.md",
+    softwareVersion: "v2.0.0-aperture-bastion",
+    url: "https://nosuchmachine.net/"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (metadata[key] !== value) {
+      fail(`codemeta.json ${key} does not match expected value`);
+    }
+  }
+  for (const [key, requiredValues] of Object.entries({
+    keywords: [
+      "Aperture Bastion",
+      "defensive research",
+      "public evidence",
+      "claim-bounded release",
+      "cryptographic research",
+      "high-assurance research"
+    ],
+    programmingLanguage: ["Python", "x86_64 assembly", "JavaScript", "Rust", "Zig"],
+    runtimePlatform: ["stdlib Python", "static HTML"]
+  })) {
+    if (!Array.isArray(metadata[key])) {
+      fail(`codemeta.json ${key} must be a list`);
+      continue;
+    }
+    for (const required of requiredValues) {
+      if (!metadata[key].includes(required)) {
+        fail(`codemeta.json ${key} is missing ${required}`);
+      }
+    }
+  }
+  if (!metadata.isAccessibleForFree) {
+    fail("codemeta.json must mark the public research surface as accessible for free");
+  }
+
+  if (!Array.isArray(metadata.additionalProperty)) {
+    fail("codemeta.json additionalProperty must be a list");
+    return;
+  }
+  const properties = new Map(metadata.additionalProperty.map((entry) => [entry.name, entry.value]));
+  const aperture = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
+  if (aperture === null) {
+    fail("site/aperture-status.json is missing or not valid JSON");
+    return;
+  }
+  if (properties.get("capsule-digest") !== aperture.capsule_digest) {
+    fail("codemeta.json capsule digest must match aperture-status.json");
+  }
+  if (properties.get("firewall-profile") !== aperture.firewall_profile_id) {
+    fail("codemeta.json firewall profile must match aperture-status.json");
+  }
+  if (properties.get("hosted-artifact-diff") !== aperture.hosted_artifact_diff) {
+    fail("codemeta.json hosted artifact diff must match aperture-status.json");
+  }
+  const validation = properties.get("local-validation");
+  for (const required of [
+    "make daylight-v19-aperture-bastion-ci",
+    "make daylight-public-artifact-firewall",
+    "make site-validate"
+  ]) {
+    if (typeof validation !== "string" || !validation.includes(required)) {
+      fail(`codemeta.json local-validation is missing ${required}`);
+    }
+  }
+  const nonClaims = properties.get("non-claims");
+  for (const required of aperture.non_claims) {
+    if (typeof nonClaims !== "string" || !nonClaims.includes(required)) {
+      fail(`codemeta.json non-claims are missing ${required}`);
+    }
+  }
+  const normalized = JSON.stringify(metadata).replace(/\s+/g, " ");
+  for (const [label, pattern] of [
+    ["production-ready cryptography", /production-ready cryptography/],
+    ["runtime sandboxing guaranteed", /runtime sandboxing guaranteed/],
+    ["host cleanliness proof", /host cleanliness proof/],
+    ["post-quantum safe", /post-quantum safe\b/],
+    ["FIPS validated", /FIPS validated/],
+    ["government validated", /government validated/],
+    ["externally certified", /externally certified/],
+    ["independently audited by", /independently audited by/]
+  ]) {
+    if (pattern.test(normalized)) {
+      fail(`codemeta.json contains unsupported release claim: ${label}`);
+    }
+  }
+}
+
+async function assertCitationMetadata() {
+  const rootCitation = await readFile(new URL("../CITATION.cff", siteRoot), "utf8");
+  const siteCitation = await readFile(new URL("citation.cff", siteRoot), "utf8");
+  if (rootCitation !== siteCitation) {
+    fail("site/citation.cff must match root CITATION.cff exactly");
+  }
+  for (const required of [
+    "cff-version: 1.2.0",
+    "message: \"If you use this research software artifact, cite it using the metadata in this file.\"",
+    "title: \"Wuci-Ji v2 — Aperture Bastion\"",
+    "type: software",
+    "name: \"No Such Machine\"",
+    "version: \"v2.0.0-aperture-bastion\"",
+    "date-released: \"2026-07-02\"",
+    "repository-code: \"https://github.com/chasebryan/-wuci-ji\"",
+    "url: \"https://nosuchmachine.net/\"",
+    "license: \"Apache-2.0\"",
+    "defensive research",
+    "public evidence",
+    "claim-bounded release",
+    "cryptographic research",
+    "high-assurance research",
+    "not production cryptography",
+    "not runtime sandboxing",
+    "not host-cleanliness proof",
+    "not whole-system post-quantum safety",
+    "not FIPS validation",
+    "not government validation",
+    "not external certification",
+    "not independent audit completion",
+    "not a perfect score claim from repository-owned evidence"
+  ]) {
+    if (!siteCitation.includes(required)) {
+      fail(`citation.cff is missing required citation marker: ${required}`);
+    }
+  }
+  for (const [label, pattern] of [
+    ["production-ready cryptography", /production-ready cryptography/],
+    ["runtime sandboxing guaranteed", /runtime sandboxing guaranteed/],
+    ["host cleanliness proof", /host cleanliness proof/],
+    ["post-quantum safe", /post-quantum safe\b/],
+    ["FIPS validated", /FIPS validated/],
+    ["government validated", /government validated/],
+    ["externally certified", /externally certified/],
+    ["independently audited by", /independently audited by/]
+  ]) {
+    if (pattern.test(siteCitation)) {
+      fail(`citation.cff contains unsupported release claim: ${label}`);
+    }
+  }
+}
+
+async function assertHostingRequirements() {
+  const requirements = await readJsonOrNull(new URL("hosting-requirements.json", siteRoot));
+  if (requirements === null) {
+    fail("site/hosting-requirements.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "wuci-site-hosting-requirements-v1",
+    project: "wuci-ji",
+    surface: "Wuci-Ji v2 — Aperture Bastion website",
+    canonical_origin: "https://nosuchmachine.net",
+    canonical_url: "https://nosuchmachine.net/",
+    checked_by: "make site-live-check"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (requirements[key] !== value) {
+      fail(`hosting-requirements.json ${key} does not match expected value`);
+    }
+  }
+
+  if (!Array.isArray(requirements.required_redirects)) {
+    fail("hosting-requirements.json required_redirects must be a list");
+  } else {
+    const redirectNames = new Set(requirements.required_redirects.map((entry) => entry.name));
+    for (const required of ["apex-http-to-https", "www-to-apex"]) {
+      if (!redirectNames.has(required)) {
+        fail(`hosting-requirements.json is missing redirect requirement: ${required}`);
+      }
+    }
+    for (const entry of requirements.required_redirects) {
+      if (!Array.isArray(entry.allowed_status) || !entry.allowed_status.includes(301) || !entry.allowed_status.includes(308)) {
+        fail(`hosting-requirements.json redirect ${entry.name} must allow 301 and 308`);
+      }
+      if (entry.target_prefix !== "https://nosuchmachine.net/") {
+        fail(`hosting-requirements.json redirect ${entry.name} has unexpected target_prefix`);
+      }
+    }
+  }
+
+  if (!Array.isArray(requirements.required_https_headers)) {
+    fail("hosting-requirements.json required_https_headers must be a list");
+  } else if (
+    !requirements.required_https_headers.some(
+      (entry) =>
+        entry.path === "/" &&
+        entry.header === "strict-transport-security" &&
+        entry.value_must_contain === "max-age="
+    )
+  ) {
+    fail("hosting-requirements.json must require Strict-Transport-Security max-age on /");
+  }
+
+  for (const required of [
+    "/",
+    "/llms.txt",
+    "/sitemap.xml",
+    "/.well-known/security.txt",
+    "/aperture-status.json",
+    "/daylight-status.json",
+    "/codemeta.json",
+    "/citation.cff",
+    "/hosting-requirements.json",
+    "/claim-evidence.json",
+    "/assets/wuci-ji-official-emblem.jpg",
+    "/assets/wuci-ji-v2-aperture-bastion.jpeg"
+  ]) {
+    if (!Array.isArray(requirements.required_public_paths) || !requirements.required_public_paths.includes(required)) {
+      fail(`hosting-requirements.json is missing public path: ${required}`);
+    }
+  }
+
+  const controls = JSON.stringify(requirements.deployment_controls || []);
+  for (const required of ["Enforce HTTPS enabled", "Always Use HTTPS enabled", "HTTP Strict Transport Security enabled"]) {
+    if (!controls.includes(required)) {
+      fail(`hosting-requirements.json is missing deploy control: ${required}`);
+    }
+  }
+  for (const required of [
+    "not host-cleanliness proof",
+    "not runtime sandboxing",
+    "not production cryptography",
+    "not external certification",
+    "not independent audit completion"
+  ]) {
+    if (!Array.isArray(requirements.non_claims) || !requirements.non_claims.includes(required)) {
+      fail(`hosting-requirements.json non_claims are missing ${required}`);
+    }
+  }
+}
+
+async function assertClaimEvidenceMap() {
+  const claimMap = await readJsonOrNull(new URL("claim-evidence.json", siteRoot));
+  if (claimMap === null) {
+    fail("site/claim-evidence.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "wuci-site-claim-evidence-v1",
+    project: "wuci-ji",
+    surface: "Wuci-Ji v2 — Aperture Bastion website",
+    canonical_url: "https://nosuchmachine.net/"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (claimMap[key] !== value) {
+      fail(`claim-evidence.json ${key} does not match expected value`);
+    }
+  }
+  for (const required of [
+    "make site-validate",
+    "make daylight-v19-aperture-bastion-ci",
+    "make daylight-public-artifact-firewall",
+    "make site-live-check"
+  ]) {
+    if (!Array.isArray(claimMap.primary_validation) || !claimMap.primary_validation.includes(required)) {
+      fail(`claim-evidence.json primary_validation is missing ${required}`);
+    }
+  }
+  if (!Array.isArray(claimMap.claims)) {
+    fail("claim-evidence.json claims must be a list");
+    return;
+  }
+  const claims = new Map(claimMap.claims.map((entry) => [entry.id, entry]));
+  for (const requiredId of [
+    "official-emblem",
+    "aperture-review-capsule",
+    "public-artifact-firewall",
+    "daylight-score-binding",
+    "read-only-public-meridian-surface",
+    "hosted-tls-requirements",
+    "research-discovery-metadata"
+  ]) {
+    if (!claims.has(requiredId)) {
+      fail(`claim-evidence.json is missing claim id: ${requiredId}`);
+    }
+  }
+  for (const claim of claimMap.claims) {
+    for (const key of ["public_claim", "status", "evidence_paths", "validation_commands", "does_not_prove"]) {
+      if (!(key in claim)) {
+        fail(`claim-evidence.json claim ${claim.id || "<missing-id>"} is missing ${key}`);
+      }
+    }
+    if (!Array.isArray(claim.evidence_paths) || claim.evidence_paths.length === 0) {
+      fail(`claim-evidence.json claim ${claim.id} must list evidence_paths`);
+    } else {
+      for (const evidencePath of claim.evidence_paths) {
+        if (!(await existsInRepo(evidencePath))) {
+          fail(`claim-evidence.json claim ${claim.id} references missing evidence path: ${evidencePath}`);
+        }
+      }
+    }
+    if (!Array.isArray(claim.validation_commands) || claim.validation_commands.length === 0) {
+      fail(`claim-evidence.json claim ${claim.id} must list validation_commands`);
+    }
+    if (!Array.isArray(claim.does_not_prove) || claim.does_not_prove.length === 0) {
+      fail(`claim-evidence.json claim ${claim.id} must state what it does not prove`);
+    }
+  }
+
+  const aperture = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
+  const daylight = await readJsonOrNull(new URL("daylight-status.json", siteRoot));
+  if (aperture === null || daylight === null) {
+    fail("claim-evidence.json cross-check requires aperture-status.json and daylight-status.json");
+    return;
+  }
+
+  const emblem = claims.get("official-emblem");
+  if (emblem?.evidence_values?.sha256 !== await sha256Hex("assets/wuci-ji-official-emblem.jpg")) {
+    fail("claim-evidence.json official-emblem sha256 must match asset bytes");
+  }
+  const apertureClaim = claims.get("aperture-review-capsule");
+  if (apertureClaim?.evidence_values?.release_tag !== aperture.release_tag) {
+    fail("claim-evidence.json Aperture release tag must match aperture-status.json");
+  }
+  if (apertureClaim?.evidence_values?.capsule_digest !== aperture.capsule_digest) {
+    fail("claim-evidence.json Aperture capsule digest must match aperture-status.json");
+  }
+  if (apertureClaim?.evidence_values?.firewall_profile_id !== aperture.firewall_profile_id) {
+    fail("claim-evidence.json Aperture firewall profile must match aperture-status.json");
+  }
+  const firewallClaim = claims.get("public-artifact-firewall");
+  if (firewallClaim?.evidence_values?.firewall_profile_digest !== aperture.firewall_profile_digest) {
+    fail("claim-evidence.json firewall digest must match aperture-status.json");
+  }
+  const scoreClaim = claims.get("daylight-score-binding");
+  if (scoreClaim?.evidence_values?.score_AM_plus !== daylight.score_AM_plus) {
+    fail("claim-evidence.json Daylight score must match daylight-status.json");
+  }
+  if (scoreClaim?.evidence_values?.scorecard_digest !== daylight.scorecard_digest) {
+    fail("claim-evidence.json Daylight scorecard digest must match daylight-status.json");
+  }
+  if (scoreClaim?.evidence_values?.declared !== daylight.declared) {
+    fail("claim-evidence.json Daylight declared flag must match daylight-status.json");
+  }
+  const hostClaim = claims.get("hosted-tls-requirements");
+  if (hostClaim?.evidence_values?.canonical_url !== "https://nosuchmachine.net/") {
+    fail("claim-evidence.json hosted TLS canonical URL must be https://nosuchmachine.net/");
+  }
+  if (
+    hostClaim?.evidence_values?.required_redirect_source_scheme !== "http" ||
+    hostClaim?.evidence_values?.required_redirect_source_host !== "nosuchmachine.net" ||
+    hostClaim?.evidence_values?.required_redirect_target_prefix !== "https://nosuchmachine.net/"
+  ) {
+    fail("claim-evidence.json hosted TLS redirect fields must target the HTTPS apex");
+  }
+  const researchClaim = claims.get("research-discovery-metadata");
+  if (!Array.isArray(researchClaim?.evidence_paths) || !researchClaim.evidence_paths.includes("CITATION.cff")) {
+    fail("claim-evidence.json research-discovery-metadata must reference root CITATION.cff");
+  }
+  if (!Array.isArray(researchClaim?.evidence_paths) || !researchClaim.evidence_paths.includes("site/citation.cff")) {
+    fail("claim-evidence.json research-discovery-metadata must reference site/citation.cff");
+  }
+  if (researchClaim?.evidence_values?.citation !== "https://nosuchmachine.net/citation.cff") {
+    fail("claim-evidence.json research-discovery-metadata citation URL must match public endpoint");
+  }
+  for (const required of aperture.non_claims) {
+    if (!Array.isArray(claimMap.non_claims) || !claimMap.non_claims.includes(required)) {
+      fail(`claim-evidence.json non_claims are missing ${required}`);
+    }
+  }
+}
+
 async function assertNoInsecurePublicUrls() {
   for (const file of [
     "index.html",
@@ -534,6 +958,10 @@ async function assertNoInsecurePublicUrls() {
     "robots.txt",
     "sitemap.xml",
     "site.webmanifest",
+    "codemeta.json",
+    "citation.cff",
+    "hosting-requirements.json",
+    "claim-evidence.json",
     "llms.txt",
     "humans.txt",
     "security.txt",
@@ -575,6 +1003,10 @@ await assertAssetSizes();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
 await assertPublicTextDiscovery();
+await assertResearchMetadata();
+await assertCitationMetadata();
+await assertHostingRequirements();
+await assertClaimEvidenceMap();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
 await assertApertureStatusBinding();

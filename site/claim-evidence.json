@@ -1,0 +1,189 @@
+{
+  "schema": "wuci-site-claim-evidence-v1",
+  "project": "wuci-ji",
+  "surface": "Wuci-Ji v2 — Aperture Bastion website",
+  "canonical_url": "https://nosuchmachine.net/",
+  "last_updated": "2026-07-02",
+  "purpose": "Map public website claims to the local evidence files and commands that can check them.",
+  "claim_boundary": "Every listed claim is repository-local or hosted-site evidence only; no listed claim is external certification, production cryptography, runtime containment, host-cleanliness proof, or independent audit completion.",
+  "primary_validation": [
+    "make site-validate",
+    "make daylight-v19-aperture-bastion-ci",
+    "make daylight-public-artifact-firewall",
+    "make site-live-check"
+  ],
+  "claims": [
+    {
+      "id": "official-emblem",
+      "public_claim": "The website publishes the official Wuci-Ji emblem asset.",
+      "status": "local-static-artifact",
+      "evidence_paths": [
+        "site/assets/wuci-ji-official-emblem.jpg",
+        "site/humans.txt",
+        "site/llms.txt"
+      ],
+      "evidence_values": {
+        "sha256": "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9"
+      },
+      "validation_commands": [
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "brand trademark registration",
+        "external certification"
+      ]
+    },
+    {
+      "id": "aperture-review-capsule",
+      "public_claim": "Aperture Bastion binds a public review capsule to subject bytes, public manifest data, and claim boundaries.",
+      "status": "release-evidence-bound",
+      "evidence_paths": [
+        "site/aperture-status.json",
+        "docs/WUCI_JI_V2_APERTURE_BASTION.md",
+        "docs/APERTURE_BASTION_PASS_REPORT.md"
+      ],
+      "evidence_values": {
+        "release_tag": "v2.0.0-aperture-bastion",
+        "capsule_digest": "9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0",
+        "firewall_profile_id": "aperture-bastion-public-v1"
+      },
+      "validation_commands": [
+        "make daylight-v19-aperture-bastion-ci"
+      ],
+      "does_not_prove": [
+        "production cryptography",
+        "runtime containment",
+        "external certification"
+      ]
+    },
+    {
+      "id": "public-artifact-firewall",
+      "public_claim": "The public artifact profile rejects private-material patterns and unexpected public files before release publication.",
+      "status": "release-evidence-bound",
+      "evidence_paths": [
+        "site/aperture-status.json",
+        "docs/APERTURE_BASTION_SECURITY_BOUNDARY.md",
+        "docs/APERTURE_BASTION_PASS_REPORT.md"
+      ],
+      "evidence_values": {
+        "firewall_profile_id": "aperture-bastion-public-v1",
+        "firewall_profile_digest": "d191c651b963806015e1c779fcf72ab7d84cac9c0090f5beeb38a108e3329878"
+      },
+      "validation_commands": [
+        "make daylight-public-artifact-firewall",
+        "make daylight-v19-aperture-bastion-firewall"
+      ],
+      "does_not_prove": [
+        "that an unknown secret matching no rule cannot pass",
+        "host cleanliness"
+      ]
+    },
+    {
+      "id": "daylight-score-binding",
+      "public_claim": "The displayed Daylight AM+ value is bound to committed v17 scorecard evidence and is not a declared perfect score.",
+      "status": "local-evidence-bound",
+      "evidence_paths": [
+        "site/daylight-status.json",
+        "daylight/v17-singularity/examples/current-scorecard.v17.json"
+      ],
+      "evidence_values": {
+        "score_AM_plus": 999999687,
+        "unit": "AM+",
+        "scorecard_digest": "6debccd2631146bead454d475789060d3aad50ef2d7b18b60d7960ce67bddd3d",
+        "declared": false
+      },
+      "validation_commands": [
+        "make site-daylight-status-check",
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "a perfect score",
+        "external validation",
+        "government validation"
+      ]
+    },
+    {
+      "id": "read-only-public-meridian-surface",
+      "public_claim": "The public website is a read-only review surface and does not ship browser file encryption, decryption, private-key handling, or file-opening controls.",
+      "status": "local-and-hosted-gated",
+      "evidence_paths": [
+        "site/index.html",
+        "site/app.js",
+        "site/validate.mjs",
+        "tools/site_live_check.py"
+      ],
+      "evidence_values": {
+        "required_marker": "No public browser encryptor, private-key handler, or file opener is shipped."
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make site-live-check"
+      ],
+      "does_not_prove": [
+        "runtime sandboxing",
+        "host cleanliness",
+        "absence of private material outside the static site artifact"
+      ]
+    },
+    {
+      "id": "hosted-tls-requirements",
+      "public_claim": "The hosted site is expected to serve the canonical HTTPS apex, redirect HTTP to HTTPS, redirect www to apex, and send HSTS.",
+      "status": "requirement-declared; hosted gate must pass after deployment",
+      "evidence_paths": [
+        "site/hosting-requirements.json",
+        "tools/site_live_check.py",
+        "docs/WEBSITE_DEPLOY.md"
+      ],
+      "evidence_values": {
+        "canonical_url": "https://nosuchmachine.net/",
+        "required_header": "strict-transport-security",
+        "required_redirect_source_scheme": "http",
+        "required_redirect_source_host": "nosuchmachine.net",
+        "required_redirect_target_prefix": "https://nosuchmachine.net/"
+      },
+      "validation_commands": [
+        "make site-live-check"
+      ],
+      "does_not_prove": [
+        "current hosted compliance until the live gate passes",
+        "server compromise resistance",
+        "independent hosting audit"
+      ]
+    },
+    {
+      "id": "research-discovery-metadata",
+      "public_claim": "The site publishes machine-readable research software metadata for crawlers, archival tools, and research agents.",
+      "status": "local-static-artifact",
+      "evidence_paths": [
+        "CITATION.cff",
+        "site/citation.cff",
+        "site/codemeta.json",
+        "site/llms.txt",
+        "site/sitemap.xml"
+      ],
+      "evidence_values": {
+        "codemeta_context": "https://w3id.org/codemeta/3.0",
+        "citation": "https://nosuchmachine.net/citation.cff",
+        "license": "https://spdx.org/licenses/Apache-2.0"
+      },
+      "validation_commands": [
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "third-party indexing",
+        "external endorsement"
+      ]
+    }
+  ],
+  "non_claims": [
+    "not production cryptography",
+    "not runtime sandboxing",
+    "not host-cleanliness proof",
+    "not whole-system post-quantum safety",
+    "not FIPS validation",
+    "not government validation",
+    "not external certification",
+    "not independent audit completion",
+    "not a perfect score claim from repository-owned evidence"
+  ]
+}

@@ -37,8 +37,9 @@ files cannot prove that hosted setting by themselves.
 
 `make site-live-check` is intentionally stricter than `make site-validate`: it
 checks the deployed public host and fails if HTTP still serves `200 OK`, HSTS is
-missing, discovery files are unavailable, or the official Wuci-Ji assets are
-not live.
+missing, discovery files, `codemeta.json`, `hosting-requirements.json`, or
+`claim-evidence.json` are unavailable, or the official Wuci-Ji assets are not
+live.
 
 `site/app.js` includes a browser-side fallback that redirects
 `http://nosuchmachine.net/` and `http://www.nosuchmachine.net/` visits to the
@@ -94,6 +95,9 @@ The static artifact includes:
 site/sitemap.xml
 site/robots.txt
 site/site.webmanifest
+site/codemeta.json
+site/hosting-requirements.json
+site/claim-evidence.json
 site/llms.txt
 site/humans.txt
 site/security.txt
@@ -104,8 +108,24 @@ site/daylight-status.json
 
 `site/index.html` carries canonical HTTPS metadata, Open Graph/Twitter image
 metadata, local microdata for the Wuci-Ji v2 Aperture Bastion source surface,
-and in-document CSP/referrer policy because GitHub Pages does not serve
-`_headers`.
+a CodeMeta JSON-LD pointer at `site/codemeta.json`, and in-document
+CSP/referrer policy because GitHub Pages does not serve `_headers`.
+
+`site/codemeta.json` is the machine-readable research software identity for
+crawlers, archival tools, and research agents. The site validator checks that
+it remains bound to the public repository, official imagery, Aperture capsule
+digest, firewall profile, local validation handles, Apache-2.0 license, and
+explicit non-claims.
+
+`site/hosting-requirements.json` is the machine-readable deployment contract for
+the public host. It states the canonical origin, required HTTP-to-HTTPS and
+`www` redirects, required HSTS header, required public metadata paths, and the
+host controls that must be enabled before `make site-live-check` can pass.
+
+`site/claim-evidence.json` maps each public website claim to the exact local
+evidence files, evidence values, validation commands, and non-claims that bound
+it. The validator cross-checks it against `site/aperture-status.json`,
+`site/daylight-status.json`, and the official emblem bytes.
 
 `site/_headers` additionally pins HSTS, CSP, plain-text content types, JSON
 content types, and cache policy for hosts that support static header files.
@@ -168,6 +188,9 @@ site/_redirects
 site/robots.txt
 site/sitemap.xml
 site/site.webmanifest
+site/codemeta.json
+site/hosting-requirements.json
+site/claim-evidence.json
 site/llms.txt
 site/humans.txt
 site/security.txt
