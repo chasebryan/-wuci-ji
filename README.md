@@ -105,6 +105,11 @@ non-destructive by default (originals kept). See
 make daylight-meridian-test
 make daylight-meridian-frontier
 make daylight-meridian-artifact
+make daylight-meridian-public-artifact
+make daylight-meridian-public-artifact-test
+make daylight-public-evidence-firewall-test
+make daylight-public-artifact-firewall
+make daylight-security-ratchet-test
 make daylight-meridian-perfect-demo
 make daylight-meridian-envelope-test
 make daylight-meridian-vault-demo
@@ -193,7 +198,10 @@ See [docs/WUCI_DAYLIGHT_V16_ANALEMMA.md](docs/WUCI_DAYLIGHT_V16_ANALEMMA.md).
 Daylight v17 Singularity under [daylight/v17-singularity/](daylight/v17-singularity/)
 is a deterministic residue-collapse research scoring layer. Its v17.1 Event
 Horizon kernel derives field closure from proof atoms and applies a weakest-field
-governor, so a strong field cannot average away a neglected one. It does not
+governor, so a strong field cannot average away a neglected one. The v17.2
+Cross-Verifier Horizon adds blocker diagnostics and verifier-output vectors.
+The v17.3 Triangulation Gate adds the first real independent Rust verifier
+vector while keeping agreement at `partial_2_of_3`, not declared. It does not
 replace Daylight v15/v16 and does not inflate the conservative Daylight M score.
 
 ```text
@@ -201,25 +209,117 @@ Omega_eff = max(0, min(Omega_sum, 5 * min_i Omega_i) - debts)
 S_AM+(t) = min(999999999, floor(10^9 * (1 - exp(-Omega_eff))))
 ```
 
-The declaration threshold is `Omega(t) >= ln(10^9)`. The maximum declaration is
+The declaration threshold is `Omega_eff(t) >= ln(10^9)`. The maximum declaration is
 `999,999,999 AM+`; `1,000,000,000 AM+` is mathematically reserved. The committed
 declaration fixture demonstrates the equation only and is marked
 `fixture: true`, `claim_usable: false`.
 
 ```sh
-make daylight-v17-singularity-score
-make daylight-v17-singularity-verify
-make daylight-v17-singularity-fixture-demo
-make daylight-v17-singularity-declaration-gate
-make daylight-v17-singularity-test
-make daylight-v17-singularity-doctor
+make daylight-v17-event-horizon-score
+make daylight-v17-event-horizon-verify
+make daylight-v17-event-horizon-fixture-demo
+make daylight-v17-event-horizon-fracture
+make daylight-v17-event-horizon-vector
+make daylight-v17-event-horizon-rust-vector
+make daylight-v17-event-horizon-triangulation
+make daylight-v17-event-horizon-agreement
+make daylight-v17-event-horizon-blockers
+make daylight-v17-event-horizon-declaration-gate
+make daylight-v17-event-horizon-test
+make daylight-v17-event-horizon-doctor
 ```
 
 Singularity is not production certification, not runtime containment evidence,
 not FIPS validation, not external certification, and not a whole-system
-post-quantum safety claim. The current declaration gate includes an in-repo
-agreement-vector check; independent Rust/Zig/Lean verifier lanes remain future
-work and are not claimed here.
+post-quantum safety claim. The current scorecard verifies but declaration-gate
+refuses by default because `omega_eff` is below threshold, the discrete score is
+below `999,999,999 AM+`, and real three-verifier agreement evidence is absent.
+
+## Daylight Horizon Alpha
+
+Daylight Horizon Alpha turns the score into a product control plane:
+artifacts, vault objects, and release capsules remain useful only while local
+Event Horizon evidence satisfies the sealed policy.
+
+```text
+No verified evidence -> no unlock
+No proof atoms -> no release
+No policy satisfaction -> no plaintext
+No valid horizon state -> no authority
+```
+
+The alpha product lives in `daylight/v17-singularity/src/horizon_*.py` and adds
+two user-facing modes:
+
+```sh
+python3 -m src.cli horizon-vault init
+python3 -m src.cli horizon-vault seal --in secret.txt --out secret.txt.dhv
+python3 -m src.cli horizon-vault open --in secret.txt.dhv --out secret.opened.txt
+python3 -m src.cli horizon-vault inspect --in secret.txt.dhv
+
+python3 -m src.cli horizon-release prepare --artifact dist.tar.gz --mode research
+python3 -m src.cli horizon-release verify --release dist.tar.gz.dhr
+python3 -m src.cli horizon-release gate --release dist.tar.gz.dhr
+```
+
+Focused targets:
+
+```sh
+make daylight-horizon-alpha-test
+make daylight-horizon-alpha-vault-demo
+make daylight-horizon-alpha-release-demo
+```
+
+Horizon Vault uses the repository's existing pure-stdlib RFC 8439 reference AEAD
+from Daylight v15 and binds the AEAD key to the regenerated v17 policy
+authorization tag. Horizon Release capsules bind an artifact digest, policy,
+scorecard digest, blocker vector, and non-claim boundary. Research release may
+pass under research policy; declaration and production release remain refused
+until the evidence actually earns them.
+
+Horizon Alpha is not production cryptography, not production release authority,
+not runtime containment evidence, not FIPS validation, not external
+certification, and not a whole-system post-quantum safety claim.
+
+## Daylight v18 Binaric Bastion
+
+Daylight v18 Binaric Bastion under
+[daylight/v18-bastion/](daylight/v18-bastion/) is the binary-measurement
+substrate for future Daylight control layers. v18.0 implements a deterministic
+Binaric Vector Format and v18.1 adds the Binaric Transition Ledger:
+
+```sh
+python3 -m src.cli measure --subject <path> --out <vector.json>
+python3 -m src.cli verify-vector <vector.json>
+python3 -m src.cli inspect-vector <vector.json>
+python3 -m src.cli transition-propose --before before.json --after after.json --reason "user-approved update" --out transition.unsigned.json
+python3 -m src.cli transition-sign --transition transition.unsigned.json --passphrase-env DAYLIGHT_BASTION_PASSPHRASE --out transition.signed.json
+python3 -m src.cli tamper-check --before before.json --after after.json --transition transition.signed.json --ledger transition-ledger.jsonl
+```
+
+Focused targets:
+
+```sh
+make daylight-v18-bastion-measure
+make daylight-v18-bastion-verify
+make daylight-v18-bastion-test
+make daylight-v18-bastion-transition-demo
+make daylight-v18-bastion-transition-test
+make daylight-v18-bastion-transition-ledger-verify
+```
+
+The vector records file SHA-256/SHA3-512, size, executable metadata,
+`whole_file` section digest, Event Horizon scorecard digest, policy digest,
+optional previous-vector/user-verification digests, and a canonical
+`vector_digest`. Tamper check now refuses binary, policy, or Event Horizon
+changes unless the exact before-to-after transition has a valid local user proof
+and appears in the transition ledger. A broken previous-vector chain always
+rejects.
+
+v18 is measurement and transition-authority first. It is not host cleanliness
+proof, not runtime containment, not production cryptography, not production
+identity, not FIPS validation, not external certification, and not whole-system
+post-quantum safety.
 
 ## System Shape
 

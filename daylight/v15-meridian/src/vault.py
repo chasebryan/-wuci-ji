@@ -77,12 +77,30 @@ def _write_private(path: Path, data: bytes) -> None:
     tmp = path.with_name(path.name + ".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     try:
-        os.write(fd, data)
+        view = memoryview(data)
+        while view:
+            written = os.write(fd, view)
+            view = view[written:]
         os.fsync(fd)
     finally:
         os.close(fd)
     os.chmod(tmp, 0o600)
     os.replace(tmp, path)
+
+
+def _read_private(path: Path) -> bytes:
+    """Read a private file without following a symlink placed at its path."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        chunks = []
+        while True:
+            chunk = os.read(fd, 65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        os.close(fd)
 
 
 def _safe_name(original: str) -> str:
@@ -136,9 +154,9 @@ class Vault:
             iters = int(self.config.get("kdf_iterations", KDF_ITERATIONS))
             return hashlib.pbkdf2_hmac("sha256", passphrase.encode("utf-8"), salt, iters, dklen=KEY_LEN)
         try:
-            text = self.key_path.read_text(encoding="utf-8").strip()
+            text = _read_private(self.key_path).decode("utf-8").strip()
         except OSError as exc:
-            raise VaultError(f"vault key is unreadable: {exc}") from exc
+            raise VaultError(f"vault key is unreadable (symlinked key files are refused): {exc}") from exc
         try:
             key = bytes.fromhex(text)
         except ValueError as exc:
@@ -155,8 +173,10 @@ class Vault:
         return json.loads(self.index_path.read_text(encoding="utf-8"))
 
     def _save_index(self, index: dict[str, Any]) -> None:
-        self.index_path.write_text(
-            json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+        # The index names every sealed entry; keep it private like the store.
+        _write_private(
+            self.index_path,
+            (json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"),
         )
 
     def entries(self) -> dict[str, Any]:
@@ -185,7 +205,9 @@ class Vault:
             "sealed_utc": _now(),
             "plaintext_bytes": len(plaintext),
             "envelope_bytes": len(envelope),
-            "sha256": hashlib.sha256(plaintext).hexdigest(),
+            # Hash the sealed envelope, not the plaintext: a plaintext digest in
+            # the index would let anyone who reads it confirm guessed contents.
+            "envelope_sha256": hashlib.sha256(envelope).hexdigest(),
         }
         if meta:
             record.update(meta)

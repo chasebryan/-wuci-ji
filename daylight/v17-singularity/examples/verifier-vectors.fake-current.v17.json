@@ -1,0 +1,53 @@
+{
+  "vectors": [
+    {
+      "collapse": false,
+      "declared": false,
+      "fields_digest": "28fa37a6e49b608c5a5e7e98a9fcf8f7db198c96fda907af83b92aa6ace13416",
+      "implementation_digest": "15146eca7408cfaa4a8743d4bd4036709b2b2efce572a822459348f7d44b1b90",
+      "implementation_family": "python-reference",
+      "omega_eff_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+      "omega_sum_decimal": "50.99356700244485033464998327624263570732464882023678272040965647603116413392389691769871654695066095",
+      "omega_weak_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+      "proof_atoms_digest": "6676ef968c22e7eb0530b66aa6ddd47026e87bf928e0d51c86471605eaf49612",
+      "residue_AM_plus": 313,
+      "score_AM_plus": 999999687,
+      "scorecard_predigest": "eccd4dbca510c17200f4f030c141c7c676b808fcd8c7596581bdafb9c713eaf6",
+      "state_digest": "3c71d6da221585dde199117c14006f81b47fcef8b5c97bf1d09a94125ef20d35",
+      "status": "singularity_candidate"
+    },
+    {
+      "collapse": false,
+      "declared": false,
+      "fields_digest": "28fa37a6e49b608c5a5e7e98a9fcf8f7db198c96fda907af83b92aa6ace13416",
+      "implementation_digest": "fake-duplicate-family-digest",
+      "implementation_family": "python-reference",
+      "omega_eff_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+      "omega_sum_decimal": "50.99356700244485033464998327624263570732464882023678272040965647603116413392389691769871654695066095",
+      "omega_weak_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+      "proof_atoms_digest": "6676ef968c22e7eb0530b66aa6ddd47026e87bf928e0d51c86471605eaf49612",
+      "residue_AM_plus": 313,
+      "score_AM_plus": 999999687,
+      "scorecard_predigest": "eccd4dbca510c17200f4f030c141c7c676b808fcd8c7596581bdafb9c713eaf6",
+      "state_digest": "3c71d6da221585dde199117c14006f81b47fcef8b5c97bf1d09a94125ef20d35",
+      "status": "singularity_candidate"
+    },
+    {
+      "collapse": false,
+      "declared": false,
+      "fields_digest": "28fa37a6e49b608c5a5e7e98a9fcf8f7db198c96fda907af83b92aa6ace13416",
+      "implementation_digest": "fake-mismatched-score-digest",
+      "implementation_family": "fake-zig-verifier",
+      "omega_eff_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+      "omega_sum_decimal": "50.99356700244485033464998327624263570732464882023678272040965647603116413392389691769871654695066095",
+      "omega_weak_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+      "proof_atoms_digest": "6676ef968c22e7eb0530b66aa6ddd47026e87bf928e0d51c86471605eaf49612",
+      "residue_AM_plus": 313,
+      "score_AM_plus": 999999686,
+      "scorecard_predigest": "a010239ba5d8d56d460e2c797c5c1116c7255b999507dc29a9374c1e659294e4",
+      "state_digest": "3c71d6da221585dde199117c14006f81b47fcef8b5c97bf1d09a94125ef20d35",
+      "status": "singularity_candidate"
+    }
+  ],
+  "version": "daylight-v17-cross-verifier-vectors-v0.1"
+}

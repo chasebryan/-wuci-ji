@@ -7,6 +7,9 @@ on:
       - wuci-kaiju-non-graphical-boot
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   daylight-cplus:
     runs-on: ubuntu-latest

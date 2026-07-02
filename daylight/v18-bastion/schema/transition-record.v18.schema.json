@@ -1,0 +1,94 @@
+{
+  "additionalProperties": false,
+  "description": "Daylight v18.1 Binaric Transition record shape. This schema is documentary; the stdlib verifier is authoritative.",
+  "properties": {
+    "accepted": {
+      "const": true
+    },
+    "after_vector_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "allowed_version_transition": {
+      "type": "boolean"
+    },
+    "before_vector_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "boundary": {
+      "type": "string"
+    },
+    "changed_fields": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "policy_change_authorized": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "transition_id": {
+      "type": "string"
+    },
+    "transition_version": {
+      "const": "daylight-v18-bastion-transition-v0.1"
+    },
+    "user_ceremony": {
+      "additionalProperties": false,
+      "properties": {
+        "ceremony_version": {
+          "const": "daylight-v18-bastion-user-ceremony-v0.1"
+        },
+        "challenge_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "iterations": {
+          "const": 200000
+        },
+        "kdf": {
+          "const": "pbkdf2-hmac-sha256"
+        },
+        "salt": {
+          "pattern": "^[0-9a-f]+$",
+          "type": "string"
+        },
+        "user_id_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ceremony_version",
+        "user_id_digest",
+        "challenge_digest",
+        "salt",
+        "kdf",
+        "iterations"
+      ],
+      "type": "object"
+    },
+    "user_proof": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "transition_version",
+    "transition_id",
+    "before_vector_digest",
+    "after_vector_digest",
+    "changed_fields",
+    "reason",
+    "user_ceremony",
+    "user_proof",
+    "accepted",
+    "boundary"
+  ],
+  "title": "Daylight v18.1 Binaric Transition Record",
+  "type": "object"
+}

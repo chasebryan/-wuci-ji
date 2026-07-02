@@ -8,6 +8,7 @@ node_modules/
 .tools/
 .wrangler/
 tools/wuci-pq-fips204-verify/target/
+daylight/v17-singularity/rust/event-horizon-verifier/target/
 docs/noxframe/WUCI_NOXFRAME_LAUNCH_REPORT.md
 docs/noxframe/WUCI_NOXFRAME_SELF_SEAL.json
 kali-linux-*.iso

@@ -7,6 +7,9 @@ on:
       - feature/daylight-v15-meridian-real-artifact
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   daylight-v15-meridian:
     runs-on: ubuntu-latest
@@ -33,10 +36,12 @@ jobs:
       - name: Meridian CI lane
         run: make daylight-meridian-ci
 
-      - name: Upload release artifact
-        if: always()
+      - name: Public evidence firewall
+        run: make daylight-public-artifact-firewall
+
+      - name: Upload public artifact
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
         with:
-          name: daylight-v15-meridian-artifact
-          path: build/daylight/v15-meridian/
-          if-no-files-found: warn
+          name: daylight-v15-meridian-public-artifact
+          path: build/daylight/v15-meridian-public/
+          if-no-files-found: error

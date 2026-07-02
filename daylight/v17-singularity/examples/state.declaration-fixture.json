@@ -1,32 +1,22 @@
 {
   "boundary": "fixture demonstration only; not external certification",
-  "boundary_claims": {
-    "external_certification_claim": false,
-    "production_allowed": false,
-    "runtime_containment_claim": false,
-    "whole_system_post_quantum_safety_claim": false
-  },
   "candidate": "daylight-v17-declaration-fixture",
   "claim_usable": false,
-  "collapse_flags": {
-    "forged_scorecard_accepted": false,
-    "implementation_disagreement": false,
-    "manual_score_accepted": false,
-    "manual_score_detected": false,
-    "opens_without_policy_evidence": false,
-    "parser_ambiguity": false,
-    "production_overclaim": false,
-    "runtime_containment_overclaim": false,
-    "severe_boundary_overclaim": false,
-    "unsigned_external_credit": false,
-    "whole_system_pq_overclaim": false
-  },
   "contradiction_debt": 0,
   "critical_break_debt": 0,
   "debt_uomega": 0,
+  "external_certification_claim": false,
   "fixture": true,
+  "forged_scorecard_accepted": false,
+  "manual_score_detected": false,
+  "opens_without_policy_evidence": false,
   "overclaim_debt_uomega": 0,
+  "production_allowed": false,
+  "runtime_containment_claim": false,
   "score_inflation_M": 0,
+  "severe_boundary_overclaim": false,
   "staleness_debt_uomega": 0,
-  "version": "daylight-v17-singularity-state-v0.1"
+  "verifier_outputs": [],
+  "version": "daylight-v17-event-horizon-state-v0.1",
+  "whole_system_post_quantum_safety_claim": false
 }

@@ -76,6 +76,6 @@
   "perfect_reserved": 1000000000,
   "scale": 1000000000,
   "unit": "AM+",
-  "version": "daylight-v17-singularity-fields-v0.1",
-  "weak_governor_kappa": 5
+  "kappa": 5,
+  "version": "daylight-v17-event-horizon-fields-v0.1"
 }

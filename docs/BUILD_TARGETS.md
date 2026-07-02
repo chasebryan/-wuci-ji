@@ -262,6 +262,34 @@ evidence, and fail-closed mutation tests. It is not production authority,
 integrated public authority, runtime containment, or whole-system
 post-quantum-safety evidence.
 
+## Daylight v18 Binaric Bastion
+
+Daylight v18 Binaric Bastion is the binary-measurement substrate under
+`daylight/v18-bastion`. v18.0 measures regular files into canonical Binaric
+Vectors, and v18.1 authorizes vector changes through a signed local user
+transition plus append-only transition ledger inclusion. It is not host
+cleanliness proof, runtime containment, production cryptography, production
+identity, FIPS validation, external certification, or whole-system
+post-quantum-safety evidence.
+
+```sh
+make daylight-v18-bastion-measure
+make daylight-v18-bastion-verify
+make daylight-v18-bastion-test
+make daylight-v18-bastion-transition-demo
+make daylight-v18-bastion-transition-test
+make daylight-v18-bastion-transition-ledger-verify
+```
+
+`daylight-v18-bastion-measure` regenerates
+`daylight/v18-bastion/examples/example-vector.v18.json` from the committed
+example subject. `daylight-v18-bastion-verify` verifies that vector against the
+current subject bytes. `daylight-v18-bastion-test` runs the v18 measurement,
+transition, tamper, no-float, path-safety, and CLI tests.
+`daylight-v18-bastion-transition-demo` proves tamper rejects without a signed
+and ledgered transition, then accepts the fixture transition. The fixture
+passphrase is demonstration-only and not production security.
+
 `daylight-v6-reference-negative-corpus-test` checks the Rust Daylight v6
 reference negative corpus in
 `daylight-equation/rust/daylight-crypto/vectors/daylight-v6-reference-negative-corpus-v1.txt`.
@@ -420,13 +448,27 @@ make daylight-meridian-test            # full package suite (scoring + AEAD vect
 make daylight-meridian-verify          # regenerate + evidence-bound verify the example scorecard
 make daylight-meridian-frontier        # print internal ceiling, residue, and external frontier
 make daylight-meridian-perfect-demo    # demonstrate 1,000,000M from external-attestation fixtures
-make daylight-meridian-artifact        # write build/daylight/v15-meridian/ (scorecard, receipt, frontier, manifest, SHA256SUMS)
+make daylight-meridian-artifact        # write build/daylight/v15-meridian-public/ (scorecard, receipt, frontier, manifest, SHA256SUMS)
+make daylight-meridian-public-artifact # stage the exact public evidence upload profile and guard it
+make daylight-meridian-public-artifact-test # regression test: no keys/plaintext/private envelopes in public evidence
+make daylight-public-evidence-firewall-test # recreate private-material fixtures and require rejection
+make daylight-public-artifact-firewall # scan public artifact, verify manifest, and check upload workflows
+make daylight-security-ratchet-test    # fail if public evidence invariants are removed
 make daylight-meridian-envelope-test   # RFC 8439/5869 AEAD vectors + envelope fail-closed matrix
 make daylight-meridian-envelope-demo   # seal -> inspect -> open the committed Meridian Authorized Envelope
 make daylight-meridian-smoke           # CLI smoke checks (incl. seal/open)
 make daylight-meridian-package         # offline package metadata + entrypoint check
 make daylight-meridian-ci              # test + smoke + artifact (GitHub Actions lane)
 ```
+
+Private work products and public evidence do not share a publish root:
+`build/daylight/v15-meridian-private/` contains smoke and vault work, while
+`build/daylight/v15-meridian-public/` contains only uploadable public evidence.
+CI uploads only the public root after
+`tools/daylight_public_evidence_firewall.py` scans it, verifies the manifest,
+and checks upload workflows. Vault keys, plaintext secrets, opened plaintext,
+vault stores, plaintext hash oracles, and private sealed envelopes reject before
+upload.
 
 The Meridian Authorized Envelope (`seal`/`open`/`envelope-inspect`) encrypts with
 a vector-checked RFC 8439 ChaCha20-Poly1305 AEAD gated by evidence-derived
@@ -442,24 +484,69 @@ needs no assembler, linker, or Zig.
 Daylight v17 Singularity is the deterministic residue-collapse research scoring
 layer under `daylight/v17-singularity`. The v17.1 Event Horizon kernel computes
 AM+ from committed proof atoms, integer micro-omega debt, weakest-field
-governance, and canonical digests. It
+governance, and canonical digests. The v17.2 Cross-Verifier Horizon adds
+blocker-vector diagnostics and verifier-output agreement checks. The v17.3
+Triangulation Gate adds the first independent Rust verifier vector while
+keeping quorum fail-closed at `partial_2_of_3`. It
 does not modify Daylight v15/v16 M scores and does not claim production
 certification, runtime containment, FIPS validation, external certification, or
 whole-system post-quantum safety.
 
 ```sh
-make daylight-v17-singularity-test
-make daylight-v17-singularity-score
-make daylight-v17-singularity-fixture-demo
-make daylight-v17-singularity-declaration-gate
+make daylight-v17-event-horizon-test
+make daylight-v17-event-horizon-score
+make daylight-v17-event-horizon-fixture-demo
+make daylight-v17-event-horizon-fracture
+make daylight-v17-event-horizon-vector
+make daylight-v17-event-horizon-rust-vector
+make daylight-v17-event-horizon-rust-test
+make daylight-v17-event-horizon-triangulation
+make daylight-v17-event-horizon-agreement
+make daylight-v17-event-horizon-blockers
+make daylight-v17-event-horizon-frontier
+make daylight-v17-event-horizon-declaration-gate
+make daylight-horizon-alpha-test
+make daylight-horizon-alpha-vault-demo
+make daylight-horizon-alpha-release-demo
 ```
 
-`daylight-v17-singularity-score` regenerates the committed baseline scorecard.
-`daylight-v17-singularity-fixture-demo` regenerates the declaration fixture,
+`daylight-v17-event-horizon-score` regenerates the committed current scorecard.
+`daylight-v17-event-horizon-fixture-demo` regenerates the declaration fixture,
 which reaches `999,999,999 AM+` only as a math fixture with `fixture=true` and
 `claim_usable=false`.
-`daylight-v17-singularity-declaration-gate` runs the Event Horizon checks:
+`daylight-v17-event-horizon-declaration-gate` runs the Event Horizon checks:
 proof-atom verification, weakest-field scoring, scorecard digest verification,
-fracture mutations, in-repo agreement-vector checks, and open-critical-break
-refusal. Independent Rust/Zig/Lean verifier lanes are not claimed by this
-target.
+fracture mutations, and the cross-verifier data-model gate. It is expected to
+refuse the committed current scorecard until real three-verifier agreement
+evidence exists. Independent Rust/Zig/Lean verifier lanes are not claimed by
+this target.
+
+`daylight-v17-event-horizon-vector` regenerates the Python reference verifier
+vector. `daylight-v17-event-horizon-rust-vector` regenerates the independent
+Rust verifier vector. `daylight-v17-event-horizon-triangulation` proves the
+Python+Rust bundle is only `partial_2_of_3`, then reports the current blockers.
+`daylight-v17-event-horizon-agreement` expects the partial bundle to fail full
+agreement. `daylight-v17-event-horizon-frontier` lists weakest fields and open
+proof atoms. `daylight-v17-event-horizon-blockers` reports all current
+declaration blockers without converting refusal into a failed Make target.
+
+## Daylight Horizon Alpha
+
+Daylight Horizon Alpha is the product layer over v17: evidence-gated vault and
+release control. It uses Event Horizon scorecards as policy input and enforces:
+no policy satisfaction means no plaintext or release gate.
+
+```sh
+make daylight-horizon-alpha-test
+make daylight-horizon-alpha-vault-demo
+make daylight-horizon-alpha-release-demo
+```
+
+`daylight-horizon-alpha-test` runs the policy, vault, and release gate tests.
+`daylight-horizon-alpha-vault-demo` initializes a local alpha vault, seals a
+file, keylessly inspects the `.dhv` object, opens it under current evidence, and
+compares the plaintext. `daylight-horizon-alpha-release-demo` prepares,
+verifies, and gates a research `.dhr` release capsule. Research pass is not
+production authority, not production cryptography, not runtime containment, not
+FIPS validation, not external certification, and not whole-system
+post-quantum-safety evidence.

@@ -65,7 +65,23 @@ class VaultTests(unittest.TestCase):
         record = v.seal_file(src)
         self.assertTrue(src.is_file(), "original kept by default")
         self.assertTrue((self.root / "store" / f"{record['name']}.mae").is_file())
+        self.assertNotIn("sha256", record)
+        self.assertIn("envelope_sha256", record)
+        self.assertEqual(os.stat(self.root / "index.json").st_mode & 0o777, 0o600)
         self.assertEqual(v.open_bytes(record["name"]), b"top secret payload")
+
+    def test_vault_key_symlink_rejected(self) -> None:
+        self._init()
+        key_path = self.root / "vault.key"
+        key_copy = self.root / "vault.key.copy"
+        key_copy.write_bytes(key_path.read_bytes())
+        key_path.unlink()
+        try:
+            key_path.symlink_to(key_copy)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink unavailable")
+        with self.assertRaises(vault.VaultError):
+            vault.Vault(self.root).caller_key()
 
     def test_seal_remove_original_then_restore(self) -> None:
         self._init()

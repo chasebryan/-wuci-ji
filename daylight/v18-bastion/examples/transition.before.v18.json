@@ -1,0 +1,28 @@
+{
+  "dependency_digests": [],
+  "event_horizon_scorecard_digest": "6debccd2631146bead454d475789060d3aad50ef2d7b18b60d7960ce67bddd3d",
+  "executable_metadata": {
+    "executable_bit": false,
+    "format": "opaque-binary",
+    "host_trust_level": "H0-untrusted-host",
+    "mode_octal": "0644",
+    "runtime_containment_claim": false
+  },
+  "file_sha256": "f78a08b7d4ed430ac53e3a0a527b5de161d02bf025add3523a984e3d12a5413a",
+  "file_sha3_512": "7464613158e088797df469199989b726b7f5a84991355454df94dab8b3a58294bc7eefc624b41adf9ecb70a20c8832a527ae3d7060b518016c677eeb2f932220",
+  "policy_digest": "7e7882476c7f610f6f2392d707cb7a3574f41c14e2ddf5ff3cec05b1251c91b8",
+  "section_digests": [
+    {
+      "id": "whole_file",
+      "offset": 0,
+      "sha256": "f78a08b7d4ed430ac53e3a0a527b5de161d02bf025add3523a984e3d12a5413a",
+      "sha3_512": "7464613158e088797df469199989b726b7f5a84991355454df94dab8b3a58294bc7eefc624b41adf9ecb70a20c8832a527ae3d7060b518016c677eeb2f932220",
+      "size_bytes": 41
+    }
+  ],
+  "size_bytes": 41,
+  "subject_kind": "file",
+  "subject_path_normalized": "daylight/v18-bastion/examples/transition-subject.before.bin",
+  "vector_digest": "c4fcf1cfc1dc799ad7a41155eeab147b24af623c23a081f031a10f357978eb0b",
+  "version": "daylight-v18-binaric-vector-v0.1"
+}

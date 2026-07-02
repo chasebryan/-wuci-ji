@@ -1,4 +1,4 @@
-"""Daylight v17 Singularity field registry validation."""
+"""Daylight v17.1 Event Horizon field registry validation."""
 
 from __future__ import annotations
 
@@ -6,21 +6,23 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-from .canonical_json import canonical_sha256, load_json_no_floats, reject_python_floats
+from .canonical_json import canonical_sha256, load_json_no_floats, reject_floats_recursive
 from .singularity_math import (
     B,
     DECLARATION_TARGET_AM_PLUS,
     EPSILON_DENOMINATOR,
+    KAPPA,
     PERFECT_RESERVED_AM_PLUS,
     UNIT,
+    parse_rational,
     parse_rational_alpha,
 )
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FIELDS_PATH = PACKAGE_ROOT / "rules" / "fields.v17.json"
-D_FIELDS = "DAYLIGHT-v17-SINGULARITY-FIELDS:"
-FIELDS_VERSION = "daylight-v17-singularity-fields-v0.1"
+D_FIELDS = "DAYLIGHT-v17-EVENT-HORIZON-FIELDS:"
+FIELDS_VERSION = "daylight-v17-event-horizon-fields-v0.1"
 FIELD_IDS = [f"F{index}" for index in range(1, 11)]
 FIELD_NAMES = [
     "ClaimClosure",
@@ -61,9 +63,9 @@ def load_fields_registry(path: Path | str = DEFAULT_FIELDS_PATH) -> dict[str, An
 
 
 def validate_fields_registry(registry: dict[str, Any]) -> None:
-    reject_python_floats(registry, "fields_registry")
+    reject_floats_recursive(registry, "fields_registry")
     if registry.get("version") != FIELDS_VERSION:
-        raise RegistryError("unsupported Daylight v17 field registry version")
+        raise RegistryError("unsupported Daylight v17.1 field registry version")
     if registry.get("unit") != UNIT:
         raise RegistryError("field registry unit mismatch")
     if registry.get("scale") != B:
@@ -74,8 +76,8 @@ def validate_fields_registry(registry: dict[str, Any]) -> None:
         raise RegistryError("field registry declaration target mismatch")
     if registry.get("epsilon_denominator") != EPSILON_DENOMINATOR:
         raise RegistryError("field registry epsilon denominator mismatch")
-    if registry.get("weak_governor_kappa") != 5:
-        raise RegistryError("field registry weak governor kappa must be 5")
+    if registry.get("kappa", registry.get("weak_governor_kappa")) != KAPPA:
+        raise RegistryError("field registry kappa must be 5")
     fields = registry.get("fields")
     if not isinstance(fields, list) or len(fields) != 10:
         raise RegistryError("field registry must contain exactly ten fields")
@@ -87,6 +89,7 @@ def validate_fields_registry(registry: dict[str, Any]) -> None:
         expected_id = FIELD_IDS[index]
         expected_name = FIELD_NAMES[index]
         expected_alpha = EXPECTED_ALPHA[index]
+        expected_threshold = EXPECTED_THRESHOLDS[index]
         if field.get("id") != expected_id:
             raise RegistryError(f"field {index + 1} id must be {expected_id}")
         if field.get("name") != expected_name:
@@ -96,10 +99,10 @@ def validate_fields_registry(registry: dict[str, Any]) -> None:
         seen.add(field["id"])
         if field.get("alpha") != expected_alpha:
             raise RegistryError(f"{expected_id} alpha must be {expected_alpha}")
-        if field.get("threshold") != EXPECTED_THRESHOLDS[index]:
-            raise RegistryError(f"{expected_id} threshold must be {EXPECTED_THRESHOLDS[index]}")
+        if field.get("threshold") != expected_threshold:
+            raise RegistryError(f"{expected_id} threshold must be {expected_threshold}")
         alpha_sum += parse_rational_alpha(field.get("alpha"))
-        parse_rational_alpha(field.get("threshold"))
+        parse_rational(field.get("threshold"), "field threshold")
         if not isinstance(field.get("description"), str) or not field["description"]:
             raise RegistryError(f"{expected_id} requires a description")
     if alpha_sum != EXPECTED_ALPHA_SUM:
@@ -115,11 +118,14 @@ def alpha_sum(registry: dict[str, Any]) -> Fraction:
 
 
 def proof_registry_digest(registry: dict[str, Any]) -> str:
+    return fields_digest(registry)
+
+
+def fields_digest(registry: dict[str, Any]) -> str:
     validate_fields_registry(registry)
     return canonical_sha256(registry, D_FIELDS)
 
 
 def field_thresholds(registry: dict[str, Any]) -> dict[str, Fraction]:
     validate_fields_registry(registry)
-    return {field["id"]: parse_rational_alpha(field["threshold"]) for field in registry["fields"]}
-
+    return {field["id"]: parse_rational(field["threshold"], "field threshold") for field in registry["fields"]}

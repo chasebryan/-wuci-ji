@@ -61,6 +61,9 @@ HARDEN_TRUSTED_BIN_SHA256 ?=
 HARDEN_STRICT ?= 1
 WUCI_SBOM ?= build/wuci-sbom.json
 WUCI_PROVENANCE ?= build/wuci-provenance.json
+DAYLIGHT_MERIDIAN_PRIVATE_DIR ?= build/daylight/v15-meridian-private
+DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR ?= build/daylight/v15-meridian-public
+DAYLIGHT_MERIDIAN_ARTIFACT_DIR ?= $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
@@ -121,12 +124,15 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: noxframe-launch noxframe-launch-test noxframe-self-release black-ice-launch black-ice-launch-test
 .PHONY: wuci-kaiju-test wuci-os-test
 .PHONY: daylight-cplus-test daylight-cplus-score daylight-cplus-verify daylight-cplus-corpus
-.PHONY: daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci daylight-meridian-envelope-demo daylight-meridian-envelope-test daylight-meridian-vault-test daylight-meridian-vault-demo
+.PHONY: daylight-public-evidence-firewall-test daylight-public-artifact-firewall daylight-private-material-regression-test daylight-security-ratchet-test daylight-meridian-test daylight-meridian-score daylight-meridian-verify daylight-meridian-corpus daylight-meridian-frontier daylight-meridian-perfect-demo daylight-meridian-artifact daylight-meridian-public-artifact daylight-meridian-public-artifact-test daylight-meridian-package daylight-meridian-smoke daylight-meridian-ci daylight-meridian-envelope-demo daylight-meridian-envelope-test daylight-meridian-vault-test daylight-meridian-vault-demo
 .PHONY: daylight-solstice-score daylight-solstice-verify daylight-solstice-artifact daylight-solstice-frontier daylight-solstice-external-demo daylight-solstice-test daylight-solstice-ci
 .PHONY: daylight-zenith-verify daylight-zenith-report daylight-zenith-test daylight-zenith-ci
 .PHONY: daylight-analemma-verify daylight-analemma-report daylight-analemma-test daylight-analemma-ci
 .PHONY: daylight-v16-awe-test
+.PHONY: daylight-v17-event-horizon-score daylight-v17-event-horizon-verify daylight-v17-event-horizon-test daylight-v17-event-horizon-doctor daylight-v17-event-horizon-fracture daylight-v17-event-horizon-declaration-gate daylight-v17-event-horizon-fixture-demo daylight-v17-event-horizon-vector daylight-v17-event-horizon-rust-vector daylight-v17-event-horizon-rust-test daylight-v17-event-horizon-triangulation daylight-v17-event-horizon-agreement daylight-v17-event-horizon-blockers daylight-v17-event-horizon-frontier
 .PHONY: daylight-v17-singularity-score daylight-v17-singularity-verify daylight-v17-singularity-test daylight-v17-singularity-doctor daylight-v17-singularity-fixture-demo daylight-v17-singularity-declaration-gate
+.PHONY: daylight-horizon-alpha-test daylight-horizon-alpha-vault-demo daylight-horizon-alpha-release-demo
+.PHONY: daylight-v18-bastion-measure daylight-v18-bastion-verify daylight-v18-bastion-test daylight-v18-bastion-transition-demo daylight-v18-bastion-transition-test daylight-v18-bastion-transition-ledger-verify
 
 all: check-native $(TARGET)
 
@@ -162,7 +168,29 @@ daylight-meridian-test: daylight-meridian-verify
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest discover -s daylight/v15-meridian/tests -t daylight/v15-meridian
 
 daylight-meridian-artifact:
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli artifact --out-dir build/daylight/v15-meridian --command-label "make daylight-meridian-artifact"
+	rm -rf $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
+	mkdir -p $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli artifact --out-dir $(DAYLIGHT_MERIDIAN_ARTIFACT_DIR) --command-label "make daylight-meridian-artifact"
+	$(PYTHON) tools/daylight_public_evidence_firewall.py scan $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR) --profile daylight-v15-meridian-public
+	$(PYTHON) tools/daylight_public_evidence_firewall.py verify-manifest $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)/artifact-manifest.json --root $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
+
+daylight-meridian-public-artifact: daylight-meridian-artifact
+	$(PYTHON) tools/daylight_public_evidence_firewall.py scan $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR) --profile daylight-v15-meridian-public
+
+daylight-public-evidence-firewall-test:
+	$(PYTHON) tests/daylight_public_evidence_firewall.py
+
+daylight-security-ratchet-test:
+	$(PYTHON) tests/daylight_security_ratchet.py
+
+daylight-public-artifact-firewall: daylight-meridian-public-artifact
+	$(PYTHON) tools/daylight_public_evidence_firewall.py scan $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR) --profile daylight-v15-meridian-public
+	$(PYTHON) tools/daylight_public_evidence_firewall.py verify-manifest $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)/artifact-manifest.json --root $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
+	@for workflow in .github/workflows/*.yml; do $(PYTHON) tools/daylight_public_evidence_firewall.py check-workflow $$workflow; done
+
+daylight-private-material-regression-test: daylight-public-evidence-firewall-test daylight-security-ratchet-test
+
+daylight-meridian-public-artifact-test: daylight-public-artifact-firewall daylight-private-material-regression-test
 
 daylight-meridian-smoke:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli --version
@@ -173,22 +201,22 @@ daylight-meridian-smoke:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli attestation-template --obligation-id o.q7.external_red_team --signer-id ext:red-team >/dev/null
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli explain --scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json >/dev/null
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli gate --scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json --ledger daylight/v15-meridian/examples/ledger.seed.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --min-score 998900 --require-no-open-internal --allow-external-residue
-	mkdir -p build/daylight/v15-meridian
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --message "meridian smoke" --nonce 000000000000000000000000 --out build/daylight/v15-meridian/smoke.mae
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in build/daylight/v15-meridian/smoke.mae >/dev/null
-	rm -rf build/daylight/v15-meridian/smoke-vault
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault init --vault build/daylight/v15-meridian/smoke-vault --force
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault status --vault build/daylight/v15-meridian/smoke-vault >/dev/null
-	printf 'smoke\n' > build/daylight/v15-meridian/smoke-secret.txt
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault seal --vault build/daylight/v15-meridian/smoke-vault build/daylight/v15-meridian/smoke-secret.txt --name smoke
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault open --vault build/daylight/v15-meridian/smoke-vault smoke --out build/daylight/v15-meridian/smoke-secret.out
-	cmp build/daylight/v15-meridian/smoke-secret.txt build/daylight/v15-meridian/smoke-secret.out
+	mkdir -p $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --message "meridian smoke" --nonce 000000000000000000000000 --out $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke.mae
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke.mae >/dev/null
+	rm -rf $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-vault
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault init --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-vault --force
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault status --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-vault >/dev/null
+	printf 'smoke\n' > $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-secret.txt
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault seal --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-secret.txt --name smoke
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault open --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-vault smoke --out $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-secret.out
+	cmp $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-secret.txt $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/smoke-secret.out
 
 daylight-meridian-envelope-demo:
-	mkdir -p build/daylight/v15-meridian
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --require-closed o.q1.master_law_executable o.q4.fail_closed_tests --message "Daylight v15 Meridian: sealed by evidence, opened by proof." --nonce 000000000000000000000000 --out build/daylight/v15-meridian/demo.mae
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli envelope-inspect --in build/daylight/v15-meridian/demo.mae
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in build/daylight/v15-meridian/demo.mae
+	mkdir -p $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli seal --keyfile daylight/v15-meridian/examples/demo.key --min-score 998900 --require-closed o.q1.master_law_executable o.q4.fail_closed_tests --message "Daylight v15 Meridian: sealed by evidence, opened by proof." --nonce 000000000000000000000000 --out $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/demo.mae
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli envelope-inspect --in $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/demo.mae
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli open --keyfile daylight/v15-meridian/examples/demo.key --in $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/demo.mae
 
 daylight-meridian-envelope-test:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest tests.test_aead_vectors tests.test_envelope
@@ -197,15 +225,15 @@ daylight-meridian-vault-test:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m unittest tests.test_vault
 
 daylight-meridian-vault-demo:
-	rm -rf build/daylight/v15-meridian/vault build/daylight/v15-meridian/vault-work
-	mkdir -p build/daylight/v15-meridian/vault-work
-	printf 'meridian vault demo: sealed by evidence, opened by proof.\n' > build/daylight/v15-meridian/vault-work/secret.txt
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault init --vault build/daylight/v15-meridian/vault --force
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault status --vault build/daylight/v15-meridian/vault
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault seal --vault build/daylight/v15-meridian/vault build/daylight/v15-meridian/vault-work/secret.txt --name demo
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault list --vault build/daylight/v15-meridian/vault
-	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault open --vault build/daylight/v15-meridian/vault demo --out build/daylight/v15-meridian/vault-work/secret.out
-	cmp build/daylight/v15-meridian/vault-work/secret.txt build/daylight/v15-meridian/vault-work/secret.out
+	rm -rf $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work
+	mkdir -p $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work
+	printf 'meridian vault demo: sealed by evidence, opened by proof.\n' > $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work/secret.txt
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault init --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault --force
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault status --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault seal --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work/secret.txt --name demo
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault list --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault
+	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli vault open --vault $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault demo --out $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work/secret.out
+	cmp $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work/secret.txt $(DAYLIGHT_MERIDIAN_PRIVATE_DIR)/vault-work/secret.out
 	@echo "daylight-meridian-vault-demo: evidence-gated roundtrip OK"
 
 daylight-meridian-package:
@@ -213,7 +241,7 @@ daylight-meridian-package:
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli --version
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli doctor
 
-daylight-meridian-ci: daylight-meridian-test daylight-meridian-smoke daylight-meridian-vault-demo daylight-meridian-artifact
+daylight-meridian-ci: daylight-meridian-test daylight-meridian-smoke daylight-meridian-vault-demo daylight-public-artifact-firewall daylight-meridian-public-artifact-test
 	@echo "daylight-meridian-ci: complete"
 
 daylight-solstice-score:
@@ -266,26 +294,101 @@ daylight-analemma-ci: daylight-analemma-verify daylight-analemma-report daylight
 daylight-v16-awe-test:
 	PYTHONPATH=daylight/v16-analemma-crypto $(PYTHON) -m unittest discover -s daylight/v16-analemma-crypto/tests -t daylight/v16-analemma-crypto
 
-daylight-v17-singularity-score:
-	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli score --state daylight/v17-singularity/examples/state.baseline.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --out daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json --format text
-	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli score --state daylight/v17-singularity/examples/state.baseline.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --out daylight/v17-singularity/examples/current-scorecard.v17.json --format text
+daylight-v17-event-horizon-score:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli score --state daylight/v17-singularity/examples/state.current.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --out daylight/v17-singularity/examples/expected-scorecard.current.v17.json --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli score --state daylight/v17-singularity/examples/state.current.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --out daylight/v17-singularity/examples/current-scorecard.v17.json --format text
 
-daylight-v17-singularity-verify:
-	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json --state daylight/v17-singularity/examples/state.baseline.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
-	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/current-scorecard.v17.json --state daylight/v17-singularity/examples/state.baseline.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
+daylight-v17-event-horizon-verify:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/expected-scorecard.current.v17.json --state daylight/v17-singularity/examples/state.current.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
 
-daylight-v17-singularity-doctor:
+daylight-v17-event-horizon-doctor:
 	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli doctor --format text
 
-daylight-v17-singularity-fixture-demo:
+daylight-v17-event-horizon-fracture:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli fracture --state daylight/v17-singularity/examples/state.current.json --format text
+
+daylight-v17-event-horizon-vector:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli vector --state daylight/v17-singularity/examples/state.current.json --out daylight/v17-singularity/examples/verifier-vector.python-reference.current.v17.json --format text
+
+daylight-v17-event-horizon-rust-vector:
+	$(CARGO) run --quiet --manifest-path daylight/v17-singularity/rust/event-horizon-verifier/Cargo.toml -- --out daylight/v17-singularity/examples/verifier-vector.rust-current.v17.json
+
+daylight-v17-event-horizon-rust-test:
+	$(CARGO) test --quiet --manifest-path daylight/v17-singularity/rust/event-horizon-verifier/Cargo.toml
+
+daylight-v17-event-horizon-agreement:
+	! PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli agreement --state daylight/v17-singularity/examples/state.current.json --vectors daylight/v17-singularity/examples/verifier-vectors.python-rust-current.v17.json --format text
+
+daylight-v17-event-horizon-triangulation: daylight-v17-event-horizon-rust-test daylight-v17-event-horizon-rust-vector daylight-v17-event-horizon-vector
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -c "from pathlib import Path; from src.canonical_json import json_bytes, load_json_no_floats; from src import verifier_vector; root=Path('daylight/v17-singularity'); payload={'version': verifier_vector.VECTOR_BUNDLE_VERSION, 'vectors':[load_json_no_floats(root/'examples/verifier-vector.python-reference.current.v17.json'), load_json_no_floats(root/'examples/verifier-vector.rust-current.v17.json')]}; (root/'examples/verifier-vectors.python-rust-current.v17.json').write_bytes(json_bytes(payload))"
+	! PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli agreement --state daylight/v17-singularity/examples/state.current.json --vectors daylight/v17-singularity/examples/verifier-vectors.python-rust-current.v17.json --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli blockers --scorecard daylight/v17-singularity/examples/expected-scorecard.current.v17.json --state daylight/v17-singularity/examples/state.current.json --format text
+
+daylight-v17-event-horizon-blockers:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli blockers --scorecard daylight/v17-singularity/examples/expected-scorecard.current.v17.json --state daylight/v17-singularity/examples/state.current.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
+
+daylight-v17-event-horizon-frontier:
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli frontier --state daylight/v17-singularity/examples/state.current.json --format text
+
+daylight-v17-event-horizon-fixture-demo:
 	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli fixture-demo --state daylight/v17-singularity/examples/state.declaration-fixture.json --out daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json --format text
-	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json --state daylight/v17-singularity/examples/state.declaration-fixture.json --atoms daylight/v17-singularity/examples/proof-atoms.declaration-fixture.v17.json --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli verify-scorecard daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json --state daylight/v17-singularity/examples/state.declaration-fixture.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
+	! PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli declaration-gate --scorecard daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json --state daylight/v17-singularity/examples/state.declaration-fixture.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
 
-daylight-v17-singularity-declaration-gate:
-	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli declaration-gate --state daylight/v17-singularity/examples/state.baseline.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --open-breaks daylight/v17-singularity/falsification/open-breaks.jsonl --format text
+daylight-v17-event-horizon-declaration-gate:
+	! PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli declaration-gate --scorecard daylight/v17-singularity/examples/expected-scorecard.current.v17.json --state daylight/v17-singularity/examples/state.current.json --atoms daylight/v17-singularity/rules/proof-atoms.v17.json --format text
 
-daylight-v17-singularity-test:
+daylight-v17-event-horizon-test:
 	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m unittest discover -s daylight/v17-singularity/tests -t daylight/v17-singularity
+
+daylight-v17-singularity-score: daylight-v17-event-horizon-score
+daylight-v17-singularity-verify: daylight-v17-event-horizon-verify
+daylight-v17-singularity-doctor: daylight-v17-event-horizon-doctor
+daylight-v17-singularity-fixture-demo: daylight-v17-event-horizon-fixture-demo
+daylight-v17-singularity-declaration-gate: daylight-v17-event-horizon-declaration-gate
+daylight-v17-singularity-test: daylight-v17-event-horizon-test
+
+daylight-horizon-alpha-test: daylight-public-evidence-firewall-test
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m unittest tests.test_horizon_policy tests.test_horizon_vault tests.test_horizon_release
+
+daylight-horizon-alpha-vault-demo:
+	mkdir -p build/daylight/horizon
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-vault init --root build/daylight/horizon/vault --force --format text
+	printf 'Daylight Horizon Alpha vault demo\n' > build/daylight/horizon/secret.txt
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-vault seal --root build/daylight/horizon/vault --in build/daylight/horizon/secret.txt --out build/daylight/horizon/secret.txt.dhv --nonce-hex 000000000000000000000001 --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-vault inspect --in build/daylight/horizon/secret.txt.dhv --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-vault open --root build/daylight/horizon/vault --in build/daylight/horizon/secret.txt.dhv --out build/daylight/horizon/secret.opened.txt --format text
+	cmp build/daylight/horizon/secret.txt build/daylight/horizon/secret.opened.txt
+
+daylight-horizon-alpha-release-demo:
+	mkdir -p build/daylight/horizon
+	printf 'Daylight Horizon Alpha release demo\n' > build/daylight/horizon/release-artifact.txt
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-release prepare --artifact build/daylight/horizon/release-artifact.txt --out build/daylight/horizon/release-artifact.txt.dhr --mode research --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-release verify --release build/daylight/horizon/release-artifact.txt.dhr --artifact build/daylight/horizon/release-artifact.txt --format text
+	PYTHONPATH=daylight/v17-singularity $(PYTHON) -m src.cli horizon-release gate --release build/daylight/horizon/release-artifact.txt.dhr --artifact build/daylight/horizon/release-artifact.txt --format text
+
+daylight-v18-bastion-measure:
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli measure --subject daylight/v18-bastion/examples/example-subject.bin --out daylight/v18-bastion/examples/example-vector.v18.json --format text
+
+daylight-v18-bastion-verify:
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli verify-vector daylight/v18-bastion/examples/example-vector.v18.json --format text
+
+daylight-v18-bastion-test: daylight-public-evidence-firewall-test
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m unittest discover -s daylight/v18-bastion/tests -t daylight/v18-bastion
+
+daylight-v18-bastion-transition-test:
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m unittest tests.test_user_ceremony tests.test_transition_ledger tests.test_transition_cli
+
+daylight-v18-bastion-transition-ledger-verify:
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli transition-ledger-verify --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
+
+daylight-v18-bastion-transition-demo:
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli verify-vector daylight/v18-bastion/examples/transition.before.v18.json --format text
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli verify-vector daylight/v18-bastion/examples/transition.after.v18.json --format text
+	DAYLIGHT_BASTION_PASSPHRASE=daylight-v18-fixture-passphrase PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli transition-verify --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --transition daylight/v18-bastion/examples/transition-record.v18.json --format text
+	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli transition-ledger-verify --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
+	@if PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli tamper-check --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --format text; then echo "expected tamper-check without transition to fail"; exit 1; else echo "tamper without transition rejected"; fi
+	DAYLIGHT_BASTION_PASSPHRASE=daylight-v18-fixture-passphrase PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli tamper-check --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --transition daylight/v18-bastion/examples/transition-record.v18.json --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

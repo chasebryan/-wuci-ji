@@ -1,0 +1,13 @@
+{
+  "schema": "daylight-security-ratchet-v1",
+  "invariants": [
+    "no_private_material_in_public_artifacts",
+    "no_broad_build_root_uploads",
+    "artifact_upload_requires_firewall",
+    "vault_index_must_not_store_plaintext_sha256",
+    "passphrases_must_not_appear_on_argv",
+    "workflow_permissions_minimal",
+    "security_headers_must_exist_in_headers_and_meta",
+    "private_keyfiles_must_reject_symlinks"
+  ]
+}

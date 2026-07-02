@@ -13,351 +13,483 @@
   "collapse_reasons": [],
   "contradiction_debt": 0,
   "critical_break_debt": 0,
+  "cross_verifier_agreement_passed": false,
+  "cross_verifier_agreement_status": "partial_2_of_3",
+  "cross_verifier_blockers": [
+    "at least three verifier vectors required",
+    "verifier quorum incomplete: 2/3"
+  ],
+  "cross_verifier_implementation_families": [
+    "python-reference",
+    "rust-independent"
+  ],
+  "cross_verifier_quorum": "2/3",
+  "cross_verifier_vector_count": 2,
   "debt_uomega": 0,
+  "declaration_residue_AM_plus": 313,
+  "declaration_score_gap_AM_plus": 312,
   "declaration_target_AM_plus": 999999999,
   "declared": false,
+  "epsilon": "1/1000000000000",
   "field_thresholds_pass": true,
   "fields": [
     {
       "alpha": "1/1",
+      "closed_atoms": [
+        "F1.current_claim_closure"
+      ],
       "closure_decimal": "0.9989",
+      "closure_rational": "998900/1000000",
       "id": "F1",
       "name": "ClaimClosure",
-      "omega_decimal": "6.812445099177812192010022240772327530582699100577674728914743894739716814796173207868934112355758402",
+      "omega_i_decimal": "6.812445099177812192010022240772327530582699100577674728914743894739716814796173207868934112355758402",
+      "open_atoms": [
+        "F1.fixture_reserved_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000000,
-      "residue_decimal": "0.0011",
       "threshold": "998900/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 998900,
       "weighted_omega_decimal": "6.812445099177812192010022240772327530582699100577674728914743894739716814796173207868934112355758402"
     },
     {
       "alpha": "5/4",
+      "closed_atoms": [
+        "F2.current_self_progress"
+      ],
       "closure_decimal": "0.95",
+      "closure_rational": "950/1000",
       "id": "F2",
       "name": "SelfProgress",
-      "omega_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "omega_i_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "open_atoms": [
+        "F2.fixture_self_progress_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.05",
       "threshold": "950000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 950,
       "weighted_omega_decimal": "3.744665341942488741794029470178175969595752028736285287692509888076207789558808994802325665107521232"
     },
     {
       "alpha": "3/2",
+      "closed_atoms": [
+        "F3.current_hermetic_artifact"
+      ],
       "closure_decimal": "0.99",
+      "closure_rational": "990/1000",
       "id": "F3",
       "name": "HermeticArtifact",
-      "omega_decimal": "4.605170185988091368035982909368728415202202977257545952066655801935145219354704960471994410179196597",
+      "omega_i_decimal": "4.605170185988091368035982909368728415202202977257545952066655801935145219354704960471994410179196597",
+      "open_atoms": [
+        "F3.fixture_artifact_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.01",
       "threshold": "990000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 990,
       "weighted_omega_decimal": "6.907755278982137052053974364053092622803304465886318928099983702902717829032057440707991615268794896"
     },
     {
       "alpha": "5/4",
+      "closed_atoms": [
+        "F4.current_replay_depth"
+      ],
       "closure_decimal": "0.975",
+      "closure_rational": "975/1000",
       "id": "F4",
       "name": "ReplayDepth",
-      "omega_decimal": "3.688879454113936302852455697600717343752101757349283484274687919954359853616741911447723859082435673",
+      "omega_i_decimal": "3.688879454113936302852455697600717343752101757349283484274687919954359853616741911447723859082435673",
+      "open_atoms": [
+        "F4.fixture_replay_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.025",
       "threshold": "975000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 975,
       "weighted_omega_decimal": "4.611099317642420378565569622000896679690127196686604355343359899942949817020927389309654823853044591"
     },
     {
       "alpha": "3/2",
+      "closed_atoms": [
+        "F5.current_multi_implementation"
+      ],
       "closure_decimal": "0.975",
+      "closure_rational": "975/1000",
       "id": "F5",
       "name": "MultiImplementation",
-      "omega_decimal": "3.688879454113936302852455697600717343752101757349283484274687919954359853616741911447723859082435673",
+      "omega_i_decimal": "3.688879454113936302852455697600717343752101757349283484274687919954359853616741911447723859082435673",
+      "open_atoms": [
+        "F5.fixture_implementation_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.025",
       "threshold": "975000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 975,
       "weighted_omega_decimal": "5.53331918117090445427868354640107601562815263602392522641203187993153978042511286717158578862365351"
     },
     {
       "alpha": "5/4",
+      "closed_atoms": [
+        "F6.current_adversarial_fuzzing"
+      ],
       "closure_decimal": "0.95",
+      "closure_rational": "950/1000",
       "id": "F6",
       "name": "AdversarialFuzzing",
-      "omega_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "omega_i_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "open_atoms": [
+        "F6.fixture_fuzzing_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.05",
       "threshold": "950000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 950,
       "weighted_omega_decimal": "3.744665341942488741794029470178175969595752028736285287692509888076207789558808994802325665107521232"
     },
     {
       "alpha": "3/2",
+      "closed_atoms": [
+        "F7.current_formal_proof"
+      ],
       "closure_decimal": "0.95",
+      "closure_rational": "950/1000",
       "id": "F7",
       "name": "FormalProof",
-      "omega_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "omega_i_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "open_atoms": [
+        "F7.fixture_formal_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.05",
       "threshold": "950000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 950,
       "weighted_omega_decimal": "4.493598410330986490152835364213811163514902434483542345231011865691449347470570793762790798129025479"
     },
     {
       "alpha": "3/2",
+      "closed_atoms": [
+        "F8.current_crypto_construction"
+      ],
       "closure_decimal": "0.95",
+      "closure_rational": "950/1000",
       "id": "F8",
       "name": "CryptoConstruction",
-      "omega_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "omega_i_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "open_atoms": [
+        "F8.fixture_crypto_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.05",
       "threshold": "950000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 950,
       "weighted_omega_decimal": "4.493598410330986490152835364213811163514902434483542345231011865691449347470570793762790798129025479"
     },
     {
       "alpha": "5/4",
+      "closed_atoms": [
+        "F9.current_public_falsification"
+      ],
       "closure_decimal": "0.95",
+      "closure_rational": "950/1000",
       "id": "F9",
       "name": "PublicFalsification",
-      "omega_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "omega_i_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+      "open_atoms": [
+        "F9.fixture_falsification_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.05",
       "threshold": "950000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 950,
       "weighted_omega_decimal": "3.744665341942488741794029470178175969595752028736285287692509888076207789558808994802325665107521232"
     },
     {
       "alpha": "3/2",
+      "closed_atoms": [
+        "F10.current_boundary_discipline"
+      ],
       "closure_decimal": "0.99",
+      "closure_rational": "990/1000",
       "id": "F10",
       "name": "BoundaryDiscipline",
-      "omega_decimal": "4.605170185988091368035982909368728415202202977257545952066655801935145219354704960471994410179196597",
+      "omega_i_decimal": "4.605170185988091368035982909368728415202202977257545952066655801935145219354704960471994410179196597",
+      "open_atoms": [
+        "F10.fixture_boundary_residue"
+      ],
       "perfect_reserve_applied": false,
       "possible_credit": 1000,
-      "residue_decimal": "0.01",
       "threshold": "990000/1000000",
-      "threshold_pass": true,
+      "threshold_passed": true,
       "verified_credit": 990,
       "weighted_omega_decimal": "6.907755278982137052053974364053092622803304465886318928099983702902717829032057440707991615268794896"
     }
   ],
+  "fields_digest": "28fa37a6e49b608c5a5e7e98a9fcf8f7db198c96fda907af83b92aa6ace13416",
   "fixture": false,
+  "fracture_digest": "19f3fdded67c711aeb5df2398c5e8f9475ba54e96bc683d142d5efa13d46599c",
+  "fracture_suite_passed": true,
+  "implementation_layer": "Daylight v17.3 Triangulation Gate over Daylight v17.1 Event Horizon Kernel",
+  "kappa": 5,
+  "name": "Daylight v17 Singularity",
   "non_claims": [
-    "Daylight v17 Singularity is a research scoring layer.",
+    "Daylight v17.3 Triangulation Gate is a deterministic research scoring kernel.",
     "AM+ does not modify the conservative Daylight M score.",
     "999,999,999 AM+ is a residue-collapse declaration, not production certification.",
     "1,000,000,000 AM+ is mathematically reserved.",
-    "No manual score is accepted."
+    "No manual score is accepted.",
+    "A fixture declaration is not claim-usable."
   ],
-  "omega_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
-  "omega_governed_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
-  "omega_min_field_decimal": "2.995732273553990993435223576142540775676601622989028230154007910460966231647047195841860532086016986",
+  "omega_eff_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
+  "omega_gap_to_declaration": "5.74460446917645618898580521144657399002690528271285884922996044769516884176476402079069733956991507",
   "omega_sum_decimal": "50.99356700244485033464998327624263570732464882023678272040965647603116413392389691769871654695066095",
   "omega_threshold_decimal": "20.723265836946411156161923092159277868409913397658",
   "omega_weak_decimal": "14.97866136776995496717611788071270387838300811494514115077003955230483115823523597920930266043008493",
   "overclaim_debt_uomega": 0,
   "perfect_reserved_AM_plus": 1000000000,
-  "proof_atom_digest": "84dfa78d6d22c761150c3d9daa0e1e5d16c7bbcddf27bd37f99996d8a8c034d1",
   "proof_atoms": [
     {
       "closed": true,
       "collapse_if_failed": false,
       "credit": 998900,
-      "field": "F1",
-      "id": "F1.claim_scorecard_regenerated",
-      "reason": "closed"
+      "field_id": "F1",
+      "fixture_allowed": false,
+      "id": "F1.current_claim_closure",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
     },
     {
       "closed": false,
       "collapse_if_failed": false,
       "credit": 1100,
-      "field": "F1",
-      "id": "F1.external_residue_reserved",
-      "reason": "missing_evidence"
+      "field_id": "F1",
+      "fixture_allowed": true,
+      "id": "F1.fixture_reserved_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
     },
     {
       "closed": true,
       "collapse_if_failed": false,
       "credit": 950,
-      "field": "F2",
-      "id": "F2.self_progress_floor",
-      "reason": "closed"
+      "field_id": "F2",
+      "fixture_allowed": false,
+      "id": "F2.current_self_progress",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
     },
     {
       "closed": false,
       "collapse_if_failed": false,
       "credit": 50,
-      "field": "F2",
-      "id": "F2.self_progress_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 495,
-      "field": "F3",
-      "id": "F3.artifact_manifest",
-      "reason": "closed"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 495,
-      "field": "F3",
-      "id": "F3.output_ledger",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 10,
-      "field": "F3",
-      "id": "F3.artifact_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 975,
-      "field": "F4",
-      "id": "F4.replay_depth_verified",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 25,
-      "field": "F4",
-      "id": "F4.replay_depth_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 975,
-      "field": "F5",
-      "id": "F5.implementation_agreement",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 25,
-      "field": "F5",
-      "id": "F5.implementation_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 950,
-      "field": "F6",
-      "id": "F6.fuzzing_verified",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 50,
-      "field": "F6",
-      "id": "F6.fuzzing_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 950,
-      "field": "F7",
-      "id": "F7.formal_verified",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 50,
-      "field": "F7",
-      "id": "F7.formal_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 950,
-      "field": "F8",
-      "id": "F8.crypto_verified",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 50,
-      "field": "F8",
-      "id": "F8.crypto_open",
-      "reason": "missing_evidence"
-    },
-    {
-      "closed": true,
-      "collapse_if_failed": false,
-      "credit": 950,
-      "field": "F9",
-      "id": "F9.falsification_verified",
-      "reason": "closed"
-    },
-    {
-      "closed": false,
-      "collapse_if_failed": false,
-      "credit": 50,
-      "field": "F9",
-      "id": "F9.falsification_open",
-      "reason": "missing_evidence"
+      "field_id": "F2",
+      "fixture_allowed": true,
+      "id": "F2.fixture_self_progress_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
     },
     {
       "closed": true,
       "collapse_if_failed": false,
       "credit": 990,
-      "field": "F10",
-      "id": "F10.boundary_nonclaim",
-      "reason": "closed"
+      "field_id": "F3",
+      "fixture_allowed": false,
+      "id": "F3.current_hermetic_artifact",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
     },
     {
       "closed": false,
       "collapse_if_failed": false,
       "credit": 10,
-      "field": "F10",
-      "id": "F10.boundary_open",
-      "reason": "missing_evidence"
+      "field_id": "F3",
+      "fixture_allowed": true,
+      "id": "F3.fixture_artifact_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 975,
+      "field_id": "F4",
+      "fixture_allowed": false,
+      "id": "F4.current_replay_depth",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 25,
+      "field_id": "F4",
+      "fixture_allowed": true,
+      "id": "F4.fixture_replay_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 975,
+      "field_id": "F5",
+      "fixture_allowed": false,
+      "id": "F5.current_multi_implementation",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 25,
+      "field_id": "F5",
+      "fixture_allowed": true,
+      "id": "F5.fixture_implementation_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 950,
+      "field_id": "F6",
+      "fixture_allowed": false,
+      "id": "F6.current_adversarial_fuzzing",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 50,
+      "field_id": "F6",
+      "fixture_allowed": true,
+      "id": "F6.fixture_fuzzing_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 950,
+      "field_id": "F7",
+      "fixture_allowed": false,
+      "id": "F7.current_formal_proof",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 50,
+      "field_id": "F7",
+      "fixture_allowed": true,
+      "id": "F7.fixture_formal_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 950,
+      "field_id": "F8",
+      "fixture_allowed": false,
+      "id": "F8.current_crypto_construction",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 50,
+      "field_id": "F8",
+      "fixture_allowed": true,
+      "id": "F8.fixture_crypto_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 950,
+      "field_id": "F9",
+      "fixture_allowed": false,
+      "id": "F9.current_public_falsification",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 50,
+      "field_id": "F9",
+      "fixture_allowed": true,
+      "id": "F9.fixture_falsification_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
+    },
+    {
+      "closed": true,
+      "collapse_if_failed": false,
+      "credit": 990,
+      "field_id": "F10",
+      "fixture_allowed": false,
+      "id": "F10.current_boundary_discipline",
+      "reason": "closed",
+      "replay_required": true,
+      "verifier_key": "package_file_present"
+    },
+    {
+      "closed": false,
+      "collapse_if_failed": false,
+      "credit": 10,
+      "field_id": "F10",
+      "fixture_allowed": true,
+      "id": "F10.fixture_boundary_residue",
+      "reason": "fixture_only_atom_open",
+      "replay_required": true,
+      "verifier_key": "fixture_pass"
     }
   ],
-  "proof_registry_digest": "85a52cb8e97cf1b0e2c1d0417abcf771ff1f96341b11198f0afdc711e969558b",
+  "proof_atoms_digest": "6676ef968c22e7eb0530b66aa6ddd47026e87bf928e0d51c86471605eaf49612",
+  "residue_collapse_factor_to_declaration": "312.4999999999999999999999999999999999999999999997010049062652785287020352824461493362578606855049288",
   "residue_decimal": "0.0000003124999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999998",
   "scale": 1000000000,
   "score_AM_plus": 999999687,
   "score_inflation_M": 0,
-  "scorecard_digest": "75fe8b029db38cd5fb038d09c3ac3110b5b1339dc2e9acd8f3e2a5911a18f821",
-  "scorecard_version": "daylight-v17-singularity-scorecard-v0.1",
+  "scorecard_digest": "6debccd2631146bead454d475789060d3aad50ef2d7b18b60d7960ce67bddd3d",
+  "scorecard_version": "daylight-v17-event-horizon-scorecard-v0.1",
   "staleness_debt_uomega": 0,
   "state_boundary": "current proof-atom score; research scoring layer; not external certification",
-  "state_digest": "e0cafa64dca51ef71e5cc681471aa07d0db7ed674db089984eb9d506d5fe67d1",
+  "state_digest": "3c71d6da221585dde199117c14006f81b47fcef8b5c97bf1d09a94125ef20d35",
   "status": "singularity_candidate",
   "unit": "AM+",
-  "weak_governor_kappa": 5,
   "weakest_field": "F2"
 }

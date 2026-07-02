@@ -120,7 +120,7 @@ Inputs:
 - corpus (`*.jsonl`, negative-evidence entries)
 - external attestations where applicable (non-harness signed `external_attestation` entries)
 
-Outputs (under `build/daylight/v15-meridian/`):
+Public outputs (under `build/daylight/v15-meridian-public/`):
 
 - `scorecard.v15-meridian.json`
 - `reproducibility-receipt.v15-meridian.json`
@@ -131,6 +131,8 @@ Outputs (under `build/daylight/v15-meridian/`):
 - `SHA256SUMS`
 
 The output is byte-reproducible: no wall-clock time, no absolute paths.
+Private smoke/vault work is generated under `build/daylight/v15-meridian-private/`
+and must never share the public upload root.
 
 ## Score and external frontier
 

@@ -1,6 +1,5 @@
-"""Daylight v17 Singularity residue-collapse verifier."""
+"""Daylight v17.3 Triangulation Gate proof kernel."""
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
-
+__version__ = "0.4.0"

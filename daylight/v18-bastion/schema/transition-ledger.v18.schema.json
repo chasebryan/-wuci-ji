@@ -1,0 +1,59 @@
+{
+  "description": "Daylight v18.1 Binaric Transition JSONL ledger. First line is genesis; later lines are entries with embedded transition records.",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "genesis_head": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "ledger_version": {
+          "const": "daylight-v18-bastion-transition-ledger-v0.1"
+        }
+      },
+      "required": [
+        "ledger_version",
+        "genesis_head"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "entry_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "entry_id": {
+          "type": "string"
+        },
+        "head": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "previous_head": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "transition_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "transition_record": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "entry_id",
+        "transition_digest",
+        "previous_head",
+        "entry_digest",
+        "head",
+        "transition_record"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Daylight v18.1 Binaric Transition Ledger Line"
+}

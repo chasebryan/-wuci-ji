@@ -1,4 +1,4 @@
-"""Deterministic canonical JSON helpers for Daylight v17 Singularity."""
+"""Deterministic canonical JSON helpers for Daylight v17.1 Event Horizon."""
 
 from __future__ import annotations
 
@@ -38,15 +38,19 @@ def load_json_no_floats(path: Path | str) -> Any:
     return loads_json_no_floats(Path(path).read_text(encoding="utf-8"))
 
 
-def reject_python_floats(value: Any, path: str = "value") -> None:
+def reject_floats_recursive(value: Any, path: str = "value") -> None:
     if isinstance(value, float):
         raise ValueError(f"Python float rejected at {path}")
     if isinstance(value, dict):
         for key, item in value.items():
-            reject_python_floats(item, f"{path}.{key}")
+            reject_floats_recursive(item, f"{path}.{key}")
     elif isinstance(value, list):
         for index, item in enumerate(value):
-            reject_python_floats(item, f"{path}[{index}]")
+            reject_floats_recursive(item, f"{path}[{index}]")
+
+
+def reject_python_floats(value: Any, path: str = "value") -> None:
+    reject_floats_recursive(value, path)
 
 
 def dumps_canonical(obj: Any) -> bytes:
