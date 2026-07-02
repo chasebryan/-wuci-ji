@@ -14,11 +14,24 @@ class EvidenceAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "fixture_boundary_active")
         self.assertTrue(report["fixture_boundary_active"])
         self.assertFalse(report["only_external_evidence_blockers"])
+        self.assertTrue(report["repo_owned_ceiling_reached"])
+        self.assertFalse(report["singularity_possible_without_external_validation"])
         self.assertEqual(report["unclassified_blockers"], [])
         self.assertEqual(report["repo_owned_code_gap_count"], 0)
         requirement_ids = {item["requirement_id"] for item in report["requirement_classes"]}
         self.assertIn("reproducible_build.non_fixture_subject_bound_rebuilds", requirement_ids)
         self.assertIn("external_attestation.pinned_cryptographic_verification", requirement_ids)
+
+    def test_score_ceiling_report_names_no_external_ceiling(self):
+        capsule = singularity_gate.load_capsule(ROOT / "examples/aperture-singularity-capsule.fixture.v20.json")
+        report = evidence_audit.score_ceiling_report(capsule)
+        self.assertEqual(report["schema_id"], "daylight-v20-score-ceiling-report")
+        self.assertTrue(report["repo_owned_ceiling_reached"])
+        self.assertFalse(report["singularity_possible_without_external_validation"])
+        self.assertEqual(report["highest_truthful_no_external_score_AM_plus"], capsule["score_AM_plus"])
+        self.assertEqual(report["external_evidence_required_count"], 4)
+        requirement_ids = {item["requirement_id"] for item in report["required_external_evidence"]}
+        self.assertIn("independent_verifier_quorum.claim_usable_3_of_3", requirement_ids)
 
     def test_unknown_blocker_is_repo_owned_gap(self):
         item = evidence_audit.classify_blocker("new unclassified blocker")

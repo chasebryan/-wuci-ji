@@ -191,6 +191,13 @@ def cmd_evidence_audit(args: argparse.Namespace) -> int:
     return 0 if not report["unclassified_blockers"] else 1
 
 
+def cmd_score_ceiling(args: argparse.Namespace) -> int:
+    report = evidence_audit.load_and_score_ceiling(args.capsule)
+    report["command"] = "score-ceiling"
+    _emit(report, args.format)
+    return 0
+
+
 def cmd_public_artifact(args: argparse.Namespace) -> int:
     report = public_artifact.build_public_artifact(
         args.capsule,
@@ -286,6 +293,11 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("capsule")
     audit.add_argument("--format", choices=("text", "json"), default="text")
     audit.set_defaults(func=cmd_evidence_audit)
+
+    ceiling = sub.add_parser("score-ceiling")
+    ceiling.add_argument("capsule")
+    ceiling.add_argument("--format", choices=("text", "json"), default="text")
+    ceiling.set_defaults(func=cmd_score_ceiling)
 
     public = sub.add_parser("public-artifact")
     public.add_argument("--capsule", required=True)

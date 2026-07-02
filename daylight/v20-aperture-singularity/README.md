@@ -82,10 +82,17 @@ PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli blockers dayligh
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli declaration-gate daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli explain daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli evidence-audit daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
+PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli score-ceiling daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli public-artifact --capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json --out-dir build/daylight/v20-aperture-singularity-public --firewall-report build/daylight/firewall-report.v20.json --force
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli verify-public-artifact build/daylight/v20-aperture-singularity-public --expected-release-tag v20-aperture-singularity-fixture
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli firewall --root build/daylight/v20-aperture-singularity-public --report build/daylight/firewall-report.v20.json
 ```
+
+`score-ceiling` reports whether the current AM+ value is the highest truthful
+no-external-validation score for the committed capsule. When repo-owned code
+gaps are zero and the remaining requirements are external evidence slots, it
+keeps Singularity refused and sets
+`singularity_possible_without_external_validation` to `false`.
 
 ## Public Review Artifact
 

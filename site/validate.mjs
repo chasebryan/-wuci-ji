@@ -578,6 +578,13 @@ async function assertDaylightV20ApertureSingularityStatusBinding() {
   if (status.repo_owned_code_gap_count !== 0 || status.external_evidence_required_count !== 4) {
     fail("daylight-v20-aperture-singularity-status.json evidence gap counts changed unexpectedly");
   }
+  if (
+    status.repo_owned_ceiling_reached !== true
+    || status.singularity_possible_without_external_validation !== false
+    || status.highest_truthful_no_external_score_AM_plus !== status.score_AM_plus
+  ) {
+    fail("daylight-v20-aperture-singularity-status.json no-external ceiling fields are inconsistent");
+  }
 
   const index = await readFile(new URL("index.html", siteRoot), "utf8");
   const displayed = withCommas(status.score_AM_plus);
@@ -1092,6 +1099,15 @@ async function assertClaimEvidenceMap() {
   }
   if (v20ScoreClaim?.evidence_values?.repo_owned_code_gap_count !== daylightV20.repo_owned_code_gap_count) {
     fail("claim-evidence.json v20 repo_owned_code_gap_count must match daylight-v20-aperture-singularity-status.json");
+  }
+  for (const key of [
+    "repo_owned_ceiling_reached",
+    "singularity_possible_without_external_validation",
+    "highest_truthful_no_external_score_AM_plus"
+  ]) {
+    if (v20ScoreClaim?.evidence_values?.[key] !== daylightV20[key]) {
+      fail(`claim-evidence.json v20 ${key} must match daylight-v20-aperture-singularity-status.json`);
+    }
   }
   const hostClaim = claims.get("hosted-tls-requirements");
   if (hostClaim?.evidence_values?.canonical_url !== "https://nosuchmachine.net/") {

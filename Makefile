@@ -463,6 +463,9 @@ daylight-v20-aperture-singularity-blockers: daylight-v20-aperture-singularity-ca
 daylight-v20-aperture-singularity-evidence-audit: daylight-v20-aperture-singularity-capsule-demo
 	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli evidence-audit $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
 
+daylight-v20-aperture-singularity-score-ceiling: daylight-v20-aperture-singularity-capsule-demo
+	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli score-ceiling $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
+
 daylight-v20-aperture-singularity-declaration-gate: daylight-v20-aperture-singularity-capsule-demo
 	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli declaration-gate $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
 
@@ -476,7 +479,7 @@ daylight-v20-aperture-singularity-verify-public-artifact: daylight-v20-aperture-
 daylight-v20-aperture-singularity-firewall: daylight-v20-aperture-singularity-public-artifact
 	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli firewall --root $(DAYLIGHT_V20_APERTURE_SINGULARITY_PUBLIC_DIR) --report $(DAYLIGHT_V20_APERTURE_SINGULARITY_FIREWALL_REPORT)
 
-daylight-v20-aperture-singularity-ci: daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall
+daylight-v20-aperture-singularity-ci: daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall
 	@echo "daylight-v20-aperture-singularity-ci: complete"
 
 site-daylight-status:

@@ -10,6 +10,7 @@ from .canonical import load_json_no_floats
 
 SCHEMA_ID = "daylight-v20-evidence-audit-report"
 SCHEMA_VERSION = "0.1.0"
+SCORE_CEILING_SCHEMA_ID = "daylight-v20-score-ceiling-report"
 
 REQUIREMENT_META: dict[str, dict[str, Any]] = {
     "reproducible_build.non_fixture_subject_bound_rebuilds": {
@@ -151,6 +152,21 @@ def audit_capsule(capsule: dict[str, Any]) -> dict[str, Any]:
             for item in blocker_classes
         )
     )
+    external_or_boundary_or_derived_blockers = all(
+        item["external_evidence_required"] is True
+        or item["evidence_class"] in {
+            "derived_from_open_requirements",
+            "non_fixture_claim_usable_input_required",
+        }
+        for item in blocker_classes
+    )
+    repo_owned_ceiling_reached = (
+        declaration["allowed"] is False
+        and repo_owned_gap_count == 0
+        and not unclassified_blockers
+        and external_required_count > 0
+        and external_or_boundary_or_derived_blockers
+    )
     if declaration["allowed"]:
         status = "declaration_allowed"
     elif fixture_boundary_active:
@@ -170,6 +186,8 @@ def audit_capsule(capsule: dict[str, Any]) -> dict[str, Any]:
         "status": status,
         "fixture_boundary_active": fixture_boundary_active,
         "only_external_evidence_blockers": only_external_evidence_blockers,
+        "repo_owned_ceiling_reached": repo_owned_ceiling_reached,
+        "singularity_possible_without_external_validation": bool(declaration["allowed"]),
         "repo_owned_code_gap_count": repo_owned_gap_count,
         "external_evidence_required_count": external_required_count,
         "unclassified_blockers": unclassified_blockers,
@@ -178,5 +196,36 @@ def audit_capsule(capsule: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def score_ceiling_report(capsule: dict[str, Any]) -> dict[str, Any]:
+    audit = audit_capsule(capsule)
+    external_requirements = [
+        item
+        for item in audit["requirement_classes"]
+        if item["external_evidence_required"] is True
+    ]
+    highest_no_external_score = capsule["score_AM_plus"] if audit["repo_owned_ceiling_reached"] else None
+    return {
+        "schema_id": SCORE_CEILING_SCHEMA_ID,
+        "schema_version": SCHEMA_VERSION,
+        "capsule_digest": capsule["capsule_digest"],
+        "declaration_allowed": capsule["declaration_allowed"],
+        "score_AM_plus": capsule["score_AM_plus"],
+        "omega_eff": capsule["omega_eff"],
+        "repo_owned_ceiling_reached": audit["repo_owned_ceiling_reached"],
+        "singularity_possible_without_external_validation": audit["singularity_possible_without_external_validation"],
+        "highest_truthful_no_external_score_AM_plus": highest_no_external_score,
+        "repo_owned_code_gap_count": audit["repo_owned_code_gap_count"],
+        "external_evidence_required_count": audit["external_evidence_required_count"],
+        "fixture_boundary_active": audit["fixture_boundary_active"],
+        "required_external_evidence": external_requirements,
+        "blockers": [item["blocker"] for item in audit["blocker_classes"]],
+        "non_claims": capsule["non_claims"],
+    }
+
+
 def load_and_audit(path: Path | str) -> dict[str, Any]:
     return audit_capsule(load_json_no_floats(path))
+
+
+def load_and_score_ceiling(path: Path | str) -> dict[str, Any]:
+    return score_ceiling_report(load_json_no_floats(path))

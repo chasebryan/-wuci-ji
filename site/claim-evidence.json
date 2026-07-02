@@ -119,7 +119,10 @@
         "declared": false,
         "fixture": true,
         "claim_usable": false,
-        "repo_owned_code_gap_count": 0
+        "repo_owned_code_gap_count": 0,
+        "repo_owned_ceiling_reached": true,
+        "singularity_possible_without_external_validation": false,
+        "highest_truthful_no_external_score_AM_plus": 999801305
       },
       "validation_commands": [
         "make daylight-v20-aperture-singularity-ci",
