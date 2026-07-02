@@ -154,7 +154,7 @@ async function assertIndexReferences() {
     'assets/daylight-v20-gate-repo-owned-ceiling-score-surface.webp',
     'assets/daylight-v20-gate-repo-owned-ceiling-score-surface.png',
     'Daylight v20 repo-owned score surface',
-    '999,680,000 AM+',
+    '999,801,305 AM+',
     'repo-owned ceiling score surface, non-declaration',
     'assets/daylight-v20-gate-fixture-score-surface.webp',
     'assets/daylight-v20-gate-fixture-score-surface.png',

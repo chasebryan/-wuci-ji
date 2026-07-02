@@ -5,6 +5,7 @@ from src import reproducible_builds
 from src.canonical import load_json_no_floats
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_SNAPSHOT_COMMIT = "3ef88e6f1f74115cc8284db970a951c35e5873d2"
 
 
 def _refresh_receipt_digests(bundle):
@@ -31,7 +32,7 @@ class ReproducibleBuildTests(unittest.TestCase):
         bundle["claim_usable"] = True
         result = reproducible_builds.evaluate_bundle(
             bundle,
-            expected_source_commit="1111111111111111111111111111111111111111",
+            expected_source_commit=SOURCE_SNAPSHOT_COMMIT,
             expected_artifact_sha256="bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
             expected_artifact_sha3_512="083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
             expected_artifact_size=84,
@@ -48,7 +49,7 @@ class ReproducibleBuildTests(unittest.TestCase):
         bundle["receipts"][0]["receipt_digest"] = "0" * 64
         result = reproducible_builds.evaluate_bundle(
             bundle,
-            expected_source_commit="1111111111111111111111111111111111111111",
+            expected_source_commit=SOURCE_SNAPSHOT_COMMIT,
             expected_artifact_sha256="bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
             expected_artifact_sha3_512="083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
             expected_artifact_size=84,

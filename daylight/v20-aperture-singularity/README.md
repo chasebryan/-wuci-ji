@@ -36,6 +36,9 @@ Reproducible-build receipts must be non-fixture, claim-usable, and bound to the
 same Aperture capsule source commit, subject SHA-256, subject SHA3-512, and
 subject size before the reproducible-build field can pass. Each receipt carries
 a recomputable domain-separated `receipt_digest`.
+The committed demo uses a clean v19 source-snapshot capsule so
+`source_commit_matches_capsule` can close deterministically while fixture
+receipts still remain non-claim-usable.
 
 Falsification result rows are also digest-bound so manual edits reopen their
 proof atoms instead of silently preserving a pass.
@@ -71,7 +74,7 @@ whole-system post-quantum safety.
 
 ```sh
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli doctor
-PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli build-capsule --aperture-capsule daylight/v19-aperture-bastion/examples/expected-capsule.v19.json --out build/daylight/v20-aperture-singularity-capsule.json
+PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli build-capsule --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json --out build/daylight/v20-aperture-singularity-capsule.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli verify-capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli score-fields daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli agreement daylight/v20-aperture-singularity/examples/verifier-agreement.partial-2-of-3.v20.json --expected-subject v20-aperture-singularity-fixture

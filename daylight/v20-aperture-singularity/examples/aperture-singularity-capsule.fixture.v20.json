@@ -14,8 +14,7 @@
     "claim_usable=false",
     "external attestation not cryptographically verified",
     "reproducible build receipts are fixture evidence",
-    "reproducible build receipts are not claim-usable",
-    "reproducible build source commit does not match capsule source commit"
+    "reproducible build receipts are not claim-usable"
   ],
   "boundary_debt_summary": {
     "blockers": [],
@@ -24,7 +23,7 @@
     "debt_omega": "0",
     "passed": true
   },
-  "capsule_digest": "84b99f30eed9a46983ad5ebb4cf28f919d71365bf442a0ac085ea323784147e3",
+  "capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
   "claim_boundary": {
     "boundary_version": "daylight-v20-aperture-singularity-boundary-v1",
     "external_certification": false,
@@ -73,17 +72,17 @@
   "fixture": true,
   "fracture_suite_passed": true,
   "generated_by": "daylight-v20-aperture-singularity/0.1.0",
-  "input_aperture_capsule_digest": "9021b8e1a7711b4a4f9c30e2d4ccb35106b56af8fdd6054cde99aaf9aae83d20",
-  "input_aperture_firewall_report_digest": "ce1c93a9c55dc9806f32eda399a5a39f7798f2975c2f8745db7cc5c4bb79901e",
-  "input_binaric_vector_chain_digest": null,
+  "input_aperture_capsule_digest": "dfe6e2fe494228d3ebc454a47d0db5dd7f3cabd285643059d6b6cd825ac054a0",
+  "input_aperture_firewall_report_digest": "d9a6e55c1f232dc0e00169da378ac2a51b43b3e36cdbb7818a8460eaca0de0dc",
+  "input_binaric_vector_chain_digest": "4df8a593655e23bfc2c5d137a628be7bf3fc3e88f632fbb709217570cd2f41cd",
   "input_boundary_debt_report_digest": "d98132530456ac53a8ccc548352368453651f962f8e5e2182dbc595c2f09edeb",
-  "input_event_horizon_scorecard_digest": null,
+  "input_event_horizon_scorecard_digest": "9d93888033808b136d44989004c70746999d59553f325ba70cf19c7a97ffd812",
   "input_external_attestation_bundle_digest": "92f07f81e7afae2caecfb00d0ab5a6e6b7ae220165aead198c8e3011334eaa2a",
   "input_falsification_bundle_digest": "da57b982e6990114c73580d94147d0b2b91ec7b68c15aa6f6afdb422e5169b74",
   "input_firewall_profile_expansion_digest": "16e4ae061ae0f7aab0faf30d36d0ce2d5bf6ce9cd999308e733a16fdd061f471",
-  "input_meridian_scorecard_digest": null,
-  "input_reproducible_build_bundle_digest": "7888ee518ba918a6b376d02a867a75b03587bb03eef6218d299b3394a6501a66",
-  "input_transition_ledger_head": null,
+  "input_meridian_scorecard_digest": "02c13cf26227405956d4083f4ea2343fabcbd996b6b3040defedf4ae1cc223c8",
+  "input_reproducible_build_bundle_digest": "85454b79080acf79257269a53afcbe0f53eb02d39fae220e224b8316e25f7d16",
+  "input_transition_ledger_head": "b9680f9bd1a3848b4651801b5d9c9659fa027a2e3a0837355fc2336eff82400e",
   "input_verifier_agreement_bundle_digest": "8fcd209a5d4f94eb8ecca2d6401ef86e0e17bc895bc09b1b92579119e12fa105",
   "layer_name": "Daylight v20 - Aperture Singularity Gate",
   "non_claims": [
@@ -97,9 +96,9 @@
     "not an independent audit",
     "not a perfect Daylight score claim from repository-owned evidence"
   ],
-  "omega_eff": "8.047189562170501873003796666130938197628006771342588609563239457370894938538288823150669390465898055",
-  "omega_sum": "28.62241932028950868503533149023695426703139106502861405834994700918806582422120533540448042907794215",
-  "omega_weak": "8.047189562170501873003796666130938197628006771342588609563239457370894938538288823150669390465898055",
+  "omega_eff": "8.52374046119212617322355728253476365873103359788580960548943849818590000971770998734595690503108052",
+  "omega_sum": "29.02788442839767306701334460570130340360338148849110825596396133333216649547011958667223285689525555",
+  "omega_weak": "8.52374046119212617322355728253476365873103359788580960548943849818590000971770998734595690503108052",
   "policy_digest": "0e4c892148764a63762dc5f2ccd94347694d703dad94d04207c63900450726c0",
   "project": "wuci-ji",
   "proof_fields": [
@@ -110,6 +109,7 @@
         "at_least_two_independent_builders",
         "distinct_build_environments",
         "same_source_commit",
+        "source_commit_matches_capsule",
         "same_build_instructions_digest",
         "same_artifact_sha256",
         "artifact_sha256_matches_subject",
@@ -118,21 +118,20 @@
         "artifact_size_matches_subject",
         "byte_identical_outputs_claimed"
       ],
-      "closure_decimal": "0.8",
-      "closure_rational": "12/15",
+      "closure_decimal": "0.8666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666667",
+      "closure_rational": "13/15",
       "closure_threshold": "0.984151068",
       "field_id": "reproducible_build",
-      "omega_i": "1.609437912434100374600759333226187639525601354268517721912647891474178987707657764630133878093179611",
+      "omega_i": "2.014903020542264756578772448690536776097591777731011919526662215618279658956572015897886305910493012",
       "omega_threshold": "4.144653167",
       "open_atoms": [
         "receipts_non_fixture",
-        "receipts_claim_usable",
-        "source_commit_matches_capsule"
+        "receipts_claim_usable"
       ],
       "perfect_reserve_applied": false,
       "required_atom_count": 15,
       "threshold_passed": false,
-      "verified_atom_count": 12
+      "verified_atom_count": 13
     },
     {
       "closed_atoms": [
@@ -255,8 +254,7 @@
   "reproducible_build_summary": {
     "blockers": [
       "reproducible build receipts are fixture evidence",
-      "reproducible build receipts are not claim-usable",
-      "reproducible build source commit does not match capsule source commit"
+      "reproducible build receipts are not claim-usable"
     ],
     "claim_usable": false,
     "distinct_environment_count": 2,
@@ -268,9 +266,9 @@
   "reserved_perfect_value_used": false,
   "schema_id": "daylight-v20-aperture-singularity-capsule",
   "schema_version": "0.1.0",
-  "score_AM_plus": 999680000,
+  "score_AM_plus": 999801305,
   "score_inflation_M": 0,
-  "source_commit": "fixture",
+  "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2",
   "verifier_agreement": {
     "blockers": [
       "verifier vectors are fixture evidence",

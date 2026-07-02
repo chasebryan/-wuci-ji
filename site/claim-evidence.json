@@ -113,9 +113,9 @@
         "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json"
       ],
       "evidence_values": {
-        "score_AM_plus": 999680000,
+        "score_AM_plus": 999801305,
         "unit": "AM+",
-        "capsule_digest": "84b99f30eed9a46983ad5ebb4cf28f919d71365bf442a0ac085ea323784147e3",
+        "capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
         "declared": false,
         "fixture": true,
         "claim_usable": false,

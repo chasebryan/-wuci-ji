@@ -7,6 +7,7 @@ from src import singularity_gate
 from src.canonical import json_bytes, load_json_no_floats
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_SNAPSHOT_CAPSULE = ROOT / "examples/input-aperture-capsule.source-snapshot.v19.json"
 
 
 class SingularityGateTests(unittest.TestCase):
@@ -30,12 +31,12 @@ class SingularityGateTests(unittest.TestCase):
         self.assertIn("external attestation not cryptographically verified", capsule["blockers"])
         self.assertIn("field threshold failed: reproducible_build", capsule["blockers"])
         self.assertIn("reproducible build receipts are fixture evidence", capsule["blockers"])
-        self.assertIn("reproducible build source commit does not match capsule source commit", capsule["blockers"])
+        self.assertNotIn("reproducible build source commit does not match capsule source commit", capsule["blockers"])
         self.assertNotIn("reproducible build artifact SHA-256 does not match capsule subject", capsule["blockers"])
         self.assertNotIn("reproducible build artifact SHA3-512 does not match capsule subject", capsule["blockers"])
         reproducible_field = next(field for field in capsule["proof_fields"] if field["field_id"] == "reproducible_build")
         self.assertIn("receipts_non_fixture", reproducible_field["open_atoms"])
-        self.assertIn("source_commit_matches_capsule", reproducible_field["open_atoms"])
+        self.assertIn("source_commit_matches_capsule", reproducible_field["closed_atoms"])
         self.assertIn("artifact_sha256_matches_subject", reproducible_field["closed_atoms"])
         self.assertIn("artifact_sha3_512_matches_subject", reproducible_field["closed_atoms"])
         aperture_field = next(field for field in capsule["proof_fields"] if field["field_id"] == "aperture_firewall_boundary")
@@ -50,7 +51,7 @@ class SingularityGateTests(unittest.TestCase):
 
     def test_build_capsule_default_is_deterministic(self):
         built = singularity_gate.build_capsule(
-            aperture_capsule_path=ROOT.parent / "v19-aperture-bastion/examples/expected-capsule.v19.json"
+            aperture_capsule_path=SOURCE_SNAPSHOT_CAPSULE
         )
         committed = load_json_no_floats(ROOT / "examples/aperture-singularity-capsule.fixture.v20.json")
         self.assertEqual(built, committed)
@@ -63,7 +64,7 @@ class SingularityGateTests(unittest.TestCase):
             boundary_path = Path(tmp) / "boundary.nonfixture.json"
             boundary_path.write_bytes(json_bytes(boundary))
             capsule = singularity_gate.build_capsule(
-                aperture_capsule_path=ROOT.parent / "v19-aperture-bastion/examples/expected-capsule.v19.json",
+                aperture_capsule_path=SOURCE_SNAPSHOT_CAPSULE,
                 boundary_debt_path=boundary_path,
             )
         self.assertTrue(capsule["fixture"])

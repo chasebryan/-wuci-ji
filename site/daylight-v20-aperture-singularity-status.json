@@ -3,13 +3,13 @@
   "project": "wuci-ji",
   "layer": "Daylight v20 - Aperture Singularity Gate",
   "release_tag": "v20-aperture-singularity-fixture",
-  "score_tag": "v20-aperture-singularity-score-999680000",
-  "score_commit": "ebd8521c441e9a4af494ea1565e3644bc75ee263",
+  "score_tag": "v20-aperture-singularity-score-999801305",
+  "score_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2",
   "source": "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json",
-  "capsule_digest": "84b99f30eed9a46983ad5ebb4cf28f919d71365bf442a0ac085ea323784147e3",
-  "score_AM_plus": 999680000,
+  "capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+  "score_AM_plus": 999801305,
   "unit": "AM+",
-  "omega_eff": "8.047189562170501873003796666130938197628006771342588609563239457370894938538288823150669390465898055",
+  "omega_eff": "8.52374046119212617322355728253476365873103359788580960548943849818590000971770998734595690503108052",
   "omega_threshold": "20.723265837",
   "declaration": "refused",
   "declared": false,
@@ -45,8 +45,7 @@
     "claim_usable=false",
     "external attestation not cryptographically verified",
     "reproducible build receipts are fixture evidence",
-    "reproducible build receipts are not claim-usable",
-    "reproducible build source commit does not match capsule source commit"
+    "reproducible build receipts are not claim-usable"
   ],
   "non_claims": [
     "not production cryptography",

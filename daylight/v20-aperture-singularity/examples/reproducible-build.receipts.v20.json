@@ -23,9 +23,9 @@
       "builder_id": "independent-builder-a",
       "byte_identical_output": true,
       "environment_digest": "1212121212121212121212121212121212121212121212121212121212121212",
-      "receipt_digest": "5a9b0cc90ee83148752a1495aa658e7d0dc74ff3ad24967379de31b840ad69eb",
+      "receipt_digest": "ea39cdce52b7396bf788e9c872e90f405e45508151fc5a3d6c5e4437a9a83e1f",
       "receipt_id": "rebuild-a",
-      "source_commit": "1111111111111111111111111111111111111111"
+      "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2"
     },
     {
       "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
@@ -36,9 +36,9 @@
       "builder_id": "independent-builder-b",
       "byte_identical_output": true,
       "environment_digest": "3434343434343434343434343434343434343434343434343434343434343434",
-      "receipt_digest": "98389fa86dc1cab313f2d293e5b1e1bf37805c2e33559db90e6a5b6093700295",
+      "receipt_digest": "f72e63f82360f1b67d3319ff52dd112484dbafc2e498f5a9b8eebec0c9e772ab",
       "receipt_id": "rebuild-b",
-      "source_commit": "1111111111111111111111111111111111111111"
+      "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2"
     }
   ],
   "schema_id": "daylight-v20-reproducible-build-bundle",

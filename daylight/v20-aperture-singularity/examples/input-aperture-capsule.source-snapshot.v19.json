@@ -1,0 +1,150 @@
+{
+  "allowed_extra_files": [],
+  "capsule_digest": "dfe6e2fe494228d3ebc454a47d0db5dd7f3cabd285643059d6b6cd825ac054a0",
+  "claim_boundary": {
+    "boundary_version": "aperture-claim-boundary-v1",
+    "external_certification": false,
+    "fips_validation": false,
+    "government_validation": false,
+    "host_cleanliness": false,
+    "independent_audit_completed": false,
+    "perfect_daylight_score_from_repo_evidence": false,
+    "production_cryptography": false,
+    "runtime_containment": false,
+    "statement": "Aperture Bastion binds subjects, evidence references, and public files to deterministic digests. It grants no authority beyond those digest bindings.",
+    "whole_system_post_quantum_safety": false
+  },
+  "evidence_refs": [
+    {
+      "file_sha256s": [
+        "f517c97500dd91dd44e55dc0de55268faa1c6b10e6b2c1145ce1c9b1556c0994",
+        "9dd2bbd307e88fb5e5e8c59d1cecff80162612ded3c8d7fd7c7c3ba31267cb39"
+      ],
+      "head_vector_digest": "4df8a593655e23bfc2c5d137a628be7bf3fc3e88f632fbb709217570cd2f41cd",
+      "kind": "binaric-vector-chain",
+      "paths": [
+        "daylight/v18-bastion/examples/transition.before.v18.json",
+        "daylight/v18-bastion/examples/transition.after.v18.json"
+      ]
+    },
+    {
+      "embedded_scorecard_digest": "6debccd2631146bead454d475789060d3aad50ef2d7b18b60d7960ce67bddd3d",
+      "file_sha256s": [
+        "9d93888033808b136d44989004c70746999d59553f325ba70cf19c7a97ffd812"
+      ],
+      "kind": "event-horizon-scorecard",
+      "paths": [
+        "daylight/v17-singularity/examples/expected-scorecard.current.v17.json"
+      ]
+    },
+    {
+      "file_sha256s": [
+        "02c13cf26227405956d4083f4ea2343fabcbd996b6b3040defedf4ae1cc223c8"
+      ],
+      "final_score_M": 998900,
+      "kind": "meridian-scorecard",
+      "open_obligation_count": 9,
+      "paths": [
+        "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json"
+      ],
+      "perfect_score_M": 1000000
+    },
+    {
+      "file_sha256s": [
+        "c216c7983b9dc0a8914fd19475c4673934a1ca8962eb02831457ed5396096bae"
+      ],
+      "kind": "policy",
+      "paths": [
+        "docs/wuci_cage_policy.json"
+      ]
+    },
+    {
+      "file_sha256s": [
+        "9c2e64dafa43e2aec1ada2af8ca65547edd7a73e3b6d7c0b385f6d24c1fb3fe8"
+      ],
+      "kind": "transition-ledger",
+      "ledger_head": "b9680f9bd1a3848b4651801b5d9c9659fa027a2e3a0837355fc2336eff82400e",
+      "paths": [
+        "daylight/v18-bastion/examples/transition-ledger.v18.json"
+      ]
+    }
+  ],
+  "firewall_result": {
+    "checked_file_count": 6,
+    "passed": true,
+    "phase": "pre-publication",
+    "profile_id": "aperture-bastion-public-v1"
+  },
+  "fixture": false,
+  "forbidden_private_material_profile": {
+    "profile_digest": "d191c651b963806015e1c779fcf72ab7d84cac9c0090f5beeb38a108e3329878",
+    "profile_id": "aperture-bastion-public-v1"
+  },
+  "generated_by": "daylight-v19-aperture-bastion/0.1.0",
+  "input_subjects": [
+    {
+      "subject_path": "daylight/v19-aperture-bastion/examples/example-subject.bin",
+      "subject_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "subject_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+      "subject_size_bytes": 84
+    }
+  ],
+  "layer_name": "Wuci-Ji v2 \u2014 Aperture Bastion",
+  "non_claims": [
+    "not FIPS validated",
+    "not a perfect Daylight score claim from repository-owned evidence",
+    "not an independent audit",
+    "not externally certified",
+    "not government validated",
+    "not host cleanliness proof",
+    "not production cryptography",
+    "not runtime containment or sandboxing",
+    "not whole-system post-quantum safe"
+  ],
+  "optional_binaric_vector_digest": "4df8a593655e23bfc2c5d137a628be7bf3fc3e88f632fbb709217570cd2f41cd",
+  "optional_event_horizon_scorecard_digest": "9d93888033808b136d44989004c70746999d59553f325ba70cf19c7a97ffd812",
+  "optional_meridian_scorecard_digest": "02c13cf26227405956d4083f4ea2343fabcbd996b6b3040defedf4ae1cc223c8",
+  "optional_policy_digest": "c216c7983b9dc0a8914fd19475c4673934a1ca8962eb02831457ed5396096bae",
+  "optional_transition_ledger_head": "b9680f9bd1a3848b4651801b5d9c9659fa027a2e3a0837355fc2336eff82400e",
+  "project": "wuci-ji",
+  "public_manifest": [
+    {
+      "path": "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json",
+      "sha256": "02c13cf26227405956d4083f4ea2343fabcbd996b6b3040defedf4ae1cc223c8",
+      "size_bytes": 14681
+    },
+    {
+      "path": "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+      "sha256": "9d93888033808b136d44989004c70746999d59553f325ba70cf19c7a97ffd812",
+      "size_bytes": 16740
+    },
+    {
+      "path": "daylight/v18-bastion/examples/transition-ledger.v18.json",
+      "sha256": "9c2e64dafa43e2aec1ada2af8ca65547edd7a73e3b6d7c0b385f6d24c1fb3fe8",
+      "size_bytes": 1501
+    },
+    {
+      "path": "daylight/v18-bastion/examples/transition.after.v18.json",
+      "sha256": "9dd2bbd307e88fb5e5e8c59d1cecff80162612ded3c8d7fd7c7c3ba31267cb39",
+      "size_bytes": 1371
+    },
+    {
+      "path": "daylight/v18-bastion/examples/transition.before.v18.json",
+      "sha256": "f517c97500dd91dd44e55dc0de55268faa1c6b10e6b2c1145ce1c9b1556c0994",
+      "size_bytes": 1276
+    },
+    {
+      "path": "daylight/v19-aperture-bastion/examples/example-subject.bin",
+      "sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "size_bytes": 84
+    }
+  ],
+  "public_sha256sums": "c95bd37f68e9ec446ffa5c2139a2fa36dae4af94d48e58f861eb091c6e455937",
+  "repo_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2",
+  "repo_dirty_state": "clean",
+  "schema_id": "daylight-v19-aperture-review-capsule",
+  "schema_version": "0.1.0",
+  "subject_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+  "subject_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+  "subject_size": 84
+}

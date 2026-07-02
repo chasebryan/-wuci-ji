@@ -449,7 +449,7 @@ daylight-v20-aperture-singularity-test:
 
 daylight-v20-aperture-singularity-capsule-demo:
 	mkdir -p build/daylight
-	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli build-capsule --aperture-capsule daylight/v19-aperture-bastion/examples/expected-capsule.v19.json --out $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --force
+	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli build-capsule --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json --out $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --force
 	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
 	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli explain $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
 
