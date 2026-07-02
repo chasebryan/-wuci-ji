@@ -1,0 +1,180 @@
+{
+  "bundle_digest": "5ea9a809282a067a54b3d65561cba8a61c71ca3cdaa0133afe1f72f792ee357b",
+  "claim_usable_verifier_vectors": [
+    {
+      "attestation_ref": "demo-att-vector-1",
+      "claim_usable": true,
+      "decision": "pass",
+      "fixture": false,
+      "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+      "output_digest": "7c7c38acd56b5c4f037d6ec2818f7f937f95d37ef8e7f4bec1cd21b57373a9a6",
+      "vector_id": "demo-vector-1",
+      "verifier_family": "alpha-independent",
+      "verifier_implementation_digest": "b7fd8e98e8347f52e95f6c6aced5fa4d71e7cfd4a6a17f41b59713e5582324c6"
+    },
+    {
+      "attestation_ref": "demo-att-vector-2",
+      "claim_usable": true,
+      "decision": "pass",
+      "fixture": false,
+      "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+      "output_digest": "7c7c38acd56b5c4f037d6ec2818f7f937f95d37ef8e7f4bec1cd21b57373a9a6",
+      "vector_id": "demo-vector-2",
+      "verifier_family": "beta-independent",
+      "verifier_implementation_digest": "5e541f0be5621b40ac18b5b0016749274b11b6956214f88a247f4a7e9aed4a40"
+    },
+    {
+      "attestation_ref": "demo-att-vector-3",
+      "claim_usable": true,
+      "decision": "pass",
+      "fixture": false,
+      "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+      "output_digest": "7c7c38acd56b5c4f037d6ec2818f7f937f95d37ef8e7f4bec1cd21b57373a9a6",
+      "vector_id": "demo-vector-3",
+      "verifier_family": "gamma-independent",
+      "verifier_implementation_digest": "7098f9397983ad82bf79e0e6b8473c98d9b388ff7192553193aac06c21039d4c"
+    }
+  ],
+  "firewall_profile_reviews": [
+    {
+      "attestation_ref": "demo-att-review-1",
+      "claim_usable": true,
+      "finding_level": "none",
+      "fixture": false,
+      "negative_cases_digest": "d8b21ada3e5e6f9726c4248c49007a91ddfed97f68fc37b03af3eee30e7f0a17",
+      "profile_digest": "42c87c1578b1c097965dd3075612e795c2ebf2c3a5d59ba0abe91ed6d4a92214",
+      "review_id": "demo-firewall-review-1",
+      "review_scope": "aperture-public-artifact-firewall-profile",
+      "reviewed_rules_digest": "fe78d6bbb8c29475512bbbfc2331ef3cc725f10d8bc174ac778e5cb9332d9635",
+      "reviewer_identity": "example-firewall-reviewer.example.org",
+      "reviewer_independence_class": "external"
+    }
+  ],
+  "independent_rebuild_receipts": [
+    {
+      "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "artifact_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+      "artifact_size": 84,
+      "attestation_ref": "demo-att-rebuild-1",
+      "build_instructions_digest": "4133888e5f0c16f840da8cf3731b32fda3475d0f91d90af1e5627595854a6fde",
+      "builder_contact_optional": null,
+      "builder_identity": "example-rebuilder-1.example.org",
+      "builder_independence_class": "external",
+      "byte_reproducible": true,
+      "claim_usable": true,
+      "environment_digest": "2332b10a258b9c06ad6ea9532c94751a24875a8ec72f6ca99bc7f881cca2d9f8",
+      "fixture": false,
+      "receipt_id": "demo-rebuild-1",
+      "release_tag": "v20-aperture-singularity-fixture",
+      "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2"
+    },
+    {
+      "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "artifact_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+      "artifact_size": 84,
+      "attestation_ref": "demo-att-rebuild-2",
+      "build_instructions_digest": "4133888e5f0c16f840da8cf3731b32fda3475d0f91d90af1e5627595854a6fde",
+      "builder_contact_optional": null,
+      "builder_identity": "example-rebuilder-2.example.org",
+      "builder_independence_class": "external",
+      "byte_reproducible": true,
+      "claim_usable": true,
+      "environment_digest": "92d868e3eaabab26ae50e893e951596f40bc58dfd1498cc3e12e71b4f38f37bf",
+      "fixture": false,
+      "receipt_id": "demo-rebuild-2",
+      "release_tag": "v20-aperture-singularity-fixture",
+      "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2"
+    }
+  ],
+  "pinned_attestations": [
+    {
+      "attestation_id": "demo-att-rebuild-1",
+      "claim_usable": true,
+      "fixture": false,
+      "public_key_digest": "e6d50cefe6d9c510da38944ff447c5338b0fc7a1d49e9754451d360f8108f628",
+      "signature": "dW52ZXJpZmllZCBkZW1vbnN0cmF0aW9uIHNpZ25hdHVyZSBmb3IgZGVtby1hdHQtcmVidWlsZC0x",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "example-rebuilder-1.example.org",
+      "signer_independence_class": "external",
+      "statement_digest": "24528e4dfe47321ae6cbfeeb6bccd2a2229f18ce666f703e118a8cdd62363b3a",
+      "subject_digest": "a49b85f98b53aa341fe1f090cbaa2ffb893bf3b7b774ffd751dc9afd2bfe7ddd",
+      "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
+    },
+    {
+      "attestation_id": "demo-att-rebuild-2",
+      "claim_usable": true,
+      "fixture": false,
+      "public_key_digest": "e6d50cefe6d9c510da38944ff447c5338b0fc7a1d49e9754451d360f8108f628",
+      "signature": "dW52ZXJpZmllZCBkZW1vbnN0cmF0aW9uIHNpZ25hdHVyZSBmb3IgZGVtby1hdHQtcmVidWlsZC0y",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "example-rebuilder-2.example.org",
+      "signer_independence_class": "external",
+      "statement_digest": "00ca8935004d62895dd58abe220b89f7e04a4caf0f76a1c3375ad7b7bec6d541",
+      "subject_digest": "17b26c590d7c5062b5b6ecc82b94582fde584bb5154c56e753962330b435201a",
+      "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
+    },
+    {
+      "attestation_id": "demo-att-review-1",
+      "claim_usable": true,
+      "fixture": false,
+      "public_key_digest": "e6d50cefe6d9c510da38944ff447c5338b0fc7a1d49e9754451d360f8108f628",
+      "signature": "dW52ZXJpZmllZCBkZW1vbnN0cmF0aW9uIHNpZ25hdHVyZSBmb3IgZGVtby1hdHQtcmV2aWV3LTE=",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "example-firewall-reviewer.example.org",
+      "signer_independence_class": "external",
+      "statement_digest": "f64f6c78d458abab231bf36a376924c81b821f5e59bce310c686e19ce5f33abf",
+      "subject_digest": "006bd0bdc6abada73ffe5c13c9fe479138cf9d2b82dac9e9d00abd54113ae2e9",
+      "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
+    },
+    {
+      "attestation_id": "demo-att-vector-1",
+      "claim_usable": true,
+      "fixture": false,
+      "public_key_digest": "e6d50cefe6d9c510da38944ff447c5338b0fc7a1d49e9754451d360f8108f628",
+      "signature": "dW52ZXJpZmllZCBkZW1vbnN0cmF0aW9uIHNpZ25hdHVyZSBmb3IgZGVtby1hdHQtdmVjdG9yLTE=",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "example-verifier-1.example.org",
+      "signer_independence_class": "external",
+      "statement_digest": "39a87e5688c024d2966fd750dfdf36eb44569782dcf5e566a4b11280c045b5b2",
+      "subject_digest": "345ac203bcc389e7fcedf3c43087769ea0b7a40f5491cd39c55a1e5857992bf3",
+      "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
+    },
+    {
+      "attestation_id": "demo-att-vector-2",
+      "claim_usable": true,
+      "fixture": false,
+      "public_key_digest": "e6d50cefe6d9c510da38944ff447c5338b0fc7a1d49e9754451d360f8108f628",
+      "signature": "dW52ZXJpZmllZCBkZW1vbnN0cmF0aW9uIHNpZ25hdHVyZSBmb3IgZGVtby1hdHQtdmVjdG9yLTI=",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "example-verifier-2.example.org",
+      "signer_independence_class": "external",
+      "statement_digest": "c3316f7adda4b3a95d3464e378a6d152bb37234b2b18fef91735fe35f906e4ff",
+      "subject_digest": "6af33b14fe9350ee24525cc1816f92559584ca50e4d0fc11091cbfe8aac042ff",
+      "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
+    },
+    {
+      "attestation_id": "demo-att-vector-3",
+      "claim_usable": true,
+      "fixture": false,
+      "public_key_digest": "e6d50cefe6d9c510da38944ff447c5338b0fc7a1d49e9754451d360f8108f628",
+      "signature": "dW52ZXJpZmllZCBkZW1vbnN0cmF0aW9uIHNpZ25hdHVyZSBmb3IgZGVtby1hdHQtdmVjdG9yLTM=",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "example-verifier-3.example.org",
+      "signer_independence_class": "external",
+      "statement_digest": "c23a1fef117c40c19f9859624f6bc7980cbaae5edc3d1aedb845adffe2a11916",
+      "subject_digest": "09aa64df4cac8f48ca539aedf75f51d86d1a18af943864cdfa53efd3c19cad83",
+      "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
+    }
+  ],
+  "schema_id": "daylight.v20.external-evidence.bundle",
+  "schema_version": 1,
+  "subject": {
+    "aperture_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+    "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+    "artifact_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+    "artifact_size": 84,
+    "release_tag": "v20-aperture-singularity-fixture",
+    "score_ceiling_report_digest": "687d5ec83f0e2ea9a0f555fe79eddbfea14af692eca84f28499befb2a6654f61",
+    "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2"
+  }
+}

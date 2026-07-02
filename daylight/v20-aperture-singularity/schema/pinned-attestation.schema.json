@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "pinned-attestation.schema.json",
+  "title": "Daylight v20 Pinned Cryptographic Attestation",
+  "description": "Documentation schema for one pinned attestation inside an external evidence bundle. The enforced validator is src/external_evidence.py. An attestation is rejected if the signer identity contains a reserved token, the independence class is not 'external', it is fixture or not claim-usable, its signature algorithm is not in the supported set (ed25519), its public key digest is not pinned in daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json, its statement digest does not recompute (SHA-256('DAYLIGHT-v20-PINNED-ATTESTATION-STATEMENT:' + canonical(attestation without statement_digest and signature))), its subject digest does not match the referenced evidence item, or its verification material ref is not the pinned registry path. Cryptographic signature verification is not implemented yet; until it lands every bundle carries the blocker 'pinned cryptographic attestation verification not implemented' and external_attestation_verified stays false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation_id",
+    "subject_digest",
+    "statement_digest",
+    "signer_identity",
+    "signer_independence_class",
+    "signature_algorithm",
+    "public_key_digest",
+    "signature",
+    "verification_material_ref",
+    "fixture",
+    "claim_usable"
+  ],
+  "properties": {
+    "attestation_id": {"type": "string", "minLength": 1},
+    "subject_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "statement_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signer_identity": {"type": "string", "minLength": 1},
+    "signer_independence_class": {"const": "external"},
+    "signature_algorithm": {"enum": ["ed25519"]},
+    "public_key_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9+/=]+$", "maxLength": 8192},
+    "verification_material_ref": {"const": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"},
+    "fixture": {"const": false},
+    "claim_usable": {"const": true}
+  }
+}

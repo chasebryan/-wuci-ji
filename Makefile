@@ -140,7 +140,8 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-horizon-alpha-test daylight-horizon-alpha-vault-demo daylight-horizon-alpha-release-demo
 .PHONY: daylight-v18-bastion-measure daylight-v18-bastion-verify daylight-v18-bastion-test daylight-v18-bastion-transition-demo daylight-v18-bastion-transition-test daylight-v18-bastion-transition-ledger-verify
 .PHONY: daylight-v19-aperture-bastion-doctor daylight-v19-aperture-bastion-capsule-demo daylight-v19-aperture-bastion-verify daylight-v19-aperture-bastion-public-artifact daylight-v19-aperture-bastion-firewall daylight-v19-aperture-bastion-test daylight-v19-aperture-bastion-ci aperture-bastion-doctor aperture-bastion-test aperture-bastion-ci
-.PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
+.PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-external-evidence daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
+.PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
@@ -465,6 +466,28 @@ daylight-v20-aperture-singularity-evidence-audit: daylight-v20-aperture-singular
 
 daylight-v20-aperture-singularity-score-ceiling: daylight-v20-aperture-singularity-capsule-demo
 	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli score-ceiling $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
+	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli score-ceiling-report --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
+
+daylight-v20-aperture-singularity-external-evidence: daylight-v20-aperture-singularity-capsule-demo
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.valid-shape.nonclaim.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli explain-external-blockers daylight/v20-aperture-singularity/examples/external-evidence.valid-shape.nonclaim.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+
+daylight-v20-external-evidence-test:
+	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m unittest tests.test_external_evidence_intake tests.test_independent_rebuild_receipts tests.test_firewall_profile_review tests.test_claim_usable_verifier_vectors tests.test_pinned_attestation_verification
+
+daylight-v20-external-evidence-demo: daylight-v20-aperture-singularity-capsule-demo
+	@echo "daylight-v20-external-evidence-demo: every example bundle below must be refused"
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.empty.reject.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.self-signed.reject.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.internal-reviewer.reject.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.fixture.reject.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.digest-mismatch.reject.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.unpinned-key.reject.json --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE) --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+
+daylight-v20-external-evidence-verify: daylight-v20-aperture-singularity-external-evidence
+
+daylight-v20-score-ceiling-report: daylight-v20-aperture-singularity-capsule-demo
+	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli score-ceiling-report --capsule $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
 
 daylight-v20-aperture-singularity-declaration-gate: daylight-v20-aperture-singularity-capsule-demo
 	! PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli declaration-gate $(DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE)
@@ -479,7 +502,7 @@ daylight-v20-aperture-singularity-verify-public-artifact: daylight-v20-aperture-
 daylight-v20-aperture-singularity-firewall: daylight-v20-aperture-singularity-public-artifact
 	PYTHONPATH=daylight/v20-aperture-singularity $(PYTHON) -m src.cli firewall --root $(DAYLIGHT_V20_APERTURE_SINGULARITY_PUBLIC_DIR) --report $(DAYLIGHT_V20_APERTURE_SINGULARITY_FIREWALL_REPORT)
 
-daylight-v20-aperture-singularity-ci: daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall
+daylight-v20-aperture-singularity-ci: daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-score-ceiling-report daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall
 	@echo "daylight-v20-aperture-singularity-ci: complete"
 
 site-daylight-status:

@@ -83,6 +83,9 @@ PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli declaration-gate
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli explain daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli evidence-audit daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli score-ceiling daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
+PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli score-ceiling-report --capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
+PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli verify-external-evidence daylight/v20-aperture-singularity/examples/external-evidence.valid-shape.nonclaim.json --capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
+PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli explain-external-blockers daylight/v20-aperture-singularity/examples/external-evidence.valid-shape.nonclaim.json --capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json --aperture-capsule daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli public-artifact --capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json --out-dir build/daylight/v20-aperture-singularity-public --firewall-report build/daylight/firewall-report.v20.json --force
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli verify-public-artifact build/daylight/v20-aperture-singularity-public --expected-release-tag v20-aperture-singularity-fixture
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli firewall --root build/daylight/v20-aperture-singularity-public --report build/daylight/firewall-report.v20.json
@@ -94,10 +97,19 @@ gaps are zero and the remaining requirements are external evidence slots, it
 keeps Singularity refused and sets
 `singularity_possible_without_external_validation` to `false`.
 
+`verify-external-evidence` is the fail-closed intake for real external closure
+material. It checks independent rebuild receipts, external firewall-profile
+reviews, claim-usable 3-of-3 verifier vectors, pinned attestation statements,
+subject binding, score-ceiling binding, and pinned verification material. Until
+a deterministic local signature verifier is implemented, structurally valid
+bundles still fail with `pinned cryptographic attestation verification not
+implemented` and cannot open declaration.
+
 ## Public Review Artifact
 
 `make daylight-v20-aperture-singularity-public-artifact` emits a public-review
 directory with the v20 capsule, documentation schemas for every evidence bundle,
+external-evidence intake schemas, reviewer protocol docs,
 the verifier bundle, external-attestation bundle, reproducible-build bundle,
 falsification bundle, boundary-debt report, firewall-profile expansion bundle,
 external-evidence slot contracts, artifact manifest, omega scorecard, blocker

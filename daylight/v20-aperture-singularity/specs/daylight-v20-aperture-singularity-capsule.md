@@ -138,6 +138,32 @@ verification is implemented, every bundle carries:
 external attestation not cryptographically verified
 ```
 
+## External evidence intake
+
+The `src.external_evidence` intake layer binds the remaining external closure
+slots to one canonical bundle:
+
+- two or more independent rebuild receipts
+- at least one external firewall-profile review
+- exactly three claim-usable verifier vectors from distinct families
+- pinned cryptographic attestation statements for every external evidence item
+- the v20 capsule subject and the v19 Aperture capsule subject bytes
+- the score-ceiling report digest
+
+The bundle digest is:
+
+```text
+SHA-256("DAYLIGHT-v20-EXTERNAL-EVIDENCE-BUNDLE:" + canonical(bundle without bundle_digest))
+```
+
+The intake rejects repo-owned, self-scoped, internal, fixture, unpinned,
+placeholder, mismatched, unsigned, or unreferenced evidence. It is intentionally
+not enough for an attestation to name `ed25519`; the implementation must also
+contain a deterministic local verifier before
+`external_attestation_verified == true` can be reached. Until then, every
+otherwise well-shaped bundle remains a non-claim and `declaration_allowed`
+remains false.
+
 ## Independent verifier agreement
 
 A verifier bundle is declaration-grade only when all vectors are valid,
@@ -179,6 +205,17 @@ The v20 public artifact contains:
 - `falsification-survival.bundle.schema.json`
 - `boundary-debt.report.schema.json`
 - `firewall-profile-expansion.bundle.schema.json`
+- `external-evidence.bundle.schema.json`
+- `independent-rebuild-receipt.schema.json`
+- `firewall-profile-review.schema.json`
+- `verifier-vector-claim-usable.schema.json`
+- `pinned-attestation.schema.json`
+- `DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md`
+- `DAYLIGHT_V20_REVIEWER_PACKET.md`
+- `DAYLIGHT_V20_INDEPENDENT_REBUILD_RECEIPT.md`
+- `DAYLIGHT_V20_FIREWALL_PROFILE_REVIEW.md`
+- `DAYLIGHT_V20_VERIFIER_VECTOR_CONTRACT.md`
+- `DAYLIGHT_V20_ATTESTATION_VERIFICATION.md`
 - `verifier-agreement.bundle.json`
 - `external-attestation.bundle.json`
 - `reproducible-build.bundle.json`

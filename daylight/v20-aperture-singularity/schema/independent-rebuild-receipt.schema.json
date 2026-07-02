@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "independent-rebuild-receipt.schema.json",
+  "title": "Daylight v20 Independent Rebuild Receipt",
+  "description": "Documentation schema for one external rebuild receipt inside an external evidence bundle. The enforced validator is src/external_evidence.py. A receipt is rejected if the builder identity contains a reserved token (self, internal, local, repo, repository, harness, fixture, fixtures, unknown, wuci, noxframe), the independence class is not 'external', it is fixture or not claim-usable, any subject binding differs, fewer than two receipts exist, two receipts share a builder identity or environment digest, or its pinned attestation is missing or inadmissible. The attestation subject_digest must equal SHA-256('DAYLIGHT-v20-EXTERNAL-REBUILD-RECEIPT:' + canonical(receipt without attestation_ref)).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_id",
+    "builder_identity",
+    "builder_independence_class",
+    "builder_contact_optional",
+    "source_commit",
+    "release_tag",
+    "build_instructions_digest",
+    "environment_digest",
+    "artifact_sha256",
+    "artifact_sha3_512",
+    "artifact_size",
+    "byte_reproducible",
+    "fixture",
+    "claim_usable",
+    "attestation_ref"
+  ],
+  "properties": {
+    "receipt_id": {"type": "string", "minLength": 1},
+    "builder_identity": {"type": "string", "minLength": 1},
+    "builder_independence_class": {"const": "external"},
+    "builder_contact_optional": {"type": ["string", "null"]},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "release_tag": {"type": "string", "minLength": 1},
+    "build_instructions_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "environment_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact_sha3_512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+    "artifact_size": {"type": "integer", "minimum": 0},
+    "byte_reproducible": {"const": true},
+    "fixture": {"const": false},
+    "claim_usable": {"const": true},
+    "attestation_ref": {"type": "string", "minLength": 1}
+  }
+}
