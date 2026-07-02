@@ -39,6 +39,12 @@ apex domain, and `/.well-known/security.txt` served as public text. GitHub
 Pages controls certificate issuance and the Enforce HTTPS toggle; repository
 files cannot prove that hosted setting by themselves.
 
+`site/app.js` includes a browser-side fallback that redirects
+`http://nosuchmachine.net/` and `http://www.nosuchmachine.net/` visits to the
+canonical HTTPS apex URL. This improves browser behavior if a host setting
+regresses, but it is not a replacement for a server-side 301/308 redirect,
+HSTS, or Cloudflare Always Use HTTPS.
+
 ## Cloudflare Pages Git Deploy
 
 Cloudflare Pages is an alternate deploy path. Unlike GitHub Pages, it honors

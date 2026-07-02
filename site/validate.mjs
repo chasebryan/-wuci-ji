@@ -153,6 +153,22 @@ async function assertNotFoundPage() {
   }
 }
 
+async function assertBrowserHttpsFallback() {
+  const app = await readFile(new URL("app.js", siteRoot), "utf8");
+  for (const required of [
+    "function enforceCanonicalHttps()",
+    'window.location.protocol === "http:"',
+    'host === "nosuchmachine.net"',
+    'host === "www.nosuchmachine.net"',
+    'window.location.replace(',
+    '"https://nosuchmachine.net"'
+  ]) {
+    if (!app.includes(required)) {
+      fail(`app.js is missing browser HTTPS fallback marker: ${required}`);
+    }
+  }
+}
+
 async function assertApertureStatusBinding() {
   const status = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
   if (status === null) {
@@ -519,6 +535,7 @@ await assertRequiredFiles();
 await assertCustomDomain();
 await assertIndexReferences();
 await assertNotFoundPage();
+await assertBrowserHttpsFallback();
 await assertAssetSizes();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
