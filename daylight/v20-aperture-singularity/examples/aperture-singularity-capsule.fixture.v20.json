@@ -1,0 +1,299 @@
+{
+  "blockers": [
+    "omega_eff below declaration threshold",
+    "score_AM_plus below declaration target",
+    "field threshold failure",
+    "field threshold failed: reproducible_build",
+    "field threshold failed: aperture_firewall_boundary",
+    "field threshold failed: independent_verifier_quorum",
+    "field threshold failed: external_attestation",
+    "cross_verifier_agreement_passed=false",
+    "verifier vectors are fixture evidence",
+    "verifier vectors are not claim-usable",
+    "fixture=true",
+    "claim_usable=false",
+    "external attestation not cryptographically verified",
+    "reproducible build receipts are fixture evidence",
+    "reproducible build receipts are not claim-usable",
+    "reproducible build source commit does not match capsule source commit",
+    "reproducible build artifact SHA-256 does not match capsule subject",
+    "reproducible build artifact SHA3-512 does not match capsule subject"
+  ],
+  "boundary_debt_summary": {
+    "blockers": [],
+    "contradiction_debt": 0,
+    "critical_debt": 0,
+    "debt_omega": "0",
+    "passed": true
+  },
+  "capsule_digest": "4812ed84f17215db08d50c5c10c51c8ab498ccbb555d45f3e66248e6e1948c86",
+  "claim_boundary": {
+    "boundary_version": "daylight-v20-aperture-singularity-boundary-v1",
+    "external_certification": false,
+    "fips_validation": false,
+    "government_validation": false,
+    "host_cleanliness": false,
+    "independent_audit_completed": false,
+    "perfect_daylight_score_from_repo_evidence": false,
+    "production_cryptography": false,
+    "runtime_containment": false,
+    "statement": "Daylight v20 binds public evidence intake to Singularity blockers; it grants no production, runtime, government, external certification, audit, or quantum-safety authority.",
+    "whole_system_post_quantum_safety": false
+  },
+  "claim_usable": false,
+  "contradiction_debt": 0,
+  "critical_debt": 0,
+  "cross_verifier_agreement_passed": false,
+  "declaration_allowed": false,
+  "external_attestation_summary": {
+    "attestation_count": 1,
+    "blockers": [
+      "external attestation not cryptographically verified"
+    ],
+    "verified": false
+  },
+  "external_attestation_verified": false,
+  "falsification_summary": {
+    "blockers": [],
+    "claim_usable": true,
+    "fixture": false,
+    "passed": true,
+    "required_case_count": 21,
+    "survived_case_count": 21
+  },
+  "field_thresholds_passed": false,
+  "firewall_profile_summary": {
+    "blockers": [],
+    "case_count": 14,
+    "claim_usable": true,
+    "fixture": false,
+    "passed": true,
+    "profile_digest": "42c87c1578b1c097965dd3075612e795c2ebf2c3a5d59ba0abe91ed6d4a92214",
+    "profile_id": "daylight-v20-aperture-singularity-public-review-v1",
+    "required_case_count": 14
+  },
+  "fixture": true,
+  "fracture_suite_passed": true,
+  "generated_by": "daylight-v20-aperture-singularity/0.1.0",
+  "input_aperture_capsule_digest": "9021b8e1a7711b4a4f9c30e2d4ccb35106b56af8fdd6054cde99aaf9aae83d20",
+  "input_aperture_firewall_report_digest": "ce1c93a9c55dc9806f32eda399a5a39f7798f2975c2f8745db7cc5c4bb79901e",
+  "input_binaric_vector_chain_digest": null,
+  "input_boundary_debt_report_digest": "d98132530456ac53a8ccc548352368453651f962f8e5e2182dbc595c2f09edeb",
+  "input_event_horizon_scorecard_digest": null,
+  "input_external_attestation_bundle_digest": "92f07f81e7afae2caecfb00d0ab5a6e6b7ae220165aead198c8e3011334eaa2a",
+  "input_falsification_bundle_digest": "da57b982e6990114c73580d94147d0b2b91ec7b68c15aa6f6afdb422e5169b74",
+  "input_firewall_profile_expansion_digest": "16e4ae061ae0f7aab0faf30d36d0ce2d5bf6ce9cd999308e733a16fdd061f471",
+  "input_meridian_scorecard_digest": null,
+  "input_reproducible_build_bundle_digest": "a0cdba46fa285e098f0aec952c0405922669ce3f8df8270bc448661affba251b",
+  "input_transition_ledger_head": null,
+  "input_verifier_agreement_bundle_digest": "8fcd209a5d4f94eb8ecca2d6401ef86e0e17bc895bc09b1b92579119e12fa105",
+  "layer_name": "Daylight v20 - Aperture Singularity Gate",
+  "non_claims": [
+    "not production cryptography",
+    "not runtime containment",
+    "not host cleanliness proof",
+    "not FIPS validated",
+    "not government validated",
+    "not externally certified",
+    "not whole-system post-quantum safe",
+    "not an independent audit",
+    "not a perfect Daylight score claim from repository-owned evidence"
+  ],
+  "omega_eff": "5.493061443340548456976226184612628523237452789113747258673471668187471466093044834368078774068660445",
+  "omega_sum": "28.11159369652351800182981739393329233215328026858284578817199345135138112973215653764796230579849462",
+  "omega_weak": "5.493061443340548456976226184612628523237452789113747258673471668187471466093044834368078774068660445",
+  "policy_digest": "0e4c892148764a63762dc5f2ccd94347694d703dad94d04207c63900450726c0",
+  "project": "wuci-ji",
+  "proof_fields": [
+    {
+      "closed_atoms": [
+        "receipts_present",
+        "receipt_statement_digests_verified",
+        "at_least_two_independent_builders",
+        "distinct_build_environments",
+        "same_source_commit",
+        "same_build_instructions_digest",
+        "same_artifact_sha256",
+        "same_artifact_sha3_512",
+        "artifact_size_matches_subject",
+        "byte_identical_outputs_claimed"
+      ],
+      "closure_decimal": "0.6666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666667",
+      "closure_rational": "10/15",
+      "closure_threshold": "0.984151068",
+      "field_id": "reproducible_build",
+      "omega_i": "1.098612288668109691395245236922525704647490557822749451734694333637494293218608966873615754813732089",
+      "omega_threshold": "4.144653167",
+      "open_atoms": [
+        "receipts_non_fixture",
+        "receipts_claim_usable",
+        "source_commit_matches_capsule",
+        "artifact_sha256_matches_subject",
+        "artifact_sha3_512_matches_subject"
+      ],
+      "perfect_reserve_applied": false,
+      "required_atom_count": 15,
+      "threshold_passed": false,
+      "verified_atom_count": 10
+    },
+    {
+      "closed_atoms": [
+        "aperture_capsule_bound",
+        "aperture_capsule_digest_verified",
+        "subject_sha256_bound",
+        "subject_sha3_512_bound",
+        "subject_size_bound",
+        "public_manifest_declared",
+        "sha256sums_consistent",
+        "firewall_report_bound",
+        "firewall_passed",
+        "firewall_profile_pinned",
+        "claim_boundary_present",
+        "non_claims_present",
+        "public_artifact_firewall_negative_matrix_verified"
+      ],
+      "closure_decimal": "0.9285714285714285714285714285714285714285714285714285714285714285714285714285714285714285714285714286",
+      "closure_rational": "13/14",
+      "closure_threshold": "0.984151068",
+      "field_id": "aperture_firewall_boundary",
+      "omega_i": "2.639057329615258614522584864901356297712584863942116442580070159430973484721763983393521825584290215",
+      "omega_threshold": "4.144653167",
+      "open_atoms": [
+        "firewall_profile_externally_expanded"
+      ],
+      "perfect_reserve_applied": false,
+      "required_atom_count": 14,
+      "threshold_passed": false,
+      "verified_atom_count": 13
+    },
+    {
+      "closed_atoms": [
+        "bundle_present",
+        "vectors_valid",
+        "subject_matches_expected",
+        "vector_statement_digests_verified",
+        "at_least_three_vectors",
+        "three_distinct_verifier_families",
+        "output_schema_matches_v20",
+        "all_canonical_output_digests_match",
+        "quorum_3_of_3"
+      ],
+      "closure_decimal": "0.8181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818182",
+      "closure_rational": "9/11",
+      "closure_threshold": "0.984151068",
+      "field_id": "independent_verifier_quorum",
+      "omega_i": "1.704748092238425234644711456506952731746206719577161921097887699637180001943541997469191381006216104",
+      "omega_threshold": "4.144653167",
+      "open_atoms": [
+        "vectors_non_fixture",
+        "vectors_claim_usable"
+      ],
+      "perfect_reserve_applied": false,
+      "required_atom_count": 11,
+      "threshold_passed": false,
+      "verified_atom_count": 9
+    },
+    {
+      "closed_atoms": [
+        "attestations_present",
+        "required_fields_present",
+        "attestations_scoped",
+        "signer_not_self_scoped",
+        "non_claims_acknowledged",
+        "statement_digest_verified"
+      ],
+      "closure_decimal": "0.8571428571428571428571428571428571428571428571428571428571428571428571428571428571428571428571428571",
+      "closure_rational": "6/7",
+      "closure_threshold": "0.984151068",
+      "field_id": "external_attestation",
+      "omega_i": "1.945910149055313305105352743443179729637084729581861188459390149937579862752069267787658498587871527",
+      "omega_threshold": "4.144653167",
+      "open_atoms": [
+        "cryptographic_signature_verified"
+      ],
+      "perfect_reserve_applied": false,
+      "required_atom_count": 7,
+      "threshold_passed": false,
+      "verified_atom_count": 6
+    },
+    {
+      "closed_atoms": [
+        "digest_edit",
+        "manifest_edit",
+        "public_file_drift",
+        "hidden_file",
+        "symlink",
+        "hardlink",
+        "private_filename",
+        "private_directory",
+        "private_content_marker",
+        "path_traversal",
+        "absolute_path",
+        "duplicate_json_key",
+        "json_float",
+        "manual_score_edit",
+        "fixture_laundering",
+        "fake_external_attestation",
+        "self_signed_external_closure",
+        "reserved_perfect_am_plus_value",
+        "verifier_vector_mismatch",
+        "duplicate_verifier_family",
+        "critical_boundary_debt"
+      ],
+      "closure_decimal": "0.999999999",
+      "closure_rational": "999999999/1000000000",
+      "closure_threshold": "0.984151068",
+      "field_id": "falsification_survival",
+      "omega_i": "20.72326583694641115616192309215927786840991339765895678429995110870815348709617232212397484580638469",
+      "omega_threshold": "4.144653167",
+      "open_atoms": [],
+      "perfect_reserve_applied": true,
+      "required_atom_count": 21,
+      "threshold_passed": true,
+      "verified_atom_count": 21
+    }
+  ],
+  "release_tag": "v20-aperture-singularity-fixture",
+  "reproducible_build_summary": {
+    "blockers": [
+      "reproducible build receipts are fixture evidence",
+      "reproducible build receipts are not claim-usable",
+      "reproducible build source commit does not match capsule source commit",
+      "reproducible build artifact SHA-256 does not match capsule subject",
+      "reproducible build artifact SHA3-512 does not match capsule subject"
+    ],
+    "claim_usable": false,
+    "distinct_environment_count": 2,
+    "fixture": true,
+    "independent_builder_count": 2,
+    "passed": false,
+    "receipt_count": 2
+  },
+  "reserved_perfect_value_used": false,
+  "schema_id": "daylight-v20-aperture-singularity-capsule",
+  "schema_version": "0.1.0",
+  "score_AM_plus": 995884773,
+  "score_inflation_M": 0,
+  "source_commit": "fixture",
+  "verifier_agreement": {
+    "blockers": [
+      "verifier vectors are fixture evidence",
+      "verifier vectors are not claim-usable"
+    ],
+    "expected_subject": "v20-aperture-singularity-fixture",
+    "output_schema_matches_v20": true,
+    "passed": false,
+    "quorum": "3/3",
+    "subject": "v20-aperture-singularity-fixture",
+    "subject_matches_expected": true,
+    "vector_statement_digests_verified": true,
+    "vectors_claim_usable": false,
+    "vectors_non_fixture": false,
+    "verifier_families": [
+      "python-reference",
+      "rust-independent",
+      "zig-minimal-c-independent"
+    ]
+  },
+  "verifier_quorum": "3_of_3"
+}

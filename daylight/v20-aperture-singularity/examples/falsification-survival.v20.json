@@ -1,0 +1,146 @@
+{
+  "authority_scope": "repo-owned-negative-corpus",
+  "claim_usable": true,
+  "fixture": false,
+  "non_claims_acknowledged": [
+    "not production cryptography",
+    "not runtime containment",
+    "not host cleanliness proof",
+    "not FIPS validated",
+    "not government validated",
+    "not externally certified",
+    "not whole-system post-quantum safe",
+    "not an independent audit",
+    "not a perfect Daylight score claim from repository-owned evidence"
+  ],
+  "results": [
+    {
+      "case_id": "digest_edit",
+      "description": "digest edit",
+      "evidence_digest": "a038d9a785657d24790d73efbd3e8752dd4caa165b7ed140d8601fd0839916a1",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "manifest_edit",
+      "description": "manifest edit",
+      "evidence_digest": "b026a9285371427fdc4e259f16cf247d8f1c111914bff4acafb343a8c8bb47dc",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "public_file_drift",
+      "description": "public file drift",
+      "evidence_digest": "62860ff13cf74a71c66ed5360c50ff46362e5f5cf1c1cac9c6ff9279b884f5de",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "hidden_file",
+      "description": "hidden file",
+      "evidence_digest": "1c766f15d3ff000a30efa3c7d2c1a48ba7d92bfd898ee9e678d09a7229559d82",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "symlink",
+      "description": "symlink",
+      "evidence_digest": "f78e0ed40679d517d12edd1bf7f7ff2846df3e8899d01a902d4d04be4db6876c",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "hardlink",
+      "description": "hardlink",
+      "evidence_digest": "99346c2b630d7921c263c7a48a28b0161512a48ab9228273a17b0cdec507afc5",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_filename",
+      "description": "private filename",
+      "evidence_digest": "db38df546a92aa42c7c17070a7f08fff6a191e6075518a66597fe2addd08c668",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_directory",
+      "description": "private directory",
+      "evidence_digest": "ad0e1f87e8d9c0ed5f4f1043de606d7391e29a18f9d438bbbd930f9a2849b7f8",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_content_marker",
+      "description": "private content marker",
+      "evidence_digest": "5a335347c2547d452245a1e37564f3de5bbbccd83a127ab7d8f8a46d24498b1d",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "path_traversal",
+      "description": "path traversal",
+      "evidence_digest": "1692362b6481f5482bad7a10a75bcfdc2233aefa36a2dd93bdbde71793dc7dd6",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "absolute_path",
+      "description": "absolute path",
+      "evidence_digest": "56904b9a9b7e670f68f3ae0c2a59020dd7bd176ae721c07712211a5a5130a0fe",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "duplicate_json_key",
+      "description": "duplicate JSON key",
+      "evidence_digest": "67b2c32e173e742dbcba90b7c9fcca0d50692b3d26c7a39bb99a5e4e88b5e3f3",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "json_float",
+      "description": "JSON float",
+      "evidence_digest": "2ed3207461347de9eeb49012f4f7aa5b3d0dcf379df5c2723999c221c48a8383",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "manual_score_edit",
+      "description": "manual score edit",
+      "evidence_digest": "4d779f7bf1baad7e96ff79b087bb708e9007a4588182aa9379ddaea7e02a0e31",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "fixture_laundering",
+      "description": "fixture laundering",
+      "evidence_digest": "5530a57cf379e7b2d8ec5648f11ff9b07af919c2dfa04be7c651eeb9e7be80b1",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "fake_external_attestation",
+      "description": "fake external attestation",
+      "evidence_digest": "1bf481b25e14cf9a9125daa794e39aa8784d3188db4530479b4321b0f61b4301",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "self_signed_external_closure",
+      "description": "self-signed external closure",
+      "evidence_digest": "0a31d7fda9cd6cf0ba4d9781e78d2a7a7e37ad251ea6cb8ac44075a70fe112a8",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "reserved_perfect_am_plus_value",
+      "description": "reserved perfect AM+ value",
+      "evidence_digest": "8837f30c4b462ee8b63b25e897794c4e44962c68d0c04d9eac58976ffb61615f",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "verifier_vector_mismatch",
+      "description": "verifier vector mismatch",
+      "evidence_digest": "786f4f59d3d58cbd881fdf580e7b657f8d31c92c54e43c831b723a2102fe3462",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "duplicate_verifier_family",
+      "description": "duplicate verifier family",
+      "evidence_digest": "4e541872883d9a033106aec5c2a4236d3accb047ab1507ee3b3d7abe1591cb0c",
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "critical_boundary_debt",
+      "description": "critical boundary debt",
+      "evidence_digest": "e6ed9515d7c6d629b4316e94d2dd777a2bd4eddc8d45265d8d75062c5344f918",
+      "outcome": "rejected"
+    }
+  ],
+  "schema_id": "daylight-v20-falsification-survival-bundle",
+  "schema_version": "0.1.0"
+}

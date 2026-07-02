@@ -1,0 +1,53 @@
+{
+  "attestations": [
+    {
+      "attestation_id": "self-signed-fixture",
+      "attestation_type": "external-review",
+      "evidence_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+      "non_claims_acknowledged": [
+        "not production cryptography",
+        "not runtime containment",
+        "not host cleanliness proof",
+        "not FIPS validated",
+        "not government validated",
+        "not externally certified",
+        "not whole-system post-quantum safe",
+        "not an independent audit",
+        "not a perfect Daylight score claim from repository-owned evidence"
+      ],
+      "reviewer_id": "self",
+      "reviewer_org_optional": null,
+      "scope": {
+        "layer": "daylight-v20-aperture-singularity",
+        "release_tag": "v20-aperture-singularity-fixture",
+        "source_commit": "1111111111111111111111111111111111111111"
+      },
+      "self_scope": [
+        "self",
+        "repo",
+        "wuci-ji"
+      ],
+      "signature_material": {
+        "key_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+        "signature_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+        "signature_format": "fixture-detached-signature-reference"
+      },
+      "statement_digest": "97fc58c32a6d8cbe5ad58b09a33af00b8e522a44d14143eda01e0120ce63fc95",
+      "subject_digest": "6666666666666666666666666666666666666666666666666666666666666666",
+      "verification_method": "fixture-structural-reference",
+      "verification_status": "verified",
+      "verified_at_digest_or_receipt": "7777777777777777777777777777777777777777777777777777777777777777",
+      "verified_by": "daylight-v20-structural-parser"
+    }
+  ],
+  "schema_id": "daylight-v20-external-attestation-bundle",
+  "schema_version": "0.1.0",
+  "self_scope_aliases": [
+    "self",
+    "internal",
+    "local",
+    "repo",
+    "harness",
+    "wuci-ji"
+  ]
+}

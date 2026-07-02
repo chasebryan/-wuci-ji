@@ -1,0 +1,34 @@
+{
+  "claim_boundary": {
+    "boundary_version": "daylight-v20-aperture-singularity-boundary-v1",
+    "external_certification": false,
+    "fips_validation": false,
+    "government_validation": false,
+    "host_cleanliness": false,
+    "independent_audit_completed": false,
+    "perfect_daylight_score_from_repo_evidence": false,
+    "production_cryptography": false,
+    "runtime_containment": false,
+    "statement": "Daylight v20 binds public evidence intake to Singularity blockers; it grants no production, runtime, government, external certification, audit, or quantum-safety authority.",
+    "whole_system_post_quantum_safety": false
+  },
+  "claim_usable": false,
+  "debts": [],
+  "fixture": true,
+  "manual_score_override": false,
+  "non_claims": [
+    "not production cryptography",
+    "not runtime containment",
+    "not host cleanliness proof",
+    "not FIPS validated",
+    "not government validated",
+    "not externally certified",
+    "not whole-system post-quantum safe",
+    "not an independent audit",
+    "not a perfect Daylight score claim from repository-owned evidence"
+  ],
+  "reserved_perfect_AM_plus_used": false,
+  "schema_id": "daylight-v20-boundary-debt-report",
+  "schema_version": "0.1.0",
+  "score_inflation_M": 0
+}

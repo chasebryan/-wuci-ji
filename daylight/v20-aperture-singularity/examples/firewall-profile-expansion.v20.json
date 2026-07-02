@@ -1,0 +1,148 @@
+{
+  "authority_scope": "repo-owned-firewall-negative-matrix-only",
+  "cases": [
+    {
+      "case_id": "unexpected_file",
+      "evidence_digest": "0f70f6463a535a668c7b65daf48f1b79457d2871178b7da88e5d638c6552baa2",
+      "expected_reason": "unexpected_public_artifact_file",
+      "observed_reasons": [
+        "unexpected_public_artifact_file"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "missing_expected_file",
+      "evidence_digest": "ca6510ad5e92608cf9ddf230f619f67ce28626b71f2d0eb81b44802e2f921360",
+      "expected_reason": "missing_public_artifact_file",
+      "observed_reasons": [
+        "missing_public_artifact_file"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "hidden_file",
+      "evidence_digest": "11ee8ae5aca88c26957b4935bca06f2934f65faa8e376e27a9a6ea0d60829c42",
+      "expected_reason": "hidden_component_in_public_artifact",
+      "observed_reasons": [
+        "hidden_component_in_public_artifact"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "symlink",
+      "evidence_digest": "488fad7c509845e43f135135c6cdbd0bb6432749ec39454809c28cd0c3e683e1",
+      "expected_reason": "symlink_in_public_artifact",
+      "observed_reasons": [
+        "symlink_in_public_artifact"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "hardlink",
+      "evidence_digest": "835b9f0c53c9f09db38a54fb7c62461366caab711e03fa923b8e8d4e356abeea",
+      "expected_reason": "hardlink_in_public_artifact",
+      "observed_reasons": [
+        "hardlink_in_public_artifact"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "nested_path",
+      "evidence_digest": "379b58cf41d478b47bd78232c7a9a1b0fbbea4ea9c5fda50a0eb7f43fd66e426",
+      "expected_reason": "nested_public_artifact_path_unexpected",
+      "observed_reasons": [
+        "nested_public_artifact_path_unexpected"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_filename",
+      "evidence_digest": "8b33beb03d562b862ef623a05076771b61bfd1e0c75063b50718ffe919bbb13e",
+      "expected_reason": "forbidden_secret_path",
+      "observed_reasons": [
+        "forbidden_secret_path"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_directory",
+      "evidence_digest": "7e8c28d4e5f66a4e8be1478ae8fa1aa3ae30b78f46c9a300ecbceed774386123",
+      "expected_reason": "public_artifact_contains_private_directory",
+      "observed_reasons": [
+        "public_artifact_contains_private_directory"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_suffix",
+      "evidence_digest": "5b5f55a1e4d837840e9fbbd9892e9f179c399c9a2bef5705b7f329c01530eb72",
+      "expected_reason": "forbidden_private_material_suffix",
+      "observed_reasons": [
+        "forbidden_private_material_suffix"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "private_content_marker",
+      "evidence_digest": "b0efc2cb7aeb9541267ad19b7c850f986bd8d6948d44f85bcdfb619586b4194f",
+      "expected_reason": "known_secret_marker",
+      "observed_reasons": [
+        "known_secret_marker"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "sha256_drift",
+      "evidence_digest": "7c1e052fbe78176871dc6d2e8c497d04ae9fb18acb332870167802b59721d7f9",
+      "expected_reason": "sha256sum_mismatch",
+      "observed_reasons": [
+        "sha256sum_mismatch"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "sha3_512_drift",
+      "evidence_digest": "47417e3ef96278359bb9fee87d9bdf32387848c1d1e7f25b916da0fef9dac437",
+      "expected_reason": "sha3_512sum_mismatch",
+      "observed_reasons": [
+        "sha3_512sum_mismatch"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "invalid_sha256sums",
+      "evidence_digest": "8829fec54551ca976d354621e1206f4f80c6952943a23566ca7bd3f95e56f05d",
+      "expected_reason": "sha256sums_invalid",
+      "observed_reasons": [
+        "sha256sums_invalid"
+      ],
+      "outcome": "rejected"
+    },
+    {
+      "case_id": "invalid_sha3_512sums",
+      "evidence_digest": "43a2380cac9605c7a878a70c5d63d87fb232f4fff6d5158bce91bb4a272aee56",
+      "expected_reason": "sha3_512sums_invalid",
+      "observed_reasons": [
+        "sha3_512sums_invalid"
+      ],
+      "outcome": "rejected"
+    }
+  ],
+  "claim_usable": true,
+  "fixture": false,
+  "non_claims_acknowledged": [
+    "not production cryptography",
+    "not runtime containment",
+    "not host cleanliness proof",
+    "not FIPS validated",
+    "not government validated",
+    "not externally certified",
+    "not whole-system post-quantum safe",
+    "not an independent audit",
+    "not a perfect Daylight score claim from repository-owned evidence"
+  ],
+  "profile_digest": "42c87c1578b1c097965dd3075612e795c2ebf2c3a5d59ba0abe91ed6d4a92214",
+  "profile_id": "daylight-v20-aperture-singularity-public-review-v1",
+  "schema_id": "daylight-v20-firewall-profile-expansion",
+  "schema_version": "0.1.0"
+}

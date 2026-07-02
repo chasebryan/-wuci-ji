@@ -1,0 +1,27 @@
+{
+  "schema_id": "daylight-v20-verifier-agreement-bundle",
+  "schema_version": "0.1.0",
+  "subject": "v20-aperture-singularity-fixture",
+  "vectors": [
+    {
+      "canonical_output_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "claim_usable": false,
+      "fixture": true,
+      "implementation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "output_schema_id": "daylight-v20-aperture-singularity-capsule",
+      "vector_digest": "087e2f3e5c704b1282300fbab280dbe9b486c4e3d7d3a234373d953566ed74b6",
+      "vector_id": "python-reference-fixture",
+      "verifier_family": "python-reference"
+    },
+    {
+      "canonical_output_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "claim_usable": false,
+      "fixture": true,
+      "implementation_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "output_schema_id": "daylight-v20-aperture-singularity-capsule",
+      "vector_digest": "893d4ce81ccedacdea8c1963eacbc6db765bf3f3382f563e19c145d6f5469b73",
+      "vector_id": "rust-independent-fixture",
+      "verifier_family": "rust-independent"
+    }
+  ]
+}
