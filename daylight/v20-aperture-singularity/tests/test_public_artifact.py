@@ -49,6 +49,11 @@ class PublicArtifactTests(unittest.TestCase):
                 "independent_verifier_quorum.claim_usable_3_of_3",
                 "external_attestation.pinned_cryptographic_verification",
             })
+            ceiling = load_json_no_floats(out / public_artifact.SCORE_CEILING_FILENAME)
+            self.assertEqual(ceiling["schema_id"], "daylight-v20-score-ceiling-report")
+            self.assertTrue(ceiling["repo_owned_ceiling_reached"])
+            self.assertFalse(ceiling["singularity_possible_without_external_validation"])
+            self.assertEqual(ceiling["highest_truthful_no_external_score_AM_plus"], ceiling["score_AM_plus"])
             directory_verify = public_artifact.verify_public_artifact(
                 out,
                 expected_release_tag="v20-aperture-singularity-fixture",

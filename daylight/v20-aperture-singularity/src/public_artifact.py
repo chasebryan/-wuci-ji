@@ -55,6 +55,7 @@ OMEGA_SCORECARD_FILENAME = "omega-field-scorecard.json"
 BLOCKER_VECTOR_FILENAME = "singularity-blocker-vector.json"
 DECLARATION_GATE_FILENAME = "singularity-declaration-gate.report.json"
 EVIDENCE_AUDIT_FILENAME = "evidence-audit.report.json"
+SCORE_CEILING_FILENAME = "score-ceiling.report.json"
 REVIEWER_GUIDE_FILENAME = "REVIEWER_GUIDE.md"
 NON_CLAIMS_FILENAME = "NON_CLAIMS.md"
 SHA256SUMS_FILENAME = "SHA256SUMS"
@@ -82,6 +83,7 @@ EXPECTED_FILES = [
     BLOCKER_VECTOR_FILENAME,
     DECLARATION_GATE_FILENAME,
     EVIDENCE_AUDIT_FILENAME,
+    SCORE_CEILING_FILENAME,
     REVIEWER_GUIDE_FILENAME,
     NON_CLAIMS_FILENAME,
     SHA256SUMS_FILENAME,
@@ -124,6 +126,7 @@ FILE_ROLES = {
     BLOCKER_VECTOR_FILENAME: "derived_report",
     DECLARATION_GATE_FILENAME: "derived_report",
     EVIDENCE_AUDIT_FILENAME: "derived_report",
+    SCORE_CEILING_FILENAME: "derived_report",
     REVIEWER_GUIDE_FILENAME: "reviewer_doc",
     NON_CLAIMS_FILENAME: "reviewer_doc",
     MANIFEST_FILENAME: "manifest",
@@ -545,6 +548,7 @@ def build_public_artifact(
         atomic_write_bytes(out / BLOCKER_VECTOR_FILENAME, json_bytes(_blocker_vector(capsule)))
         atomic_write_bytes(out / DECLARATION_GATE_FILENAME, json_bytes(declaration_report(capsule)))
         atomic_write_bytes(out / EVIDENCE_AUDIT_FILENAME, json_bytes(evidence_audit.audit_capsule(capsule)))
+        atomic_write_bytes(out / SCORE_CEILING_FILENAME, json_bytes(evidence_audit.score_ceiling_report(capsule)))
         atomic_write_bytes(out / REVIEWER_GUIDE_FILENAME, _reviewer_guide(capsule).encode("utf-8"))
         atomic_write_bytes(out / NON_CLAIMS_FILENAME, _non_claims_text(boundary_debt.NON_CLAIMS).encode("utf-8"))
         atomic_write_bytes(out / EVIDENCE_SLOT_CONTRACTS_FILENAME, json_bytes(_evidence_slot_contracts(capsule)))

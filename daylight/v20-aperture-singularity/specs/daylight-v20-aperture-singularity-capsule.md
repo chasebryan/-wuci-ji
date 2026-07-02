@@ -191,6 +191,7 @@ The v20 public artifact contains:
 - `singularity-blocker-vector.json`
 - `singularity-declaration-gate.report.json`
 - `evidence-audit.report.json`
+- `score-ceiling.report.json`
 - `REVIEWER_GUIDE.md`
 - `NON_CLAIMS.md`
 - `SHA256SUMS`

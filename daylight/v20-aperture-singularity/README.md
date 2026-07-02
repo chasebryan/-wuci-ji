@@ -102,7 +102,8 @@ the verifier bundle, external-attestation bundle, reproducible-build bundle,
 falsification bundle, boundary-debt report, firewall-profile expansion bundle,
 external-evidence slot contracts, artifact manifest, omega scorecard, blocker
 vector, declaration-gate report, evidence-audit report, reviewer guide,
-non-claims, `SHA256SUMS`, and `SHA3-512SUMS`. It also writes a deterministic
+score-ceiling report, reviewer guide, non-claims, `SHA256SUMS`, and
+`SHA3-512SUMS`. It also writes a deterministic
 `.tar.gz` next to the public directory and writes `firewall-report.v20.json`
 outside the public root before returning success. `verify-public-artifact`
 verifies either the directory or tarball, including schema digests, manifest
