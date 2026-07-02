@@ -72,7 +72,7 @@
         <a href="#daylight">Daylight</a>
         <a href="#aperture">Aperture</a>
         <a href="#assurance">Assurance</a>
-        <a href="#encrypt">Encrypt</a>
+        <a href="#meridian">Meridian</a>
         <a href="#challenge">Challenge</a>
         <a href="#evidence">Evidence</a>
         <a href="#os">Wuci-OS</a>
@@ -447,109 +447,54 @@
         </div>
       </section>
 
-      <section class="encryptor-section" id="encrypt" aria-labelledby="encrypt-title">
-        <div class="encryptor-copy">
-          <p class="eyebrow">Meridian browser envelope</p>
-          <h2 id="encrypt-title">Encrypt locally when the evidence gate permits it.</h2>
+      <section class="meridian-section" id="meridian" aria-labelledby="meridian-title">
+        <div class="meridian-copy">
+          <p class="eyebrow">Meridian evidence lane</p>
+          <h2 id="meridian-title">Evidence is reviewable; browser cryptography is not shipped.</h2>
           <p>
-            This browser lane never uploads your file. It creates a local
-            Meridian Browser Envelope with Web Crypto, binds the ciphertext to
-            the v15 evidence ceiling, and gives you a separate private download
-            key. Policies above the current internal evidence state are refused.
+            The public site exposes the Meridian score boundary, envelope
+            documentation, and reproducible command handles. It does not accept
+            files, generate keys, encrypt payloads, open envelopes, or ship a
+            browser file-opening tool.
           </p>
-          <ul class="encryptor-laws" aria-label="Browser envelope laws">
+          <ul class="meridian-laws" aria-label="Meridian refusal laws">
             <li>NoEvidence(x) -> NoSeal(x)</li>
             <li>NoProof(x) -> NoOpen(x)</li>
             <li>ManualScore(x) -> Reject(x)</li>
           </ul>
         </div>
 
-        <div class="encryptor-workbench" data-meridian-workbench>
-          <noscript>
-            <p class="workbench-noscript">
-              The Meridian browser envelope runs entirely in JavaScript with Web
-              Crypto. Enable JavaScript to seal or open files locally; nothing is
-              ever uploaded.
-            </p>
-          </noscript>
-          <div class="tab-list" role="tablist" aria-label="Meridian envelope tools">
-            <button class="tab-button is-active" type="button" role="tab" aria-selected="true" aria-controls="meridian-encrypt-panel" id="meridian-encrypt-tab" data-tab-target="meridian-encrypt-panel">Encrypt</button>
-            <button class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="meridian-open-panel" id="meridian-open-tab" data-tab-target="meridian-open-panel">Open</button>
-          </div>
-
-          <div class="tab-panel is-active" role="tabpanel" id="meridian-encrypt-panel" aria-labelledby="meridian-encrypt-tab">
-            <div class="field-grid">
-              <label class="field">
-                <span>File</span>
-                <input type="file" data-meridian-file>
-              </label>
-              <label class="field">
-                <span>Policy score floor</span>
-                <select data-meridian-min-score>
-                  <option value="998900">998,900M internal ceiling</option>
-                  <option value="1000000">1,000,000M perfect state</option>
-                </select>
-              </label>
+        <div class="meridian-review-panel" aria-label="Meridian public review posture">
+          <dl class="review-list">
+            <div>
+              <dt>Current internal ceiling</dt>
+              <dd><code>998,900M</code></dd>
             </div>
-
-            <fieldset class="check-field">
-              <legend>Required closed obligations</legend>
-              <label><input type="checkbox" value="o.q1.master_law_executable" data-meridian-required checked> Master law executable</label>
-              <label><input type="checkbox" value="o.q4.fail_closed_tests" data-meridian-required checked> Fail-closed tests</label>
-              <label><input type="checkbox" value="o.q8.kat_vector_tests" data-meridian-required> Crypto KAT vectors</label>
-              <label><input type="checkbox" value="o.q11.external_falsification_program" data-meridian-required> External falsification program</label>
-            </fieldset>
-
-            <label class="boundary-check">
-              <input type="checkbox" data-meridian-boundary>
-              <span>I understand this is a browser research profile, not production cryptography or external certification.</span>
-            </label>
-
-            <div class="encryptor-actions">
-              <button class="button primary" type="button" data-meridian-encrypt>Encrypt file</button>
-              <button class="button secondary" type="button" data-meridian-reset>Reset</button>
+            <div>
+              <dt>External frontier</dt>
+              <dd><code>1,100M</code> remains outside the repository-owned claim.</dd>
             </div>
-
-            <div class="meridian-status" data-meridian-status role="status" aria-live="polite">
-              Waiting for a file and an admissible policy.
+            <div>
+              <dt>Browser posture</dt>
+              <dd>No public browser encryptor, private-key handler, or file opener is shipped.</dd>
             </div>
-
-            <div class="download-grid" data-meridian-output hidden>
-              <a class="button primary" href="#" download data-meridian-envelope-download>Download encrypted envelope</a>
-              <a class="button secondary" href="#" download data-meridian-key-download>Download private key</a>
-              <button class="copy-button" type="button" data-meridian-copy-key>Copy key</button>
+            <div>
+              <dt>Envelope reference</dt>
+              <dd>
+                <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md">
+                  Read the MAE design document
+                </a>
+              </dd>
             </div>
-          </div>
-
-          <div class="tab-panel" role="tabpanel" id="meridian-open-panel" aria-labelledby="meridian-open-tab" hidden>
-            <div class="field-grid">
-              <label class="field">
-                <span>Encrypted envelope</span>
-                <input type="file" accept="application/json,.json,.mbe" data-meridian-open-file>
-              </label>
-              <label class="field">
-                <span>Private download key</span>
-                <textarea rows="4" spellcheck="false" data-meridian-open-key placeholder="Paste the key text or the key JSON here"></textarea>
-              </label>
+            <div>
+              <dt>Local tests</dt>
+              <dd><code>make daylight-meridian-test</code> and <code>make daylight-meridian-envelope-test</code></dd>
             </div>
-
-            <label class="boundary-check">
-              <input type="checkbox" data-meridian-open-boundary>
-              <span>I understand opening is local and refuses if the sealed policy is not satisfied.</span>
-            </label>
-
-            <div class="encryptor-actions">
-              <button class="button primary" type="button" data-meridian-open>Open envelope</button>
+            <div>
+              <dt>Non-claim</dt>
+              <dd>Not production cryptography, not a secret-management service, and not external certification.</dd>
             </div>
-
-            <div class="meridian-status" data-meridian-open-status role="status" aria-live="polite">
-              Waiting for an envelope and its private key.
-            </div>
-
-            <div class="download-grid" data-meridian-open-output hidden>
-              <a class="button primary" href="#" download data-meridian-plain-download>Download opened file</a>
-            </div>
-          </div>
+          </dl>
         </div>
       </section>
 

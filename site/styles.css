@@ -580,7 +580,7 @@ h3 {
 
 .section,
 .challenge-section,
-.encryptor-section,
+.meridian-section,
 .daylight-stack,
 .aperture-section,
 .assurance-section,
@@ -601,7 +601,7 @@ h3 {
 
 .section-copy p,
 .challenge-copy p,
-.encryptor-copy p,
+.meridian-copy p,
 .split-copy p,
 .boundary p {
   max-width: 720px;
@@ -1132,7 +1132,7 @@ h3 {
   border-top: 1px solid rgba(213, 168, 79, 0.32);
 }
 
-.encryptor-section {
+.meridian-section {
   display: grid;
   grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1.18fr);
   gap: clamp(30px, 5vw, 76px);
@@ -1141,11 +1141,11 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 
-.encryptor-copy h2 {
-  max-width: 12ch;
+.meridian-copy h2 {
+  max-width: 15ch;
 }
 
-.encryptor-laws {
+.meridian-laws {
   display: grid;
   gap: 10px;
   margin: 28px 0 0;
@@ -1153,7 +1153,7 @@ h3 {
   list-style: none;
 }
 
-.encryptor-laws li {
+.meridian-laws li {
   min-height: 42px;
   padding: 10px 12px;
   border-left: 3px solid var(--cyan);
@@ -1163,200 +1163,41 @@ h3 {
   font-size: 0.9rem;
 }
 
-.encryptor-workbench {
+.meridian-review-panel {
   border: 1px solid var(--line);
   background: var(--bg-elevated);
   box-shadow: 0 18px 64px var(--shadow);
 }
 
-.tab-list {
+.review-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.review-list div {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.38fr) minmax(0, 0.62fr);
+  gap: 16px;
+  min-height: 76px;
+  padding: 18px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #0a0e0c 0%, #090d0b 100%);
 }
 
-.tab-button {
-  position: relative;
-  min-height: 56px;
-  border: 0;
-  border-right: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 780;
-  letter-spacing: 0;
-  transition: color 200ms ease, background 200ms ease;
+.review-list div:last-child {
+  border-bottom: 0;
 }
 
-.tab-button::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--green);
-  transform: scaleX(0);
-  transition: transform 200ms ease;
-}
-
-.tab-button:hover {
-  color: var(--ink);
-  background: rgba(244, 241, 232, 0.03);
-}
-
-.tab-button:last-child {
-  border-right: 0;
-}
-
-.tab-button.is-active {
-  background: rgba(121, 200, 140, 0.12);
-  color: var(--green);
-}
-
-.tab-button.is-active::after {
-  transform: scaleX(1);
-}
-
-.tab-button:focus-visible,
-.field input:focus-visible,
-.field select:focus-visible,
-.field textarea:focus-visible,
-.boundary-check input:focus-visible,
-.check-field input:focus-visible {
-  outline: 2px solid var(--amber);
-  outline-offset: 3px;
-}
-
-.tab-panel {
-  padding: clamp(18px, 3vw, 28px);
-}
-
-.field-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.field,
-.check-field,
-.boundary-check {
-  display: grid;
-  gap: 8px;
-}
-
-.field span,
-.check-field legend {
+.review-list dt {
   color: var(--amber);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.field input,
-.field select,
-.field textarea {
-  width: 100%;
-  min-height: 46px;
-  border: 1px solid rgba(244, 241, 232, 0.18);
-  border-radius: 2px;
-  background: linear-gradient(180deg, #080b09 0%, #0a0d0b 100%);
-  color: var(--ink);
-  font: inherit;
-  transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
-}
-
-.field input:hover,
-.field select:hover,
-.field textarea:hover {
-  border-color: rgba(244, 241, 232, 0.32);
-  background: linear-gradient(180deg, #0a0d0b 0%, #0c100e 100%);
-}
-
-.field input:focus,
-.field select:focus,
-.field textarea:focus {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-glow), 0 4px 16px var(--shadow);
-  background: #0c100e;
-}
-
-.field input,
-.field select {
-  padding: 11px 12px;
-}
-
-.field textarea {
-  min-height: 112px;
-  padding: 12px;
-  resize: vertical;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-
-.check-field {
-  margin: 16px 0 0;
-  padding: 16px;
-  border: 1px solid var(--line);
-}
-
-.check-field label,
-.boundary-check {
-  color: var(--muted);
-}
-
-.check-field label,
-.boundary-check {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-}
-
-.check-field input,
-.boundary-check input {
-  margin-top: 4px;
-}
-
-.boundary-check {
-  margin-top: 16px;
-  padding: 14px;
-  border: 1px solid rgba(213, 168, 79, 0.3);
-  background: rgba(213, 168, 79, 0.08);
-}
-
-.encryptor-actions,
-.download-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.meridian-status {
-  min-height: 84px;
-  margin-top: 16px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  background: #090d0b;
+.review-list dd {
+  margin: 0;
   color: var(--muted);
   overflow-wrap: anywhere;
-}
-
-.meridian-status.is-ok {
-  border-color: rgba(121, 200, 140, 0.48);
-  color: var(--green);
-}
-
-.meridian-status.is-error {
-  border-color: rgba(191, 115, 91, 0.58);
-  color: #f0a28d;
-}
-
-.download-grid[hidden],
-.tab-panel[hidden] {
-  display: none;
 }
 
 .mae-plate-section {
@@ -1852,14 +1693,6 @@ figure:hover figcaption {
   color: var(--green);
 }
 
-.workbench-noscript {
-  margin: 0;
-  padding: 18px clamp(18px, 3vw, 28px);
-  border-bottom: 1px solid rgba(213, 168, 79, 0.3);
-  background: rgba(213, 168, 79, 0.08);
-  color: var(--muted);
-}
-
 .not-found .boundary {
   min-height: 100svh;
 }
@@ -1926,7 +1759,7 @@ figure:hover figcaption {
   .image-grid,
   .stage-grid,
   .challenge-section,
-  .encryptor-section,
+  .meridian-section,
   .aperture-section,
   .assurance-layout,
   .stage-card.is-current,
@@ -2016,7 +1849,7 @@ figure:hover figcaption {
   .truth-band div,
   .section,
   .challenge-section,
-  .encryptor-section,
+  .meridian-section,
   .aperture-section,
   .assurance-section,
   .daylight-stack,
@@ -2069,8 +1902,9 @@ figure:hover figcaption {
     gap: 6px;
   }
 
-  .field-grid {
+  .review-list div {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .image-grid {
@@ -2132,7 +1966,6 @@ figure:hover figcaption {
   .site-header,
   .skip-link,
   .hero-actions,
-  .encryptor-workbench,
   .copy-button {
     display: none !important;
   }
