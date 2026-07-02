@@ -43,11 +43,12 @@ make site-live-check
 `site-daylight-status` regenerates the committed website Daylight status JSON
 from the v17 scorecard. `site-validate` checks the local static artifact for
 fresh evidence, required discovery metadata, CodeMeta JSON-LD research software
-metadata, hosted TLS requirements, canonical HTTPS metadata, official Wuci-Ji
-imagery, and claim-boundary text. `site-live-check` probes the deployed public
-host and fails unless the HTTPS apex, server-side HTTP to HTTPS redirect,
-`www` redirect, HSTS header, discovery files, CodeMeta JSON-LD, hosted TLS
-requirements, status JSON, and official image assets are live. It is a hosted
+metadata, hosted TLS requirements, public claim/evidence mapping, canonical
+HTTPS metadata, official Wuci-Ji imagery, and claim-boundary text.
+`site-live-check` probes the deployed public host and fails unless the HTTPS
+apex, server-side HTTP to HTTPS redirect, `www` redirect, HSTS header,
+discovery files, CodeMeta JSON-LD, hosted TLS requirements, claim/evidence
+mapping, status JSON, and official image assets are live. It is a hosted
 deployment gate, not a proof of host cleanliness or runtime containment.
 
 ## Native Proof Lanes

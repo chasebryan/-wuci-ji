@@ -1,5 +1,6 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { constants } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
@@ -18,6 +19,7 @@ const requiredFiles = [
   "site.webmanifest",
   "codemeta.json",
   "hosting-requirements.json",
+  "claim-evidence.json",
   "llms.txt",
   "humans.txt",
   "security.txt",
@@ -47,6 +49,18 @@ function fail(message) {
 async function exists(relativePath) {
   try {
     await access(new URL(relativePath, siteRoot), constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function existsInRepo(relativePath) {
+  if (relativePath.startsWith("/") || relativePath.includes("..")) {
+    return false;
+  }
+  try {
+    await access(new URL(`../${relativePath}`, siteRoot), constants.R_OK);
     return true;
   } catch {
     return false;
@@ -93,6 +107,7 @@ async function assertIndexReferences() {
     'rel="alternate"',
     'type="application/ld+json" href="/codemeta.json"',
     'type="application/json" href="/hosting-requirements.json"',
+    'type="application/json" href="/claim-evidence.json"',
     'itemtype="https://schema.org/SoftwareSourceCode"',
     'itemprop="codeRepository"',
     'itemprop="logo"',
@@ -338,6 +353,7 @@ async function assertCloudflareFiles() {
     "/daylight-status.json",
     "/codemeta.json",
     "/hosting-requirements.json",
+    "/claim-evidence.json",
     "Content-Type: application/json; charset=utf-8",
     "Content-Type: application/ld+json; charset=utf-8",
     "Cache-Control: no-store",
@@ -400,6 +416,10 @@ async function readJsonOrNull(url) {
   } catch {
     return null;
   }
+}
+
+async function sha256Hex(relativePath) {
+  return createHash("sha256").update(await readFile(new URL(relativePath, siteRoot))).digest("hex");
 }
 
 // Daylight doctrine: the site may not display a number the evidence cannot
@@ -475,7 +495,8 @@ async function assertSearchDiscoveryFiles() {
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
     "<loc>https://nosuchmachine.net/codemeta.json</loc>",
-    "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>"
+    "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>",
+    "<loc>https://nosuchmachine.net/claim-evidence.json</loc>"
   ]) {
     if (!sitemap.includes(required)) {
       fail(`sitemap.xml is missing discovery marker: ${required}`);
@@ -505,6 +526,7 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/aperture-status.json",
     "https://nosuchmachine.net/codemeta.json",
     "https://nosuchmachine.net/hosting-requirements.json",
+    "https://nosuchmachine.net/claim-evidence.json",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -704,6 +726,7 @@ async function assertHostingRequirements() {
     "/daylight-status.json",
     "/codemeta.json",
     "/hosting-requirements.json",
+    "/claim-evidence.json",
     "/assets/wuci-ji-official-emblem.jpg",
     "/assets/wuci-ji-v2-aperture-bastion.jpeg"
   ]) {
@@ -731,6 +754,127 @@ async function assertHostingRequirements() {
   }
 }
 
+async function assertClaimEvidenceMap() {
+  const claimMap = await readJsonOrNull(new URL("claim-evidence.json", siteRoot));
+  if (claimMap === null) {
+    fail("site/claim-evidence.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "wuci-site-claim-evidence-v1",
+    project: "wuci-ji",
+    surface: "Wuci-Ji v2 — Aperture Bastion website",
+    canonical_url: "https://nosuchmachine.net/"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (claimMap[key] !== value) {
+      fail(`claim-evidence.json ${key} does not match expected value`);
+    }
+  }
+  for (const required of [
+    "make site-validate",
+    "make daylight-v19-aperture-bastion-ci",
+    "make daylight-public-artifact-firewall",
+    "make site-live-check"
+  ]) {
+    if (!Array.isArray(claimMap.primary_validation) || !claimMap.primary_validation.includes(required)) {
+      fail(`claim-evidence.json primary_validation is missing ${required}`);
+    }
+  }
+  if (!Array.isArray(claimMap.claims)) {
+    fail("claim-evidence.json claims must be a list");
+    return;
+  }
+  const claims = new Map(claimMap.claims.map((entry) => [entry.id, entry]));
+  for (const requiredId of [
+    "official-emblem",
+    "aperture-review-capsule",
+    "public-artifact-firewall",
+    "daylight-score-binding",
+    "read-only-public-meridian-surface",
+    "hosted-tls-requirements",
+    "research-discovery-metadata"
+  ]) {
+    if (!claims.has(requiredId)) {
+      fail(`claim-evidence.json is missing claim id: ${requiredId}`);
+    }
+  }
+  for (const claim of claimMap.claims) {
+    for (const key of ["public_claim", "status", "evidence_paths", "validation_commands", "does_not_prove"]) {
+      if (!(key in claim)) {
+        fail(`claim-evidence.json claim ${claim.id || "<missing-id>"} is missing ${key}`);
+      }
+    }
+    if (!Array.isArray(claim.evidence_paths) || claim.evidence_paths.length === 0) {
+      fail(`claim-evidence.json claim ${claim.id} must list evidence_paths`);
+    } else {
+      for (const evidencePath of claim.evidence_paths) {
+        if (!(await existsInRepo(evidencePath))) {
+          fail(`claim-evidence.json claim ${claim.id} references missing evidence path: ${evidencePath}`);
+        }
+      }
+    }
+    if (!Array.isArray(claim.validation_commands) || claim.validation_commands.length === 0) {
+      fail(`claim-evidence.json claim ${claim.id} must list validation_commands`);
+    }
+    if (!Array.isArray(claim.does_not_prove) || claim.does_not_prove.length === 0) {
+      fail(`claim-evidence.json claim ${claim.id} must state what it does not prove`);
+    }
+  }
+
+  const aperture = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
+  const daylight = await readJsonOrNull(new URL("daylight-status.json", siteRoot));
+  if (aperture === null || daylight === null) {
+    fail("claim-evidence.json cross-check requires aperture-status.json and daylight-status.json");
+    return;
+  }
+
+  const emblem = claims.get("official-emblem");
+  if (emblem?.evidence_values?.sha256 !== await sha256Hex("assets/wuci-ji-official-emblem.jpg")) {
+    fail("claim-evidence.json official-emblem sha256 must match asset bytes");
+  }
+  const apertureClaim = claims.get("aperture-review-capsule");
+  if (apertureClaim?.evidence_values?.release_tag !== aperture.release_tag) {
+    fail("claim-evidence.json Aperture release tag must match aperture-status.json");
+  }
+  if (apertureClaim?.evidence_values?.capsule_digest !== aperture.capsule_digest) {
+    fail("claim-evidence.json Aperture capsule digest must match aperture-status.json");
+  }
+  if (apertureClaim?.evidence_values?.firewall_profile_id !== aperture.firewall_profile_id) {
+    fail("claim-evidence.json Aperture firewall profile must match aperture-status.json");
+  }
+  const firewallClaim = claims.get("public-artifact-firewall");
+  if (firewallClaim?.evidence_values?.firewall_profile_digest !== aperture.firewall_profile_digest) {
+    fail("claim-evidence.json firewall digest must match aperture-status.json");
+  }
+  const scoreClaim = claims.get("daylight-score-binding");
+  if (scoreClaim?.evidence_values?.score_AM_plus !== daylight.score_AM_plus) {
+    fail("claim-evidence.json Daylight score must match daylight-status.json");
+  }
+  if (scoreClaim?.evidence_values?.scorecard_digest !== daylight.scorecard_digest) {
+    fail("claim-evidence.json Daylight scorecard digest must match daylight-status.json");
+  }
+  if (scoreClaim?.evidence_values?.declared !== daylight.declared) {
+    fail("claim-evidence.json Daylight declared flag must match daylight-status.json");
+  }
+  const hostClaim = claims.get("hosted-tls-requirements");
+  if (hostClaim?.evidence_values?.canonical_url !== "https://nosuchmachine.net/") {
+    fail("claim-evidence.json hosted TLS canonical URL must be https://nosuchmachine.net/");
+  }
+  if (
+    hostClaim?.evidence_values?.required_redirect_source_scheme !== "http" ||
+    hostClaim?.evidence_values?.required_redirect_source_host !== "nosuchmachine.net" ||
+    hostClaim?.evidence_values?.required_redirect_target_prefix !== "https://nosuchmachine.net/"
+  ) {
+    fail("claim-evidence.json hosted TLS redirect fields must target the HTTPS apex");
+  }
+  for (const required of aperture.non_claims) {
+    if (!Array.isArray(claimMap.non_claims) || !claimMap.non_claims.includes(required)) {
+      fail(`claim-evidence.json non_claims are missing ${required}`);
+    }
+  }
+}
+
 async function assertNoInsecurePublicUrls() {
   for (const file of [
     "index.html",
@@ -740,6 +884,7 @@ async function assertNoInsecurePublicUrls() {
     "site.webmanifest",
     "codemeta.json",
     "hosting-requirements.json",
+    "claim-evidence.json",
     "llms.txt",
     "humans.txt",
     "security.txt",
@@ -783,6 +928,7 @@ await assertSearchDiscoveryFiles();
 await assertPublicTextDiscovery();
 await assertResearchMetadata();
 await assertHostingRequirements();
+await assertClaimEvidenceMap();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
 await assertApertureStatusBinding();

@@ -9,3 +9,6 @@ Host: nosuchmachine.net
 
 # Hosted TLS requirements:
 # https://nosuchmachine.net/hosting-requirements.json
+
+# Public claim/evidence map:
+# https://nosuchmachine.net/claim-evidence.json

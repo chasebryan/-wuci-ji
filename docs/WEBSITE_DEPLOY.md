@@ -37,8 +37,9 @@ files cannot prove that hosted setting by themselves.
 
 `make site-live-check` is intentionally stricter than `make site-validate`: it
 checks the deployed public host and fails if HTTP still serves `200 OK`, HSTS is
-missing, discovery files, `codemeta.json`, or `hosting-requirements.json` are
-unavailable, or the official Wuci-Ji assets are not live.
+missing, discovery files, `codemeta.json`, `hosting-requirements.json`, or
+`claim-evidence.json` are unavailable, or the official Wuci-Ji assets are not
+live.
 
 `site/app.js` includes a browser-side fallback that redirects
 `http://nosuchmachine.net/` and `http://www.nosuchmachine.net/` visits to the
@@ -96,6 +97,7 @@ site/robots.txt
 site/site.webmanifest
 site/codemeta.json
 site/hosting-requirements.json
+site/claim-evidence.json
 site/llms.txt
 site/humans.txt
 site/security.txt
@@ -119,6 +121,11 @@ explicit non-claims.
 the public host. It states the canonical origin, required HTTP-to-HTTPS and
 `www` redirects, required HSTS header, required public metadata paths, and the
 host controls that must be enabled before `make site-live-check` can pass.
+
+`site/claim-evidence.json` maps each public website claim to the exact local
+evidence files, evidence values, validation commands, and non-claims that bound
+it. The validator cross-checks it against `site/aperture-status.json`,
+`site/daylight-status.json`, and the official emblem bytes.
 
 `site/_headers` additionally pins HSTS, CSP, plain-text content types, JSON
 content types, and cache policy for hosts that support static header files.
@@ -183,6 +190,7 @@ site/sitemap.xml
 site/site.webmanifest
 site/codemeta.json
 site/hosting-requirements.json
+site/claim-evidence.json
 site/llms.txt
 site/humans.txt
 site/security.txt

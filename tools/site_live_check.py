@@ -220,6 +220,12 @@ def run_checks() -> list[Check]:
     )
     checks.extend(
         check_json_asset(
+            "claim-evidence.json",
+            {"schema", "surface", "claims", "primary_validation", "non_claims"},
+        )
+    )
+    checks.extend(
+        check_json_asset(
             "aperture-status.json",
             {"schema", "project", "layer", "release_tag", "capsule_digest", "non_claims"},
         )

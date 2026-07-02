@@ -19,6 +19,9 @@ https://nosuchmachine.net/codemeta.json
 Hosted TLS requirements:
 https://nosuchmachine.net/hosting-requirements.json
 
+Claim/evidence map:
+https://nosuchmachine.net/claim-evidence.json
+
 Purpose:
 Defensive, evidence-bound, public-review research artifacts with explicit
 claim boundaries.
