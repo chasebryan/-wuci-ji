@@ -375,6 +375,21 @@ The public reviewer packet is on `main`:
 | [docs/DAYLIGHT_V20_VERIFIER_VECTOR_CONTRACT.md](docs/DAYLIGHT_V20_VERIFIER_VECTOR_CONTRACT.md) | Claim-usable third-verifier vector contract. |
 | [docs/DAYLIGHT_V20_ATTESTATION_VERIFICATION.md](docs/DAYLIGHT_V20_ATTESTATION_VERIFICATION.md) | Pinned attestation verification boundary. |
 
+## AI Scoring Integrity Audit
+
+Daylight now includes a public AI scoring-integrity audit documenting the difference between model-confidence assessments and evidence-derived runtime scores. The controlling rules are NoEvidence(x) → NoScore(x), NoProvenance(x) → NoAuthority(x), and NoExecution(x) → NoRuntimeScore(x).
+
+| Audit file | Purpose |
+| --- | --- |
+| [docs/GROK_SCORE_INFLATION_AUDIT.md](docs/GROK_SCORE_INFLATION_AUDIT.md) | Grok-attributed Daylight score-trail audit and non-claim boundary. |
+| [docs/DAYLIGHT_AI_SCORING_ASSURANCE_LEDGER.md](docs/DAYLIGHT_AI_SCORING_ASSURANCE_LEDGER.md) | Ledger entries for AI-attributed scoring claims and required evidence. |
+| [docs/DAYLIGHT_AI_ASSURANCE_STANDARD.md](docs/DAYLIGHT_AI_ASSURANCE_STANDARD.md) | General Daylight standard for AI technical review evidence classes and score classes. |
+| [docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md](docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md) | Exhibit catalog for the Grok provenance response, public score trail, and Daylight rule boundary. |
+
+Public site pages:
+[AI Scoring Integrity](https://nosuchmachine.net/ai-scoring-integrity.html) and
+[Daylight / Grok Audit](https://nosuchmachine.net/daylight-grok-audit.html).
+
 The schemas and examples live under
 [daylight/v20-aperture-singularity/schema/](daylight/v20-aperture-singularity/schema/)
 and

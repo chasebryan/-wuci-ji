@@ -7,6 +7,8 @@ Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09
 Machine status: https://nosuchmachine.net/aperture-status.json
 Daylight status: https://nosuchmachine.net/daylight-status.json
 Daylight v20 Aperture Singularity status: https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json
+AI scoring integrity audit: https://nosuchmachine.net/ai-scoring-integrity.html
+Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
 Daylight v20 repo-owned score surface: https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp
 Daylight v20 public challenge poster: https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg
 Research metadata: https://nosuchmachine.net/codemeta.json
@@ -29,6 +31,22 @@ Primary review paths:
 - citation metadata: https://nosuchmachine.net/citation.cff
 - hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
 - claim/evidence map: https://nosuchmachine.net/claim-evidence.json
+- AI scoring integrity: https://nosuchmachine.net/ai-scoring-integrity.html
+- Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
+
+AI scoring-integrity audit:
+
+- scoring-integrity concern
+- provenance failure
+- capability-disclosure inconsistency
+- unsupported validation language
+- false precision risk
+- national defense AI assurance concern
+- standards-level review concern
+- NoEvidence(x) → NoScore(x)
+- NoProvenance(x) → NoAuthority(x)
+- NoExecution(x) → NoRuntimeScore(x)
+- Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.
 
 Public challenge:
 

@@ -8,6 +8,8 @@ const siteRoot = new URL(".", import.meta.url);
 
 const requiredFiles = [
   "index.html",
+  "ai-scoring-integrity.html",
+  "daylight-grok-audit.html",
   "CNAME",
   "404.html",
   "styles.css",
@@ -133,6 +135,8 @@ async function assertIndexReferences() {
     'href="#aperture"',
     'href="#assurance"',
     'href="#review"',
+    'href="ai-scoring-integrity.html"',
+    'href="daylight-grok-audit.html"',
     'href="#daylight"',
     'id="aperture"',
     'id="assurance"',
@@ -147,6 +151,8 @@ async function assertIndexReferences() {
     'Official Wuci-Ji emblem',
     'Every public claim needs a local handle.',
     'Claims, evidence, metadata, and host gates in one place.',
+    'AI scoring integrity',
+    'evidence-derived Daylight runtime scores',
     'claim-evidence.json',
     'citation.cff',
     'hosting-requirements.json',
@@ -667,6 +673,8 @@ async function assertSearchDiscoveryFiles() {
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json</loc>",
+    "<loc>https://nosuchmachine.net/ai-scoring-integrity.html</loc>",
+    "<loc>https://nosuchmachine.net/daylight-grok-audit.html</loc>",
     "<loc>https://nosuchmachine.net/codemeta.json</loc>",
     "<loc>https://nosuchmachine.net/citation.cff</loc>",
     "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>",
@@ -703,6 +711,8 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/hosting-requirements.json",
     "https://nosuchmachine.net/claim-evidence.json",
     "https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json",
+    "https://nosuchmachine.net/ai-scoring-integrity.html",
+    "https://nosuchmachine.net/daylight-grok-audit.html",
     "https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
     "https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg",
     "repo_owned_code_gap_count = 0",
@@ -710,6 +720,10 @@ async function assertPublicTextDiscovery() {
     "singularity_possible_without_external_validation = false",
     "declaration_allowed = false",
     "No endorsement is requested or implied",
+    "NoEvidence(x) → NoScore(x)",
+    "NoProvenance(x) → NoAuthority(x)",
+    "NoExecution(x) → NoRuntimeScore(x)",
+    "Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -959,6 +973,8 @@ async function assertHostingRequirements() {
     "/llms.txt",
     "/sitemap.xml",
     "/.well-known/security.txt",
+    "/ai-scoring-integrity.html",
+    "/daylight-grok-audit.html",
     "/aperture-status.json",
     "/daylight-status.json",
     "/daylight-v20-aperture-singularity-status.json",
@@ -1039,6 +1055,7 @@ async function assertClaimEvidenceMap() {
     "daylight-score-binding",
     "daylight-v20-aperture-singularity-score-surface",
     "daylight-v20-public-challenge",
+    "ai-scoring-integrity-audit",
     "read-only-public-meridian-surface",
     "hosted-tls-requirements",
     "research-discovery-metadata"
@@ -1177,6 +1194,8 @@ async function assertClaimEvidenceMap() {
 async function assertNoInsecurePublicUrls() {
   for (const file of [
     "index.html",
+    "ai-scoring-integrity.html",
+    "daylight-grok-audit.html",
     "404.html",
     "robots.txt",
     "sitemap.xml",
@@ -1202,6 +1221,108 @@ async function assertNoInsecurePublicUrls() {
         continue;
       }
       fail(`site/${file} contains non-local insecure URL: ${url}`);
+    }
+  }
+}
+
+async function assertAiScoringAuditPages() {
+  const integrity = await readFile(new URL("ai-scoring-integrity.html", siteRoot), "utf8");
+  const grokAudit = await readFile(new URL("daylight-grok-audit.html", siteRoot), "utf8");
+  const combined = `${integrity}\n${grokAudit}`;
+  for (const required of [
+    "AI Scoring Integrity — Daylight",
+    "Daylight / Grok Scoring Audit",
+    "scoring-integrity concern",
+    "provenance failure",
+    "capability-disclosure inconsistency",
+    "unsupported validation language",
+    "false precision risk",
+    "national defense AI assurance concern",
+    "standards-level review concern",
+    "NoEvidence(x) → NoScore(x)",
+    "NoProvenance(x) → NoAuthority(x)",
+    "NoExecution(x) → NoRuntimeScore(x)",
+    "Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.",
+    "Gate execution",
+    "not executed",
+    "Public artifact generation",
+    "Public artifact verification",
+    "Sealed-chain verification",
+    "Cryptographic attestation verification",
+    "Runtime score",
+    "none",
+    "Prior provenance access",
+    "unavailable",
+    "does not claim a federal crime occurred",
+    "does not claim intent",
+    "does not claim any federal agency has adopted, reviewed, or endorsed Daylight",
+    "does not claim Daylight is production-ready",
+    "does not claim all Grok outputs are invalid",
+    "docs/GROK_SCORE_INFLATION_AUDIT.md",
+    "docs/DAYLIGHT_AI_SCORING_ASSURANCE_LEDGER.md",
+    "docs/DAYLIGHT_AI_ASSURANCE_STANDARD.md",
+    "docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md",
+    "data/daylight/grok-scoring-audit/ledger.json",
+    "data/daylight/grok-scoring-audit/exhibits.json"
+  ]) {
+    if (!combined.includes(required)) {
+      fail(`AI scoring audit pages are missing required marker: ${required}`);
+    }
+  }
+  for (const forbidden of [
+    "Grok is criminal",
+    "xAI committed fraud",
+    "Grok lied"
+  ]) {
+    if (combined.includes(forbidden)) {
+      fail(`AI scoring audit pages contain forbidden accusation: ${forbidden}`);
+    }
+  }
+
+  const ledger = await readJsonOrNull(new URL("../data/daylight/grok-scoring-audit/ledger.json", siteRoot));
+  const exhibits = await readJsonOrNull(new URL("../data/daylight/grok-scoring-audit/exhibits.json", siteRoot));
+  if (ledger === null) {
+    fail("data/daylight/grok-scoring-audit/ledger.json is missing or not valid JSON");
+    return;
+  }
+  if (exhibits === null) {
+    fail("data/daylight/grok-scoring-audit/exhibits.json is missing or not valid JSON");
+    return;
+  }
+  if (ledger.audit !== "daylight-grok-scoring-integrity" || ledger.status !== "public-ledger") {
+    fail("ledger.json has unexpected audit identity or status");
+  }
+  for (const required of [
+    "no_criminal_conclusion",
+    "no_intent_claim",
+    "no_federal_agency_endorsement_claim",
+    "no_daylight_production_claim",
+    "no_claim_all_grok_outputs_invalid"
+  ]) {
+    if (!Array.isArray(ledger.non_claims) || !ledger.non_claims.includes(required)) {
+      fail(`ledger.json non_claims are missing ${required}`);
+    }
+  }
+  const ruleExpressions = new Set((ledger.rules || []).map((rule) => rule.expression));
+  for (const required of [
+    "NoEvidence(x) -> NoScore(x)",
+    "NoProvenance(x) -> NoAuthority(x)",
+    "NoExecution(x) -> NoRuntimeScore(x)"
+  ]) {
+    if (!ruleExpressions.has(required)) {
+      fail(`ledger.json rules are missing ${required}`);
+    }
+  }
+  const entryIds = new Set((ledger.entries || []).map((entry) => entry.id));
+  for (const required of ["G-001", "G-002", "G-003", "G-004"]) {
+    if (!entryIds.has(required)) {
+      fail(`ledger.json entries are missing ${required}`);
+    }
+  }
+  const exhibitIds = new Set((exhibits.exhibits || []).map((entry) => entry.id));
+  for (const required of ["G-01", "G-02", "G-03", "G-04"]) {
+    if (!exhibitIds.has(required)) {
+      fail(`exhibits.json exhibits are missing ${required}`);
     }
   }
 }
@@ -1232,6 +1353,7 @@ await assertResearchMetadata();
 await assertCitationMetadata();
 await assertHostingRequirements();
 await assertClaimEvidenceMap();
+await assertAiScoringAuditPages();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
 await assertDaylightV20ApertureSingularityStatusBinding();

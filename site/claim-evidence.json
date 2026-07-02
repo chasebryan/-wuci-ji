@@ -170,6 +170,41 @@
       ]
     },
     {
+      "id": "ai-scoring-integrity-audit",
+      "public_claim": "The website and repository publish a bounded AI scoring-integrity audit separating model-confidence assessments from evidence-derived Daylight runtime scores.",
+      "status": "public-ledger; non-claim-bounded",
+      "evidence_paths": [
+        "site/ai-scoring-integrity.html",
+        "site/daylight-grok-audit.html",
+        "docs/GROK_SCORE_INFLATION_AUDIT.md",
+        "docs/DAYLIGHT_AI_SCORING_ASSURANCE_LEDGER.md",
+        "docs/DAYLIGHT_AI_ASSURANCE_STANDARD.md",
+        "docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md",
+        "data/daylight/grok-scoring-audit/ledger.json",
+        "data/daylight/grok-scoring-audit/exhibits.json"
+      ],
+      "evidence_values": {
+        "rules": [
+          "NoEvidence(x) → NoScore(x)",
+          "NoProvenance(x) → NoAuthority(x)",
+          "NoExecution(x) → NoRuntimeScore(x)"
+        ],
+        "classification": "scoring-integrity concern"
+      },
+      "validation_commands": [
+        "make site-validate",
+        "git diff --check"
+      ],
+      "does_not_prove": [
+        "criminal conclusion",
+        "intent",
+        "federal agency endorsement",
+        "Daylight production readiness",
+        "that all Grok outputs are invalid",
+        "that the prior public score trail is authenticated raw Grok transcript"
+      ]
+    },
+    {
       "id": "read-only-public-meridian-surface",
       "public_claim": "The public website is a read-only review surface and does not ship browser file encryption, decryption, private-key handling, or file-opening controls.",
       "status": "local-and-hosted-gated",

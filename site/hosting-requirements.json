@@ -41,6 +41,8 @@
     "/llms.txt",
     "/sitemap.xml",
     "/.well-known/security.txt",
+    "/ai-scoring-integrity.html",
+    "/daylight-grok-audit.html",
     "/aperture-status.json",
     "/daylight-status.json",
     "/daylight-v20-aperture-singularity-status.json",

@@ -1,0 +1,142 @@
+{
+  "audit": "daylight-grok-scoring-integrity",
+  "status": "public-ledger",
+  "non_claims": [
+    "no_criminal_conclusion",
+    "no_intent_claim",
+    "no_federal_agency_endorsement_claim",
+    "no_daylight_production_claim",
+    "no_claim_all_grok_outputs_invalid"
+  ],
+  "rules": [
+    {
+      "id": "NoEvidenceToNoScore",
+      "expression": "NoEvidence(x) -> NoScore(x)",
+      "meaning": "A Daylight score is invalid unless supported by required executable evidence."
+    },
+    {
+      "id": "NoProvenanceToNoAuthority",
+      "expression": "NoProvenance(x) -> NoAuthority(x)",
+      "meaning": "A prior claim has no audit authority unless source, prompt, response, date, evidence basis, and retrieval path are available."
+    },
+    {
+      "id": "NoExecutionToNoRuntimeScore",
+      "expression": "NoExecution(x) -> NoRuntimeScore(x)",
+      "meaning": "A runtime score cannot be assigned unless the relevant Daylight gate actually executed."
+    },
+    {
+      "id": "NoArtifactToNoVerificationClaim",
+      "expression": "NoArtifact(x) -> NoVerificationClaim(x)",
+      "meaning": "A verification claim is unsupported unless the public artifact exists and can be checked."
+    },
+    {
+      "id": "NoAttestationToNoExternalValidationClaim",
+      "expression": "NoAttestation(x) -> NoExternalValidationClaim(x)",
+      "meaning": "An external validation claim is unsupported unless required attestation or reviewer evidence is present and verified."
+    }
+  ],
+  "entries": [
+    {
+      "id": "G-001",
+      "title": "Grok-attributed high-number Daylight score trail",
+      "type": "scoring-integrity concern",
+      "status": "unresolved / unsupported as runtime score",
+      "summary": "Prior Grok-attributed scores appeared in public trail; executable evidence was not available in the provenance response.",
+      "evidence_present": [
+        "public score images/posts",
+        "provenance admission"
+      ],
+      "evidence_missing": [
+        "gate logs",
+        "artifact hashes",
+        "blocker vector",
+        "score report",
+        "cryptographic verification",
+        "sealed-chain verification",
+        "runtime score evidence"
+      ],
+      "classification": "model-confidence posture unless runtime evidence is later added",
+      "non_claims": [
+        "no_criminal_conclusion",
+        "no_intent_claim",
+        "not_authenticated_raw_grok_transcript_without_exports"
+      ]
+    },
+    {
+      "id": "G-002",
+      "title": "Grok provenance admission",
+      "type": "provenance record",
+      "status": "recorded",
+      "summary": "Grok stated no prior conversation or memory records were accessible and no runtime score was produced.",
+      "evidence_present": [
+        "no prior memory/provenance access statement",
+        "no executable evidence statement",
+        "no gate execution statement",
+        "no public artifact generation or verification statement",
+        "no sealed-chain or cryptographic attestation verification statement",
+        "no evidence-derived runtime score statement"
+      ],
+      "evidence_missing": [
+        "prior raw Grok conversation exports",
+        "retrievable prior score provenance",
+        "terminal logs",
+        "generated public artifacts",
+        "score report",
+        "cryptographic attestation verification"
+      ],
+      "classification": "provenance failure for prior score authority",
+      "non_claims": [
+        "no_criminal_conclusion",
+        "no_intent_claim"
+      ]
+    },
+    {
+      "id": "G-003",
+      "title": "Capability boundary inconsistency",
+      "type": "capability-disclosure inconsistency",
+      "status": "recorded",
+      "summary": "Grok reported no git clone / make execution capability while also referencing tool-based public GitHub inspection.",
+      "evidence_present": [
+        "tool-mediated public GitHub inspection reported",
+        "git clone not executed",
+        "git checkout not executed",
+        "make target execution not executed",
+        "runtime score production none"
+      ],
+      "evidence_missing": [
+        "repository execution",
+        "artifact generation",
+        "sealed-chain verification",
+        "cryptographic attestation verification"
+      ],
+      "classification": "inspection capability present; execution authority absent",
+      "non_claims": [
+        "no_criminal_conclusion",
+        "no_intent_claim"
+      ]
+    },
+    {
+      "id": "G-004",
+      "title": "National defense AI assurance concern",
+      "type": "standards-level concern",
+      "status": "public notice",
+      "summary": "Unsupported AI validation in defense, aerospace, cyber, cryptographic, or critical-infrastructure settings can create false assurance.",
+      "evidence_present": [
+        "unsupported validation language record",
+        "false precision risk record",
+        "runtime verification absence record"
+      ],
+      "evidence_missing": [
+        "external validation evidence",
+        "cryptographic attestation verification",
+        "runtime gate evidence"
+      ],
+      "classification": "national defense AI assurance concern; standards-level review concern",
+      "non_claims": [
+        "no_criminal_conclusion",
+        "no_intent_claim",
+        "no_confirmed_national_security_harm_claim"
+      ]
+    }
+  ]
+}

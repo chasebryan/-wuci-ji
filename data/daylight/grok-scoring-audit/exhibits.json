@@ -1,0 +1,99 @@
+{
+  "exhibits": [
+    {
+      "id": "G-01",
+      "title": "Grok Provenance Admission",
+      "description": "Grok stated no prior Grok conversations or memory records were accessible outside the current thread, and no prior Daylight score provenance was retrievable.",
+      "source_type": "raw Grok provenance response excerpt supplied to the audit trail",
+      "quotes": [
+        "I do not have access to prior Grok conversations or memory records outside the current thread.",
+        "No evaluations of Daylight, Wuci-Ji, or versions v0.6 through v20 from previous sessions are retrievable here.",
+        "No evidence of repository URL, commit hash, branch, tag, make target, terminal output, generated artifact, artifact hash, blocker vector, score report, cryptographic attestation, or sealed-chain verification for any such prior scores is available in this context. All such fields are missing.",
+        "I did not execute the Daylight gate for any scores in this thread.",
+        "I did not generate or verify any public artifact.",
+        "I did not verify any sealed chain or cryptographic attestation.",
+        "Because no gate execution, artifact generation, sealed-chain verification, or cryptographic attestation occurred, the rule NoEvidence(x) → NoScore(x) applies to any scores referenced in this thread.",
+        "No evidence-derived runtime score was produced.",
+        "The rule NoProvenance(x) → NoAuthority(x) applies to any scores or claims outside the current thread, as provenance for those is unavailable from accessible records.",
+        "No runtime verification occurred."
+      ],
+      "findings": [
+        "no prior memory/provenance access",
+        "no evidence for prior scores",
+        "no gate execution",
+        "no artifact verification",
+        "no sealed-chain verification",
+        "no cryptographic attestation verification",
+        "no runtime score"
+      ],
+      "limitations": [
+        "does not authenticate prior public score trail as raw Grok transcript",
+        "does not establish intent",
+        "does not assert a criminal conclusion"
+      ]
+    },
+    {
+      "id": "G-02",
+      "title": "Capability Boundary Inconsistency",
+      "description": "Grok represented that git clone / checkout / make execution could not be performed due to no internet or no hermetic environment, while also stating it used tool-mediated public GitHub inspection.",
+      "source_type": "provenance record characterization supplied to the audit trail",
+      "quotes": [],
+      "findings": [
+        "public inspection was available",
+        "runtime validation was not available",
+        "repository execution did not occur",
+        "artifact generation did not occur"
+      ],
+      "limitations": [
+        "recorded as capability-disclosure inconsistency, not as proof of intent",
+        "not a claim that public file inspection is useless"
+      ]
+    },
+    {
+      "id": "G-03",
+      "title": "Prior Public Score Trail",
+      "description": "Public posts/images show Grok-attributed scores and validation-style language.",
+      "source_type": "Grok-attributed public score trail / posted Grok-branded assessment",
+      "quotes": [
+        "validated",
+        "independently validated",
+        "final locked score",
+        "all determinations hold",
+        "make target simulation"
+      ],
+      "findings": [
+        "955/1000",
+        "973/1000",
+        "984/1000",
+        "941,000M",
+        "unsupported validation language",
+        "false precision risk"
+      ],
+      "limitations": [
+        "unless raw Grok exports are added, these are treated as Grok-attributed public score artifacts",
+        "not independently authenticated raw Grok transcripts",
+        "not evidence-derived runtime scores without gate evidence"
+      ]
+    },
+    {
+      "id": "G-04",
+      "title": "Daylight Rule Boundary",
+      "description": "The Daylight evidence rule invalidates scores without evidence.",
+      "source_type": "Daylight scoring-integrity rule boundary",
+      "quotes": [
+        "NoEvidence(x) → NoScore(x)",
+        "NoProvenance(x) → NoAuthority(x)",
+        "NoExecution(x) → NoRuntimeScore(x)"
+      ],
+      "findings": [
+        "scores without evidence are not Daylight runtime scores",
+        "claims without provenance are not authority",
+        "inspection without execution is not runtime verification"
+      ],
+      "limitations": [
+        "does not claim all AI outputs are invalid",
+        "does not claim Daylight is production-ready"
+      ]
+    }
+  ]
+}
