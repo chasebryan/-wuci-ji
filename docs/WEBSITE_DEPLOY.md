@@ -26,11 +26,7 @@ www.nosuchmachine.net  CNAME to chasebryan.github.io
 After each DNS or Pages settings change, verify:
 
 ```sh
-curl -I https://nosuchmachine.net/
-curl -I http://nosuchmachine.net/
-curl -I https://www.nosuchmachine.net/
-curl -I https://nosuchmachine.net/.well-known/security.txt
-curl -I https://nosuchmachine.net/sitemap.xml
+make site-live-check
 ```
 
 The expected hosted state is a valid HTTPS certificate, canonical
@@ -38,6 +34,11 @@ The expected hosted state is a valid HTTPS certificate, canonical
 apex domain, and `/.well-known/security.txt` served as public text. GitHub
 Pages controls certificate issuance and the Enforce HTTPS toggle; repository
 files cannot prove that hosted setting by themselves.
+
+`make site-live-check` is intentionally stricter than `make site-validate`: it
+checks the deployed public host and fails if HTTP still serves `200 OK`, HSTS is
+missing, discovery files are unavailable, or the official Wuci-Ji assets are
+not live.
 
 `site/app.js` includes a browser-side fallback that redirects
 `http://nosuchmachine.net/` and `http://www.nosuchmachine.net/` visits to the
