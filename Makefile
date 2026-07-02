@@ -136,7 +136,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-horizon-alpha-test daylight-horizon-alpha-vault-demo daylight-horizon-alpha-release-demo
 .PHONY: daylight-v18-bastion-measure daylight-v18-bastion-verify daylight-v18-bastion-test daylight-v18-bastion-transition-demo daylight-v18-bastion-transition-test daylight-v18-bastion-transition-ledger-verify
 .PHONY: daylight-v19-aperture-bastion-doctor daylight-v19-aperture-bastion-capsule-demo daylight-v19-aperture-bastion-verify daylight-v19-aperture-bastion-public-artifact daylight-v19-aperture-bastion-firewall daylight-v19-aperture-bastion-test daylight-v19-aperture-bastion-ci aperture-bastion-doctor aperture-bastion-test aperture-bastion-ci
-.PHONY: site-daylight-status site-daylight-status-check site-validate
+.PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
 
@@ -444,6 +444,9 @@ site-daylight-status-check:
 
 site-validate: site-daylight-status-check
 	node site/validate.mjs
+
+site-live-check:
+	$(PYTHON) tools/site_live_check.py
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
