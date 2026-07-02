@@ -80,6 +80,13 @@ def check_https_root() -> list[Check]:
             contains(response.body, "assets/wuci-ji-official-emblem.jpg"),
             "homepage references official emblem",
         ),
+        Check(
+            "https-root-v20-challenge-marker",
+            contains(response.body, "assets/daylight-v20-public-challenge-780thc.jpg")
+            and contains(response.body, "Review the evidence. Reproduce the lane.")
+            and contains(response.body, "No endorsement is requested or implied."),
+            "homepage references Daylight v20 public challenge",
+        ),
     ]
     hsts = response.headers.get("strict-transport-security", "")
     checks.append(Check("hsts", bool(hsts and "max-age=" in hsts.lower()), hsts or "<missing>"))
@@ -202,7 +209,17 @@ def run_checks() -> list[Check]:
     checks.extend(check_https_root())
     checks.extend(check_redirects())
     checks.extend(check_text_asset(".well-known/security.txt", ["Contact:", "Policy:", "Canonical:"]))
-    checks.extend(check_text_asset("llms.txt", ["Wuci-Ji v2", "not production cryptography"]))
+    checks.extend(
+        check_text_asset(
+            "llms.txt",
+            [
+                "Wuci-Ji v2",
+                "not production cryptography",
+                "Daylight v20 public challenge poster",
+                "declaration_allowed = false",
+            ],
+        )
+    )
     checks.extend(check_text_asset("citation.cff", ["Wuci-Ji v2", "not production cryptography", "repository-code:"]))
     checks.extend(
         check_text_asset(
@@ -211,6 +228,7 @@ def run_checks() -> list[Check]:
                 "https://nosuchmachine.net/",
                 "wuci-ji-official-emblem.jpg",
                 "daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
+                "daylight-v20-public-challenge-780thc.jpg",
                 "daylight-v20-gate-fixture-score-surface.webp",
                 "daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
             ],
@@ -253,6 +271,7 @@ def run_checks() -> list[Check]:
     checks.extend(check_binary_asset("assets/wuci-ji-v2-aperture-bastion.jpeg", "image/jpeg"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp", "image/webp"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png", "image/png"))
+    checks.extend(check_binary_asset("assets/daylight-v20-public-challenge-780thc.jpg", "image/jpeg"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-fixture-score-surface.webp", "image/webp"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-fixture-score-surface.png", "image/png"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp", "image/webp"))
