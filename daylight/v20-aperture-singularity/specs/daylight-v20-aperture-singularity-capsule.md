@@ -138,6 +138,32 @@ verification is implemented, every bundle carries:
 external attestation not cryptographically verified
 ```
 
+## External evidence intake
+
+The `src.external_evidence` intake layer binds the remaining external closure
+slots to one canonical bundle:
+
+- two or more independent rebuild receipts
+- at least one external firewall-profile review
+- exactly three claim-usable verifier vectors from distinct families
+- pinned cryptographic attestation statements for every external evidence item
+- the v20 capsule subject and the v19 Aperture capsule subject bytes
+- the score-ceiling report digest
+
+The bundle digest is:
+
+```text
+SHA-256("DAYLIGHT-v20-EXTERNAL-EVIDENCE-BUNDLE:" + canonical(bundle without bundle_digest))
+```
+
+The intake rejects repo-owned, self-scoped, internal, fixture, unpinned,
+placeholder, mismatched, unsigned, or unreferenced evidence. It is intentionally
+not enough for an attestation to name `ed25519`; the implementation must also
+contain a deterministic local verifier before
+`external_attestation_verified == true` can be reached. Until then, every
+otherwise well-shaped bundle remains a non-claim and `declaration_allowed`
+remains false.
+
 ## Independent verifier agreement
 
 A verifier bundle is declaration-grade only when all vectors are valid,

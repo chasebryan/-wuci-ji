@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "external-evidence.bundle.schema.json",
+  "title": "Daylight v20 External Evidence Bundle",
+  "description": "Documentation schema for the external evidence intake bundle. The enforced validator is src/external_evidence.py:evaluate_bundle. Canonicalization: sorted keys, separators (',', ':'), ASCII escapes, UTF-8, newline at EOF; duplicate keys and JSON floats are rejected on load. bundle_digest = SHA-256('DAYLIGHT-v20-EXTERNAL-EVIDENCE-BUNDLE:' + canonical(bundle without bundle_digest)).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "subject",
+    "independent_rebuild_receipts",
+    "firewall_profile_reviews",
+    "claim_usable_verifier_vectors",
+    "pinned_attestations",
+    "bundle_digest"
+  ],
+  "properties": {
+    "schema_id": {"const": "daylight.v20.external-evidence.bundle"},
+    "schema_version": {"const": 1},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_tag",
+        "source_commit",
+        "artifact_sha256",
+        "artifact_sha3_512",
+        "artifact_size",
+        "aperture_capsule_digest",
+        "score_ceiling_report_digest"
+      ],
+      "properties": {
+        "release_tag": {"type": "string", "minLength": 1},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "artifact_sha3_512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+        "artifact_size": {"type": "integer", "minimum": 0},
+        "aperture_capsule_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "capsule_digest of the v20 Aperture Singularity capsule the evidence binds to"
+        },
+        "score_ceiling_report_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256('DAYLIGHT-v20-SCORE-CEILING-REPORT:' + canonical(score-ceiling report)); printed by src.cli score-ceiling-report"
+        }
+      }
+    },
+    "independent_rebuild_receipts": {
+      "type": "array",
+      "items": {"$ref": "independent-rebuild-receipt.schema.json"}
+    },
+    "firewall_profile_reviews": {
+      "type": "array",
+      "items": {"$ref": "firewall-profile-review.schema.json"}
+    },
+    "claim_usable_verifier_vectors": {
+      "type": "array",
+      "items": {"$ref": "verifier-vector-claim-usable.schema.json"}
+    },
+    "pinned_attestations": {
+      "type": "array",
+      "items": {"$ref": "pinned-attestation.schema.json"}
+    },
+    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

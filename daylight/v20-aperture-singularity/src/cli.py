@@ -11,6 +11,7 @@ from typing import Any
 from . import __version__
 from . import evidence_audit
 from . import external_attestation
+from . import external_evidence
 from . import falsification
 from . import proof_fields
 from . import public_artifact
@@ -198,6 +199,40 @@ def cmd_score_ceiling(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_external_evidence(args: argparse.Namespace) -> int:
+    report = external_evidence.load_and_evaluate(
+        args.bundle,
+        pinned_material_path=args.pinned_material,
+        capsule_path=args.capsule,
+        aperture_capsule_path=args.aperture_capsule,
+    )
+    report["command"] = "verify-external-evidence"
+    _emit(report, args.format)
+    return 0 if report["external_evidence_admissible"] else 1
+
+
+def cmd_explain_external_blockers(args: argparse.Namespace) -> int:
+    report = external_evidence.load_and_evaluate(
+        args.bundle,
+        pinned_material_path=args.pinned_material,
+        capsule_path=args.capsule,
+        aperture_capsule_path=args.aperture_capsule,
+    )
+    explanation = external_evidence.explain_blockers(report)
+    explanation["command"] = "explain-external-blockers"
+    _emit(explanation, args.format)
+    return 0
+
+
+def cmd_score_ceiling_report(args: argparse.Namespace) -> int:
+    capsule = singularity_gate.load_capsule(args.capsule)
+    report = evidence_audit.score_ceiling_report(capsule)
+    report["score_ceiling_report_digest"] = external_evidence.score_ceiling_report_digest(capsule)
+    report["command"] = "score-ceiling-report"
+    _emit(report, args.format)
+    return 0
+
+
 def cmd_public_artifact(args: argparse.Namespace) -> int:
     report = public_artifact.build_public_artifact(
         args.capsule,
@@ -298,6 +333,30 @@ def build_parser() -> argparse.ArgumentParser:
     ceiling.add_argument("capsule")
     ceiling.add_argument("--format", choices=("text", "json"), default="text")
     ceiling.set_defaults(func=cmd_score_ceiling)
+
+    verify_external = sub.add_parser("verify-external-evidence")
+    verify_external.add_argument("bundle")
+    verify_external.add_argument("--capsule")
+    verify_external.add_argument("--aperture-capsule")
+    verify_external.add_argument("--pinned-material")
+    verify_external.add_argument("--format", choices=("text", "json"), default="text")
+    verify_external.set_defaults(func=cmd_verify_external_evidence)
+
+    explain_external = sub.add_parser("explain-external-blockers")
+    explain_external.add_argument("bundle")
+    explain_external.add_argument("--capsule")
+    explain_external.add_argument("--aperture-capsule")
+    explain_external.add_argument("--pinned-material")
+    explain_external.add_argument("--format", choices=("text", "json"), default="text")
+    explain_external.set_defaults(func=cmd_explain_external_blockers)
+
+    ceiling_report = sub.add_parser("score-ceiling-report")
+    ceiling_report.add_argument(
+        "--capsule",
+        default=str(singularity_gate.EXAMPLES_ROOT / "aperture-singularity-capsule.fixture.v20.json"),
+    )
+    ceiling_report.add_argument("--format", choices=("text", "json"), default="text")
+    ceiling_report.set_defaults(func=cmd_score_ceiling_report)
 
     public = sub.add_parser("public-artifact")
     public.add_argument("--capsule", required=True)

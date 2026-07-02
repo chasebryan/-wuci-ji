@@ -1,0 +1,18 @@
+{
+  "bundle_digest": "eedca0807c69d4b2565e2f6711876a93047de6eef481ce9ca5d404c00ad1235e",
+  "claim_usable_verifier_vectors": [],
+  "firewall_profile_reviews": [],
+  "independent_rebuild_receipts": [],
+  "pinned_attestations": [],
+  "schema_id": "daylight.v20.external-evidence.bundle",
+  "schema_version": 1,
+  "subject": {
+    "aperture_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+    "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+    "artifact_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
+    "artifact_size": 84,
+    "release_tag": "v20-aperture-singularity-fixture",
+    "score_ceiling_report_digest": "687d5ec83f0e2ea9a0f555fe79eddbfea14af692eca84f28499befb2a6654f61",
+    "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2"
+  }
+}

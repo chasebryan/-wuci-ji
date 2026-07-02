@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "firewall-profile-review.schema.json",
+  "title": "Daylight v20 External Firewall Profile Review",
+  "description": "Documentation schema for one external firewall-profile review inside an external evidence bundle. The enforced validator is src/external_evidence.py. A review is rejected if the reviewer identity contains a reserved token, the independence class is not 'external', it is fixture or not claim-usable, the scope is not exactly 'aperture-public-artifact-firewall-profile', it does not bind to the current profile digest (src/firewall_profile.py:profile_digest), the current rules digest (src/external_evidence.py:firewall_rules_digest), and the negative case matrix digest (src/external_evidence.py:firewall_negative_cases_digest), its finding level is critical or contradiction, or its pinned attestation is missing or inadmissible. The attestation subject_digest must equal SHA-256('DAYLIGHT-v20-EXTERNAL-FIREWALL-REVIEW:' + canonical(review without attestation_ref)).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id",
+    "reviewer_identity",
+    "reviewer_independence_class",
+    "review_scope",
+    "profile_digest",
+    "reviewed_rules_digest",
+    "negative_cases_digest",
+    "finding_level",
+    "fixture",
+    "claim_usable",
+    "attestation_ref"
+  ],
+  "properties": {
+    "review_id": {"type": "string", "minLength": 1},
+    "reviewer_identity": {"type": "string", "minLength": 1},
+    "reviewer_independence_class": {"const": "external"},
+    "review_scope": {"const": "aperture-public-artifact-firewall-profile"},
+    "profile_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "reviewed_rules_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "negative_cases_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "finding_level": {"enum": ["none", "minor", "major", "critical", "contradiction"]},
+    "fixture": {"const": false},
+    "claim_usable": {"const": true},
+    "attestation_ref": {"type": "string", "minLength": 1}
+  }
+}

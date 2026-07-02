@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "verifier-vector-claim-usable.schema.json",
+  "title": "Daylight v20 Claim-Usable Verifier Vector",
+  "description": "Documentation schema for one claim-usable external verifier vector inside an external evidence bundle. The enforced validator is src/external_evidence.py. Exactly three vectors from three distinct verifier families are required. A vector is rejected if it is fixture or not claim-usable, its decision is not 'pass', its input capsule digest differs from the subject aperture capsule digest, its output digest differs from the other vectors, its family is duplicated, or its pinned attestation is missing or inadmissible. The attestation subject_digest must equal SHA-256('DAYLIGHT-v20-EXTERNAL-VERIFIER-VECTOR:' + canonical(vector without attestation_ref)).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "vector_id",
+    "verifier_family",
+    "verifier_implementation_digest",
+    "input_capsule_digest",
+    "output_digest",
+    "decision",
+    "fixture",
+    "claim_usable",
+    "attestation_ref"
+  ],
+  "properties": {
+    "vector_id": {"type": "string", "minLength": 1},
+    "verifier_family": {"type": "string", "minLength": 1},
+    "verifier_implementation_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "input_capsule_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "output_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "decision": {"enum": ["pass", "fail"]},
+    "fixture": {"const": false},
+    "claim_usable": {"const": true},
+    "attestation_ref": {"type": "string", "minLength": 1}
+  }
+}
