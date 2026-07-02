@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "external-attestation.bundle.schema.json",
+  "title": "Daylight v20 External Attestation Bundle",
+  "description": "Documentation schema. The enforced validator is src/external_attestation.py:evaluate_bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "self_scope_aliases",
+    "attestations"
+  ],
+  "properties": {
+    "schema_id": {"const": "daylight-v20-external-attestation-bundle"},
+    "schema_version": {"const": "0.1.0"},
+    "self_scope_aliases": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "attestations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attestation_id",
+          "attestation_type",
+          "reviewer_id",
+          "reviewer_org_optional",
+          "scope",
+          "subject_digest",
+          "evidence_digest",
+          "statement_digest",
+          "signature_material",
+          "verification_status",
+          "verification_method",
+          "verified_by",
+          "verified_at_digest_or_receipt",
+          "self_scope",
+          "non_claims_acknowledged"
+        ],
+        "properties": {
+          "attestation_id": {"type": "string", "minLength": 1},
+          "attestation_type": {"type": "string", "minLength": 1},
+          "reviewer_id": {"type": "string", "minLength": 1},
+          "reviewer_org_optional": {"type": ["string", "null"]},
+          "scope": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+          "subject_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "evidence_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "statement_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "signature_material": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "signature_format",
+              "signature_digest",
+              "key_digest"
+            ],
+            "properties": {
+              "signature_format": {"type": "string", "minLength": 1},
+              "signature_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "key_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          },
+          "verification_status": {"type": "string", "minLength": 1},
+          "verification_method": {"type": "string", "minLength": 1},
+          "verified_by": {"type": "string", "minLength": 1},
+          "verified_at_digest_or_receipt": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "self_scope": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "non_claims_acknowledged": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

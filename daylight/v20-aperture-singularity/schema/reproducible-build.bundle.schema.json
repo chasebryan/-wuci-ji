@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "reproducible-build.bundle.schema.json",
+  "title": "Daylight v20 Reproducible Build Bundle",
+  "description": "Documentation schema. The enforced validator is src/reproducible_builds.py:evaluate_bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "fixture",
+    "claim_usable",
+    "authority_scope",
+    "non_claims_acknowledged",
+    "receipts"
+  ],
+  "properties": {
+    "schema_id": {"const": "daylight-v20-reproducible-build-bundle"},
+    "schema_version": {"const": "0.1.0"},
+    "fixture": {"type": "boolean"},
+    "claim_usable": {"type": "boolean"},
+    "authority_scope": {"type": "string", "minLength": 1},
+    "non_claims_acknowledged": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "receipts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "receipt_id",
+          "builder_id",
+          "builder_family",
+          "environment_digest",
+          "source_commit",
+          "build_instructions_digest",
+          "artifact_sha256",
+          "artifact_sha3_512",
+          "artifact_size",
+          "byte_identical_output",
+          "receipt_digest"
+        ],
+        "properties": {
+          "receipt_id": {"type": "string", "minLength": 1},
+          "builder_id": {"type": "string", "minLength": 1},
+          "builder_family": {"type": "string", "minLength": 1},
+          "environment_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "build_instructions_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "artifact_sha3_512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+          "artifact_size": {"type": "integer", "minimum": 0},
+          "byte_identical_output": {"type": "boolean"},
+          "receipt_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

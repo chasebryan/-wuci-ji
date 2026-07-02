@@ -15,28 +15,28 @@
   ],
   "receipts": [
     {
-      "artifact_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
-      "artifact_sha3_512": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "artifact_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
       "artifact_size": 84,
       "build_instructions_digest": "8888888888888888888888888888888888888888888888888888888888888888",
       "builder_family": "linux-python-3.12-a",
       "builder_id": "independent-builder-a",
       "byte_identical_output": true,
       "environment_digest": "1212121212121212121212121212121212121212121212121212121212121212",
-      "receipt_digest": "4b94063eff09c18ad529c99e9f38589f9d5399af494a49c88eff9e65c1d77293",
+      "receipt_digest": "5a9b0cc90ee83148752a1495aa658e7d0dc74ff3ad24967379de31b840ad69eb",
       "receipt_id": "rebuild-a",
       "source_commit": "1111111111111111111111111111111111111111"
     },
     {
-      "artifact_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
-      "artifact_sha3_512": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "artifact_sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+      "artifact_sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
       "artifact_size": 84,
       "build_instructions_digest": "8888888888888888888888888888888888888888888888888888888888888888",
       "builder_family": "linux-python-3.12-b",
       "builder_id": "independent-builder-b",
       "byte_identical_output": true,
       "environment_digest": "3434343434343434343434343434343434343434343434343434343434343434",
-      "receipt_digest": "8e70fefa2b9af675120ce1feb4a015d97f3e9676d89e81ba13c87b029d15840e",
+      "receipt_digest": "98389fa86dc1cab313f2d293e5b1e1bf37805c2e33559db90e6a5b6093700295",
       "receipt_id": "rebuild-b",
       "source_commit": "1111111111111111111111111111111111111111"
     }

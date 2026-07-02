@@ -8,15 +8,22 @@ import re
 import shutil
 import stat
 import tarfile
+import tempfile
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 from . import boundary_debt
 from . import evidence_audit
-from .canonical import json_bytes, load_json_no_floats
+from . import firewall_profile
+from .canonical import canonical_sha256, json_bytes, load_json_no_floats
 from .pathsafe import atomic_write_bytes, hash_file_dual
 from .singularity_gate import (
+    D_BOUNDARY_DEBT,
+    D_EXTERNAL_ATTESTATION,
+    D_FALSIFICATION,
+    D_REPRODUCIBLE_BUILD,
+    D_VERIFIER_AGREEMENT,
     PACKAGE_ROOT,
     DEFAULT_BOUNDARY_DEBT,
     DEFAULT_EXTERNAL_ATTESTATION,
@@ -30,12 +37,20 @@ from .singularity_gate import (
 
 CAPSULE_FILENAME = "aperture-singularity-capsule.v20.json"
 SCHEMA_FILENAME = "aperture-singularity-capsule.schema.json"
+VERIFIER_SCHEMA_FILENAME = "verifier-agreement.bundle.schema.json"
+EXTERNAL_ATTESTATION_SCHEMA_FILENAME = "external-attestation.bundle.schema.json"
+REPRODUCIBLE_BUILD_SCHEMA_FILENAME = "reproducible-build.bundle.schema.json"
+FALSIFICATION_SCHEMA_FILENAME = "falsification-survival.bundle.schema.json"
+BOUNDARY_DEBT_SCHEMA_FILENAME = "boundary-debt.report.schema.json"
+FIREWALL_PROFILE_SCHEMA_FILENAME = "firewall-profile-expansion.bundle.schema.json"
 VERIFIER_BUNDLE_FILENAME = "verifier-agreement.bundle.json"
 EXTERNAL_ATTESTATION_FILENAME = "external-attestation.bundle.json"
 REPRODUCIBLE_BUILD_FILENAME = "reproducible-build.bundle.json"
 FALSIFICATION_FILENAME = "falsification-survival.bundle.json"
 BOUNDARY_DEBT_FILENAME = "boundary-debt.report.json"
 FIREWALL_PROFILE_FILENAME = "firewall-profile-expansion.bundle.json"
+EVIDENCE_SLOT_CONTRACTS_FILENAME = "external-evidence-slot-contracts.v20.json"
+MANIFEST_FILENAME = "public-artifact.manifest.v20.json"
 OMEGA_SCORECARD_FILENAME = "omega-field-scorecard.json"
 BLOCKER_VECTOR_FILENAME = "singularity-blocker-vector.json"
 DECLARATION_GATE_FILENAME = "singularity-declaration-gate.report.json"
@@ -49,12 +64,20 @@ FIREWALL_REPORT_SCHEMA = "daylight-v20-aperture-singularity-firewall-report"
 EXPECTED_FILES = [
     CAPSULE_FILENAME,
     SCHEMA_FILENAME,
+    VERIFIER_SCHEMA_FILENAME,
+    EXTERNAL_ATTESTATION_SCHEMA_FILENAME,
+    REPRODUCIBLE_BUILD_SCHEMA_FILENAME,
+    FALSIFICATION_SCHEMA_FILENAME,
+    BOUNDARY_DEBT_SCHEMA_FILENAME,
+    FIREWALL_PROFILE_SCHEMA_FILENAME,
     VERIFIER_BUNDLE_FILENAME,
     EXTERNAL_ATTESTATION_FILENAME,
     REPRODUCIBLE_BUILD_FILENAME,
     FALSIFICATION_FILENAME,
     BOUNDARY_DEBT_FILENAME,
     FIREWALL_PROFILE_FILENAME,
+    EVIDENCE_SLOT_CONTRACTS_FILENAME,
+    MANIFEST_FILENAME,
     OMEGA_SCORECARD_FILENAME,
     BLOCKER_VECTOR_FILENAME,
     DECLARATION_GATE_FILENAME,
@@ -64,6 +87,49 @@ EXPECTED_FILES = [
     SHA256SUMS_FILENAME,
     SHA3_512SUMS_FILENAME,
 ]
+
+MANIFEST_EXCLUDED_FROM_FILE_ENTRIES = {
+    MANIFEST_FILENAME,
+    SHA256SUMS_FILENAME,
+    SHA3_512SUMS_FILENAME,
+}
+
+EVIDENCE_SCHEMA_FILENAMES = [
+    SCHEMA_FILENAME,
+    VERIFIER_SCHEMA_FILENAME,
+    EXTERNAL_ATTESTATION_SCHEMA_FILENAME,
+    REPRODUCIBLE_BUILD_SCHEMA_FILENAME,
+    FALSIFICATION_SCHEMA_FILENAME,
+    BOUNDARY_DEBT_SCHEMA_FILENAME,
+    FIREWALL_PROFILE_SCHEMA_FILENAME,
+]
+
+FILE_ROLES = {
+    CAPSULE_FILENAME: "capsule",
+    SCHEMA_FILENAME: "schema",
+    VERIFIER_SCHEMA_FILENAME: "schema",
+    EXTERNAL_ATTESTATION_SCHEMA_FILENAME: "schema",
+    REPRODUCIBLE_BUILD_SCHEMA_FILENAME: "schema",
+    FALSIFICATION_SCHEMA_FILENAME: "schema",
+    BOUNDARY_DEBT_SCHEMA_FILENAME: "schema",
+    FIREWALL_PROFILE_SCHEMA_FILENAME: "schema",
+    VERIFIER_BUNDLE_FILENAME: "evidence_bundle",
+    EXTERNAL_ATTESTATION_FILENAME: "evidence_bundle",
+    REPRODUCIBLE_BUILD_FILENAME: "evidence_bundle",
+    FALSIFICATION_FILENAME: "evidence_bundle",
+    BOUNDARY_DEBT_FILENAME: "evidence_bundle",
+    FIREWALL_PROFILE_FILENAME: "evidence_bundle",
+    EVIDENCE_SLOT_CONTRACTS_FILENAME: "evidence_slot_contracts",
+    OMEGA_SCORECARD_FILENAME: "derived_report",
+    BLOCKER_VECTOR_FILENAME: "derived_report",
+    DECLARATION_GATE_FILENAME: "derived_report",
+    EVIDENCE_AUDIT_FILENAME: "derived_report",
+    REVIEWER_GUIDE_FILENAME: "reviewer_doc",
+    NON_CLAIMS_FILENAME: "reviewer_doc",
+    MANIFEST_FILENAME: "manifest",
+    SHA256SUMS_FILENAME: "digest_sums",
+    SHA3_512SUMS_FILENAME: "digest_sums",
+}
 
 SUMS_LINE_RE = re.compile(r"^([0-9a-f]+)  (.+)$")
 FORBIDDEN_SUFFIXES = {".key", ".pem", ".priv", ".secret", ".mae", ".dhv", ".dhr"}
@@ -105,10 +171,11 @@ def _reviewer_guide(capsule: dict[str, Any]) -> str:
         "This public-review artifact is a deterministic evidence intake bundle. "
         "It is not a Singularity declaration and does not claim external closure.\n\n"
         "## Review order\n\n"
-        "1. Verify `SHA256SUMS` and `SHA3-512SUMS` against every file in this directory.\n"
-        "2. Verify `aperture-singularity-capsule.v20.json` with `src.cli verify-capsule`.\n"
-        "3. Read `singularity-blocker-vector.json` before considering any declaration language.\n"
-        "4. Treat every blocker as release-stopping until machine-verified evidence closes it.\n\n"
+        "1. Run `src.cli verify-public-artifact` against this directory or its deterministic tarball.\n"
+        "2. Inspect `public-artifact.manifest.v20.json` for file, schema, and release-tag bindings.\n"
+        "3. Verify `aperture-singularity-capsule.v20.json` with `src.cli verify-capsule`.\n"
+        "4. Read `singularity-blocker-vector.json` before considering any declaration language.\n"
+        "5. Treat every blocker as release-stopping until machine-verified evidence closes it.\n\n"
         "## Current blockers\n\n"
         f"{blockers}\n"
     )
@@ -143,6 +210,192 @@ def _blocker_vector(capsule: dict[str, Any]) -> dict[str, Any]:
         "claim_usable": capsule["claim_usable"],
         "verifier_quorum": capsule["verifier_quorum"],
         "external_attestation_verified": capsule["external_attestation_verified"],
+    }
+
+
+def _schema_digests(root: Path) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for name in EVIDENCE_SCHEMA_FILENAMES:
+        sha256, sha3_512, size = hash_file_dual(root / name)
+        out.append(
+            {
+                "path": name,
+                "size": size,
+                "sha256": sha256,
+                "sha3_512": sha3_512,
+            }
+        )
+    return out
+
+
+def _evidence_slot_contracts(capsule: dict[str, Any]) -> dict[str, Any]:
+    field_by_id = {
+        field["field_id"]: field
+        for field in capsule["proof_fields"]
+        if isinstance(field, dict) and isinstance(field.get("field_id"), str)
+    }
+    return {
+        "schema_id": "daylight-v20-external-evidence-slot-contracts",
+        "schema_version": "0.1.0",
+        "capsule_digest": capsule["capsule_digest"],
+        "release_tag": capsule["release_tag"],
+        "declaration_allowed": capsule["declaration_allowed"],
+        "non_claims": boundary_debt.NON_CLAIMS,
+        "slots": [
+            {
+                "slot_id": "reproducible_build.non_fixture_subject_bound_rebuilds",
+                "proof_field": "reproducible_build",
+                "required_bundle": REPRODUCIBLE_BUILD_FILENAME,
+                "current_open_atoms": field_by_id["reproducible_build"]["open_atoms"],
+                "machine_checks": [
+                    "receipt_digest recomputes for every receipt",
+                    "at least two independent builders",
+                    "distinct build environments",
+                    "source commit matches capsule source_commit",
+                    "artifact SHA-256, SHA3-512, and size match capsule subject",
+                    "fixture is false",
+                    "claim_usable is true",
+                ],
+            },
+            {
+                "slot_id": "aperture_firewall_boundary.external_profile_expansion",
+                "proof_field": "aperture_firewall_boundary",
+                "required_bundle": FIREWALL_PROFILE_FILENAME,
+                "current_open_atoms": field_by_id["aperture_firewall_boundary"]["open_atoms"],
+                "machine_checks": [
+                    "repo-owned negative matrix remains complete",
+                    "external firewall profile expansion evidence is present",
+                    "profile digest remains pinned",
+                    "no forbidden claim is introduced",
+                ],
+            },
+            {
+                "slot_id": "independent_verifier_quorum.claim_usable_3_of_3",
+                "proof_field": "independent_verifier_quorum",
+                "required_bundle": VERIFIER_BUNDLE_FILENAME,
+                "current_open_atoms": field_by_id["independent_verifier_quorum"]["open_atoms"],
+                "machine_checks": [
+                    "at least three verifier vectors",
+                    "three distinct verifier families",
+                    "all canonical output digests match",
+                    "bundle subject matches release_tag",
+                    "every vector declares the v20 capsule output schema",
+                    "vector_digest recomputes for every vector",
+                    "fixture is false for every vector",
+                    "claim_usable is true for every vector",
+                ],
+            },
+            {
+                "slot_id": "external_attestation.pinned_cryptographic_verification",
+                "proof_field": "external_attestation",
+                "required_bundle": EXTERNAL_ATTESTATION_FILENAME,
+                "current_open_atoms": field_by_id["external_attestation"]["open_atoms"],
+                "machine_checks": [
+                    "attestation statement_digest recomputes",
+                    "signer is not self-scoped",
+                    "attestation scope is explicit",
+                    "all required non-claims are acknowledged",
+                    "a real pinned cryptographic signature verifier accepts the signature",
+                    "verification_status text alone is insufficient",
+                ],
+            },
+        ],
+    }
+
+
+def _manifest_file_entries(root: Path, capsule_digest: str) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for path in sorted(root.iterdir(), key=lambda item: item.name):
+        if not path.is_file() or path.name in MANIFEST_EXCLUDED_FROM_FILE_ENTRIES:
+            continue
+        sha256, sha3_512, size = hash_file_dual(path)
+        entries.append(
+            {
+                "path": path.name,
+                "role": FILE_ROLES[path.name],
+                "size": size,
+                "sha256": sha256,
+                "sha3_512": sha3_512,
+                "capsule_digest": capsule_digest,
+            }
+        )
+    return entries
+
+
+def _bundle_digest_bindings(root: Path, capsule: dict[str, Any]) -> list[str]:
+    blockers: list[str] = []
+    bindings = [
+        (
+            VERIFIER_BUNDLE_FILENAME,
+            "input_verifier_agreement_bundle_digest",
+            lambda value: canonical_sha256(value, D_VERIFIER_AGREEMENT),
+        ),
+        (
+            EXTERNAL_ATTESTATION_FILENAME,
+            "input_external_attestation_bundle_digest",
+            lambda value: canonical_sha256(value, D_EXTERNAL_ATTESTATION),
+        ),
+        (
+            REPRODUCIBLE_BUILD_FILENAME,
+            "input_reproducible_build_bundle_digest",
+            lambda value: canonical_sha256(value, D_REPRODUCIBLE_BUILD),
+        ),
+        (
+            FALSIFICATION_FILENAME,
+            "input_falsification_bundle_digest",
+            lambda value: canonical_sha256(value, D_FALSIFICATION),
+        ),
+        (
+            BOUNDARY_DEBT_FILENAME,
+            "input_boundary_debt_report_digest",
+            lambda value: canonical_sha256(value, D_BOUNDARY_DEBT),
+        ),
+        (
+            FIREWALL_PROFILE_FILENAME,
+            "input_firewall_profile_expansion_digest",
+            firewall_profile.bundle_digest,
+        ),
+    ]
+    for filename, capsule_field, digest_func in bindings:
+        try:
+            payload = load_json_no_floats(root / filename)
+            digest = digest_func(payload)
+        except (OSError, ValueError) as exc:
+            blockers.append(f"{filename} invalid: {exc}")
+            continue
+        if digest != capsule[capsule_field]:
+            blockers.append(f"{filename} canonical digest does not match capsule {capsule_field}")
+    return blockers
+
+
+def _public_artifact_manifest(root: Path, capsule: dict[str, Any]) -> dict[str, Any]:
+    file_entries = _manifest_file_entries(root, capsule["capsule_digest"])
+    slot_sha256, slot_sha3_512, slot_size = hash_file_dual(root / EVIDENCE_SLOT_CONTRACTS_FILENAME)
+    return {
+        "schema_id": "daylight-v20-public-artifact-manifest",
+        "schema_version": "0.1.0",
+        "artifact_type": "daylight-v20-aperture-singularity-public-review",
+        "capsule_digest": capsule["capsule_digest"],
+        "release_tag": capsule["release_tag"],
+        "source_commit": capsule["source_commit"],
+        "declaration_allowed": capsule["declaration_allowed"],
+        "expected_files": EXPECTED_FILES,
+        "manifest_excluded_from_file_entries": sorted(MANIFEST_EXCLUDED_FROM_FILE_ENTRIES),
+        "files": file_entries,
+        "schema_digests": _schema_digests(root),
+        "external_evidence_slot_contract": {
+            "path": EVIDENCE_SLOT_CONTRACTS_FILENAME,
+            "size": slot_size,
+            "sha256": slot_sha256,
+            "sha3_512": slot_sha3_512,
+        },
+        "release_tag_consistency": {
+            "capsule_release_tag": capsule["release_tag"],
+            "verifier_expected_subject": capsule["verifier_agreement"]["expected_subject"],
+            "verifier_subject": capsule["verifier_agreement"]["subject"],
+            "passed": capsule["release_tag"] == capsule["verifier_agreement"]["subject"],
+        },
+        "non_claims": boundary_debt.NON_CLAIMS,
     }
 
 
@@ -203,6 +456,49 @@ def _deterministic_tar_gz(root: Path, tar_path: Path) -> str:
     return hashlib.sha256(tar_path.read_bytes()).hexdigest()
 
 
+def _safe_tar_member_name(name: str) -> str:
+    if not name or name.startswith("/") or "\\" in name:
+        raise PublicArtifactError(f"unsafe tar member name: {name!r}")
+    path = Path(name)
+    if len(path.parts) != 1 or path.parts[0] in {"", ".", ".."}:
+        raise PublicArtifactError(f"unsafe tar member path: {name!r}")
+    if any(part == ".." for part in path.parts):
+        raise PublicArtifactError(f"unsafe tar member traversal: {name!r}")
+    if name.startswith("."):
+        raise PublicArtifactError(f"hidden tar member rejected: {name!r}")
+    return name
+
+
+def _extract_tar_gz_safely(tar_path: Path, out: Path) -> None:
+    with tarfile.open(tar_path, mode="r:gz") as archive:
+        seen: set[str] = set()
+        for member in archive.getmembers():
+            name = _safe_tar_member_name(member.name)
+            if name in seen:
+                raise PublicArtifactError(f"duplicate tar member: {name}")
+            seen.add(name)
+            if member.issym() or member.islnk():
+                raise PublicArtifactError(f"tar link member rejected: {name}")
+            if not member.isfile():
+                raise PublicArtifactError(f"non-file tar member rejected: {name}")
+            if member.size < 0 or member.size > 5_000_000:
+                raise PublicArtifactError(f"tar member size rejected: {name}")
+            source = archive.extractfile(member)
+            if source is None:
+                raise PublicArtifactError(f"unreadable tar member: {name}")
+            data = source.read()
+            if len(data) != member.size:
+                raise PublicArtifactError(f"tar member size mismatch: {name}")
+            atomic_write_bytes(out / name, data)
+
+
+def _require_outside_public_root(target: Path, root: Path, name: str) -> None:
+    resolved_root = root.resolve()
+    resolved_target = target.parent.resolve() / target.name
+    if resolved_target == resolved_root or resolved_root in resolved_target.parents:
+        raise PublicArtifactError(f"{name} must be written outside the public root")
+
+
 def build_public_artifact(
     capsule_path: Path | str,
     out_dir: Path | str,
@@ -234,22 +530,29 @@ def build_public_artifact(
 
     try:
         atomic_write_bytes(out / CAPSULE_FILENAME, json_bytes(capsule))
-        _copy_json(PACKAGE_ROOT / "schema" / SCHEMA_FILENAME, out / SCHEMA_FILENAME)
+        for schema_name in EVIDENCE_SCHEMA_FILENAMES:
+            _copy_json(PACKAGE_ROOT / "schema" / schema_name, out / schema_name)
         _copy_json(Path(verifier_bundle_path) if verifier_bundle_path is not None else DEFAULT_VERIFIER_BUNDLE, out / VERIFIER_BUNDLE_FILENAME)
         _copy_json(Path(external_attestation_path) if external_attestation_path is not None else DEFAULT_EXTERNAL_ATTESTATION, out / EXTERNAL_ATTESTATION_FILENAME)
         _copy_json(Path(reproducible_build_path) if reproducible_build_path is not None else DEFAULT_REPRODUCIBLE_BUILDS, out / REPRODUCIBLE_BUILD_FILENAME)
         _copy_json(Path(falsification_path) if falsification_path is not None else DEFAULT_FALSIFICATION, out / FALSIFICATION_FILENAME)
         _copy_json(Path(boundary_debt_path) if boundary_debt_path is not None else DEFAULT_BOUNDARY_DEBT, out / BOUNDARY_DEBT_FILENAME)
         _copy_json(Path(firewall_profile_path) if firewall_profile_path is not None else DEFAULT_FIREWALL_PROFILE_EXPANSION, out / FIREWALL_PROFILE_FILENAME)
+        bundle_blockers = _bundle_digest_bindings(out, capsule)
+        if bundle_blockers:
+            raise PublicArtifactError("; ".join(bundle_blockers))
         atomic_write_bytes(out / OMEGA_SCORECARD_FILENAME, json_bytes(_omega_scorecard(capsule)))
         atomic_write_bytes(out / BLOCKER_VECTOR_FILENAME, json_bytes(_blocker_vector(capsule)))
         atomic_write_bytes(out / DECLARATION_GATE_FILENAME, json_bytes(declaration_report(capsule)))
         atomic_write_bytes(out / EVIDENCE_AUDIT_FILENAME, json_bytes(evidence_audit.audit_capsule(capsule)))
         atomic_write_bytes(out / REVIEWER_GUIDE_FILENAME, _reviewer_guide(capsule).encode("utf-8"))
         atomic_write_bytes(out / NON_CLAIMS_FILENAME, _non_claims_text(boundary_debt.NON_CLAIMS).encode("utf-8"))
+        atomic_write_bytes(out / EVIDENCE_SLOT_CONTRACTS_FILENAME, json_bytes(_evidence_slot_contracts(capsule)))
+        atomic_write_bytes(out / MANIFEST_FILENAME, json_bytes(_public_artifact_manifest(out, capsule)))
         sha256sums_sha256, sha3sums_sha256 = _write_sums(out)
-        firewall = run_firewall(out, report_path=firewall_report_path)
         tar_target = Path(tar_path) if tar_path is not None else out.with_suffix(".tar.gz")
+        _require_outside_public_root(tar_target, out, "tarball")
+        firewall = run_firewall(out, report_path=firewall_report_path)
         tar_sha256 = _deterministic_tar_gz(out, tar_target)
     except (OSError, ValueError, PublicArtifactError):
         shutil.rmtree(out, ignore_errors=True)
@@ -266,6 +569,181 @@ def build_public_artifact(
         "firewall_ok": firewall["ok"],
         "firewall_report_path": firewall["report_path"],
     }
+
+
+def _validate_manifest(
+    root: Path,
+    manifest: dict[str, Any],
+    *,
+    expected_release_tag: str | None = None,
+    expected_capsule_digest: str | None = None,
+) -> list[str]:
+    blockers: list[str] = []
+    if set(manifest) != {
+        "schema_id",
+        "schema_version",
+        "artifact_type",
+        "capsule_digest",
+        "release_tag",
+        "source_commit",
+        "declaration_allowed",
+        "expected_files",
+        "manifest_excluded_from_file_entries",
+        "files",
+        "schema_digests",
+        "external_evidence_slot_contract",
+        "release_tag_consistency",
+        "non_claims",
+    }:
+        blockers.append("manifest field set invalid")
+        return blockers
+    if manifest["schema_id"] != "daylight-v20-public-artifact-manifest" or manifest["schema_version"] != "0.1.0":
+        blockers.append("manifest schema unsupported")
+    if manifest["artifact_type"] != "daylight-v20-aperture-singularity-public-review":
+        blockers.append("manifest artifact_type unsupported")
+    if manifest["expected_files"] != EXPECTED_FILES:
+        blockers.append("manifest expected file list mismatch")
+    if set(manifest["manifest_excluded_from_file_entries"]) != MANIFEST_EXCLUDED_FROM_FILE_ENTRIES:
+        blockers.append("manifest exclusion set mismatch")
+    if expected_release_tag is not None and manifest["release_tag"] != expected_release_tag:
+        blockers.append("manifest release_tag does not match expected release tag")
+    if expected_capsule_digest is not None and manifest["capsule_digest"] != expected_capsule_digest:
+        blockers.append("manifest capsule_digest does not match expected capsule digest")
+    capsule = load_capsule(root / CAPSULE_FILENAME)
+    if manifest["capsule_digest"] != capsule["capsule_digest"]:
+        blockers.append("manifest capsule_digest does not match capsule")
+    if manifest["release_tag"] != capsule["release_tag"]:
+        blockers.append("manifest release_tag does not match capsule")
+    if manifest["source_commit"] != capsule["source_commit"]:
+        blockers.append("manifest source_commit does not match capsule")
+    if manifest["declaration_allowed"] != capsule["declaration_allowed"]:
+        blockers.append("manifest declaration_allowed does not match capsule")
+    blockers.extend(_bundle_digest_bindings(root, capsule))
+    if not isinstance(manifest["release_tag_consistency"], dict) or manifest["release_tag_consistency"].get("passed") is not True:
+        blockers.append("manifest release tag consistency failed")
+    else:
+        consistency = manifest["release_tag_consistency"]
+        if consistency.get("capsule_release_tag") != capsule["release_tag"]:
+            blockers.append("manifest capsule release tag consistency mismatch")
+        if consistency.get("verifier_subject") != capsule["verifier_agreement"]["subject"]:
+            blockers.append("manifest verifier subject consistency mismatch")
+        if consistency.get("verifier_expected_subject") != capsule["verifier_agreement"]["expected_subject"]:
+            blockers.append("manifest verifier expected subject consistency mismatch")
+    if not boundary_debt.REQUIRED_NON_CLAIMS.issubset(set(manifest["non_claims"])):
+        blockers.append("manifest non-claims incomplete")
+
+    actual_files = {item.name for item in root.iterdir() if item.is_file()}
+    if actual_files != set(EXPECTED_FILES):
+        blockers.append("manifest actual file set mismatch")
+    expected_manifest_paths = sorted(actual_files - MANIFEST_EXCLUDED_FROM_FILE_ENTRIES)
+    file_entries = manifest["files"]
+    if not isinstance(file_entries, list):
+        blockers.append("manifest files must be a list")
+        file_entries = []
+    if [entry.get("path") for entry in file_entries if isinstance(entry, dict)] != expected_manifest_paths:
+        blockers.append("manifest file entries are not canonical")
+    for entry in file_entries:
+        if not isinstance(entry, dict):
+            blockers.append("manifest file entry is not an object")
+            continue
+        if set(entry) != {"path", "role", "size", "sha256", "sha3_512", "capsule_digest"}:
+            blockers.append(f"manifest file entry field set invalid: {entry.get('path')}")
+            continue
+        path = root / entry["path"]
+        if entry["role"] != FILE_ROLES.get(entry["path"]):
+            blockers.append(f"manifest file role mismatch: {entry['path']}")
+        sha256, sha3_512, size = hash_file_dual(path)
+        if entry["size"] != size:
+            blockers.append(f"manifest file size mismatch: {entry['path']}")
+        if entry["sha256"] != sha256:
+            blockers.append(f"manifest file SHA-256 mismatch: {entry['path']}")
+        if entry["sha3_512"] != sha3_512:
+            blockers.append(f"manifest file SHA3-512 mismatch: {entry['path']}")
+        if entry["capsule_digest"] != capsule["capsule_digest"]:
+            blockers.append(f"manifest file capsule binding mismatch: {entry['path']}")
+
+    schema_digests = manifest["schema_digests"]
+    if not isinstance(schema_digests, list):
+        blockers.append("manifest schema_digests must be a list")
+        schema_digests = []
+    if [entry.get("path") for entry in schema_digests if isinstance(entry, dict)] != EVIDENCE_SCHEMA_FILENAMES:
+        blockers.append("manifest schema digest entries are not canonical")
+    for entry in schema_digests:
+        if not isinstance(entry, dict):
+            blockers.append("manifest schema digest entry is not an object")
+            continue
+        sha256, sha3_512, size = hash_file_dual(root / entry["path"])
+        if entry.get("size") != size or entry.get("sha256") != sha256 or entry.get("sha3_512") != sha3_512:
+            blockers.append(f"manifest schema digest mismatch: {entry.get('path')}")
+
+    slot = load_json_no_floats(root / EVIDENCE_SLOT_CONTRACTS_FILENAME)
+    if slot.get("schema_id") != "daylight-v20-external-evidence-slot-contracts":
+        blockers.append("external evidence slot contract schema mismatch")
+    if slot.get("capsule_digest") != capsule["capsule_digest"]:
+        blockers.append("external evidence slot contract capsule mismatch")
+    if slot.get("release_tag") != capsule["release_tag"]:
+        blockers.append("external evidence slot contract release tag mismatch")
+    slot_sha256, slot_sha3_512, slot_size = hash_file_dual(root / EVIDENCE_SLOT_CONTRACTS_FILENAME)
+    manifest_slot = manifest["external_evidence_slot_contract"]
+    if not isinstance(manifest_slot, dict) or manifest_slot != {
+        "path": EVIDENCE_SLOT_CONTRACTS_FILENAME,
+        "size": slot_size,
+        "sha256": slot_sha256,
+        "sha3_512": slot_sha3_512,
+    }:
+        blockers.append("manifest external evidence slot digest mismatch")
+    return blockers
+
+
+def verify_public_artifact(
+    artifact: Path | str,
+    *,
+    expected_release_tag: str | None = None,
+    expected_capsule_digest: str | None = None,
+) -> dict[str, Any]:
+    source = Path(artifact)
+    tar_sha256: str | None = None
+    with tempfile.TemporaryDirectory() as tmp:
+        if source.is_dir():
+            root = source
+            artifact_type = "directory"
+        elif source.is_file() and source.name.endswith(".tar.gz"):
+            root = Path(tmp) / "public"
+            root.mkdir()
+            _extract_tar_gz_safely(source, root)
+            tar_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+            artifact_type = "tar.gz"
+        else:
+            raise PublicArtifactError(f"unsupported public artifact path: {source}")
+
+        blockers: list[str] = []
+        firewall = scan_public_root(root)
+        if not firewall["ok"]:
+            blockers.extend(f"{item['path']}: {item['reason']}" for item in firewall["violations"])
+        try:
+            manifest = load_json_no_floats(root / MANIFEST_FILENAME)
+            blockers.extend(
+                _validate_manifest(
+                    root,
+                    manifest,
+                    expected_release_tag=expected_release_tag,
+                    expected_capsule_digest=expected_capsule_digest,
+                )
+            )
+        except (OSError, ValueError) as exc:
+            blockers.append(f"manifest invalid: {exc}")
+        capsule_digest = firewall.get("capsule_digest")
+        return {
+            "schema_id": "daylight-v20-public-artifact-verification-report",
+            "schema_version": "0.1.0",
+            "artifact": source.as_posix(),
+            "artifact_type": artifact_type,
+            "ok": not blockers,
+            "capsule_digest": capsule_digest,
+            "tar_sha256": tar_sha256,
+            "file_count": firewall.get("file_count"),
+            "blockers": blockers,
+        }
 
 
 def scan_public_root(root: Path | str, *, max_file_bytes: int = 5_000_000) -> dict[str, Any]:

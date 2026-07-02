@@ -210,6 +210,17 @@ def cmd_public_artifact(args: argparse.Namespace) -> int:
     return 0 if report["firewall_ok"] else 1
 
 
+def cmd_verify_public_artifact(args: argparse.Namespace) -> int:
+    report = public_artifact.verify_public_artifact(
+        args.artifact,
+        expected_release_tag=args.expected_release_tag,
+        expected_capsule_digest=args.expected_capsule_digest,
+    )
+    report["command"] = "verify-public-artifact"
+    _emit(report, args.format)
+    return 0 if report["ok"] else 1
+
+
 def cmd_firewall(args: argparse.Namespace) -> int:
     report = public_artifact.run_firewall(args.root, report_path=args.report)
     report["command"] = "firewall"
@@ -290,6 +301,13 @@ def build_parser() -> argparse.ArgumentParser:
     public.add_argument("--force", action="store_true")
     public.add_argument("--format", choices=("text", "json"), default="text")
     public.set_defaults(func=cmd_public_artifact)
+
+    verify_public = sub.add_parser("verify-public-artifact")
+    verify_public.add_argument("artifact")
+    verify_public.add_argument("--expected-release-tag")
+    verify_public.add_argument("--expected-capsule-digest")
+    verify_public.add_argument("--format", choices=("text", "json"), default="text")
+    verify_public.set_defaults(func=cmd_verify_public_artifact)
 
     firewall = sub.add_parser("firewall")
     firewall.add_argument("--root", required=True)

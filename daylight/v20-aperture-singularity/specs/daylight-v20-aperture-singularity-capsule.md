@@ -173,12 +173,20 @@ The v20 public artifact contains:
 
 - `aperture-singularity-capsule.v20.json`
 - `aperture-singularity-capsule.schema.json`
+- `verifier-agreement.bundle.schema.json`
+- `external-attestation.bundle.schema.json`
+- `reproducible-build.bundle.schema.json`
+- `falsification-survival.bundle.schema.json`
+- `boundary-debt.report.schema.json`
+- `firewall-profile-expansion.bundle.schema.json`
 - `verifier-agreement.bundle.json`
 - `external-attestation.bundle.json`
 - `reproducible-build.bundle.json`
 - `falsification-survival.bundle.json`
 - `boundary-debt.report.json`
 - `firewall-profile-expansion.bundle.json`
+- `external-evidence-slot-contracts.v20.json`
+- `public-artifact.manifest.v20.json`
 - `omega-field-scorecard.json`
 - `singularity-blocker-vector.json`
 - `singularity-declaration-gate.report.json`
@@ -195,6 +203,20 @@ artifact that unexpectedly declares Singularity.
 The firewall report is written outside the public root as
 `firewall-report.v20.json`, so the public-review directory remains a stable,
 non-recursive artifact set.
+
+`public-artifact.manifest.v20.json` binds every public-review payload file by
+role, size, SHA-256, SHA3-512, and capsule digest. It also binds the schema
+digests, the external-evidence slot contract digest, and internal release-tag
+consistency between the capsule and verifier agreement subject. The manifest is
+itself covered by `SHA256SUMS` and `SHA3-512SUMS`.
+Public artifact verification also recomputes each bundled evidence JSON's
+canonical input digest and compares it to the digest recorded in the capsule.
+
+`external-evidence-slot-contracts.v20.json` names the future evidence slots for
+non-fixture rebuild receipts, external firewall-profile review, independent
+verifier quorum, and pinned external attestation verification. These slots are
+review contracts only; they do not close any field without real machine-checked
+evidence.
 
 ## Boundary
 

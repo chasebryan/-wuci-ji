@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "firewall-profile-expansion.bundle.schema.json",
+  "title": "Daylight v20 Firewall Profile Expansion Bundle",
+  "description": "Documentation schema. The enforced validator is src/firewall_profile.py:evaluate_bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "schema_version",
+    "profile_id",
+    "profile_digest",
+    "fixture",
+    "claim_usable",
+    "authority_scope",
+    "non_claims_acknowledged",
+    "cases"
+  ],
+  "properties": {
+    "schema_id": {"const": "daylight-v20-firewall-profile-expansion"},
+    "schema_version": {"const": "0.1.0"},
+    "profile_id": {"const": "daylight-v20-aperture-singularity-public-review-v1"},
+    "profile_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "fixture": {"type": "boolean"},
+    "claim_usable": {"type": "boolean"},
+    "authority_scope": {"const": "repo-owned-firewall-negative-matrix-only"},
+    "non_claims_acknowledged": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "expected_reason",
+          "observed_reasons",
+          "outcome",
+          "evidence_digest"
+        ],
+        "properties": {
+          "case_id": {"type": "string", "minLength": 1},
+          "expected_reason": {"type": "string", "minLength": 1},
+          "observed_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "outcome": {"const": "rejected"},
+          "evidence_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

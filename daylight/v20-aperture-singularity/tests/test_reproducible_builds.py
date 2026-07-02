@@ -32,8 +32,8 @@ class ReproducibleBuildTests(unittest.TestCase):
         result = reproducible_builds.evaluate_bundle(
             bundle,
             expected_source_commit="1111111111111111111111111111111111111111",
-            expected_artifact_sha256="9999999999999999999999999999999999999999999999999999999999999999",
-            expected_artifact_sha3_512="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            expected_artifact_sha256="bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+            expected_artifact_sha3_512="083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
             expected_artifact_size=84,
         )
         self.assertTrue(result["passed"])
@@ -49,8 +49,8 @@ class ReproducibleBuildTests(unittest.TestCase):
         result = reproducible_builds.evaluate_bundle(
             bundle,
             expected_source_commit="1111111111111111111111111111111111111111",
-            expected_artifact_sha256="9999999999999999999999999999999999999999999999999999999999999999",
-            expected_artifact_sha3_512="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            expected_artifact_sha256="bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+            expected_artifact_sha3_512="083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446",
             expected_artifact_size=84,
         )
         self.assertFalse(result["passed"])

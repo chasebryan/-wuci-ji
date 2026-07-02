@@ -15,9 +15,7 @@
     "external attestation not cryptographically verified",
     "reproducible build receipts are fixture evidence",
     "reproducible build receipts are not claim-usable",
-    "reproducible build source commit does not match capsule source commit",
-    "reproducible build artifact SHA-256 does not match capsule subject",
-    "reproducible build artifact SHA3-512 does not match capsule subject"
+    "reproducible build source commit does not match capsule source commit"
   ],
   "boundary_debt_summary": {
     "blockers": [],
@@ -26,7 +24,7 @@
     "debt_omega": "0",
     "passed": true
   },
-  "capsule_digest": "4812ed84f17215db08d50c5c10c51c8ab498ccbb555d45f3e66248e6e1948c86",
+  "capsule_digest": "84b99f30eed9a46983ad5ebb4cf28f919d71365bf442a0ac085ea323784147e3",
   "claim_boundary": {
     "boundary_version": "daylight-v20-aperture-singularity-boundary-v1",
     "external_certification": false,
@@ -84,7 +82,7 @@
   "input_falsification_bundle_digest": "da57b982e6990114c73580d94147d0b2b91ec7b68c15aa6f6afdb422e5169b74",
   "input_firewall_profile_expansion_digest": "16e4ae061ae0f7aab0faf30d36d0ce2d5bf6ce9cd999308e733a16fdd061f471",
   "input_meridian_scorecard_digest": null,
-  "input_reproducible_build_bundle_digest": "a0cdba46fa285e098f0aec952c0405922669ce3f8df8270bc448661affba251b",
+  "input_reproducible_build_bundle_digest": "7888ee518ba918a6b376d02a867a75b03587bb03eef6218d299b3394a6501a66",
   "input_transition_ledger_head": null,
   "input_verifier_agreement_bundle_digest": "8fcd209a5d4f94eb8ecca2d6401ef86e0e17bc895bc09b1b92579119e12fa105",
   "layer_name": "Daylight v20 - Aperture Singularity Gate",
@@ -99,9 +97,9 @@
     "not an independent audit",
     "not a perfect Daylight score claim from repository-owned evidence"
   ],
-  "omega_eff": "5.493061443340548456976226184612628523237452789113747258673471668187471466093044834368078774068660445",
-  "omega_sum": "28.11159369652351800182981739393329233215328026858284578817199345135138112973215653764796230579849462",
-  "omega_weak": "5.493061443340548456976226184612628523237452789113747258673471668187471466093044834368078774068660445",
+  "omega_eff": "8.047189562170501873003796666130938197628006771342588609563239457370894938538288823150669390465898055",
+  "omega_sum": "28.62241932028950868503533149023695426703139106502861405834994700918806582422120533540448042907794215",
+  "omega_weak": "8.047189562170501873003796666130938197628006771342588609563239457370894938538288823150669390465898055",
   "policy_digest": "0e4c892148764a63762dc5f2ccd94347694d703dad94d04207c63900450726c0",
   "project": "wuci-ji",
   "proof_fields": [
@@ -114,27 +112,27 @@
         "same_source_commit",
         "same_build_instructions_digest",
         "same_artifact_sha256",
+        "artifact_sha256_matches_subject",
         "same_artifact_sha3_512",
+        "artifact_sha3_512_matches_subject",
         "artifact_size_matches_subject",
         "byte_identical_outputs_claimed"
       ],
-      "closure_decimal": "0.6666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666667",
-      "closure_rational": "10/15",
+      "closure_decimal": "0.8",
+      "closure_rational": "12/15",
       "closure_threshold": "0.984151068",
       "field_id": "reproducible_build",
-      "omega_i": "1.098612288668109691395245236922525704647490557822749451734694333637494293218608966873615754813732089",
+      "omega_i": "1.609437912434100374600759333226187639525601354268517721912647891474178987707657764630133878093179611",
       "omega_threshold": "4.144653167",
       "open_atoms": [
         "receipts_non_fixture",
         "receipts_claim_usable",
-        "source_commit_matches_capsule",
-        "artifact_sha256_matches_subject",
-        "artifact_sha3_512_matches_subject"
+        "source_commit_matches_capsule"
       ],
       "perfect_reserve_applied": false,
       "required_atom_count": 15,
       "threshold_passed": false,
-      "verified_atom_count": 10
+      "verified_atom_count": 12
     },
     {
       "closed_atoms": [
@@ -258,9 +256,7 @@
     "blockers": [
       "reproducible build receipts are fixture evidence",
       "reproducible build receipts are not claim-usable",
-      "reproducible build source commit does not match capsule source commit",
-      "reproducible build artifact SHA-256 does not match capsule subject",
-      "reproducible build artifact SHA3-512 does not match capsule subject"
+      "reproducible build source commit does not match capsule source commit"
     ],
     "claim_usable": false,
     "distinct_environment_count": 2,
@@ -272,7 +268,7 @@
   "reserved_perfect_value_used": false,
   "schema_id": "daylight-v20-aperture-singularity-capsule",
   "schema_version": "0.1.0",
-  "score_AM_plus": 995884773,
+  "score_AM_plus": 999680000,
   "score_inflation_M": 0,
   "source_commit": "fixture",
   "verifier_agreement": {

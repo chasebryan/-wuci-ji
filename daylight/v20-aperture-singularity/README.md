@@ -80,19 +80,24 @@ PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli declaration-gate
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli explain daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli evidence-audit daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli public-artifact --capsule daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json --out-dir build/daylight/v20-aperture-singularity-public --firewall-report build/daylight/firewall-report.v20.json --force
+PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli verify-public-artifact build/daylight/v20-aperture-singularity-public --expected-release-tag v20-aperture-singularity-fixture
 PYTHONPATH=daylight/v20-aperture-singularity python3 -m src.cli firewall --root build/daylight/v20-aperture-singularity-public --report build/daylight/firewall-report.v20.json
 ```
 
 ## Public Review Artifact
 
 `make daylight-v20-aperture-singularity-public-artifact` emits a public-review
-directory with the v20 capsule, schema, verifier bundle, external-attestation
-bundle, reproducible-build bundle, falsification bundle, boundary-debt report,
-firewall-profile expansion bundle, omega scorecard, blocker vector,
-declaration-gate report, evidence-audit report, reviewer guide, non-claims,
-`SHA256SUMS`, and `SHA3-512SUMS`. It also writes a deterministic `.tar.gz` next
-to the public directory and writes `firewall-report.v20.json` outside the public
-root before returning success.
+directory with the v20 capsule, documentation schemas for every evidence bundle,
+the verifier bundle, external-attestation bundle, reproducible-build bundle,
+falsification bundle, boundary-debt report, firewall-profile expansion bundle,
+external-evidence slot contracts, artifact manifest, omega scorecard, blocker
+vector, declaration-gate report, evidence-audit report, reviewer guide,
+non-claims, `SHA256SUMS`, and `SHA3-512SUMS`. It also writes a deterministic
+`.tar.gz` next to the public directory and writes `firewall-report.v20.json`
+outside the public root before returning success. `verify-public-artifact`
+verifies either the directory or tarball, including schema digests, manifest
+file bindings, evidence-bundle canonical input digests, release-tag consistency,
+sums, capsule validity, and safe tar member names.
 
 ## Non-claims
 
