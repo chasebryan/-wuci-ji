@@ -98,7 +98,7 @@ async function assertIndexReferences() {
     'property="og:image"',
     'name="twitter:card"',
     'href="aperture-status.json"',
-    'href="#encrypt"',
+    'href="#meridian"',
     'href="#aperture"',
     'href="#assurance"',
     'href="#daylight"',
@@ -106,7 +106,9 @@ async function assertIndexReferences() {
     'id="assurance"',
     'id="catalog"',
     'id="mae"',
-    'data-meridian-workbench',
+    'id="meridian"',
+    'No public browser encryptor, private-key handler, or file opener is shipped.',
+    'make daylight-meridian-envelope-test',
     'Wuci-Ji v2 — Aperture Bastion',
     'assets/wuci-ji-official-emblem.jpg',
     'Official Wuci-Ji emblem',
@@ -121,7 +123,7 @@ async function assertIndexReferences() {
     '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0'
   ]) {
     if (!index.includes(required)) {
-      fail(`index.html is missing SEO or encryptor marker: ${required}`);
+      fail(`index.html is missing SEO or site marker: ${required}`);
     }
   }
   // The GitHub Pages deploy path does not serve _headers, so the document
@@ -133,6 +135,38 @@ async function assertIndexReferences() {
   ]) {
     if (!index.includes(required)) {
       fail(`index.html is missing in-document security policy: ${required}`);
+    }
+  }
+}
+
+async function assertNoPublicBrowserCrypto() {
+  const index = await readFile(new URL("index.html", siteRoot), "utf8");
+  const app = await readFile(new URL("app.js", siteRoot), "utf8");
+  for (const forbidden of [
+    "data-meridian-file",
+    "data-meridian-open-file",
+    "data-meridian-open-key",
+    "data-meridian-encrypt",
+    "data-meridian-open",
+    "data-meridian-copy-key",
+    "Download opened file",
+    "Download private key"
+  ]) {
+    if (index.includes(forbidden) || app.includes(forbidden)) {
+      fail(`public site exposes browser crypto control: ${forbidden}`);
+    }
+  }
+  for (const forbidden of [
+    "crypto.subtle.encrypt",
+    "crypto.subtle.decrypt",
+    "deriveKey(",
+    "importKey(",
+    "getRandomValues(",
+    "AES-GCM",
+    "privateKey"
+  ]) {
+    if (app.includes(forbidden)) {
+      fail(`app.js exposes browser cryptographic operation: ${forbidden}`);
     }
   }
 }
@@ -536,6 +570,7 @@ await assertCustomDomain();
 await assertIndexReferences();
 await assertNotFoundPage();
 await assertBrowserHttpsFallback();
+await assertNoPublicBrowserCrypto();
 await assertAssetSizes();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
