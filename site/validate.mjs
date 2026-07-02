@@ -33,6 +33,8 @@ const requiredFiles = [
   "assets/daylight-v17-singularity.jpg",
   "assets/daylight-v20-gate-fixture-score-surface.webp",
   "assets/daylight-v20-gate-fixture-score-surface.png",
+  "assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
+  "assets/daylight-v20-gate-aes-256-gcm-comparison-surface.png",
   "assets/daylight-v16-analemma.png",
   "assets/wuci-daylight-v15-plus-solstice.png",
   "assets/wuci-daylight-v15-meridian.png",
@@ -149,6 +151,10 @@ async function assertIndexReferences() {
     'assets/daylight-v20-gate-fixture-score-surface.png',
     'Daylight v20 Gate fixture surface',
     'marked non-declaration',
+    'assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp',
+    'assets/daylight-v20-gate-aes-256-gcm-comparison-surface.png',
+    'Daylight v20 heuristic comparison',
+    'not external certification',
     'make daylight-public-artifact-firewall',
     '28564990503',
     'v2.0.0-aperture-bastion',
@@ -551,6 +557,8 @@ async function assertSearchDiscoveryFiles() {
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-fixture-score-surface.webp</image:loc>",
     "<image:title>Daylight v20 Gate fixture surface</image:title>",
+    "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp</image:loc>",
+    "<image:title>Daylight v20 Gate heuristic comparison</image:title>",
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
     "<loc>https://nosuchmachine.net/codemeta.json</loc>",
@@ -846,7 +854,9 @@ async function assertHostingRequirements() {
     "/assets/wuci-ji-official-emblem.jpg",
     "/assets/wuci-ji-v2-aperture-bastion.jpeg",
     "/assets/daylight-v20-gate-fixture-score-surface.webp",
-    "/assets/daylight-v20-gate-fixture-score-surface.png"
+    "/assets/daylight-v20-gate-fixture-score-surface.png",
+    "/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
+    "/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.png"
   ]) {
     if (!Array.isArray(requirements.required_public_paths) || !requirements.required_public_paths.includes(required)) {
       fail(`hosting-requirements.json is missing public path: ${required}`);

@@ -23,6 +23,11 @@
       <image:title>Daylight v20 Gate fixture surface</image:title>
       <image:caption>Daylight v20 Gate fixture score surface, marked non-declaration.</image:caption>
     </image:image>
+    <image:image>
+      <image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp</image:loc>
+      <image:title>Daylight v20 Gate heuristic comparison</image:title>
+      <image:caption>Daylight v20 Gate versus AES-256-GCM comparative heuristic surface, not external certification.</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://nosuchmachine.net/aperture-status.json</loc>
