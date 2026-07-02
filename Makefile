@@ -64,6 +64,8 @@ WUCI_PROVENANCE ?= build/wuci-provenance.json
 DAYLIGHT_MERIDIAN_PRIVATE_DIR ?= build/daylight/v15-meridian-private
 DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR ?= build/daylight/v15-meridian-public
 DAYLIGHT_MERIDIAN_ARTIFACT_DIR ?= $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
+DAYLIGHT_APERTURE_CAPSULE ?= build/daylight/v19-aperture-bastion-capsule.json
+DAYLIGHT_APERTURE_PUBLIC_DIR ?= build/daylight/v19-aperture-bastion-public
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
@@ -133,6 +135,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v17-singularity-score daylight-v17-singularity-verify daylight-v17-singularity-test daylight-v17-singularity-doctor daylight-v17-singularity-fixture-demo daylight-v17-singularity-declaration-gate
 .PHONY: daylight-horizon-alpha-test daylight-horizon-alpha-vault-demo daylight-horizon-alpha-release-demo
 .PHONY: daylight-v18-bastion-measure daylight-v18-bastion-verify daylight-v18-bastion-test daylight-v18-bastion-transition-demo daylight-v18-bastion-transition-test daylight-v18-bastion-transition-ledger-verify
+.PHONY: daylight-v19-aperture-bastion-doctor daylight-v19-aperture-bastion-capsule-demo daylight-v19-aperture-bastion-verify daylight-v19-aperture-bastion-public-artifact daylight-v19-aperture-bastion-firewall daylight-v19-aperture-bastion-test daylight-v19-aperture-bastion-ci aperture-bastion-doctor aperture-bastion-test aperture-bastion-ci
 .PHONY: site-daylight-status site-daylight-status-check site-validate
 
 all: check-native $(TARGET)
@@ -390,6 +393,48 @@ daylight-v18-bastion-transition-demo:
 	PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli transition-ledger-verify --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
 	@if PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli tamper-check --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --format text; then echo "expected tamper-check without transition to fail"; exit 1; else echo "tamper without transition rejected"; fi
 	DAYLIGHT_BASTION_PASSPHRASE=daylight-v18-fixture-passphrase PYTHONPATH=daylight/v18-bastion $(PYTHON) -m src.cli tamper-check --before daylight/v18-bastion/examples/transition.before.v18.json --after daylight/v18-bastion/examples/transition.after.v18.json --transition daylight/v18-bastion/examples/transition-record.v18.json --ledger daylight/v18-bastion/examples/transition-ledger.v18.json --format text
+
+daylight-v19-aperture-bastion-doctor:
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli doctor
+
+daylight-v19-aperture-bastion-verify:
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli verify-capsule daylight/v19-aperture-bastion/examples/expected-capsule.v19.json
+
+daylight-v19-aperture-bastion-capsule-demo:
+	mkdir -p build/daylight
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli capsule \
+		--subject daylight/v19-aperture-bastion/examples/example-subject.bin \
+		--public-file daylight/v19-aperture-bastion/examples/example-subject.bin \
+		--public-file daylight/v18-bastion/examples/transition.before.v18.json \
+		--public-file daylight/v18-bastion/examples/transition.after.v18.json \
+		--public-file daylight/v18-bastion/examples/transition-ledger.v18.json \
+		--public-file daylight/v17-singularity/examples/expected-scorecard.current.v17.json \
+		--public-file daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json \
+		--binaric-vector daylight/v18-bastion/examples/transition.before.v18.json \
+		--binaric-vector daylight/v18-bastion/examples/transition.after.v18.json \
+		--transition-ledger daylight/v18-bastion/examples/transition-ledger.v18.json \
+		--meridian-scorecard daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json \
+		--event-horizon-scorecard daylight/v17-singularity/examples/expected-scorecard.current.v17.json \
+		--policy docs/wuci_cage_policy.json \
+		--out $(DAYLIGHT_APERTURE_CAPSULE) --force
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli verify-capsule $(DAYLIGHT_APERTURE_CAPSULE) --require-evidence
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli explain $(DAYLIGHT_APERTURE_CAPSULE)
+
+daylight-v19-aperture-bastion-public-artifact: daylight-v19-aperture-bastion-capsule-demo
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli public-artifact --capsule $(DAYLIGHT_APERTURE_CAPSULE) --out-dir $(DAYLIGHT_APERTURE_PUBLIC_DIR) --force
+
+daylight-v19-aperture-bastion-firewall: daylight-v19-aperture-bastion-public-artifact
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m src.cli firewall --root $(DAYLIGHT_APERTURE_PUBLIC_DIR)
+
+daylight-v19-aperture-bastion-test: daylight-public-evidence-firewall-test
+	PYTHONPATH=daylight/v19-aperture-bastion $(PYTHON) -m unittest discover -s daylight/v19-aperture-bastion/tests -t daylight/v19-aperture-bastion
+
+daylight-v19-aperture-bastion-ci: daylight-v19-aperture-bastion-test daylight-v19-aperture-bastion-doctor daylight-v19-aperture-bastion-verify daylight-v19-aperture-bastion-firewall
+	@echo "daylight-v19-aperture-bastion-ci: complete"
+
+aperture-bastion-doctor: daylight-v19-aperture-bastion-doctor
+aperture-bastion-test: daylight-v19-aperture-bastion-test
+aperture-bastion-ci: daylight-v19-aperture-bastion-ci
 
 site-daylight-status:
 	$(PYTHON) tools/site_daylight_status.py

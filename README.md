@@ -321,6 +321,37 @@ proof, not runtime containment, not production cryptography, not production
 identity, not FIPS validation, not external certification, and not whole-system
 post-quantum safety.
 
+## Wuci-Ji v2 — Aperture Bastion (Daylight v19)
+
+Wuci-Ji v2 — Aperture Bastion is the public-review aperture over the
+Daylight/Wuci-Ji evidence stack. It produces deterministic public review
+capsules, verifies subject and manifest digests, runs a strict public
+artifact firewall, and keeps every claim tied to evidence. It is not
+production cryptography, runtime containment, post-quantum safety,
+government validation, or external certification.
+
+The Aperture Review Capsule under
+[daylight/v19-aperture-bastion/](daylight/v19-aperture-bastion/) binds
+subject bytes (SHA-256 + SHA3-512), optional v18 vector chains and
+transition-ledger heads, optional v15/v17 scorecard references with
+fail-closed consistency gates (`ManualScore(x) -> Reject(x)`), and the exact
+public file set to one canonical, tamper-evident capsule digest. The
+firewall refuses private filenames, private directories, secret markers,
+symlinks, hardlinks, and unexpected files before anything is uploaded.
+
+```sh
+make daylight-v19-aperture-bastion-doctor
+make daylight-v19-aperture-bastion-capsule-demo
+make daylight-v19-aperture-bastion-verify
+make daylight-v19-aperture-bastion-public-artifact
+make daylight-v19-aperture-bastion-firewall
+make daylight-v19-aperture-bastion-test
+make daylight-v19-aperture-bastion-ci
+```
+
+See [docs/WUCI_JI_V2_APERTURE_BASTION.md](docs/WUCI_JI_V2_APERTURE_BASTION.md)
+and [docs/APERTURE_BASTION_SECURITY_BOUNDARY.md](docs/APERTURE_BASTION_SECURITY_BOUNDARY.md).
+
 ## System Shape
 
 ```text

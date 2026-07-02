@@ -16,6 +16,10 @@ The checked-in workflow runs on Ubuntu Linux x86_64 and currently verifies:
   proof lanes.
 - Zig cross-build, Zig release proofs, Zig witness verification, and Zig
   witness archive checks.
+- Daylight Aperture Bastion (v19): capsule tests, doctor, committed-example
+  verification, capsule demo, public artifact, and the public artifact
+  firewall; the workflow uploads only the firewalled public directory
+  (`daylight-v19-aperture-bastion.yml`).
 
 ## CI Non-Claims
 
