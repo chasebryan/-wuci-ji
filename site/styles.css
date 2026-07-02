@@ -584,6 +584,7 @@ h3 {
 .daylight-stack,
 .aperture-section,
 .assurance-section,
+.review-index,
 .solstice-section,
 .mae-plate-section,
 .split-section,
@@ -1087,6 +1088,54 @@ h3 {
   margin: 22px 0 0;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.review-index {
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(10, 14, 12, 0.7) 0%, rgba(18, 22, 18, 0.94) 100%),
+    radial-gradient(circle at 92% 0%, var(--cyan-glow), transparent 34%);
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+
+.review-item {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-height: 250px;
+  padding: 24px;
+  background: linear-gradient(180deg, #111814 0%, #0d120f 100%);
+}
+
+.review-item span {
+  color: var(--cyan);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.review-item h3 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.review-item p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.review-links {
+  display: grid;
+  gap: 10px;
 }
 
 .solstice-section {
@@ -1754,6 +1803,7 @@ figure:hover figcaption {
   }
 
   .truth-band,
+  .review-grid,
   .lane-grid,
   .command-grid,
   .image-grid,
@@ -1877,6 +1927,10 @@ figure:hover figcaption {
   .challenge-actions,
   .readiness-board,
   .assurance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .review-grid {
     grid-template-columns: 1fr;
   }
 

@@ -75,6 +75,7 @@
         <a href="#daylight">Daylight</a>
         <a href="#aperture">Aperture</a>
         <a href="#assurance">Assurance</a>
+        <a href="#review">Review</a>
         <a href="#meridian">Meridian</a>
         <a href="#challenge">Challenge</a>
         <a href="#evidence">Evidence</a>
@@ -277,6 +278,57 @@
               firewall report, or missing hosted diff as a release blocker.
             </p>
           </aside>
+        </div>
+      </section>
+
+      <section class="section review-index" id="review" aria-labelledby="review-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Public review index</p>
+            <h2 id="review-title">Claims, evidence, metadata, and host gates in one place.</h2>
+          </div>
+          <a class="text-link" href="claim-evidence.json">Open claim/evidence map</a>
+        </div>
+        <div class="review-grid" aria-label="Public review resources">
+          <article class="review-item">
+            <span>Claim map</span>
+            <h3>Claim/evidence map</h3>
+            <p>
+              Public claims are mapped to local evidence files, evidence values,
+              validation commands, and explicit non-claims.
+            </p>
+            <a class="text-link" href="claim-evidence.json">claim-evidence.json</a>
+          </article>
+          <article class="review-item">
+            <span>Research metadata</span>
+            <h3>CodeMeta JSON-LD</h3>
+            <p>
+              Software identity, repository, license, language surface, capsule
+              digest, firewall profile, and non-claims for crawlers and archives.
+            </p>
+            <a class="text-link" href="codemeta.json">codemeta.json</a>
+          </article>
+          <article class="review-item">
+            <span>Hosted gate</span>
+            <h3>TLS requirements</h3>
+            <p>
+              Canonical HTTPS origin, required redirects, required HSTS header,
+              and public paths checked by the live site gate.
+            </p>
+            <a class="text-link" href="hosting-requirements.json">hosting-requirements.json</a>
+          </article>
+          <article class="review-item">
+            <span>Status records</span>
+            <h3>Aperture and Daylight status</h3>
+            <p>
+              Capsule digest, firewalled artifact metadata, hosted artifact diff,
+              and the evidence-bound AM+ scorecard summary.
+            </p>
+            <div class="review-links" aria-label="Status records">
+              <a class="text-link" href="aperture-status.json">aperture-status.json</a>
+              <a class="text-link" href="daylight-status.json">daylight-status.json</a>
+            </div>
+          </article>
         </div>
       </section>
 
