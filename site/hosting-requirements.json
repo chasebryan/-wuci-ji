@@ -1,0 +1,78 @@
+{
+  "schema": "wuci-site-hosting-requirements-v1",
+  "project": "wuci-ji",
+  "surface": "Wuci-Ji v2 — Aperture Bastion website",
+  "canonical_origin": "https://nosuchmachine.net",
+  "canonical_url": "https://nosuchmachine.net/",
+  "checked_by": "make site-live-check",
+  "last_updated": "2026-07-02",
+  "required_redirects": [
+    {
+      "name": "apex-http-to-https",
+      "source_scheme": "http",
+      "source_host": "nosuchmachine.net",
+      "target_prefix": "https://nosuchmachine.net/",
+      "allowed_status": [
+        301,
+        308
+      ]
+    },
+    {
+      "name": "www-to-apex",
+      "source_scheme": "https",
+      "source_host": "www.nosuchmachine.net",
+      "target_prefix": "https://nosuchmachine.net/",
+      "allowed_status": [
+        301,
+        308
+      ]
+    }
+  ],
+  "required_https_headers": [
+    {
+      "path": "/",
+      "header": "strict-transport-security",
+      "value_must_contain": "max-age="
+    }
+  ],
+  "required_public_paths": [
+    "/",
+    "/app.js",
+    "/llms.txt",
+    "/sitemap.xml",
+    "/.well-known/security.txt",
+    "/aperture-status.json",
+    "/daylight-status.json",
+    "/codemeta.json",
+    "/hosting-requirements.json",
+    "/assets/wuci-ji-official-emblem.jpg",
+    "/assets/wuci-ji-v2-aperture-bastion.jpeg"
+  ],
+  "deployment_controls": [
+    {
+      "host": "GitHub Pages",
+      "required_setting": "Enforce HTTPS enabled"
+    },
+    {
+      "host": "Cloudflare",
+      "required_setting": "Always Use HTTPS enabled"
+    },
+    {
+      "host": "Cloudflare",
+      "required_setting": "HTTP Strict Transport Security enabled after HTTPS is stable"
+    }
+  ],
+  "references": [
+    "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/",
+    "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/http-strict-transport-security/",
+    "https://developers.cloudflare.com/pages/configuration/headers/",
+    "https://developers.cloudflare.com/pages/configuration/redirects/"
+  ],
+  "non_claims": [
+    "not host-cleanliness proof",
+    "not runtime sandboxing",
+    "not production cryptography",
+    "not external certification",
+    "not independent audit completion"
+  ]
+}

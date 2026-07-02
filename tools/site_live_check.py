@@ -214,6 +214,12 @@ def run_checks() -> list[Check]:
     )
     checks.extend(
         check_json_asset(
+            "hosting-requirements.json",
+            {"schema", "canonical_url", "required_redirects", "required_https_headers", "required_public_paths"},
+        )
+    )
+    checks.extend(
+        check_json_asset(
             "aperture-status.json",
             {"schema", "project", "layer", "release_tag", "capsule_digest", "non_claims"},
         )

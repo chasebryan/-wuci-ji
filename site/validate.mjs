@@ -17,6 +17,7 @@ const requiredFiles = [
   "sitemap.xml",
   "site.webmanifest",
   "codemeta.json",
+  "hosting-requirements.json",
   "llms.txt",
   "humans.txt",
   "security.txt",
@@ -91,6 +92,7 @@ async function assertIndexReferences() {
     'rel="author"',
     'rel="alternate"',
     'type="application/ld+json" href="/codemeta.json"',
+    'type="application/json" href="/hosting-requirements.json"',
     'itemtype="https://schema.org/SoftwareSourceCode"',
     'itemprop="codeRepository"',
     'itemprop="logo"',
@@ -335,6 +337,7 @@ async function assertCloudflareFiles() {
     "/aperture-status.json",
     "/daylight-status.json",
     "/codemeta.json",
+    "/hosting-requirements.json",
     "Content-Type: application/json; charset=utf-8",
     "Content-Type: application/ld+json; charset=utf-8",
     "Cache-Control: no-store",
@@ -471,7 +474,8 @@ async function assertSearchDiscoveryFiles() {
     "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
-    "<loc>https://nosuchmachine.net/codemeta.json</loc>"
+    "<loc>https://nosuchmachine.net/codemeta.json</loc>",
+    "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>"
   ]) {
     if (!sitemap.includes(required)) {
       fail(`sitemap.xml is missing discovery marker: ${required}`);
@@ -500,6 +504,7 @@ async function assertPublicTextDiscovery() {
     "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
     "https://nosuchmachine.net/aperture-status.json",
     "https://nosuchmachine.net/codemeta.json",
+    "https://nosuchmachine.net/hosting-requirements.json",
     "make daylight-v19-aperture-bastion-ci",
     "not production cryptography",
     "not runtime sandboxing",
@@ -638,6 +643,94 @@ async function assertResearchMetadata() {
   }
 }
 
+async function assertHostingRequirements() {
+  const requirements = await readJsonOrNull(new URL("hosting-requirements.json", siteRoot));
+  if (requirements === null) {
+    fail("site/hosting-requirements.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "wuci-site-hosting-requirements-v1",
+    project: "wuci-ji",
+    surface: "Wuci-Ji v2 — Aperture Bastion website",
+    canonical_origin: "https://nosuchmachine.net",
+    canonical_url: "https://nosuchmachine.net/",
+    checked_by: "make site-live-check"
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (requirements[key] !== value) {
+      fail(`hosting-requirements.json ${key} does not match expected value`);
+    }
+  }
+
+  if (!Array.isArray(requirements.required_redirects)) {
+    fail("hosting-requirements.json required_redirects must be a list");
+  } else {
+    const redirectNames = new Set(requirements.required_redirects.map((entry) => entry.name));
+    for (const required of ["apex-http-to-https", "www-to-apex"]) {
+      if (!redirectNames.has(required)) {
+        fail(`hosting-requirements.json is missing redirect requirement: ${required}`);
+      }
+    }
+    for (const entry of requirements.required_redirects) {
+      if (!Array.isArray(entry.allowed_status) || !entry.allowed_status.includes(301) || !entry.allowed_status.includes(308)) {
+        fail(`hosting-requirements.json redirect ${entry.name} must allow 301 and 308`);
+      }
+      if (entry.target_prefix !== "https://nosuchmachine.net/") {
+        fail(`hosting-requirements.json redirect ${entry.name} has unexpected target_prefix`);
+      }
+    }
+  }
+
+  if (!Array.isArray(requirements.required_https_headers)) {
+    fail("hosting-requirements.json required_https_headers must be a list");
+  } else if (
+    !requirements.required_https_headers.some(
+      (entry) =>
+        entry.path === "/" &&
+        entry.header === "strict-transport-security" &&
+        entry.value_must_contain === "max-age="
+    )
+  ) {
+    fail("hosting-requirements.json must require Strict-Transport-Security max-age on /");
+  }
+
+  for (const required of [
+    "/",
+    "/llms.txt",
+    "/sitemap.xml",
+    "/.well-known/security.txt",
+    "/aperture-status.json",
+    "/daylight-status.json",
+    "/codemeta.json",
+    "/hosting-requirements.json",
+    "/assets/wuci-ji-official-emblem.jpg",
+    "/assets/wuci-ji-v2-aperture-bastion.jpeg"
+  ]) {
+    if (!Array.isArray(requirements.required_public_paths) || !requirements.required_public_paths.includes(required)) {
+      fail(`hosting-requirements.json is missing public path: ${required}`);
+    }
+  }
+
+  const controls = JSON.stringify(requirements.deployment_controls || []);
+  for (const required of ["Enforce HTTPS enabled", "Always Use HTTPS enabled", "HTTP Strict Transport Security enabled"]) {
+    if (!controls.includes(required)) {
+      fail(`hosting-requirements.json is missing deploy control: ${required}`);
+    }
+  }
+  for (const required of [
+    "not host-cleanliness proof",
+    "not runtime sandboxing",
+    "not production cryptography",
+    "not external certification",
+    "not independent audit completion"
+  ]) {
+    if (!Array.isArray(requirements.non_claims) || !requirements.non_claims.includes(required)) {
+      fail(`hosting-requirements.json non_claims are missing ${required}`);
+    }
+  }
+}
+
 async function assertNoInsecurePublicUrls() {
   for (const file of [
     "index.html",
@@ -646,6 +739,7 @@ async function assertNoInsecurePublicUrls() {
     "sitemap.xml",
     "site.webmanifest",
     "codemeta.json",
+    "hosting-requirements.json",
     "llms.txt",
     "humans.txt",
     "security.txt",
@@ -688,6 +782,7 @@ await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
 await assertPublicTextDiscovery();
 await assertResearchMetadata();
+await assertHostingRequirements();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
 await assertApertureStatusBinding();

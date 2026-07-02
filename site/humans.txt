@@ -16,6 +16,9 @@ Official emblem SHA-256:
 Research metadata:
 https://nosuchmachine.net/codemeta.json
 
+Hosted TLS requirements:
+https://nosuchmachine.net/hosting-requirements.json
+
 Purpose:
 Defensive, evidence-bound, public-review research artifacts with explicit
 claim boundaries.
