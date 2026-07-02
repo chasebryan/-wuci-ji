@@ -114,6 +114,59 @@ def check_text_asset(path: str, markers: list[str]) -> list[Check]:
     return checks
 
 
+def check_readonly_meridian_surface() -> list[Check]:
+    homepage = fetch(APEX)
+    app = fetch(APEX + "app.js")
+    homepage_forbidden = [
+        "data-meridian-file",
+        "data-meridian-open-file",
+        "data-meridian-open-key",
+        "data-meridian-encrypt",
+        "data-meridian-open",
+        "data-meridian-copy-key",
+        "Download opened file",
+        "Download private key",
+    ]
+    app_forbidden = [
+        "crypto.subtle.encrypt",
+        "crypto.subtle.decrypt",
+        "deriveKey(",
+        "importKey(",
+        "getRandomValues(",
+        "AES-GCM",
+        "privateKey",
+    ]
+    checks = [
+        Check(
+            "readonly-meridian-marker",
+            contains(homepage.body, "Evidence is reviewable; browser cryptography is not shipped."),
+            "homepage declares read-only Meridian posture",
+        ),
+        Check(
+            "readonly-meridian-browser-posture",
+            contains(homepage.body, "No public browser encryptor, private-key handler, or file opener is shipped."),
+            "homepage declares no public browser opener",
+        ),
+    ]
+    for marker in homepage_forbidden:
+        checks.append(
+            Check(
+                "readonly-meridian-no-control",
+                not contains(homepage.body, marker),
+                f"homepage absent: {marker}",
+            )
+        )
+    for marker in app_forbidden:
+        checks.append(
+            Check(
+                "readonly-meridian-no-js-crypto",
+                not contains(app.body, marker),
+                f"app.js absent: {marker}",
+            )
+        )
+    return checks
+
+
 def check_json_asset(path: str, required_keys: set[str]) -> list[Check]:
     url = APEX + path
     response = fetch(url)
@@ -152,6 +205,7 @@ def run_checks() -> list[Check]:
     checks.extend(check_text_asset("llms.txt", ["Wuci-Ji v2", "not production cryptography"]))
     checks.extend(check_text_asset("sitemap.xml", ["https://nosuchmachine.net/", "wuci-ji-official-emblem.jpg"]))
     checks.extend(check_text_asset("app.js", ["enforceCanonicalHttps", "https://nosuchmachine.net"]))
+    checks.extend(check_readonly_meridian_surface())
     checks.extend(
         check_json_asset(
             "aperture-status.json",
