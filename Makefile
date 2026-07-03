@@ -143,7 +143,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-external-evidence daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
 .PHONY: daylight-v20-ed25519-attestation-test daylight-v20-canonical-verifier-output daylight-v20-verifier-output-digest daylight-v20-verifier-quorum daylight-v20-verifier-quorum-test
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
-.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci
+.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-score-integrity-audit
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
@@ -159,6 +159,9 @@ daylight-npt-test:
 
 daylight-npt-ci: daylight-npt-test daylight-npt-report
 	@printf '%s\n' "daylight-npt-ci: complete"
+
+daylight-score-integrity-audit: daylight-npt
+	$(PYTHON) tools/daylight_score_integrity_audit.py
 
 daylight-cplus-score:
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json --receipt daylight/v14c-plus/examples/reproducibility-receipt.v14c-plus.json --output-ledger daylight/v14c-plus/examples/ledger.with-scorecard.jsonl
