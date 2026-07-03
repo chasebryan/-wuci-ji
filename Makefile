@@ -70,6 +70,7 @@ DAYLIGHT_V20_APERTURE_SINGULARITY_CAPSULE ?= build/daylight/v20-aperture-singula
 DAYLIGHT_V20_APERTURE_SINGULARITY_PUBLIC_DIR ?= build/daylight/v20-aperture-singularity-public
 DAYLIGHT_V20_APERTURE_SINGULARITY_TAR ?= build/daylight/v20-aperture-singularity-public-review-artifact.tar.gz
 DAYLIGHT_V20_APERTURE_SINGULARITY_FIREWALL_REPORT ?= build/daylight/firewall-report.v20.json
+DAYLIGHT_SSV_REPORT ?= build/daylight/ssv-v1/daylight-ssv.report.json
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
@@ -143,7 +144,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-external-evidence daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
 .PHONY: daylight-v20-ed25519-attestation-test daylight-v20-canonical-verifier-output daylight-v20-verifier-output-digest daylight-v20-verifier-quorum daylight-v20-verifier-quorum-test
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
-.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
+.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
@@ -159,6 +160,25 @@ daylight-npt-test:
 
 daylight-npt-ci: daylight-npt-test daylight-npt-report
 	@printf '%s\n' "daylight-npt-ci: complete"
+
+daylight-ssv:
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv audit --out $(DAYLIGHT_SSV_REPORT)
+
+daylight-ssv-report: daylight-ssv
+	@printf '%s\n' "daylight-ssv report: $(DAYLIGHT_SSV_REPORT)"
+
+daylight-ssv-test:
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m unittest discover -s tests/daylight_ssv -t .
+
+daylight-ssv-ci: daylight-ssv-test
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv check-model
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/perfect.json
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/mixed-score.json
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/critical-override.json
+	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/missing-evidence.json
+	! PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/invalid-score-too-precise.json
+	! PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/invalid-score-over-100.json
+	@printf '%s\n' "daylight-ssv-ci: complete"
 
 daylight-score-integrity-audit: daylight-npt
 	$(PYTHON) tools/daylight_score_integrity_audit.py

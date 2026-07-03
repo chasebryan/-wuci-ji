@@ -1,0 +1,411 @@
+{
+  "domains": [
+    {
+      "checks": [
+        {
+          "check_value": "0.5",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:identity.example.partial",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "identity.example.partial",
+          "loss": "6.0",
+          "reason": "identity.example.partial fixture reason",
+          "result": "partial",
+          "result_value": "0.5",
+          "safe_remediation_hint": "identity.example.partial fixture remediation hint",
+          "severity": "high",
+          "severity_weight": 5
+        }
+      ],
+      "domain_points": "6.0000",
+      "domain_score": "0.5000",
+      "id": "identity_privilege_control",
+      "name": "Identity / privilege control",
+      "weight": "12.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "0.5",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:update.example.weak",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "weak",
+          "evidence_quality_value": "0.5",
+          "id": "update.example.weak",
+          "loss": "6.0",
+          "reason": "update.example.weak fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "update.example.weak fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "6.0000",
+      "domain_score": "0.5000",
+      "id": "update_install_integrity",
+      "name": "Update / install integrity",
+      "weight": "12.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "0.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:crypto.example.unknown",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "missing",
+          "evidence_quality_value": "0.0",
+          "id": "crypto.example.unknown",
+          "loss": "11.0",
+          "reason": "crypto.example.unknown fixture reason",
+          "result": "unknown",
+          "result_value": "0.0",
+          "safe_remediation_hint": "crypto.example.unknown fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "0.0000",
+      "domain_score": "0.0000",
+      "id": "cryptography_secrets_handling",
+      "name": "Cryptography / secrets handling",
+      "weight": "11.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "0.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:network.example.fail",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "network.example.fail",
+          "loss": "12.0",
+          "reason": "network.example.fail fixture reason",
+          "result": "fail",
+          "result_value": "0.0",
+          "safe_remediation_hint": "network.example.fail fixture remediation hint",
+          "severity": "low",
+          "severity_weight": 1
+        }
+      ],
+      "domain_points": "0.0000",
+      "domain_score": "0.0000",
+      "id": "network_exposure",
+      "name": "Network exposure",
+      "weight": "12.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "0.75",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:runtime.example.medium_evidence",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "medium",
+          "evidence_quality_value": "0.75",
+          "id": "runtime.example.medium_evidence",
+          "loss": "2.8",
+          "reason": "runtime.example.medium_evidence fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "runtime.example.medium_evidence fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "8.2500",
+      "domain_score": "0.7500",
+      "id": "file_process_runtime_integrity",
+      "name": "File / process / runtime integrity",
+      "weight": "11.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "1.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:configuration_hardening.example",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "configuration_hardening.example",
+          "loss": "0.0",
+          "reason": "configuration_hardening.example fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "configuration_hardening.example fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "10.0000",
+      "domain_score": "1.0000",
+      "id": "configuration_hardening",
+      "name": "Configuration hardening",
+      "weight": "10.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "1.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:logging_auditability.example",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "logging_auditability.example",
+          "loss": "0.0",
+          "reason": "logging_auditability.example fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "logging_auditability.example fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "8.0000",
+      "domain_score": "1.0000",
+      "id": "logging_auditability",
+      "name": "Logging / auditability",
+      "weight": "8.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "1.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:backup_recovery_posture.example",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "backup_recovery_posture.example",
+          "loss": "0.0",
+          "reason": "backup_recovery_posture.example fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "backup_recovery_posture.example fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "7.0000",
+      "domain_score": "1.0000",
+      "id": "backup_recovery_posture",
+      "name": "Backup / recovery posture",
+      "weight": "7.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "1.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:dependency_supply_chain_integrity.example",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "dependency_supply_chain_integrity.example",
+          "loss": "0.0",
+          "reason": "dependency_supply_chain_integrity.example fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "dependency_supply_chain_integrity.example fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "9.0000",
+      "domain_score": "1.0000",
+      "id": "dependency_supply_chain_integrity",
+      "name": "Dependency / supply-chain integrity",
+      "weight": "9.0"
+    },
+    {
+      "checks": [
+        {
+          "check_value": "1.0",
+          "evidence": [
+            {
+              "sha256": null,
+              "source": "example:daylight_evidence_reproducibility.example",
+              "type": "generated_report",
+              "value_summary": "deterministic fixture evidence"
+            }
+          ],
+          "evidence_quality": "strong",
+          "evidence_quality_value": "1.0",
+          "id": "daylight_evidence_reproducibility.example",
+          "loss": "0.0",
+          "reason": "daylight_evidence_reproducibility.example fixture reason",
+          "result": "pass",
+          "result_value": "1.0",
+          "safe_remediation_hint": "daylight_evidence_reproducibility.example fixture remediation hint",
+          "severity": "medium",
+          "severity_weight": 3
+        }
+      ],
+      "domain_points": "8.0000",
+      "domain_score": "1.0000",
+      "id": "daylight_evidence_reproducibility",
+      "name": "Daylight evidence / reproducibility",
+      "weight": "8.0"
+    }
+  ],
+  "findings": [
+    {
+      "domain": "identity_privilege_control",
+      "id": "identity.example.partial",
+      "loss": "6.0",
+      "reason": "identity.example.partial fixture reason",
+      "result": "partial",
+      "severity": "high"
+    },
+    {
+      "domain": "cryptography_secrets_handling",
+      "id": "crypto.example.unknown",
+      "loss": "11.0",
+      "reason": "crypto.example.unknown fixture reason",
+      "result": "unknown",
+      "severity": "medium"
+    },
+    {
+      "domain": "file_process_runtime_integrity",
+      "id": "runtime.example.medium_evidence",
+      "loss": "2.8",
+      "reason": "runtime.example.medium_evidence fixture reason",
+      "result": "pass",
+      "severity": "medium"
+    },
+    {
+      "domain": "update_install_integrity",
+      "id": "update.example.weak",
+      "loss": "6.0",
+      "reason": "update.example.weak fixture reason",
+      "result": "pass",
+      "severity": "medium"
+    },
+    {
+      "domain": "network_exposure",
+      "id": "network.example.fail",
+      "loss": "12.0",
+      "reason": "network.example.fail fixture reason",
+      "result": "fail",
+      "severity": "low"
+    }
+  ],
+  "non_claim_boundary": {
+    "certifies_audit_status": false,
+    "certifies_post_quantum_security": false,
+    "certifies_production_readiness": false,
+    "certifies_security": false,
+    "implies_agency_endorsement": false,
+    "proves_mathematical_finality": false,
+    "statement": "DaylightSSV v1 produces an evidence-derived system security posture score. It does not certify security. It does not prove the system is secure. It does not replace penetration testing, formal verification, external audit, or operational review. It reports what the scanner could verify from available evidence at runtime."
+  },
+  "reasons": [
+    {
+      "domain": "Network exposure",
+      "domain_id": "network_exposure",
+      "id": "network.example.fail",
+      "loss": "12.0",
+      "reason": "network.example.fail fixture reason"
+    },
+    {
+      "domain": "Cryptography / secrets handling",
+      "domain_id": "cryptography_secrets_handling",
+      "id": "crypto.example.unknown",
+      "loss": "11.0",
+      "reason": "crypto.example.unknown fixture reason"
+    },
+    {
+      "domain": "Identity / privilege control",
+      "domain_id": "identity_privilege_control",
+      "id": "identity.example.partial",
+      "loss": "6.0",
+      "reason": "identity.example.partial fixture reason"
+    },
+    {
+      "domain": "Update / install integrity",
+      "domain_id": "update_install_integrity",
+      "id": "update.example.weak",
+      "loss": "6.0",
+      "reason": "update.example.weak fixture reason"
+    },
+    {
+      "domain": "File / process / runtime integrity",
+      "domain_id": "file_process_runtime_integrity",
+      "id": "runtime.example.medium_evidence",
+      "loss": "2.8",
+      "reason": "runtime.example.medium_evidence fixture reason"
+    }
+  ],
+  "result": "completed",
+  "schema": "daylight.ssv.v1.report",
+  "score": "62.3",
+  "summary": {
+    "checks_fail": 1,
+    "checks_partial": 1,
+    "checks_pass": 7,
+    "checks_total": 10,
+    "checks_unknown": 1,
+    "domains_total": 10,
+    "evidence_coverage": "80.0"
+  },
+  "tool": "DaylightSSV",
+  "version": "1",
+  "warning": {
+    "level": "Severe",
+    "message": "Severe - major exposure or missing evidence",
+    "overrides": []
+  }
+}
