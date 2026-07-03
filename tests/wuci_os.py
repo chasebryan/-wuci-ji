@@ -1010,6 +1010,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
     # wuci-update prefers the measured, digest-verified overlay sync after a pull.
     assert "wuci-selfupdate --apply --source \"$repo\"" in files["usr/local/bin/wuci-update"]
+    assert 'exec wuci-selfupdate --apply --source "$repo"' in files["usr/local/bin/wuci-update"]
+    assert 'exec wuci-wait-run "measured overlay update" wuci-selfupdate --apply --source "$repo"' in files["usr/local/bin/wuci-update"]
     assert "packages=0" in files["usr/local/bin/wuci-update"]
     assert "pull=0" in files["usr/local/bin/wuci-update"]
     assert "--network enables both --pull and --packages" in files["usr/local/bin/wuci-update"]
@@ -2704,6 +2706,76 @@ def assert_live_update(tmp: Path) -> None:
     wuci_os.create_overlay = original_create_overlay
 
 
+def assert_overlay_shell_scripts_parse(tmp: Path) -> None:
+    files = wuci_os.overlay_files()
+    script_root = tmp / "overlay-shell-syntax"
+    script_root.mkdir()
+    for rel, content in sorted(files.items()):
+        if not rel.startswith(("usr/local/bin/", "etc/profile.d/", "etc/runit/")):
+            continue
+        if not content.startswith("#!/bin/sh") and "set -eu" not in content:
+            continue
+        script = script_root / rel.replace("/", "__")
+        script.write_text(content, encoding="utf-8")
+        result = subprocess.run(
+            ["sh", "-n", str(script)],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert result.returncode == 0, f"{rel} failed sh -n: {result.stderr}"
+
+
+def assert_wuci_update_tail_calls_selfupdate(tmp: Path) -> None:
+    files = wuci_os.overlay_files()
+    root = tmp / "wuci-update-tail-call"
+    update_script = root / "usr/local/bin/wuci-update"
+    fake_bin = root / "fake-bin"
+    repo = root / "repo"
+    log = root / "selfupdate.args"
+    fake_bin.mkdir(parents=True)
+    update_script.parent.mkdir(parents=True)
+    (repo / "tools").mkdir(parents=True)
+    (repo / "tools/wuci_os.py").write_text("# source snapshot marker\n", encoding="utf-8")
+    update_script.write_text(files["usr/local/bin/wuci-update"], encoding="utf-8")
+    update_script.chmod(0o755)
+
+    fake_selfupdate = fake_bin / "wuci-selfupdate"
+    fake_selfupdate.write_text(
+        """#!/bin/sh
+set -eu
+printf '%s\\n' "$@" > "$WUCI_TEST_SELFUPDATE_ARGS"
+cat > "$WUCI_TEST_RUNNING_UPDATE" <<'BROKEN'
+#!/bin/sh
+printf 'unterminated
+BROKEN
+exit 0
+""",
+        encoding="utf-8",
+    )
+    fake_selfupdate.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+    env["WUCI_SOURCE_ROOT"] = str(repo)
+    env["WUCI_TEST_RUNNING_UPDATE"] = str(update_script)
+    env["WUCI_TEST_SELFUPDATE_ARGS"] = str(log)
+    result = subprocess.run(
+        [str(update_script)],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "Syntax error" not in result.stderr
+    assert "unterminated" not in result.stderr
+    assert "wuci-update: complete" not in result.stdout
+    assert log.read_text(encoding="utf-8").splitlines() == ["--apply", "--source", str(repo)]
+
+
 def main() -> int:
     parser_quiet = "--quiet" in sys.argv
     with tempfile.TemporaryDirectory(prefix="wuci-os-test-") as tmp_name:
@@ -2721,6 +2793,8 @@ def main() -> int:
         assert_boot_payload_cleanup_reports_tampered_artifact(tmp)
         assert_boot_cleanup_safeio(tmp)
         assert_overlay_profile(tmp)
+        assert_overlay_shell_scripts_parse(tmp)
+        assert_wuci_update_tail_calls_selfupdate(tmp)
         assert_live_update(tmp)
         assert_media_session_runtime_fallback(tmp)
         assert_overlay_force_rebuild(tmp)

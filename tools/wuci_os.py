@@ -6974,11 +6974,19 @@ if [ "$source" -eq 1 ]; then
 
     if command -v wuci-selfupdate >/dev/null 2>&1; then
         # Preferred: measured, digest-verified overlay sync onto the running root.
-        run_wait "measured overlay update" wuci-selfupdate --apply --source "$repo"
+        # This may replace /usr/local/bin/wuci-update itself. Tail-call it so
+        # the current shell does not continue reading a script that changed
+        # underneath it.
+        if command -v wuci-wait-run >/dev/null 2>&1; then
+            exec wuci-wait-run "measured overlay update" wuci-selfupdate --apply --source "$repo"
+        fi
+        exec wuci-selfupdate --apply --source "$repo"
     elif [ -x "$repo/tools/wuci-os" ]; then
         run_wait "wuci-os overlay refresh" "$repo/tools/wuci-os" overlay --force
         if [ "$(id -u)" = "0" ] && [ -x "$repo/tools/wuci-os-live-activate" ]; then
-            WUCI_OS_OVERLAY="$repo/build/wuci-os/overlay" "$repo/tools/wuci-os-live-activate" || true
+            WUCI_OS_OVERLAY="$repo/build/wuci-os/overlay"
+            export WUCI_OS_OVERLAY
+            exec "$repo/tools/wuci-os-live-activate"
         else
             printf 'wuci-update: overlay refreshed; run as root to reactivate live overlay:\\n'
             printf '  WUCI_OS_OVERLAY=%s %s/tools/wuci-os-live-activate\\n' "$repo/build/wuci-os/overlay" "$repo"
