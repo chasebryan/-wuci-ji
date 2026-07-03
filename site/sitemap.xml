@@ -70,6 +70,12 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://nosuchmachine.net/audits/daylight/score-integrity/</loc>
+    <lastmod>2026-07-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://nosuchmachine.net/codemeta.json</loc>
     <lastmod>2026-07-02</lastmod>
     <changefreq>weekly</changefreq>

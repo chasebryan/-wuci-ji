@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="application-name" content="Wuci-Ji">
+    <meta name="author" content="No Such Machine">
+    <meta name="creator" content="No Such Machine">
+    <meta name="publisher" content="No Such Machine">
+    <meta name="color-scheme" content="dark">
+    <meta name="format-detection" content="telephone=no">
+    <meta
+      name="description"
+      content="Daylight Audit Portal v1: public score-integrity audit run, manifest, score-claim ledger, recomputation reports, methodology, and non-claim boundary."
+    >
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0f1411">
+    <meta property="og:title" content="Daylight Audit Portal v1">
+    <meta
+      property="og:description"
+      content="Public, readable Daylight score-integrity audit portal with report links and evidence-bound non-claim boundary."
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nosuchmachine.net/audits/daylight/score-integrity/">
+    <meta property="og:image" content="https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg">
+    <meta property="og:site_name" content="No Such Machine">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Daylight Audit Portal v1">
+    <meta
+      name="twitter:description"
+      content="Recompute the Daylight v20 score, check the claim ledger, check the ratio math, and file mismatches."
+    >
+    <meta name="twitter:image" content="https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg">
+    <link rel="canonical" href="https://nosuchmachine.net/audits/daylight/score-integrity/">
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="apple-touch-icon" href="/assets/wuci-ji-official-emblem.jpg">
+    <link rel="icon" href="/assets/wuci-ji-official-emblem.jpg" type="image/jpeg">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <title>Daylight Audit Portal v1</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#top">Skip to content</a>
+    <header class="site-header" data-header>
+      <a class="brand" href="/index.html#top" aria-label="Wuci-Ji home">
+        <img
+          class="brand-mark"
+          src="/assets/wuci-ji-official-emblem.jpg"
+          alt=""
+          aria-hidden="true"
+          width="400"
+          height="400"
+          decoding="async"
+        >
+        <span>Wuci-Ji</span>
+      </a>
+      <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="/index.html#daylight">Daylight</a>
+        <a href="/index.html#assurance">Assurance</a>
+        <a href="/index.html#review">Review</a>
+        <a href="/ai-scoring-integrity.html">AI Scoring Integrity</a>
+        <a href="/daylight-grok-audit.html">Daylight / Grok Audit</a>
+        <a href="/audits/daylight/score-integrity/" aria-current="page">Audit Portal</a>
+        <a class="nav-repo" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
+      </nav>
+      <a class="repo-link" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-controls="site-nav"
+        aria-expanded="false"
+        aria-label="Toggle navigation menu"
+      >
+        <span class="nav-toggle-bars" aria-hidden="true"></span>
+      </button>
+    </header>
+
+    <main
+      id="top"
+      class="audit-page"
+      data-audit-run="2026-07-03-558d9fa"
+      data-audited-commit="558d9fa71f65fcb5346dfcb92128f60ae118739f"
+      data-audit-result="PASS_SCORE_INTEGRITY"
+      data-report-result="pass"
+      data-score-am-plus="999801305"
+      data-displayed-score="999,801,305 AM+"
+      data-codex-result="PASS"
+      data-fable5-result="PASS"
+    >
+      <section class="section audit-hero" aria-labelledby="portal-title">
+        <p class="eyebrow">Daylight Audit Portal v1</p>
+        <h1 id="portal-title">Score-integrity audit portal.</h1>
+        <p>
+          Public, readable score-integrity audit portal for the latest Daylight
+          score-integrity run. Values on this page are checked against the
+          committed audit index, run manifest, final report, and score-claim
+          ledger by <code>make site-validate</code>.
+        </p>
+      </section>
+
+      <section class="truth-band" aria-label="Latest audit run summary">
+        <div>
+          <strong>Latest audit run</strong>
+          <span><code>2026-07-03-558d9fa</code></span>
+        </div>
+        <div>
+          <strong>Audited commit</strong>
+          <span><code>558d9fa71f65fcb5346dfcb92128f60ae118739f</code></span>
+        </div>
+        <div>
+          <strong>Result</strong>
+          <span><code>PASS_SCORE_INTEGRITY</code></span>
+        </div>
+      </section>
+
+      <section class="section audit-section" aria-labelledby="snapshot-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Latest audit run</p>
+            <h2 id="snapshot-title">Evidence-bound snapshot.</h2>
+          </div>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/tree/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa">
+            Open run directory
+          </a>
+        </div>
+        <div class="audit-table-wrap">
+          <table class="audit-table">
+            <tbody>
+              <tr>
+                <th scope="row">Latest audit run</th>
+                <td><code>2026-07-03-558d9fa</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Audited commit</th>
+                <td>
+                  <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/commit/558d9fa71f65fcb5346dfcb92128f60ae118739f">
+                    <code>558d9fa71f65fcb5346dfcb92128f60ae118739f</code>
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">PASS_SCORE_INTEGRITY result</th>
+                <td><code>PASS_SCORE_INTEGRITY</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Displayed score</th>
+                <td><strong data-v20-am-plus="999801305">999,801,305 AM+</strong></td>
+              </tr>
+              <tr>
+                <th scope="row">Codex</th>
+                <td><code>Codex: PASS</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Fable5</th>
+                <td><code>Fable5: PASS</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The Codex and Fable5 rows are portal display checks for this page.
+          The audit authority remains the committed files linked below.
+        </p>
+      </section>
+
+      <section class="section audit-section" aria-labelledby="reports-title">
+        <p class="eyebrow">Report file links</p>
+        <h2 id="reports-title">Files to recompute or inspect.</h2>
+        <div class="audit-link-grid">
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/index.json">Audit index JSON</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa/MANIFEST.json">Manifest link</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa/SHA256SUMS.txt">SHA256SUMS link</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/daylight-score-integrity.report.json">Final score-integrity report</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/daylight-score-claims.json">Score-claim ledger link</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/ratio-percent-audit.json">Ratio/percentage audit link</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/public-surface-score-diff.json">Public-surface diff link</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/METHODOLOGY.md">Methodology</a>
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/NON_CLAIMS.md">Non-claim boundary</a>
+        </div>
+      </section>
+
+      <section class="section audit-section" aria-labelledby="method-title">
+        <p class="eyebrow">Methodology</p>
+        <h2 id="method-title">Score integrity means no drift from evidence.</h2>
+        <p>
+          The score-integrity audit compares public score claims against
+          committed repository evidence and the original boundary under which
+          each claim was introduced. It records the audited commit, generated
+          claim ledger, exact ratio and percentage recomputation notes,
+          public-surface score comparison output, final generated report, and
+          non-claim boundary.
+        </p>
+        <ul class="audit-rule-list">
+          <li><code>NoGeneratedScore -> NoScoreClaim</code></li>
+          <li><code>NoOriginalBoundary -> NoIntegrityClaim</code></li>
+          <li><code>ScoreChanged + NoEvidence -> Reject</code></li>
+          <li><code>FixtureEvidence + ExternalClaim -> Reject</code></li>
+          <li><code>DeclarationBlocked -> NoDeclarationClaim</code></li>
+        </ul>
+      </section>
+
+      <section class="section audit-section" aria-labelledby="boundary-title">
+        <p class="eyebrow">Non-claim boundary</p>
+        <h2 id="boundary-title">What this audit does not establish.</h2>
+        <p>
+          This audit checks score integrity against repository evidence and
+          original claim boundaries. It does not certify security, production
+          readiness, audit status, post-quantum security, external endorsement,
+          or mathematical finality.
+        </p>
+        <ul class="audit-list">
+          <li>It does not certify security.</li>
+          <li>It does not certify production readiness.</li>
+          <li>It does not certify audit status.</li>
+          <li>It does not certify post-quantum security.</li>
+          <li>It does not imply agency endorsement.</li>
+          <li>It does not declare Singularity.</li>
+          <li>It does not prove mathematical finality.</li>
+        </ul>
+      </section>
+
+      <section class="section audit-section" aria-labelledby="challenge-title">
+        <p class="eyebrow">Public challenge</p>
+        <h2 id="challenge-title">Find a mismatch.</h2>
+        <ul class="audit-list">
+          <li>Recompute the Daylight v20 score.</li>
+          <li>Check the claim ledger.</li>
+          <li>Check the ratio math.</li>
+          <li>Check the v20.3 quorum boundary.</li>
+          <li>Find a mismatch.</li>
+          <li>If you find one, file it.</li>
+        </ul>
+        <p>
+          File mismatches at
+          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/issues">the repository issue tracker</a>.
+        </p>
+      </section>
+
+      <section class="section audit-section" aria-labelledby="next-title">
+        <p class="eyebrow">Next technical path</p>
+        <h2 id="next-title">Daylight External Verifier Intake v1.</h2>
+        <p>
+          The next advancement is outside replication: v20.3 external exactly
+          3-of-3 verifier-family quorum, independent verifier vectors, pinned
+          attestations, fixture rejection, reserved identity rejection, and
+          machine-readable rejection reasons.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>No Such Machine</span>
+      <a href="/index.html">Home</a>
+      <a href="/daylight-grok-audit.html">Daylight / Grok Audit</a>
+      <a href="https://github.com/chasebryan/-wuci-ji/blob/main/audits/daylight/score-integrity/README.md">Audit README</a>
+    </footer>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

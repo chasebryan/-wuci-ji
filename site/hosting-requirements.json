@@ -5,7 +5,7 @@
   "canonical_origin": "https://nosuchmachine.net",
   "canonical_url": "https://nosuchmachine.net/",
   "checked_by": "make site-live-check",
-  "last_updated": "2026-07-02",
+  "last_updated": "2026-07-03",
   "required_redirects": [
     {
       "name": "apex-http-to-https",
@@ -43,6 +43,7 @@
     "/.well-known/security.txt",
     "/ai-scoring-integrity.html",
     "/daylight-grok-audit.html",
+    "/audits/daylight/score-integrity/",
     "/aperture-status.json",
     "/daylight-status.json",
     "/daylight-v20-aperture-singularity-status.json",

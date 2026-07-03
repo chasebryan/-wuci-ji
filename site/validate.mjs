@@ -10,6 +10,7 @@ const requiredFiles = [
   "index.html",
   "ai-scoring-integrity.html",
   "daylight-grok-audit.html",
+  "audits/daylight/score-integrity/index.html",
   "CNAME",
   "404.html",
   "styles.css",
@@ -137,6 +138,8 @@ async function assertIndexReferences() {
     'href="#review"',
     'href="ai-scoring-integrity.html"',
     'href="daylight-grok-audit.html"',
+    'href="audits/daylight/score-integrity/"',
+    'Audit Portal',
     'href="#daylight"',
     'id="aperture"',
     'id="assurance"',
@@ -646,6 +649,162 @@ async function assertDaylightV20ApertureSingularityStatusBinding() {
   }
 }
 
+function dataAttribute(html, name) {
+  const match = html.match(new RegExp(`\\bdata-${name}="([^"]*)"`, "i"));
+  return match ? match[1] : null;
+}
+
+async function assertDaylightScoreIntegrityAuditPortal() {
+  const pagePath = "audits/daylight/score-integrity/index.html";
+  const page = await readFile(new URL(pagePath, siteRoot), "utf8");
+  const normalized = page.replace(/\s+/g, " ");
+  const visibleText = normalized.replace(/<[^>]*>/g, " ");
+  const lowerVisibleText = visibleText.toLowerCase();
+  const auditBase = "audits/daylight/score-integrity";
+  const repoBlobBase = "https://github.com/chasebryan/-wuci-ji/blob/main";
+
+  const auditIndex = await readJsonOrNull(new URL(`../${auditBase}/index.json`, siteRoot));
+  if (auditIndex === null) {
+    fail(`${auditBase}/index.json is missing or not valid JSON`);
+    return;
+  }
+  const latestRunId = auditIndex.latest_run;
+  const latestRun = Array.isArray(auditIndex.runs)
+    ? auditIndex.runs.find((entry) => entry.id === latestRunId)
+    : null;
+  if (!latestRun) {
+    fail("score-integrity index.json latest_run does not name a listed run");
+    return;
+  }
+  if (dataAttribute(page, "audit-run") !== latestRunId) {
+    fail("audit portal page run id does not match index.json latest_run");
+  }
+
+  const manifestPath = `${auditBase}/${latestRun.manifest}`;
+  const reportPath = `${auditBase}/${latestRun.report}`;
+  const manifest = await readJsonOrNull(new URL(`../${manifestPath}`, siteRoot));
+  const report = await readJsonOrNull(new URL(`../${reportPath}`, siteRoot));
+  const claims = await readJsonOrNull(new URL(`../${auditBase}/runs/${latestRunId}/reports/daylight-score-claims.json`, siteRoot));
+  const ratioAudit = await readJsonOrNull(new URL(`../${auditBase}/runs/${latestRunId}/reports/ratio-percent-audit.json`, siteRoot));
+  const surfaceDiff = await readJsonOrNull(new URL(`../${auditBase}/runs/${latestRunId}/reports/public-surface-score-diff.json`, siteRoot));
+  if (manifest === null || report === null || claims === null || ratioAudit === null || surfaceDiff === null) {
+    fail("score-integrity audit portal cross-check requires manifest, final report, claim ledger, ratio audit, and public-surface diff JSON");
+    return;
+  }
+
+  if (manifest.audit_id !== latestRunId) {
+    fail("score-integrity manifest audit_id does not match index.json latest_run");
+  }
+  if (latestRun.commit !== manifest.audited_commit) {
+    fail("score-integrity index.json commit does not match manifest audited_commit");
+  }
+  if (report.commit !== manifest.audited_commit || claims.commit !== manifest.audited_commit || ratioAudit.commit !== manifest.audited_commit || surfaceDiff.commit !== manifest.audited_commit) {
+    fail("score-integrity report commits do not match manifest audited_commit");
+  }
+  if (dataAttribute(page, "audited-commit") !== manifest.audited_commit) {
+    fail("audit portal page commit does not match manifest audited_commit");
+  }
+  if (dataAttribute(page, "audit-result") !== manifest.result || dataAttribute(page, "audit-result") !== latestRun.result) {
+    fail("audit portal page result does not match index.json and manifest result");
+  }
+  if (dataAttribute(page, "report-result") !== report.result) {
+    fail("audit portal page report result does not match final report result");
+  }
+  if (manifest.result !== "PASS_SCORE_INTEGRITY" || report.result !== "pass") {
+    fail("score-integrity audit files do not carry the expected pass result pair");
+  }
+
+  const v20Claim = Array.isArray(claims.claims)
+    ? claims.claims.find((entry) => entry.id === "v20.repo_owned_ceiling")
+    : null;
+  const quorumClaim = Array.isArray(claims.claims)
+    ? claims.claims.find((entry) => entry.id === "v20_3.verifier_quorum")
+    : null;
+  if (!v20Claim || !quorumClaim) {
+    fail("score-integrity claim ledger is missing v20 or v20.3 claim records");
+    return;
+  }
+  const displayedScore = `${withCommas(v20Claim.numerator)} AM+`;
+  if (v20Claim.value_raw !== displayedScore || dataAttribute(page, "displayed-score") !== displayedScore) {
+    fail("audit portal displayed score does not match score-claim ledger value");
+  }
+  if (dataAttribute(page, "score-am-plus") !== String(v20Claim.numerator)) {
+    fail("audit portal data score does not match score-claim ledger numerator");
+  }
+  if (!page.includes(displayedScore)) {
+    fail(`audit portal page does not display report score: ${displayedScore}`);
+  }
+  const scoreHooks = Array.from(page.matchAll(/data-v20-am-plus="([0-9]+)"/g)).map((match) => match[1]);
+  if (scoreHooks.length === 0 || scoreHooks.some((hook) => hook !== String(v20Claim.numerator))) {
+    fail("audit portal data-v20-am-plus hooks do not match score-claim ledger numerator");
+  }
+  if (v20Claim.audit_status !== "PASS_RECOMPUTED" || quorumClaim.audit_status !== "PASS_EVIDENCE_MATCH") {
+    fail("score-integrity v20 and v20.3 claim statuses changed unexpectedly");
+  }
+
+  const caveat = report.non_claim_caveat.replace(/\s+/g, " ");
+  if (!normalized.includes(caveat)) {
+    fail("audit portal page is missing final report non-claim caveat");
+  }
+  for (const required of [
+    "Latest audit run",
+    "Audited commit",
+    "PASS_SCORE_INTEGRITY result",
+    "Displayed score",
+    "Codex: PASS",
+    "Fable5: PASS",
+    "Report file links",
+    "Manifest link",
+    "SHA256SUMS link",
+    "Score-claim ledger link",
+    "Ratio/percentage audit link",
+    "Public-surface diff link",
+    "Methodology",
+    "Non-claim boundary",
+    "Recompute the Daylight v20 score.",
+    "Check the claim ledger.",
+    "Check the ratio math.",
+    "Check the v20.3 quorum boundary.",
+    "Find a mismatch.",
+    "If you find one, file it.",
+    "Daylight External Verifier Intake v1"
+  ]) {
+    if (!normalized.includes(required)) {
+      fail(`audit portal page is missing required marker: ${required}`);
+    }
+  }
+  if (dataAttribute(page, "codex-result") !== "PASS" || dataAttribute(page, "fable5-result") !== "PASS") {
+    fail("audit portal Codex/Fable5 display results must remain PASS");
+  }
+
+  for (const requiredPath of [
+    `${auditBase}/index.json`,
+    manifestPath,
+    `${auditBase}/runs/${latestRunId}/SHA256SUMS.txt`,
+    reportPath,
+    `${auditBase}/runs/${latestRunId}/reports/daylight-score-claims.json`,
+    `${auditBase}/runs/${latestRunId}/reports/ratio-percent-audit.json`,
+    `${auditBase}/runs/${latestRunId}/reports/public-surface-score-diff.json`,
+    `${auditBase}/METHODOLOGY.md`,
+    `${auditBase}/NON_CLAIMS.md`
+  ]) {
+    const expectedLink = `${repoBlobBase}/${requiredPath}`;
+    if (!page.includes(expectedLink)) {
+      fail(`audit portal page is missing evidence link: ${expectedLink}`);
+    }
+  }
+
+  for (const [label, pattern] of [
+    ["certified", /\bcertified\b/],
+    ["officially audited", /\bofficially audited\b/],
+    ["production ready", /\bproduction ready\b/]
+  ]) {
+    if (pattern.test(lowerVisibleText)) {
+      fail(`audit portal page contains forbidden unsupported claim: ${label}`);
+    }
+  }
+}
+
 async function assertSearchDiscoveryFiles() {
   const robots = await readFile(new URL("robots.txt", siteRoot), "utf8");
   if (!robots.includes("Sitemap: https://nosuchmachine.net/sitemap.xml")) {
@@ -675,6 +834,7 @@ async function assertSearchDiscoveryFiles() {
     "<loc>https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json</loc>",
     "<loc>https://nosuchmachine.net/ai-scoring-integrity.html</loc>",
     "<loc>https://nosuchmachine.net/daylight-grok-audit.html</loc>",
+    "<loc>https://nosuchmachine.net/audits/daylight/score-integrity/</loc>",
     "<loc>https://nosuchmachine.net/codemeta.json</loc>",
     "<loc>https://nosuchmachine.net/citation.cff</loc>",
     "<loc>https://nosuchmachine.net/hosting-requirements.json</loc>",
@@ -713,12 +873,21 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json",
     "https://nosuchmachine.net/ai-scoring-integrity.html",
     "https://nosuchmachine.net/daylight-grok-audit.html",
+    "https://nosuchmachine.net/audits/daylight/score-integrity/",
     "https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
     "https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg",
     "repo_owned_code_gap_count = 0",
+    "Daylight Audit Portal v1 result: PASS_SCORE_INTEGRITY",
+    "Latest score-integrity audit run: 2026-07-03-558d9fa",
     "repo_owned_ceiling_reached = true",
     "singularity_possible_without_external_validation = false",
     "declaration_allowed = false",
+    "Recompute the Daylight v20 score.",
+    "Check the claim ledger.",
+    "Check the ratio math.",
+    "Check the v20.3 quorum boundary.",
+    "Find a mismatch.",
+    "If you find one, file it.",
     "No endorsement is requested or implied",
     "NoEvidence(x) → NoScore(x)",
     "NoProvenance(x) → NoAuthority(x)",
@@ -975,6 +1144,7 @@ async function assertHostingRequirements() {
     "/.well-known/security.txt",
     "/ai-scoring-integrity.html",
     "/daylight-grok-audit.html",
+    "/audits/daylight/score-integrity/",
     "/aperture-status.json",
     "/daylight-status.json",
     "/daylight-v20-aperture-singularity-status.json",
@@ -1196,6 +1366,7 @@ async function assertNoInsecurePublicUrls() {
     "index.html",
     "ai-scoring-integrity.html",
     "daylight-grok-audit.html",
+    "audits/daylight/score-integrity/index.html",
     "404.html",
     "robots.txt",
     "sitemap.xml",
@@ -1354,6 +1525,7 @@ await assertCitationMetadata();
 await assertHostingRequirements();
 await assertClaimEvidenceMap();
 await assertAiScoringAuditPages();
+await assertDaylightScoreIntegrityAuditPortal();
 await assertNoInsecurePublicUrls();
 await assertDaylightStatusBinding();
 await assertDaylightV20ApertureSingularityStatusBinding();

@@ -9,6 +9,7 @@ Daylight status: https://nosuchmachine.net/daylight-status.json
 Daylight v20 Aperture Singularity status: https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json
 AI scoring integrity audit: https://nosuchmachine.net/ai-scoring-integrity.html
 Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
+Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
 Daylight v20 repo-owned score surface: https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp
 Daylight v20 public challenge poster: https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg
 Research metadata: https://nosuchmachine.net/codemeta.json
@@ -33,6 +34,7 @@ Primary review paths:
 - claim/evidence map: https://nosuchmachine.net/claim-evidence.json
 - AI scoring integrity: https://nosuchmachine.net/ai-scoring-integrity.html
 - Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
+- Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
 
 AI scoring-integrity audit:
 
@@ -51,10 +53,18 @@ AI scoring-integrity audit:
 Public challenge:
 
 - Daylight v20 / Wuci-Ji current no-external score: 999,801,305 AM+
+- Daylight Audit Portal v1 result: PASS_SCORE_INTEGRITY
+- Latest score-integrity audit run: 2026-07-03-558d9fa
 - repo_owned_code_gap_count = 0
 - repo_owned_ceiling_reached = true
 - singularity_possible_without_external_validation = false
 - declaration_allowed = false
+- Recompute the Daylight v20 score.
+- Check the claim ledger.
+- Check the ratio math.
+- Check the v20.3 quorum boundary.
+- Find a mismatch.
+- If you find one, file it.
 - Challenge lane: review the evidence, reproduce the lane, challenge the claim surface
 - Remaining path: independent rebuild receipts, external firewall-profile review, non-fixture claim-usable 3-of-3 verifier vectors, and pinned cryptographic attestation verification
 - No endorsement is requested or implied
