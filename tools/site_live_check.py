@@ -193,14 +193,18 @@ def check_binary_asset(path: str, expected_content_type: str) -> list[Check]:
     response = fetch(url, method="HEAD")
     content_type = response.headers.get("content-type", "")
     content_length = response.headers.get("content-length", "")
+    content_length_detail = content_length or "<missing>"
     try:
         length_ok = int(content_length) > 0
     except ValueError:
-        length_ok = False
+        get_response = fetch(url)
+        length_ok = get_response.status == 200 and len(get_response.body) > 0
+        if length_ok:
+            content_length_detail = f"body-bytes={len(get_response.body)}"
     return [
         Check(f"{path}-status", response.status == 200, f"{url} -> {response.status}"),
         Check(f"{path}-content-type", expected_content_type in content_type, content_type or "<missing>"),
-        Check(f"{path}-content-length", length_ok, content_length or "<missing>"),
+        Check(f"{path}-content-length", length_ok, content_length_detail),
     ]
 
 
@@ -226,6 +230,7 @@ def run_checks() -> list[Check]:
             "sitemap.xml",
             [
                 "https://nosuchmachine.net/",
+                "audits/daylight/score-integrity/",
                 "wuci-ji-official-emblem.jpg",
                 "daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
                 "daylight-v20-public-challenge-780thc.jpg",
@@ -235,6 +240,21 @@ def run_checks() -> list[Check]:
         )
     )
     checks.extend(check_text_asset("app.js", ["enforceCanonicalHttps", "https://nosuchmachine.net"]))
+    checks.extend(
+        check_text_asset(
+            "audits/daylight/score-integrity/",
+            [
+                "Daylight Audit Portal v1",
+                "PASS_SCORE_INTEGRITY",
+                "999,801,305 AM+",
+                "Codex: PASS",
+                "Fable5: PASS",
+                "Recompute the Daylight v20 score.",
+                "Daylight External Verifier Intake v1",
+                "does not certify security",
+            ],
+        )
+    )
     checks.extend(check_readonly_meridian_surface())
     checks.extend(
         check_json_asset(
