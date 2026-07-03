@@ -947,9 +947,18 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "xbps-install -y -Sy -r \"$target\" $repo_args $required_packages" in install_script
     assert "sudo opendoas bash" in install_script
     assert "sudo doas bash" not in install_script
+    assert 'required_packages="base-system linux6.12 grub sudo opendoas bash' in install_script
+    assert 'required_packages="base-system linux6.12 grub sudo doas bash' not in install_script
+    assert "INSTALL --disk /dev/sdX --disk /dev/sdY --raid1" in install_script
+    assert "multiple --disk values require --raid1" in install_script
+    assert "multi_disk_mode=raid1" in install_script
+    assert "mdadm --create \"$raid_device\" --metadata=1.0 --level=1" in install_script
+    assert "mdadm --detail --scan > \"$target/etc/mdadm.conf\"" in install_script
+    assert 'required_packages="$required_packages mdadm"' in install_script
+    assert "for boot_disk in $install_disks" in install_script
     assert "grub-x86_64-efi" in install_script
     assert "wuci-install-target-activate \"$target\"" in install_script
-    assert "grub-install \"$disk\"" in install_script
+    assert "grub-install \"$boot_disk\"" in install_script
     assert "THIS ERASES" in install_script
     # Match the live arch and seed the target's repository config, else
     # xbps-install -r cannot resolve base-system on a fresh musl root.

@@ -1599,9 +1599,20 @@ INSTALL --disk /dev/sda --password 'choose-a-strong-one'
 WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_PASSWORD='secret' WUCI_INSTALL_ASSUME_YES=1 INSTALL
 ```
 
-Legacy BIOS machines such as the ThinkPad X200/X200s use one ext4 root
-partition and GRUB on the disk. UEFI machines get a 512 MiB EFI partition plus
-an ext4 root partition. After the confirmation, do not interrupt the install.
+For two disks, the supported combined mode is an explicit RAID1 mirror:
+
+```sh
+sudo INSTALL --disk /dev/sda --disk /dev/sdb --raid1
+```
+
+Repeating `--disk` without `--raid1` is refused. Wuci-OS does not silently
+span or stripe disks during install.
+
+Single-disk legacy BIOS machines such as the ThinkPad X200/X200s use one ext4
+root partition and GRUB on the disk. Single-disk UEFI machines get a 512 MiB
+EFI partition plus an ext4 root partition. RAID1 installs create matching
+partitions on each target disk and an mdadm mirrored root. After the
+confirmation, do not interrupt the install.
 
 `wuci-install` is kept as a compatibility alias for `INSTALL`.
 
@@ -4347,9 +4358,15 @@ exec wuci-guide "$@"
 set -eu
 
 target=/mnt
-disk=${WUCI_INSTALL_DISK:-}
+install_disks=${WUCI_INSTALL_DISKS:-}
+if [ -n "${WUCI_INSTALL_DISK:-}" ]; then
+    install_disks=${install_disks:+$install_disks }$WUCI_INSTALL_DISK
+fi
+disk=
 assume_yes=${WUCI_INSTALL_ASSUME_YES:-0}
 mode=${WUCI_INSTALL_BOOT_MODE:-auto}
+multi_disk_mode=${WUCI_INSTALL_MULTI_DISK_MODE:-single}
+raid_device=${WUCI_INSTALL_RAID_DEVICE:-/dev/md0}
 auto_reboot=${WUCI_INSTALL_REBOOT:-0}
 empty_passwords=${WUCI_INSTALL_EMPTY_PASSWORDS:-0}
 target_password=${WUCI_INSTALL_PASSWORD:-}
@@ -4363,6 +4380,7 @@ Wuci-OS automatic installer
 Usage:
   INSTALL [--disk /dev/sdX] [--yes] [--bios|--uefi] [--reboot]
           [--password PW | --empty-passwords] [--hostname NAME] [--arch ARCH]
+  INSTALL --disk /dev/sdX --disk /dev/sdY --raid1 [options]
 
 This command automates partitioning, formatting, package install, GRUB,
 Wuci-OS target activation, services, account passwords, and verification.
@@ -4374,6 +4392,9 @@ The installed system gets a real password on root and wj. Supply it with
 By default it requires one disk-erasure confirmation. To script it:
   WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_PASSWORD=secret \\
     WUCI_INSTALL_ASSUME_YES=1 INSTALL
+
+Multi-disk mode is explicit. Repeating --disk requires --raid1, which creates a
+mirrored mdadm root device. The installer does not silently span or stripe disks.
 TEXT
 }
 
@@ -4397,6 +4418,24 @@ run() {
 
 need() {
     command -v "$1" >/dev/null 2>&1 || die "required command missing: $1"
+}
+
+append_disk() {
+    candidate=$1
+    case " $install_disks " in
+        *" $candidate "*) die "duplicate target disk: $candidate" ;;
+    esac
+    install_disks=${install_disks:+$install_disks }$candidate
+}
+
+disk_count() {
+    set -- $install_disks
+    printf '%s\\n' "$#"
+}
+
+first_disk() {
+    set -- $install_disks
+    printf '%s\\n' "$1"
 }
 
 cleanup_mounts() {
@@ -4428,7 +4467,16 @@ while [ "$#" -gt 0 ]; do
             ;;
         --disk)
             [ "$#" -ge 2 ] || die "--disk needs a path"
-            disk=$2
+            append_disk "$2"
+            shift 2
+            ;;
+        --raid1|--mirror)
+            multi_disk_mode=raid1
+            shift
+            ;;
+        --raid-device)
+            [ "$#" -ge 2 ] || die "--raid-device needs a path"
+            raid_device=$2
             shift 2
             ;;
         --yes|-y)
@@ -4502,18 +4550,33 @@ detect_disk() {
     fi
 }
 
-if [ -z "$disk" ]; then
-    disk=$(detect_disk || true)
+if [ -z "$install_disks" ]; then
+    detected_disk=$(detect_disk || true)
+    [ -z "$detected_disk" ] || append_disk "$detected_disk"
 fi
 
-if [ -z "$disk" ]; then
+if [ -z "$install_disks" ]; then
     printf 'INSTALL: could not safely auto-select a target disk. Available disks:\\n' >&2
     lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL >&2 || true
     printf 'Run: sudo INSTALL --disk /dev/YOUR_DISK\\n' >&2
     exit 2
 fi
 
-[ -b "$disk" ] || die "target disk is not a block device: $disk"
+for candidate_disk in $install_disks; do
+    [ -b "$candidate_disk" ] || die "target disk is not a block device: $candidate_disk"
+done
+
+disk_total=$(disk_count)
+disk=$(first_disk)
+case "$multi_disk_mode" in
+    single|raid1) ;;
+    *) die "unsupported multi-disk mode: $multi_disk_mode" ;;
+esac
+if [ "$disk_total" -eq 1 ]; then
+    [ "$multi_disk_mode" = "single" ] || die "--raid1 requires at least two --disk values"
+elif [ "$multi_disk_mode" = "single" ]; then
+    die "multiple --disk values require --raid1; refusing implicit span or stripe"
+fi
 
 if [ "$mode" = "auto" ]; then
     if [ -d /sys/firmware/efi ]; then
@@ -4542,28 +4605,55 @@ else
     esp=
     rootpart=$(part_path "$disk" 1)
 fi
+root_members=
+esp_parts=
+if [ "$multi_disk_mode" = "raid1" ]; then
+    rootpart=$raid_device
+    for target_disk in $install_disks; do
+        if [ "$mode" = "uefi" ]; then
+            esp_parts="${esp_parts:+$esp_parts }$(part_path "$target_disk" 1)"
+            root_members="${root_members:+$root_members }$(part_path "$target_disk" 2)"
+        else
+            root_members="${root_members:+$root_members }$(part_path "$target_disk" 1)"
+        fi
+    done
+    if [ "$mode" = "uefi" ]; then
+        set -- $esp_parts
+        esp=$1
+    fi
+fi
 
 say "Target disk"
-lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL "$disk" || true
+for target_disk in $install_disks; do
+    lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL "$target_disk" || true
+done
 printf 'boot mode: %s\\n' "$mode"
+printf 'disk mode: %s\\n' "$multi_disk_mode"
 printf 'root partition: %s\\n' "$rootpart"
 [ -z "$esp" ] || printf 'efi partition: %s\\n' "$esp"
 
 if [ "$assume_yes" != "1" ]; then
-    printf '\\nTHIS ERASES %s. Type INSTALL to continue: ' "$disk"
+    printf '\\nTHIS ERASES %s. Type INSTALL to continue: ' "$install_disks"
     IFS= read -r answer || answer=
     [ "$answer" = "INSTALL" ] || die "confirmation did not match INSTALL"
 fi
 
 say "Install live-side toolchain"
 run xbps-install -S || true
-run xbps-install -y -Sy xbps parted e2fsprogs dosfstools grub util-linux gawk || true
+live_toolchain_packages="xbps parted e2fsprogs dosfstools grub util-linux gawk"
+if [ "$multi_disk_mode" = "raid1" ]; then
+    live_toolchain_packages="$live_toolchain_packages mdadm"
+fi
+run xbps-install -y -Sy $live_toolchain_packages || true
 
 for tool in parted mkfs.ext4 mount umount chroot blkid grub-install grub-mkconfig; do
     need "$tool"
 done
 if [ "$mode" = "uefi" ]; then
     need mkfs.vfat
+fi
+if [ "$multi_disk_mode" = "raid1" ]; then
+    need mdadm
 fi
 
 say "Unmount stale target mount"
@@ -4572,31 +4662,61 @@ mkdir -p "$target"
 trap on_exit EXIT INT TERM
 
 say "Partition disk"
-if command -v wipefs >/dev/null 2>&1; then
-    run wipefs -a "$disk" || true
-fi
-if [ "$mode" = "uefi" ]; then
-    run parted -s "$disk" mklabel gpt
-    run parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
-    run parted -s "$disk" set 1 esp on
-    run parted -s "$disk" mkpart primary ext4 513MiB 100%
-else
-    run parted -s "$disk" mklabel msdos
-    run parted -s "$disk" mkpart primary ext4 1MiB 100%
-    run parted -s "$disk" set 1 boot on
-fi
+for target_disk in $install_disks; do
+    if command -v wipefs >/dev/null 2>&1; then
+        run wipefs -a "$target_disk" || true
+    fi
+    if [ "$mode" = "uefi" ]; then
+        run parted -s "$target_disk" mklabel gpt
+        run parted -s "$target_disk" mkpart ESP fat32 1MiB 513MiB
+        run parted -s "$target_disk" set 1 esp on
+        run parted -s "$target_disk" mkpart primary ext4 513MiB 100%
+        if [ "$multi_disk_mode" = "raid1" ]; then
+            run parted -s "$target_disk" set 2 raid on || true
+        fi
+    else
+        run parted -s "$target_disk" mklabel msdos
+        run parted -s "$target_disk" mkpart primary ext4 1MiB 100%
+        run parted -s "$target_disk" set 1 boot on
+        if [ "$multi_disk_mode" = "raid1" ]; then
+            run parted -s "$target_disk" set 1 raid on || true
+        fi
+    fi
+done
 sync
-partprobe "$disk" >/dev/null 2>&1 || true
+for target_disk in $install_disks; do
+    partprobe "$target_disk" >/dev/null 2>&1 || true
+done
 sleep 2
 
-[ -b "$rootpart" ] || die "root partition did not appear: $rootpart"
-[ -z "$esp" ] || [ -b "$esp" ] || die "EFI partition did not appear: $esp"
+if [ "$multi_disk_mode" = "raid1" ]; then
+    for member in $root_members; do
+        [ -b "$member" ] || die "RAID root member did not appear: $member"
+    done
+    if [ "$mode" = "uefi" ]; then
+        for member_esp in $esp_parts; do
+            [ -b "$member_esp" ] || die "EFI partition did not appear: $member_esp"
+        done
+    fi
+    mdadm --stop "$raid_device" >/dev/null 2>&1 || true
+    run mdadm --create "$raid_device" --metadata=1.0 --level=1 --raid-devices="$disk_total" $root_members
+    mdadm --wait "$raid_device" >/dev/null 2>&1 || true
+else
+    [ -b "$rootpart" ] || die "root partition did not appear: $rootpart"
+    [ -z "$esp" ] || [ -b "$esp" ] || die "EFI partition did not appear: $esp"
+fi
 
 say "Format filesystems"
 run mkfs.ext4 -F "$rootpart"
 run mount "$rootpart" "$target"
-if [ -n "$esp" ]; then
-    run mkfs.vfat -F 32 "$esp"
+if [ "$mode" = "uefi" ]; then
+    if [ "$multi_disk_mode" = "raid1" ]; then
+        for member_esp in $esp_parts; do
+            run mkfs.vfat -F 32 "$member_esp"
+        done
+    else
+        run mkfs.vfat -F 32 "$esp"
+    fi
     mkdir -p "$target/boot/efi"
     run mount "$esp" "$target/boot/efi"
 fi
@@ -4624,6 +4744,9 @@ required_packages="base-system linux6.12 grub sudo opendoas bash shadow util-lin
 if [ "$mode" = "uefi" ]; then
     required_packages="$required_packages grub-x86_64-efi"
 fi
+if [ "$multi_disk_mode" = "raid1" ]; then
+    required_packages="$required_packages mdadm"
+fi
 run xbps-install -y -Sy -r "$target" $repo_args $required_packages
 
 say "Install best-effort media and preferred terminal packages"
@@ -4647,6 +4770,9 @@ if [ -n "$esp" ]; then
     esp_uuid=$(blkid -s UUID -o value "$esp")
     [ -n "$esp_uuid" ] || die "could not read EFI UUID"
     printf 'UUID=%s /boot/efi vfat defaults 0 2\\n' "$esp_uuid" >> "$target/etc/fstab"
+fi
+if [ "$multi_disk_mode" = "raid1" ]; then
+    mdadm --detail --scan > "$target/etc/mdadm.conf" || die "could not write mdadm.conf"
 fi
 printf '%s\\n' "$hostname" > "$target/etc/hostname"
 
@@ -4700,8 +4826,25 @@ target_password=
 say "Install bootloader"
 if [ "$mode" = "uefi" ]; then
     chroot "$target" grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Wuci-OS || die "UEFI GRUB install failed"
+    if [ "$multi_disk_mode" = "raid1" ]; then
+        first_esp=$esp
+        for member_esp in $esp_parts; do
+            [ "$member_esp" = "$first_esp" ] && continue
+            tmp_esp=$(mktemp -d)
+            mount "$member_esp" "$tmp_esp" || die "could not mount secondary EFI partition: $member_esp"
+            cp -a "$target/boot/efi/." "$tmp_esp/" || {
+                umount "$tmp_esp" >/dev/null 2>&1 || true
+                rmdir "$tmp_esp" >/dev/null 2>&1 || true
+                die "could not mirror EFI files to $member_esp"
+            }
+            umount "$tmp_esp" || die "could not unmount secondary EFI partition: $member_esp"
+            rmdir "$tmp_esp" >/dev/null 2>&1 || true
+        done
+    fi
 else
-    chroot "$target" grub-install "$disk" || die "BIOS GRUB install failed"
+    for boot_disk in $install_disks; do
+        chroot "$target" grub-install "$boot_disk" || die "BIOS GRUB install failed on $boot_disk"
+    done
 fi
 chroot "$target" grub-mkconfig -o /boot/grub/grub.cfg || die "GRUB config generation failed"
 
@@ -4710,8 +4853,10 @@ mkdir -p "$target/usr/share/wuci-os"
 cat > "$target/usr/share/wuci-os/install-receipt.txt" <<TEXT
 Wuci-OS automatic install receipt
 disk=$disk
+disks=$install_disks
 root=$rootpart
 mode=$mode
+multi_disk_mode=$multi_disk_mode
 created_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf unknown)
 TEXT
 
@@ -4723,7 +4868,7 @@ chroot "$target" /usr/local/bin/wuci-daylight-v14c-plus verify || true
 chroot "$target" /usr/local/bin/wuci-daylight-meridian verify || true
 
 say "Install complete"
-printf 'Installed Wuci-OS to %s.\\n' "$disk"
+printf 'Installed Wuci-OS to %s.\\n' "$install_disks"
 printf 'Next: sync; umount -R %s; reboot\\n' "$target"
 if [ "$auto_reboot" = "1" ]; then
     sync

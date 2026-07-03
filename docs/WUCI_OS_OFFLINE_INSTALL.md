@@ -162,9 +162,20 @@ INSTALL --disk /dev/sda --yes
 WUCI_INSTALL_DISK=/dev/sda INSTALL
 ```
 
-Legacy BIOS machines such as the ThinkPad X200/X200s use one ext4 root
-partition and GRUB on the disk. UEFI machines get a 512 MiB EFI partition plus
-an ext4 root partition. After the confirmation, do not interrupt the install.
+For two disks, the supported combined mode is an explicit RAID1 mirror:
+
+```sh
+sudo INSTALL --disk /dev/sda --disk /dev/sdb --raid1
+```
+
+Repeating `--disk` without `--raid1` is refused. Wuci-OS does not silently
+span or stripe disks during install.
+
+Single-disk legacy BIOS machines such as the ThinkPad X200/X200s use one ext4
+root partition and GRUB on the disk. Single-disk UEFI machines get a 512 MiB
+EFI partition plus an ext4 root partition. RAID1 installs create matching
+partitions on each target disk and an mdadm mirrored root. After the
+confirmation, do not interrupt the install.
 
 `wuci-install` is kept as a compatibility alias for `INSTALL`.
 
