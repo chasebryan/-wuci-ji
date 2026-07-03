@@ -51,8 +51,9 @@ Read these files before editing:
 3. [docs/SECURITY_BOUNDARY.md](SECURITY_BOUNDARY.md)
 4. [docs/PRODUCTION_READINESS.md](PRODUCTION_READINESS.md)
 5. [docs/BUILD_TARGETS.md](BUILD_TARGETS.md)
-6. [daylight-equation/SCORECARD.md](../daylight-equation/SCORECARD.md)
-7. [daylight-equation/research/daylight-v06-cap-removal-plan.md](../daylight-equation/research/daylight-v06-cap-removal-plan.md)
+6. [docs/DAYLIGHT_NPT_V1.md](DAYLIGHT_NPT_V1.md)
+7. [daylight-equation/SCORECARD.md](../daylight-equation/SCORECARD.md)
+8. [daylight-equation/research/daylight-v06-cap-removal-plan.md](../daylight-equation/research/daylight-v06-cap-removal-plan.md)
 
 The Daylight cap-removal plan is the current continuation anchor.
 
@@ -95,6 +96,7 @@ Before starting a new implementation slice, run:
 make daylight-v06-cap-removal-test
 make daylight-v06-peer-review-score-test
 make daylight-v06-authority-verifier-test
+make daylight-npt-ci
 make production-readiness-gates
 make wuci-daylight-bridge-test
 make daylight-v06-1000-claim-gate-test
@@ -110,6 +112,10 @@ ScoreIncreaseAuthorized = 0
 
 The 1000 claim gate should remain blocked. The cap-removal test should pass by
 proving that the current blockers are explicit and fail closed.
+`daylight-npt-ci` writes
+`build/daylight/npt-v1/daylight-npt.report.json` and checks numeric-claim
+precision; it is not certification, audit status, production readiness,
+security approval, post-quantum security, or agency endorsement.
 
 ## Current Continuation Point
 

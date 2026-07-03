@@ -1,0 +1,118 @@
+# DaylightNPT v1 Closeout
+
+## Purpose
+
+DaylightNPT v1 is the deterministic number-precision firewall for Wuci-Ji /
+Daylight public claim surfaces. It checks numeric-claim precision and evidence
+binding before scores, percentages, ratios, quorums, versions, dates, digests,
+repository counts, or endorsement/certification implications become public
+claims.
+
+NoNumberWithoutEvidence -> NoPublicClaim
+
+DaylightNPT v1 checks numeric-claim precision and evidence binding. It does
+not certify correctness, production readiness, security, audit status,
+post-quantum security, agency endorsement, or mathematical finality.
+
+## Exact Commands
+
+```sh
+git status --short
+make daylight-npt-test
+make daylight-npt
+make daylight-npt-report
+make daylight-npt-ci
+make site-validate
+```
+
+Final validation also runs:
+
+```sh
+git diff --check
+make daylight-v20-aperture-singularity-ci
+```
+
+## Verified Local Results
+
+These values are copied from `build/daylight/npt-v1/daylight-npt.report.json`
+after the closeout and public-surface wiring landed:
+
+```text
+result: pass
+files_scanned: 249
+numbers_seen: 1217
+claims_checked: 7
+verified: 7
+exempt: 1
+warnings: 0
+errors: 0
+registry_sha256: 6fd6118b613eb2a8469bde09419be0bb4096003435fe775683712e8401f99455
+```
+
+## Report And Registry
+
+- Report path: `build/daylight/npt-v1/daylight-npt.report.json`
+- Registry path: `daylight/npt/v1/number-claims.registry.json`
+
+The report is generated evidence. Do not edit report values by hand.
+
+## Fixture Coverage Summary
+
+Positive fixtures cover registered score evidence, recomputed percentages,
+verifier quorum contracts, valid digest literals, and narrow non-claim
+numbers.
+
+Negative fixtures cover unsupported numeric claims, evidence mismatch,
+percentage mismatch, unsupported score assertions, quorum mismatch, version
+drift, malformed digest literals, false precision, manual score assertions,
+volatile public counts, stale registry entries, ambiguous numeric claims, and
+endorsement/certification implications.
+
+The test suite asserts coverage for all DaylightNPT v1 finding codes from
+`NPT001_UNSUPPORTED_NUMERIC_CLAIM` through
+`NPT013_ENDORSEMENT_OR_CERTIFICATION_IMPLICATION`.
+
+## CI Integration Points
+
+DaylightNPT v1 runs through:
+
+- `make daylight-npt-test`
+- `make daylight-npt`
+- `make daylight-npt-report`
+- `make daylight-npt-ci`
+
+CI workflow integration:
+
+- `.github/workflows/ci.yml` runs `make daylight-npt-ci` after proof/unit
+  checks and before later release/publication lanes.
+- `.github/workflows/pages.yml` runs `make daylight-npt-ci` before
+  `make site-validate` and before Pages publication.
+
+## Known Limitations
+
+- DaylightNPT v1 is deterministic local static analysis, not external review.
+- It checks registered evidence and recomputable forms where configured; it
+  does not prove every number is globally true.
+- It scans Markdown and JSON public surfaces by default and skips fenced code
+  blocks, generated caches, build outputs, binary files, and intentionally
+  failing negative fixture directories during default repo scans.
+- It does not fetch live public counts. Volatile counts require local
+  as-of/source evidence.
+- Valid digest format alone is not evidence for broader claims.
+
+## Non-Claim Caveats
+
+DaylightNPT v1 is not certification, audit status, production readiness,
+security approval, post-quantum security, agency endorsement, or mathematical
+finality. It is a fail-closed precision gate for repository-local numeric
+claims.
+
+## Next Recommended Improvements
+
+- Add more generated-evidence registrations for long-lived Daylight score
+  references.
+- Add targeted public artifact checks only if NPT reports are intentionally
+  included in a release artifact.
+- Expand recomputation checks for more ratio and percentage families.
+- Add reviewer-submitted examples once external users begin exercising the
+  precision gate.

@@ -1,0 +1,8 @@
+{
+  "schema": "daylight.npt.v1.fixture.score",
+  "score_raw": "998,200M / 1,000,000M",
+  "score_numerator": 998200,
+  "score_denominator": 1000000,
+  "generated": true
+}
+

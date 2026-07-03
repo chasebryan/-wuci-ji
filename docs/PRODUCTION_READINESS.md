@@ -20,6 +20,7 @@ Run:
 make high-attestation-proof
 make sbom-provenance
 make verify-release-bundle
+make daylight-npt-ci
 ```
 
 These targets produce or verify:
@@ -77,6 +78,10 @@ These targets produce or verify:
   proving that the current 8250/10000 cap remains active, fixture authority
   cannot satisfy publish/trust, and the publish/trust command contracts remain
   fail-closed decision-only paths with no production-authority claim.
+- DaylightNPT v1 evidence through `make daylight-npt-ci`. Reviewers can inspect
+  `build/daylight/npt-v1/daylight-npt.report.json` for numeric-claim precision
+  findings. This is a precision gate, not production readiness, security
+  certification, audit status, post-quantum security, or external endorsement.
 - Machine-readable JSON outputs for Gate and install verifier tooling.
 - `build/wuci-sbom.json`.
 - `build/wuci-provenance.json`.

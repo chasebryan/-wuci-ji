@@ -390,6 +390,31 @@ Public site pages:
 [AI Scoring Integrity](https://nosuchmachine.net/ai-scoring-integrity.html) and
 [Daylight / Grok Audit](https://nosuchmachine.net/daylight-grok-audit.html).
 
+## DaylightNPT v1
+
+DaylightNPT v1 is the numeric-claim precision firewall for Wuci-Ji /
+Daylight. It scans public claim surfaces for unsupported scores,
+percentages, ratios, quorum counts, versions, dates, digests, repository
+counts, and certification/endorsement implications. It rejects unsupported
+number inflation and false precision.
+
+```sh
+make daylight-npt-test
+make daylight-npt
+make daylight-npt-ci
+```
+
+References:
+
+- [docs/DAYLIGHT_NPT_V1.md](docs/DAYLIGHT_NPT_V1.md)
+- [docs/DAYLIGHT_NPT_V1_CODEX_GUIDE.md](docs/DAYLIGHT_NPT_V1_CODEX_GUIDE.md)
+- [docs/DAYLIGHT_NPT_V1_CLOSEOUT.md](docs/DAYLIGHT_NPT_V1_CLOSEOUT.md)
+- [daylight/npt/v1/number-claims.registry.json](daylight/npt/v1/number-claims.registry.json)
+
+DaylightNPT is a precision gate, not certification, audit status, production
+readiness, security approval, post-quantum security, agency endorsement, or
+mathematical finality.
+
 The schemas and examples live under
 [daylight/v20-aperture-singularity/schema/](daylight/v20-aperture-singularity/schema/)
 and

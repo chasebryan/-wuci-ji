@@ -51,6 +51,19 @@ discovery files, CodeMeta JSON-LD, hosted TLS requirements, claim/evidence
 mapping, status JSON, and official image assets are live. It is a hosted
 deployment gate, not a proof of host cleanliness or runtime containment.
 
+## Number Precision Gate
+
+```sh
+make daylight-npt-ci
+```
+
+DaylightNPT v1 is the numeric-claim precision firewall for public Wuci-Ji /
+Daylight surfaces. Reviewers can inspect
+`build/daylight/npt-v1/daylight-npt.report.json` after the target runs. The
+gate checks evidence binding and deterministic recomputation where configured;
+it is not certification, audit status, production readiness, security approval,
+post-quantum security, or external endorsement.
+
 ## Native Proof Lanes
 
 ```sh

@@ -52,6 +52,9 @@ jobs:
           make production-readiness-gates
           make crypto-self-audit-test
 
+      - name: Run DaylightNPT number precision gate
+        run: make daylight-npt-ci
+
       - name: Run assembly self-release contract proof
         run: make self-release-asm-contract-proof
 

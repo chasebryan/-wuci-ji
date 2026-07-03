@@ -33,6 +33,18 @@ Read `score-ceiling.report.json`, `singularity-blocker-vector.json`, and
 `NON_CLAIMS.md` first. The artifact is expected to refuse declaration; if it
 does not, stop and report that as a critical finding.
 
+Before relying on public copy, reviewers can also run the DaylightNPT v1
+numeric-claim precision gate:
+
+```sh
+make daylight-npt-ci
+```
+
+Inspect `build/daylight/npt-v1/daylight-npt.report.json`. DaylightNPT is a
+precision gate for evidence-bound numeric claims. It is not external
+certification, audit status, production readiness, security approval,
+post-quantum security, agency endorsement, or a Singularity declaration.
+
 ## Step 2 - pick the evidence you can produce
 
 1. **Independent rebuild receipt** - rebuild the subject artifact from the

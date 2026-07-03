@@ -1,0 +1,148 @@
+{
+  "schema": "daylight.npt.v1.registry",
+  "version": "1",
+  "claims": [
+    {
+      "id": "npt.fixture.registered_score",
+      "status": "verified",
+      "claim_type": "score",
+      "value_raw": "998,200M / 1,000,000M",
+      "value_canonical": "998200M / 1000000M",
+      "unit": "M",
+      "allowed_files": [
+        "daylight/npt/v1/examples/positive/registered-score.md"
+      ],
+      "context_regex": "registered score",
+      "evidence": [
+        {
+          "path": "daylight/npt/v1/examples/positive/registered-score.evidence.json",
+          "json_pointer": "/score_raw",
+          "expected_value": "998,200M / 1,000,000M",
+          "recompute": "generated_fixture_score"
+        }
+      ],
+      "check": "json_equals",
+      "rationale": "Positive fixture score is bound to generated machine-readable evidence."
+    },
+    {
+      "id": "npt.fixture.recomputed_percent",
+      "status": "verified",
+      "claim_type": "percent",
+      "value_raw": "99.82%",
+      "value_canonical": "99.82%",
+      "unit": "percent",
+      "allowed_files": [
+        "daylight/npt/v1/examples/positive/recomputed-percent.md"
+      ],
+      "context_regex": "998,200 / 1,000,000",
+      "evidence": [
+        {
+          "path": "daylight/npt/v1/examples/positive/recomputed-percent.evidence.json",
+          "numerator_pointer": "/numerator",
+          "denominator_pointer": "/denominator",
+          "expected_value": "99.82",
+          "precision": 2,
+          "recompute": "json_ratio_percent"
+        }
+      ],
+      "check": "json_ratio_percent",
+      "rationale": "Positive fixture percentage is recomputed from exact numerator and denominator."
+    },
+    {
+      "id": "npt.fixture.verifier_quorum",
+      "status": "verified",
+      "claim_type": "quorum",
+      "value_raw": "3-of-3",
+      "value_canonical": "3-of-3",
+      "unit": "quorum",
+      "allowed_files": [
+        "daylight/npt/v1/examples/positive/verifier-quorum.md"
+      ],
+      "context_regex": "verifier-vector contract",
+      "evidence": [
+        {
+          "path": "daylight/npt/v1/examples/positive/verifier-quorum.evidence.json",
+          "json_pointer": "/required_quorum",
+          "expected_value": "3-of-3",
+          "recompute": "quorum_contract"
+        }
+      ],
+      "check": "quorum_contract",
+      "rationale": "Positive fixture quorum is bound to an explicit contract value."
+    },
+    {
+      "id": "npt.fixture.valid_digest",
+      "status": "verified",
+      "claim_type": "digest",
+      "value_raw": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "value_canonical": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "unit": "sha256",
+      "allowed_files": [
+        "daylight/npt/v1/examples/positive/valid-digest.md"
+      ],
+      "context_regex": "valid SHA-256 literal",
+      "evidence": [],
+      "check": "digest_format",
+      "rationale": "Positive fixture digest is a standalone format validation example."
+    },
+    {
+      "id": "npt.fixture.evidence_mismatch",
+      "status": "verified",
+      "claim_type": "score",
+      "value_raw": "777M / 1,000M",
+      "value_canonical": "777M / 1000M",
+      "unit": "M",
+      "allowed_files": [
+        "daylight/npt/v1/examples/negative/evidence-mismatch.md"
+      ],
+      "context_regex": "mismatched evidence",
+      "evidence": [
+        {
+          "path": "daylight/npt/v1/examples/negative/evidence-mismatch.evidence.json",
+          "json_pointer": "/score_raw",
+          "expected_value": "778M / 1,000M",
+          "recompute": "json_equals"
+        }
+      ],
+      "check": "json_equals",
+      "rationale": "Negative fixture intentionally binds to mismatched evidence."
+    },
+    {
+      "id": "npt.fixture.stale_registry_entry",
+      "status": "verified",
+      "claim_type": "percent",
+      "value_raw": "12.34%",
+      "value_canonical": "12.34%",
+      "unit": "percent",
+      "allowed_files": [
+        "daylight/npt/v1/examples/negative/stale-registry-entry.md"
+      ],
+      "context_regex": "stale registry entry",
+      "evidence": [
+        {
+          "path": "daylight/npt/v1/examples/negative/stale-registry-entry.evidence.json",
+          "json_pointer": "/percent",
+          "expected_value": "12.35",
+          "recompute": "json_equals"
+        }
+      ],
+      "check": "json_equals",
+      "rationale": "Negative fixture intentionally demonstrates stale registry evidence."
+    },
+    {
+      "id": "npt.fixture.nonclaim_number",
+      "status": "non_claim",
+      "claim_type": "other",
+      "value_raw": "1",
+      "value_canonical": "1",
+      "unit": "none",
+      "allowed_files": [
+        "daylight/npt/v1/examples/positive/nonclaim-number.md"
+      ],
+      "context_regex": "ordered list marker",
+      "evidence": [],
+      "check": "exact_text_non_claim",
+      "rationale": "Positive fixture number is explicitly a non-claim ordered-list marker."
+    }
+  ]
+}
