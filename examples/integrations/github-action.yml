@@ -1,0 +1,22 @@
+name: Daylight Standard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  daylight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Daylight standard conformance
+        run: |
+          python3 tools/daylight_standard_validate.py schema-test
+          python3 tools/daylight_standard_validate.py examples-test
+          python3 tools/daylight_conformance.py status --project .
+          python3 tools/daylight_conformance.py reject-overclaims --path README.md

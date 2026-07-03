@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-attestation.v1.schema.json",
+  "title": "Daylight Attestation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "attestation_id",
+    "attestor",
+    "attestation_type",
+    "scope",
+    "reviewed_commit",
+    "reviewed_artifacts",
+    "signature",
+    "signature_scheme",
+    "public_key_ref",
+    "non_claim_acknowledgement",
+    "claim_usable"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-attestation-v1" },
+    "attestation_id": { "type": "string", "minLength": 1 },
+    "attestor": { "type": "string", "minLength": 1 },
+    "attestation_type": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "reviewed_commit": { "type": "string", "minLength": 1 },
+    "reviewed_artifacts": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "signature": { "type": "string", "minLength": 1 },
+    "signature_scheme": { "type": "string", "minLength": 1 },
+    "public_key_ref": { "type": "string", "minLength": 1 },
+    "non_claim_acknowledgement": { "type": "string", "minLength": 1 },
+    "claim_usable": { "type": "boolean" }
+  }
+}

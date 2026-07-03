@@ -1,0 +1,210 @@
+{
+  "schema": "wuci-defense-assurance-roadmap-v1",
+  "status": "roadmap_only",
+  "current_status": {
+    "warning_level": "BLUE",
+    "basis": "Daylight v20 public evidence intake is active and public claim surfaces require external evidence before stronger claims.",
+    "non_claim": "This is not Department of War approval, cATO authorization, RMF authorization, FIPS validation, production authority, external certification, independent audit completion, or operational deployment readiness."
+  },
+  "external_evidence_required": true,
+  "score_rule": "The defense-assurance roadmap does not raise the Daylight score by itself. Documentation creates obligations, not credit. Credit can only be assigned when evidence closes a registered obligation and the verifier can re-derive the result.",
+  "phases": [
+    {
+      "id": "phase_0",
+      "name": "Claim Boundary Lock",
+      "objective": "Prevent overclaiming before expansion.",
+      "required_evidence": [
+        "SECURITY_BOUNDARY reviewed",
+        "PRODUCTION_READINESS reviewed",
+        "DaylightNPT passes",
+        "README and site claim surfaces checked"
+      ],
+      "exit_condition": "No unsupported certification, production, PQ, DoW, cATO, RMF, or FIPS claim exists."
+    },
+    {
+      "id": "phase_1",
+      "name": "Reproducible Build Authority",
+      "objective": "Prove independent rebuildability.",
+      "required_evidence": [
+        "clean independent rebuild receipt",
+        "pinned source commit",
+        "expected artifact digests",
+        "produced artifact digests",
+        "transcript digest",
+        "environment record",
+        "non-claim acknowledgement"
+      ],
+      "exit_condition": "A non-author, external rebuild receipt verifies through the Daylight v20 external evidence path."
+    },
+    {
+      "id": "phase_2",
+      "name": "Independent Verifier Quorum",
+      "objective": "Prove verifier agreement beyond the repository-owned implementation.",
+      "required_evidence": [
+        "three distinct verifier-family outputs",
+        "canonical verifier-output format",
+        "matching capsule output digest",
+        "non-fixture status",
+        "pinned attestation material"
+      ],
+      "exit_condition": "The v20 3-of-3 verifier-family quorum gate closes without manual scoring."
+    },
+    {
+      "id": "phase_3",
+      "name": "Security Review and Falsification",
+      "objective": "Expose the system to real adversarial review.",
+      "required_evidence": [
+        "external security review report",
+        "red-team or falsification report",
+        "parser/capsule fuzzing results",
+        "negative corpus results",
+        "artifact firewall bypass attempts",
+        "overclaim-surface review"
+      ],
+      "exit_condition": "All findings are either fixed, documented as accepted risk, or converted into explicit blockers."
+    },
+    {
+      "id": "phase_4",
+      "name": "Cryptographic Review",
+      "objective": "Separate research cryptography from production cryptography.",
+      "required_evidence": [
+        "cryptographic design review",
+        "AEAD implementation review",
+        "key-handling review",
+        "timing/side-channel boundary review",
+        "production/FIPS gap register"
+      ],
+      "exit_condition": "The project either remains clearly research-only or has a documented validated-crypto migration path."
+    },
+    {
+      "id": "phase_5",
+      "name": "Supply Chain and SBOM Maturity",
+      "objective": "Make the full build and dependency chain inspectable.",
+      "required_evidence": [
+        "SBOM",
+        "provenance statement",
+        "dependency inventory",
+        "pinned toolchain record",
+        "release artifact digest registry",
+        "build environment reproducibility notes"
+      ],
+      "exit_condition": "A reviewer can trace source, toolchain, dependencies, build outputs, and release artifacts without relying on author assertion."
+    },
+    {
+      "id": "phase_6",
+      "name": "Operational Monitoring Model",
+      "objective": "Define what continuous monitoring would mean if the system entered a real mission environment.",
+      "required_evidence": [
+        "monitored components list",
+        "logs/events produced by Wuci-Ji / Daylight",
+        "alert conditions",
+        "integrity-drift checks",
+        "release-gate telemetry",
+        "incident-response hooks",
+        "dashboard/status JSON design"
+      ],
+      "exit_condition": "The project has a documented cATO-style monitoring model, but still does not claim cATO authorization."
+    },
+    {
+      "id": "phase_7",
+      "name": "RMF / Control Mapping",
+      "objective": "Map Wuci-Ji / Daylight evidence to public control families without claiming equivalency.",
+      "required_evidence": [
+        "NIST SP 800-53 family mapping",
+        "SSDF mapping",
+        "supply-chain risk mapping",
+        "assessment/authorization/monitoring mapping",
+        "system/information integrity mapping",
+        "audit/accountability mapping"
+      ],
+      "exit_condition": "The mapping exists as a review aid and clearly states that mapping is not authorization."
+    },
+    {
+      "id": "phase_8",
+      "name": "Deployment Boundary",
+      "objective": "Define where the system could safely run.",
+      "required_evidence": [
+        "supported host profile",
+        "unsupported host profile",
+        "operator model",
+        "trust root model",
+        "network stance",
+        "installation boundary",
+        "rollback/removal path",
+        "secure update path"
+      ],
+      "exit_condition": "No deployment is recommended outside the documented supported boundary."
+    },
+    {
+      "id": "phase_9",
+      "name": "External Authority Package",
+      "objective": "Prepare materials that an external organization could review.",
+      "required_evidence": [
+        "reviewer packet",
+        "reproducible build packet",
+        "threat model",
+        "security boundary",
+        "production readiness report",
+        "SBOM/provenance",
+        "audit/falsification reports",
+        "control mapping",
+        "unresolved blocker register"
+      ],
+      "exit_condition": "The repository contains a complete public review packet without claiming approval."
+    },
+    {
+      "id": "phase_10",
+      "name": "Candidate Defense System Review",
+      "objective": "Only after all prior phases, describe the project as a candidate for formal defense review.",
+      "required_evidence": [
+        "all blockers closed or accepted",
+        "external attestations pinned",
+        "independent audit reports linked",
+        "continuous monitoring model complete",
+        "operational boundary documented",
+        "claim surface checked by DaylightNPT"
+      ],
+      "exit_condition": "The project may say high-assurance defense-system candidate for external review, not Department of War system."
+    }
+  ],
+  "contingencies": [
+    "independent_rebuild",
+    "external_verifier_quorum",
+    "external_security_audit",
+    "red_team_or_falsification_review",
+    "fuzzing_and_negative_corpus",
+    "cryptographic_review",
+    "production_cryptography_boundary",
+    "sbom_and_provenance",
+    "supply_chain_risk_register",
+    "continuous_monitoring_model",
+    "incident_response_model",
+    "rmf_control_mapping",
+    "cato_style_evidence_model",
+    "deployment_boundary",
+    "blocker_register",
+    "claim_surface_review"
+  ],
+  "warning_levels": {
+    "RED": "Research-only; major blockers open.",
+    "AMBER": "Internally reproducible; external validation incomplete.",
+    "BLUE": "Externally reviewable; independent evidence intake active.",
+    "GREEN": "External review complete within defined scope; no unresolved findings.",
+    "GOLD": "Formal authority exists from an actual external authority."
+  },
+  "forbidden_claims": [
+    "Department of War approved",
+    "DoW certified",
+    "DoW validated",
+    "DoW operational system",
+    "military-grade certified",
+    "production cryptography",
+    "FIPS validated",
+    "cATO authorized",
+    "RMF authorized",
+    "post-quantum secure",
+    "independently audited",
+    "government endorsed",
+    "operational defense system"
+  ]
+}

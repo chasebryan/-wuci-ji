@@ -15,7 +15,7 @@
 
 ## What This Is
 
-Wuci-Ji explores a narrow question: can a small artifact machine make its own
+Wuci-Ji explores a narrow question: can a small artifact machine make its
 security claims executable, reviewable, and hard to overstate?
 
 The repository composes sealed WJSEAL artifacts, authorization receipts, Gate
@@ -30,19 +30,96 @@ research system.
 | Quantum-risk labels and migration debt are explicit. | Quantum safety from classical signatures or placeholder post-quantum stubs. |
 | Install proof reads signed local manifests and a copied local root key. | Remote install authority, remote-code shell pipelines, or fixture authority as production trust. |
 
+The controlling Daylight boundary is:
+
+```text
+NoEvidence(x) -> NoScore(x)
+NoProvenance(x) -> NoAuthority(x)
+NoExecution(x) -> NoRuntimeScore(x)
+ManualScore(x) -> Reject(x)
+```
+
+## Review Surfaces
+
+| Surface | Purpose | Status |
+| --- | --- | --- |
+| [Security](SECURITY.md) | Vulnerability reporting and security scope. | Active |
+| [Security Boundary](docs/SECURITY_BOUNDARY.md) | Exact claim boundary and non-claims. | Controlling |
+| [Production Readiness](docs/PRODUCTION_READINESS.md) | Production blockers and readiness limits. | Blocking |
+| [Daylight Equation Standard](docs/DAYLIGHT_EQUATION_STANDARD.md) | Formal security-claim authority equation. | Standard candidate |
+| [Product Standard Roadmap](docs/STANDARDIZATION_ROADMAP.md) | Road from research artifact to evidence-bound security product. | Roadmap |
+| [Conformance Profile](docs/WUCI_CONFORMANCE_PROFILE.md) | D0-D9 adoption and authority levels. | Draft standard |
+| [Enterprise Adoption](docs/WUCI_ENTERPRISE_ADOPTION.md) | How companies can use Wuci-Ji safely today. | Pilot guidance |
+| [Product Boundary](docs/WUCI_SECURITY_PRODUCT_BOUNDARY.md) | What Wuci-Ji is and is not. | Controlling |
+| [Default Standard Exit Criteria](docs/WUCI_DEFAULT_STANDARD_EXIT_CRITERIA.md) | Conditions required before stronger adoption claims. | Open |
+| [Defense Assurance Roadmap](docs/DEFENSE_ASSURANCE_ROADMAP.md) | Road to high-assurance defense-system candidacy. | Roadmap, not approval |
+| [Defense Assurance Contingencies](docs/DEFENSE_ASSURANCE_CONTINGENCIES.md) | External validation and audit conditions. | Open |
+| [Defense Control Map](docs/DEFENSE_ASSURANCE_CONTROL_MAP.md) | Public control-family mapping aid. | Draft mapping |
+| [Daylight v20 Reviewer Packet](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) | External evidence packet and verifier requirements. | Active |
+
 ## Read First
 
-| Need | Entry point |
+| Reader need | Start here | Why |
+| --- | --- | --- |
+| Understand what is claimed and not claimed | [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) | Controlling boundary for security, runtime, PQ, production, audit, and authority claims. |
+| Check production blockers | [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) | Explicit list of reasons this remains research/proof work. |
+| Review the defense-assurance path | [docs/DEFENSE_ASSURANCE_ROADMAP.md](docs/DEFENSE_ASSURANCE_ROADMAP.md) | Public roadmap for high-assurance defense-system candidacy, not approval. |
+| Continue from a fresh machine | [docs/MACHINE_PASSOFF.md](docs/MACHINE_PASSOFF.md) | Current handoff and continuation state. |
+| Run proof and test targets | [docs/BUILD_TARGETS.md](docs/BUILD_TARGETS.md) | Local target map for build, Daylight, Gate, CAGE, QCAGE, HARDEN, INSTALL, and high-attestation lanes. |
+| Inspect the threat model | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Defensive assumptions, assets, and boundaries. |
+| Review external evidence requirements | [docs/DAYLIGHT_V20_REVIEWER_PACKET.md](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) | Reviewer packet, evidence slots, and verifier requirements. |
+| Navigate Daylight math and evidence | [daylight-equation/](daylight-equation/) | Daylight equation, scorecard, fixtures, evidence, and analysis. |
+
+## Machine-Readable Surfaces
+
+| Surface | Purpose |
 | --- | --- |
-| Current handoff checkpoint | [BUILD_NOTES.md](BUILD_NOTES.md) |
-| Exact claim boundary | [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) |
-| Fresh-machine continuation | [docs/MACHINE_PASSOFF.md](docs/MACHINE_PASSOFF.md) |
-| Proof and test targets | [docs/BUILD_TARGETS.md](docs/BUILD_TARGETS.md) |
-| Threat model | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) |
-| Production blockers | [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) |
-| Daylight workspace | [daylight-equation/](daylight-equation/) |
-| Daylight v14C+ execution package | [daylight/v14c-plus/](daylight/v14c-plus/) |
-| Daylight v20 external evidence packet | [docs/DAYLIGHT_V20_REVIEWER_PACKET.md](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) |
+| [site/claim-evidence.json](site/claim-evidence.json) | Public claim-to-evidence map. |
+| [site/daylight-status.json](site/daylight-status.json) | Daylight status summary bound to committed evidence. |
+| [site/daylight-v20-aperture-singularity-status.json](site/daylight-v20-aperture-singularity-status.json) | Daylight v20 no-external ceiling and declaration-refusal status. |
+| [site/defense-assurance-status.json](site/defense-assurance-status.json) | Defense-assurance roadmap status and forbidden-claim list. |
+| [site/daylight-standard-status.json](site/daylight-standard-status.json) | Daylight Equation Standard candidate status and non-claims. |
+| [site/wuci-product-standard-status.json](site/wuci-product-standard-status.json) | Wuci product-standard candidate status and adoption boundary. |
+| [docs/defense-assurance-roadmap.v1.json](docs/defense-assurance-roadmap.v1.json) | Roadmap phases, contingencies, warning levels, and score rule. |
+
+## Daylight Equation Standard
+
+Wuci-Ji / Daylight is being developed toward an evidence-bound security
+control plane. The Daylight Equation Standard defines how security claims earn
+authority from evidence, provenance, reproducibility, boundary precision,
+monitoring, and falsification. This standard does not claim production security
+by itself. It creates machine-checkable obligations.
+
+Core rules:
+
+```text
+NoEvidence(x) -> NoScore(x)
+NoProvenance(x) -> NoAuthority(x)
+NoExecution(x) -> NoRuntimeScore(x)
+ManualScore(x) -> Reject(x)
+```
+
+Current status: standard candidate. Not certification. Not production
+authority. Not government approval.
+
+Product-standard docs:
+
+- [docs/STANDARDIZATION_ROADMAP.md](docs/STANDARDIZATION_ROADMAP.md)
+- [docs/DAYLIGHT_EQUATION_STANDARD.md](docs/DAYLIGHT_EQUATION_STANDARD.md)
+- [docs/WUCI_PRODUCT_STANDARD.md](docs/WUCI_PRODUCT_STANDARD.md)
+- [docs/WUCI_PRODUCT_REQUIREMENTS.md](docs/WUCI_PRODUCT_REQUIREMENTS.md)
+- [docs/WUCI_ENTERPRISE_ADOPTION.md](docs/WUCI_ENTERPRISE_ADOPTION.md)
+- [docs/WUCI_CONFORMANCE_PROFILE.md](docs/WUCI_CONFORMANCE_PROFILE.md)
+- [docs/WUCI_SECURITY_PRODUCT_BOUNDARY.md](docs/WUCI_SECURITY_PRODUCT_BOUNDARY.md)
+- [docs/WUCI_MARKET_POSITIONING.md](docs/WUCI_MARKET_POSITIONING.md)
+- [docs/WUCI_NO_EXTERNAL_VALIDATION_VALUE.md](docs/WUCI_NO_EXTERNAL_VALIDATION_VALUE.md)
+- [docs/WUCI_EXTERNAL_VALIDATION_UPLIFT.md](docs/WUCI_EXTERNAL_VALIDATION_UPLIFT.md)
+- [docs/WUCI_CONTROL_PLANE_ARCHITECTURE.md](docs/WUCI_CONTROL_PLANE_ARCHITECTURE.md)
+- [docs/WUCI_DEFAULT_STANDARD_EXIT_CRITERIA.md](docs/WUCI_DEFAULT_STANDARD_EXIT_CRITERIA.md)
+- [docs/WUCI_SECURITY_PRODUCT_MVP.md](docs/WUCI_SECURITY_PRODUCT_MVP.md)
+- [docs/WUCI_STANDARD_GOVERNANCE.md](docs/WUCI_STANDARD_GOVERNANCE.md)
+- [docs/WUCI_MONITORING_DOWNGRADE_MODEL.md](docs/WUCI_MONITORING_DOWNGRADE_MODEL.md)
+- [docs/WUCI_VULNERABILITY_RESPONSE.md](docs/WUCI_VULNERABILITY_RESPONSE.md)
 
 ## Daylight score-integrity audits
 
@@ -462,6 +539,29 @@ external 3-of-3 verifier-family quorum gate. It closes only the verifier-vector
 blocker when exactly three independent, pinned-attested, non-fixture verifier
 families agree on the same capsule output digest. It does not raise the score
 or declare Singularity.
+
+## Defense Assurance Roadmap
+
+Wuci-Ji / Daylight now maintains a public roadmap for becoming a
+high-assurance defense-system candidate. The roadmap is not a Department of War
+approval claim, not cATO authorization, not RMF authorization, not FIPS
+validation, not production authority, and not external certification. It
+defines the evidence that would be required before any stronger claim could be
+made.
+
+Primary roadmap files:
+
+* [docs/DEFENSE_ASSURANCE_ROADMAP.md](docs/DEFENSE_ASSURANCE_ROADMAP.md)
+* [docs/DEFENSE_ASSURANCE_CONTINGENCIES.md](docs/DEFENSE_ASSURANCE_CONTINGENCIES.md)
+* [docs/DEFENSE_ASSURANCE_CONTROL_MAP.md](docs/DEFENSE_ASSURANCE_CONTROL_MAP.md)
+
+Machine-readable roadmap/status files:
+
+* [docs/defense-assurance-roadmap.v1.json](docs/defense-assurance-roadmap.v1.json)
+* [site/defense-assurance-status.json](site/defense-assurance-status.json)
+
+Current defense-assurance status is roadmap-only unless and until external
+evidence closes the required Daylight obligations.
 
 ## System Shape
 

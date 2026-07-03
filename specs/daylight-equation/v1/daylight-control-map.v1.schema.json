@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-control-map.v1.schema.json",
+  "title": "Daylight Control Map v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "control_framework",
+    "control_family",
+    "control_id",
+    "evidence_refs",
+    "status",
+    "gap",
+    "next_artifact",
+    "claim_allowed",
+    "claim_forbidden"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-control-map-v1" },
+    "control_framework": { "type": "string", "minLength": 1 },
+    "control_family": { "type": "string", "minLength": 1 },
+    "control_id": { "type": "string", "minLength": 1 },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "status": { "type": "string", "enum": ["mapped", "gap", "provisional", "not-applicable"] },
+    "gap": { "type": "string" },
+    "next_artifact": { "type": "string" },
+    "claim_allowed": { "type": "string", "minLength": 1 },
+    "claim_forbidden": { "type": "string", "minLength": 1 }
+  }
+}

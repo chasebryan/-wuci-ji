@@ -1,0 +1,28 @@
+name: Daylight Standard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  daylight-standard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Daylight standard gate
+        uses: ./.github/actions/daylight-standard
+      - name: Upload conformance artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daylight-standard
+          path: |
+            build/daylight/product-standard-readiness.json
+            build/daylight/daylight-standard-scorecard.json
+            build/daylight/daylight-standard-control-map.json

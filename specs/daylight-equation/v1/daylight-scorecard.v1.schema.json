@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-scorecard.v1.schema.json",
+  "title": "Daylight Scorecard v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "scorecard_id",
+    "score_model",
+    "score",
+    "max_score",
+    "authority_level",
+    "blocker_vector",
+    "weakest_field",
+    "derived_from",
+    "manual_score_rejected",
+    "unsupported_claims",
+    "generated_at"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-scorecard-v1" },
+    "scorecard_id": { "type": "string", "minLength": 1 },
+    "score_model": { "type": "string", "minLength": 1 },
+    "score": { "type": "integer", "minimum": 0 },
+    "max_score": { "type": "integer", "minimum": 1 },
+    "authority_level": { "type": "string", "minLength": 1 },
+    "blocker_vector": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "weakest_field": { "type": "string", "minLength": 1 },
+    "derived_from": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "manual_score_rejected": { "type": "boolean" },
+    "unsupported_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "generated_at": { "type": "string", "minLength": 1 }
+  }
+}

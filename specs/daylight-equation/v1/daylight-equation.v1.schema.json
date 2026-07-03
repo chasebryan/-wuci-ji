@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-equation.v1.schema.json",
+  "title": "Daylight Equation Standard v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "standard_id",
+    "version",
+    "equation",
+    "rules",
+    "authority_fields",
+    "forbidden_claims",
+    "schema_refs"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-equation-standard-v1" },
+    "standard_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^v[0-9]+$" },
+    "equation": { "type": "string", "minLength": 1 },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "authority_fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "forbidden_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "schema_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

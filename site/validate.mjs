@@ -8,6 +8,15 @@ const siteRoot = new URL(".", import.meta.url);
 
 const requiredFiles = [
   "index.html",
+  "defense-assurance.html",
+  "daylight-standard.html",
+  "security-product-roadmap.html",
+  "conformance.html",
+  "enterprise-adoption.html",
+  "product-boundary.html",
+  "no-external-validation-value.html",
+  "external-validation-uplift.html",
+  "default-standard.html",
   "ai-scoring-integrity.html",
   "daylight-grok-audit.html",
   "audits/daylight/score-integrity/index.html",
@@ -24,6 +33,9 @@ const requiredFiles = [
   "citation.cff",
   "hosting-requirements.json",
   "claim-evidence.json",
+  "defense-assurance-status.json",
+  "daylight-standard-status.json",
+  "wuci-product-standard-status.json",
   "llms.txt",
   "humans.txt",
   "security.txt",
@@ -131,10 +143,33 @@ async function assertIndexReferences() {
     'https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg',
     'name="twitter:card"',
     'href="aperture-status.json"',
+    'href="defense-assurance.html"',
+    'href="defense-assurance-status.json"',
+    'href="/daylight-standard-status.json"',
+    'href="/wuci-product-standard-status.json"',
+    'href="daylight-standard.html"',
+    'href="security-product-roadmap.html"',
+    'href="conformance.html"',
+    'href="enterprise-adoption.html"',
+    'href="product-boundary.html"',
+    'href="default-standard.html"',
+    'href="daylight-standard-status.json"',
+    'href="wuci-product-standard-status.json"',
     'href="/daylight-v20-aperture-singularity-status.json"',
+    'href="/defense-assurance-status.json"',
     'href="#meridian"',
     'href="#aperture"',
     'href="#assurance"',
+    'Defense Assurance Roadmap',
+    'Daylight Standard',
+    'Security Product Roadmap',
+    'Conformance',
+    'Enterprise Adoption',
+    'Product Boundary',
+    'Default Standard Path',
+    'Roadmap only',
+    'no government approval',
+    'defense-assurance-status.json',
     'href="#review"',
     'href="ai-scoring-integrity.html"',
     'href="daylight-grok-audit.html"',
@@ -442,6 +477,7 @@ async function assertCloudflareFiles() {
   }
   for (const requiredHeader of [
     "/aperture-status.json",
+    "/defense-assurance-status.json",
     "/daylight-status.json",
     "/codemeta.json",
     "/citation.cff",
@@ -481,6 +517,9 @@ async function assertCloudflareFiles() {
     "/docs/aperture-bastion",
     "/docs/aperture-boundary",
     "/docs/aperture-pass-report",
+    "/docs/defense-assurance-roadmap",
+    "/docs/defense-assurance-contingencies",
+    "/docs/defense-assurance-control-map",
     "/docs/wuci-os"
   ]) {
     if (!redirects.includes(`${route} `)) {
@@ -646,6 +685,113 @@ async function assertDaylightV20ApertureSingularityStatusBinding() {
   }
   if (!Array.isArray(status.non_claims) || JSON.stringify(status.non_claims) !== JSON.stringify(capsule.non_claims)) {
     fail("daylight-v20-aperture-singularity-status.json non_claims do not match committed capsule");
+  }
+}
+
+async function assertDefenseAssuranceSurface() {
+  const page = await readFile(new URL("defense-assurance.html", siteRoot), "utf8");
+  const normalized = page.replace(/\s+/g, " ");
+  for (const required of [
+    "Defense Assurance Roadmap",
+    "Road from research-proof artifact to high-assurance defense-system candidate.",
+    "not Department of War approval",
+    "not cATO authorization",
+    "not RMF authorization",
+    "not FIPS validation",
+    "not production authority",
+    "not government endorsement",
+    "Roadmap, not certification",
+    "NoEvidence",
+    "ManualScore",
+    "Defense-system candidate",
+    "Current displayed status is BLUE",
+    "Claim Boundary Lock",
+    "Reproducible Build Authority",
+    "Independent Verifier Quorum",
+    "Security Review and Falsification",
+    "Cryptographic Review",
+    "Supply Chain and SBOM Maturity",
+    "Operational Monitoring Model",
+    "RMF / Control Mapping",
+    "Deployment Boundary",
+    "External Authority Package",
+    "Candidate Defense System Review",
+    "Documentation creates obligations, not credit",
+    "100.0 / 100.0 under the defined evidence rubric, within the validated audit scope",
+    "defense-assurance-status.json",
+    "claim-evidence.json"
+  ]) {
+    if (!normalized.includes(required)) {
+      fail(`defense-assurance.html is missing required marker: ${required}`);
+    }
+  }
+  for (const forbiddenCurrent of [
+    "Current displayed status is GREEN",
+    "Current displayed status is GOLD"
+  ]) {
+    if (normalized.includes(forbiddenCurrent)) {
+      fail(`defense-assurance.html displays unsupported current status: ${forbiddenCurrent}`);
+    }
+  }
+
+  const status = await readJsonOrNull(new URL("defense-assurance-status.json", siteRoot));
+  if (status === null) {
+    fail("site/defense-assurance-status.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "wuci-defense-assurance-status-v1",
+    status: "roadmap_only",
+    warning_level: "BLUE",
+    current_claim: "Externally reviewable high-assurance research artifact with active external evidence intake."
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (status[key] !== value) {
+      fail(`defense-assurance-status.json ${key} does not match expected value`);
+    }
+  }
+  for (const required of [
+    "Department of War approved",
+    "cATO authorized",
+    "RMF authorized",
+    "FIPS validated",
+    "production cryptography",
+    "production authority",
+    "government endorsed",
+    "independently audited",
+    "post-quantum secure",
+    "operational defense system"
+  ]) {
+    if (!Array.isArray(status.forbidden_claims) || !status.forbidden_claims.includes(required)) {
+      fail(`defense-assurance-status.json forbidden_claims is missing ${required}`);
+    }
+  }
+  for (const required of [
+    "independent_rebuild",
+    "external_verifier_quorum",
+    "external_security_audit",
+    "red_team_or_falsification_review",
+    "cryptographic_review",
+    "installation_use_testing",
+    "sbom_and_provenance",
+    "continuous_monitoring_model",
+    "rmf_control_mapping",
+    "claim_surface_review"
+  ]) {
+    if (!Array.isArray(status.required_external_contingencies) || !status.required_external_contingencies.includes(required)) {
+      fail(`defense-assurance-status.json required_external_contingencies is missing ${required}`);
+    }
+  }
+  if (status.score_rule !== "Roadmap documentation creates obligations, not score credit. Credit requires evidence-derived closure.") {
+    fail("defense-assurance-status.json score_rule changed unexpectedly");
+  }
+  const clean = status.clean_external_validation_contingency || {};
+  if (
+    clean.possible_score !== "100.0/100.0" ||
+    clean.scope !== "defined evidence rubric and validated audit scope only" ||
+    clean.non_claim !== "not perfection, invulnerability, government approval, production authority, or validity outside tested scope"
+  ) {
+    fail("defense-assurance-status.json clean_external_validation_contingency changed unexpectedly");
   }
 }
 
@@ -832,6 +978,18 @@ async function assertSearchDiscoveryFiles() {
     "<loc>https://nosuchmachine.net/aperture-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-status.json</loc>",
     "<loc>https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json</loc>",
+    "<loc>https://nosuchmachine.net/defense-assurance.html</loc>",
+    "<loc>https://nosuchmachine.net/defense-assurance-status.json</loc>",
+    "<loc>https://nosuchmachine.net/daylight-standard.html</loc>",
+    "<loc>https://nosuchmachine.net/security-product-roadmap.html</loc>",
+    "<loc>https://nosuchmachine.net/conformance.html</loc>",
+    "<loc>https://nosuchmachine.net/enterprise-adoption.html</loc>",
+    "<loc>https://nosuchmachine.net/product-boundary.html</loc>",
+    "<loc>https://nosuchmachine.net/no-external-validation-value.html</loc>",
+    "<loc>https://nosuchmachine.net/external-validation-uplift.html</loc>",
+    "<loc>https://nosuchmachine.net/default-standard.html</loc>",
+    "<loc>https://nosuchmachine.net/daylight-standard-status.json</loc>",
+    "<loc>https://nosuchmachine.net/wuci-product-standard-status.json</loc>",
     "<loc>https://nosuchmachine.net/ai-scoring-integrity.html</loc>",
     "<loc>https://nosuchmachine.net/daylight-grok-audit.html</loc>",
     "<loc>https://nosuchmachine.net/audits/daylight/score-integrity/</loc>",
@@ -871,6 +1029,18 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/hosting-requirements.json",
     "https://nosuchmachine.net/claim-evidence.json",
     "https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json",
+    "https://nosuchmachine.net/defense-assurance.html",
+    "https://nosuchmachine.net/defense-assurance-status.json",
+    "https://nosuchmachine.net/daylight-standard.html",
+    "https://nosuchmachine.net/daylight-standard-status.json",
+    "https://nosuchmachine.net/security-product-roadmap.html",
+    "https://nosuchmachine.net/conformance.html",
+    "https://nosuchmachine.net/enterprise-adoption.html",
+    "https://nosuchmachine.net/product-boundary.html",
+    "https://nosuchmachine.net/no-external-validation-value.html",
+    "https://nosuchmachine.net/external-validation-uplift.html",
+    "https://nosuchmachine.net/default-standard.html",
+    "https://nosuchmachine.net/wuci-product-standard-status.json",
     "https://nosuchmachine.net/ai-scoring-integrity.html",
     "https://nosuchmachine.net/daylight-grok-audit.html",
     "https://nosuchmachine.net/audits/daylight/score-integrity/",
@@ -892,8 +1062,12 @@ async function assertPublicTextDiscovery() {
     "NoEvidence(x) → NoScore(x)",
     "NoProvenance(x) → NoAuthority(x)",
     "NoExecution(x) → NoRuntimeScore(x)",
+    "Defense Assurance Roadmap — explains the evidence-gated path from research-proof artifact to high-assurance defense-system candidacy. It is not government approval, production authority, cATO authorization, RMF authorization, FIPS validation, or external certification.",
+    "Daylight Equation Standard — defines Claim + Evidence + Provenance + Reproducibility + Boundary + Monitoring + Falsification = Authority.",
+    "Wuci-Ji product standard path — positions Daylight as an Evidence-Bound Security Control Plane",
     "Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.",
     "make daylight-v19-aperture-bastion-ci",
+    "make daylight-standard-ci",
     "not production cryptography",
     "not runtime sandboxing",
     "not external certification"
@@ -1142,12 +1316,14 @@ async function assertHostingRequirements() {
     "/llms.txt",
     "/sitemap.xml",
     "/.well-known/security.txt",
+    "/defense-assurance.html",
     "/ai-scoring-integrity.html",
     "/daylight-grok-audit.html",
     "/audits/daylight/score-integrity/",
     "/aperture-status.json",
     "/daylight-status.json",
     "/daylight-v20-aperture-singularity-status.json",
+    "/defense-assurance-status.json",
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
@@ -1225,13 +1401,47 @@ async function assertClaimEvidenceMap() {
     "daylight-score-binding",
     "daylight-v20-aperture-singularity-score-surface",
     "daylight-v20-public-challenge",
+    "defense-assurance-roadmap-exists",
+    "defense-assurance-roadmap-non-certifying",
+    "defense-assurance-required-external-contingencies",
+    "defense-assurance-scope-bound-perfect-contingency",
+    "defense-assurance-no-government-approval",
     "ai-scoring-integrity-audit",
     "read-only-public-meridian-surface",
     "hosted-tls-requirements",
-    "research-discovery-metadata"
+    "research-discovery-metadata",
+    "daylight-equation-standard-exists",
+    "wuci-evidence-bound-control-plane-path",
+    "wuci-not-production-security-replacement",
+    "wuci-no-external-validation-value",
+    "wuci-external-validation-uplift",
+    "wuci-default-standard-exit-criteria",
+    "wuci-product-readiness-separate-from-security-score"
   ]) {
     if (!claims.has(requiredId)) {
       fail(`claim-evidence.json is missing claim id: ${requiredId}`);
+    }
+  }
+  const defenseClaimIds = [
+    "defense-assurance-roadmap-exists",
+    "defense-assurance-roadmap-non-certifying",
+    "defense-assurance-required-external-contingencies",
+    "defense-assurance-scope-bound-perfect-contingency",
+    "defense-assurance-no-government-approval"
+  ];
+  const defenseEvidencePaths = [
+    "docs/DEFENSE_ASSURANCE_ROADMAP.md",
+    "docs/DEFENSE_ASSURANCE_CONTINGENCIES.md",
+    "docs/DEFENSE_ASSURANCE_CONTROL_MAP.md",
+    "site/defense-assurance.html",
+    "site/defense-assurance-status.json"
+  ];
+  for (const claimId of defenseClaimIds) {
+    const claim = claims.get(claimId);
+    for (const evidencePath of defenseEvidencePaths) {
+      if (!Array.isArray(claim?.evidence_paths) || !claim.evidence_paths.includes(evidencePath)) {
+        fail(`claim-evidence.json claim ${claimId} is missing defense assurance evidence path: ${evidencePath}`);
+      }
     }
   }
   for (const claim of claimMap.claims) {
@@ -1364,6 +1574,7 @@ async function assertClaimEvidenceMap() {
 async function assertNoInsecurePublicUrls() {
   for (const file of [
     "index.html",
+    "defense-assurance.html",
     "ai-scoring-integrity.html",
     "daylight-grok-audit.html",
     "audits/daylight/score-integrity/index.html",
@@ -1375,6 +1586,7 @@ async function assertNoInsecurePublicUrls() {
     "citation.cff",
     "hosting-requirements.json",
     "claim-evidence.json",
+    "defense-assurance-status.json",
     "llms.txt",
     "humans.txt",
     "security.txt",
@@ -1498,6 +1710,148 @@ async function assertAiScoringAuditPages() {
   }
 }
 
+async function assertDaylightStandardSurface() {
+  const pages = [
+    "daylight-standard.html",
+    "security-product-roadmap.html",
+    "conformance.html",
+    "enterprise-adoption.html",
+    "product-boundary.html",
+    "no-external-validation-value.html",
+    "external-validation-uplift.html",
+    "default-standard.html"
+  ];
+  const pageText = {};
+  for (const page of pages) {
+    pageText[page] = await readFile(new URL(page, siteRoot), "utf8");
+  }
+  const combined = Object.values(pageText).join("\n");
+  for (const required of [
+    "Evidence-Bound Security Control Plane",
+    "Claim + Evidence + Provenance + Reproducibility + Boundary + Monitoring + Falsification = Authority",
+    "NoEvidence(x) -> NoScore(x)",
+    "ManualScore(x) -> Reject(x)",
+    "D0 Research Artifact",
+    "D9 Formal Authority Profile",
+    "Wuci-Ji cannot self-issue external authority",
+    "not production cryptography",
+    "not a general runtime sandbox",
+    "not post-quantum secure",
+    "not independently audited",
+    "not government endorsed",
+    "not cATO authorized",
+    "not RMF authorized",
+    "not FIPS validated",
+    "not external certification",
+    "not endpoint protection",
+    "Still Not Certification",
+    "External Validation Uplift",
+    "Default Standard Path"
+  ]) {
+    if (!combined.includes(required)) {
+      fail(`Daylight standard pages are missing required marker: ${required}`);
+    }
+  }
+  for (const [page, markers] of Object.entries({
+    "daylight-standard.html": [
+      "What It Verifies",
+      "What It Does Not Verify",
+      "Example Pass/Fail Claim",
+      "daylight-standard-status.json"
+    ],
+    "security-product-roadmap.html": [
+      "Current Product Status",
+      "Road to Enterprise Pilot",
+      "Road to Production Readiness",
+      "Road to Formal External Authority",
+      "Current Blockers"
+    ],
+    "conformance.html": [
+      "Generate a Report",
+      "python3 tools/daylight_conformance.py status --project .",
+      "D9 Rule"
+    ],
+    "enterprise-adoption.html": [
+      "Local Mode",
+      "CI Mode",
+      "Release-Gate Mode",
+      "Compliance-Map Mode",
+      "Monitoring Mode",
+      "Security-Product Evaluation Mode"
+    ],
+    "product-boundary.html": [
+      "Allowed Claims",
+      "Forbidden Claims",
+      "Runtime Boundary",
+      "Cryptographic Boundary",
+      "Certification Boundary"
+    ],
+    "no-external-validation-value.html": [
+      "Claim Discipline",
+      "Evidence Discipline",
+      "Reproducible Release Discipline",
+      "Internal Audit Usefulness"
+    ],
+    "external-validation-uplift.html": [
+      "What It Changes",
+      "What It Does Not Change",
+      "Accepted Evidence",
+      "Attestation Requirements"
+    ],
+    "default-standard.html": [
+      "Standard by Utility",
+      "Spec + Schemas + Tests",
+      "Integrations",
+      "Adoption Path",
+      "Extension Model",
+      "Governance Model",
+      "Future Standards-Body Path"
+    ]
+  })) {
+    for (const marker of markers) {
+      if (!pageText[page].includes(marker)) {
+        fail(`${page} is missing marker: ${marker}`);
+      }
+    }
+  }
+
+  const daylightStatus = await readJsonOrNull(new URL("daylight-standard-status.json", siteRoot));
+  const productStatus = await readJsonOrNull(new URL("wuci-product-standard-status.json", siteRoot));
+  if (daylightStatus === null || productStatus === null) {
+    fail("Daylight standard status JSON files must be valid JSON");
+    return;
+  }
+  if (daylightStatus.schema !== "daylight-standard-status-v1" || daylightStatus.status !== "standard_candidate") {
+    fail("daylight-standard-status.json has unexpected schema or status");
+  }
+  if (productStatus.schema !== "wuci-product-standard-status-v1" || productStatus.status !== "product_standard_candidate") {
+    fail("wuci-product-standard-status.json has unexpected schema or status");
+  }
+  for (const status of [daylightStatus, productStatus]) {
+    if (status.vulnerability_response_model !== "documented") {
+      fail(`${status.schema} must document vulnerability_response_model`);
+    }
+    for (const required of [
+      "not production cryptography",
+      "not a general runtime sandbox",
+      "not post-quantum secure",
+      "not independently audited",
+      "not Department of War approved",
+      "not government endorsed",
+      "not cATO authorized",
+      "not RMF authorized",
+      "not FIPS validated",
+      "not FedRAMP authorized",
+      "not NIAP/Common Criteria certified",
+      "not a replacement for EDR, SIEM, IAM, backups, patch management, or incident response"
+    ]) {
+      if (!Array.isArray(status.non_claims) || !status.non_claims.includes(required)) {
+        fail(`${status.schema} non_claims are missing ${required}`);
+      }
+    }
+  }
+}
+
 async function assertNoRootDeployArtifacts() {
   const forbidden = ["dist", "public", "build"];
   for (const directory of forbidden) {
@@ -1524,6 +1878,8 @@ await assertResearchMetadata();
 await assertCitationMetadata();
 await assertHostingRequirements();
 await assertClaimEvidenceMap();
+await assertDefenseAssuranceSurface();
+await assertDaylightStandardSurface();
 await assertAiScoringAuditPages();
 await assertDaylightScoreIntegrityAuditPortal();
 await assertNoInsecurePublicUrls();

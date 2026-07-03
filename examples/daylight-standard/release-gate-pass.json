@@ -1,0 +1,32 @@
+{
+  "schema": "daylight-release-gate-v1",
+  "release_id": "release.daylight.standard.example.pass",
+  "artifact_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "policy": "daylight-standard-v1-local-release",
+  "minimum_conformance_level": "D2",
+  "required_evidence": [
+    "evidence.daylight.standard.docs"
+  ],
+  "required_controls": [
+    "NIST-CSF-2.0-GV"
+  ],
+  "forbidden_claims": [
+    "FIPS validated",
+    "government approved",
+    "production cryptography"
+  ],
+  "decision": "pass",
+  "reasons": [
+    "required evidence present",
+    "manual score rejected",
+    "no unsupported authority claim in release object"
+  ],
+  "allowed_actions": [
+    "export-conformance-report",
+    "publish-standard-candidate-docs"
+  ],
+  "blocked_actions": [
+    "claim-certification",
+    "claim-production-authority"
+  ]
+}

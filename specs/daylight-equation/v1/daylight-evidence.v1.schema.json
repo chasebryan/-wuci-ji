@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-evidence.v1.schema.json",
+  "title": "Daylight Evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "evidence_id",
+    "produced_by",
+    "produced_at",
+    "source_commit",
+    "artifact_digest",
+    "transcript_digest",
+    "command",
+    "environment",
+    "output_refs",
+    "private_material_excluded",
+    "fixture",
+    "claim_usable"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-evidence-v1" },
+    "evidence_id": { "type": "string", "minLength": 1 },
+    "produced_by": { "type": "string", "minLength": 1 },
+    "produced_at": { "type": "string", "minLength": 1 },
+    "source_commit": { "type": "string", "minLength": 1 },
+    "artifact_digest": { "type": "string", "minLength": 1 },
+    "transcript_digest": { "type": "string", "minLength": 1 },
+    "command": { "type": "string", "minLength": 1 },
+    "environment": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "output_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "private_material_excluded": { "type": "boolean" },
+    "fixture": { "type": "boolean" },
+    "claim_usable": { "type": "boolean" }
+  }
+}

@@ -7,6 +7,18 @@ Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09
 Machine status: https://nosuchmachine.net/aperture-status.json
 Daylight status: https://nosuchmachine.net/daylight-status.json
 Daylight v20 Aperture Singularity status: https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json
+Defense Assurance Roadmap: https://nosuchmachine.net/defense-assurance.html
+Defense Assurance Roadmap status: https://nosuchmachine.net/defense-assurance-status.json
+Daylight Equation Standard: https://nosuchmachine.net/daylight-standard.html
+Daylight Standard status: https://nosuchmachine.net/daylight-standard-status.json
+Security Product Roadmap: https://nosuchmachine.net/security-product-roadmap.html
+Conformance Profile: https://nosuchmachine.net/conformance.html
+Enterprise Adoption: https://nosuchmachine.net/enterprise-adoption.html
+Product Boundary: https://nosuchmachine.net/product-boundary.html
+No External Validation Value: https://nosuchmachine.net/no-external-validation-value.html
+External Validation Uplift: https://nosuchmachine.net/external-validation-uplift.html
+Default Standard Path: https://nosuchmachine.net/default-standard.html
+Wuci Product Standard status: https://nosuchmachine.net/wuci-product-standard-status.json
 AI scoring integrity audit: https://nosuchmachine.net/ai-scoring-integrity.html
 Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
 Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
@@ -35,6 +47,7 @@ Primary review paths:
 - AI scoring integrity: https://nosuchmachine.net/ai-scoring-integrity.html
 - Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
 - Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
+- Defense Assurance Roadmap: https://nosuchmachine.net/defense-assurance.html
 
 AI scoring-integrity audit:
 
@@ -69,10 +82,17 @@ Public challenge:
 - Remaining path: independent rebuild receipts, external firewall-profile review, non-fixture claim-usable 3-of-3 verifier vectors, and pinned cryptographic attestation verification
 - No endorsement is requested or implied
 
+Defense Assurance Roadmap — explains the evidence-gated path from research-proof artifact to high-assurance defense-system candidacy. It is not government approval, production authority, cATO authorization, RMF authorization, FIPS validation, or external certification.
+
+Daylight Equation Standard — defines Claim + Evidence + Provenance + Reproducibility + Boundary + Monitoring + Falsification = Authority. It is a standard candidate for evidence-bound security assurance, not production cryptography, not a general runtime sandbox, not post-quantum secure, not independently audited, not government endorsed, not cATO authorized, not RMF authorized, not FIPS validated, and not external certification.
+
+Wuci-Ji product standard path — positions Daylight as an Evidence-Bound Security Control Plane that verifies claims, gates releases, maps controls, and exposes unproven assumptions. It does not replace EDR, SIEM, IAM, backups, patch management, or incident response.
+
 Local validation handles:
 
 - make daylight-v19-aperture-bastion-ci
 - make daylight-public-artifact-firewall
+- make daylight-standard-ci
 - make site-validate
 
 Non-claims:

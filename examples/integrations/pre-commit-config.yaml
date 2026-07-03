@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: daylight-standard-schema-test
+        name: Daylight standard schema test
+        entry: python3 tools/daylight_standard_validate.py schema-test
+        language: system
+        pass_filenames: false
+      - id: daylight-standard-examples-test
+        name: Daylight standard examples test
+        entry: python3 tools/daylight_standard_validate.py examples-test
+        language: system
+        pass_filenames: false
+      - id: daylight-overclaim-readme
+        name: Daylight README overclaim scan
+        entry: python3 tools/daylight_conformance.py reject-overclaims --path README.md
+        language: system
+        pass_filenames: false

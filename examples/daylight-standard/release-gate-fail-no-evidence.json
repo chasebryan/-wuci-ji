@@ -1,0 +1,31 @@
+{
+  "schema": "daylight-release-gate-v1",
+  "release_id": "release.daylight.standard.example.fail.no_evidence",
+  "artifact_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "policy": "daylight-standard-v1-local-release",
+  "minimum_conformance_level": "D2",
+  "required_evidence": [
+    "evidence.missing"
+  ],
+  "required_controls": [
+    "NIST-CSF-2.0-GV"
+  ],
+  "forbidden_claims": [
+    "FIPS validated",
+    "government approved",
+    "production cryptography"
+  ],
+  "decision": "fail",
+  "reasons": [
+    "NoEvidence(release.daylight.standard.example.fail.no_evidence) -> NoScore",
+    "release action blocked until evidence exists"
+  ],
+  "allowed_actions": [
+    "explain"
+  ],
+  "blocked_actions": [
+    "publish",
+    "release",
+    "claim-standard-authority"
+  ]
+}

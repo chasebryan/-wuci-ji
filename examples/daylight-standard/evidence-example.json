@@ -1,0 +1,21 @@
+{
+  "schema": "daylight-evidence-v1",
+  "evidence_id": "evidence.daylight.standard.docs",
+  "produced_by": "repository",
+  "produced_at": "2026-07-03T00:00:00Z",
+  "source_commit": "working-tree",
+  "artifact_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "transcript_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "command": "make daylight-standard-ci",
+  "environment": {
+    "python": "stdlib-only",
+    "network": "not required"
+  },
+  "output_refs": [
+    "docs/DAYLIGHT_EQUATION_STANDARD.md",
+    "specs/daylight-equation/v1/README.md"
+  ],
+  "private_material_excluded": true,
+  "fixture": false,
+  "claim_usable": true
+}

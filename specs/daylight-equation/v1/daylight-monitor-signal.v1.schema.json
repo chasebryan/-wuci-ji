@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-monitor-signal.v1.schema.json",
+  "title": "Daylight Monitor Signal v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "signal_id",
+    "source",
+    "timestamp",
+    "signal_type",
+    "related_claim",
+    "state",
+    "downgrade_rule",
+    "action_required"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-monitor-signal-v1" },
+    "signal_id": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "signal_type": { "type": "string", "minLength": 1 },
+    "related_claim": { "type": "string", "minLength": 1 },
+    "state": { "type": "string", "enum": ["ok", "watch", "downgrade", "block", "revoke"] },
+    "downgrade_rule": { "type": "string", "minLength": 1 },
+    "action_required": { "type": "string", "minLength": 1 }
+  }
+}

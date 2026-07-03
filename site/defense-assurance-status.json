@@ -1,0 +1,36 @@
+{
+  "schema": "wuci-defense-assurance-status-v1",
+  "status": "roadmap_only",
+  "warning_level": "BLUE",
+  "current_claim": "Externally reviewable high-assurance research artifact with active external evidence intake.",
+  "forbidden_claims": [
+    "Department of War approved",
+    "cATO authorized",
+    "RMF authorized",
+    "FIPS validated",
+    "production cryptography",
+    "production authority",
+    "government endorsed",
+    "independently audited",
+    "post-quantum secure",
+    "operational defense system"
+  ],
+  "required_external_contingencies": [
+    "independent_rebuild",
+    "external_verifier_quorum",
+    "external_security_audit",
+    "red_team_or_falsification_review",
+    "cryptographic_review",
+    "installation_use_testing",
+    "sbom_and_provenance",
+    "continuous_monitoring_model",
+    "rmf_control_mapping",
+    "claim_surface_review"
+  ],
+  "score_rule": "Roadmap documentation creates obligations, not score credit. Credit requires evidence-derived closure.",
+  "clean_external_validation_contingency": {
+    "possible_score": "100.0/100.0",
+    "scope": "defined evidence rubric and validated audit scope only",
+    "non_claim": "not perfection, invulnerability, government approval, production authority, or validity outside tested scope"
+  }
+}

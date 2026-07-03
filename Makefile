@@ -146,6 +146,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
 .PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
+.PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
 
 all: check-native $(TARGET)
 
@@ -185,6 +186,34 @@ daylight-score-integrity-audit: daylight-npt
 
 daylight-score-integrity-audit-directory-check:
 	$(PYTHON) tools/daylight_score_integrity_record.py check
+
+daylight-standard-schema-test:
+	$(PYTHON) tools/daylight_standard_validate.py schema-test
+
+daylight-standard-examples-test:
+	$(PYTHON) tools/daylight_standard_validate.py examples-test
+
+daylight-conformance-test:
+	@mkdir -p build/daylight
+	$(PYTHON) tools/daylight_conformance.py validate --input examples/daylight-standard/minimal-claim.json
+	$(PYTHON) tools/daylight_conformance.py validate --input examples/daylight-standard/evidence-example.json
+	! $(PYTHON) tools/daylight_conformance.py validate --input examples/daylight-standard/unsupported-certification-claim.json
+	$(PYTHON) tools/daylight_conformance.py score --claims examples/daylight-standard/minimal-claim.json --evidence examples/daylight-standard/evidence-example.json --out build/daylight/daylight-standard-scorecard.json
+	$(PYTHON) tools/daylight_conformance.py gate --release examples/daylight-standard/release-gate-pass.json --scorecard build/daylight/daylight-standard-scorecard.json
+	! $(PYTHON) tools/daylight_conformance.py gate --release examples/daylight-standard/release-gate-fail-no-evidence.json --scorecard build/daylight/daylight-standard-scorecard.json
+	$(PYTHON) tools/daylight_conformance.py explain --scorecard build/daylight/daylight-standard-scorecard.json
+	$(PYTHON) tools/daylight_conformance.py control-map --claims examples/daylight-standard/minimal-claim.json --out build/daylight/daylight-standard-control-map.json
+	$(PYTHON) tools/daylight_conformance.py status --project . > build/daylight/daylight-standard-conformance-report.json
+	! $(PYTHON) tools/daylight_conformance.py monitor-signal --input examples/daylight-standard/monitor-signal-example.json --state build/daylight/daylight-monitor-state.json
+
+daylight-product-score:
+	$(PYTHON) tools/daylight_product_score.py
+
+daylight-standard-site-test:
+	$(MAKE) site-validate
+
+daylight-standard-ci: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-npt-ci daylight-standard-site-test
+	@printf '%s\n' "daylight-standard-ci: complete"
 
 daylight-cplus-score:
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json --receipt daylight/v14c-plus/examples/reproducibility-receipt.v14c-plus.json --output-ledger daylight/v14c-plus/examples/ledger.with-scorecard.jsonl

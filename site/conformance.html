@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link rel="canonical" href="https://nosuchmachine.net/conformance.html">
+    <link rel="stylesheet" href="styles.css">
+    <title>Daylight Conformance</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/"><img class="brand-mark" src="assets/wuci-ji-official-emblem.jpg" alt="" width="400" height="400"><span>Wuci-Ji</span></a>
+      <nav class="site-nav" aria-label="Conformance navigation"><a href="daylight-standard.html">Standard</a><a href="product-boundary.html">Boundary</a><a href="enterprise-adoption.html">Enterprise</a></nav>
+    </header>
+    <main>
+      <section class="hero">
+        <img class="hero-image" src="assets/daylight-v17-singularity.jpg" alt="Daylight v17 Singularity notice" width="1672" height="941">
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-content">
+          <p class="eyebrow">D0-D9</p>
+          <h1>Conformance</h1>
+          <p class="hero-copy">Daylight conformance classifies evidence maturity. It does not certify security.</p>
+        </div>
+      </section>
+      <section class="section">
+        <div class="section-heading"><h2>Levels</h2></div>
+        <ol class="flow">
+          <li>D0 Research Artifact</li>
+          <li>D1 Claim-Bounded</li>
+          <li>D2 Evidence-Bound</li>
+          <li>D3 Reproducible</li>
+          <li>D4 Release-Gated</li>
+          <li>D5 Control-Mapped</li>
+          <li>D6 Continuously Monitored</li>
+          <li>D7 Externally Reviewed</li>
+          <li>D8 High-Assurance Product Candidate</li>
+          <li>D9 Formal Authority Profile</li>
+        </ol>
+      </section>
+      <section class="section">
+        <div class="section-heading"><h2>Generate a Report</h2></div>
+        <pre><code>python3 tools/daylight_conformance.py status --project .</code></pre>
+        <p>Read the report by checking blockers, forbidden claims, recommended next level, allowed claim, and forbidden claim.</p>
+      </section>
+      <section class="boundary">
+        <h2>D9 Rule</h2>
+        <p>Wuci-Ji cannot self-issue external authority. D9 requires actual external certification, authorization, or regulatory authority evidence from the issuing body.</p>
+      </section>
+    </main>
+  </body>
+</html>

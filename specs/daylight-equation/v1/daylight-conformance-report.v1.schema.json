@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-conformance-report.v1.schema.json",
+  "title": "Daylight Conformance Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "project",
+    "commit",
+    "conformance_level",
+    "evidence_summary",
+    "blockers",
+    "forbidden_claims_found",
+    "recommended_next_level",
+    "claim_allowed",
+    "claim_forbidden"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-conformance-report-v1" },
+    "project": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "minLength": 1 },
+    "conformance_level": { "type": "string", "pattern": "^D[0-9]$" },
+    "evidence_summary": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "forbidden_claims_found": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "recommended_next_level": { "type": "string", "pattern": "^D[0-9]$" },
+    "claim_allowed": { "type": "string", "minLength": 1 },
+    "claim_forbidden": { "type": "string", "minLength": 1 }
+  }
+}
