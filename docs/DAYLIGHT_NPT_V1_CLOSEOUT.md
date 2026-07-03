@@ -35,19 +35,28 @@ make daylight-v20-aperture-singularity-ci
 ## Verified Local Results
 
 These values are copied from `build/daylight/npt-v1/daylight-npt.report.json`
-after the closeout and public-surface wiring landed:
+generated from a checkout containing only tracked files, after the
+verification-coverage hardening pass:
 
 ```text
 result: pass
-files_scanned: 249
-numbers_seen: 1217
+files_scanned: 247
+numbers_seen: 1196
 claims_checked: 7
-verified: 7
+verified: 6
 exempt: 1
 warnings: 0
 errors: 0
 registry_sha256: 6fd6118b613eb2a8469bde09419be0bb4096003435fe775683712e8401f99455
 ```
+
+`files_scanned` and `numbers_seen` are properties of the scanned tree, not
+constants: untracked or gitignored Markdown/JSON files under the scanned roots
+are included by the filesystem walker and raise the counts locally. The
+clean-checkout values above (and the CI run) are the reference. `verified`
+counts registry claims with status `verified`; `exempt` counts narrow
+non-claim/illustrative/exempt entries; `claims_checked` counts all registry
+claims plus emitted findings.
 
 ## Report And Registry
 
@@ -94,8 +103,22 @@ CI workflow integration:
 - It checks registered evidence and recomputable forms where configured; it
   does not prove every number is globally true.
 - It scans Markdown and JSON public surfaces by default and skips fenced code
-  blocks, generated caches, build outputs, binary files, and intentionally
-  failing negative fixture directories during default repo scans.
+  blocks, indented code lines, generated caches (including `build/`, `dist/`,
+  `__pycache__/`, and Rust `target/` directories), binary files, and
+  intentionally failing negative fixture directories during default repo
+  scans. Numbers inside fenced or indented code are therefore invisible to
+  the gate by design.
+- Claim context is evaluated line by line. Claim wording on one line and the
+  number on the next line are not paired.
+- Quorum detection is digit-based. Word-form quorums such as "three of three"
+  produce no numeric token and are not checked.
+- Non-digest numeric tokens inside `.json` files are treated as data, not
+  prose claims, unless a registry entry binds them.
+- A token matched by a passing registry claim is accepted without further
+  wording checks on that line; registry entries must stay narrow.
+- Untracked or gitignored Markdown/JSON files under scanned roots change
+  local `files_scanned`/`numbers_seen`; clean-checkout and CI values are the
+  reference.
 - It does not fetch live public counts. Volatile counts require local
   as-of/source evidence.
 - Valid digest format alone is not evidence for broader claims.

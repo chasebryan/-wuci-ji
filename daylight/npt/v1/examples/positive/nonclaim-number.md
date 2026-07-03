@@ -4,4 +4,3 @@
 
 The path `daylight/npt/v1/examples/positive/nonclaim-number.md` identifies a
 fixture version and is not a status claim.
-

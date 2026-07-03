@@ -88,4 +88,3 @@ def evaluate_claim(claim: dict[str, Any], repo_root: Path) -> tuple[bool, str]:
     except (KeyError, ValueError, TypeError, RegistryError) as exc:
         return False, str(exc)
     return False, f"unsupported evidence check: {check}"
-

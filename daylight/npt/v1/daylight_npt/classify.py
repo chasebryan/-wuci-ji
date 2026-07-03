@@ -322,6 +322,21 @@ def classify_token(token: NumberToken, registry: dict[str, Any], repo_root: Path
             )
         )
 
+    if token.kind == "percent" and "." in token.value_raw:
+        decimals = token.value_raw.rstrip("%").rsplit(".", 1)[1]
+        if len(decimals) > 4 and (
+            not METHOD_WORDS.search(context) or NO_EVIDENCE_WORDS.search(context) or "without" in context.lower()
+        ) and not EVIDENCE_WORDS.search(context):
+            findings.append(
+                _finding(
+                    token,
+                    "NPT008_FALSE_PRECISION",
+                    "percent",
+                    "high-precision percentage lacks a method, evidence source, or recomputation path",
+                    "Round to supported precision or register the recomputation evidence for this percentage.",
+                )
+            )
+
     if token.kind == "number" and "." in token.value_raw and len(token.value_raw.rsplit(".", 1)[1]) > 4:
         if re.search(r"\b(probability|chance|confidence|rating|rank)\b", context, re.IGNORECASE) and (not METHOD_WORDS.search(context) or NO_EVIDENCE_WORDS.search(context) or "without" in context.lower()):
             findings.append(

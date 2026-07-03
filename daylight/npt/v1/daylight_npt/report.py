@@ -11,7 +11,7 @@ from .classify import Finding, classify_token
 from .extract import extract_tokens, is_probably_binary
 from .registry import sha256_file
 
-EXCLUDED_DIRS = {".git", "node_modules", "build", "dist", ".tools", "__pycache__"}
+EXCLUDED_DIRS = {".git", "node_modules", "build", "dist", ".tools", "__pycache__", "target"}
 DEFAULT_SUFFIXES = {".md", ".json"}
 
 
@@ -74,7 +74,8 @@ def scan(
     )
     errors = sum(1 for item in sorted_findings if item["severity"] == "error")
     warnings = sum(1 for item in sorted_findings if item["severity"] == "warning")
-    verified = len(registry.get("claims", []))
+    claims = registry.get("claims", [])
+    verified = sum(1 for claim in claims if claim.get("status") == "verified")
     report = {
         "schema": "daylight.npt.v1.report",
         "tool": TOOL,
@@ -83,9 +84,9 @@ def scan(
         "summary": {
             "files_scanned": len(files),
             "numbers_seen": numbers_seen,
-            "claims_checked": verified + len(sorted_findings),
+            "claims_checked": len(claims) + len(sorted_findings),
             "verified": verified,
-            "exempt": sum(1 for claim in registry.get("claims", []) if claim.get("status") in {"exempt", "non_claim", "illustrative"}),
+            "exempt": sum(1 for claim in claims if claim.get("status") in {"exempt", "non_claim", "illustrative"}),
             "warnings": warnings,
             "errors": errors,
         },

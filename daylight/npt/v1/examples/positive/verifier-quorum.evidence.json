@@ -3,4 +3,3 @@
   "required_quorum": "3-of-3",
   "contract": "daylight.v20.verifier-vector-quorum"
 }
-

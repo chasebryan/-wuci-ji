@@ -9,7 +9,7 @@ from pathlib import Path
 
 NUMBER_RE = re.compile(
     r"(?P<score>\b\d[\d,]*(?:\.\d+)?\s*M\s*/\s*\d[\d,]*(?:\.\d+)?\s*M\b)"
-    r"|(?P<digest>\b(?:sha256|SHA-256|sha3-512|SHA3-512)\s*[:=]\s*[0-9A-Za-z]{8,160}\b)"
+    r"|(?P<digest>\b(?i:sha-?256|sha3[-_]?512)\s*[:=]\s*[0-9A-Za-z]{8,160}\b)"
     r"|(?P<quorum>\b\d+\s*(?:-of-| of )\s*\d+\b|\bexactly\s+\d+\b)"
     r"|(?P<ratio>\b\d[\d,]*(?:\.\d+)?\s*/\s*\d[\d,]*(?:\.\d+)?\b)"
     r"|(?P<percent>\b\d[\d,]*(?:\.\d+)?%)"

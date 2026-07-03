@@ -127,4 +127,3 @@ prose. Do not use prior chat memory as evidence.
 15. The test suite includes negative fixtures for certification/endorsement implication.
 16. The scanner emits `NPT013_ENDORSEMENT_OR_CERTIFICATION_IMPLICATION` when numeric claims are paired with unsupported certification, audit, endorsement, or universal-standard language.
 17. The phrase "as precise as current technology allows" must fail unless the text defines the method, the evidence source, the recomputation path, and the limitation boundary.
-
