@@ -45,6 +45,11 @@ precision gate for evidence-bound numeric claims. It is not external
 certification, audit status, production readiness, security approval,
 post-quantum security, agency endorsement, or a Singularity declaration.
 
+The tracked score-integrity audit records live under
+`audits/daylight/score-integrity/`. They provide claim ledgers, recomputation
+reports, and public-surface comparison records for repository score values.
+They are evidence logs, not certification or external approval.
+
 ## Step 2 - pick the evidence you can produce
 
 1. **Independent rebuild receipt** - rebuild the subject artifact from the

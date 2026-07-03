@@ -1,0 +1,23 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "commit": {
+      "type": "string"
+    },
+    "ratios": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "daylight.score_integrity.ratio_percent.v1"
+    }
+  },
+  "required": [
+    "schema",
+    "commit",
+    "ratios"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,11 @@
+git fetch origin
+git status -sb
+git log --oneline --decorate -10
+git log --oneline origin/main..HEAD
+git show --stat --oneline HEAD
+git diff --check
+make daylight-npt-ci
+make site-validate
+make daylight-v20-aperture-singularity-ci
+make daylight-score-integrity-audit
+make daylight-score-integrity-audit-directory-check

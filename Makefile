@@ -143,13 +143,13 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-external-evidence daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
 .PHONY: daylight-v20-ed25519-attestation-test daylight-v20-canonical-verifier-output daylight-v20-verifier-output-digest daylight-v20-verifier-quorum daylight-v20-verifier-quorum-test
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
-.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-score-integrity-audit
+.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
 
 daylight-npt:
-	PYTHONPATH=daylight/npt/v1 $(PYTHON) -m daylight_npt scan --registry daylight/npt/v1/number-claims.registry.json --out build/daylight/npt-v1/daylight-npt.report.json README.md BUILD_NOTES.md SECURITY.md docs daylight site data
+	PYTHONPATH=daylight/npt/v1 $(PYTHON) -m daylight_npt scan --registry daylight/npt/v1/number-claims.registry.json --out build/daylight/npt-v1/daylight-npt.report.json README.md BUILD_NOTES.md SECURITY.md docs daylight site data audits
 
 daylight-npt-report: daylight-npt
 	@printf '%s\n' "daylight-npt report: build/daylight/npt-v1/daylight-npt.report.json"
@@ -162,6 +162,9 @@ daylight-npt-ci: daylight-npt-test daylight-npt-report
 
 daylight-score-integrity-audit: daylight-npt
 	$(PYTHON) tools/daylight_score_integrity_audit.py
+
+daylight-score-integrity-audit-directory-check:
+	$(PYTHON) tools/daylight_score_integrity_record.py check
 
 daylight-cplus-score:
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json --receipt daylight/v14c-plus/examples/reproducibility-receipt.v14c-plus.json --output-ledger daylight/v14c-plus/examples/ledger.with-scorecard.jsonl

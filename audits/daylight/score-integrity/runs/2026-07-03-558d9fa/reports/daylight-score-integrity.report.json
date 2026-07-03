@@ -1,0 +1,38 @@
+{
+  "commit": "558d9fa71f65fcb5346dfcb92128f60ae118739f",
+  "findings": [],
+  "non_claim_caveat": "This audit checks score integrity against repository evidence and original claim boundaries. It does not certify security, production readiness, audit status, post-quantum security, external endorsement, or mathematical finality.",
+  "result": "pass",
+  "schema": "daylight.score_integrity.report.v1",
+  "summary": {
+    "commands_run": [
+      "make daylight-analemma-verify",
+      "make daylight-cplus-test",
+      "make daylight-meridian-ci",
+      "make daylight-npt-ci",
+      "make daylight-solstice-verify",
+      "make daylight-v17-event-horizon-test",
+      "make daylight-v20-aperture-singularity-ci",
+      "make daylight-v20-score-ceiling-report",
+      "make daylight-zenith-verify",
+      "make site-daylight-status-check",
+      "make site-validate"
+    ],
+    "failures": 0,
+    "families_checked": [
+      "external-quotation",
+      "npt-v1",
+      "v13-sovereign",
+      "v14c-plus",
+      "v15-meridian",
+      "v17-singularity",
+      "v20-aperture-singularity",
+      "v20.3"
+    ],
+    "score_claims_evidence_matched": 3,
+    "score_claims_non_claim": 2,
+    "score_claims_recomputed": 3,
+    "score_claims_seen": 8,
+    "unresolved": 0
+  }
+}

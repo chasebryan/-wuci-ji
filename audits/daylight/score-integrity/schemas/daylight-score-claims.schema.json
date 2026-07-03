@@ -1,0 +1,27 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "claims": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "clean_worktree": {
+      "type": "boolean"
+    },
+    "commit": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "daylight.score_integrity.claims.v1"
+    }
+  },
+  "required": [
+    "schema",
+    "commit",
+    "clean_worktree",
+    "claims"
+  ],
+  "type": "object"
+}

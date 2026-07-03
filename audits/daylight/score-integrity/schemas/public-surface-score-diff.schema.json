@@ -1,0 +1,23 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "claims": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "commit": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "daylight.score_integrity.public_surface.v1"
+    }
+  },
+  "required": [
+    "schema",
+    "commit",
+    "claims"
+  ],
+  "type": "object"
+}

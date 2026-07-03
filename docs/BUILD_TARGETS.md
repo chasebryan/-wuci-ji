@@ -58,11 +58,27 @@ make daylight-npt-ci
 ```
 
 DaylightNPT v1 is the numeric-claim precision firewall for public Wuci-Ji /
-Daylight surfaces. Reviewers can inspect
+Daylight surfaces, including tracked audit records under `audits/`.
+Reviewers can inspect
 `build/daylight/npt-v1/daylight-npt.report.json` after the target runs. The
 gate checks evidence binding and deterministic recomputation where configured;
 it is not certification, audit status, production readiness, security approval,
 post-quantum security, or external endorsement.
+
+## Daylight Score-Integrity Audit Records
+
+```sh
+make daylight-score-integrity-audit
+make daylight-score-integrity-audit-directory-check
+```
+
+`daylight-score-integrity-audit` regenerates the local score-integrity reports
+under `build/daylight/score-audit/`.
+`daylight-score-integrity-audit-directory-check` validates the tracked audit
+record under `audits/daylight/score-integrity/`, including manifest parsing,
+report hashes, required notes, and non-claim boundaries. These targets do not
+certify security, production readiness, audit status, post-quantum security,
+agency endorsement, Singularity declaration, or mathematical finality.
 
 ## Native Proof Lanes
 

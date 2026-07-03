@@ -1,0 +1,653 @@
+{
+  "claims": [
+    {
+      "audit_status": "PASS_RECOMPUTED",
+      "claim_text": "expected generated candidate score 998,200M / 1,000,000M",
+      "commands_to_recompute": [
+        "make daylight-cplus-test"
+      ],
+      "current_locations": [
+        {
+          "line": 69,
+          "path": "README.md",
+          "surface": "readme"
+        },
+        {
+          "line": 9,
+          "path": "daylight/npt/v1/number-claims.registry.json",
+          "surface": "family"
+        },
+        {
+          "line": 27,
+          "path": "daylight/v14c-plus/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 4,
+          "path": "daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json",
+          "surface": "family"
+        },
+        {
+          "line": 61,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        }
+      ],
+      "denominator": 1000000,
+      "evidence_files": [
+        "daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json"
+      ],
+      "expected_boundary": "generated candidate, not verified/external",
+      "generated_artifacts": [
+        "daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json"
+      ],
+      "id": "v14c.candidate_score",
+      "numerator": 998200,
+      "observed": {
+        "candidate_banner": "DAYLIGHT v14C+ ASCENDANT CANDIDATE",
+        "final_score_M": 998200,
+        "manual_override": false,
+        "sum_term_contributions_M": 998200,
+        "unified_score_rational": "4991/5000"
+      },
+      "original_claim_commit": "16631f7",
+      "original_claim_source": "daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "v14c-plus",
+      "stated_percent": null,
+      "unit": "M",
+      "value_canonical": "998200/1000000",
+      "value_raw": "998,200M / 1,000,000M",
+      "version_context": "Daylight v14C+"
+    },
+    {
+      "audit_status": "PASS_RECOMPUTED",
+      "claim_text": "Meridian honest internal ceiling 998,900M / 1,000,000M (candidate, generated)",
+      "commands_to_recompute": [
+        "make daylight-meridian-ci",
+        "make daylight-solstice-verify",
+        "make daylight-zenith-verify",
+        "make daylight-analemma-verify"
+      ],
+      "current_locations": [
+        {
+          "line": 120,
+          "path": "README.md",
+          "surface": "readme"
+        },
+        {
+          "line": 32,
+          "path": "daylight/v15-meridian/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 222,
+          "path": "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json",
+          "surface": "family"
+        },
+        {
+          "line": 2,
+          "path": "daylight/v15-meridian/examples/frontier.v15-meridian.json",
+          "surface": "family"
+        },
+        {
+          "line": 19,
+          "path": "daylight/v15-solstice/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 263,
+          "path": "daylight/v15-solstice/examples/expected-scorecard.v15-solstice.json",
+          "surface": "family"
+        },
+        {
+          "line": 16,
+          "path": "daylight/v16-analemma/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 4,
+          "path": "daylight/v16-analemma/examples/designed-next-score.v16-analemma.json",
+          "surface": "family"
+        },
+        {
+          "line": 28,
+          "path": "daylight/v16-zenith/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 42,
+          "path": "daylight/v17-singularity/examples/current-scorecard.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 42,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 42,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 47,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 10,
+          "path": "daylight/v17-singularity/rules/fields.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 5,
+          "path": "daylight/v17-singularity/rules/proof-atoms.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 44,
+          "path": "daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json",
+          "surface": "family"
+        },
+        {
+          "line": 128,
+          "path": "docs/APERTURE_BASTION_PASS_REPORT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 62,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 55,
+          "path": "docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 11,
+          "path": "docs/WUCI_DAYLIGHT_V15_MERIDIAN.md",
+          "surface": "docs"
+        },
+        {
+          "line": 121,
+          "path": "docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md",
+          "surface": "docs"
+        },
+        {
+          "line": 13,
+          "path": "docs/WUCI_DAYLIGHT_V15_SOLSTICE.md",
+          "surface": "docs"
+        },
+        {
+          "line": 18,
+          "path": "docs/WUCI_DAYLIGHT_V16_ANALEMMA.md",
+          "surface": "docs"
+        },
+        {
+          "line": 15,
+          "path": "docs/WUCI_DAYLIGHT_V16_ZENITH.md",
+          "surface": "docs"
+        }
+      ],
+      "denominator": 1000000,
+      "evidence_files": [
+        "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json"
+      ],
+      "expected_boundary": "honest internal ceiling; 1,000,000M reachable only via external attestations",
+      "generated_artifacts": [
+        "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json"
+      ],
+      "id": "v15.internal_ceiling",
+      "numerator": 998900,
+      "observed": {
+        "closed_obligations": 24,
+        "final_score_M": 998900,
+        "open_obligations": 9,
+        "residue_to_perfect_M": 1100,
+        "sum_term_contributions_M": 998900
+      },
+      "original_claim_commit": "e09d5da",
+      "original_claim_source": "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "v15-meridian",
+      "stated_percent": null,
+      "unit": "M",
+      "value_canonical": "998900/1000000",
+      "value_raw": "998,900M / 1,000,000M",
+      "version_context": "Daylight v15 Meridian; held by v15 Solstice, v16 Analemma, v16 Zenith"
+    },
+    {
+      "audit_status": "PASS_EVIDENCE_MATCH",
+      "claim_text": "Daylight v17 Event Horizon current score 999,999,687 AM+, undeclared",
+      "commands_to_recompute": [
+        "make daylight-v17-event-horizon-test",
+        "make site-daylight-status-check",
+        "make site-validate"
+      ],
+      "current_locations": [
+        {
+          "line": 485,
+          "path": "daylight/v17-singularity/examples/current-scorecard.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 485,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 485,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 33,
+          "path": "daylight/v17-singularity/examples/state.baseline.json",
+          "surface": "family"
+        },
+        {
+          "line": 33,
+          "path": "daylight/v17-singularity/examples/state.current.json",
+          "surface": "family"
+        },
+        {
+          "line": 14,
+          "path": "daylight/v17-singularity/examples/verifier-vector.python-reference.current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 14,
+          "path": "daylight/v17-singularity/examples/verifier-vector.rust-current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 14,
+          "path": "daylight/v17-singularity/examples/verifier-vectors.fake-current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 16,
+          "path": "daylight/v17-singularity/examples/verifier-vectors.python-rust-current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 66,
+          "path": "docs/APERTURE_BASTION_PASS_REPORT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 64,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 90,
+          "path": "site/claim-evidence.json",
+          "surface": "site"
+        },
+        {
+          "line": 10,
+          "path": "site/daylight-status.json",
+          "surface": "site"
+        },
+        {
+          "line": 387,
+          "path": "site/index.html",
+          "surface": "site"
+        }
+      ],
+      "denominator": 999999999,
+      "evidence_files": [
+        "daylight/v17-singularity/examples/current-scorecard.v17.json",
+        "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+        "site/daylight-status.json"
+      ],
+      "expected_boundary": "below declaration target 999,999,999; gate refuses declaration; 1,000,000,000 reserved",
+      "generated_artifacts": [
+        "daylight/v17-singularity/examples/current-scorecard.v17.json",
+        "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+        "site/daylight-status.json"
+      ],
+      "id": "v17.event_horizon_score",
+      "numerator": 999999687,
+      "observed": {
+        "current_equals_expected_scorecard": true,
+        "declared": false,
+        "score_AM_plus": 999999687,
+        "scorecard_digest": "6debccd2631146bead454d475789060d3aad50ef2d7b18b60d7960ce67bddd3d",
+        "site_status_score": 999999687
+      },
+      "original_claim_commit": "f4cf2db",
+      "original_claim_source": "daylight/v17-singularity (v17.1 kernel)",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "v17-singularity",
+      "stated_percent": null,
+      "unit": "AM+",
+      "value_canonical": "999999687",
+      "value_raw": "999,999,687 AM+",
+      "version_context": "Daylight v17 Singularity / Event Horizon"
+    },
+    {
+      "audit_status": "PASS_RECOMPUTED",
+      "claim_text": "Daylight v20 repo-owned no-external ceiling 999,801,305 AM+, declaration refused",
+      "commands_to_recompute": [
+        "make daylight-v20-aperture-singularity-ci",
+        "make daylight-v20-score-ceiling-report",
+        "make site-validate"
+      ],
+      "current_locations": [
+        {
+          "line": 269,
+          "path": "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json",
+          "surface": "family"
+        },
+        {
+          "line": 66,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 12,
+          "path": "docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md",
+          "surface": "docs"
+        },
+        {
+          "line": 111,
+          "path": "site/claim-evidence.json",
+          "surface": "site"
+        },
+        {
+          "line": 6,
+          "path": "site/daylight-v20-aperture-singularity-status.json",
+          "surface": "site"
+        },
+        {
+          "line": 55,
+          "path": "site/hosting-requirements.json",
+          "surface": "site"
+        },
+        {
+          "line": 479,
+          "path": "site/index.html",
+          "surface": "site"
+        },
+        {
+          "line": 12,
+          "path": "site/llms.txt",
+          "surface": "site"
+        }
+      ],
+      "denominator": 999999999,
+      "evidence_files": [
+        "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json",
+        "site/daylight-v20-aperture-singularity-status.json",
+        "site/claim-evidence.json"
+      ],
+      "expected_boundary": "fixture, not claim-usable, repo-owned ceiling, singularity impossible without external validation",
+      "generated_artifacts": [
+        "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json",
+        "site/daylight-v20-aperture-singularity-status.json",
+        "site/claim-evidence.json"
+      ],
+      "id": "v20.repo_owned_ceiling",
+      "numerator": 999801305,
+      "observed": {
+        "blocker_count": 15,
+        "capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+        "declaration_allowed": false,
+        "recomputed_from_omega_eff": 999801305,
+        "score_AM_plus": 999801305,
+        "site_status_matches_capsule": true
+      },
+      "original_claim_commit": "d656951",
+      "original_claim_source": "tag v20-aperture-singularity-score-999801305",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "v20-aperture-singularity",
+      "stated_percent": null,
+      "unit": "AM+",
+      "value_canonical": "999801305",
+      "value_raw": "999,801,305 AM+",
+      "version_context": "Daylight v20 Aperture Singularity"
+    },
+    {
+      "audit_status": "PASS_EVIDENCE_MATCH",
+      "claim_text": "Daylight v20.3 external verifier-family quorum is exactly 3-of-3",
+      "commands_to_recompute": [
+        "make daylight-v20-aperture-singularity-ci"
+      ],
+      "current_locations": [
+        {
+          "line": 448,
+          "path": "README.md",
+          "surface": "readme"
+        },
+        {
+          "line": 55,
+          "path": "daylight/npt/v1/number-claims.registry.json",
+          "surface": "family"
+        },
+        {
+          "line": 29,
+          "path": "daylight/v20-aperture-singularity/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 68,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 29,
+          "path": "docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md",
+          "surface": "docs"
+        },
+        {
+          "line": 33,
+          "path": "site/daylight-v20-aperture-singularity-status.json",
+          "surface": "site"
+        },
+        {
+          "line": 537,
+          "path": "site/index.html",
+          "surface": "site"
+        },
+        {
+          "line": 59,
+          "path": "site/llms.txt",
+          "surface": "site"
+        }
+      ],
+      "denominator": 3,
+      "evidence_files": [
+        "docs/DAYLIGHT_V20_VERIFIER_VECTOR_QUORUM.md",
+        "docs/DAYLIGHT_V20_CANONICAL_VERIFIER_OUTPUT.md"
+      ],
+      "expected_boundary": "closes only the verifier-vector blocker; no score raise; no declaration",
+      "generated_artifacts": [
+        "docs/DAYLIGHT_V20_VERIFIER_VECTOR_QUORUM.md",
+        "docs/DAYLIGHT_V20_CANONICAL_VERIFIER_OUTPUT.md"
+      ],
+      "id": "v20_3.verifier_quorum",
+      "numerator": 3,
+      "observed": {
+        "closes_only_verifier_vector_blocker": true,
+        "exactly_three_documented": true,
+        "more_than_three_rejected": true,
+        "no_declaration_language": true,
+        "weakening_hits_outside_fixtures": []
+      },
+      "original_claim_commit": "cc3b5c7",
+      "original_claim_source": "docs/DAYLIGHT_V20_VERIFIER_VECTOR_QUORUM.md",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "v20.3",
+      "stated_percent": null,
+      "unit": "quorum",
+      "value_canonical": "3/3",
+      "value_raw": "3-of-3",
+      "version_context": "Daylight v20.3"
+    },
+    {
+      "audit_status": "PASS_EVIDENCE_MATCH",
+      "claim_text": "DaylightNPT v1 clean-checkout report summary",
+      "commands_to_recompute": [
+        "make daylight-npt-ci"
+      ],
+      "current_locations": [
+        {
+          "line": 43,
+          "path": "docs/DAYLIGHT_NPT_V1_CLOSEOUT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 155,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        }
+      ],
+      "denominator": null,
+      "evidence_files": [
+        "build/daylight/npt-v1/daylight-npt.report.json",
+        "docs/DAYLIGHT_NPT_V1_CLOSEOUT.md"
+      ],
+      "expected_boundary": "counts are tree-dependent; clean-checkout/CI values are the reference",
+      "generated_artifacts": [
+        "build/daylight/npt-v1/daylight-npt.report.json",
+        "docs/DAYLIGHT_NPT_V1_CLOSEOUT.md"
+      ],
+      "id": "npt.clean_baseline",
+      "numerator": null,
+      "observed": {
+        "closeout_doc_matches_stable_fields": true,
+        "exempt": 1,
+        "files_scanned": 250,
+        "note": "files_scanned/numbers_seen are tree-dependent; closeout records clean-checkout values",
+        "numbers_seen": 1244,
+        "registry_sha256": "6fd6118b613eb2a8469bde09419be0bb4096003435fe775683712e8401f99455",
+        "result": "pass",
+        "verified": 6
+      },
+      "original_claim_commit": "014a117",
+      "original_claim_source": "docs/DAYLIGHT_NPT_V1_CLOSEOUT.md",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "npt-v1",
+      "stated_percent": null,
+      "unit": "counts",
+      "value_canonical": "npt-summary",
+      "value_raw": "pass; verified 6; exempt 1; errors 0",
+      "version_context": "DaylightNPT v1"
+    },
+    {
+      "audit_status": "PASS_NON_CLAIM_BOUNDARY",
+      "claim_text": "Daylight v13 Sovereign design target 991,300M / 1,000,000M (specification target, never generated)",
+      "commands_to_recompute": [],
+      "current_locations": [
+        {
+          "line": 70,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 14,
+          "path": "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
+          "surface": "docs"
+        }
+      ],
+      "denominator": 1000000,
+      "evidence_files": [
+        "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md"
+      ],
+      "expected_boundary": "design target in a historical specification; no generated scorecard asserts it",
+      "generated_artifacts": [
+        "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md"
+      ],
+      "id": "v13.design_target",
+      "numerator": 991300,
+      "observed": {
+        "target_wording_present": true
+      },
+      "original_claim_commit": "3e9d4e9",
+      "original_claim_source": "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "v13-sovereign",
+      "stated_percent": null,
+      "unit": "M",
+      "value_canonical": "991300/1000000",
+      "value_raw": "991,300M / 1,000,000M",
+      "version_context": "Daylight v13 Sovereign (historical spec)"
+    },
+    {
+      "audit_status": "PASS_NON_CLAIM_BOUNDARY",
+      "claim_text": "Grok-attributed assessment numbers quoted on the audit page (955/1000, 973/1000, 984/1000, 941,000M)",
+      "commands_to_recompute": [
+        "make site-validate"
+      ],
+      "current_locations": [
+        {
+          "line": 66,
+          "path": "data/daylight/grok-scoring-audit/exhibits.json",
+          "surface": "other"
+        },
+        {
+          "line": 60,
+          "path": "docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md",
+          "surface": "docs"
+        },
+        {
+          "line": 66,
+          "path": "docs/GROK_SCORE_INFLATION_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 8,
+          "path": "docs/WUCI_DAYLIGHT_V9.md",
+          "surface": "docs"
+        },
+        {
+          "line": 30,
+          "path": "docs/WUCI_OS.md",
+          "surface": "docs"
+        },
+        {
+          "line": 106,
+          "path": "site/daylight-grok-audit.html",
+          "surface": "site"
+        }
+      ],
+      "denominator": null,
+      "evidence_files": [
+        "site/daylight-grok-audit.html"
+      ],
+      "expected_boundary": "Grok-attributed, not authenticated; quoted, never adopted as Daylight scores",
+      "generated_artifacts": [
+        "site/daylight-grok-audit.html"
+      ],
+      "id": "grok.quoted_third_party_scores",
+      "numerator": null,
+      "observed": {
+        "attribution_boundary_present": true
+      },
+      "original_claim_commit": "3718c24",
+      "original_claim_source": "site/daylight-grok-audit.html",
+      "percent_rounding_rule": null,
+      "recomputed_percent": null,
+      "score_family": "external-quotation",
+      "stated_percent": null,
+      "unit": "mixed",
+      "value_canonical": "quoted-third-party",
+      "value_raw": "955/1000; 973/1000; 984/1000; 941,000M",
+      "version_context": "site/daylight-grok-audit.html"
+    }
+  ],
+  "clean_worktree": true,
+  "commit": "558d9fa71f65fcb5346dfcb92128f60ae118739f",
+  "schema": "daylight.score_integrity.claims.v1"
+}

@@ -44,6 +44,19 @@ research system.
 | Daylight v14C+ execution package | [daylight/v14c-plus/](daylight/v14c-plus/) |
 | Daylight v20 external evidence packet | [docs/DAYLIGHT_V20_REVIEWER_PACKET.md](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) |
 
+## Daylight score-integrity audits
+
+Daylight score-integrity audit records are stored under:
+[audits/daylight/score-integrity/](audits/daylight/score-integrity/)
+
+These records contain score-claim ledgers, recomputation reports,
+ratio/percentage checks, quorum/blocker checks, public-surface comparisons, and
+non-claim boundaries.
+
+They do not certify security, production readiness, audit status,
+post-quantum security, agency endorsement, Singularity declaration, or
+mathematical finality.
+
 ## Daylight C+ / v14C+
 
 Daylight v14C+ is a deterministic execution package, not a manually asserted

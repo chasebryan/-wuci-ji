@@ -20,9 +20,9 @@ DeclarationBlocked -> NoDeclarationClaim
 
 ## Methodology
 
-1. All canonical numbers were produced in a disposable clean worktree
-   (`git worktree add /tmp/wuci-ji-score-audit HEAD`), never a dirty local
-   tree. The audited commit is recorded in each generated report.
+1. All canonical numbers were produced in a disposable clean worktree outside
+   the active checkout, never a dirty local tree. The audited commit is
+   recorded in each generated report.
 2. Every required baseline gate was executed and its exit code recorded.
 3. Distinct score claims were enumerated from tracked public surfaces
    (`git grep` over README, docs, site, daylight, data) and recorded as claim
@@ -36,7 +36,8 @@ DeclarationBlocked -> NoDeclarationClaim
 6. The generator is `tools/daylight_score_integrity_audit.py`
    (`make daylight-score-integrity-audit`). It is deterministic, stdlib-only,
    reads tracked files only, and writes four reports under
-   `build/daylight/score-audit/`.
+   `build/daylight/score-audit/`. The permanent public record for copied,
+   sanitized run artifacts is `audits/daylight/score-integrity/`.
 
 ## Commands run (all exit 0 in the clean worktree)
 
@@ -146,6 +147,9 @@ No integrity failures. Zero claims were wrong, inflated, unsupported, or
 boundary-drifted at the audited commit. The generated report is
 `build/daylight/score-audit/daylight-score-integrity.report.json` with
 `result: pass`.
+
+The permanent repository-side record for this run is under the
+`audits/daylight/score-integrity/runs/` directory.
 
 ## Residual limitations
 

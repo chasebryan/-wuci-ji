@@ -1,0 +1,73 @@
+{
+  "audit_id": "2026-07-03-558d9fa",
+  "audited_commit": "558d9fa71f65fcb5346dfcb92128f60ae118739f",
+  "audited_commit_date": "2026-07-03",
+  "audited_commit_short": "558d9fa",
+  "commands": [
+    "make daylight-npt-ci",
+    "make site-validate",
+    "make daylight-v20-aperture-singularity-ci",
+    "make daylight-score-integrity-audit",
+    "make daylight-score-integrity-audit-directory-check"
+  ],
+  "non_claim_boundary": {
+    "certifies_audit_status": false,
+    "certifies_post_quantum_security": false,
+    "certifies_production_readiness": false,
+    "certifies_security": false,
+    "declares_singularity": false,
+    "implies_agency_endorsement": false,
+    "proves_mathematical_finality": false
+  },
+  "notes": [
+    {
+      "description": "Original claim values and boundaries observed by the generated claim ledger.",
+      "path": "notes/original-claim-integrity.md"
+    },
+    {
+      "description": "Score family summary derived from the generated claim ledger.",
+      "path": "notes/score-family-summary.md"
+    },
+    {
+      "description": "Ratio and percentage recomputation notes derived from the generated ratio report.",
+      "path": "notes/ratio-percentage-math.md"
+    },
+    {
+      "description": "Quorum and blocker boundary notes derived from the generated claim ledger.",
+      "path": "notes/quorum-blocker-boundary.md"
+    },
+    {
+      "description": "Public-surface consistency notes derived from the generated surface report.",
+      "path": "notes/public-surface-consistency.md"
+    },
+    {
+      "description": "Residual limitations preserved by the run.",
+      "path": "notes/residual-limitations.md"
+    }
+  ],
+  "reports": [
+    {
+      "description": "Generated score claim ledger.",
+      "path": "reports/daylight-score-claims.json",
+      "sha256": "a302a286a0a0ea0e06157136edf9a4370070330eedfeea65f985bf4a336e9974"
+    },
+    {
+      "description": "Generated exact ratio and percentage recomputation report.",
+      "path": "reports/ratio-percent-audit.json",
+      "sha256": "627f6cb375c2fde07692d3b37752a7647d0f6f8f157d4965e9a04c6e9942808d"
+    },
+    {
+      "description": "Generated public-surface score comparison report.",
+      "path": "reports/public-surface-score-diff.json",
+      "sha256": "49e504ae0b0252eec357d3bc92aab6325ce5582bbbb33b1e09e3db0bcc2bb8b2"
+    },
+    {
+      "description": "Generated final score-integrity report.",
+      "path": "reports/daylight-score-integrity.report.json",
+      "sha256": "4ae8377f14eb70d2ecd8759b7c8763c04d5c41a26c7346858e9e8eed17cf8abc"
+    }
+  ],
+  "result": "PASS_SCORE_INTEGRITY",
+  "schema": "wuci.audit.daylight.score_integrity.run_manifest.v1",
+  "source_branch": "main"
+}

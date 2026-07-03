@@ -1,0 +1,39 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "audit_id": {
+      "type": "string"
+    },
+    "audited_commit": {
+      "type": "string"
+    },
+    "non_claim_boundary": {
+      "type": "object"
+    },
+    "reports": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "result": {
+      "enum": [
+        "PASS_SCORE_INTEGRITY",
+        "FAIL_SCORE_INTEGRITY",
+        "UNRESOLVED_SCORE_INTEGRITY"
+      ]
+    },
+    "schema": {
+      "const": "wuci.audit.daylight.score_integrity.run_manifest.v1"
+    }
+  },
+  "required": [
+    "schema",
+    "audit_id",
+    "audited_commit",
+    "result",
+    "reports",
+    "non_claim_boundary"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,452 @@
+{
+  "claims": [
+    {
+      "boundary": "generated candidate, not verified/external",
+      "claim_id": "v14c.candidate_score",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 69,
+          "path": "README.md",
+          "surface": "readme"
+        },
+        {
+          "line": 9,
+          "path": "daylight/npt/v1/number-claims.registry.json",
+          "surface": "family"
+        },
+        {
+          "line": 27,
+          "path": "daylight/v14c-plus/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 4,
+          "path": "daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json",
+          "surface": "family"
+        },
+        {
+          "line": 61,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        }
+      ],
+      "surfaces": [
+        "docs",
+        "family",
+        "readme"
+      ],
+      "value_canonical": "998200/1000000"
+    },
+    {
+      "boundary": "honest internal ceiling; 1,000,000M reachable only via external attestations",
+      "claim_id": "v15.internal_ceiling",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 120,
+          "path": "README.md",
+          "surface": "readme"
+        },
+        {
+          "line": 32,
+          "path": "daylight/v15-meridian/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 222,
+          "path": "daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json",
+          "surface": "family"
+        },
+        {
+          "line": 2,
+          "path": "daylight/v15-meridian/examples/frontier.v15-meridian.json",
+          "surface": "family"
+        },
+        {
+          "line": 19,
+          "path": "daylight/v15-solstice/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 263,
+          "path": "daylight/v15-solstice/examples/expected-scorecard.v15-solstice.json",
+          "surface": "family"
+        },
+        {
+          "line": 16,
+          "path": "daylight/v16-analemma/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 4,
+          "path": "daylight/v16-analemma/examples/designed-next-score.v16-analemma.json",
+          "surface": "family"
+        },
+        {
+          "line": 28,
+          "path": "daylight/v16-zenith/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 42,
+          "path": "daylight/v17-singularity/examples/current-scorecard.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 42,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 42,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 47,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.declaration-fixture.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 10,
+          "path": "daylight/v17-singularity/rules/fields.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 5,
+          "path": "daylight/v17-singularity/rules/proof-atoms.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 44,
+          "path": "daylight/v20-aperture-singularity/examples/input-aperture-capsule.source-snapshot.v19.json",
+          "surface": "family"
+        },
+        {
+          "line": 128,
+          "path": "docs/APERTURE_BASTION_PASS_REPORT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 62,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 55,
+          "path": "docs/DAYLIGHT_V15_MERIDIAN_SOFTWARE_ARTIFACT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 11,
+          "path": "docs/WUCI_DAYLIGHT_V15_MERIDIAN.md",
+          "surface": "docs"
+        },
+        {
+          "line": 121,
+          "path": "docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md",
+          "surface": "docs"
+        },
+        {
+          "line": 13,
+          "path": "docs/WUCI_DAYLIGHT_V15_SOLSTICE.md",
+          "surface": "docs"
+        },
+        {
+          "line": 18,
+          "path": "docs/WUCI_DAYLIGHT_V16_ANALEMMA.md",
+          "surface": "docs"
+        },
+        {
+          "line": 15,
+          "path": "docs/WUCI_DAYLIGHT_V16_ZENITH.md",
+          "surface": "docs"
+        }
+      ],
+      "surfaces": [
+        "docs",
+        "family",
+        "readme"
+      ],
+      "value_canonical": "998900/1000000"
+    },
+    {
+      "boundary": "below declaration target 999,999,999; gate refuses declaration; 1,000,000,000 reserved",
+      "claim_id": "v17.event_horizon_score",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 485,
+          "path": "daylight/v17-singularity/examples/current-scorecard.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 485,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.baseline.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 485,
+          "path": "daylight/v17-singularity/examples/expected-scorecard.current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 33,
+          "path": "daylight/v17-singularity/examples/state.baseline.json",
+          "surface": "family"
+        },
+        {
+          "line": 33,
+          "path": "daylight/v17-singularity/examples/state.current.json",
+          "surface": "family"
+        },
+        {
+          "line": 14,
+          "path": "daylight/v17-singularity/examples/verifier-vector.python-reference.current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 14,
+          "path": "daylight/v17-singularity/examples/verifier-vector.rust-current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 14,
+          "path": "daylight/v17-singularity/examples/verifier-vectors.fake-current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 16,
+          "path": "daylight/v17-singularity/examples/verifier-vectors.python-rust-current.v17.json",
+          "surface": "family"
+        },
+        {
+          "line": 66,
+          "path": "docs/APERTURE_BASTION_PASS_REPORT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 64,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 90,
+          "path": "site/claim-evidence.json",
+          "surface": "site"
+        },
+        {
+          "line": 10,
+          "path": "site/daylight-status.json",
+          "surface": "site"
+        },
+        {
+          "line": 387,
+          "path": "site/index.html",
+          "surface": "site"
+        }
+      ],
+      "surfaces": [
+        "docs",
+        "family",
+        "site"
+      ],
+      "value_canonical": "999999687"
+    },
+    {
+      "boundary": "fixture, not claim-usable, repo-owned ceiling, singularity impossible without external validation",
+      "claim_id": "v20.repo_owned_ceiling",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 269,
+          "path": "daylight/v20-aperture-singularity/examples/aperture-singularity-capsule.fixture.v20.json",
+          "surface": "family"
+        },
+        {
+          "line": 66,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 12,
+          "path": "docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md",
+          "surface": "docs"
+        },
+        {
+          "line": 111,
+          "path": "site/claim-evidence.json",
+          "surface": "site"
+        },
+        {
+          "line": 6,
+          "path": "site/daylight-v20-aperture-singularity-status.json",
+          "surface": "site"
+        },
+        {
+          "line": 55,
+          "path": "site/hosting-requirements.json",
+          "surface": "site"
+        },
+        {
+          "line": 479,
+          "path": "site/index.html",
+          "surface": "site"
+        },
+        {
+          "line": 12,
+          "path": "site/llms.txt",
+          "surface": "site"
+        }
+      ],
+      "surfaces": [
+        "docs",
+        "family",
+        "site"
+      ],
+      "value_canonical": "999801305"
+    },
+    {
+      "boundary": "closes only the verifier-vector blocker; no score raise; no declaration",
+      "claim_id": "v20_3.verifier_quorum",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 448,
+          "path": "README.md",
+          "surface": "readme"
+        },
+        {
+          "line": 55,
+          "path": "daylight/npt/v1/number-claims.registry.json",
+          "surface": "family"
+        },
+        {
+          "line": 29,
+          "path": "daylight/v20-aperture-singularity/README.md",
+          "surface": "family"
+        },
+        {
+          "line": 68,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 29,
+          "path": "docs/DAYLIGHT_V20_EXTERNAL_EVIDENCE_PROTOCOL.md",
+          "surface": "docs"
+        },
+        {
+          "line": 33,
+          "path": "site/daylight-v20-aperture-singularity-status.json",
+          "surface": "site"
+        },
+        {
+          "line": 537,
+          "path": "site/index.html",
+          "surface": "site"
+        },
+        {
+          "line": 59,
+          "path": "site/llms.txt",
+          "surface": "site"
+        }
+      ],
+      "surfaces": [
+        "docs",
+        "family",
+        "readme",
+        "site"
+      ],
+      "value_canonical": "3/3"
+    },
+    {
+      "boundary": "counts are tree-dependent; clean-checkout/CI values are the reference",
+      "claim_id": "npt.clean_baseline",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 43,
+          "path": "docs/DAYLIGHT_NPT_V1_CLOSEOUT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 155,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        }
+      ],
+      "surfaces": [
+        "docs"
+      ],
+      "value_canonical": "npt-summary"
+    },
+    {
+      "boundary": "design target in a historical specification; no generated scorecard asserts it",
+      "claim_id": "v13.design_target",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 70,
+          "path": "docs/DAYLIGHT_SCORE_INTEGRITY_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 14,
+          "path": "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
+          "surface": "docs"
+        }
+      ],
+      "surfaces": [
+        "docs"
+      ],
+      "value_canonical": "991300/1000000"
+    },
+    {
+      "boundary": "Grok-attributed, not authenticated; quoted, never adopted as Daylight scores",
+      "claim_id": "grok.quoted_third_party_scores",
+      "consistent": true,
+      "locations": [
+        {
+          "line": 66,
+          "path": "data/daylight/grok-scoring-audit/exhibits.json",
+          "surface": "other"
+        },
+        {
+          "line": 60,
+          "path": "docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md",
+          "surface": "docs"
+        },
+        {
+          "line": 66,
+          "path": "docs/GROK_SCORE_INFLATION_AUDIT.md",
+          "surface": "docs"
+        },
+        {
+          "line": 8,
+          "path": "docs/WUCI_DAYLIGHT_V9.md",
+          "surface": "docs"
+        },
+        {
+          "line": 30,
+          "path": "docs/WUCI_OS.md",
+          "surface": "docs"
+        },
+        {
+          "line": 106,
+          "path": "site/daylight-grok-audit.html",
+          "surface": "site"
+        }
+      ],
+      "surfaces": [
+        "docs",
+        "other",
+        "site"
+      ],
+      "value_canonical": "quoted-third-party"
+    }
+  ],
+  "commit": "558d9fa71f65fcb5346dfcb92128f60ae118739f",
+  "schema": "daylight.score_integrity.public_surface.v1"
+}

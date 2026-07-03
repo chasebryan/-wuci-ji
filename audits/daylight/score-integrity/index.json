@@ -1,0 +1,13 @@
+{
+  "latest_run": "2026-07-03-558d9fa",
+  "runs": [
+    {
+      "commit": "558d9fa71f65fcb5346dfcb92128f60ae118739f",
+      "id": "2026-07-03-558d9fa",
+      "manifest": "runs/2026-07-03-558d9fa/MANIFEST.json",
+      "report": "runs/2026-07-03-558d9fa/reports/daylight-score-integrity.report.json",
+      "result": "PASS_SCORE_INTEGRITY"
+    }
+  ],
+  "schema": "wuci.audit.daylight.score_integrity.index.v1"
+}

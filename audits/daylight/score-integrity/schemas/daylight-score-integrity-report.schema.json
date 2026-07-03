@@ -1,0 +1,35 @@
+{
+  "additionalProperties": true,
+  "properties": {
+    "commit": {
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "result": {
+      "enum": [
+        "pass",
+        "fail",
+        "unresolved"
+      ]
+    },
+    "schema": {
+      "const": "daylight.score_integrity.report.v1"
+    },
+    "summary": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "commit",
+    "result",
+    "summary",
+    "findings"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,14 @@
+6a1ddebc5543876a16047f17634ab319d5e877d753947cfaf5765c91becb8dc3  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/COMMANDS.txt
+8b1664682ea000e2c49fea2cc66c840830ffa66c7996852e47d1d4d9354bc0d1  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/MANIFEST.json
+54a042dfd01b887809ed86e2b5a9af2cdd1311acce3f721f7435d5f2362111a7  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/README.md
+c3651aa5fff6062dd3ea3c09f4a1c9564346c94c347686de6d14a6c4584f1693  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/VALIDATION.md
+13dadcdcda2fd01b01c75aa2029dbded81587580c3b39bc17fd5eec04078343b  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/notes/original-claim-integrity.md
+b1aa8b698f5ccb2061a97133872cea217933b127af30d30d3ab8ff8c39fb18fd  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/notes/public-surface-consistency.md
+50dee4854e01b274f5d85d978ad31614906d03c8c23c3af45ac404bd692418d1  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/notes/quorum-blocker-boundary.md
+7e5b6e63a542d54485f323d7c4b96ea61fc214ccc1cef1006882de5df728fa05  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/notes/ratio-percentage-math.md
+cc213418c8a80ca6a89bb35b01a2762b24ddd953140bd34fee7435cef7bd7057  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/notes/residual-limitations.md
+79366d37fb3f060b1b335330499a4af77a0593373f3e072590bbc31ed0802fb3  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/notes/score-family-summary.md
+a302a286a0a0ea0e06157136edf9a4370070330eedfeea65f985bf4a336e9974  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/daylight-score-claims.json
+4ae8377f14eb70d2ecd8759b7c8763c04d5c41a26c7346858e9e8eed17cf8abc  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/daylight-score-integrity.report.json
+49e504ae0b0252eec357d3bc92aab6325ce5582bbbb33b1e09e3db0bcc2bb8b2  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/public-surface-score-diff.json
+627f6cb375c2fde07692d3b37752a7647d0f6f8f157d4965e9a04c6e9942808d  audits/daylight/score-integrity/runs/2026-07-03-558d9fa/reports/ratio-percent-audit.json

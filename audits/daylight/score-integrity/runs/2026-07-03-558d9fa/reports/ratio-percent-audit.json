@@ -1,0 +1,54 @@
+{
+  "commit": "558d9fa71f65fcb5346dfcb92128f60ae118739f",
+  "ratios": [
+    {
+      "computed_decimal": "0.9982",
+      "computed_percent": "99.82",
+      "denominator": "1000000",
+      "id": "npt.fixture.recomputed_percent",
+      "location": "daylight/npt/v1/examples/positive/recomputed-percent.md",
+      "match": true,
+      "numerator": "998200",
+      "ratio_raw": "998,200 / 1,000,000",
+      "rounding_rule": "Decimal ROUND_HALF_UP at 2 places (documented in NPT json_ratio_percent)",
+      "stated_percent": "99.82"
+    },
+    {
+      "computed_decimal": "0.03045738045738045738045738045738045738045738045738045738045738045738045738045738045738045738045738046",
+      "computed_percent": "3.0457",
+      "denominator": "962000",
+      "id": "v13.dominance_margin",
+      "location": "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
+      "match": true,
+      "numerator": "29300",
+      "ratio_raw": "991300 / 962000 (margin over 1)",
+      "rounding_rule": "undocumented; matches Decimal ROUND_HALF_UP at 4 places",
+      "stated_percent": "3.0457"
+    },
+    {
+      "computed_decimal": "0.7710526315789473684210526315789473684210526315789473684210526315789473684210526315789473684210526316",
+      "computed_percent": "77.1053",
+      "denominator": "38000",
+      "id": "v13.gap_capture",
+      "location": "docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md",
+      "match": true,
+      "numerator": "29300",
+      "ratio_raw": "29300 / 38000",
+      "rounding_rule": "undocumented; matches Decimal ROUND_HALF_UP at 4 places",
+      "stated_percent": "77.1053"
+    },
+    {
+      "computed_decimal": "0.24",
+      "computed_percent": "24",
+      "denominator": "500000",
+      "id": "v16.analemma_proof_mass_growth",
+      "location": "docs/WUCI_DAYLIGHT_V16_ANALEMMA.md",
+      "match": true,
+      "numerator": "120000",
+      "ratio_raw": "120000 / 500000",
+      "rounding_rule": "exact (no remainder)",
+      "stated_percent": "24"
+    }
+  ],
+  "schema": "daylight.score_integrity.ratio_percent.v1"
+}
