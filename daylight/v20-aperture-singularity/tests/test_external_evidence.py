@@ -19,29 +19,28 @@ def _blocker_text(report):
 
 
 class ExternalEvidenceTests(unittest.TestCase):
-    def test_programmatic_full_bundle_closes_structure_but_not_crypto(self):
+    def test_programmatic_full_bundle_closes_structure_with_verified_test_crypto(self):
         bundle, capsule, aperture = support.full_bundle()
         registry = support.pin_registry_for(bundle)
         report = support.evaluate(bundle, capsule, aperture, registry)
 
         self.assertTrue(report["bundle_digest_verified"])
-        self.assertFalse(report["external_evidence_admissible"])
-        self.assertFalse(report["external_attestation_verified"])
+        self.assertTrue(report["shape_valid"])
+        self.assertTrue(report["pinned_material_valid"])
         self.assertFalse(report["declaration_allowed"])
         self.assertEqual(report["sections"]["subject_binding"]["blockers"], [])
+        self.assertEqual(report["sections"]["claim_usable_verifier_vectors"]["distinct_family_count"], 3)
+        self.assertEqual(report["pinned_key_count"], 6)
+        self.assertTrue(report["external_evidence_admissible"])
+        self.assertTrue(report["external_attestation_verified"])
+        self.assertEqual(report["cryptographically_verified_attestation_count"], 6)
+        self.assertEqual(report["blockers"], [])
         for section in (
             "independent_rebuild_receipts",
             "firewall_profile_reviews",
             "claim_usable_verifier_vectors",
         ):
-            blockers = report["sections"][section]["blockers"]
-            self.assertTrue(blockers)
-            self.assertTrue(all("attestation is not admissible" in item for item in blockers), blockers)
-        self.assertEqual(report["sections"]["claim_usable_verifier_vectors"]["distinct_family_count"], 3)
-        self.assertEqual(report["pinned_key_count"], 6)
-        blockers = _blocker_text(report)
-        self.assertIn(external_evidence.ATTESTATION_NOT_IMPLEMENTED_BLOCKER, blockers)
-        self.assertIn("signature is not cryptographically verified", blockers)
+            self.assertEqual(report["sections"][section]["blockers"], [])
 
     def test_default_valid_shape_example_is_nonclaim_until_pinned_crypto_exists(self):
         report = external_evidence.load_and_evaluate(
@@ -58,7 +57,6 @@ class ExternalEvidenceTests(unittest.TestCase):
         self.assertEqual(report["pinned_key_count"], 0)
         blockers = _blocker_text(report)
         self.assertIn("public key is not pinned", blockers)
-        self.assertIn(external_evidence.ATTESTATION_NOT_IMPLEMENTED_BLOCKER, blockers)
 
     def test_empty_bundle_rejects_required_external_slots(self):
         report = external_evidence.load_and_evaluate(
@@ -134,7 +132,7 @@ class ExternalEvidenceTests(unittest.TestCase):
         self.assertIn(f"rebuild receipts share the same environment digest: {shared_env}", blockers)
 
     def test_pinned_material_requires_nonclaims_and_key_digest_binding(self):
-        key = b"external reviewer public key material"
+        key = hashlib.sha256(b"external reviewer public key material").digest()
         digest = hashlib.sha256(key).hexdigest()
         registry = copy.deepcopy(support.load_registry())
         registry["pinned_signers"] = [

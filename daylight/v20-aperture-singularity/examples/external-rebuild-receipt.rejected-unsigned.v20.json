@@ -1,0 +1,54 @@
+{
+  "attestation_ref": {},
+  "build_commands": [
+    "make daylight-v20-aperture-singularity-public-artifact",
+    "make daylight-v20-aperture-singularity-verify-public-artifact"
+  ],
+  "claim_usable": true,
+  "clean_checkout_declared": true,
+  "environment": {
+    "architecture": "x86_64",
+    "containerized": false,
+    "notes": "deterministic unit-test fixture",
+    "os_name": "test-linux",
+    "os_version": "deterministic-fixture",
+    "shell": "posix-sh",
+    "tool_versions": {
+      "make": "posix",
+      "python": "3.x"
+    }
+  },
+  "expected_artifact": {
+    "artifact_name": "daylight/v19-aperture-bastion/examples/example-subject.bin",
+    "byte_count": 84,
+    "public_manifest_digest": "c95bd37f68e9ec446ffa5c2139a2fa36dae4af94d48e58f861eb091c6e455937",
+    "sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+    "sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446"
+  },
+  "fixture": false,
+  "nonclaim_acknowledgement": {
+    "no_external_certification_claim": true,
+    "no_perfect_score_claim": true,
+    "no_production_crypto_claim": true,
+    "no_runtime_containment_claim": true,
+    "no_singularity_claim_from_this_receipt_alone": true,
+    "no_whole_system_post_quantum_safety_claim": true
+  },
+  "produced_artifact": {
+    "artifact_name": "daylight/v19-aperture-bastion/examples/example-subject.bin",
+    "byte_count": 84,
+    "public_manifest_digest": "c95bd37f68e9ec446ffa5c2139a2fa36dae4af94d48e58f861eb091c6e455937",
+    "sha256": "bdaefb595dfc1f7ce15a297abafb240ae36a5134e9b7e184eef58f5e6cfd67d3",
+    "sha3_512": "083183439a2082d81736b59cd3e081e6d83fbde71849a7650f814bd43922f523d0704c95351cafc6e87d7d78e9720f0248f53ee8b005ce4620b62a98c34ef446"
+  },
+  "receipt_id": "external-rebuild-receipt-rejected-unsigned",
+  "receipt_kind": "daylight-v20-independent-rebuild-receipt",
+  "receipt_statement_digest": "ac49dccbb517d28d819eeb4fa37728f4c335514da0446f0d0a0857dbd13ec31a",
+  "reviewer_identity": "rebuilder-alpha.example.org",
+  "reviewer_independence_class": "external",
+  "schema_version": 1,
+  "source_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2",
+  "source_repo": "https://github.com/chasebryan/-wuci-ji",
+  "source_tag": "v20-aperture-singularity-fixture",
+  "transcript_digest": "151f542ca4acc97e8d9231bfc4dfe01bb109f1231e603fbbb4c4a5fe0c5fd25e"
+}

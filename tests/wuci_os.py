@@ -973,11 +973,21 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wuci-boot-chime --once" in files["usr/local/bin/wuci-guide"]
     assert "wuci-terminal --print" in files["usr/local/bin/wuci-guide"]
     assert "sudo wj install vim emacs kitty" in files["usr/local/bin/wuci-guide"]
+    assert "sudo wj update" in files["usr/local/bin/wuci-guide"]
+    assert "sudo wj update --network" in files["usr/local/bin/wuci-guide"]
+    assert "sudo wuci-update --network" in files["usr/local/bin/wuci-guide"]
+    assert "sudo wj package-update" in files["usr/local/bin/wuci-guide"]
     assert "prepare AI tool setup plan" in files["usr/local/bin/wuci-guide"]
     assert "xbps-install -Sy" in files["usr/local/bin/wj"]
     assert "wuci-network-connect" in files["usr/local/bin/wj"]
     assert "network is not connected" in files["usr/local/bin/wj"]
     assert "os-update|live-update" in files["usr/local/bin/wj"]
+    assert "update|upgrade)" in files["usr/local/bin/wj"]
+    assert "package-update|packages-update|pkg-update)" in files["usr/local/bin/wj"]
+    assert 'exec wuci-update "$@"' in files["usr/local/bin/wj"]
+    assert 'exec wuci-update --packages-only "$@"' in files["usr/local/bin/wj"]
+    assert 'run_xbps "wj package-update" xbps-install -Syu' not in files["usr/local/bin/wj"]
+    assert 'run_xbps "wj update" xbps-install -Syu' not in files["usr/local/bin/wj"]
     assert "WJ_ALLOW_REMOVE=1" in files["usr/local/bin/wj"]
     assert "Wi-Fi SSID" in files["usr/local/bin/wuci-network-connect"]
     assert "Wuci-OS network setup" in files["usr/local/bin/wuci-network-connect"]
@@ -1000,7 +1010,17 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
     # wuci-update prefers the measured, digest-verified overlay sync after a pull.
     assert "wuci-selfupdate --apply --source \"$repo\"" in files["usr/local/bin/wuci-update"]
+    assert "packages=0" in files["usr/local/bin/wuci-update"]
+    assert "pull=0" in files["usr/local/bin/wuci-update"]
+    assert "--network enables both --pull and --packages" in files["usr/local/bin/wuci-update"]
+    assert "network pull disabled; applying local repo commit only" in files["usr/local/bin/wuci-update"]
+    assert "refusing network clone without --pull or --network" in files["usr/local/bin/wuci-update"]
     assert "xbps-install -Syu" in files["usr/local/bin/wuci-update"]
+    assert "xbps-install -Syu -n" in files["usr/local/bin/wuci-update"]
+    assert "--allow-risky-packages" in files["usr/local/bin/wuci-update"]
+    assert "refusing risky package plan" in files["usr/local/bin/wuci-update"]
+    assert "git -C \"$repo\" fsck --connectivity-only" in files["usr/local/bin/wuci-update"]
+    assert "repo path must not be a symlink" in files["usr/local/bin/wuci-update"]
     assert "wuci-network-connect" in files["usr/local/bin/wuci-update"]
     assert "git clone" in files["usr/local/bin/wuci-update"]
     assert "https://github.com/chasebryan/-wuci-ji.git" in files["usr/local/bin/wuci-update"]
@@ -1048,6 +1068,9 @@ def assert_overlay_profile(tmp: Path) -> None:
     selfupdate = files["usr/local/bin/wuci-selfupdate"]
     assert "live-update" in selfupdate
     assert "git -C \"$src\" pull --ff-only" in selfupdate
+    assert "git -C \"$src\" fetch --prune origin" in selfupdate
+    assert "refusing to pull dirty checkout" in selfupdate
+    assert "source path must not be a symlink" in selfupdate
     assert "/opt/wuci-os/source/wuci-ji" in selfupdate
     assert "xbps-install -Su" in selfupdate  # honest scope: base packages are separate
     assert "selfupdate)" in files["usr/local/bin/wj"]
@@ -2560,6 +2583,30 @@ def assert_cli(tmp: Path) -> None:
 
 
 def assert_live_update(tmp: Path) -> None:
+    original_create_overlay = wuci_os.create_overlay
+
+    def create_minimal_overlay(overlay_root: Path, *, force: bool = False) -> None:
+        if overlay_root.exists():
+            if not force:
+                raise wuci_os.WuciOSError(f"fixture overlay already exists: {overlay_root}")
+            shutil.rmtree(overlay_root)
+        bin_dir = overlay_root / "usr/local/bin"
+        share_dir = overlay_root / "usr/share/wuci-os"
+        bin_dir.mkdir(parents=True)
+        share_dir.mkdir(parents=True)
+        wj = bin_dir / "wj"
+        wj.write_text("#!/bin/sh\nprintf 'fixture wj\\n'\n", encoding="utf-8")
+        os.chmod(wj, 0o755)
+        (share_dir / "packages.json").write_text(
+            json.dumps({"schema": "fixture-packages", "created_utc": wuci_os.utc_now()}, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        (share_dir / "overlay-manifest.json").write_text(
+            json.dumps({"schema": "fixture-overlay-manifest", "created_utc": wuci_os.utc_now()}, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    wuci_os.create_overlay = create_minimal_overlay
     target = tmp / "live-root"
     (target / "usr").mkdir(parents=True)
 
@@ -2599,6 +2646,62 @@ def assert_live_update(tmp: Path) -> None:
     assert any(c["path"] == "usr/local/bin/wj" and c["status"] == "update" for c in drift["changes"])
     wuci_os.live_update_system(target_root=target, apply=True, ticker_mode="never")
     assert wj.read_bytes() == presented
+
+    # A predictable legacy temp-name symlink must not be followed during apply.
+    wj.write_bytes(b"#!/bin/sh\necho tampered again\n")
+    protected = tmp / "protected-live-update-target"
+    protected.write_text("do not truncate through temp symlink\n", encoding="utf-8")
+    tmp_link = wj.with_name(wj.name + ".wuci-update.tmp")
+    if hasattr(os, "symlink"):
+        tmp_link.symlink_to(protected)
+        wuci_os.live_update_system(target_root=target, apply=True, ticker_mode="never")
+        assert protected.read_text(encoding="utf-8") == "do not truncate through temp symlink\n"
+        assert tmp_link.is_symlink()
+        tmp_link.unlink()
+
+    def expect_live_update_error(root: Path, expected: str, *, apply: bool = True) -> None:
+        try:
+            wuci_os.live_update_system(target_root=root, apply=apply, ticker_mode="never")
+        except wuci_os.WuciOSError as exc:
+            assert expected in str(exc)
+        else:
+            raise AssertionError(f"live update accepted unsafe target root; expected {expected}")
+
+    if hasattr(os, "symlink"):
+        actual_root = tmp / "actual-live-root"
+        (actual_root / "usr").mkdir(parents=True)
+        root_link = tmp / "linked-live-root"
+        root_link.symlink_to(actual_root, target_is_directory=True)
+        expect_live_update_error(root_link, "target root must not be a symlink", apply=False)
+
+        symlink_file_root = tmp / "symlink-file-root"
+        (symlink_file_root / "usr/local/bin").mkdir(parents=True)
+        protected_file = tmp / "protected-wj"
+        protected_file.write_text("do not replace through symlink\n", encoding="utf-8")
+        (symlink_file_root / "usr/local/bin/wj").symlink_to(protected_file)
+        expect_live_update_error(symlink_file_root, "refuses to overwrite a symlink", apply=False)
+        assert protected_file.read_text(encoding="utf-8") == "do not replace through symlink\n"
+
+        parent_target = tmp / "protected-parent"
+        parent_target.mkdir()
+        parent_link_root = tmp / "parent-link-root"
+        (parent_link_root / "usr").mkdir(parents=True)
+        (parent_link_root / "usr/local").symlink_to(parent_target, target_is_directory=True)
+        expect_live_update_error(parent_link_root, "path component must not be a symlink")
+
+    if hasattr(os, "link"):
+        hardlink_root = tmp / "hardlink-live-root"
+        (hardlink_root / "usr").mkdir(parents=True)
+        wuci_os.live_update_system(target_root=hardlink_root, apply=True, ticker_mode="never")
+        hard_wj = hardlink_root / "usr/local/bin/wj"
+        hard_peer = hardlink_root / "usr/local/bin/wj-peer"
+        try:
+            os.link(hard_wj, hard_peer)
+        except OSError:
+            pass
+        else:
+            expect_live_update_error(hardlink_root, "target must not be hardlinked", apply=False)
+    wuci_os.create_overlay = original_create_overlay
 
 
 def main() -> int:

@@ -15,10 +15,12 @@ from . import external_evidence
 from . import falsification
 from . import proof_fields
 from . import public_artifact
+from . import rebuild_receipts
 from . import reproducible_builds
 from . import singularity_gate
 from . import verifier_agreement
-from .canonical import canonical_sha256, json_bytes, load_json_no_floats, loads_json_no_floats
+from . import verifier_quorum
+from .canonical import canonical_sha256, dumps_canonical, json_bytes, load_json_no_floats, loads_json_no_floats
 from .pathsafe import atomic_write_bytes
 
 CANONICAL_KAT_DOMAIN = "DAYLIGHT-v20-CANONICAL-KAT:"
@@ -224,6 +226,84 @@ def cmd_explain_external_blockers(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_rebuild_receipt(args: argparse.Namespace) -> int:
+    report = rebuild_receipts.load_and_evaluate(
+        args.receipt,
+        pinned_material_path=args.pinned_material,
+        capsule_path=args.capsule,
+        aperture_capsule_path=args.aperture_capsule,
+    )
+    report["command"] = "verify-rebuild-receipt"
+    _emit(report, args.format)
+    return 0 if report["accepted"] else 1
+
+
+def cmd_canonical_verifier_output(args: argparse.Namespace) -> int:
+    capsule = singularity_gate.load_capsule(args.capsule)
+    aperture = load_json_no_floats(args.aperture_capsule) if args.aperture_capsule else None
+    output = verifier_quorum.build_canonical_output(capsule, aperture)
+    atomic_write_bytes(args.out, dumps_canonical(output), force=args.force)
+    _emit(
+        {
+            "command": "canonical-verifier-output",
+            "out": args.out,
+            "canonical_output_digest": verifier_quorum.canonical_output_digest(output),
+            "decision": output["decision"],
+        },
+        args.format,
+    )
+    return 0 if output["decision"] == "pass" else 1
+
+
+def cmd_verifier_output_digest(args: argparse.Namespace) -> int:
+    output = verifier_quorum.load_canonical_output(args.canonical_output)
+    _emit(
+        {
+            "command": "verifier-output-digest",
+            "canonical_output_digest": verifier_quorum.canonical_output_digest(output),
+            "schema_id": output["schema_id"],
+            "decision": output["decision"],
+        },
+        args.format,
+    )
+    return 0
+
+
+def cmd_verify_verifier_quorum(args: argparse.Namespace) -> int:
+    bundle = external_evidence._load_bundle_bytes(args.bundle)
+    report = verifier_quorum.evaluate_bundle_quorum(
+        bundle,
+        pinned_material=external_evidence.load_pinned_material(args.pinned_material),
+        capsule=load_json_no_floats(args.capsule) if args.capsule else None,
+        aperture_capsule=load_json_no_floats(args.aperture_capsule) if args.aperture_capsule else None,
+    )
+    report["command"] = "verify-verifier-quorum"
+    _emit(report, args.format)
+    return 0 if report["accepted"] else 1
+
+
+def cmd_explain_verifier_quorum_blockers(args: argparse.Namespace) -> int:
+    bundle = external_evidence._load_bundle_bytes(args.bundle)
+    report = verifier_quorum.evaluate_bundle_quorum(
+        bundle,
+        pinned_material=external_evidence.load_pinned_material(args.pinned_material),
+        capsule=load_json_no_floats(args.capsule) if args.capsule else None,
+        aperture_capsule=load_json_no_floats(args.aperture_capsule) if args.aperture_capsule else None,
+    )
+    explanation = {
+        "schema_id": "daylight.v20.verifier-family-quorum.blocker-explanation",
+        "schema_version": verifier_quorum.QUORUM_REPORT_SCHEMA_VERSION,
+        "accepted": report["accepted"],
+        "quorum_closed": report["quorum_closed"],
+        "declaration_allowed": report["declaration_allowed"],
+        "blocker_codes": report["blocker_codes"],
+        "warning_codes": report["warning_codes"],
+        "command": "explain-verifier-quorum-blockers",
+    }
+    _emit(explanation, args.format)
+    return 0
+
+
 def cmd_score_ceiling_report(args: argparse.Namespace) -> int:
     capsule = singularity_gate.load_capsule(args.capsule)
     report = evidence_audit.score_ceiling_report(capsule)
@@ -349,6 +429,43 @@ def build_parser() -> argparse.ArgumentParser:
     explain_external.add_argument("--pinned-material")
     explain_external.add_argument("--format", choices=("text", "json"), default="text")
     explain_external.set_defaults(func=cmd_explain_external_blockers)
+
+    verify_rebuild = sub.add_parser("verify-rebuild-receipt")
+    verify_rebuild.add_argument("receipt")
+    verify_rebuild.add_argument("--capsule")
+    verify_rebuild.add_argument("--aperture-capsule")
+    verify_rebuild.add_argument("--pinned-material")
+    verify_rebuild.add_argument("--format", choices=("text", "json"), default="text")
+    verify_rebuild.set_defaults(func=cmd_verify_rebuild_receipt)
+
+    canonical_output = sub.add_parser("canonical-verifier-output")
+    canonical_output.add_argument("--capsule", required=True)
+    canonical_output.add_argument("--aperture-capsule")
+    canonical_output.add_argument("--out", required=True)
+    canonical_output.add_argument("--force", action="store_true")
+    canonical_output.add_argument("--format", choices=("text", "json"), default="text")
+    canonical_output.set_defaults(func=cmd_canonical_verifier_output)
+
+    output_digest = sub.add_parser("verifier-output-digest")
+    output_digest.add_argument("--canonical-output", required=True)
+    output_digest.add_argument("--format", choices=("text", "json"), default="text")
+    output_digest.set_defaults(func=cmd_verifier_output_digest)
+
+    verify_quorum = sub.add_parser("verify-verifier-quorum")
+    verify_quorum.add_argument("--bundle", required=True)
+    verify_quorum.add_argument("--capsule")
+    verify_quorum.add_argument("--aperture-capsule")
+    verify_quorum.add_argument("--pinned-material")
+    verify_quorum.add_argument("--format", choices=("text", "json"), default="text")
+    verify_quorum.set_defaults(func=cmd_verify_verifier_quorum)
+
+    explain_quorum = sub.add_parser("explain-verifier-quorum-blockers")
+    explain_quorum.add_argument("--bundle", required=True)
+    explain_quorum.add_argument("--capsule")
+    explain_quorum.add_argument("--aperture-capsule")
+    explain_quorum.add_argument("--pinned-material")
+    explain_quorum.add_argument("--format", choices=("text", "json"), default="text")
+    explain_quorum.set_defaults(func=cmd_explain_verifier_quorum_blockers)
 
     ceiling_report = sub.add_parser("score-ceiling-report")
     ceiling_report.add_argument(

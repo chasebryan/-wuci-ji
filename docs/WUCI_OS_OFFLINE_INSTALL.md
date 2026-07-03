@@ -81,8 +81,8 @@ sudo dhcpcd -n wlp2s0
 ```
 
 If Wi-Fi does not work, use wired Ethernet if possible. If no network is
-available, continue the local install and run `sudo wuci-update` after first
-boot once networking is fixed.
+available, continue the local install and run `sudo wuci-update --network` after
+first boot once networking is fixed.
 
 If `iw`, `nmcli`, or `wuci-network-connect` cannot see Wi-Fi hardware, check the
 kernel module closure before trying more passwords:
@@ -130,8 +130,8 @@ wuci-boot-chime --once
 ```
 
 Unavailable package messages are not fatal during installation. Re-run
-`wuci-update`, `wuci-media-apply`, and `wuci-sdr-apply` after first boot when
-networking is available.
+`wuci-update --network`, `wuci-media-apply`, and `wuci-sdr-apply` after first
+boot when networking is available.
 
 ## 5. Auto Install To Disk
 
@@ -224,7 +224,7 @@ passwd
 Update once networking works:
 
 ```sh
-sudo wuci-update
+sudo wuci-update --network
 ```
 
 Enter the onboard project checkout:

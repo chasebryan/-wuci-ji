@@ -215,6 +215,7 @@ package-manager commands:
 sudo wuci-network-connect
 sudo wj update
 sudo wj install vim emacs kitty
+sudo wj package-update
 wj search rust
 wj info python3
 ```
@@ -224,8 +225,15 @@ wired DHCP first, then asks locally for Wi-Fi credentials through NetworkManager
 or a `wpa_supplicant` fallback when those tools are present. If NetworkManager
 marks a usable Wi-Fi card unavailable, the helper falls through to the
 `wpa_supplicant` path instead of treating that state as a hardware-switch
-failure. `wj install`, `wj update`, and `wuci-update` call the prompt before
-repository sync if no network route exists.
+failure. `wj install`, `wj package-update`, `wj update`, and `wuci-update` call
+the prompt before repository sync if no network route exists.
+
+`wj update` is the guarded update entrypoint. By default it applies the locally
+present Wuci-Ji overlay with digest verification and makes no network connection
+or package mutation. `wj update --network` is the explicit mutable-remote path:
+it dry-runs package upgrades, refuses risky package plans by default,
+fast-forwards the onboard Wuci-Ji checkout, and applies the measured overlay
+update. Use `wj package-update` only when a package-only update is intentional.
 
 Daylight/WJSEAL is treated as a required evidence lane for every major generated
 component. The current implemented seal covers the generated overlay. The
@@ -238,6 +246,8 @@ A running system updates itself from the repository it already carries — no ne
 ISO, no reinstall:
 
 ```sh
+sudo wj update                # local deterministic overlay update
+sudo wj update --network      # explicit package + repo-pull update path
 wj selfupdate                 # preview what the repo overlay would change
 wj selfupdate --pull --apply  # git pull, then apply the measured changes
 ```
@@ -247,8 +257,10 @@ onto the live root with per-file digest measurement, atomic writes, and
 post-write verification (fail-closed). It updates the Wuci overlay layer only
 (commands, `/usr/share/wuci-os` including the Daylight packages, `os-release`,
 `profile.d`, autostart, skel); the kernel and base packages update separately
-with `sudo xbps-install -Su`. `wj os-update` / `wuci-update` also use this
-measured path after a repository pull. See
+with `sudo xbps-install -Su`. `wj os-update` / `wuci-update` use this measured
+path locally by default and after a repository pull only when `--network` /
+`--pull` is explicit; `wj update` is the operator shortcut for that guarded path.
+See
 [WUCI_OS_LIVE_UPDATE.md](WUCI_OS_LIVE_UPDATE.md).
 
 ## Source Install

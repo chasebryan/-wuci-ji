@@ -100,10 +100,24 @@ keeps Singularity refused and sets
 `verify-external-evidence` is the fail-closed intake for real external closure
 material. It checks independent rebuild receipts, external firewall-profile
 reviews, claim-usable 3-of-3 verifier vectors, pinned attestation statements,
-subject binding, score-ceiling binding, and pinned verification material. Until
-a deterministic local signature verifier is implemented, structurally valid
-bundles still fail with `pinned cryptographic attestation verification not
-implemented` and cannot open declaration.
+subject binding, score-ceiling binding, and pinned verification material.
+Ed25519 is the only implemented signature algorithm; shape checks and
+signature verification are local, deterministic, offline, and stdlib-only.
+Properly pinned signatures may close only the attestation field and cannot open
+declaration by themselves.
+
+`verify-rebuild-receipt` is the v20.2 standalone intake for one independent
+external rebuild receipt. It verifies the receipt statement digest, pinned
+attestation, expected and produced artifact digests, transcript digest, clean
+checkout declaration, fixture and claim-usable flags, and non-claim
+acknowledgements. An accepted receipt closes only the rebuild-receipt gate.
+
+`canonical-verifier-output`, `verifier-output-digest`, and
+`verify-verifier-quorum` are the v20.3 intake for the external verifier-family
+quorum. Exactly three distinct external, non-fixture, claim-usable verifier
+families must agree on the same pinned canonical output digest, with each
+vector bound to a valid pinned attestation. An accepted quorum closes only the
+verifier-vector gate.
 
 ## Public Review Artifact
 
@@ -114,7 +128,7 @@ the verifier bundle, external-attestation bundle, reproducible-build bundle,
 falsification bundle, boundary-debt report, firewall-profile expansion bundle,
 external-evidence slot contracts, artifact manifest, omega scorecard, blocker
 vector, declaration-gate report, evidence-audit report, reviewer guide,
-score-ceiling report, reviewer guide, non-claims, `SHA256SUMS`, and
+score-ceiling report, non-claims, `SHA256SUMS`, and
 `SHA3-512SUMS`. It also writes a deterministic
 `.tar.gz` next to the public directory and writes `firewall-report.v20.json`
 outside the public root before returning success. `verify-public-artifact`

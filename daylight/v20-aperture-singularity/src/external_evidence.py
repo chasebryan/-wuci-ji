@@ -10,10 +10,9 @@ against the four remaining Singularity blockers:
 
 It is fail-closed. Repo-owned, self-signed, internal, fixture, placeholder,
 mismatched, unsigned, or unpinned evidence is rejected. Cryptographic
-signature verification is not implemented yet, so every bundle carries the
-blocker "pinned cryptographic attestation verification not implemented" and
-``external_attestation_verified`` stays false. Nothing in this module raises
-the score, marks fixture evidence claim-usable, or opens the declaration gate.
+signature verification is limited to pinned Ed25519 attestations. Nothing in
+this module raises the score, marks fixture evidence claim-usable, or opens the
+declaration gate.
 
 Verification is deterministic and local: no network module is used, and the
 result must not depend on wall-clock time, hostname, username, or local paths.
@@ -32,11 +31,12 @@ from pathlib import Path
 from typing import Any
 
 from . import boundary_debt
+from . import ed25519_verify
 from . import evidence_audit
 from . import firewall_profile
 from . import public_artifact
 from . import singularity_gate
-from .canonical import canonical_sha256, load_json_no_floats, loads_json_no_floats, reject_floats_recursive
+from .canonical import canonical_sha256, dumps_canonical, load_json_no_floats, loads_json_no_floats, reject_floats_recursive
 from .pathsafe import PathSafetyError, normalize_repo_relative, require_regular_public_file
 
 SCHEMA_ID = "daylight.v20.external-evidence.bundle"
@@ -55,12 +55,13 @@ D_SCORE_CEILING_REPORT = "DAYLIGHT-v20-SCORE-CEILING-REPORT:"
 D_FIREWALL_RULES = "DAYLIGHT-v20-FIREWALL-REVIEWED-RULES:"
 D_NEGATIVE_CASES = "DAYLIGHT-v20-FIREWALL-NEGATIVE-CASES:"
 
-ATTESTATION_NOT_IMPLEMENTED_BLOCKER = "pinned cryptographic attestation verification not implemented"
 FIREWALL_REVIEW_SCOPE = "aperture-public-artifact-firewall-profile"
 REQUIRED_INDEPENDENCE_CLASS = "external"
 REQUIRED_VERIFIER_FAMILY_COUNT = 3
 MIN_REBUILD_RECEIPTS = 2
 MAX_SIGNATURE_LENGTH = 8192
+ED25519_PUBLIC_KEY_BYTES = ed25519_verify.PUBLIC_KEY_BYTES
+ED25519_SIGNATURE_BYTES = ed25519_verify.SIGNATURE_BYTES
 MAX_BUNDLE_BYTES = 5_000_000
 
 # Identities containing any of these tokens are never independent. External
@@ -81,15 +82,12 @@ FORBIDDEN_IDENTITY_TOKENS = frozenset(
     }
 )
 
-# Algorithms the future pinned verifier is contracted to accept. Anything else
-# is rejected now. An algorithm listed here is still not verified until it is
-# also a member of IMPLEMENTED_SIGNATURE_ALGORITHMS.
+# Algorithms the pinned verifier is contracted to accept. Anything else is
+# rejected before cryptographic verification.
 SUPPORTED_SIGNATURE_ALGORITHMS = frozenset({"ed25519"})
 
-# Empty until a real deterministic local signature verifier lands. This set
-# must only grow together with actual verification code; flipping it without
-# implementing verification is fixture laundering.
-IMPLEMENTED_SIGNATURE_ALGORITHMS: frozenset[str] = frozenset()
+# Algorithms with real deterministic local verification code.
+IMPLEMENTED_SIGNATURE_ALGORITHMS: frozenset[str] = frozenset({"ed25519"})
 
 FINDING_LEVELS = frozenset({"none", "minor", "major", "critical", "contradiction"})
 BLOCKING_FINDING_LEVELS = frozenset({"critical", "contradiction"})
@@ -169,8 +167,12 @@ REQUIRED_VERIFIER_VECTOR_FIELDS = frozenset(
     {
         "vector_id",
         "verifier_family",
+        "verifier_family_independence_class",
         "verifier_implementation_digest",
+        "verifier_implementation_kind",
         "input_capsule_digest",
+        "canonical_output_schema_id",
+        "canonical_output_digest",
         "output_digest",
         "decision",
         "fixture",
@@ -284,8 +286,19 @@ def verifier_vector_binding_digest(vector: dict[str, Any]) -> str:
 
 
 def attestation_statement_digest(attestation: dict[str, Any]) -> str:
-    body = {key: value for key, value in attestation.items() if key not in ("statement_digest", "signature")}
-    return canonical_sha256(body, D_ATTESTATION_STATEMENT)
+    return hashlib.sha256(attestation_statement_bytes(attestation)).hexdigest()
+
+
+def attestation_statement_payload(attestation: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in attestation.items()
+        if key not in ("statement_digest", "signature")
+    }
+
+
+def attestation_statement_bytes(attestation: dict[str, Any]) -> bytes:
+    return D_ATTESTATION_STATEMENT.encode("utf-8") + dumps_canonical(attestation_statement_payload(attestation))
 
 
 def score_ceiling_report_digest(capsule: dict[str, Any]) -> str:
@@ -388,8 +401,12 @@ def _validate_verifier_vector(vector: Any, index: int) -> None:
     prefix = f"claim_usable_verifier_vectors[{index}]"
     _require_str(vector["vector_id"], f"{prefix}.vector_id")
     _require_str(vector["verifier_family"], f"{prefix}.verifier_family")
+    _require_str(vector["verifier_family_independence_class"], f"{prefix}.verifier_family_independence_class")
     _require_hex(vector["verifier_implementation_digest"], f"{prefix}.verifier_implementation_digest", HEX64_RE)
+    _require_str(vector["verifier_implementation_kind"], f"{prefix}.verifier_implementation_kind")
     _require_hex(vector["input_capsule_digest"], f"{prefix}.input_capsule_digest", HEX64_RE)
+    _require_str(vector["canonical_output_schema_id"], f"{prefix}.canonical_output_schema_id")
+    _require_hex(vector["canonical_output_digest"], f"{prefix}.canonical_output_digest", HEX64_RE)
     _require_hex(vector["output_digest"], f"{prefix}.output_digest", HEX64_RE)
     decision = _require_str(vector["decision"], f"{prefix}.decision")
     if decision not in ("pass", "fail"):
@@ -468,6 +485,10 @@ def validate_pinned_material(material: Any) -> tuple[dict[str, dict[str, Any]], 
             if not BASE64_RE.fullmatch(key_text):
                 raise ExternalEvidenceError(f"{prefix}.public_key_b64 must be base64 text")
             public_key_bytes = _decode_base64(key_text, f"{prefix}.public_key_b64")
+            if len(public_key_bytes) != ED25519_PUBLIC_KEY_BYTES:
+                raise ExternalEvidenceError(
+                    f"{prefix}.public_key_b64 must decode to {ED25519_PUBLIC_KEY_BYTES} bytes"
+                )
             if len(set(public_key_bytes)) == 1:
                 raise ExternalEvidenceError(f"{prefix}.public_key_b64 must not decode to placeholder bytes")
             if hashlib.sha256(public_key_bytes).hexdigest() != signer["public_key_digest"]:
@@ -497,17 +518,43 @@ def load_pinned_material(path: Path | str | None = None) -> dict[str, Any]:
 
 
 def _verify_signature(attestation: dict[str, Any], pin: dict[str, Any]) -> bool:
-    """Pinned-signature verification hook.
-
-    Real verification is not implemented. When it lands it must be a
-    deterministic, local, offline check of ``attestation["signature"]``
-    against the pinned public key material, and its algorithm must be listed
-    in IMPLEMENTED_SIGNATURE_ALGORITHMS. It must never be replaced by a
-    constant, an environment probe, or a fixture flag.
-    """
+    """Verify one pinned Ed25519 attestation over canonical statement bytes."""
+    if attestation["signature_algorithm"] != "ed25519":
+        raise ExternalEvidenceError(f"unsupported signature algorithm: {attestation['signature_algorithm']}")
+    if pin["signature_algorithm"] != "ed25519":
+        raise ExternalEvidenceError(f"pinned signature algorithm unsupported: {pin['signature_algorithm']}")
     if attestation["signature_algorithm"] not in IMPLEMENTED_SIGNATURE_ALGORITHMS:
-        return False
-    return False
+        raise ExternalEvidenceError(f"signature algorithm not implemented: {attestation['signature_algorithm']}")
+    if attestation["public_key_digest"] != pin["public_key_digest"]:
+        raise ExternalEvidenceError("attestation public key digest does not match pinned material")
+    if attestation["signer_identity"] != pin["signer_identity"]:
+        raise ExternalEvidenceError("attestation signer identity does not match pinned material")
+    if attestation["signer_independence_class"] != REQUIRED_INDEPENDENCE_CLASS:
+        raise ExternalEvidenceError("attestation signer independence class must be external")
+    if pin["signer_independence_class"] != REQUIRED_INDEPENDENCE_CLASS:
+        raise ExternalEvidenceError("pinned signer independence class must be external")
+    if attestation["verification_material_ref"] != PINNED_MATERIAL_REF:
+        raise ExternalEvidenceError("attestation verification material ref is not the pinned registry")
+
+    public_key_bytes = _decode_base64(pin["public_key_b64"], "pinned public_key_b64")
+    if len(public_key_bytes) != ED25519_PUBLIC_KEY_BYTES:
+        raise ExternalEvidenceError(f"ed25519 public key must be {ED25519_PUBLIC_KEY_BYTES} bytes")
+    public_key_digest = hashlib.sha256(public_key_bytes).hexdigest()
+    if public_key_digest != attestation["public_key_digest"]:
+        raise ExternalEvidenceError("attestation public key digest does not match public key bytes")
+    if public_key_digest != pin["public_key_digest"]:
+        raise ExternalEvidenceError("pinned public key digest does not match public key bytes")
+
+    signature_bytes = _decode_base64(attestation["signature"], "attestation signature")
+    if len(signature_bytes) != ED25519_SIGNATURE_BYTES:
+        raise ExternalEvidenceError(f"ed25519 signature must be {ED25519_SIGNATURE_BYTES} bytes")
+    try:
+        verified = ed25519_verify.verify(public_key_bytes, signature_bytes, attestation_statement_bytes(attestation))
+    except ed25519_verify.Ed25519VerificationError as exc:
+        raise ExternalEvidenceError(str(exc)) from exc
+    if not verified:
+        raise ExternalEvidenceError("ed25519 signature verification failed")
+    return True
 
 
 def _evaluate_attestations(
@@ -517,6 +564,8 @@ def _evaluate_attestations(
 ) -> dict[str, Any]:
     blockers: list[str] = list(pin_blockers)
     index_by_id: dict[str, dict[str, Any]] = {}
+    seen_signer_identities: set[str] = set()
+    seen_public_key_digests: set[str] = set()
     valid_count = 0
     verified_count = 0
     for index, attestation in enumerate(attestations):
@@ -538,6 +587,13 @@ def _evaluate_attestations(
                 f"attestation {attestation_id} signer",
             )
         )
+        signer_key = attestation["signer_identity"].lower()
+        if signer_key in seen_signer_identities:
+            item_blockers.append(f"duplicate attestation signer identity: {attestation['signer_identity']}")
+        seen_signer_identities.add(signer_key)
+        if attestation["public_key_digest"] in seen_public_key_digests:
+            item_blockers.append(f"duplicate attestation public key digest: {attestation['public_key_digest']}")
+        seen_public_key_digests.add(attestation["public_key_digest"])
         if attestation["fixture"] is True:
             item_blockers.append(f"attestation {attestation_id} is fixture evidence")
         if attestation["claim_usable"] is not True:
@@ -567,8 +623,13 @@ def _evaluate_attestations(
             if pin["signature_algorithm"] != attestation["signature_algorithm"]:
                 item_blockers.append(f"attestation {attestation_id} signature algorithm does not match pinned material")
             if not item_blockers:
-                crypto_verified = _verify_signature(attestation, pin)
-                if not crypto_verified:
+                try:
+                    crypto_verified = _verify_signature(attestation, pin)
+                except ExternalEvidenceError as exc:
+                    item_blockers.append(
+                        f"attestation {attestation_id} signature is not cryptographically verified: {exc}"
+                    )
+                if not crypto_verified and not item_blockers:
                     item_blockers.append(f"attestation {attestation_id} signature is not cryptographically verified")
         if crypto_verified:
             verified_count += 1
@@ -580,8 +641,8 @@ def _evaluate_attestations(
             "referenced": False,
         }
     verification_implemented = bool(IMPLEMENTED_SIGNATURE_ALGORITHMS)
-    if not verification_implemented:
-        blockers.append(ATTESTATION_NOT_IMPLEMENTED_BLOCKER)
+    if not attestations:
+        blockers.append("no pinned attestations supplied")
     return {
         "attestation_count": len(attestations),
         "valid_shape_count": valid_count,
@@ -755,12 +816,21 @@ def _evaluate_verifier_vectors(
         seen_ids.add(vector_id)
         item_blockers: list[str] = []
         label = f"verifier vector {vector_id}"
+        item_blockers.extend(
+            identity_blockers(
+                vector["verifier_family"],
+                vector["verifier_family_independence_class"],
+                f"{label} family",
+            )
+        )
         if vector["fixture"] is True:
             item_blockers.append(f"{label} is fixture evidence")
         if vector["claim_usable"] is not True:
             item_blockers.append(f"{label} is not claim-usable")
         if vector["decision"] != "pass":
             item_blockers.append(f"{label} decision is not pass")
+        if vector["canonical_output_digest"] != vector["output_digest"]:
+            item_blockers.append(f"{label} canonical output digest does not match output digest")
         if subject is not None and vector["input_capsule_digest"] != subject["aperture_capsule_digest"]:
             item_blockers.append(f"{label} input capsule digest does not match subject aperture capsule digest")
         item_blockers.extend(
@@ -786,6 +856,10 @@ def _evaluate_verifier_vectors(
         "valid_shape_count": len(valid),
         "distinct_family_count": len(distinct_families),
         "verifier_families": sorted(distinct_families),
+        "implementation_digests": sorted(
+            vector["verifier_implementation_digest"] for vector in valid if "verifier_implementation_digest" in vector
+        ),
+        "output_digest": next(iter(output_digests)) if len(output_digests) == 1 else None,
         "blockers": blockers,
     }
 
@@ -875,12 +949,15 @@ def evaluate_bundle(
     if pinned_material is None:
         pins: dict[str, dict[str, Any]] = {}
         pin_blockers = ["pinned verification material not supplied"]
+        pinned_material_valid = False
     else:
         try:
             pins, pin_blockers = validate_pinned_material(pinned_material)
+            pinned_material_valid = not pin_blockers
         except ValueError as exc:
             pins = {}
             pin_blockers = [f"pinned verification material invalid: {exc}"]
+            pinned_material_valid = False
 
     attestation_summary = _evaluate_attestations(bundle["pinned_attestations"], pins, pin_blockers)
     attestation_index = attestation_summary.pop("index_by_id")
@@ -893,10 +970,28 @@ def evaluate_bundle(
     vector_summary = _evaluate_verifier_vectors(bundle["claim_usable_verifier_vectors"], subject, attestation_index)
     blockers.extend(vector_summary["blockers"])
 
+    from . import verifier_quorum
+
+    quorum_report = verifier_quorum.evaluate_bundle_quorum(
+        bundle,
+        pinned_material=pinned_material,
+        capsule=capsule,
+        aperture_capsule=aperture_capsule,
+    )
+    for code in quorum_report["blocker_codes"]:
+        blockers.append(f"verifier quorum blocked: {code}")
+
     for attestation_id, entry in attestation_index.items():
         if not entry["referenced"]:
             blockers.append(f"attestation not referenced by any evidence item: {attestation_id}")
 
+    shape_valid = (
+        subject is not None
+        and rebuild_summary["valid_shape_count"] == len(bundle["independent_rebuild_receipts"])
+        and review_summary["valid_shape_count"] == len(bundle["firewall_profile_reviews"])
+        and vector_summary["valid_shape_count"] == len(bundle["claim_usable_verifier_vectors"])
+        and attestation_summary["valid_shape_count"] == len(bundle["pinned_attestations"])
+    )
     external_attestation_verified = (
         attestation_summary["verification_implemented"]
         and attestation_summary["valid_shape_count"] > 0
@@ -909,7 +1004,10 @@ def evaluate_bundle(
         "schema_version": INTAKE_REPORT_SCHEMA_VERSION,
         "bundle_schema_id": SCHEMA_ID,
         "bundle_digest": recomputed_digest,
+        "shape_valid": shape_valid,
+        "bundle_digest_valid": digest_verified,
         "bundle_digest_verified": digest_verified,
+        "pinned_material_valid": pinned_material_valid,
         "subject": subject,
         "external_evidence_admissible": admissible,
         "external_attestation_verified": external_attestation_verified,
@@ -918,6 +1016,12 @@ def evaluate_bundle(
         "rebuild_receipt_count": rebuild_summary["receipt_count"],
         "firewall_review_count": review_summary["review_count"],
         "verifier_vector_count": vector_summary["vector_count"],
+        "verifier_quorum_accepted": quorum_report["accepted"],
+        "verifier_quorum_closed": quorum_report["quorum_closed"],
+        "verifier_quorum_blockers": quorum_report["blocker_codes"],
+        "verifier_quorum_output_digest": quorum_report["output_digest"],
+        "verifier_quorum_families": quorum_report["families_seen"],
+        "verifier_quorum_implementation_digests": quorum_report["implementation_digests"],
         "attestation_count": attestation_summary["attestation_count"],
         "pinned_key_count": attestation_summary["pinned_key_count"],
         "cryptographically_verified_attestation_count": attestation_summary["cryptographically_verified_count"],
@@ -926,7 +1030,7 @@ def evaluate_bundle(
             "subject_binding": {"blockers": subject_blockers},
             "independent_rebuild_receipts": rebuild_summary,
             "firewall_profile_reviews": review_summary,
-            "claim_usable_verifier_vectors": vector_summary,
+            "claim_usable_verifier_vectors": {**vector_summary, "quorum_report": quorum_report},
             "pinned_attestations": attestation_summary,
         },
     }

@@ -7,6 +7,7 @@ from src import external_evidence
 from src import falsification
 from src import firewall_profile
 from src import public_artifact
+from src import rebuild_receipts
 from src import reproducible_builds
 from src import singularity_gate
 from src import verifier_agreement
@@ -120,6 +121,10 @@ class BundleSchemaTests(unittest.TestCase):
             (
                 public_artifact.PINNED_ATTESTATION_SCHEMA_FILENAME,
                 external_evidence.REQUIRED_PINNED_ATTESTATION_FIELDS,
+            ),
+            (
+                public_artifact.EXTERNAL_REBUILD_RECEIPT_SCHEMA_FILENAME,
+                rebuild_receipts.REQUIRED_RECEIPT_FIELDS,
             ),
         ]
         self.assertEqual(

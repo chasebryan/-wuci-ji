@@ -1,8 +1,8 @@
 {
-  "bundle_digest": "7ba7341ec53ccff84b2788b5e37ba720723ece7c803cad4312cc6f148ed88687",
+  "bundle_digest": "4bd11700bd83d953c08dc498fdfff9864ba3b96796b0ce3fd891986a4e91cf4c",
   "claim_usable_verifier_vectors": [
     {
-      "attestation_ref": "test-att-vector-1",
+      "attestation_ref": "missing-verifier-attestation",
       "canonical_output_digest": "1e990e503fda0045f22008ac7a36e1331d07ec7b75e63851adc162d93d9d006f",
       "canonical_output_schema_id": "daylight.v20.canonical-verifier-output",
       "claim_usable": true,
@@ -11,7 +11,7 @@
       "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
       "output_digest": "1e990e503fda0045f22008ac7a36e1331d07ec7b75e63851adc162d93d9d006f",
       "vector_id": "test-vector-1",
-      "verifier_family": "alpha-independent",
+      "verifier_family": "python-reference",
       "verifier_family_independence_class": "external",
       "verifier_implementation_digest": "d6fa0e3144d60bb2465d93504acb1f88bce8b7cbaccffc6059f2eb44cb49da06",
       "verifier_implementation_kind": "source-tree"
@@ -26,7 +26,7 @@
       "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
       "output_digest": "1e990e503fda0045f22008ac7a36e1331d07ec7b75e63851adc162d93d9d006f",
       "vector_id": "test-vector-2",
-      "verifier_family": "beta-independent",
+      "verifier_family": "rust-independent",
       "verifier_family_independence_class": "external",
       "verifier_implementation_digest": "01ec7da65e4089bde6c33523f9f6ef6b0950f014b1773e354f89f446ed8ae99d",
       "verifier_implementation_kind": "source-tree"
@@ -41,7 +41,7 @@
       "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
       "output_digest": "1e990e503fda0045f22008ac7a36e1331d07ec7b75e63851adc162d93d9d006f",
       "vector_id": "test-vector-3",
-      "verifier_family": "gamma-independent",
+      "verifier_family": "zig-independent",
       "verifier_family_independence_class": "external",
       "verifier_implementation_digest": "457b0bae59a6b6ace4e50196a10caa910b89d5f027bc1ea4dfafb36c6ad2352f",
       "verifier_implementation_kind": "source-tree"
@@ -143,12 +143,12 @@
       "claim_usable": true,
       "fixture": false,
       "public_key_digest": "7cf06857d2d0adf09c7580ce9cbbdb5f9e0ab4f04df319492997bf978c4475bc",
-      "signature": "YDlL4+Rqzi7+anY0qB+THXjfFu5O3O2lG55Aw9CV6bp5//pqVNh1p0yZfNgejuaBJJ7gj/R8jJ2o7e7YBfLMAw==",
+      "signature": "nxTTubGBcXZVe6xyeSSqgXGbye6so25lOOa3e4pzJNDMio7sNMjQT+qeLASyT9biB/BB2YC8HXGUGQldEMh3BA==",
       "signature_algorithm": "ed25519",
       "signer_identity": "test-verifier-1.example.org",
       "signer_independence_class": "external",
-      "statement_digest": "4d2250a08e160e646e5db11b5af0e807c8a778542271970f25919071ef4b1bad",
-      "subject_digest": "2ed342a507b2b2584359c6604cf399a44e9d22f3ead5e457e49d9b118e6a3ea7",
+      "statement_digest": "cd3d0ee79417c33de056ea5c2c0893a2fbc7e8891bb5180a32e144bf0963d794",
+      "subject_digest": "d634b6bd5d8634fc4cdd9471fda25d28c99595289543649f587f437897550c5d",
       "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
     },
     {
@@ -156,12 +156,12 @@
       "claim_usable": true,
       "fixture": false,
       "public_key_digest": "8bb819cfbd95bf03e1c1d82071aaa2b6bf4427ebaa765f319601e10c1ff5add2",
-      "signature": "dCPX0ugj1WU0rP+ZNHx4zdxSlIM3wxc25ZDyhgvSQpMJztfwvjpAQXm5c7XffUMaEBQGnTdAXYrfEDqL90J9Bg==",
+      "signature": "FJ86kYqGSu/BYtkN30cARu18Nrew62dayIMcOp5I8ygOY64kzc0nhdQNNWz8FCSa2dQqUXPBCw9wKjErrtQoBw==",
       "signature_algorithm": "ed25519",
       "signer_identity": "test-verifier-2.example.org",
       "signer_independence_class": "external",
-      "statement_digest": "cbad74d68062e00daf0446b3ea28955acbbbb7cbad939315bc8e4f137eae5e37",
-      "subject_digest": "02bfe50360f4fd47d6ce09479f246a6bf7bdad16a50274b9d9b66c4683bf1cd1",
+      "statement_digest": "f884e71b1cd914e8d940709ee90eb88169c8b0a9edf6f002fa1e65e003e2502e",
+      "subject_digest": "a89a9cee62ee64027280d6042be5b5196a6cf223aeb8425b7e2456e32da575ea",
       "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
     },
     {
@@ -169,12 +169,12 @@
       "claim_usable": true,
       "fixture": false,
       "public_key_digest": "66ca7e4946c141f6e329e779da55e09ec1d462a7927d6d2c2b25ecea390e90d0",
-      "signature": "DoK4FeJtydgP8Ir2wu/4uc/JlXQEUHyALItfmKSYiSIJX1hIY2BQqJxqo7vuV+lMZ4TSiO0ByX+6nVzRO4ImBA==",
+      "signature": "plidp4dX/D1hiPv5jNcPnXxkISmx0/WiA0RBGKIT0vttXn88EYQvBA5i8vj2sY38p/oKgLZV8NNOOX5KOUULAA==",
       "signature_algorithm": "ed25519",
       "signer_identity": "test-verifier-3.example.org",
       "signer_independence_class": "external",
-      "statement_digest": "344d24d18520a5c6c43e3809a18a9f26e7e34249494911639d72c8a53c597544",
-      "subject_digest": "53ce083150f4071d4876b02a335f7541a7ff35e2e7c2bb6c22fe79d76e5f9a88",
+      "statement_digest": "defc321d1df6271cda9cc02f4372070dd6e0b78c2d8047e3ca493625f1ec6a8a",
+      "subject_digest": "3c6beda04c48ad6832c3fdf7a0c925a695686fc04acb22fdb78563583a891480",
       "verification_material_ref": "daylight/v20-aperture-singularity/pinned/external-verification-material.v20.json"
     }
   ],

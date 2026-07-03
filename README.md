@@ -408,10 +408,22 @@ Current repository-owned v20 evidence reaches its internal ceiling, but not a
 Singularity declaration. The gate keeps
 `singularity_possible_without_external_validation: false` until real external
 reviewer evidence, independent rebuilds, three distinct claim-usable verifier
-families, and real pinned cryptographic attestation verification exist. It is
+families, and properly pinned external attestations exist. It is
 not production cryptography, runtime containment, FIPS validation, government
 validation, external certification, post-quantum safety, or an independent
 audit.
+
+Daylight v20.2 adds standalone independent rebuild receipt intake. A signed
+external rebuild receipt can close only the rebuild-receipt blocker when it
+binds a clean rebuild to the pinned source, expected artifact digests,
+produced artifact digests, transcript digest, non-claims, and a valid pinned
+attestation. It does not raise the score or declare Singularity.
+
+Daylight v20.3 freezes the canonical verifier-output format and implements the
+external 3-of-3 verifier-family quorum gate. It closes only the verifier-vector
+blocker when exactly three independent, pinned-attested, non-fixture verifier
+families agree on the same capsule output digest. It does not raise the score
+or declare Singularity.
 
 ## System Shape
 

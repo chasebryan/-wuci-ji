@@ -1543,8 +1543,8 @@ ping -c 3 1.1.1.1
 ```
 
 If Wi-Fi is unavailable, use wired Ethernet if possible and continue the install.
-If no network is available, continue with the local install and run `wuci-update`
-after the first boot once networking is fixed.
+If no network is available, continue with the local install and run
+`wuci-update --network` after the first boot once networking is fixed.
 
 ## 4. Audio, Video, And SDR Checks
 
@@ -1672,7 +1672,7 @@ passwd
 6. Run the update lane once networking is available:
 
 ```sh
-sudo wuci-update
+sudo wuci-update --network
 ```
 
 7. Enter the onboard project checkout:
@@ -2478,7 +2478,7 @@ def _strip_build_timestamps(value: Any) -> Any:
     return value
 
 
-def _overlay_file_is_current(target_file: Path, staging_bytes: bytes, old_sha: str | None, new_sha: str) -> bool:
+def _overlay_file_is_current(target_bytes: bytes | None, staging_bytes: bytes, old_sha: str | None, new_sha: str) -> bool:
     """True when the live file already matches the presented one.
 
     Byte-identical files match directly. Files that differ only by an embedded
@@ -2489,29 +2489,148 @@ def _overlay_file_is_current(target_file: Path, staging_bytes: bytes, old_sha: s
         return False
     if old_sha == new_sha:
         return True
+    if target_bytes is None:
+        return False
     try:
-        target_json = json.loads(target_file.read_bytes())
+        target_json = json.loads(target_bytes)
         staging_json = json.loads(staging_bytes)
-    except (ValueError, OSError):
+    except ValueError:
         return False
     return _strip_build_timestamps(target_json) == _strip_build_timestamps(staging_json)
 
 
-def _apply_overlay_file_to_target(staging_file: Path, target_file: Path, mode: int) -> None:
-    """Atomically install one overlay file into a live root (tmp write + rename)."""
-    if target_file.is_symlink():
-        raise WuciOSError(f"live update refuses to overwrite a symlink: {target_file}")
-    target_file.parent.mkdir(parents=True, exist_ok=True)
-    data = staging_file.read_bytes()
-    tmp = target_file.with_name(target_file.name + ".wuci-update.tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+def _live_update_rel_path(rel: str) -> Path:
+    path = Path(rel)
+    if path.is_absolute() or not path.parts:
+        raise WuciOSError(f"live update overlay path is not relative: {rel}")
+    if any(part in {"", ".", ".."} for part in path.parts):
+        raise WuciOSError(f"live update overlay path is not normalized: {rel}")
+    return path
+
+
+def _require_live_update_root(target_root: Path) -> None:
     try:
-        os.write(fd, data)
-        os.fsync(fd)
+        info = os.lstat(target_root)
+    except FileNotFoundError as exc:
+        raise WuciOSError(f"target root does not exist: {target_root}") from exc
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect target root: {target_root}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise WuciOSError(f"target root must not be a symlink: {target_root}")
+    if not stat.S_ISDIR(info.st_mode):
+        raise WuciOSError(f"target root must be a directory: {target_root}")
+    usr = target_root / "usr"
+    try:
+        usr_info = os.lstat(usr)
+    except FileNotFoundError as exc:
+        raise WuciOSError(f"target root does not look like a system root: {target_root}") from exc
+    if stat.S_ISLNK(usr_info.st_mode):
+        raise WuciOSError(f"live update target path component must not be a symlink: {usr}")
+    if not stat.S_ISDIR(usr_info.st_mode):
+        raise WuciOSError(f"target root does not look like a system root: {target_root}")
+
+
+def _ensure_live_update_directory(target_root: Path, rel: str | Path) -> Path:
+    rel_path = _live_update_rel_path(rel.as_posix() if isinstance(rel, Path) else rel)
+    current = target_root
+    for part in rel_path.parts:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except FileNotFoundError:
+            try:
+                os.mkdir(current)
+            except FileExistsError:
+                info = os.lstat(current)
+            except OSError as exc:
+                raise WuciOSError(f"could not create live update directory: {current}") from exc
+            else:
+                info = os.lstat(current)
+        except OSError as exc:
+            raise WuciOSError(f"could not inspect live update path component: {current}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise WuciOSError(f"live update target path component must not be a symlink: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise WuciOSError(f"live update target path component must be a directory: {current}")
+    return current
+
+
+def _ensure_live_update_parent(target_root: Path, rel_path: Path) -> Path:
+    parent = rel_path.parent
+    if str(parent) == ".":
+        return target_root
+    return _ensure_live_update_directory(target_root, parent)
+
+
+def _read_verified_file_bytes(path: Path, label: str) -> bytes:
+    info = _verified_regular_file_info(path, label)
+    with _open_verified_regular_file(path, label, expected_info=info) as handle:
+        return handle.read()
+
+
+def _live_update_existing_file_state(target_file: Path, rel: str) -> tuple[str | None, bytes | None]:
+    try:
+        info = os.lstat(target_file)
+    except FileNotFoundError:
+        return None, None
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect live update target file {rel}: {target_file}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise WuciOSError(f"live update refuses to overwrite a symlink: {target_file}")
+    if not stat.S_ISREG(info.st_mode):
+        raise WuciOSError(f"live update target must be a regular file: {target_file}")
+    if info.st_nlink != 1:
+        raise WuciOSError(f"live update target must not be hardlinked: {target_file}")
+    with _open_verified_regular_file(
+        target_file,
+        f"live update target file {rel}",
+        expected_info=info,
+    ) as handle:
+        data = handle.read()
+    return hashlib.sha256(data).hexdigest(), data
+
+
+def _digest_vector_for_bytes(data: bytes) -> dict[str, str]:
+    return {
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "sha384": hashlib.sha384(data).hexdigest(),
+        "sha512": hashlib.sha512(data).hexdigest(),
+    }
+
+
+def _apply_overlay_file_to_target(staging_file: Path, target_root: Path, rel: str, mode: int) -> Path:
+    """Atomically install one overlay file into a live root (mkstemp + rename)."""
+    rel_path = _live_update_rel_path(rel)
+    target_file = target_root / rel_path
+    target_parent = _ensure_live_update_parent(target_root, rel_path)
+    _live_update_existing_file_state(target_file, rel)
+    data = _read_verified_file_bytes(staging_file, f"live update staging file {rel}")
+    tmp_fd = -1
+    tmp_path: Path | None = None
+    try:
+        tmp_fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{target_file.name}.wuci-update.",
+            dir=str(target_parent),
+        )
+        tmp_path = Path(tmp_name)
+        with os.fdopen(tmp_fd, "wb") as out_handle:
+            tmp_fd = -1
+            out_handle.write(data)
+            out_handle.flush()
+            os.fsync(out_handle.fileno())
+        os.chmod(tmp_path, mode)
+        os.replace(tmp_path, target_file)
+        tmp_path = None
+        _fsync_parent(target_file)
     finally:
-        os.close(fd)
-    os.chmod(tmp, mode)
-    os.replace(tmp, target_file)
+        if tmp_fd >= 0:
+            os.close(tmp_fd)
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+    return target_file
 
 
 def live_update_system(
@@ -2535,8 +2654,7 @@ def live_update_system(
     touches the kernel or base xbps packages; those update with ``xbps-install -Su``.
     """
     target_root = Path(target_root)
-    if not (target_root / "usr").is_dir():
-        raise WuciOSError(f"target root does not look like a system root: {target_root}")
+    _require_live_update_root(target_root)
 
     staging_parent = tempfile.mkdtemp(prefix="wuci-live-update.")
     staging = Path(staging_parent) / "overlay"
@@ -2550,10 +2668,11 @@ def live_update_system(
         }
         for record in records:
             rel = str(record["path"])
+            _live_update_rel_path(rel)
             if record.get("type") == "directory":
                 counts["directories"] += 1
                 if apply:
-                    (target_root / rel).mkdir(parents=True, exist_ok=True)
+                    _ensure_live_update_directory(target_root, rel)
                 continue
             if rel in _LIVE_UPDATE_METADATA_SKIP:
                 counts["skipped_metadata"] += 1
@@ -2563,10 +2682,9 @@ def live_update_system(
             target_file = target_root / rel
             new_sha = record["digest_vector"]["sha256"]
             mode = int(str(record["mode"]), 0)
-            old_sha: str | None = None
-            if target_file.is_file() and not target_file.is_symlink():
-                old_sha = hashlib.sha256(target_file.read_bytes()).hexdigest()
-            if _overlay_file_is_current(target_file, staging_file.read_bytes(), old_sha, new_sha):
+            staging_bytes = _read_verified_file_bytes(staging_file, f"live update staging file {rel}")
+            old_sha, target_bytes = _live_update_existing_file_state(target_file, rel)
+            if _overlay_file_is_current(target_bytes, staging_bytes, old_sha, new_sha):
                 counts["unchanged"] += 1
                 continue
             status = "add" if old_sha is None else "update"
@@ -2574,13 +2692,15 @@ def live_update_system(
             applied = False
             verified = False
             if apply:
-                _apply_overlay_file_to_target(staging_file, target_file, mode)
+                target_file = _apply_overlay_file_to_target(staging_file, target_root, rel, mode)
                 counts["applied"] += 1
                 applied = True
-                written = hashlib.sha256(target_file.read_bytes()).hexdigest()
-                if written != new_sha:
+                written_sha, written_bytes = _live_update_existing_file_state(target_file, rel)
+                written_vector = _digest_vector_for_bytes(written_bytes or b"")
+                expected_vector = record["digest_vector"]
+                if any(written_vector[name] != expected_vector[name] for name in ("sha256", "sha384", "sha512")):
                     raise WuciOSError(
-                        f"live update verification failed for {rel}: wrote {written}, expected {new_sha}"
+                        f"live update verification failed for {rel}: wrote {written_sha}, expected {new_sha}"
                     )
                 counts["verified"] += 1
                 verified = True
@@ -2590,10 +2710,13 @@ def live_update_system(
                     "status": status,
                     "old_sha256": old_sha,
                     "new_sha256": new_sha,
+                    "new_sha384": record["digest_vector"]["sha384"],
+                    "new_sha512": record["digest_vector"]["sha512"],
                     "bytes": record.get("bytes"),
                     "mode": record.get("mode"),
                     "applied": applied,
                     "verified": verified,
+                    "verified_digests": ["sha256", "sha384", "sha512"] if verified else [],
                 }
             )
         overlay_fingerprint = hashlib.sha256(
@@ -3626,7 +3749,7 @@ def overlay_files() -> dict[str, str]:
             "  wuci-live-banner show the Wuci-OS activated-console banner",
             "  wuci-enter    enter the WJ>_ operator shell",
             "  wuci-terminal open the preferred terminal: kitty, ghostty, then fallbacks",
-            "  wuci-update   update system packages and the onboard Wuci-Ji checkout",
+            "  wuci-update   guarded update path; local overlay by default",
             "  wuci-boot-chime play the original Wuci-OS boot chime",
             "  wuci-network-apply install/enable Wi-Fi and network support",
             "  wuci-media-apply install/enable audio, video, Bluetooth, and portals",
@@ -4142,11 +4265,16 @@ hardening, and verification.
 
 Use Wuci-OS package commands instead of backend package-manager commands:
   sudo wj install vim emacs kitty
+  sudo wj package-update
+
+Use wj update / wuci-update for the guarded update lane. By default it applies
+the locally present repo overlay only, without network or package mutation:
   sudo wj update
 
-Use wuci-update when this live system should fast-forward the onboard repo and
-update packages from the configured repository set:
-  sudo wuci-update
+To explicitly use mutable remote inputs, dry-run package updates, fast-forward
+the onboard repo, and then apply the measured overlay update:
+  sudo wj update --network
+  sudo wuci-update --network
 
 Destructive disk operations are not automated here.
 TEXT
@@ -4736,12 +4864,18 @@ set -eu
 src=${WUCI_SOURCE:-/opt/wuci-os/source/wuci-ji}
 apply=0
 do_pull=0
+allow_dirty=0
+branch=${WUCI_UPDATE_BRANCH:-}
 pass=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --apply) apply=1 ;;
         --pull) do_pull=1 ;;
+        --allow-dirty) allow_dirty=1 ;;
+        --branch)
+            [ "$#" -ge 2 ] || { printf 'wuci-selfupdate: --branch needs a value\\n' >&2; exit 2; }
+            branch=$2; shift ;;
         --json) pass="$pass --json" ;;
         --root)
             [ "$#" -ge 2 ] || { printf 'wuci-selfupdate: --root needs a value\\n' >&2; exit 2; }
@@ -4757,6 +4891,7 @@ wuci-selfupdate - update this running system from the repo, no reflash
   wuci-selfupdate --apply         apply changed files atomically, verify each by digest
   wuci-selfupdate --pull          git pull the source repo first, then measure
   wuci-selfupdate --pull --apply  git pull, then apply what changed
+  wuci-selfupdate --branch NAME   require/update a specific branch for --pull
   wuci-selfupdate --json          emit the machine-readable receipt
 
 Source repo:  $WUCI_SOURCE or /opt/wuci-os/source/wuci-ji
@@ -4775,14 +4910,35 @@ if [ ! -f "$src/tools/wuci_os.py" ]; then
     printf 'wuci-selfupdate: clone the repo there, or set WUCI_SOURCE=/path/to/wuci-ji\\n' >&2
     exit 1
 fi
+[ ! -L "$src" ] || { printf 'wuci-selfupdate: source path must not be a symlink: %s\\n' "$src" >&2; exit 2; }
 command -v python3 >/dev/null 2>&1 || { printf 'wuci-selfupdate: python3 is required\\n' >&2; exit 127; }
 
 # git pull runs as the invoking user (who holds the git credentials), before any
 # privilege escalation for --apply.
 if [ "$do_pull" = 1 ]; then
     command -v git >/dev/null 2>&1 || { printf 'wuci-selfupdate: git is required for --pull\\n' >&2; exit 127; }
-    printf 'wuci-selfupdate: git pull --ff-only in %s\\n' "$src"
-    git -C "$src" pull --ff-only
+    git -C "$src" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+        printf 'wuci-selfupdate: source is not a git checkout: %s\\n' "$src" >&2
+        exit 2
+    }
+    dirty=$(git -C "$src" status --porcelain)
+    if [ -n "$dirty" ] && [ "$allow_dirty" -ne 1 ]; then
+        printf 'wuci-selfupdate: refusing to pull dirty checkout; use --allow-dirty after review\\n' >&2
+        git -C "$src" status --short
+        exit 2
+    fi
+    current_branch=$(git -C "$src" rev-parse --abbrev-ref HEAD)
+    if [ "$current_branch" = "HEAD" ] && [ -z "$branch" ]; then
+        printf 'wuci-selfupdate: detached HEAD; pass --branch NAME for fast-forward update\\n' >&2
+        exit 2
+    fi
+    [ -n "$branch" ] || branch=$current_branch
+    before=$(git -C "$src" rev-parse HEAD)
+    printf 'wuci-selfupdate: git fetch + fast-forward in %s\\n' "$src"
+    git -C "$src" fetch --prune origin
+    git -C "$src" pull --ff-only origin "$branch"
+    after=$(git -C "$src" rev-parse HEAD)
+    printf 'wuci-selfupdate: repo %s -> %s on %s\\n' "$before" "$after" "$branch"
 fi
 
 args="live-update $pass"
@@ -4858,8 +5014,9 @@ Wuci-OS operator command
 
 Usage:
   wj install <packages...>        install packages
-  wj update                       update package indexes and packages
-  wj os-update                    update system packages and onboard Wuci-Ji repo
+  wj update [args...]             guarded update path; local overlay by default
+  wj package-update               update package indexes and packages only
+  wj os-update                    alias for guarded system update
   wj search <terms...>            search package repository
   wj info <packages...>           show package information
   wj remove <packages...>         remove packages; requires WJ_ALLOW_REMOVE=1
@@ -4878,6 +5035,7 @@ Usage:
 Examples:
   sudo wj install vim emacs kitty
   sudo wj update
+  sudo wj package-update
   wj guide
 TEXT
 }
@@ -4961,8 +5119,10 @@ case "$cmd" in
         run_xbps "wj install" xbps-install -Sy "$@"
         ;;
     update|upgrade)
-        need_xbps
-        run_xbps "wj update" xbps-install -Syu
+        exec wuci-update "$@"
+        ;;
+    package-update|packages-update|pkg-update)
+        exec wuci-update --packages-only "$@"
         ;;
     os-update|live-update)
         exec wuci-update "$@"
@@ -6496,16 +6656,20 @@ usage() {
 Wuci-OS live update
 
 Usage:
-  wuci-update [--check] [--packages-only] [--source-only] [--no-packages]
+  wuci-update [--check] [--network] [--pull] [--packages]
+              [--packages-only] [--source-only] [--no-packages]
               [--repo PATH] [--live-repo PATH] [--repo-url URL]
-              [--branch NAME] [--allow-dirty]
+              [--branch NAME] [--allow-dirty] [--allow-risky-packages]
 
 Default behavior:
   1. report the active Wuci-OS identity, architecture, and configured repositories
-  2. update packages with the configured xbps repository set
-  3. fast-forward the onboard Wuci-Ji checkout, or clone a live checkout when
-     the embedded source payload is a deterministic snapshot
-  4. rebuild and reactivate the local Wuci-OS overlay when possible
+  2. apply the locally present Wuci-Ji source overlay with digest verification
+  3. make no network connection and perform no package update unless requested
+
+Networked update:
+  --network enables both --pull and --packages. --pull fetches from origin and
+  applies only a fast-forward repo update. --packages runs an xbps dry-run first
+  and refuses risky plans unless explicitly allowed.
 
 No credentials are baked into Wuci-OS. Git remotes and xbps repositories must be
 configured by the operator or the installed image.
@@ -6517,12 +6681,27 @@ live_repo="${WUCI_LIVE_SOURCE_ROOT:-${HOME:-/tmp}/wuci-ji-live}"
 repo_url="${WUCI_REPO_URL:-https://github.com/chasebryan/-wuci-ji.git}"
 branch="${WUCI_UPDATE_BRANCH:-}"
 allow_dirty=0
+allow_risky_packages=0
 check_only=0
-packages=1
+packages=0
 source=1
+pull=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --network|--online)
+            pull=1
+            packages=1
+            shift
+            ;;
+        --pull)
+            pull=1
+            shift
+            ;;
+        --packages)
+            packages=1
+            shift
+            ;;
         --repo)
             [ "$#" -ge 2 ] || { printf 'wuci-update: --repo needs a path\\n' >&2; exit 2; }
             repo=$2
@@ -6547,6 +6726,10 @@ while [ "$#" -gt 0 ]; do
             allow_dirty=1
             shift
             ;;
+        --allow-risky-packages)
+            allow_risky_packages=1
+            shift
+            ;;
         --check|--dry-run)
             check_only=1
             shift
@@ -6554,6 +6737,7 @@ while [ "$#" -gt 0 ]; do
         --packages-only)
             packages=1
             source=0
+            pull=0
             shift
             ;;
         --source-only|--repo-only)
@@ -6611,6 +6795,31 @@ run_root_wait() {
     fi
 }
 
+package_update_preflight() {
+    tmp=$(mktemp)
+    if run_root_wait "package update preview" xbps-install -Syu -n >"$tmp"; then
+        :
+    else
+        rc=$?
+        cat "$tmp" >&2 || true
+        rm -f "$tmp"
+        return "$rc"
+    fi
+    if grep -Eiq '(^|[[:space:]])(downgrade|downgrading|downgraded|conflict|broken|held back)' "$tmp" ||
+        grep -Eiq '(^|[^0-9])[1-9][0-9]*[[:space:]]+packages?.*(remove|removed|removal)' "$tmp" ||
+        grep -Eiq '^[[:space:]]*(remove|removing|removed|removal)[[:space:]:]' "$tmp"; then
+        if [ "$allow_risky_packages" -ne 1 ]; then
+            printf 'wuci-update: refusing risky package plan; review the dry-run and pass --allow-risky-packages if intentional\\n' >&2
+            cat "$tmp" >&2
+            rm -f "$tmp"
+            return 2
+        fi
+    fi
+    cat "$tmp"
+    rm -f "$tmp"
+    return 0
+}
+
 ensure_network_for_updates() {
     [ "${WUCI_SKIP_NETWORK_PROMPT:-0}" = "1" ] && return 0
     command -v wuci-network-connect >/dev/null 2>&1 || return 0
@@ -6648,7 +6857,7 @@ printf '  repo:    %s\\n' "$repo"
 printf '  live:    %s\\n' "$live_repo"
 printf '  remote:  %s\\n' "$repo_url"
 
-if ! command -v xbps-install >/dev/null 2>&1; then
+if [ "$packages" -eq 1 ] && ! command -v xbps-install >/dev/null 2>&1; then
     printf 'wuci-update: warning: xbps-install is unavailable; package updates will be skipped\\n' >&2
 fi
 
@@ -6669,8 +6878,10 @@ if [ "$check_only" -eq 1 ]; then
         git -C "$repo" status --short --branch || true
     elif [ "$source" -eq 1 ] && [ -d "$live_repo/.git" ]; then
         git -C "$live_repo" status --short --branch || true
+    elif [ "$source" -eq 1 ] && [ -f "$repo/tools/wuci_os.py" ]; then
+        printf 'wuci-update: local source snapshot present: %s\\n' "$repo"
     elif [ "$source" -eq 1 ]; then
-        printf 'wuci-update: embedded source is not a git checkout; live clone target: %s\\n' "$live_repo"
+        printf 'wuci-update: no local source checkout or snapshot at %s\\n' "$repo"
     fi
     exit 0
 fi
@@ -6678,6 +6889,7 @@ fi
 if [ "$packages" -eq 1 ]; then
     if command -v xbps-install >/dev/null 2>&1; then
         if ensure_network_for_updates; then
+            package_update_preflight
             run_root_wait "system package update" xbps-install -Syu
         else
             printf 'wuci-update: package update skipped because network setup did not complete\\n' >&2
@@ -6688,19 +6900,23 @@ if [ "$packages" -eq 1 ]; then
 fi
 
 if [ "$source" -eq 1 ]; then
-    if ! ensure_network_for_updates; then
-        printf 'wuci-update: source repo sync skipped because network setup did not complete\\n' >&2
-        exit 1
-    fi
-    if ! command -v git >/dev/null 2>&1; then
-        printf 'wuci-update: git unavailable; cannot update source repo\\n' >&2
-        exit 1
-    fi
+    [ ! -L "$repo" ] || { printf 'wuci-update: repo path must not be a symlink: %s\\n' "$repo" >&2; exit 2; }
+    [ ! -L "$live_repo" ] || { printf 'wuci-update: live repo path must not be a symlink: %s\\n' "$live_repo" >&2; exit 2; }
     if [ ! -d "$repo/.git" ]; then
-        if [ -d "$live_repo/.git" ]; then
+        if [ "$pull" -eq 0 ] && [ -f "$repo/tools/wuci_os.py" ]; then
+            printf 'wuci-update: using local source snapshot without network: %s\\n' "$repo"
+        elif [ -d "$live_repo/.git" ]; then
             printf 'wuci-update: using existing live checkout: %s\\n' "$live_repo"
             repo=$live_repo
-        else
+        elif [ "$pull" -eq 1 ]; then
+            if ! ensure_network_for_updates; then
+                printf 'wuci-update: source repo sync skipped because network setup did not complete\\n' >&2
+                exit 1
+            fi
+            if ! command -v git >/dev/null 2>&1; then
+                printf 'wuci-update: git unavailable; cannot update source repo\\n' >&2
+                exit 1
+            fi
             clone_target=$repo
             if [ -d "$repo" ]; then
                 if find "$repo" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | grep -q .; then
@@ -6714,25 +6930,47 @@ if [ "$source" -eq 1 ]; then
                 run_wait "repo clone" git clone "$repo_url" "$clone_target"
             fi
             repo=$clone_target
+        else
+            printf 'wuci-update: no local source checkout or snapshot at %s\\n' "$repo" >&2
+            printf 'wuci-update: refusing network clone without --pull or --network\\n' >&2
+            exit 1
         fi
     fi
-    dirty=$(git -C "$repo" status --porcelain)
-    if [ -n "$dirty" ] && [ "$allow_dirty" -ne 1 ]; then
-        printf 'wuci-update: refusing to update dirty checkout; use --allow-dirty after review\\n' >&2
-        git -C "$repo" status --short
+    if [ -d "$repo/.git" ]; then
+        if ! command -v git >/dev/null 2>&1; then
+            printf 'wuci-update: git unavailable; cannot inspect source repo\\n' >&2
+            exit 1
+        fi
+        dirty=$(git -C "$repo" status --porcelain)
+        if [ -n "$dirty" ] && [ "$allow_dirty" -ne 1 ]; then
+            printf 'wuci-update: refusing to update dirty checkout; use --allow-dirty after review\\n' >&2
+            git -C "$repo" status --short
+            exit 2
+        fi
+        current_branch=$(git -C "$repo" rev-parse --abbrev-ref HEAD)
+        if [ "$current_branch" = "HEAD" ] && [ -z "$branch" ]; then
+            printf 'wuci-update: detached HEAD; pass --branch NAME for fast-forward update\\n' >&2
+            exit 2
+        fi
+        [ -n "$branch" ] || branch=$current_branch
+        before=$(git -C "$repo" rev-parse HEAD)
+        if [ "$pull" -eq 1 ]; then
+            if ! ensure_network_for_updates; then
+                printf 'wuci-update: source repo sync skipped because network setup did not complete\\n' >&2
+                exit 1
+            fi
+            run_wait "repo fetch" git -C "$repo" fetch --prune origin
+            run_wait "repo fast-forward" git -C "$repo" pull --ff-only origin "$branch"
+        else
+            printf 'wuci-update: network pull disabled; applying local repo commit only\\n'
+        fi
+        run_wait "repo object check" git -C "$repo" fsck --connectivity-only
+        after=$(git -C "$repo" rev-parse HEAD)
+        printf 'wuci-update: repo %s -> %s on %s\\n' "$before" "$after" "$branch"
+    elif [ "$pull" -eq 1 ]; then
+        printf 'wuci-update: cannot pull non-git source snapshot: %s\\n' "$repo" >&2
         exit 2
     fi
-    current_branch=$(git -C "$repo" rev-parse --abbrev-ref HEAD)
-    if [ "$current_branch" = "HEAD" ] && [ -z "$branch" ]; then
-        printf 'wuci-update: detached HEAD; pass --branch NAME for fast-forward update\\n' >&2
-        exit 2
-    fi
-    [ -n "$branch" ] || branch=$current_branch
-    before=$(git -C "$repo" rev-parse HEAD)
-    run_wait "repo fetch" git -C "$repo" fetch --prune origin
-    run_wait "repo fast-forward" git -C "$repo" pull --ff-only origin "$branch"
-    after=$(git -C "$repo" rev-parse HEAD)
-    printf 'wuci-update: repo %s -> %s on %s\\n' "$before" "$after" "$branch"
 
     if command -v wuci-selfupdate >/dev/null 2>&1; then
         # Preferred: measured, digest-verified overlay sync onto the running root.
@@ -10187,7 +10425,7 @@ def build_final_iso(
             "upstream_build_source": "source-kit includes build/wuci-os/upstream under /opt/wuci-os/source/upstream when present",
             "activation_helper": "wuci-os/wuci-os-live-activate",
             "offline_install_guide": "wuci-os/OFFLINE-INSTALL.txt gives beginning-to-end install and first-boot steps without internet",
-            "update_command": "wuci-update updates system packages from configured repositories and fast-forwards the onboard repo",
+            "update_command": "wuci-update applies the local overlay by default; --network explicitly updates packages and fast-forwards the onboard repo",
             "terminal_resolver": "wuci-terminal prefers kitty, then ghostty, then safe fallbacks",
             "boot_chime": "wuci-boot-chime generates the original Wuci-OS chime locally and falls back to terminal bell",
             "network_suite": "NetworkManager, Wi-Fi supplicants, firmware, VPN/mobile helpers, and nftables are listed for baked suite installs",

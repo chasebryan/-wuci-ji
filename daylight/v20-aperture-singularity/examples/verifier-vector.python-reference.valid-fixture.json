@@ -1,0 +1,15 @@
+{
+  "attestation_ref": "test-att-vector-1",
+  "canonical_output_digest": "1e990e503fda0045f22008ac7a36e1331d07ec7b75e63851adc162d93d9d006f",
+  "canonical_output_schema_id": "daylight.v20.canonical-verifier-output",
+  "claim_usable": false,
+  "decision": "pass",
+  "fixture": true,
+  "input_capsule_digest": "dd69f30f3ed099032fe3c16e1d55b2c269f8dc5e1c056537ee9d9a8c8cdf62e5",
+  "output_digest": "1e990e503fda0045f22008ac7a36e1331d07ec7b75e63851adc162d93d9d006f",
+  "vector_id": "test-vector-1",
+  "verifier_family": "python-reference",
+  "verifier_family_independence_class": "external",
+  "verifier_implementation_digest": "d6fa0e3144d60bb2465d93504acb1f88bce8b7cbaccffc6059f2eb44cb49da06",
+  "verifier_implementation_kind": "source-tree"
+}

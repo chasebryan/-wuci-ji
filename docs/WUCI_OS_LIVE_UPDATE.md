@@ -8,6 +8,8 @@ repository *presents* and syncs it onto the live root with per-file digest
 measurement and verification.
 
 ```sh
+sudo wj update                 # local deterministic overlay update
+sudo wj update --network       # explicit package + repo-pull update path
 wj selfupdate                  # preview: measure what the repo would change
 wj selfupdate --apply          # apply changed files atomically, verify each by digest
 wj selfupdate --pull           # git pull the source repo first, then measure
@@ -15,8 +17,9 @@ wj selfupdate --pull --apply   # git pull, then apply what changed
 wj selfupdate --json           # machine-readable receipt
 ```
 
-(`wuci-selfupdate` is the underlying command; `wj selfupdate` / `wj update` are
-the operator shortcuts.)
+(`wuci-selfupdate` is the overlay-only command. `wj update` / `wuci-update` are
+the guarded shortcuts; they handle package updates only when `--network`,
+`--packages`, or `--packages-only` is explicit.)
 
 ## What "measureful" means here
 
@@ -27,10 +30,13 @@ The update is evidence-measured end to end, in keeping with the project doctrine
    with a SHA-256/384/512 digest (`overlay_file_records`).
 2. **Measure.** Every presented file is compared against the live root by content
    digest and classified `add` / `update` / `unchanged`. Preview writes nothing.
-3. **Apply (atomic).** With `--apply`, each changed file is written to a temp file,
-   `fsync`'d, `chmod`'d, and `rename`'d into place — never a partial file.
+3. **Apply (atomic).** With `--apply`, each changed file is written to a private
+   sibling temp file, `fsync`'d, `chmod`'d, and `rename`'d into place — never a
+   partial file. Existing target symlinks, hardlinks, and symlink path
+   components are rejected.
 4. **Verify (fail-closed).** Immediately after writing, the file is re-read and its
-   digest checked against the presented value. Any mismatch aborts the update.
+   SHA-256/SHA-384/SHA-512 digests are checked against the presented values. Any
+   mismatch aborts the update.
 5. **Receipt.** A JSON receipt (`schema: wuci-os-live-update-v1`) records the mode,
    an overlay fingerprint, per-file changes, and counts including how many files
    were applied and digest-verified.
@@ -65,11 +71,25 @@ copies that source onto installed disks, so a fresh install can update itself. P
 Because the source is a normal git checkout, the loop is simply:
 
 ```sh
-wj selfupdate --pull --apply
+sudo wj update
 ```
 
-`git pull --ff-only` runs as the invoking user (who holds the git credentials);
-the apply step escalates to root only to write into `/`.
+That default path applies only the locally present source tree. It does not fetch,
+clone, or update packages. For an explicit networked update:
+
+```sh
+sudo wj update --network
+```
+
+The networked repo update refuses dirty checkouts by default, rejects symlink
+repo paths, requires a named branch when HEAD is detached, fetches from `origin`,
+and applies only a fast-forward update. `wuci-update --network` also runs a
+package-update dry-run and refuses plans that look like removals, downgrades,
+conflicts, or held-back transactions unless `--allow-risky-packages` is passed
+after review.
+
+`git fetch` / `git pull --ff-only` run as the invoking user (who holds the git
+credentials); the overlay apply step escalates to root only to write into `/`.
 
 ## Direct CLI
 

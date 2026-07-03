@@ -3,7 +3,7 @@
 These helpers construct internally consistent bundles (statement digests,
 binding digests, and bundle digests all recompute) so each test can break
 exactly one property and assert the matching rejection. They are test-only
-material and are never claim-usable evidence.
+material and are never committed reviewer evidence.
 """
 
 from __future__ import annotations
@@ -13,13 +13,16 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from src import ed25519_verify
 from src import external_evidence
 from src import firewall_profile
+from src import verifier_quorum
 from src.canonical import load_json_no_floats
 
 ROOT = Path(__file__).resolve().parents[1]
 CAPSULE_PATH = ROOT / "examples/aperture-singularity-capsule.fixture.v20.json"
 APERTURE_PATH = ROOT / "examples/input-aperture-capsule.source-snapshot.v19.json"
+_TEST_PUBLIC_KEYS_BY_DIGEST: dict[str, bytes] = {}
 
 
 def sha256_text(text: str) -> str:
@@ -27,7 +30,45 @@ def sha256_text(text: str) -> str:
 
 
 def key_material_for_signer(signer: str) -> bytes:
-    return f"test verification material for {signer}".encode("utf-8")
+    return public_key_bytes_for_signer(signer)
+
+
+def ed25519_dependency_available() -> bool:
+    return True
+
+
+def _seed_for_signer(signer: str) -> bytes:
+    return hashlib.sha256(f"DAYLIGHT-v20-test-ed25519-seed:{signer}".encode("utf-8")).digest()
+
+
+def _expanded_secret(seed: bytes) -> tuple[int, bytes]:
+    digest = hashlib.sha512(seed).digest()
+    scalar_bytes = bytearray(digest[:32])
+    scalar_bytes[0] &= 248
+    scalar_bytes[31] &= 63
+    scalar_bytes[31] |= 64
+    return int.from_bytes(scalar_bytes, "little"), digest[32:]
+
+
+def public_key_bytes_for_signer(signer: str) -> bytes:
+    scalar, _prefix = _expanded_secret(_seed_for_signer(signer))
+    public_key_bytes = ed25519_verify._encode_point(ed25519_verify._scalar_mult(scalar, ed25519_verify._BASE_POINT))
+    _TEST_PUBLIC_KEYS_BY_DIGEST[hashlib.sha256(public_key_bytes).hexdigest()] = public_key_bytes
+    return public_key_bytes
+
+
+def signature_bytes_for_signer(signer: str, statement_bytes: bytes) -> bytes:
+    scalar, prefix = _expanded_secret(_seed_for_signer(signer))
+    public_key = public_key_bytes_for_signer(signer)
+    r = ed25519_verify._hash_to_scalar(prefix, statement_bytes)
+    encoded_r = ed25519_verify._encode_point(ed25519_verify._scalar_mult(r, ed25519_verify._BASE_POINT))
+    k = ed25519_verify._hash_to_scalar(encoded_r, public_key, statement_bytes)
+    s = (r + k * scalar) % ed25519_verify._L
+    return encoded_r + s.to_bytes(32, "little")
+
+
+def public_key_bytes_for_digest(public_key_digest: str, signer: str) -> bytes:
+    return _TEST_PUBLIC_KEYS_BY_DIGEST.get(public_key_digest, public_key_bytes_for_signer(signer))
 
 
 def load_capsule() -> dict[str, Any]:
@@ -98,13 +139,23 @@ def build_review(n: int = 1, **over: Any) -> dict[str, Any]:
     return review
 
 
-def build_vector(subject: dict[str, Any], n: int, family: str, **over: Any) -> dict[str, Any]:
+def build_vector(
+    subject: dict[str, Any],
+    n: int,
+    family: str,
+    canonical_output_digest_value: str,
+    **over: Any,
+) -> dict[str, Any]:
     vector = {
         "vector_id": f"test-vector-{n}",
         "verifier_family": family,
+        "verifier_family_independence_class": "external",
         "verifier_implementation_digest": sha256_text(f"test verifier implementation {family}"),
+        "verifier_implementation_kind": "source-tree",
         "input_capsule_digest": subject["aperture_capsule_digest"],
-        "output_digest": sha256_text("test canonical verifier output " + subject["aperture_capsule_digest"]),
+        "canonical_output_schema_id": verifier_quorum.CANONICAL_OUTPUT_SCHEMA_ID,
+        "canonical_output_digest": canonical_output_digest_value,
+        "output_digest": canonical_output_digest_value,
         "decision": "pass",
         "fixture": False,
         "claim_usable": True,
@@ -120,20 +171,31 @@ def attest(
     signer: str,
     **over: Any,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    overrides = dict(over)
+    signature_override = overrides.pop("signature", None)
+    statement_digest_override = overrides.pop("statement_digest", None)
+    signer_identity = overrides.get("signer_identity", signer)
+    public_key_bytes = public_key_bytes_for_signer(signer_identity)
+    public_key_digest = hashlib.sha256(public_key_bytes).hexdigest()
     attestation = {
         "attestation_id": attestation_id,
         "subject_digest": binding_digest,
-        "signer_identity": signer,
+        "signer_identity": signer_identity,
         "signer_independence_class": "external",
         "signature_algorithm": "ed25519",
-        "public_key_digest": hashlib.sha256(key_material_for_signer(signer)).hexdigest(),
-        "signature": base64.b64encode(f"unverified test signature for {attestation_id}".encode()).decode(),
+        "public_key_digest": public_key_digest,
         "verification_material_ref": external_evidence.PINNED_MATERIAL_REF,
         "fixture": item.get("fixture", False),
         "claim_usable": item.get("claim_usable", True),
     }
-    attestation.update(over)
+    attestation.update(overrides)
     attestation["statement_digest"] = external_evidence.attestation_statement_digest(attestation)
+    signature = signature_bytes_for_signer(attestation["signer_identity"], external_evidence.attestation_statement_bytes(attestation))
+    attestation["signature"] = base64.b64encode(signature).decode()
+    if signature_override is not None:
+        attestation["signature"] = signature_override
+    if statement_digest_override is not None:
+        attestation["statement_digest"] = statement_digest_override
     bound = dict(item)
     bound["attestation_ref"] = attestation_id
     return bound, attestation
@@ -213,10 +275,11 @@ def full_bundle(
     review_overs = review_overs if review_overs is not None else [{}]
     vector_overs = vector_overs if vector_overs is not None else [{}, {}, {}]
     families = ["alpha-independent", "beta-independent", "gamma-independent", "delta-independent"]
+    output_digest = verifier_quorum.canonical_output_digest(verifier_quorum.build_canonical_output(capsule, aperture))
     receipts = [build_receipt(subject, n + 1, **over) for n, over in enumerate(receipt_overs)]
     reviews = [build_review(n + 1, **over) for n, over in enumerate(review_overs)]
     vectors = [
-        build_vector(subject, n + 1, families[n % len(families)], **over)
+        build_vector(subject, n + 1, families[n % len(families)], output_digest, **over)
         for n, over in enumerate(vector_overs)
     ]
     bundle = assemble(subject, receipts, reviews, vectors, attestation_over=attestation_over)
@@ -238,7 +301,9 @@ def pin_registry_for(bundle: dict[str, Any]) -> dict[str, Any]:
                 "signer_independence_class": "external",
                 "signature_algorithm": attestation["signature_algorithm"],
                 "public_key_digest": attestation["public_key_digest"],
-                "public_key_b64": base64.b64encode(key_material_for_signer(attestation["signer_identity"])).decode(),
+                "public_key_b64": base64.b64encode(
+                    public_key_bytes_for_digest(attestation["public_key_digest"], attestation["signer_identity"])
+                ).decode(),
                 "pinned_by_commit": sha256_text("test pin commit")[:40],
             }
         )

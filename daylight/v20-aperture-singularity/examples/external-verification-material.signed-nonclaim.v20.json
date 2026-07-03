@@ -1,0 +1,73 @@
+{
+  "non_claims_acknowledged": [
+    "not production cryptography",
+    "not runtime containment",
+    "not host cleanliness proof",
+    "not FIPS validated",
+    "not government validated",
+    "not externally certified",
+    "not whole-system post-quantum safe",
+    "not an independent audit",
+    "not a perfect Daylight score claim from repository-owned evidence"
+  ],
+  "pinned_signers": [
+    {
+      "pinned_by_commit": "3ef88e6f1f74115cc8284db970a951c35e5873d2",
+      "public_key_b64": "BMTpwEyZxws5XrK5LZ9BqxmqzXuo8PDAvJFI+VuPjQA=",
+      "public_key_digest": "0f93a04abeff06e9759e715db8198e49ad72487cd302e9240e1609cc89343ce8",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "rebuilder-alpha.example.org",
+      "signer_independence_class": "external"
+    },
+    {
+      "pinned_by_commit": "ca70518e37e2ef4d43979c3b5edf66b6497e620d",
+      "public_key_b64": "PU2j/CZ8dqd3PBe+yJ1eTLwseywH2nGp43/BYo/Z54g=",
+      "public_key_digest": "5dfa0f3b3ad8852d09703905161e47f0f7a4903798da827655a6011d9ef8fdcb",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "test-firewall-reviewer-1.example.org",
+      "signer_independence_class": "external"
+    },
+    {
+      "pinned_by_commit": "ca70518e37e2ef4d43979c3b5edf66b6497e620d",
+      "public_key_b64": "23JdE3givm+itaXCd7cucYOqhzEAsswdJaxkqKwCxnw=",
+      "public_key_digest": "1bbf86b85f264c912b36e677df8443393012444cf21c12670434664d70dcdf57",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "test-rebuilder-1.example.org",
+      "signer_independence_class": "external"
+    },
+    {
+      "pinned_by_commit": "ca70518e37e2ef4d43979c3b5edf66b6497e620d",
+      "public_key_b64": "8cg5MauHxKWoOHztvE83fdhETaDJMUUJhtiJglZSAe8=",
+      "public_key_digest": "a282d59efc33cd390a94c0e8e8eaf6c5aa6ff38af4f0d61833a64d3c29c7c23b",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "test-rebuilder-2.example.org",
+      "signer_independence_class": "external"
+    },
+    {
+      "pinned_by_commit": "ca70518e37e2ef4d43979c3b5edf66b6497e620d",
+      "public_key_b64": "pTrc9A5GKeOiYo6DoWatAlq6zHP2Iq4ivwMOWPK6kiY=",
+      "public_key_digest": "7cf06857d2d0adf09c7580ce9cbbdb5f9e0ab4f04df319492997bf978c4475bc",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "test-verifier-1.example.org",
+      "signer_independence_class": "external"
+    },
+    {
+      "pinned_by_commit": "ca70518e37e2ef4d43979c3b5edf66b6497e620d",
+      "public_key_b64": "M31ZFMNQ3GBqiQe+DAG8evhzB46fG2eq6WzU5OAGlfI=",
+      "public_key_digest": "8bb819cfbd95bf03e1c1d82071aaa2b6bf4427ebaa765f319601e10c1ff5add2",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "test-verifier-2.example.org",
+      "signer_independence_class": "external"
+    },
+    {
+      "pinned_by_commit": "ca70518e37e2ef4d43979c3b5edf66b6497e620d",
+      "public_key_b64": "FHbNjlzEZqAiVC6VtT1q0DQflEAog/PpJLKixcBPla4=",
+      "public_key_digest": "66ca7e4946c141f6e329e779da55e09ec1d462a7927d6d2c2b25ecea390e90d0",
+      "signature_algorithm": "ed25519",
+      "signer_identity": "test-verifier-3.example.org",
+      "signer_independence_class": "external"
+    }
+  ],
+  "schema_id": "daylight.v20.pinned-verification-material",
+  "schema_version": 1
+}

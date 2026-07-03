@@ -5,6 +5,10 @@ evidence bundle. Enforced by
 `daylight/v20-aperture-singularity/src/external_evidence.py`; documented by
 `schema/independent-rebuild-receipt.schema.json`.
 
+For the standalone v20.2 single-receipt intake protocol, see
+`docs/DAYLIGHT_V20_REBUILD_RECEIPT_PROTOCOL.md` and
+`daylight/v20-aperture-singularity/src/rebuild_receipts.py`.
+
 ## Purpose
 
 Two or more external builders independently rebuild the sealed subject

@@ -24,6 +24,12 @@ jobs:
       - name: Show toolchain
         run: python3 --version
 
+      - name: Daylight v20.2 rebuild receipt intake
+        run: make daylight-v20-rebuild-receipts
+
+      - name: Daylight v20.3 verifier-family quorum
+        run: make daylight-v20-verifier-quorum
+
       - name: Daylight v20 Aperture Singularity CI
         run: make daylight-v20-aperture-singularity-ci
 

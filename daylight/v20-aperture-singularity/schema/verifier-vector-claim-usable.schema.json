@@ -2,14 +2,18 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "verifier-vector-claim-usable.schema.json",
   "title": "Daylight v20 Claim-Usable Verifier Vector",
-  "description": "Documentation schema for one claim-usable external verifier vector inside an external evidence bundle. The enforced validator is src/external_evidence.py. Exactly three vectors from three distinct verifier families are required. A vector is rejected if it is fixture or not claim-usable, its decision is not 'pass', its input capsule digest differs from the subject aperture capsule digest, its output digest differs from the other vectors, its family is duplicated, or its pinned attestation is missing or inadmissible. The attestation subject_digest must equal SHA-256('DAYLIGHT-v20-EXTERNAL-VERIFIER-VECTOR:' + canonical(vector without attestation_ref)).",
+  "description": "Documentation schema for one claim-usable external verifier vector inside an external evidence bundle. The enforced validators are src/external_evidence.py and src/verifier_quorum.py. Exactly three vectors from three distinct external verifier families are required. A vector is rejected if it is fixture or not claim-usable, its family is not external, its decision is not 'pass', its input capsule digest differs from the subject aperture capsule digest, its canonical output digest differs from the pinned v20.3 canonical verifier-output digest, its output digest differs from the other vectors, its family or implementation digest is duplicated, or its pinned attestation is missing or inadmissible. The attestation subject_digest must equal SHA-256('DAYLIGHT-v20-EXTERNAL-VERIFIER-VECTOR:' + canonical(vector without attestation_ref)).",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "vector_id",
     "verifier_family",
+    "verifier_family_independence_class",
     "verifier_implementation_digest",
+    "verifier_implementation_kind",
     "input_capsule_digest",
+    "canonical_output_schema_id",
+    "canonical_output_digest",
     "output_digest",
     "decision",
     "fixture",
@@ -19,8 +23,21 @@
   "properties": {
     "vector_id": {"type": "string", "minLength": 1},
     "verifier_family": {"type": "string", "minLength": 1},
+    "verifier_family_independence_class": {"const": "external"},
     "verifier_implementation_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "verifier_implementation_kind": {
+      "enum": [
+        "source-tree",
+        "source-tarball",
+        "binary",
+        "script",
+        "reproducible-container",
+        "other-declared"
+      ]
+    },
     "input_capsule_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "canonical_output_schema_id": {"const": "daylight.v20.canonical-verifier-output"},
+    "canonical_output_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "output_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "decision": {"enum": ["pass", "fail"]},
     "fixture": {"const": false},

@@ -18,6 +18,8 @@ EXAMPLE_EXPECTATIONS = {
     "external-evidence.unpinned-key.reject.json": "public key is not pinned",
     "external-evidence.valid-shape.nonclaim.json": "public key is not pinned",
 }
+SIGNED_NONCLAIM_BUNDLE = ROOT / "examples/external-evidence.signed-nonclaim.v20.json"
+SIGNED_NONCLAIM_PINNED_MATERIAL = ROOT / "examples/external-verification-material.signed-nonclaim.v20.json"
 
 
 class ExternalEvidenceIntakeTests(unittest.TestCase):
@@ -32,7 +34,6 @@ class ExternalEvidenceIntakeTests(unittest.TestCase):
             self.assertFalse(report["external_attestation_verified"], name)
             self.assertFalse(report["declaration_allowed"], name)
             self.assertFalse(report["singularity_possible_without_external_validation"], name)
-            self.assertIn(external_evidence.ATTESTATION_NOT_IMPLEMENTED_BLOCKER, report["blockers"], name)
             self.assertTrue(support.has_blocker(report, needle), f"{name}: {report['blockers']}")
 
     def test_empty_bundle_reports_all_missing_sections(self):
@@ -76,10 +77,29 @@ class ExternalEvidenceIntakeTests(unittest.TestCase):
         allowed = (
             "public key is not pinned",
             "attestation is not admissible",
-            external_evidence.ATTESTATION_NOT_IMPLEMENTED_BLOCKER,
+            "verifier_quorum_unpinned_signer",
         )
         for blocker in report["blockers"]:
             self.assertTrue(any(kind in blocker for kind in allowed), blocker)
+
+    def test_signed_nonclaim_example_verifies_but_declaration_remains_refused(self):
+        report = external_evidence.load_and_evaluate(
+            SIGNED_NONCLAIM_BUNDLE,
+            pinned_material_path=SIGNED_NONCLAIM_PINNED_MATERIAL,
+            capsule_path=support.CAPSULE_PATH,
+            aperture_capsule_path=support.APERTURE_PATH,
+        )
+        capsule = support.load_capsule()
+
+        self.assertTrue(report["shape_valid"])
+        self.assertTrue(report["bundle_digest_verified"])
+        self.assertTrue(report["pinned_material_valid"])
+        self.assertTrue(report["external_attestation_verified"])
+        self.assertTrue(report["external_evidence_admissible"])
+        self.assertEqual(report["cryptographically_verified_attestation_count"], 6)
+        self.assertFalse(report["declaration_allowed"])
+        self.assertFalse(report["singularity_possible_without_external_validation"])
+        self.assertEqual(capsule["score_inflation_M"], 0)
 
     def test_missing_capsule_fails_closed(self):
         report = external_evidence.load_and_evaluate(ROOT / "examples/external-evidence.valid-shape.nonclaim.json")
