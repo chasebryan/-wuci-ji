@@ -1,513 +1,360 @@
 #!/usr/bin/env python3
+"""Build a public Wuci-OS release-candidate bundle from allowlisted artifacts."""
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import os
-import subprocess
-import sys
-from pathlib import Path
-from typing import Any
+import stat
+import tempfile
+from pathlib import Path, PurePosixPath
+from typing import Any, Iterable
+
+import wuci_release_privacy_audit
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "tools"))
-import wuci_install  # noqa: E402
-import wuci_external_audit  # noqa: E402
-import wuci_pq_verifier  # noqa: E402
-import wuci_production_authority  # noqa: E402
+SCHEMA = "wuci-os-public-release-bundle-v1"
+DEFAULT_OUT = Path("build/wuci-os/release-candidate/Wuci-Ji-v2.2-Aperture-Bastion")
+DEFAULT_FINAL_DIR = Path("build/wuci-os/final")
+DEFAULT_EVIDENCE_DIR = Path("build/wuci-os/release-evidence")
+DEFAULT_PRIVACY_AUDIT = Path("build/wuci-os/privacy-audit.json")
+DEFAULT_ROOTFS_PRIVACY_AUDIT = Path("build/wuci-os/privacy-audit-final-rootfs.json")
+DEFAULT_DAYLIGHT_SSV = Path("build/daylight/ssv-v1/daylight-ssv.report.json")
+
+ISO_NAME = "Wuci-OS-x86_64-musl.iso"
+NON_CLAIMS = (
+    "This bundle is an allowlisted public release-candidate directory, not a whole-workstation copy.",
+    "This bundle is ISO-only by default; VirtualBox/OVA artifacts are intentionally not included.",
+    "If release_gate.release_allowed is false, this bundle is not final publish authorization.",
+    "Privacy audit evidence covers selected candidate artifacts, not the entire operator host.",
+)
 
 
 class ReleaseBundleError(RuntimeError):
     pass
 
 
-def sha_file(path: Path, algorithm: str) -> str:
-    h = hashlib.new(algorithm)
+def stable_json(value: Any) -> str:
+    return json.dumps(value, indent=2, sort_keys=True, separators=(",", ": ")) + "\n"
+
+
+def sha256_file(path: Path) -> tuple[str, int]:
+    info = require_regular(path, "digest input")
+    digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
+            digest.update(chunk)
+    return digest.hexdigest(), info.st_size
 
 
-def require_regular(path: Path, context: str) -> None:
-    if not path.is_file() or path.is_symlink():
-        raise ReleaseBundleError(f"{context} must be a regular non-symlink file: {path}")
+def require_regular(path: Path, label: str) -> os.stat_result:
+    try:
+        info = path.lstat()
+    except FileNotFoundError as exc:
+        raise ReleaseBundleError(f"{label} is missing: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise ReleaseBundleError(f"{label} must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise ReleaseBundleError(f"{label} must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise ReleaseBundleError(f"{label} must not be hardlinked: {path}")
+    return info
 
 
-def load_json(path: Path, context: str) -> dict[str, Any]:
-    require_regular(path, context)
+def read_json(path: Path, label: str) -> dict[str, Any]:
+    require_regular(path, label)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise ReleaseBundleError(f"{context} is not valid JSON: {exc.msg}") from exc
+        raise ReleaseBundleError(f"{label} is not valid JSON: {path}: {exc}") from exc
     if not isinstance(value, dict):
-        raise ReleaseBundleError(f"{context} must be a JSON object")
+        raise ReleaseBundleError(f"{label} must be a JSON object: {path}")
     return value
 
 
-def run(argv: list[str], context: str, *, cwd: Path) -> subprocess.CompletedProcess[bytes]:
-    proc = subprocess.run(
-        argv,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout).decode("utf-8", "replace").strip()
-        raise ReleaseBundleError(f"{context} failed: {detail}")
-    return proc
-
-
-def hash_tree(path: Path, context: str) -> str:
-    if not path.is_dir() or path.is_symlink():
-        raise ReleaseBundleError(f"{context} must be a directory: {path}")
-    digest = hashlib.sha512()
-    for child in sorted(path.rglob("*")):
-        rel = child.relative_to(path).as_posix()
-        info = os.lstat(child)
-        if child.is_symlink():
-            raise ReleaseBundleError(f"{context} must not contain symlink: {child}")
-        if child.is_dir():
-            continue
-        if not child.is_file():
-            raise ReleaseBundleError(f"{context} must contain regular files only: {child}")
-        digest.update(rel.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(child.read_bytes())
-        digest.update(b"\0")
-    return digest.hexdigest()
-
-
-def verify_json_evidence(args: argparse.Namespace) -> dict[str, Any]:
-    sbom = load_json(Path(args.sbom), "SBOM")
-    provenance = load_json(Path(args.provenance), "provenance")
-    carrot = load_json(Path(args.carrot), "CARROT attestation")
-    pq = load_json(Path(args.pq), "PQ verifier evidence")
-    crypto_audit = load_json(Path(args.crypto_audit), "crypto self-audit")
-    parser_replay = load_json(Path(args.parser_replay), "parser corpus replay")
-    production_authority = load_json(
-        Path(args.production_authority_policy), "production authority policy"
-    )
-
-    if sbom.get("schema") != "wuci-sbom-v1" or sbom.get("network_required") is not False:
-        raise ReleaseBundleError("SBOM must be offline wuci-sbom-v1 evidence")
-    if sbom.get("license") != "Apache-2.0":
-        raise ReleaseBundleError("SBOM must record Apache-2.0")
-    if provenance.get("schema") != "wuci-provenance-v1":
-        raise ReleaseBundleError("provenance must be wuci-provenance-v1")
-    if provenance.get("production_readiness", {}).get("claim") != "not-production-ready":
-        raise ReleaseBundleError("provenance must not claim production readiness")
-    if carrot.get("schema") != "wuci-carrot-runtime-attestation-v1":
-        raise ReleaseBundleError("CARROT attestation schema mismatch")
-    if carrot.get("allow_network") is not False:
-        raise ReleaseBundleError("CARROT must not allow network")
-    if carrot.get("kernel_probe", {}).get("socket_probe_denied") is not True:
-        raise ReleaseBundleError("CARROT kernel probe must deny socket creation")
-    if pq.get("schema") != "wuci-pq-verifier-detection-v1":
-        raise ReleaseBundleError("PQ verifier evidence schema mismatch")
-    if pq.get("quantum_safe_claim_allowed") is not False:
-        raise ReleaseBundleError("release verifier refuses quantum-safe overclaim")
-    if crypto_audit.get("schema") != "wuci-crypto-self-audit-v1":
-        raise ReleaseBundleError("crypto self-audit schema mismatch")
-    if crypto_audit.get("external_audit") is not False:
-        raise ReleaseBundleError("internal crypto audit must not claim external audit")
-    if crypto_audit.get("production_sufficient") is not False:
-        raise ReleaseBundleError("internal crypto audit must not claim production sufficiency")
-    if parser_replay.get("schema") != "wuci-parser-corpus-replay-v2":
-        raise ReleaseBundleError("parser corpus replay schema mismatch")
-    if parser_replay.get("offensive_fuzzing") is not False:
-        raise ReleaseBundleError("parser corpus replay must not be offensive fuzzing")
-    if parser_replay.get("network_required") is not False:
-        raise ReleaseBundleError("parser corpus replay must not require network")
-    if parser_replay.get("runtime_sandbox_claim") is not False:
-        raise ReleaseBundleError("parser corpus replay must not claim runtime sandboxing")
-    if parser_replay.get("deterministic_mutation_mode") is not True:
-        raise ReleaseBundleError("parser corpus replay must be deterministic")
-    if parser_replay.get("fail_closed") is not True:
-        raise ReleaseBundleError("parser corpus replay must fail closed")
-    if parser_replay.get("timeouts") != 0 or parser_replay.get("signals") != 0:
-        raise ReleaseBundleError("parser corpus replay must not time out or terminate by signal")
-    required_parser_surfaces = {
-        "armor",
-        "authority-root",
-        "envelope",
-        "gate-contract",
-        "ledger-entry",
-        "ledger-head",
-        "ledger-proof",
-        "wjnext-model",
-        "wjstar-model",
-    }
-    parser_surfaces = parser_replay.get("surfaces")
-    if not isinstance(parser_surfaces, dict):
-        raise ReleaseBundleError("parser corpus replay must record surface coverage")
-    missing_parser_surfaces = sorted(required_parser_surfaces.difference(parser_surfaces))
-    if missing_parser_surfaces:
-        raise ReleaseBundleError(
-            "parser corpus replay missing surfaces: " + ", ".join(missing_parser_surfaces)
-        )
-    if parser_replay.get("wjstar_model_covered") is not True:
-        raise ReleaseBundleError("parser corpus replay must cover WJ* model inputs")
-    if parser_replay.get("wjnext_model_covered") is not True:
-        raise ReleaseBundleError("parser corpus replay must cover WJ-next model inputs")
-    if production_authority.get("schema") != "wuci-production-authority-policy-v1":
-        raise ReleaseBundleError("production authority policy schema mismatch")
-    if production_authority.get("fixture_authority_allowed_for_production") is not False:
-        raise ReleaseBundleError("fixture authority must not be allowed for production")
-    required_authority = production_authority.get("required_for_production", {})
-    if required_authority.get("key_ceremony_document_required") is not True:
-        raise ReleaseBundleError("production authority must require ceremony evidence")
-    if required_authority.get("ceremony_threshold_minimum") != 4:
-        raise ReleaseBundleError("production authority must require Golden Lock ceremony threshold")
-    if required_authority.get("ceremony_signer_count_minimum") != 5:
-        raise ReleaseBundleError("production authority must require Golden Lock signer count")
-    if required_authority.get("publish_or_trust_requires_assembly_gate") is not True:
-        raise ReleaseBundleError("production authority must require assembly Gate publish/trust")
-    if required_authority.get("required_publish_trust_assembly_commands") != [
-        "publish-authorized-rooted",
-        "trust-authorized-rooted",
-    ]:
-        raise ReleaseBundleError("production authority must name publish/trust assembly Gate commands")
-    golden_lock = production_authority.get("golden_lock", {})
-    if golden_lock.get("schema") != "wuci-golden-lock-v1":
-        raise ReleaseBundleError("production authority policy must name Golden Lock v1")
-    if golden_lock.get("normal_open_release_threshold") != {"n": 5, "t": 3}:
-        raise ReleaseBundleError("production authority policy must require 3-of-5 open/release")
-    if golden_lock.get("root_authority_audit_ceremony_threshold") != {"n": 5, "t": 4}:
-        raise ReleaseBundleError("production authority policy must require 4-of-5 ceremonies")
-
-    return {
-        "sbom_sha256": sha_file(Path(args.sbom), "sha256"),
-        "provenance_sha256": sha_file(Path(args.provenance), "sha256"),
-        "carrot_attestation_sha256": sha_file(Path(args.carrot), "sha256"),
-        "pq_verifier_evidence_sha256": sha_file(Path(args.pq), "sha256"),
-        "crypto_self_audit_sha256": sha_file(Path(args.crypto_audit), "sha256"),
-        "crypto_external_audit": crypto_audit.get("external_audit") is True,
-        "crypto_production_sufficient": crypto_audit.get("production_sufficient") is True,
-        "parser_corpus_replay_sha256": sha_file(Path(args.parser_replay), "sha256"),
-        "parser_corpus_replay_cases": parser_replay.get("cases"),
-        "parser_corpus_replay_surfaces": sorted(parser_replay.get("surfaces", {}).keys()),
-        "production_authority_policy_sha256": sha_file(
-            Path(args.production_authority_policy), "sha256"
-        ),
-        "fixture_authority_allowed_for_production": production_authority.get(
-            "fixture_authority_allowed_for_production"
-        ),
-        "pq_real_signature_verifier_available": pq.get("real_pq_signature_verifier_available")
-        is True,
-    }
-
-
-def verify_real_pq(args: argparse.Namespace) -> dict[str, Any]:
-    if not args.real_pq_evidence:
-        return {
-            "provided": False,
-            "verified": False,
-            "reason": "no real PQ verifier evidence supplied",
-        }
-    evidence_path = Path(args.real_pq_evidence)
-    pins_path = Path(args.pq_pins)
-    try:
-        summary = wuci_pq_verifier.verify_real_evidence(
-            evidence_path=evidence_path,
-            pins_path=pins_path,
-            rerun=args.real_pq_rerun,
-        )
-    except wuci_pq_verifier.PQVerifierError as exc:
-        raise ReleaseBundleError(f"real PQ verifier evidence failed: {exc}") from exc
-    return {
-        "provided": True,
-        "verified": True,
-        "evidence_sha256": sha_file(evidence_path, "sha256"),
-        "pins_sha256": sha_file(pins_path, "sha256"),
-        **summary,
-    }
-
-
-def verify_production_authority(args: argparse.Namespace) -> dict[str, Any]:
-    values = (
-        args.production_authority,
-        args.production_authority_ceremony,
-        args.production_authority_ceremony_root_key,
-        args.production_authority_ceremony_signature,
-    )
-    if not any(values):
-        return {
-            "provided": False,
-            "verified": False,
-            "reason": "no signed non-fixture production authority ceremony supplied",
-        }
-    if not all(values):
-        raise ReleaseBundleError(
-            "production authority release evidence requires authority, ceremony, root key, and signature"
-        )
-    try:
-        summary = wuci_production_authority.verify_authority(
-            authority_path=Path(args.production_authority),
-            ceremony_path=Path(args.production_authority_ceremony),
-            ceremony_root_key=Path(args.production_authority_ceremony_root_key),
-            ceremony_signature=Path(args.production_authority_ceremony_signature),
-            policy_path=Path(args.production_authority_policy),
-            ssh_keygen=args.ssh_keygen,
-            allow_unsigned_ceremony=False,
-        )
-    except wuci_production_authority.ProductionAuthorityError as exc:
-        raise ReleaseBundleError(f"production authority evidence failed: {exc}") from exc
-    return {
-        "provided": True,
-        "verified": True,
-        "ceremony_root_key_sha256": sha_file(
-            Path(args.production_authority_ceremony_root_key), "sha256"
-        ),
-        "ceremony_signature_sha256": sha_file(
-            Path(args.production_authority_ceremony_signature), "sha256"
-        ),
-        **summary,
-    }
-
-
-def verify_external_audit(args: argparse.Namespace, repo: Path) -> dict[str, Any]:
-    values = (
-        args.external_audit_evidence,
-        args.external_audit_report,
-        args.external_audit_root_key,
-        args.external_audit_signature,
-    )
-    if not any(values):
-        return {
-            "provided": False,
-            "verified": False,
-            "reason": "no independent external crypto/security audit evidence supplied",
-        }
-    if not all(values):
-        raise ReleaseBundleError(
-            "external audit release evidence requires evidence, report, root key, and signature"
-        )
-    try:
-        summary = wuci_external_audit.verify_external_audit(
-            evidence_path=Path(args.external_audit_evidence),
-            report_path=Path(args.external_audit_report),
-            audit_root_key=Path(args.external_audit_root_key),
-            audit_signature=Path(args.external_audit_signature),
-            repo=repo,
-            ssh_keygen=args.ssh_keygen,
-            allow_unsigned_audit=False,
-        )
-    except wuci_external_audit.ExternalAuditError as exc:
-        raise ReleaseBundleError(f"external audit evidence failed: {exc}") from exc
-    return {
-        "provided": True,
-        "verified": True,
-        "audit_root_key_sha256": sha_file(Path(args.external_audit_root_key), "sha256"),
-        "audit_signature_sha256": sha_file(Path(args.external_audit_signature), "sha256"),
-        **summary,
-    }
-
-
-def verify_install_manifest(args: argparse.Namespace, binary_hashes: dict[str, str]) -> dict[str, Any]:
-    manifest_path = Path(args.install_manifest)
-    manifest = wuci_install.verify_manifest_signature(
-        install_root_key=Path(args.install_root_key),
-        manifest_path=manifest_path,
-        signature_path=Path(args.install_signature),
-        ssh_keygen=args.ssh_keygen,
-        quiet=True,
-    )
-    current_match = (
-        manifest["binary-sha256"] == binary_hashes["sha256"]
-        and manifest["binary-sha384"] == binary_hashes["sha384"]
-        and manifest["binary-sha512"] == binary_hashes["sha512"]
-    )
-    return {
-        "install_manifest_sha256": sha_file(manifest_path, "sha256"),
-        "install_signature_verified": True,
-        "install_root_key_sha256": sha_file(Path(args.install_root_key), "sha256"),
-        "install_manifest_matches_current_binary": current_match,
-    }
-
-
-def verify_witness_and_ledger(args: argparse.Namespace, repo: Path) -> dict[str, Any]:
-    witness = Path(args.witness_bundle)
-    ledger = Path(args.ledger)
-    for rel in (
-        "wuci-ji.self.wj",
-        "manifest.txt",
-        "warrant-message.txt",
-        "release-receipt.json",
-        "receipt-contract.txt",
-        "authority-root.txt",
-        "release-decision.txt",
-        "publish-index.txt",
-        "attestation.json",
-    ):
-        require_regular(witness / rel, f"witness bundle {rel}")
-
-    run(
-        [
-            sys.executable,
-            str(repo / "tools" / "wuci_witness.py"),
-            "verify",
-            "--bin",
-            str(Path(args.bin)),
-            "--bundle",
-            str(witness),
-        ],
-        "Python witness verification",
-        cwd=repo,
-    )
-    if Path(args.zig_witness).exists():
-        run(
-            [str(Path(args.zig_witness)), "verify", str(witness), "--bin", str(Path(args.bin))],
-            "Zig witness verification",
-            cwd=repo,
-        )
-
-    for rel in (
-        "ledger-entry.txt",
-        "ledger-head.txt",
-        "previous-ledger-head.txt",
-        "inclusion-proof.txt",
-        "consistency-proof.txt",
-    ):
-        require_regular(ledger / rel, f"ledger {rel}")
-    if Path(args.zig_ledger).exists():
-        run(
-            [str(Path(args.zig_ledger)), "verify-history", "--ledger", str(ledger)],
-            "Zig ledger history verification",
-            cwd=repo,
-        )
-    return {
-        "witness_bundle_sha512": hash_tree(witness, "witness bundle"),
-        "ledger_history_sha512": hash_tree(ledger, "ledger history"),
-    }
-
-
-def verify_runtime(args: argparse.Namespace, repo: Path) -> dict[str, Any]:
-    run([str(Path(args.bin)), "selftest"], "wuci-ji selftest", cwd=repo)
-    run([str(Path(args.rust_sandbox)), "--selftest"], "Rust sandbox selftest", cwd=repo)
-    run(
-        [str(Path(args.rust_sandbox)), "--no-network", "--", str(Path(args.bin)), "selftest"],
-        "wuci-ji selftest under Rust sandbox",
-        cwd=repo,
-    )
-    return {
-        "binary_selftest": True,
-        "rust_sandbox_selftest": True,
-        "rust_sandbox_binary_sha256": sha_file(Path(args.rust_sandbox), "sha256"),
-    }
-
-
-def verify(args: argparse.Namespace) -> dict[str, Any]:
-    repo = Path(args.repo).resolve()
-    bin_path = Path(args.bin)
-    require_regular(bin_path, "release binary")
-    binary_hashes = {
-        "sha256": sha_file(bin_path, "sha256"),
-        "sha384": sha_file(bin_path, "sha384"),
-        "sha512": sha_file(bin_path, "sha512"),
-    }
-
-    result: dict[str, Any] = {
-        "schema": "wuci-release-bundle-verification-v1",
-        "evidence_candidate": True,
-        "production_ready": False,
-        "host": {
-            "observed_logical_cpus": os.cpu_count(),
-            "dual_core_assumption": False,
-            "parallel_make_supported": True,
-            "shared_evidence_paths_serialized": True,
-            "parallel_make_guidance": "use make -jN for independent proof targets; shared evidence bundle targets remain serialized by Make dependencies",
-        },
-        "non_claims": [
-            "release verifier does not create production authority",
-            "fixture authority remains test-only",
-            "internal crypto self-audit is not external cryptographic assurance",
-            "PQ detector does not claim quantum safety without separate pinned real verifier evidence",
-            "external audit evidence does not by itself create production authority",
-        ],
-        "binary": {
-            "path": str(bin_path),
-            **binary_hashes,
-        },
-        "json_evidence": verify_json_evidence(args),
-        "real_pq_evidence": verify_real_pq(args),
-        "production_authority": verify_production_authority(args),
-        "external_audit": verify_external_audit(args, repo),
-        "install": verify_install_manifest(args, binary_hashes),
-        "public_evidence": verify_witness_and_ledger(args, repo),
-        "runtime_evidence": verify_runtime(args, repo),
-    }
-    blockers: list[str] = []
-    if result["install"]["install_manifest_matches_current_binary"] is not True:
-        blockers.append("install manifest signature is valid but not for current binary")
-    if result["real_pq_evidence"]["verified"] is not True:
-        blockers.append("no real pinned PQ signature verifier evidence supplied")
-    if result["production_authority"]["verified"] is not True:
-        blockers.append("no signed non-fixture production authority ceremony supplied")
-    if result["external_audit"]["verified"] is not True:
-        blockers.append("no independent external crypto/security audit evidence supplied")
-    if blockers:
-        result["blockers"] = blockers
-    return result
-
-
-def write_json(path: Path, value: dict[str, Any]) -> None:
+def write_text_atomic(path: Path, text: str, *, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify WUCI release evidence bundle.")
-    parser.add_argument("verify", choices=("verify",))
-    parser.add_argument("--repo", default=".")
-    parser.add_argument("--bin", default="build/wuci-ji")
-    parser.add_argument("--sbom", default="build/wuci-sbom.json")
-    parser.add_argument("--provenance", default="build/wuci-provenance.json")
-    parser.add_argument("--carrot", default="build/wuci-carrot-attestation.json")
-    parser.add_argument("--pq", default="build/wuci-pq-verifier.json")
-    parser.add_argument("--real-pq-evidence")
-    parser.add_argument("--pq-pins", default="docs/wuci_pq_verifier_pins.json")
-    parser.add_argument("--real-pq-rerun", action="store_true")
-    parser.add_argument("--crypto-audit", default="build/wuci-crypto-self-audit.json")
-    parser.add_argument("--parser-replay", default="build/wuci-parser-corpus-replay.json")
-    parser.add_argument(
-        "--production-authority-policy",
-        default="docs/wuci_production_authority_policy.json",
-    )
-    parser.add_argument("--production-authority")
-    parser.add_argument("--production-authority-ceremony")
-    parser.add_argument("--production-authority-ceremony-root-key")
-    parser.add_argument("--production-authority-ceremony-signature")
-    parser.add_argument("--external-audit-evidence")
-    parser.add_argument("--external-audit-report")
-    parser.add_argument("--external-audit-root-key")
-    parser.add_argument("--external-audit-signature")
-    parser.add_argument("--witness-bundle", default="build/wuci-witness-bundle")
-    parser.add_argument("--ledger", default="build/wuci-ledger")
-    parser.add_argument("--install-manifest", default="install/wuci-install-manifest.v1")
-    parser.add_argument("--install-signature", default="install/wuci-install-manifest.v1.sig")
-    parser.add_argument("--install-root-key", default="install/wuci-install-root.v1.pub")
-    parser.add_argument("--rust-sandbox", default="build/wuci-sandbox")
-    parser.add_argument("--zig-witness", default="build/wuci-witness")
-    parser.add_argument("--zig-ledger", default="build/wuci-ledger-tool")
-    parser.add_argument("--ssh-keygen")
-    parser.add_argument("--out", required=True)
-    parser.add_argument("--quiet", action="store_true")
-    args = parser.parse_args()
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    tmp = Path(tmp_name)
     try:
-        result = verify(args)
-        write_json(Path(args.out), result)
-        if not args.quiet:
-            print(f"wrote release bundle verification: {args.out}")
-        return 0
-    except (OSError, UnicodeDecodeError, wuci_install.InstallError, ReleaseBundleError) as exc:
-        print(f"wuci release bundle: {exc}", file=sys.stderr)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+        os.chmod(path, mode)
+        fsync_parent(path.parent)
+    except Exception:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
+    write_text_atomic(path, stable_json(value))
+
+
+def fsync_parent(path: Path) -> None:
+    try:
+        fd = os.open(path, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def reset_output_dir(path: Path, *, force: bool) -> None:
+    if path.exists() or path.is_symlink():
+        if not force:
+            raise ReleaseBundleError(f"output already exists; pass --force to replace: {path}")
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise ReleaseBundleError(f"output directory must not be a symlink: {path}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ReleaseBundleError(f"output path must be a directory: {path}")
+        for root, dirs, files in os.walk(path, topdown=False, followlinks=False):
+            root_path = Path(root)
+            for name in files:
+                item = root_path / name
+                item.unlink()
+            for name in dirs:
+                item = root_path / name
+                if item.is_symlink():
+                    item.unlink()
+                else:
+                    item.rmdir()
+    path.mkdir(parents=True, exist_ok=True)
+    fsync_parent(path.parent)
+
+
+def safe_relpath(value: str) -> PurePosixPath:
+    pure = PurePosixPath(value)
+    if pure.is_absolute() or not pure.parts or any(part in {"", ".", ".."} for part in pure.parts):
+        raise ReleaseBundleError(f"unsafe bundle relative path: {value}")
+    return pure
+
+
+def copy_regular(src: Path, dst_root: Path, rel: str) -> dict[str, Any]:
+    safe = safe_relpath(rel)
+    dst = dst_root.joinpath(*safe.parts)
+    info = require_regular(src, f"release artifact {src}")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent))
+    tmp = Path(tmp_name)
+    digest = hashlib.sha256()
+    try:
+        with os.fdopen(fd, "wb") as out, src.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+                out.write(chunk)
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(tmp, dst)
+        os.chmod(dst, 0o644)
+        fsync_parent(dst.parent)
+    except Exception:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+    return {
+        "source": str(src),
+        "path": safe.as_posix(),
+        "bytes": info.st_size,
+        "sha256": digest.hexdigest(),
+    }
+
+
+def input_artifacts(
+    *,
+    final_dir: Path,
+    evidence_dir: Path,
+    privacy_audit: Path,
+    rootfs_privacy_audit: Path,
+    daylight_ssv: Path,
+) -> list[tuple[str, Path, str, bool]]:
+    return [
+        ("final_iso", final_dir / ISO_NAME, f"iso/{ISO_NAME}", True),
+        ("final_iso_sha256", final_dir / f"{ISO_NAME}.sha256", f"iso/{ISO_NAME}.sha256", True),
+        ("final_manifest", final_dir / "manifest.json", "evidence/final-manifest.json", True),
+        ("rootfs_manifest", final_dir / "rootfs-manifest.json", "evidence/rootfs-manifest.json", True),
+        ("daylight_manifest", final_dir / "daylight-manifest.json", "evidence/daylight-manifest.json", True),
+        ("release_gate", evidence_dir / "release-gate.json", "evidence/release-gate.json", True),
+        ("qemu_boot_trace", evidence_dir / "qemu-boot-trace.json", "evidence/qemu-boot-trace.json", True),
+        ("privacy_audit", privacy_audit, "evidence/privacy-audit.json", True),
+        ("rootfs_privacy_audit", rootfs_privacy_audit, "evidence/privacy-audit-final-rootfs.json", False),
+        ("daylight_ssv", daylight_ssv, "evidence/daylight-ssv.report.json", False),
+    ]
+
+
+def require_privacy_pass(path: Path) -> dict[str, Any]:
+    report = read_json(path, "Wuci-OS privacy audit")
+    if report.get("status") != "pass":
+        raise ReleaseBundleError(f"privacy audit is not pass: {path}")
+    summary = report.get("summary")
+    if isinstance(summary, dict) and summary.get("findings") not in (0, None):
+        raise ReleaseBundleError(f"privacy audit has findings: {path}")
+    findings = report.get("findings")
+    if isinstance(findings, list) and findings:
+        raise ReleaseBundleError(f"privacy audit has findings: {path}")
+    return report
+
+
+def checksum_lines(root: Path, records: Iterable[dict[str, Any]]) -> list[str]:
+    lines: list[str] = []
+    for record in sorted(records, key=lambda item: str(item["path"])):
+        rel = str(record["path"])
+        path = root.joinpath(*PurePosixPath(rel).parts)
+        digest, _size = sha256_file(path)
+        lines.append(f"{digest}  {rel}")
+    return lines
+
+
+def release_notes(release_allowed: bool, blockers: list[str]) -> str:
+    status = "release gate pass" if release_allowed else "release gate blocked"
+    blocker_text = "\n".join(f"- {item}" for item in blockers) if blockers else "- none"
+    return f"""Wuci-Ji v2.2 - Aperture Bastion
+
+Status: {status}
+
+This directory is the curated public release-candidate bundle for the Wuci-OS
+ISO. It intentionally excludes VirtualBox/OVA artifacts, local home directories,
+developer credentials, shell histories, private keys, package caches, and
+workspace build intermediates outside the allowlist.
+
+Release gate blockers:
+{blocker_text}
+
+Use CHECKSUMS.sha256 to verify copied artifacts. If release gate blockers are
+listed, do not treat this bundle as final publish authorization.
+"""
+
+
+def build_bundle(
+    *,
+    out: Path,
+    final_dir: Path,
+    evidence_dir: Path,
+    privacy_audit: Path,
+    rootfs_privacy_audit: Path,
+    daylight_ssv: Path,
+    force: bool,
+) -> dict[str, Any]:
+    privacy_report = require_privacy_pass(privacy_audit)
+    release_gate_path = evidence_dir / "release-gate.json"
+    release_gate = read_json(release_gate_path, "Wuci-OS release gate")
+    release_allowed = bool(release_gate.get("release_allowed") is True)
+    blockers = release_gate.get("blockers")
+    if not isinstance(blockers, list):
+        blockers = []
+
+    reset_output_dir(out, force=force)
+    copied: list[dict[str, Any]] = []
+    missing_optional: list[str] = []
+    for label, src, rel, required in input_artifacts(
+        final_dir=final_dir,
+        evidence_dir=evidence_dir,
+        privacy_audit=privacy_audit,
+        rootfs_privacy_audit=rootfs_privacy_audit,
+        daylight_ssv=daylight_ssv,
+    ):
+        if not src.exists():
+            if required:
+                raise ReleaseBundleError(f"required public artifact is missing: {label}: {src}")
+            missing_optional.append(label)
+            continue
+        record = copy_regular(src, out, rel)
+        record["label"] = label
+        copied.append(record)
+
+    notes_path = out / "RELEASE-NOTES.txt"
+    write_text_atomic(notes_path, release_notes(release_allowed, [str(item) for item in blockers]))
+    notes_digest, notes_size = sha256_file(notes_path)
+    copied.append({"label": "release_notes", "source": "generated", "path": "RELEASE-NOTES.txt", "bytes": notes_size, "sha256": notes_digest})
+
+    manifest = {
+        "schema": SCHEMA,
+        "status": "pass" if release_allowed else "candidate-blocked",
+        "release": "Wuci-Ji v2.2 - Aperture Bastion",
+        "release_allowed": release_allowed,
+        "release_gate_blockers": blockers,
+        "privacy_audit": {
+            "path": str(privacy_audit),
+            "status": privacy_report.get("status"),
+            "findings": privacy_report.get("summary", {}).get("findings") if isinstance(privacy_report.get("summary"), dict) else None,
+        },
+        "copied_artifacts": copied,
+        "missing_optional_artifacts": missing_optional,
+        "non_claims": list(NON_CLAIMS),
+    }
+    write_json_atomic(out / "public-release-bundle-manifest.json", manifest)
+    manifest_digest, manifest_size = sha256_file(out / "public-release-bundle-manifest.json")
+    copied.append(
+        {
+            "label": "public_release_bundle_manifest",
+            "source": "generated",
+            "path": "public-release-bundle-manifest.json",
+            "bytes": manifest_size,
+            "sha256": manifest_digest,
+        }
+    )
+
+    checksums = checksum_lines(out, copied)
+    write_text_atomic(out / "CHECKSUMS.sha256", "\n".join(checksums) + "\n")
+
+    bundle_audit = wuci_release_privacy_audit.audit_paths([out])
+    if bundle_audit.get("status") != "pass":
+        raise ReleaseBundleError("public bundle privacy audit failed: " + stable_json(bundle_audit))
+
+    return manifest
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command")
+    build = subparsers.add_parser("build", help="build the public release-candidate bundle")
+    build.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    build.add_argument("--final-dir", type=Path, default=DEFAULT_FINAL_DIR)
+    build.add_argument("--evidence-dir", type=Path, default=DEFAULT_EVIDENCE_DIR)
+    build.add_argument("--privacy-audit", type=Path, default=DEFAULT_PRIVACY_AUDIT)
+    build.add_argument("--rootfs-privacy-audit", type=Path, default=DEFAULT_ROOTFS_PRIVACY_AUDIT)
+    build.add_argument("--daylight-ssv", type=Path, default=DEFAULT_DAYLIGHT_SSV)
+    build.add_argument("--force", action="store_true")
+    build.add_argument("--json", action="store_true")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command != "build":
+        parser.print_help()
+        return 2
+    try:
+        result = build_bundle(
+            out=args.out,
+            final_dir=args.final_dir,
+            evidence_dir=args.evidence_dir,
+            privacy_audit=args.privacy_audit,
+            rootfs_privacy_audit=args.rootfs_privacy_audit,
+            daylight_ssv=args.daylight_ssv,
+            force=args.force,
+        )
+    except ReleaseBundleError as exc:
+        print(f"wuci-release-bundle: {exc}", file=os.sys.stderr)
         return 1
+    if args.json:
+        print(stable_json(result), end="")
+    else:
+        print(f"wuci-release-bundle: {result['status']} -> {args.out}")
+    return 0
 
 
 if __name__ == "__main__":

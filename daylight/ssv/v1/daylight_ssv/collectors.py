@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import stat
@@ -45,9 +46,21 @@ DIGEST_PATTERN = re.compile(r"\b(?:sha256|sha3[-_]?512)\s*[:=]\s*[0-9A-Za-z]{32,
 UNSAFE_PIPELINE_PATTERN = re.compile(r"\b(?:curl|wget)\b[^\n|;]{0,160}\|\s*(?:sh|bash)\b", re.IGNORECASE)
 NEGATED_EXAMPLE_PATTERN = re.compile(r"\b(?:not|no|never|without|does not|do not|must not)\b", re.IGNORECASE)
 DEBUG_MARKER_PATTERN = re.compile(r"\b(?:DEBUG\s*=\s*true|FLASK_ENV\s*=\s*development|NODE_ENV\s*=\s*development)\b", re.IGNORECASE)
-PLACEHOLDER_CRYPTO_PATTERN = re.compile(r"\b(?:placeholder crypto|fake verifier|toy crypto|stub verifier)\b", re.IGNORECASE)
+_PLACEHOLDER_CRYPTO_TERMS = (
+    ("placeholder", "crypto"),
+    ("fake", "verifier"),
+    ("toy", "crypto"),
+    ("stub", "verifier"),
+)
+PLACEHOLDER_CRYPTO_PATTERN = re.compile(
+    r"\b(?:"
+    + "|".join(f"{left}\\s+{right}" for left, right in _PLACEHOLDER_CRYPTO_TERMS)
+    + r")\b",
+    re.IGNORECASE,
+)
 
 ADMIN_PORTS = {22, 3389, 5900, 5985, 5986, 2375, 2376}
+BACKUP_EVIDENCE_SCHEMA = "wuci.backup_evidence.v1"
 
 
 def _repo_relative(root: Path, path: Path) -> str:
@@ -81,6 +94,58 @@ def _sha256_file(path: Path) -> str | None:
         return digest.hexdigest()
     except OSError:
         return None
+
+
+def _safe_load_json_object(path: Path) -> dict[str, Any] | None:
+    text = _safe_read_text(path)
+    if text is None:
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _safe_relative_path(rel: str) -> bool:
+    parts = Path(rel).parts
+    return bool(rel) and not Path(rel).is_absolute() and ".." not in parts
+
+
+def _backup_evidence_status(root: Path, evidence_path: Path) -> dict[str, Any]:
+    data = _safe_load_json_object(evidence_path)
+    if data is None:
+        return {"valid": False, "summary": "backup evidence unavailable or invalid JSON"}
+    archive = data.get("archive")
+    restore = data.get("restore")
+    archive_rel = archive.get("path") if isinstance(archive, dict) else None
+    archive_sha = archive.get("sha256") if isinstance(archive, dict) else None
+    archive_path = root / archive_rel if isinstance(archive_rel, str) and _safe_relative_path(archive_rel) else None
+    observed_archive_sha = _sha256_file(archive_path) if archive_path and archive_path.is_file() else None
+    files_total = data.get("files_total")
+    restore_checked = bool(isinstance(restore, dict) and restore.get("checked") is True)
+    restore_failures = restore.get("failures") if isinstance(restore, dict) else None
+    valid = (
+        data.get("schema") == BACKUP_EVIDENCE_SCHEMA
+        and data.get("result") == "pass"
+        and isinstance(files_total, int)
+        and files_total > 0
+        and restore_checked
+        and restore_failures == 0
+        and isinstance(archive_sha, str)
+        and observed_archive_sha == archive_sha
+    )
+    return {
+        "valid": valid,
+        "files_total": files_total if isinstance(files_total, int) else None,
+        "archive_exists": bool(archive_path and archive_path.is_file()),
+        "archive_sha256": observed_archive_sha,
+        "restore_checked": restore_checked,
+        "summary": (
+            f"valid={valid}; files_total={files_total if isinstance(files_total, int) else 'unknown'}; "
+            f"restore_checked={restore_checked}; archive_exists={bool(archive_path and archive_path.is_file())}"
+        ),
+    }
 
 
 def _tracked_files(root: Path) -> list[Path]:
@@ -163,6 +228,7 @@ def collect_filesystem_facts() -> dict[str, Any]:
         "paths": {name: _mode_summary(path) for name, path in common_paths.items()},
         "sudoers_has_nopasswd": None,
         "account_summary": None,
+        "suid_sgid_summary": None,
         "errors": [],
     }
     sudoers = common_paths["etc_sudoers"]
@@ -179,7 +245,41 @@ def collect_filesystem_facts() -> dict[str, Any]:
             rows = [line for line in text.splitlines() if line and not line.startswith("#")]
             login_shells = sum(1 for line in rows if not line.endswith(("/usr/sbin/nologin", "/sbin/nologin", "/bin/false")))
             facts["account_summary"] = {"accounts": len(rows), "login_shells": login_shells}
+    facts["suid_sgid_summary"] = _bounded_suid_sgid_summary(
+        common_paths[name] for name in ("usr_local_bin", "usr_bin", "bin", "sbin")
+    )
     return facts
+
+
+def _bounded_suid_sgid_summary(roots: Any) -> dict[str, Any]:
+    summary = {
+        "dirs_checked": 0,
+        "entries_checked": 0,
+        "suid_count": 0,
+        "sgid_count": 0,
+        "errors": 0,
+    }
+    for root in roots:
+        try:
+            if not root.is_dir():
+                continue
+            summary["dirs_checked"] += 1
+            for child in root.iterdir():
+                try:
+                    info = child.lstat()
+                except OSError:
+                    summary["errors"] += 1
+                    continue
+                if not stat.S_ISREG(info.st_mode):
+                    continue
+                summary["entries_checked"] += 1
+                if info.st_mode & stat.S_ISUID:
+                    summary["suid_count"] += 1
+                if info.st_mode & stat.S_ISGID:
+                    summary["sgid_count"] += 1
+        except OSError:
+            summary["errors"] += 1
+    return summary
 
 
 def collect_repo_facts(repo_root: Path | None = None) -> dict[str, Any]:
@@ -257,6 +357,8 @@ def collect_repo_facts(repo_root: Path | None = None) -> dict[str, Any]:
         "site_validator": "site/validate.mjs",
         "public_evidence_firewall": "tools/daylight_public_evidence_firewall.py",
         "v20_capsule": "build/daylight/v20-aperture-singularity-capsule.json",
+        "backup_evidence": "build/wuci-backup/backup-evidence.json",
+        "logging_evidence": "docs/WUCI_LOGGING.md",
         "security_boundary": "docs/SECURITY_BOUNDARY.md",
         "release_runbook": "docs/WUCI_OS_RELEASE_RUNBOOK.md",
         "machine_passoff": "docs/MACHINE_PASSOFF.md",
@@ -268,7 +370,13 @@ def collect_repo_facts(repo_root: Path | None = None) -> dict[str, Any]:
             "path": rel,
             "exists": path.is_file(),
             "sha256": _sha256_file(path) if path.is_file() else None,
-        }
+    }
+    backup_evidence = facts["known_files"]["backup_evidence"]
+    backup_evidence.update(
+        _backup_evidence_status(root, root / backup_evidence["path"])
+        if backup_evidence["exists"]
+        else {"valid": False, "summary": "backup evidence missing"}
+    )
     for list_key in (
         "lockfiles",
         "manifests",
@@ -357,6 +465,8 @@ def collect_daylight_facts(repo_root: Path | None = None) -> dict[str, Any]:
         "score_integrity_report": known["score_integrity_report"],
         "site_validator": known["site_validator"],
         "v20_capsule": known["v20_capsule"],
+        "backup_evidence": known["backup_evidence"],
+        "logging_evidence": known["logging_evidence"],
         "security_boundary": known["security_boundary"],
         "release_runbook": known["release_runbook"],
         "machine_passoff": known["machine_passoff"],

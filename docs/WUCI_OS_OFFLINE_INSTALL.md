@@ -53,6 +53,7 @@ wuci-daylight-v14c-plus score
 ```sh
 ip link
 wuci-network-connect
+doas wuci-network-connect    # if using the opendoas package
 sudo wuci-network-apply
 nmcli device wifi list
 nmcli --ask device wifi connect "YOUR_WIFI_NAME"
@@ -66,7 +67,7 @@ image. For noninteractive setup you may use `WUCI_WIFI_SSID`,
 `WUCI_WIFI_PASSWORD`, and optional `WUCI_WIFI_IFACE` / `WUCI_WIFI_HIDDEN=1`.
 The network-fixed image includes NetworkManager/`nmcli`, `dbus`, `sv`,
 `wpa_supplicant`, `wpa_passphrase`, `dhcpcd`, `iw`, `rfkill`,
-`linux-firmware-network`, and `sudo` at the live prompt. Use
+`linux-firmware-network`, `sudo`, and `opendoas` at the live prompt. Use
 `wuci-network-connect` first; use direct `nmcli` commands only if you want to
 drive NetworkManager manually.
 
@@ -149,8 +150,10 @@ INSTALL
 
 `INSTALL` automates partitioning, formatting, XBPS base install, network and
 desktop packages, GRUB, Wuci target activation, services, users, and
-verification. It self-escalates through sudo when needed and does not call an
-external installer backend.
+verification. It self-updates `xbps` before package transactions when the
+repository requires it, installs the `opendoas` package for the `doas` command,
+and self-escalates through `sudo` first, then `doas` when needed. It does not
+call an external installer backend.
 
 For safety, it shows the target disk and requires the confirmation word
 `INSTALL` before erasing. Useful forms:
@@ -160,6 +163,7 @@ INSTALL
 INSTALL --disk /dev/sda
 INSTALL --disk /dev/sda --yes
 WUCI_INSTALL_DISK=/dev/sda INSTALL
+INSTALL --disk /dev/sda --kernel-package linux6.12
 ```
 
 For two disks, the supported combined mode is an explicit RAID1 mirror:

@@ -285,9 +285,10 @@ The beginning-to-end offline install checklist is
 [WUCI_OS_OFFLINE_INSTALL.md](WUCI_OS_OFFLINE_INSTALL.md). The ISO also carries it
 at `/wuci-os/OFFLINE-INSTALL.txt`, and the live profile exposes it at
 `/usr/share/wuci-os/OFFLINE-INSTALL.txt`. The live install command is
-uppercase `INSTALL`; it self-escalates through sudo when needed and performs
-the Wuci auto-install path directly, while `wuci-install` remains a
-compatibility alias.
+uppercase `INSTALL`; it self-updates `xbps` when required, installs the
+`opendoas` package for the `doas` command, self-escalates through `sudo` first
+and then `doas` when needed, and performs the Wuci auto-install path directly,
+while `wuci-install` remains a compatibility alias.
 
 The source ISO is copied under `build/wuci-os/source/`, which is ignored by Git.
 The source ISO is an operator-supplied input, not repository source. Source ISO

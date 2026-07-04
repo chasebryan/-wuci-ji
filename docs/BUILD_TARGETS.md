@@ -338,7 +338,7 @@ transition, tamper, no-float, path-safety, and CLI tests.
 and ledgered transition, then accepts the fixture transition. The fixture
 passphrase is demonstration-only and not production security.
 
-## Wuci-Ji v2 — Aperture Bastion (Daylight v19)
+## Wuci-Ji v2.2 — Aperture Bastion (Daylight v19)
 
 Aperture Bastion under `daylight/v19-aperture-bastion` produces
 deterministic, claim-bounded Aperture Review Capsules and runs a strict

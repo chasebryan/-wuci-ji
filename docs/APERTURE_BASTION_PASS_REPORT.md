@@ -1,6 +1,6 @@
-# Aperture Bastion Pass Report — Wuci-Ji v2
+# Aperture Bastion Pass Report — Wuci-Ji v2.2
 
-- Pass name: Wuci-Ji v2 — Aperture Bastion
+- Pass name: Wuci-Ji v2.2 — Aperture Bastion
 - Date: 2026-07-01
 - Repo commit before changes: `fad0cdcfc63d724e957071e09a6dd679a50af583` (branch `main`, clean)
 - Repo commit after changes: not committed by this pass; all changes are in
