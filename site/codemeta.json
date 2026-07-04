@@ -2,7 +2,7 @@
   "@context": "https://w3id.org/codemeta/3.0",
   "@id": "https://nosuchmachine.net/codemeta.json",
   "@type": "SoftwareSourceCode",
-  "name": "Wuci-Ji v2 — Aperture Bastion",
+  "name": "Wuci-Ji v2.2 — Aperture Bastion",
   "alternateName": "Wuci-Ji",
   "description": "Defensive, evidence-bound research software for public review capsules, firewalled public artifacts, and claim-bounded Daylight proof lanes.",
   "applicationCategory": "Research software",
@@ -44,7 +44,7 @@
     "stdlib Python",
     "static HTML"
   ],
-  "softwareVersion": "v2.0.0-aperture-bastion",
+  "softwareVersion": "v2.2.0-aperture-bastion",
   "url": "https://nosuchmachine.net/",
   "additionalProperty": [
     {

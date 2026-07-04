@@ -1,4 +1,4 @@
-# Wuci-Ji v2 — Aperture Bastion
+# Wuci-Ji v2.2 — Aperture Bastion
 
 Site: https://nosuchmachine.net/
 Repository: https://github.com/chasebryan/-wuci-ji
@@ -18,7 +18,7 @@ Hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
 Claim/evidence map: https://nosuchmachine.net/claim-evidence.json
 
 Wuci-Ji is a defensive research artifact for evidence-bound release and review
-lanes. Wuci-Ji v2 Aperture Bastion adds a public-review layer that produces
+lanes. Wuci-Ji v2.2 Aperture Bastion adds a public-review layer that produces
 deterministic Aperture Review Capsules, binds subject bytes and public manifest
 entries to digests, and runs a strict public artifact firewall before release.
 

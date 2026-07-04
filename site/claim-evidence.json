@@ -1,7 +1,7 @@
 {
   "schema": "wuci-site-claim-evidence-v1",
   "project": "wuci-ji",
-  "surface": "Wuci-Ji v2 — Aperture Bastion website",
+  "surface": "Wuci-Ji v2.2 — Aperture Bastion website",
   "canonical_url": "https://nosuchmachine.net/",
   "last_updated": "2026-07-02",
   "purpose": "Map public website claims to the local evidence files and commands that can check them.",
@@ -43,7 +43,7 @@
         "docs/APERTURE_BASTION_PASS_REPORT.md"
       ],
       "evidence_values": {
-        "release_tag": "v2.0.0-aperture-bastion",
+        "release_tag": "v2.2.0-aperture-bastion",
         "capsule_digest": "9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0",
         "firewall_profile_id": "aperture-bastion-public-v1"
       },

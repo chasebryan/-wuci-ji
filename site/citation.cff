@@ -1,10 +1,10 @@
 cff-version: 1.2.0
 message: "If you use this research software artifact, cite it using the metadata in this file."
-title: "Wuci-Ji v2 — Aperture Bastion"
+title: "Wuci-Ji v2.2 — Aperture Bastion"
 type: software
 authors:
   - name: "No Such Machine"
-version: "v2.0.0-aperture-bastion"
+version: "v2.2.0-aperture-bastion"
 date-released: "2026-07-02"
 repository-code: "https://github.com/chasebryan/-wuci-ji"
 url: "https://nosuchmachine.net/"

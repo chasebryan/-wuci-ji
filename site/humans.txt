@@ -5,7 +5,7 @@ Repository:
 https://github.com/chasebryan/-wuci-ji
 
 Current public surface:
-Wuci-Ji v2 — Aperture Bastion
+Wuci-Ji v2.2 — Aperture Bastion
 
 Official Wuci-Ji emblem:
 https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg

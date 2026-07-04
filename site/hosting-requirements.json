@@ -1,7 +1,7 @@
 {
   "schema": "wuci-site-hosting-requirements-v1",
   "project": "wuci-ji",
-  "surface": "Wuci-Ji v2 — Aperture Bastion website",
+  "surface": "Wuci-Ji v2.2 — Aperture Bastion website",
   "canonical_origin": "https://nosuchmachine.net",
   "canonical_url": "https://nosuchmachine.net/",
   "checked_by": "make site-live-check",

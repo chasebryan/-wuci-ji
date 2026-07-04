@@ -151,7 +151,7 @@ async function assertIndexReferences() {
     'id="meridian"',
     'No public browser encryptor, private-key handler, or file opener is shipped.',
     'make daylight-meridian-envelope-test',
-    'Wuci-Ji v2 — Aperture Bastion',
+    'Wuci-Ji v2.2 — Aperture Bastion',
     'assets/wuci-ji-official-emblem.jpg',
     'Official Wuci-Ji emblem',
     'Every public claim needs a local handle.',
@@ -191,7 +191,7 @@ async function assertIndexReferences() {
     'not external certification',
     'make daylight-public-artifact-firewall',
     '28564990503',
-    'v2.0.0-aperture-bastion',
+    'v2.2.0-aperture-bastion',
     'ce077fea615528634ad27fec516fdb402f101602',
     '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0'
   ]) {
@@ -327,8 +327,8 @@ async function assertApertureStatusBinding() {
   const expected = {
     schema: "wuci-aperture-site-status-v1",
     project: "wuci-ji",
-    layer: "Wuci-Ji v2 — Aperture Bastion",
-    release_tag: "v2.0.0-aperture-bastion",
+    layer: "Wuci-Ji v2.2 — Aperture Bastion",
+    release_tag: "v2.2.0-aperture-bastion",
     commit: "ce077fea615528634ad27fec516fdb402f101602",
     capsule_digest: "9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0",
     firewall_profile_id: "aperture-bastion-public-v1",
@@ -855,7 +855,7 @@ async function assertSearchDiscoveryFiles() {
   if (manifest.name !== "Wuci-Ji" || manifest.short_name !== "Wuci-Ji" || manifest.start_url !== "/") {
     fail("site.webmanifest has unexpected identity or start_url");
   }
-  if (!manifest.description.includes("Wuci-Ji v2 Aperture Bastion")) {
+  if (!manifest.description.includes("Wuci-Ji v2.2 Aperture Bastion")) {
     fail("site.webmanifest must describe the Aperture Bastion surface");
   }
   if (!manifest.icons.some((icon) => icon.src === "/assets/wuci-ji-official-emblem.jpg" && icon.type === "image/jpeg")) {
@@ -866,7 +866,7 @@ async function assertSearchDiscoveryFiles() {
 async function assertPublicTextDiscovery() {
   const llms = await readFile(new URL("llms.txt", siteRoot), "utf8");
   for (const required of [
-    "Wuci-Ji v2 — Aperture Bastion",
+    "Wuci-Ji v2.2 — Aperture Bastion",
     "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
     "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
     "https://nosuchmachine.net/aperture-status.json",
@@ -941,7 +941,7 @@ async function assertResearchMetadata() {
     "@context": "https://w3id.org/codemeta/3.0",
     "@id": "https://nosuchmachine.net/codemeta.json",
     "@type": "SoftwareSourceCode",
-    name: "Wuci-Ji v2 — Aperture Bastion",
+    name: "Wuci-Ji v2.2 — Aperture Bastion",
     citation: "https://nosuchmachine.net/citation.cff",
     codeRepository: "https://github.com/chasebryan/-wuci-ji",
     contIntegration: "https://github.com/chasebryan/-wuci-ji/actions/workflows/daylight-v19-aperture-bastion.yml",
@@ -951,7 +951,7 @@ async function assertResearchMetadata() {
     license: "https://spdx.org/licenses/Apache-2.0",
     logo: "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
     readme: "https://github.com/chasebryan/-wuci-ji/blob/main/README.md",
-    softwareVersion: "v2.0.0-aperture-bastion",
+    softwareVersion: "v2.2.0-aperture-bastion",
     url: "https://nosuchmachine.net/"
   };
   for (const [key, value] of Object.entries(expected)) {
@@ -1046,10 +1046,10 @@ async function assertCitationMetadata() {
   for (const required of [
     "cff-version: 1.2.0",
     "message: \"If you use this research software artifact, cite it using the metadata in this file.\"",
-    "title: \"Wuci-Ji v2 — Aperture Bastion\"",
+    "title: \"Wuci-Ji v2.2 — Aperture Bastion\"",
     "type: software",
     "name: \"No Such Machine\"",
-    "version: \"v2.0.0-aperture-bastion\"",
+    "version: \"v2.2.0-aperture-bastion\"",
     "date-released: \"2026-07-02\"",
     "repository-code: \"https://github.com/chasebryan/-wuci-ji\"",
     "url: \"https://nosuchmachine.net/\"",
@@ -1098,7 +1098,7 @@ async function assertHostingRequirements() {
   const expected = {
     schema: "wuci-site-hosting-requirements-v1",
     project: "wuci-ji",
-    surface: "Wuci-Ji v2 — Aperture Bastion website",
+    surface: "Wuci-Ji v2.2 — Aperture Bastion website",
     canonical_origin: "https://nosuchmachine.net",
     canonical_url: "https://nosuchmachine.net/",
     checked_by: "make site-live-check"
@@ -1199,7 +1199,7 @@ async function assertClaimEvidenceMap() {
   const expected = {
     schema: "wuci-site-claim-evidence-v1",
     project: "wuci-ji",
-    surface: "Wuci-Ji v2 — Aperture Bastion website",
+    surface: "Wuci-Ji v2.2 — Aperture Bastion website",
     canonical_url: "https://nosuchmachine.net/"
   };
   for (const [key, value] of Object.entries(expected)) {
