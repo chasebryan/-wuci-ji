@@ -1,23 +1,27 @@
 :root {
   color-scheme: dark;
-  --bg: #0f1411;
-  --bg-elevated: #18211c;
-  --bg-glass: rgba(15, 20, 17, 0.72);
-  --ink: #f4f1e8;
-  --muted: #c4c2b5;
-  --quiet: #8f9386;
-  --line: rgba(244, 241, 232, 0.18);
-  --line-glow: rgba(244, 241, 232, 0.06);
-  --green: #79c88c;
-  --green-glow: rgba(121, 200, 140, 0.15);
+  --bg: #0b0b0a;
+  --bg-elevated: #151514;
+  --bg-glass: rgba(11, 11, 10, 0.76);
+  --ink: #f7f2e8;
+  --muted: #c9c4b9;
+  --quiet: #8d8a82;
+  --line: rgba(247, 242, 232, 0.17);
+  --line-glow: rgba(247, 242, 232, 0.07);
+  --green: #8fba89;
+  --green-glow: rgba(143, 186, 137, 0.16);
   --amber: #d5a84f;
   --amber-glow: rgba(213, 168, 79, 0.12);
-  --cyan: #72b6bf;
-  --cyan-glow: rgba(114, 182, 191, 0.12);
-  --rust: #bf735b;
+  --cyan: #86b8bd;
+  --cyan-glow: rgba(134, 184, 189, 0.12);
+  --rust: #bc4c42;
+  --crimson: #d51f29;
+  --crimson-dark: #7d161b;
+  --crimson-glow: rgba(213, 31, 41, 0.2);
+  --paper: #efeee9;
   --shadow: rgba(0, 0, 0, 0.42);
   --shadow-heavy: rgba(0, 0, 0, 0.64);
-  --gradient-radial: radial-gradient(ellipse 80% 50% at 50% -20%, var(--green-glow), transparent);
+  --surface-gradient: linear-gradient(180deg, #10100f 0%, var(--bg) 44%, #12100f 100%);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -33,7 +37,7 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--surface-gradient);
   color: var(--ink);
   line-height: 1.5;
   overflow-x: hidden;
@@ -43,7 +47,11 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: var(--gradient-radial);
+  background:
+    linear-gradient(90deg, rgba(247, 242, 232, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(247, 242, 232, 0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.58), transparent 72%);
   pointer-events: none;
   z-index: -1;
 }
@@ -67,7 +75,7 @@ pre {
 }
 
 ::selection {
-  background: rgba(121, 200, 140, 0.32);
+  background: rgba(213, 31, 41, 0.36);
   color: var(--ink);
 }
 
@@ -82,8 +90,8 @@ pre {
   top: 10px;
   left: 10px;
   padding: 10px 16px;
-  background: var(--green);
-  color: #0c130f;
+  background: var(--crimson);
+  color: #fff;
   font-weight: 760;
   text-decoration: none;
   transform: translateY(-150%);
@@ -137,15 +145,15 @@ pre {
   left: 5%;
   right: 5%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--green-glow), var(--line), var(--green-glow), transparent);
+  background: linear-gradient(90deg, transparent, var(--crimson-glow), var(--line), var(--crimson-glow), transparent);
   opacity: 0;
   transition: opacity 320ms ease;
 }
 
 .site-header.is-scrolled {
   border-bottom-color: rgba(244, 241, 232, 0.12);
-  background: rgba(11, 15, 13, 0.94);
-  box-shadow: 0 8px 32px var(--shadow-heavy), 0 0 80px var(--green-glow);
+  background: rgba(9, 9, 8, 0.95);
+  box-shadow: 0 8px 32px var(--shadow-heavy), 0 0 70px rgba(213, 31, 41, 0.09);
 }
 
 .site-header.is-scrolled::after {
@@ -187,13 +195,13 @@ pre {
   border: 1px solid rgba(244, 241, 232, 0.28);
   border-radius: 50%;
   background: #f0f0ed;
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 20px var(--green-glow));
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 18px var(--crimson-glow));
   flex: 0 0 auto;
   transition: filter 300ms ease, transform 300ms ease;
 }
 
 .brand:hover .brand-mark {
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 30px rgba(121, 200, 140, 0.4));
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28)) drop-shadow(0 0 30px rgba(213, 31, 41, 0.36));
   transform: rotate(-5deg) scale(1.05);
 }
 
@@ -217,7 +225,7 @@ pre {
   right: 0;
   bottom: -2px;
   height: 2px;
-  background: var(--green);
+  background: var(--crimson);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 180ms ease;
@@ -316,7 +324,7 @@ pre {
 
 .hero {
   position: relative;
-  min-height: 760px;
+  min-height: 740px;
   overflow: hidden;
   display: grid;
   align-items: center;
@@ -334,7 +342,7 @@ pre {
 
 .hero-image {
   object-fit: cover;
-  object-position: center;
+  object-position: center 44%;
   z-index: -3;
   animation: heroImageFloat 20s ease-in-out infinite;
   transform-origin: center;
@@ -348,15 +356,15 @@ pre {
 .hero-shade {
   z-index: -2;
   background:
-    linear-gradient(90deg, rgba(8, 12, 10, 0.98) 0%, rgba(10, 15, 12, 0.84) 36%, rgba(15, 20, 17, 0.34) 70%, rgba(15, 20, 17, 0.08) 100%),
-    linear-gradient(0deg, rgba(15, 20, 17, 0.92) 0%, rgba(15, 20, 17, 0.08) 58%);
+    linear-gradient(90deg, rgba(8, 8, 7, 0.98) 0%, rgba(10, 10, 9, 0.86) 35%, rgba(15, 14, 13, 0.42) 66%, rgba(15, 14, 13, 0.12) 100%),
+    linear-gradient(0deg, rgba(11, 11, 10, 0.94) 0%, rgba(11, 11, 10, 0.16) 58%);
 }
 
 .hero-shade::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 100% 60% at 10% 90%, var(--green-glow), transparent 50%);
+  background: linear-gradient(90deg, rgba(213, 31, 41, 0.22), transparent 42%);
   pointer-events: none;
 }
 
@@ -379,12 +387,12 @@ pre {
 
 .eyebrow {
   margin: 0 0 14px;
-  color: var(--amber);
+  color: var(--crimson);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
-  text-shadow: 0 0 30px var(--amber-glow);
+  text-shadow: 0 0 26px var(--crimson-glow);
 }
 
 h1,
@@ -400,7 +408,7 @@ h1 {
   font-size: 6.6rem;
   line-height: 0.9;
   letter-spacing: 0;
-  background: linear-gradient(135deg, var(--ink) 0%, var(--muted) 50%, var(--ink) 100%);
+  background: linear-gradient(135deg, #fff 0%, var(--paper) 46%, #c9c4b9 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -510,15 +518,15 @@ h3 {
 }
 
 .button.primary {
-  background: linear-gradient(135deg, var(--green) 0%, #5eb076 100%);
-  border-color: var(--green);
-  color: #0c130f;
-  box-shadow: 0 4px 16px rgba(121, 200, 140, 0.2);
+  background: linear-gradient(135deg, var(--crimson) 0%, #a91820 100%);
+  border-color: var(--crimson);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(213, 31, 41, 0.22);
 }
 
 .button.primary:hover {
   filter: brightness(1.08);
-  box-shadow: 0 8px 32px rgba(121, 200, 140, 0.35), 0 0 0 1px rgba(121, 200, 140, 0.3);
+  box-shadow: 0 8px 32px rgba(213, 31, 41, 0.34), 0 0 0 1px rgba(213, 31, 41, 0.36);
 }
 
 .button.secondary {
@@ -578,11 +586,72 @@ h3 {
 .truth-band strong {
   margin-bottom: 10px;
   font-size: 1.02rem;
+  color: var(--paper);
 }
 
 .truth-band span {
   color: var(--quiet);
   line-height: 1.5;
+}
+
+.identity-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(340px, 0.88fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+  padding: clamp(72px, 9vw, 118px) clamp(20px, 5vw, 72px);
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, #0a0a09 0%, #11100f 100%);
+}
+
+.identity-plate {
+  border-color: rgba(213, 31, 41, 0.42);
+  background: #050505;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(213, 31, 41, 0.08);
+}
+
+.identity-plate img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1672 / 941;
+  object-fit: cover;
+}
+
+.identity-copy h2 {
+  max-width: 12ch;
+}
+
+.identity-copy p {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 1.06rem;
+}
+
+.identity-facts {
+  display: grid;
+  gap: 1px;
+  margin: 28px 0 0;
+  border: 1px solid rgba(247, 242, 232, 0.14);
+  background: rgba(247, 242, 232, 0.14);
+}
+
+.identity-facts div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+  background: rgba(247, 242, 232, 0.045);
+}
+
+.identity-facts dt {
+  color: var(--crimson);
+  font-weight: 800;
+}
+
+.identity-facts dd {
+  margin: 0;
+  color: var(--muted);
 }
 
 .section,
@@ -1961,6 +2030,7 @@ figure:hover figcaption {
   .command-grid,
   .image-grid,
   .stage-grid,
+  .identity-section,
   .challenge-section,
   .challenge-panel,
   .meridian-section,
@@ -2051,6 +2121,7 @@ figure:hover figcaption {
   }
 
   .truth-band div,
+  .identity-section,
   .section,
   .challenge-section,
   .meridian-section,
@@ -2108,6 +2179,11 @@ figure:hover figcaption {
   }
 
   .fact-list div {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .identity-facts div {
     grid-template-columns: 1fr;
     gap: 6px;
   }
