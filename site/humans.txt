@@ -32,5 +32,8 @@ claim boundaries.
 Build:
 Static HTML, CSS, and JavaScript from the repository site/ directory.
 
+Deployment:
+GitHub Pages from the main branch.
+
 Validation:
 make site-validate
