@@ -75,6 +75,7 @@
         <span>Wuci-Ji</span>
       </a>
       <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+        <a href="#observatory">Observatory</a>
         <a href="#daylight">Daylight</a>
         <a href="#aperture">Aperture</a>
         <a href="#assurance">Assurance</a>
@@ -152,6 +153,167 @@
               <dd>claim-bounded</dd>
             </div>
           </dl>
+        </div>
+      </section>
+
+      <section class="observatory" id="observatory" aria-labelledby="observatory-title" data-observatory>
+        <canvas class="observatory-scope" aria-hidden="true" data-observatory-scope></canvas>
+        <div class="observatory-inner">
+          <div class="observatory-head">
+            <div class="observatory-lede">
+              <p class="eyebrow">Live evidence observatory</p>
+              <h2 id="observatory-title">Instruments read the committed evidence, not a press release.</h2>
+              <p class="observatory-sub">
+                Every reading below is fetched at load time from the same
+                digest-bound status files the build gate checks. When the
+                evidence cannot regenerate a number, the instrument cannot show
+                it. Declaration stays refused by design.
+              </p>
+            </div>
+            <div class="observatory-telemetry" aria-label="Observatory telemetry">
+              <div class="telemetry-line">
+                <span class="telemetry-key">feed</span>
+                <span class="telemetry-dot" data-observatory-feed>nominal</span>
+              </div>
+              <div class="telemetry-line">
+                <span class="telemetry-key">utc</span>
+                <span class="telemetry-value" data-observatory-clock>--:--:--</span>
+              </div>
+              <div class="telemetry-line">
+                <span class="telemetry-key">tick</span>
+                <span class="telemetry-value" data-observatory-tick>0000000</span>
+              </div>
+              <div class="telemetry-line">
+                <span class="telemetry-key">origin</span>
+                <span class="telemetry-value">nosuchmachine.net</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="instrument-grid" aria-label="Evidence instruments">
+            <article class="instrument instrument-score" aria-label="Daylight v17 Singularity score">
+              <header class="instrument-head">
+                <span class="instrument-tag">Daylight v17 — Singularity</span>
+                <span class="led led-refused" data-field="v17-decl">declaration refused</span>
+              </header>
+              <div class="gauge" data-gauge data-gauge-value="999999687" data-gauge-max="999999999" role="img" aria-label="999,999,687 of 999,999,999 AM+">
+                <div class="gauge-arc" data-gauge-arc></div>
+                <div class="gauge-readout">
+                  <span class="obs-metric-value" data-am-plus="999999687" data-count-to="999999687">999,999,687</span>
+                  <span class="obs-metric-unit">AM+</span>
+                </div>
+              </div>
+              <dl class="instrument-facts">
+                <div><dt>target</dt><dd><code>999,999,999 AM+</code></dd></div>
+                <div><dt>weakest field</dt><dd><code data-field="v17-weakest">F2</code></dd></div>
+                <div><dt>kernel</dt><dd><code>daylight-v17.1-event-horizon</code></dd></div>
+              </dl>
+              <a class="text-link" href="daylight-status.json">Verify daylight-status.json</a>
+            </article>
+
+            <article class="instrument instrument-score" aria-label="Daylight v20 Aperture Singularity score">
+              <header class="instrument-head">
+                <span class="instrument-tag">Daylight v20 — Aperture Singularity</span>
+                <span class="led led-refused" data-field="v20-decl">declaration refused</span>
+              </header>
+              <div class="gauge" data-gauge data-gauge-value="999801305" data-gauge-max="999999999" role="img" aria-label="999,801,305 AM+ no-external ceiling">
+                <div class="gauge-arc gauge-arc-cyan" data-gauge-arc></div>
+                <div class="gauge-readout">
+                  <span class="obs-metric-value" data-v20-am-plus="999801305" data-count-to="999801305">999,801,305</span>
+                  <span class="obs-metric-unit">AM+</span>
+                </div>
+              </div>
+              <div class="status-lights" aria-label="v20 gate state">
+                <span class="chip chip-ok" data-field="v20-ceiling"><code>repo_owned_ceiling_reached = true</code></span>
+                <span class="chip chip-ok" data-field="v20-gap"><code>repo_owned_code_gap_count = 0</code></span>
+                <span class="chip chip-block"><code>singularity_possible_without_external_validation = false</code></span>
+              </div>
+              <div class="omega-readout" aria-label="Omega effective versus threshold">
+                <span class="omega-key">Ω_eff</span>
+                <code class="omega-value" data-field="v20-omega">8.52374046…</code>
+                <span class="omega-key">Ω_thr</span>
+                <code class="omega-value">20.723265837</code>
+              </div>
+            </article>
+
+            <article class="instrument instrument-capsule" aria-label="Aperture Bastion capsule">
+              <header class="instrument-head">
+                <span class="instrument-tag">Aperture Bastion — capsule</span>
+                <span class="led led-ok" data-field="capsule-state">firewall passed</span>
+              </header>
+              <p class="capsule-label">capsule digest · sha-256</p>
+              <code class="digest-stream" data-digest-stream>9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0</code>
+              <dl class="instrument-facts">
+                <div><dt>release</dt><dd><code>v2.2.0-aperture-bastion</code></dd></div>
+                <div><dt>firewall</dt><dd><code>aperture-bastion-public-v1</code></dd></div>
+                <div><dt>artifact</dt><dd><span data-field="artifact-count">8</span>-file firewalled set</dd></div>
+                <div><dt>hosted diff</dt><dd><span data-field="hosted-diff">matched local firewalled artifact</span></dd></div>
+              </dl>
+              <a class="text-link" href="aperture-status.json">Verify aperture-status.json</a>
+            </article>
+
+            <article class="instrument instrument-pending" aria-label="External evidence still required">
+              <header class="instrument-head">
+                <span class="instrument-tag">External evidence — required</span>
+                <span class="led led-wait" data-field="external-count">4 pending</span>
+              </header>
+              <ul class="evidence-checklist" aria-label="Remaining external evidence">
+                <li class="evidence-item is-pending">independent rebuild receipts</li>
+                <li class="evidence-item is-pending">external firewall-profile review</li>
+                <li class="evidence-item is-pending">non-fixture 3-of-3 verifier vectors</li>
+                <li class="evidence-item is-pending">pinned cryptographic attestation verification</li>
+              </ul>
+              <p class="instrument-note">
+                Fixture verifier vectors are not claim-usable. The gate holds
+                at the truthful no-external ceiling until independent evidence
+                arrives.
+              </p>
+              <a class="text-link" href="daylight-v20-aperture-singularity-status.json">Open v20 machine status</a>
+            </article>
+          </div>
+
+          <div class="verifier" data-verifier aria-labelledby="verifier-title">
+            <div class="verifier-head">
+              <p class="eyebrow">Local evidence verifier</p>
+              <h3 id="verifier-title">Hash a file in your browser. Nothing leaves your device.</h3>
+              <p class="verifier-sub">
+                This instrument computes a file's SHA-256 locally with the
+                browser's built-in Web Crypto digest and compares it to the
+                committed evidence digests. It does not upload, store, encrypt,
+                or reconstruct your file — it is a verification instrument, not
+                an encryptor.
+              </p>
+            </div>
+            <div class="verifier-grid">
+              <div class="verifier-drop" data-verifier-drop>
+                <input class="verifier-input" type="file" id="verifier-file" data-verifier-input>
+                <label class="verifier-cta" for="verifier-file">Choose a file</label>
+                <p class="verifier-hint">or drop a file here — it is read on your device only</p>
+                <button class="button secondary verifier-demo" type="button" data-verifier-demo>Verify the served emblem</button>
+              </div>
+              <div class="verifier-panel" aria-live="polite" data-verifier-panel>
+                <dl class="verifier-facts">
+                  <div><dt>file</dt><dd data-verifier-name>—</dd></div>
+                  <div><dt>size</dt><dd data-verifier-size>—</dd></div>
+                  <div><dt>sha-256</dt><dd><code class="verifier-digest" data-verifier-digest>—</code></dd></div>
+                </dl>
+                <div class="verifier-result" data-verifier-result data-state="idle">
+                  <span class="verifier-badge" data-verifier-badge>idle</span>
+                  <span class="verifier-message" data-verifier-message>Select a file to compute its digest locally.</span>
+                </div>
+                <div class="verifier-expected">
+                  <label for="verifier-expected">Compare against an expected digest (optional)</label>
+                  <input class="verifier-expected-input" id="verifier-expected" type="text" autocomplete="off" spellcheck="false" placeholder="paste a sha-256 hex digest" data-verifier-expected>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="observatory-foot">
+            <span class="foot-key">signal</span>
+            <div class="scan-track" aria-hidden="true"><span class="scan-bar" data-observatory-scan></span></div>
+            <span class="foot-note">Refuses claims the repository cannot regenerate.</span>
+          </div>
         </div>
       </section>
 
@@ -580,12 +742,14 @@
       <section class="meridian-section" id="meridian" aria-labelledby="meridian-title">
         <div class="meridian-copy">
           <p class="eyebrow">Meridian evidence lane</p>
-          <h2 id="meridian-title">Evidence is reviewable; browser cryptography is not shipped.</h2>
+          <h2 id="meridian-title">Evidence is verifiable in the browser; encryption is not shipped.</h2>
           <p>
             The public site exposes the Meridian score boundary, envelope
-            documentation, and reproducible command handles. It does not accept
-            files, generate keys, encrypt payloads, open envelopes, or ship a
-            browser file-opening tool.
+            documentation, and reproducible command handles. It does not
+            generate keys, encrypt payloads, open envelopes, or ship a browser
+            file-opening tool. The one in-browser file operation is the local
+            SHA-256 evidence verifier above, which hashes a file on your device
+            and never uploads or reconstructs it.
           </p>
           <ul class="meridian-laws" aria-label="Meridian refusal laws">
             <li>NoEvidence(x) -> NoSeal(x)</li>
