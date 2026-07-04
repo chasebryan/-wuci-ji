@@ -107,7 +107,7 @@ site/daylight-status.json
 ```
 
 `site/index.html` carries canonical HTTPS metadata, Open Graph/Twitter image
-metadata, local microdata for the Wuci-Ji v2 Aperture Bastion source surface,
+metadata, local microdata for the Wuci-Ji v2.2 Aperture Bastion source surface,
 a CodeMeta JSON-LD pointer at `site/codemeta.json`, and in-document
 CSP/referrer policy because GitHub Pages does not serve `_headers`.
 
