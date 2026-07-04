@@ -1,4 +1,4 @@
-<img width="2172" height="724" alt="wsj-banner-github" src="https://github.com/user-attachments/assets/3e20bf66-1376-46b0-9f25-0ec619bf7224" />
+<img width="1672" height="941" alt="Wuci-Ji white brick banner" src="site/assets/wuci-ji-white-brick-banner.jpg" />
 
 # Wuci-Ji / 无此机
 
