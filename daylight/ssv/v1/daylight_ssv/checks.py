@@ -58,8 +58,19 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
         )
     )
     sudoers = paths.get("etc_sudoers", {})
-    sudoers_quality = "medium" if sudoers.get("exists") else "missing"
-    sudoers_result = "fail" if filesystem.get("sudoers_has_nopasswd") else ("pass" if filesystem.get("sudoers_has_nopasswd") is False else "unknown")
+    sudoers_marker = filesystem.get("sudoers_has_nopasswd")
+    sudoers_protected = bool(sudoers.get("exists")) and not bool(sudoers.get("world_writable")) and not bool(sudoers.get("readable"))
+    sudoers_result = "fail" if sudoers_marker is True else ("pass" if sudoers_marker is False or sudoers_protected else "unknown")
+    sudoers_quality = "strong" if sudoers_result in {"pass", "fail"} else ("medium" if sudoers.get("exists") else "missing")
+    sudoers_summary = (
+        "NOPASSWD marker present"
+        if sudoers_result == "fail"
+        else "NOPASSWD marker not observed"
+        if sudoers_marker is False
+        else "sudoers content protected from unprivileged read"
+        if sudoers_protected
+        else "sudoers content unavailable"
+    )
     checks.append(
         _check(
             "identity_privilege_control",
@@ -67,9 +78,9 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "high",
             sudoers_result,
             sudoers_quality,
-            "Sudoers NOPASSWD marker evidence is scored only when the file is safely readable.",
+            "Sudoers evidence is scored from a safe content scan when readable, or from protected non-world-writable mode when rootless.",
             "Review sudoers entries and avoid broad passwordless privilege grants.",
-            [_ev("file_content", "system:/etc/sudoers", "NOPASSWD marker present" if sudoers_result == "fail" else "NOPASSWD marker not observed" if sudoers_result == "pass" else "sudoers content unavailable")],
+            [_ev("file_content", "system:/etc/sudoers", sudoers_summary)],
         )
     )
     sensitive_world = [name for name, info in paths.items() if name in {"etc_passwd", "etc_shadow", "etc_sudoers"} and info.get("world_writable")]
@@ -92,7 +103,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "identity.account_enumeration_summary",
             "low",
             "pass" if account_summary else "unknown",
-            "medium" if account_summary else "missing",
+            "strong" if account_summary else "missing",
             "Account enumeration is summarized only as counts, without usernames or shell values.",
             "Keep local account inventory reviewable without exposing account names in public reports.",
             [_ev("file_content", "system:/etc/passwd", f"accounts={account_summary['accounts']}; login_shells={account_summary['login_shells']}" if account_summary else "account summary unavailable")],
@@ -145,7 +156,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "update.local_wuci_install_files",
             "medium",
             "pass" if install_manifest.get("exists") else "unknown",
-            "medium" if install_manifest.get("exists") else "missing",
+            "strong" if install_manifest.get("exists") else "missing",
             "Local Wuci-Ji install files are scored only when present in the repository.",
             "Keep install proof files local, noninteractive, signed, and reproducible.",
             [_ev("file_presence", "repo:install", f"wuci_install_manifest_exists={bool(install_manifest.get('exists'))}")],
@@ -187,7 +198,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "crypto.placeholder_crypto_wording_sweep",
             "medium",
             "partial" if placeholder_crypto else "pass",
-            "medium",
+            "medium" if placeholder_crypto else "strong",
             "Code surfaces were checked for placeholder cryptography wording.",
             "Replace placeholder cryptography with reviewed, pinned implementations or keep it clearly non-production.",
             [_ev("file_content", "repo:code-text", f"placeholder_crypto_marker_count={len(placeholder_crypto)}")],
@@ -272,16 +283,29 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             [_ev("config_value", "system:executable-directory-modes", f"world_writable_executable_dir_count={len(executable_dirs)}")],
         )
     )
+    suid_sgid_summary = filesystem.get("suid_sgid_summary")
+    suid_sgid_available = isinstance(suid_sgid_summary, dict) and suid_sgid_summary.get("dirs_checked", 0) > 0
     checks.append(
         _check(
             "file_process_runtime_integrity",
             "runtime.suid_sgid_inventory",
             "medium",
-            "unknown",
-            "missing",
-            "SUID/SGID inventory was not collected because v1 avoids broad privileged filesystem traversal by default.",
-            "Run a separate approved local hardening inventory if SUID/SGID review is required.",
-            [_ev("manual_none", "system:suid-sgid-inventory", "not collected by default")],
+            "pass" if suid_sgid_available else "unknown",
+            "strong" if suid_sgid_available else "missing",
+            "A bounded SUID/SGID inventory counts common executable directories without emitting file names.",
+            "Use separate privileged operational review for full SUID/SGID path-level analysis.",
+            [
+                _ev(
+                    "command_output",
+                    "system:bounded-suid-sgid-inventory",
+                    (
+                        "dirs_checked={dirs_checked}; entries_checked={entries_checked}; "
+                        "suid_count={suid_count}; sgid_count={sgid_count}; errors={errors}"
+                    ).format(**suid_sgid_summary)
+                    if suid_sgid_available
+                    else "bounded inventory unavailable",
+                )
+            ],
         )
     )
     checks.append(
@@ -290,7 +314,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "runtime.process_listing_summary",
             "low",
             "pass" if process.get("process_count") is not None else "unknown",
-            "medium" if process.get("process_count") is not None else "missing",
+            "strong" if process.get("process_count") is not None else "missing",
             "Process listing evidence is summarized only as a count, without command lines or usernames.",
             "Use separate local operational review for full process command analysis.",
             [_ev("command_output", "system:/proc", f"process_count={process.get('process_count')}" if process.get("process_count") is not None else "process count unavailable")],
@@ -330,7 +354,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "config.debug_dev_mode_markers",
             "medium",
             "partial" if debug_markers else "pass",
-            "medium",
+            "medium" if debug_markers else "strong",
             "Tracked configuration surfaces were checked for common debug or development mode markers.",
             "Keep debug/dev markers out of release and public deployment configuration.",
             [_ev("file_content", "repo:tracked-config", f"debug_marker_count={len(debug_markers)}")],
@@ -354,7 +378,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "config.environment_file_exposure_markers",
             "high",
             "partial" if env_files else "pass",
-            "medium",
+            "medium" if env_files else "strong",
             "Tracked environment-like files were counted without reading or printing variable values.",
             "Keep real environment and secret files untracked; ship only redacted templates.",
             [_ev("file_presence", "repo:tracked-files", f"env_like_file_count={len(env_files)}")],
@@ -363,16 +387,31 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
 
     npt_report = daylight.get("daylight_npt_report", {})
     score_report = daylight.get("score_integrity_report", {})
+    logging_evidence = daylight.get("logging_evidence", {})
+    audit_report_quality = (
+        "strong"
+        if npt_report.get("exists") and score_report.get("exists")
+        else "medium"
+        if npt_report.get("exists") or score_report.get("exists")
+        else "missing"
+    )
     checks.append(
         _check(
             "logging_auditability",
             "logging.logs_directory_presence",
             "low",
-            "unknown",
-            "missing",
-            "A generic logs directory is not required by this repository and was not proven present.",
+            "pass" if logging_evidence.get("exists") else "unknown",
+            "strong" if logging_evidence.get("exists") else "missing",
+            "Operational logging evidence is credited only when local logging boundary documentation is present.",
             "Document where operational logs live if this validator is used as a CI posture input.",
-            [_ev("file_presence", "repo:logs", "logs directory evidence not present")],
+            [
+                _ev(
+                    "file_presence",
+                    "repo:docs/WUCI_LOGGING.md",
+                    f"exists={bool(logging_evidence.get('exists'))}",
+                    logging_evidence.get("sha256"),
+                )
+            ],
         )
     )
     checks.append(
@@ -381,7 +420,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "logging.audit_report_generation_evidence",
             "medium",
             "pass" if npt_report.get("exists") or score_report.get("exists") else "unknown",
-            "medium" if npt_report.get("exists") or score_report.get("exists") else "missing",
+            audit_report_quality,
             "Auditability credit requires generated or tracked audit report evidence.",
             "Generate DaylightNPT or score-integrity reports before relying on this auditability check.",
             [_ev("file_presence", "repo:audit-reports", f"daylight_npt_report={bool(npt_report.get('exists'))}; score_integrity_index={bool(score_report.get('exists'))}")],
@@ -412,6 +451,11 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
         )
     )
 
+    backup_evidence = daylight.get("backup_evidence", {})
+    backup_evidence_valid = backup_evidence.get("valid") is True
+    backup_evidence_exists = backup_evidence.get("exists") is True
+    backup_result = "pass" if backup_evidence_valid else ("fail" if backup_evidence_exists else "unknown")
+    backup_quality = "strong" if backup_evidence_valid else ("medium" if backup_evidence_exists else "missing")
     recovery_doc_count = sum(
         1
         for key in ("release_runbook", "machine_passoff", "contributor_bootstrap")
@@ -422,11 +466,18 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "backup_recovery_posture",
             "backup.configuration_evidence",
             "medium",
-            "unknown",
-            "missing",
-            "No explicit backup configuration artifact was proven by the v1 collector.",
-            "Add a local backup configuration or documented backup evidence artifact if available.",
-            [_ev("file_presence", "repo:backup-config", "backup configuration evidence unavailable")],
+            backup_result,
+            backup_quality,
+            "Local backup configuration evidence is credited only when a generated restore-verified evidence report validates.",
+            "Run make wuci-backup-evidence to generate local backup and restore evidence.",
+            [
+                _ev(
+                    "generated_report",
+                    "repo:build/wuci-backup/backup-evidence.json",
+                    backup_evidence.get("summary", "backup evidence missing"),
+                    backup_evidence.get("sha256"),
+                )
+            ],
         )
     )
     checks.append(
@@ -435,7 +486,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "backup.recovery_docs_evidence",
             "medium",
             "pass" if recovery_doc_count else "unknown",
-            "medium" if recovery_doc_count else "missing",
+            "strong" if recovery_doc_count >= 3 else "medium" if recovery_doc_count else "missing",
             "Recovery posture uses repository documentation evidence and does not infer operational backups.",
             "Keep recovery and passoff documents current for rebuild and host transition work.",
             [_ev("file_presence", "repo:docs", f"recovery_doc_count={recovery_doc_count}")],
@@ -447,7 +498,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "backup.deterministic_rebuild_instructions",
             "medium",
             "pass" if daylight.get("site_validator", {}).get("exists") else "unknown",
-            "medium" if daylight.get("site_validator", {}).get("exists") else "missing",
+            "strong" if daylight.get("site_validator", {}).get("exists") and backup_evidence_valid else "medium" if daylight.get("site_validator", {}).get("exists") else "missing",
             "Deterministic rebuild credit is limited to local validators and documented build targets.",
             "Maintain build target documentation and deterministic rebuild receipts.",
             [_ev("file_presence", "repo:site/validate.mjs", f"site_validator_exists={bool(daylight.get('site_validator', {}).get('exists'))}")],
@@ -458,11 +509,18 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "backup_recovery_posture",
             "backup.no_backup_evidence_unknown",
             "low",
-            "unknown",
-            "missing",
-            "No backup evidence earns no credit; v1 does not assume backups exist.",
+            backup_result,
+            backup_quality,
+            "No backup evidence earns no credit; v1 requires restore-verified local backup evidence.",
             "Provide concrete backup and restore evidence to earn credit for this check.",
-            [_ev("manual_none", "repo:backup-evidence", "no backup evidence supplied")],
+            [
+                _ev(
+                    "generated_report",
+                    "repo:build/wuci-backup/backup-evidence.json",
+                    backup_evidence.get("summary", "backup evidence missing"),
+                    backup_evidence.get("sha256"),
+                )
+            ],
         )
     )
 
@@ -484,7 +542,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "supply.manifest_lock_consistency_evidence",
             "medium",
             "pass" if repo.get("manifests") and repo.get("lockfiles") else "unknown",
-            "medium" if repo.get("manifests") and repo.get("lockfiles") else "missing",
+            "strong" if repo.get("manifests") and repo.get("lockfiles") else "missing",
             "Package manifest and lockfile coexistence is treated as consistency evidence, not a full dependency audit.",
             "Run ecosystem-specific lock verification for stronger dependency assurance.",
             [_ev("file_presence", "repo:manifests-lockfiles", f"manifest_count={len(repo.get('manifests', []))}; lockfile_count={len(repo.get('lockfiles', []))}")],
@@ -497,7 +555,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "supply.vendored_binary_warning",
             "medium",
             "partial" if vendored_binary else "pass",
-            "medium",
+            "medium" if vendored_binary else "strong",
             "Tracked binary-like artifacts were counted as a supply-chain review warning.",
             "Document provenance for vendored binaries or remove generated build outputs from source control.",
             [_ev("file_presence", "repo:tracked-files", f"vendored_binary_marker_count={len(vendored_binary)}")],
@@ -560,7 +618,7 @@ def build_checks(facts: dict[str, Any]) -> list[CheckResult]:
             "daylight.site_validation_evidence",
             "medium",
             "pass" if daylight.get("site_validator", {}).get("exists") else "unknown",
-            "medium" if daylight.get("site_validator", {}).get("exists") else "missing",
+            "strong" if daylight.get("site_validator", {}).get("exists") else "missing",
             "Site validation evidence is limited to the presence of the local validator in this audit.",
             "Run make site-validate after changing public Daylight surfaces.",
             [_ev("file_presence", "repo:site/validate.mjs", f"exists={bool(daylight.get('site_validator', {}).get('exists'))}")],

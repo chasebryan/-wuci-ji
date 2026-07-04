@@ -860,6 +860,10 @@ def assert_boot_cleanup_safeio(tmp: Path) -> None:
 
 
 def assert_overlay_profile(tmp: Path) -> None:
+    assert "opendoas" in wuci_os.MINIMUM_LIVE_NETWORK_PACKAGES
+    assert "doas" not in wuci_os.MINIMUM_LIVE_NETWORK_PACKAGES
+    assert "opendoas" in wuci_os.SECURITY_PACKAGES
+    assert "doas" not in wuci_os.SECURITY_PACKAGES
     files = wuci_os.overlay_files()
     required = {
         "usr/local/bin/wuci-wallpaper",
@@ -876,10 +880,25 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wpa_passphrase",
         "usr/local/bin/xbps-install",
         "usr/local/bin/wuci-source-status",
+        "usr/local/bin/wuci-release-hardware-trace",
         "usr/local/bin/wuci-selfupdate",
         "usr/local/bin/wuci-enter",
+        "usr/local/bin/wuci-firstboot",
+        "usr/local/bin/wuci-firstboot-terminal",
+        "usr/local/bin/wucia-welcome",
+        "usr/local/bin/wucia-smart-profile",
+        "usr/local/bin/wucia-control-center",
+        "usr/local/bin/wucia-minimal-profile",
+        "usr/local/bin/wucia-github-setup",
+        "usr/local/bin/wucia-system-tour",
+        "usr/local/bin/wucia-smart-typing",
+        "usr/local/bin/wucia-terminal-shell",
+        "usr/local/bin/wucia-audit",
+        "usr/local/bin/wucia-server-profile",
+        "usr/local/bin/wucia-virt-lab",
         "usr/local/bin/wuci-guide",
         "usr/local/bin/wuci-auto",
+        "usr/local/bin/wuci-daylight-ssv",
         "usr/local/bin/wuci-daylight-status",
         "usr/local/bin/wuci-terminal",
         "usr/local/bin/wuci-boot-chime",
@@ -891,6 +910,9 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-media-session",
         "usr/local/bin/wuci-sdr-apply",
         "usr/local/bin/wuci-sdr-status",
+        "usr/local/bin/wuci-kde-apply",
+        "usr/local/bin/wuci-kde-default",
+        "usr/local/bin/wuci-session-start",
         "usr/local/bin/wuci-update",
         "usr/local/bin/INSTALL",
         "usr/local/bin/wj",
@@ -901,13 +923,18 @@ def assert_overlay_profile(tmp: Path) -> None:
         "usr/local/bin/wuci-security-status",
         "usr/local/bin/wuci-selinux-status",
         "usr/local/bin/wuci-ai-setup",
+        "usr/local/bin/wuci-claude-build",
         "usr/local/bin/wuci-grok-build",
         "usr/local/bin/wuci-daylight-v14c-plus",
         "usr/local/bin/wuci-daylight-meridian",
         "usr/share/wuci-os/accounts.json",
         "usr/share/wuci-os/packages.json",
+        "usr/share/wuci-os/aos-profile.json",
+        "usr/share/wuci-os/minimal-attack-surface.txt",
+        "usr/share/wuci-os/smart-typing.txt",
         "usr/share/wuci-os/security-profile.json",
         "usr/share/wuci-os/full-suite-packages.txt",
+        "usr/share/wuci-os/kde-suite-packages.txt",
         "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md",
         "usr/share/wuci-os/WUCI_DAYLIGHT_V9.md",
         "usr/share/wuci-os/WUCI_DAYLIGHT_V10.md",
@@ -915,11 +942,61 @@ def assert_overlay_profile(tmp: Path) -> None:
         "etc/os-release",
         "usr/lib/os-release",
         "etc/profile.d/wuci-prompt.sh",
+        "etc/xdg/autostart/wuci-firstboot-terminal.desktop",
         "etc/xdg/autostart/wuci-boot-chime.desktop",
         "etc/xdg/autostart/wuci-media-session.desktop",
         "etc/runit/runsvdir/default/wuci-boot-chime/run",
+        "etc/skel/.inputrc",
+        "etc/skel/.xinitrc",
         "etc/skel/.ratpoisonrc",
+        "etc/skel/.config/fish/config.fish",
+        "etc/skel/.config/wucia-os/smart-typing.env",
         "etc/skel/.config/kitty/kitty.conf",
+        "etc/skel/.config/xfce4/terminal/terminalrc",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml",
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-notifyd.xml",
+        "etc/skel/.config/xfce4/panel/launcher-11/17828757891.desktop",
+        "etc/skel/.config/xfce4/panel/launcher-12/17828673516.desktop",
+        "etc/skel/.config/xfce4/panel/launcher-13/17828673687.desktop",
+        "etc/skel/.config/xfce4/panel/launcher-21/17830791051.desktop",
+        "etc/skel/.config/xfce4/panel/cpufreq-7.rc",
+        "etc/skel/.config/xfce4/panel/diskperf-15.rc",
+        "etc/skel/.config/xfce4/panel/fsguard-9.rc",
+        "etc/skel/.config/xfce4/panel/screenshooter-17.rc",
+        "etc/skel/.config/xfce4/panel/wavelan-14.rc",
+        "etc/skel/.config/gtk-3.0/settings.ini",
+        "etc/skel/.config/kdeglobals",
+        "etc/skel/.config/kwinrc",
+        "etc/skel/.config/plasmarc",
+        "etc/skel/.config/kscreenlockerrc",
+        "etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc",
+        "etc/skel/.config/konsolerc",
+        "etc/skel/.local/share/konsole/Wuci.colorscheme",
+        "etc/skel/.local/share/konsole/Wuci.profile",
+        "usr/share/wuci-os/xfce4-terminalrc",
+        "usr/share/wuci-os/xfce4-desktop.xml",
+        "usr/share/wuci-os/xfce4-xsettings.xml",
+        "usr/share/wuci-os/xfwm4.xml",
+        "usr/share/wuci-os/xfce4-panel.xml",
+        "usr/share/wuci-os/gtk3-settings.ini",
+        "usr/share/wuci-os/kde/kdeglobals",
+        "usr/share/wuci-os/kde/kwinrc",
+        "usr/share/wuci-os/kde/plasmarc",
+        "usr/share/wuci-os/kde/kscreenlockerrc",
+        "usr/share/wuci-os/kde/plasma-org.kde.plasma.desktop-appletsrc",
+        "usr/share/wuci-os/kde/konsole/Wuci.colorscheme",
+        "usr/share/wuci-os/kde/konsole/Wuci.profile",
+        "usr/share/wuci-os/kde/konsole/konsolerc",
+        "usr/share/wuci-os/virt/README",
+        "usr/share/wuci-os/virt/wucia-minimal-server-notes.txt",
+        "usr/share/applications/wucia-control-center.desktop",
+        "etc/wuci-os/default-session",
     }
     assert required.issubset(files)
     assert "SELINUX=enforcing" in files["usr/local/bin/wuci-security-apply"]
@@ -938,23 +1015,37 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wuci-media-apply" in files["usr/local/bin/wuci-guide"]
     assert "wuci-sdr-apply" in files["usr/local/bin/wuci-guide"]
     assert "wuci-install-target-activate" in files["usr/share/wuci-os/README"]
+    assert "wuci-release-hardware-trace" in files["usr/share/wuci-os/README"]
+    assert "wuci-release-hardware-trace" in files["etc/motd"]
     assert "auto-install Wuci-OS to disk" in files["usr/share/wuci-os/README"]
     assert "\nINSTALL\n" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
+    assert "doas wuci-network-connect    # if using the opendoas package" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
+    assert "installs the `opendoas` package for the `doas` command" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
     assert "wuci-install` is kept as a compatibility alias for `INSTALL`" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
     assert "sudo wuci-install-target-activate /mnt" in files["usr/share/wuci-os/OFFLINE-INSTALL.txt"]
     install_script = files["usr/local/bin/INSTALL"]
     assert "required command missing" in install_script
-    assert "xbps-install -y -Sy -r \"$target\" $repo_args $required_packages" in install_script
+    assert "xbps-install -y -u xbps" in install_script
+    assert "The 'xbps' package must be updated" in install_script
+    assert "xbps-install -y -Sy -r \"$target\" $repo_args \"$candidate_kernel\" $base_required_packages" in install_script
     assert "sudo opendoas bash" in install_script
     assert "sudo doas bash" not in install_script
-    assert 'required_packages="base-system linux6.12 grub sudo opendoas bash' in install_script
-    assert 'required_packages="base-system linux6.12 grub sudo doas bash' not in install_script
+    assert "exec doas INSTALL \"$@\"" in install_script
+    assert "opendoas package" in install_script
+    assert "# Void's package is opendoas; the installed privilege command is doas." in install_script
+    assert 'base_required_packages="base-system grub sudo opendoas bash' in install_script
+    assert 'base_required_packages="base-system grub sudo doas bash' not in install_script
+    assert "kernel_candidates=\"linux6.12 linux6.6 linux6.1 linux\"" in install_script
+    assert "WUCI_INSTALL_KERNEL_PACKAGE" in install_script
+    assert "required package install failed for kernel candidates" in install_script
+    assert "INSTALL: selected kernel package" in install_script
     assert "INSTALL --disk /dev/sdX --disk /dev/sdY --raid1" in install_script
+    assert "--kernel-package PKG" in install_script
     assert "multiple --disk values require --raid1" in install_script
     assert "multi_disk_mode=raid1" in install_script
     assert "mdadm --create \"$raid_device\" --metadata=1.0 --level=1" in install_script
     assert "mdadm --detail --scan > \"$target/etc/mdadm.conf\"" in install_script
-    assert 'required_packages="$required_packages mdadm"' in install_script
+    assert 'base_required_packages="$base_required_packages mdadm"' in install_script
     assert "for boot_disk in $install_disks" in install_script
     assert "grub-x86_64-efi" in install_script
     assert "wuci-install-target-activate \"$target\"" in install_script
@@ -977,7 +1068,7 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "cleanup_mounts" in install_script
     assert "exec INSTALL \"$@\"" in files["usr/local/bin/wuci-install"]
     assert "void-installer" not in files["usr/local/bin/wuci-install"]
-    assert "/usr/local/bin/INSTALL /usr/local/bin/wuci-*" in files["usr/local/bin/wuci-install-target-activate"]
+    assert "/usr/local/bin/INSTALL /usr/local/bin/wuci-* /usr/local/bin/wucia-* /usr/local/bin/wj" in files["usr/local/bin/wuci-install-target-activate"]
     assert "wuci-install-target-activate: complete" in files["usr/local/bin/wuci-install-target-activate"]
     assert "wuci-boot-chime --once" in files["usr/local/bin/wuci-guide"]
     assert "wuci-terminal --print" in files["usr/local/bin/wuci-guide"]
@@ -997,25 +1088,134 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert 'exec wuci-update --packages-only "$@"' in files["usr/local/bin/wj"]
     assert 'run_xbps "wj package-update" xbps-install -Syu' not in files["usr/local/bin/wj"]
     assert 'run_xbps "wj update" xbps-install -Syu' not in files["usr/local/bin/wj"]
+    assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wj"]
     assert "WJ_ALLOW_REMOVE=1" in files["usr/local/bin/wj"]
-    assert "Wi-Fi SSID" in files["usr/local/bin/wuci-network-connect"]
-    assert "Wuci-OS network setup" in files["usr/local/bin/wuci-network-connect"]
-    assert "DHCP probe" in files["usr/local/bin/wuci-network-connect"]
-    assert "timeout 12s dhcpcd" in files["usr/local/bin/wuci-network-connect"]
-    assert "wpa_supplicant" in files["usr/local/bin/wuci-network-connect"]
-    assert "kernel wireless stack missing" in files["usr/local/bin/wuci-network-connect"]
-    assert "cfg80211/mac80211" in files["usr/local/bin/wuci-network-connect"]
-    assert "$module-unloaded" in files["usr/local/bin/wuci-network-connect"]
-    assert "refusing Wi-Fi scan because the kernel cannot provide nl80211" in files["usr/local/bin/wuci-network-connect"]
-    assert "NetworkManager reports Wi-Fi unavailable; trying wpa_supplicant fallback" in files["usr/local/bin/wuci-network-connect"]
-    assert "NetworkManager scan unavailable; trying wpa_supplicant fallback" in files["usr/local/bin/wuci-network-connect"]
-    assert "root-owned setuid" in files["usr/local/bin/wuci-network-connect"]
-    assert "hardware snapshot follows" in files["usr/local/bin/wuci-network-connect"]
-    assert "depmod -a" in files["usr/local/bin/wuci-network-connect"]
-    assert "WUCI_WIFI_SSID" in files["usr/local/bin/wuci-network-connect"]
-    assert "enable_service udevd" in files["usr/local/bin/wuci-network-connect"]
+    firstboot = files["usr/local/bin/wuci-firstboot"]
+    assert "Hello, hacker." in firstboot
+    assert "WuciA/OS Aperture Bastion v2.3 first-boot setup" in firstboot
+    assert "intended release target: 100.0/100" in firstboot
+    assert "this script does not invent a score" in firstboot
+    assert "wuci-daylight-ssv --summary" in firstboot
+    assert "doas wuci-network-connect" in firstboot
+    assert "wucia-welcome --firstboot" in firstboot
+    assert "Would you like to use KDE as your default system, hacker?" not in firstboot
+    assert "Minimal attack-surface profile" in files["usr/local/bin/wucia-welcome"]
+    assert "system_marker=/var/lib/wuci-os/firstboot-complete" in firstboot
+    assert "[ -e \"$marker\" ] || [ -e \"$system_marker\" ]" in firstboot
+    assert "date -u '+%Y-%m-%dT%H:%M:%SZ' > \"$marker\" 2>/dev/null || true" in firstboot
+    firstboot_terminal = files["usr/local/bin/wuci-firstboot-terminal"]
+    assert "konsole xfce4-terminal xterm" in firstboot_terminal
+    assert "konsole" in files["usr/local/bin/wuci-terminal"]
+    assert "kitty" not in firstboot_terminal
+    assert "--geometry=\"$geometry\"" in firstboot_terminal
+    assert "wuci-firstboot; printf" in firstboot_terminal
+    assert "firstboot-terminal.lock" in firstboot_terminal
+    assert "boot_marker" in firstboot_terminal
+    assert "[ -e \"$marker\" ] || [ -e \"$system_marker\" ] || [ -e \"$boot_marker\" ]" in firstboot_terminal
+    assert "Exec=/usr/local/bin/wuci-firstboot-terminal" in files["etc/xdg/autostart/wuci-firstboot-terminal.desktop"]
+    assert "wuci-firstboot-terminal" not in files["etc/skel/.xinitrc"]
+    assert "exec wuci-session-start" in files["etc/skel/.xinitrc"]
+    session_start = files["usr/local/bin/wuci-session-start"]
+    assert "session=kde" in session_start
+    assert "startplasma-x11" in session_start
+    assert "falling back to XFCE" in session_start
+    assert files["etc/wuci-os/default-session"] == "kde\n"
+    assert "/usr/share/backgrounds/wuci-os/wallpaper1.png" in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"]
+    assert "/home/wj" not in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"]
+    assert "Arc-Dark" in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"]
+    assert "Papirus-Dark" in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"]
+    assert "ColorBackground=#0b0f14" in files["etc/skel/.config/xfce4/terminal/terminalrc"]
+    assert "FontName=Noto Sans Mono 10" in files["usr/share/wuci-os/xfce4-terminalrc"]
+    assert "/usr/share/pixmaps/wuci-os-emblem.png" in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml"]
+    assert "Goshen" not in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml"]
+    assert "America/Chicago" not in files["etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml"]
+    assert "screenshot_dir=file:///tmp" in files["etc/skel/.config/xfce4/panel/screenshooter-17.rc"]
+    assert "screenshot_dir=file:/home" not in files["etc/skel/.config/xfce4/panel/screenshooter-17.rc"]
+    kde_apply = files["usr/local/bin/wuci-kde-apply"]
+    assert "dark KDE Plasma profile applied" in kde_apply
+    assert "no KDE wallet secrets" in kde_apply
+    assert "/usr/share/wuci-os/kde/kdeglobals" in kde_apply
+    kde_default = files["usr/local/bin/wuci-kde-default"]
+    assert "default-session" in kde_default
+    assert "wuci-kde-apply \"$target_user\"" in kde_default
+    assert "refusing to fill live root storage" in kde_default
+    assert "KDE is now the default graphical session" in kde_default
+    assert "future graphical session" not in kde_default
+    assert "__KDE_PACKAGES__" not in kde_default
+    assert "BreezeDark" in files["etc/skel/.config/kdeglobals"]
+    assert "Papirus-Dark" in files["etc/skel/.config/kdeglobals"]
+    assert "checkerEnabledByDefault=true" in files["etc/skel/.config/kdeglobals"]
+    assert "Command=/usr/local/bin/wucia-terminal-shell" in files["etc/skel/.local/share/konsole/Wuci.profile"]
+    assert "file:///usr/share/backgrounds/wuci-os/wallpaper1.png" in files["etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc"]
+    assert "wucia-control-center.desktop" in files["etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc"]
+    assert "/home/wj" not in files["etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc"]
+    assert "fish_autosuggestion_enabled" in files["etc/skel/.config/fish/config.fish"]
+    assert "TAB: menu-complete" in files["etc/skel/.inputrc"]
+    assert "wucia-smart-typing disable" in files["usr/share/wuci-os/smart-typing.txt"]
+    assert "Exec=wucia-control-center" in files["usr/share/applications/wucia-control-center.desktop"]
+    minimal_profile = files["usr/local/bin/wucia-minimal-profile"]
+    assert "minimal attack-surface profile" in minimal_profile
+    assert "seL4-inspired" in minimal_profile
+    assert "not seL4" in minimal_profile
+    assert "does not claim microkernel isolation" in minimal_profile
+    assert "package removal remains manual" in minimal_profile
+    assert "--apply-workstation" in minimal_profile
+    assert "--apply-server" in minimal_profile
+    assert "wucia-smart-typing disable" in minimal_profile
+    assert "WJ_ALLOW_REMOVE=1 sudo wj remove PACKAGE ..." in minimal_profile
+    assert "wucia-minimal-profile" in files["usr/local/bin/wucia-control-center"]
+    assert "minimal|minimal-profile|minimal-surface" in files["usr/local/bin/wj"]
+    assert "minimal_attack_surface" in files["usr/share/wuci-os/aos-profile.json"]
+    assert "seL4-inspired in minimality discipline only" in files["usr/share/wuci-os/minimal-attack-surface.txt"]
+    assert "gh auth login" in files["usr/local/bin/wucia-github-setup"]
+    assert "No tokens, SSH keys" in files["usr/local/bin/wucia-github-setup"]
+    assert "wucia-control-center" in files["usr/local/bin/wucia-system-tour"]
+    assert "wucia-terminal-shell" in files["usr/local/bin/wucia-smart-typing"]
+    assert "exec fish -i" in files["usr/local/bin/wucia-terminal-shell"]
+    assert "wucia-control-center" in files["usr/local/bin/wj"]
+    assert "wucia-smart-typing" in files["usr/local/bin/wj"]
+    daylight_ssv = files["usr/local/bin/wuci-daylight-ssv"]
+    assert "DaylightSSV score" in daylight_ssv
+    assert "runtime" in daylight_ssv
+    assert "baked-release" in daylight_ssv
+    hardware_trace = files["usr/local/bin/wuci-release-hardware-trace"]
+    assert "Wuci-OS release hardware trace" in hardware_trace
+    assert "WJ>_" in hardware_trace
+    assert "Wuci-OS live profile" in hardware_trace
+    assert "wuci-network" in hardware_trace
+    assert "INSTALL" in hardware_trace
+    assert "No Wi-Fi SSIDs" in hardware_trace
+    assert "redact_link_values" in hardware_trace
+    assert "nmcli -f DEVICE,TYPE,STATE device status" in hardware_trace
+    assert "device wifi list" not in hardware_trace
+    assert "HOME" not in hardware_trace
+    network_connect = files["usr/local/bin/wuci-network-connect"]
+    assert "Wi-Fi SSID" in network_connect
+    assert "Wuci-OS network setup" in network_connect
+    assert "DHCP probe" in network_connect
+    assert "timeout 12s dhcpcd" in network_connect
+    assert "wpa_supplicant" in network_connect
+    assert "kernel wireless stack missing" in network_connect
+    assert "cfg80211/mac80211" in network_connect
+    assert "$module-unloaded" in network_connect
+    assert "refusing Wi-Fi scan because the kernel cannot provide nl80211" in network_connect
+    assert "NetworkManager reports Wi-Fi unavailable; trying wpa_supplicant fallback" in network_connect
+    assert "NetworkManager scan unavailable; trying wpa_supplicant fallback" in network_connect
+    assert "root-owned setuid" in network_connect
+    assert "hardware snapshot follows" in network_connect
+    assert "depmod -a" in network_connect
+    assert "WUCI_WIFI_SSID" in network_connect
+    assert "enable_service udevd" in network_connect
+    assert "wpa_quoted_value" in network_connect
+    assert "write_wpa_quoted_field ssid" in network_connect
+    assert "unsupported newline characters" in network_connect
     assert "enable_service udevd" in files["usr/local/bin/wuci-network-apply"]
     assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
+    assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wuci-network-apply"]
+    assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wuci-media-apply"]
+    assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wuci-sdr-apply"]
+    assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wuci-dev-install"]
+    assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wuci-security-apply"]
     assert "git -C \"$repo\" pull --ff-only origin \"$branch\"" in files["usr/local/bin/wuci-update"]
     # wuci-update prefers the measured, digest-verified overlay sync after a pull.
     assert "wuci-selfupdate --apply --source \"$repo\"" in files["usr/local/bin/wuci-update"]
@@ -1035,8 +1235,9 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wuci-network-connect" in files["usr/local/bin/wuci-update"]
     assert "git clone" in files["usr/local/bin/wuci-update"]
     assert "https://github.com/chasebryan/-wuci-ji.git" in files["usr/local/bin/wuci-update"]
+    assert 'run_wait "$label" doas "$@"' in files["usr/local/bin/wuci-update"]
     assert "__TERMINAL_CANDIDATES__" not in files["usr/local/bin/wuci-terminal"]
-    assert "kitty ghostty xfce4-terminal xterm" in files["usr/local/bin/wuci-terminal"]
+    assert "konsole xfce4-terminal xterm yakuake ghostty kitty" in files["usr/local/bin/wuci-terminal"]
     assert "wave.open" in files["usr/local/bin/wuci-boot-chime"]
     assert "pw-play aplay paplay ffplay mpv play" in files["usr/local/bin/wuci-boot-chime"]
     assert "NetworkManager" in files["usr/local/bin/wuci-network-apply"]
@@ -1092,7 +1293,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "/opt/wuci-os/source/wuci-ji" in files["usr/local/bin/wuci-source-status"]
     assert "/opt/wuci-os/source/upstream" in files["usr/local/bin/wuci-source-status"]
     assert "WJ>_" in files["etc/profile.d/wuci-prompt.sh"]
-    assert 'NAME="Wuci-OS"' in files["etc/os-release"]
+    assert 'NAME="WuciA/OS"' in files["etc/os-release"]
+    assert 'VERSION_ID="2.3"' in files["etc/os-release"]
     assert "ID_LIKE=linux" in files["etc/os-release"]
     assert "current_user\" = \"wj\"" in files["etc/profile.d/wuci-xfce-autostart.sh"]
     assert "exec startx" in files["etc/profile.d/wuci-xfce-autostart.sh"]
@@ -1103,6 +1305,8 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "This command is plan-only" in ai_setup
     assert "does not download installer scripts" in ai_setup
     assert "operator-reviewed Codex CLI" in ai_setup
+    assert "Claude" in ai_setup
+    assert "ANTHROPIC_API_KEY" in ai_setup
     assert "curl -fsSL" not in ai_setup
     assert "install.sh" not in ai_setup
     assert "gh.io" not in ai_setup
@@ -1111,12 +1315,17 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "remote installers" in files["usr/share/wuci-os/ai-tools.txt"]
 
     packages = json.loads(files["usr/share/wuci-os/packages.json"])
-    assert packages["developer"]["desktop"]["default"] == "terminal-first"
-    assert packages["developer"]["desktop"]["desktop_environment"] == "xfce4"
-    assert packages["developer"]["desktop"]["preferred_terminal"] == "kitty"
-    assert packages["developer"]["desktop"]["fallback_terminal"] == "xfce4-terminal"
-    assert packages["developer"]["desktop"]["alternate_terminal"] == "ghostty"
-    assert packages["developer"]["desktop"]["terminal_candidates"][0] == "kitty"
+    assert packages["developer"]["desktop"]["default"] == "kde-flagship"
+    assert packages["developer"]["desktop"]["desktop_environment"] == "KDE Plasma"
+    assert packages["developer"]["desktop"]["preferred_terminal"] == "konsole"
+    assert packages["developer"]["desktop"]["fallback_terminal"] == "sh"
+    assert packages["developer"]["desktop"]["alternate_terminal"] == "xfce4-terminal"
+    assert packages["developer"]["desktop"]["terminal_candidates"][:4] == ["konsole", "xfce4-terminal", "xterm", "yakuake"]
+    assert packages["developer"]["desktop_variants"]["xfce_default"]["status"] == "fallback-profile"
+    assert packages["developer"]["desktop_variants"]["kde_dark_hacker"]["status"] == "default-flagship"
+    assert packages["developer"]["desktop_variants"]["kde_dark_hacker"]["apply_command"] == "wuci-kde-apply"
+    assert "kde-plasma" in packages["developer"]["desktop_variants"]["kde_dark_hacker"]["packages"]
+    assert "konsole" in packages["developer"]["desktop_variants"]["kde_dark_hacker"]["packages"]
     assert "NetworkManager" in packages["developer"]["network"]["packages"]
     assert "wpa_supplicant" in packages["developer"]["network"]["wifi"]
     assert "linux-firmware-network" in packages["developer"]["network"]["firmware"]
@@ -1129,10 +1338,37 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "NetworkManager" in packages["developer"]["full_suite_packages"]
     assert "pipewire" in packages["developer"]["full_suite_packages"]
     assert "mesa-dri" in packages["developer"]["full_suite_packages"]
-    assert "gnuradio" in packages["developer"]["full_suite_packages"]
-    assert "ghostty" in packages["developer"]["desktop"]["packages"]
-    assert "xterm" in packages["developer"]["desktop"]["packages"]
-    assert "ratpoison" in packages["developer"]["desktop"]["packages"]
+    assert "gnuradio" not in packages["developer"]["full_suite_packages"]
+    assert "kde-plasma" in packages["developer"]["full_suite_packages"]
+    assert "plasma-desktop" in packages["developer"]["full_suite_packages"]
+    assert "konsole" in packages["developer"]["full_suite_packages"]
+    assert "ghidra" not in packages["developer"]["full_suite_packages"]
+    assert "trivy" in packages["developer"]["full_suite_packages"]
+    assert "syft" in packages["developer"]["full_suite_packages"]
+    assert "grype" in packages["developer"]["full_suite_packages"]
+    assert "firefox" not in packages["developer"]["full_suite_packages"]
+    assert "vlc" not in packages["developer"]["full_suite_packages"]
+    assert "pandoc" not in packages["developer"]["full_suite_packages"]
+    assert "radare2" not in packages["developer"]["full_suite_packages"]
+    assert "hashcat" not in packages["developer"]["full_suite_packages"]
+    assert "john" not in packages["developer"]["full_suite_packages"]
+    assert "masscan" not in packages["developer"]["full_suite_packages"]
+    assert "sqlmap" not in packages["developer"]["full_suite_packages"]
+    assert "sdrangel" not in packages["developer"]["full_suite_packages"]
+    assert "checkpolicy" not in packages["developer"]["full_suite_packages"]
+    assert "selinux-policy" not in packages["developer"]["full_suite_packages"]
+    assert "podman" in packages["developer"]["full_suite_packages"]
+    assert "virt-manager" in packages["developer"]["full_suite_packages"]
+    assert "qemu-img" in packages["developer"]["full_suite_packages"]
+    assert "rust" not in packages["developer"]["full_suite_packages"]
+    assert packages["developer"]["aos"]["release"] == "WuciA/OS Aperture Bastion v2.3"
+    assert packages["developer"]["aos"]["smart_typing"]["disable_command"] == "wucia-smart-typing disable"
+    assert packages["developer"]["aos"]["github_workflow"]["status_command"] == "wucia-github-setup"
+    assert "konsole" in packages["developer"]["desktop"]["packages"]
+    assert "plasma-desktop" in packages["developer"]["desktop"]["packages"]
+    assert "ghostty" in packages["developer"]["desktop"]["fallback_packages"]
+    assert "xterm" in packages["developer"]["desktop"]["fallback_packages"]
+    assert "ratpoison" in packages["developer"]["desktop"]["fallback_packages"]
     assert "vim" in packages["developer"]["editors"]["packages"]
     assert "emacs" in packages["developer"]["editors"]["packages"]
     assert "rust" in packages["developer"]["language_package_groups"]
@@ -1453,9 +1689,12 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert "90-wuci-os-wj" in live_access
     assert "usermod -aG" in live_access
     issue = (rootfs / "etc/issue").read_text(encoding="utf-8")
-    assert "Wuci-OS live profile" in issue
+    assert "WuciA/OS Aperture Bastion v2.3" in issue
     assert "Void Linux Live" not in issue
+    assert (rootfs / "etc/wuci-os/default-session").read_text(encoding="utf-8") == "kde\n"
     assert (rootfs / "usr/local/bin/wuci-update").is_file()
+    assert (rootfs / "usr/local/bin/wucia-control-center").is_file()
+    assert (rootfs / "usr/local/bin/wucia-smart-typing").is_file()
     assert (rootfs / "usr/local/bin/wuci-terminal").is_file()
     assert (rootfs / "usr/local/bin/wuci-boot-chime").is_file()
     assert (rootfs / "usr/local/bin/wuci-network-apply").is_file()
@@ -1484,10 +1723,14 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/src/cli.py").is_file()
     assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/rules/weights.v13.json").is_file()
     assert (rootfs / "usr/share/wuci-os/daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json").is_file()
-    assert 'NAME="Wuci-OS"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
+    assert 'NAME="WuciA/OS"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
+    assert 'VERSION_ID="2.3"' in (rootfs / "etc/os-release").read_text(encoding="utf-8")
     assert "wj:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
     assert "wj_low:x:" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
-    assert "Wuci-OS Operator" in (rootfs / "etc/passwd").read_text(encoding="utf-8")
+    passwd = (rootfs / "etc/passwd").read_text(encoding="utf-8")
+    assert "wj:x:" in passwd
+    assert ":wj:/home/wj:" in passwd
+    assert "Wuci-OS Operator" not in passwd
     shadow = (rootfs / "etc/shadow").read_text(encoding="utf-8")
     assert "wj::" in shadow
     assert "wj::0:" not in shadow
@@ -1505,7 +1748,23 @@ def assert_rootfs_overlay_identity_patch(tmp: Path) -> None:
     assert "--autologin wj" in (rootfs / "etc/sv/agetty-ttyS0/conf").read_text(encoding="utf-8")
     assert (rootfs / "etc/runit/runsvdir/default/agetty-ttyS0").is_symlink()
     assert (rootfs / "home/wj/.xinitrc").is_file()
+    assert "wuci-firstboot-terminal" not in (rootfs / "home/wj/.xinitrc").read_text(encoding="utf-8")
+    assert "wuci-session-start" in (rootfs / "home/wj/.xinitrc").read_text(encoding="utf-8")
+    assert (rootfs / "home/wj/.config/xfce4/panel/launcher-11/17828757891.desktop").is_file()
+    assert (rootfs / "home/wj/.config/kdeglobals").is_file()
+    assert (rootfs / "home/wj/.inputrc").is_file()
+    assert (rootfs / "home/wj/.config/fish/config.fish").is_file()
+    assert (rootfs / "home/wj/.config/wucia-os/smart-typing.env").is_file()
+    assert (rootfs / "usr/local/bin/wucia-control-center").is_file()
+    assert (rootfs / "usr/share/applications/wucia-control-center.desktop").is_file()
+    assert (rootfs / "home/wj/.local/share/konsole/Wuci.profile").is_file()
     assert (rootfs / "home/wj/.config/kitty/kitty.conf").is_file()
+    assert (rootfs / "home/wj/.config/xfce4/terminal/terminalrc").is_file()
+    assert (rootfs / "home/wj/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml").is_file()
+    assert "/usr/share/backgrounds/wuci-os/wallpaper1.png" in (
+        rootfs / "home/wj/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+    ).read_text(encoding="utf-8")
+    assert (rootfs / "home/wj/.config/gtk-3.0/settings.ini").is_file()
 
 
 def assert_remaster_squashfs_uses_live_safe_options() -> None:
@@ -1513,6 +1772,28 @@ def assert_remaster_squashfs_uses_live_safe_options() -> None:
     assert '"-comp",' in source
     assert '"xz",' in source
     assert '"-no-xattrs",' in source
+
+
+def assert_iso9660_payload_size_gate() -> None:
+    limit = wuci_os.ISO9660_SINGLE_FILE_SAFE_BYTES
+    assert wuci_os.ensure_iso9660_single_file_payload_size(limit, "fixture payload") == limit
+    assert wuci_os.ensure_iso9660_single_file_payload_size(str(limit), "fixture payload") == limit
+    for value in (None, -1, limit + 1):
+        try:
+            wuci_os.ensure_iso9660_single_file_payload_size(value, "fixture payload")
+        except wuci_os.WuciOSError:
+            pass
+        else:
+            raise AssertionError(f"accepted unsafe ISO9660 payload size: {value!r}")
+
+
+def assert_initrd_live_root_support_markers() -> None:
+    supported = wuci_os.initrd_live_root_support_from_lsinitrd("dracut modules:\n90dmsquash-live\n")
+    assert supported["status"] == "pass"
+    assert "dmsquash-live" in supported["markers_found"]
+    unsupported = wuci_os.initrd_live_root_support_from_lsinitrd("dracut modules:\nrootfs-block\n")
+    assert unsupported["status"] == "fail"
+    assert unsupported["markers_found"] == []
 
 
 def assert_debugfs_safe_path_quotes_firmware_names() -> None:
@@ -1553,6 +1834,117 @@ def assert_debugfs_ext_image_command_surface_preserves_execute_bits(tmp: Path) -
     assert command_surface["status"] == "pass"
     assert command_surface["missing_or_not_executable"] == []
     assert "usr/local/bin/INSTALL" in command_surface["required"]
+
+
+def assert_firstboot_ready_surface(tmp: Path) -> None:
+    rootfs = tmp / "firstboot-ready-rootfs"
+    rootfs.mkdir()
+    for relative in wuci_os.FIRSTBOOT_READY_EXECUTABLES:
+        path = rootfs / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        path.chmod(0o755)
+    for relative in wuci_os.FIRSTBOOT_READY_FILES:
+        path = rootfs / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"fixture\n")
+    result = wuci_os.validate_firstboot_ready_surface(rootfs)
+    assert result["status"] == "pass"
+    assert result["required_executables"] == list(wuci_os.FIRSTBOOT_READY_EXECUTABLES)
+    assert result["required_files"] == list(wuci_os.FIRSTBOOT_READY_FILES)
+    closure = wuci_os.secure_default_package_closure(
+        rootfs_image_layout="direct-squashfs-root",
+        package_install={"status": "partial", "failed_count": 1},
+        overlay_application={"status": "pass", "account_profile": {"status": "pass"}},
+        command_surface={"status": "pass", "required": list(wuci_os.LIVE_COMMAND_SURFACE_REQUIRED)},
+        firstboot_surface=result,
+    )
+    assert closure["status"] == "pass"
+    assert closure["policy"] == "secure-default-firstboot-v1"
+    assert closure["optional_suite_status"] == "partial"
+
+
+def assert_ext_image_text_patch_preserves_mode(tmp: Path) -> None:
+    if shutil.which("mke2fs") is None or shutil.which("debugfs") is None:
+        return
+    image = tmp / "patch-mode.ext4"
+    work_root = tmp / "patch-mode-debugfs"
+    work_root.mkdir()
+    build = subprocess.run(
+        ["mke2fs", "-q", "-t", "ext4", "-F", str(image), "16M"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert build.returncode == 0, build.stderr or build.stdout
+    wuci_os._debugfs_write_text_file(
+        image,
+        "etc/runit/1",
+        "#!/bin/sh\necho 'Welcome to Void!'\n",
+        mode=0o755,
+        work_root=work_root,
+        label="test executable runit stage",
+    )
+    result = wuci_os._patch_ext_image_text_file(
+        image,
+        "etc/runit/1",
+        {"Welcome to Void!": "Welcome to Wuci-OS!"},
+        work_root=work_root,
+    )
+    assert result and result["changed"] is True
+    stat_record = wuci_os._debugfs_path_stat(image, "etc/runit/1", work_root=work_root)
+    assert stat_record["executable"] is True
+    assert int(str(stat_record["mode"]), 8) & 0o7777 == 0o755
+
+
+def assert_suite_package_install_self_updates_xbps(tmp: Path) -> None:
+    rootfs = tmp / "suite-xbps-root"
+    rootfs.mkdir()
+    original_packages = wuci_os.full_suite_packages
+    original_which = wuci_os.shutil.which
+    original_run = wuci_os.subprocess.run
+    calls: list[list[str]] = []
+    updated = False
+
+    def fake_packages() -> tuple[str, ...]:
+        return ("alpha", "beta")
+
+    def fake_which(command: str) -> str | None:
+        if command == "xbps-install":
+            return "/usr/bin/xbps-install"
+        return None
+
+    def fake_run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal updated
+        calls.append(list(command))
+        args = command[3:]
+        if args == ["-y", "-S"]:
+            return subprocess.CompletedProcess(command, 0, stdout="synced\n", stderr="")
+        if args == ["-y", "-u", "xbps"]:
+            updated = True
+            return subprocess.CompletedProcess(command, 0, stdout="updated xbps\n", stderr="")
+        if args == ["-y", "-Syu"] and updated:
+            return subprocess.CompletedProcess(command, 0, stdout="updated base system\n", stderr="")
+        return subprocess.CompletedProcess(command, 0, stdout="installed\n", stderr="")
+
+    try:
+        wuci_os.full_suite_packages = fake_packages
+        wuci_os.shutil.which = fake_which
+        wuci_os.subprocess.run = fake_run
+        result = wuci_os.install_suite_packages_into_rootfs(rootfs, ticker_mode="never")
+    finally:
+        wuci_os.full_suite_packages = original_packages
+        wuci_os.shutil.which = original_which
+        wuci_os.subprocess.run = original_run
+
+    assert result["status"] == "pass"
+    assert result["installed_packages"] == ["alpha", "beta"]
+    assert result["xbps_self_update"]["status"] == "pass"
+    assert result["xbps_self_update"]["system_update"]["returncode"] == 0
+    assert result["bulk_attempts"][0]["returncode"] == 0
+    assert any(call[3:] == ["-y", "-u", "xbps"] for call in calls)
+    assert any(call[3:] == ["-y", "-Syu"] for call in calls)
 
 
 def make_tiny_extracted_rootfs(rootfs: Path) -> None:
@@ -2509,6 +2901,13 @@ def assert_final_iso_payload_builder(tmp: Path) -> None:
     assert Path(result["boot_splash"]["rendered_path"]).is_file()
     final_iso = Path(result["iso"]["path"])
     assert final_iso.is_file()
+    for public_json in (
+        Path(result["manifest_path"]),
+        Path(result["daylight_manifest_path"]),
+        Path(result["rootfs_manifest_path"]),
+    ):
+        assert public_json.is_file()
+        assert public_json.stat().st_mode & 0o777 == 0o644
     boot_menu = wuci_os._extract_iso_text(final_iso, "boot/isolinux/isolinux.cfg")
     assert "Wuci-Ji Systems / Wuci-OS live" in boot_menu
     assert "wuci-splash.png" in boot_menu
@@ -2809,8 +3208,13 @@ def main() -> int:
         assert_overlay_force_rebuild(tmp)
         assert_rootfs_overlay_identity_patch(tmp)
         assert_remaster_squashfs_uses_live_safe_options()
+        assert_iso9660_payload_size_gate()
+        assert_initrd_live_root_support_markers()
         assert_debugfs_safe_path_quotes_firmware_names()
         assert_debugfs_ext_image_command_surface_preserves_execute_bits(tmp)
+        assert_firstboot_ready_surface(tmp)
+        assert_ext_image_text_patch_preserves_mode(tmp)
+        assert_suite_package_install_self_updates_xbps(tmp)
         assert_auto_rootfs_source_uses_single_extracted_rootfs(tmp)
         assert_remaster_from_extracted_rootfs_is_wrapped(tmp)
         assert_overlay_tar_safeio(tmp)

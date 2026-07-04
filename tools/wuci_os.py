@@ -26,6 +26,11 @@ import wuci_progress
 
 PRODUCT_NAME = "Wuci-OS"
 IMAGE_ID = "wuci-os"
+AOS_PRODUCT_NAME = "WuciA/OS"
+AOS_RELEASE_NAME = "WuciA/OS Aperture Bastion v2.3"
+AOS_RELEASE_VERSION = "2.3"
+AOS_GREETING = "Hello, hacker."
+AOS_DEFAULT_SESSION = "kde"
 SOURCE_SCHEMA = "wuci-os-void-musl-source-v1"
 SOURCE_VERIFY_SCHEMA = "wuci-os-void-musl-source-verification-v1"
 BUILD_PLAN_SCHEMA = "wuci-os-build-plan-v1"
@@ -46,6 +51,7 @@ DEFAULT_FINAL_ROOT = Path("build/wuci-os/final")
 DEFAULT_ROOTFS_SOURCE_ROOT = Path("build/wuci-os/rootfs")
 DEFAULT_FAILURE_ROOT = Path("build/wuci-os/failures")
 DEFAULT_WALLPAPER_SOURCE = Path("docs/wuci-os/assets/wallpaper1.png")
+DEFAULT_EMBLEM_SOURCE = Path("docs/wuci-os/assets/wuci-os-emblem.png")
 DEFAULT_BOOT_SPLASH_SOURCE = Path("docs/wuci-os/assets/wuci-os-boot-splash.svg")
 DEFAULT_MODEL_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-wire-model.png")
 DEFAULT_DAYLIGHT_V8_DIAGRAM_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v8-sheet.png")
@@ -59,6 +65,7 @@ DEFAULT_DAYLIGHT_V14C_WIDE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v14c
 DEFAULT_DAYLIGHT_V15_SOLSTICE_SOURCE = Path("docs/wuci-os/assets/wuci-daylight-v15-plus-solstice.png")
 DEFAULT_DAYLIGHT_V14C_PACKAGE_SOURCE = Path("daylight/v14c-plus")
 DEFAULT_DAYLIGHT_V15_PACKAGE_SOURCE = Path("daylight/v15-meridian")
+DEFAULT_DAYLIGHT_SSV_REPORT_SOURCE = Path("build/daylight/ssv-v1/daylight-ssv.report.json")
 SUBSTRACT_MODEL_DOC = Path("docs/WUCI_OS_SUBSTRACT_SUBSTRATE.md")
 DAYLIGHT_V8_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V8.md")
 DAYLIGHT_V9_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V9.md")
@@ -67,6 +74,7 @@ DAYLIGHT_V13_MODEL_DOC = Path("docs/WUCI_DAYLIGHT_V13_SOVEREIGN.md")
 BOOT_SPLASH_PNG_NAME = "wuci-os-boot-splash.png"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 OVERLAY_WALLPAPER_PATH = Path("usr/share/backgrounds/wuci-os/wallpaper1.png")
+OVERLAY_EMBLEM_PATH = Path("usr/share/pixmaps/wuci-os-emblem.png")
 DEFAULT_WUCI_BIN = Path("build/wuci-ji")
 FINAL_ISO_NAME = "Wuci-OS-x86_64-musl.iso"
 SOURCE_KIT_PREFIX = Path("opt/wuci-os/source/wuci-ji")
@@ -88,6 +96,13 @@ REQUIRED_VOID_PATHS = (
     "boot/initrd",
     "LiveOS/squashfs.img",
     "boot/isolinux/isolinux.cfg",
+)
+ISO9660_SINGLE_FILE_SAFE_BYTES = (1 << 32) - wuci_kaiju.ISO_SECTOR_SIZE
+LIVE_ROOT_INITRD_MARKERS = (
+    "dmsquash-live",
+    "parse-dmsquash-live",
+    "root=live:",
+    "rd.live.",
 )
 BOUNDARY_DENIALS = (
     "source evidence is local digest evidence, not upstream signature authority",
@@ -119,8 +134,77 @@ LIVE_COMMAND_SURFACE_REQUIRED = (
     "usr/local/bin/wj",
 )
 
+FIRSTBOOT_READY_EXECUTABLES = (
+    "usr/local/bin/wuci-firstboot",
+    "usr/local/bin/wuci-firstboot-terminal",
+    "usr/local/bin/wucia-welcome",
+    "usr/local/bin/wucia-smart-profile",
+    "usr/local/bin/wucia-control-center",
+    "usr/local/bin/wucia-minimal-profile",
+    "usr/local/bin/wucia-github-setup",
+    "usr/local/bin/wucia-system-tour",
+    "usr/local/bin/wucia-smart-typing",
+    "usr/local/bin/wucia-terminal-shell",
+    "usr/local/bin/wucia-audit",
+    "usr/local/bin/wucia-server-profile",
+    "usr/local/bin/wucia-virt-lab",
+    "usr/local/bin/wuci-claude-build",
+    "usr/local/bin/wuci-daylight-ssv",
+    "usr/local/bin/wuci-network-connect",
+    "usr/local/bin/wuci-session-start",
+    "usr/local/bin/wuci-kde-apply",
+    "usr/local/bin/wuci-kde-default",
+    "usr/local/bin/INSTALL",
+)
+
+FIRSTBOOT_READY_FILES = (
+    "etc/xdg/autostart/wuci-firstboot-terminal.desktop",
+    "etc/wuci-os/default-session",
+    "etc/skel/.bash_profile",
+    "etc/skel/.bashrc",
+    "etc/skel/.profile",
+    "etc/skel/.inputrc",
+    "etc/skel/.xinitrc",
+    "etc/skel/.config/fish/config.fish",
+    "etc/skel/.config/wucia-os/smart-typing.env",
+    "etc/skel/.config/xfce4/terminal/terminalrc",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml",
+    "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-notifyd.xml",
+    "etc/skel/.config/xfce4/panel/launcher-11/17828757891.desktop",
+    "etc/skel/.config/xfce4/panel/launcher-12/17828673516.desktop",
+    "etc/skel/.config/xfce4/panel/launcher-13/17828673687.desktop",
+    "etc/skel/.config/xfce4/panel/launcher-21/17830791051.desktop",
+    "etc/skel/.config/xfce4/panel/cpufreq-7.rc",
+    "etc/skel/.config/xfce4/panel/diskperf-15.rc",
+    "etc/skel/.config/xfce4/panel/fsguard-9.rc",
+    "etc/skel/.config/xfce4/panel/screenshooter-17.rc",
+    "etc/skel/.config/xfce4/panel/wavelan-14.rc",
+    "etc/skel/.config/gtk-3.0/settings.ini",
+    "usr/share/backgrounds/wuci-os/wallpaper1.png",
+    "usr/share/pixmaps/wuci-os-emblem.png",
+    "usr/share/wuci-os/daylight-ssv.report.json",
+    "usr/share/wuci-os/aos-profile.json",
+    "usr/share/wuci-os/smart-typing.txt",
+    "usr/share/wuci-os/virt/README",
+    "usr/share/wuci-os/virt/wucia-minimal-server-notes.txt",
+    "usr/share/applications/wucia-control-center.desktop",
+    "usr/share/wuci-os/xfce4-terminalrc",
+    "usr/share/wuci-os/xfce4-desktop.xml",
+    "usr/share/wuci-os/xfce4-xsettings.xml",
+    "usr/share/wuci-os/xfwm4.xml",
+    "usr/share/wuci-os/xfce4-panel.xml",
+    "usr/share/wuci-os/gtk3-settings.ini",
+)
+
 MINIMUM_LIVE_NETWORK_PACKAGES = (
     "sudo",
+    "opendoas",
     "kmod",
     "pciutils",
     "usbutils",
@@ -200,6 +284,8 @@ AUTH_SETUID_OPTIONAL_PATHS = (
     "usr/bin/doas",
 )
 
+SUITE_NESTED_EXT_IMAGE_TARGET_BYTES = 16 * 1024 * 1024 * 1024
+
 
 
 DESKTOP_PACKAGES = (
@@ -207,6 +293,29 @@ DESKTOP_PACKAGES = (
     "xinit",
     "xfce4",
     "xfce4-terminal",
+    "xfce4-battery-plugin",
+    "xfce4-clipman-plugin",
+    "xfce4-cpufreq-plugin",
+    "xfce4-cpugraph-plugin",
+    "xfce4-genmon-plugin",
+    "xfce4-netload-plugin",
+    "xfce4-places-plugin",
+    "xfce4-plugins",
+    "xfce4-pulseaudio-plugin",
+    "xfce4-screenshooter",
+    "xfce4-sensors-plugin",
+    "xfce4-systemload-plugin",
+    "xfce4-wavelan-plugin",
+    "xfce4-weather-plugin",
+    "xfce4-whiskermenu-plugin",
+    "arc-theme",
+    "papirus-folders",
+    "papirus-icon-theme",
+    "noto-fonts-cjk",
+    "noto-fonts-emoji",
+    "noto-fonts-ttf",
+    "noto-fonts-ttf-extra",
+    "network-manager-applet",
     "kitty",
     "ghostty",
     "xterm",
@@ -240,7 +349,11 @@ AUDIO_PACKAGES = (
 
 NETWORK_PACKAGES = (
     "NetworkManager",
+    "NetworkManager-l2tp",
+    "NetworkManager-openconnect",
     "NetworkManager-openvpn",
+    "NetworkManager-strongswan",
+    "NetworkManager-vpnc",
     "wpa_supplicant",
     "iwd",
     "dhcpcd",
@@ -257,6 +370,13 @@ NETWORK_PACKAGES = (
     "ModemManager",
     "mobile-broadband-provider-info",
     "openvpn",
+    "openconnect",
+    "wireguard-tools",
+    "openbsd-netcat",
+    "bind-utils",
+    "mtr",
+    "iftop",
+    "nethogs",
 )
 
 FIRMWARE_PACKAGES = (
@@ -329,11 +449,54 @@ SDR_OPTIONAL_PACKAGES = (
     "fldigi",
 )
 
+KDE_PACKAGES = (
+    "kde-plasma",
+    "kde-baseapps",
+    "plasma-desktop",
+    "plasma-workspace",
+    "plasma-workspace-x11",
+    "plasma-nm",
+    "plasma-pa",
+    "plasma-systemmonitor",
+    "plasma-disks",
+    "plasma-firewall",
+    "plasma-vault",
+    "plasma-browser-integration",
+    "kdeplasma-addons",
+    "kde-cli-tools",
+    "kde-gtk-config",
+    "breeze",
+    "breeze-gtk",
+    "kvantum",
+    "konsole",
+    "yakuake",
+    "dolphin",
+    "kate",
+    "ark",
+    "gwenview",
+    "okular",
+    "spectacle",
+    "systemsettings",
+    "kinfocenter",
+    "kmenuedit",
+    "kscreen",
+    "kscreenlocker",
+    "kwin",
+    "kwin-x11",
+    "ksshaskpass",
+    "polkit-kde-agent",
+    "xdg-desktop-portal-kde",
+    "sddm",
+    "sddm-kcm",
+)
+
 TERMINAL_CANDIDATES = (
-    "kitty",
-    "ghostty",
+    "konsole",
     "xfce4-terminal",
     "xterm",
+    "yakuake",
+    "ghostty",
+    "kitty",
     "alacritty",
     "foot",
     "wezterm",
@@ -386,11 +549,17 @@ BOOT_ENTRY_LABELS = {
 }
 
 BASE_DEV_PACKAGES = (
+    "7zip",
+    "Bear",
+    "LuaJIT",
+    "LuaJIT-devel",
     "ca-certificates",
     "curl",
     "wget",
     "git",
     "git-lfs",
+    "github-cli",
+    "glab",
     "openssh",
     "gnupg2",
     "pinentry",
@@ -404,20 +573,43 @@ BASE_DEV_PACKAGES = (
     "ninja",
     "pkg-config",
     "autoconf",
+    "autoconf-archive",
     "automake",
+    "bison",
+    "flex",
+    "m4",
+    "meson",
+    "mold",
+    "ccache",
     "libtool",
-    "gettext",
+    "gettext-devel",
     "patch",
+    "patchutils",
     "diffutils",
     "ripgrep",
     "fd",
     "fzf",
     "jq",
     "yq",
+    "yamlfmt",
+    "taplo",
     "tree",
     "file",
     "less",
+    "bat",
+    "bottom",
+    "btop",
+    "duf",
+    "dust",
+    "htop",
+    "lsof",
+    "ncdu2",
+    "procs",
+    "psmisc",
+    "sysstat",
     "man-pages",
+    "man-pages-devel",
+    "man-pages-posix",
     "mandoc",
     "zip",
     "unzip",
@@ -428,6 +620,42 @@ BASE_DEV_PACKAGES = (
     "shellcheck",
     "shfmt",
     "hyperfine",
+    "asciidoc",
+    "asciinema",
+    "cloc",
+    "direnv",
+    "doxygen",
+    "editorconfig",
+    "entr",
+    "exiftool",
+    "fastfetch",
+    "graphviz",
+    "hugo",
+    "just",
+    "just-lsp",
+    "mdBook",
+    "mdbook-linkcheck",
+    "mdbook-mermaid",
+    "mdbook-toc",
+    "pandoc",
+    "pandoc-crossref",
+    "parallel",
+    "pigz",
+    "pbzip2",
+    "patchelf",
+    "plantuml",
+    "pre-commit",
+    "pueue",
+    "reuse",
+    "scc",
+    "tokei",
+    "vale",
+    "vale-style-alex",
+    "vale-style-microsoft",
+    "vale-style-proselint",
+    "vale-style-write-good",
+    "zeal",
+    "zoxide",
 )
 
 LANGUAGE_PACKAGE_GROUPS: dict[str, tuple[str, ...]] = {
@@ -467,14 +695,18 @@ LANGUAGE_PACKAGE_GROUPS: dict[str, tuple[str, ...]] = {
         "gopls",
     ),
     "java_jvm": (
-        "openjdk17",
-        "maven",
+        "openjdk21",
+        "apache-maven",
         "gradle",
-        "ant",
+        "apache-ant",
         "kotlin",
         "scala",
         "sbt",
+        "babashka",
         "clojure",
+        "clj-kondo",
+        "clojure-lsp",
+        "leiningen",
     ),
     "ruby": (
         "ruby",
@@ -490,6 +722,7 @@ LANGUAGE_PACKAGE_GROUPS: dict[str, tuple[str, ...]] = {
         "lua",
         "lua-devel",
         "luarocks",
+        "lua-language-server",
     ),
     "data_science": (
         "R",
@@ -500,7 +733,9 @@ LANGUAGE_PACKAGE_GROUPS: dict[str, tuple[str, ...]] = {
         "nim",
         "crystal",
         "erlang",
+        "erlang_ls",
         "elixir",
+        "gleam",
         "ocaml",
         "opam",
         "ghc",
@@ -510,16 +745,35 @@ LANGUAGE_PACKAGE_GROUPS: dict[str, tuple[str, ...]] = {
     ),
     "databases": (
         "sqlite",
-        "postgresql-libs",
+        "litecli",
+        "pgcli",
+        "postgresql17-client",
+        "libpqxx-devel",
         "mariadb-client",
+        "libmariadbclient-devel",
         "redis",
+        "sqlcipher",
     ),
     "containers_vm": (
         "podman",
+        "podman-compose",
+        "podman-tui",
         "buildah",
         "skopeo",
-        "qemu",
+        "crun",
+        "runc",
+        "fuse-overlayfs",
+        "slirp4netns",
+        "docker-cli",
+        "docker-compose",
+        "qemu-system-amd64",
+        "qemu-img",
+        "qemu-tools",
+        "qemu-user",
+        "qemu-firmware",
+        "edk2-ovmf",
         "libvirt",
+        "virt-manager",
     ),
 }
 
@@ -529,9 +783,340 @@ SECURITY_PACKAGES = (
     "nftables",
     "openssh",
     "openssl",
+    "openssl-devel",
     "audit",
     "sudo",
     "opendoas",
+    "minisign",
+    "signify",
+    "rage",
+    "pass",
+    "clamav",
+    "chkrootkit",
+    "lynis",
+    "trivy",
+    "grype",
+    "syft",
+    "yara",
+    "python3-yara",
+    "tcpdump",
+    "socat",
+    "mosh",
+    "whois",
+)
+
+PUBLIC_WORKSTATION_EXTRA_PACKAGES = (
+    "ansible",
+    "ansible-language-server",
+    "certbot",
+    "coreutils",
+    "delve",
+    "findutils",
+    "grep",
+    "grub",
+    "grub-x86_64-efi",
+    "helix",
+    "k9s",
+    "kubectl",
+    "kubernetes-helm",
+    "kubernetes-kind",
+    "lazydocker",
+    "minikube",
+    "mono",
+    "mono-devel",
+    "pnpm",
+    "python3-ansible-lint",
+    "python3-codespell",
+    "python3-mypy",
+    "python3-neovim",
+    "python3-proselint",
+    "python3-pytest",
+    "python3-pytest-asyncio",
+    "python3-pytest-cov",
+    "python3-pytest-mock",
+    "python3-yamllint",
+    "radare2",
+    "rizin",
+    "ghidra",
+    "binwalk",
+    "foremost",
+    "gef",
+    "gdb-multiarch",
+    "rust-sccache",
+    "rust-src",
+    "terraform-ls",
+    "terragrunt",
+    "tflint",
+    "texinfo",
+    "util-linux",
+)
+
+OFFENSIVE_PUBLIC_IMAGE_DENYLIST = (
+    "ffuf",
+    "gobuster",
+    "hashcat",
+    "hashcat-utils",
+    "john",
+    "masscan",
+    "nikto",
+    "sqlmap",
+    "thc-hydra",
+)
+
+VOID_MUSL_UNAVAILABLE_PUBLIC_IMAGE_DENYLIST = (
+    "checkpolicy",
+    "crystal",
+    "cubicsdr",
+    "dump1090",
+    "gr-osmosdr",
+    "libsemanage",
+    "mandoc",
+    "mesa-vdpau",
+    "npm",
+    "policycoreutils",
+    "qspectrumanalyzer",
+    "scala",
+    "sdrangel",
+    "selinux-policy",
+    "selinux-python",
+    "setools",
+    "sigutils",
+    "soapysdr",
+    "vulkan-tools",
+)
+
+PUBLIC_IMAGE_POSTBOOT_ONLY_PACKAGES = (
+    # Too large for a publishable single ISO rootfs; available through
+    # wuci-dev-install/wuci-sdr-apply after the operator configures storage.
+    "R",
+    "SoapyAirspy",
+    "SoapyHackRF",
+    "SoapyRTLSDR",
+    "SoapySDR",
+    "airspy",
+    "airspyhf",
+    "ansible",
+    "ansible-language-server",
+    "apache-ant",
+    "apache-maven",
+    "babashka",
+    "buildah",
+    "cabal-install",
+    "cargo",
+    "certbot",
+    "clang",
+    "clj-kondo",
+    "clojure",
+    "clojure-lsp",
+    "composer",
+    "delve",
+    "docker-cli",
+    "docker-compose",
+    "doxygen",
+    "edk2-ovmf",
+    "elixir",
+    "emacs",
+    "erlang",
+    "erlang_ls",
+    "fldigi",
+    "gdb",
+    "gdb-multiarch",
+    "gef",
+    "ghc",
+    "ghidra",
+    "gleam",
+    "gnuradio",
+    "go",
+    "gopls",
+    "gqrx",
+    "gradle",
+    "hackrf",
+    "julia",
+    "kde-baseapps",
+    "kde-cli-tools",
+    "kde-gtk-config",
+    "kde-plasma",
+    "kdeplasma-addons",
+    "k9s",
+    "kate",
+    "kinfocenter",
+    "kmenuedit",
+    "konsole",
+    "kotlin",
+    "kscreen",
+    "kscreenlocker",
+    "ksshaskpass",
+    "kubectl",
+    "kubernetes-helm",
+    "kubernetes-kind",
+    "kvantum",
+    "kwin",
+    "kwin-x11",
+    "lazydocker",
+    "leiningen",
+    "libvirt",
+    "lld",
+    "lldb",
+    "llvm",
+    "lua-language-server",
+    "mono",
+    "mono-devel",
+    "nim",
+    "ocaml",
+    "opam",
+    "openjdk21",
+    "php-devel",
+    "plasma-browser-integration",
+    "plasma-desktop",
+    "plasma-disks",
+    "plasma-firewall",
+    "plasma-nm",
+    "plasma-pa",
+    "plasma-systemmonitor",
+    "plasma-vault",
+    "plasma-workspace",
+    "plasma-workspace-x11",
+    "podman",
+    "podman-compose",
+    "podman-tui",
+    "qemu-firmware",
+    "qemu-img",
+    "qemu-system-amd64",
+    "qemu-tools",
+    "qemu-user",
+    "racket",
+    "redis",
+    "rtl-sdr",
+    "ruby-devel",
+    "runc",
+    "rust",
+    "rust-analyzer",
+    "rust-sccache",
+    "rust-src",
+    "sbcl",
+    "sbt",
+    "sddm",
+    "sddm-kcm",
+    "spectacle",
+    "skopeo",
+    "slirp4netns",
+    "terraform-ls",
+    "terragrunt",
+    "tflint",
+    "uhd",
+    "valgrind",
+    "virt-manager",
+    "xdg-desktop-portal-kde",
+    "yakuake",
+    "zeal",
+    "zig",
+)
+
+KDE_FIRSTBOOT_SPACE_RECLAIM_PACKAGES = (
+    # Keep first boot usable: KDE must be available without writing into the
+    # live root overlay. These bulky extras remain post-install/postboot tools.
+    "asciidoc",
+    "asciinema",
+    "binwalk",
+    "bluez",
+    "bluez-alsa",
+    "clamav",
+    "cups",
+    "cups-filters",
+    "ffmpeg",
+    "firefox",
+    "foremost",
+    "graphviz",
+    "grype",
+    "gst-plugins-bad1",
+    "gst-plugins-base1",
+    "gst-plugins-good1",
+    "gst-plugins-ugly1",
+    "gstreamer1",
+    "hugo",
+    "libmariadbclient-devel",
+    "libpqxx-devel",
+    "mariadb-client",
+    "mdBook",
+    "mdbook-linkcheck",
+    "mdbook-mermaid",
+    "mdbook-toc",
+    "minikube",
+    "mobile-broadband-provider-info",
+    "mpv",
+    "multimon-ng",
+    "noto-fonts-cjk",
+    "noto-fonts-ttf-extra",
+    "pandoc",
+    "pandoc-crossref",
+    "plantuml",
+    "postgresql17-client",
+    "pre-commit",
+    "python3-ansible-lint",
+    "python3-mypy",
+    "python3-neovim",
+    "python3-proselint",
+    "python3-pytest",
+    "python3-pytest-asyncio",
+    "python3-pytest-cov",
+    "python3-pytest-mock",
+    "python3-yamllint",
+    "python3-yara",
+    "radare2",
+    "rizin",
+    "sane",
+    "simple-scan",
+    "syft",
+    "system-config-printer",
+    "trivy",
+    "vale",
+    "vale-style-alex",
+    "vale-style-microsoft",
+    "vale-style-proselint",
+    "vale-style-write-good",
+    "vlc",
+    "yara",
+)
+
+AOS_BAKED_OPERATIONAL_PACKAGES = (
+    # v2.3 is KDE-first and operations-first. These stay in the baked image
+    # even though older v2.2 media kept them postboot-only to conserve live-root
+    # space.
+    "ansible",
+    "certbot",
+    "docker-cli",
+    "docker-compose",
+    "k9s",
+    "kubectl",
+    "kubernetes-helm",
+    "kubernetes-kind",
+    "lazydocker",
+    "libvirt",
+    "minikube",
+    "podman",
+    "podman-compose",
+    "podman-tui",
+    "qemu-firmware",
+    "qemu-img",
+    "qemu-system-amd64",
+    "qemu-tools",
+    "qemu-user",
+    "skopeo",
+    "slirp4netns",
+    "terraform-ls",
+    "terragrunt",
+    "tflint",
+    "virt-manager",
+    "edk2-ovmf",
+    "postgresql17-client",
+    "mariadb-client",
+    "redis",
+    "sqlcipher",
+    "syft",
+    "trivy",
+    "grype",
+    "yara",
+    "python3-yara",
 )
 
 SELINUX_CANDIDATE_PACKAGES = (
@@ -592,11 +1177,17 @@ def full_suite_packages() -> tuple[str, ...]:
                 + PERIPHERAL_PACKAGES
                 + SDR_PACKAGES
                 + SDR_OPTIONAL_PACKAGES
+                + KDE_PACKAGES
                 + SECURITY_PACKAGES
                 + SELINUX_CANDIDATE_PACKAGES
+                + PUBLIC_WORKSTATION_EXTRA_PACKAGES
                 + tuple(language_packages)
                 + ("vim", "emacs", "nano")
             )
+            - set(OFFENSIVE_PUBLIC_IMAGE_DENYLIST)
+            - set(VOID_MUSL_UNAVAILABLE_PUBLIC_IMAGE_DENYLIST)
+            - (set(PUBLIC_IMAGE_POSTBOOT_ONLY_PACKAGES) - set(KDE_PACKAGES) - set(AOS_BAKED_OPERATIONAL_PACKAGES))
+            - (set(KDE_FIRSTBOOT_SPACE_RECLAIM_PACKAGES) - set(AOS_BAKED_OPERATIONAL_PACKAGES))
         )
     )
 
@@ -1311,9 +1902,9 @@ def build_plan(source_root: Path | None = None) -> dict[str, Any]:
             "NOXFRAME console launcher",
             "read-only boundary docs inside /usr/share/wuci-os",
             "Wuci-OS welcome/status/attestation commands for live demos",
-            "XFCE4 desktop with kitty, xfce4-terminal fallback, ratpoison, emacs, and vim",
+            "KDE Plasma flagship desktop with Konsole, Control Center, Smart Typing, and XFCE fallback",
             "SELinux-first high-assurance profile with targeted/enforcing verification",
-            "Codex, Copilot, and Grok Build setup hooks without embedded credentials",
+            "Codex, Claude, and Grok Build setup hooks without embedded credentials",
             "Daylight/WJSEAL overlay sealing evidence",
         ],
         "non_claims": list(BOUNDARY_DENIALS),
@@ -1488,8 +2079,8 @@ wuci-source-status
 wuci-daylight-v14c-plus verify
 ```
 
-The preferred terminal order is kitty, ghostty, xfce4-terminal, xterm, then a
-plain shell fallback.
+The preferred first-boot terminal order is xfce4-terminal, xterm, ghostty,
+kitty, then a plain shell fallback.
 
 ## 3. Network And Wi-Fi
 
@@ -1506,6 +2097,7 @@ wuci-network-status
 
 ```sh
 sudo wuci-network-connect
+doas wuci-network-connect    # if using the opendoas package
 sudo wuci-network-apply
 ```
 
@@ -1581,9 +2173,11 @@ desktop packages, GRUB, Wuci target activation, package reconfiguration
 (initramfs), account passwords, services, and verification. It matches the
 target package architecture to the live system, seeds the target's XBPS
 repository configuration, and unmounts the target automatically if it fails
-partway through. It self-escalates through sudo when needed and does not call
-the missing upstream installer backend. For safety, it shows the target disk
-and requires the confirmation word `INSTALL` before erasing.
+partway through. It self-updates `xbps` before package transactions when the
+repository requires it, installs the `opendoas` package for the `doas` command,
+and self-escalates through `sudo` first, then `doas` when needed. It does not
+call the missing upstream installer backend. For safety, it shows the target
+disk and requires the confirmation word `INSTALL` before erasing.
 
 Unlike the live demo accounts, an installed disk is given a real password on
 `root` and `wj`. Supply it with `--password` / `WUCI_INSTALL_PASSWORD`, or you
@@ -1597,6 +2191,7 @@ INSTALL
 INSTALL --disk /dev/sda
 INSTALL --disk /dev/sda --password 'choose-a-strong-one'
 WUCI_INSTALL_DISK=/dev/sda WUCI_INSTALL_PASSWORD='secret' WUCI_INSTALL_ASSUME_YES=1 INSTALL
+INSTALL --disk /dev/sda --kernel-package linux6.12
 ```
 
 For two disks, the supported combined mode is an explicit RAID1 mirror:
@@ -1749,6 +2344,7 @@ def discover_host_image_tools() -> dict[str, dict[str, Any]]:
         "debugfs": ["debugfs"],
         "e2fsck": ["e2fsck"],
         "mke2fs": ["mke2fs", "mkfs.ext4"],
+        "resize2fs": ["resize2fs"],
         "tar": ["tar"],
         "qemu": list(DEFAULT_QEMU_CANDIDATES),
         "xbps-install": ["xbps-install"],
@@ -1791,6 +2387,22 @@ def _iso_add_directory_once(iso: Any, iso_path: str, *, rr_name: str, joliet_pat
     iso.add_directory(iso_path, rr_name=rr_name, joliet_path=joliet_path)
 
 
+def ensure_iso9660_single_file_payload_size(size: object, label: str) -> int:
+    try:
+        byte_count = int(size)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise WuciOSError(f"{label} byte count is unavailable for ISO9660 safety check") from exc
+    if byte_count < 0:
+        raise WuciOSError(f"{label} byte count is negative for ISO9660 safety check")
+    if byte_count > ISO9660_SINGLE_FILE_SAFE_BYTES:
+        raise WuciOSError(
+            f"{label} is {byte_count} bytes, above the Wuci-OS ISO9660 single-file safety limit "
+            f"of {ISO9660_SINGLE_FILE_SAFE_BYTES} bytes; reduce the baked package closure or use "
+            "a split/UDF-capable image lane before publishing"
+        )
+    return byte_count
+
+
 def _iso_add_bytes(
     iso: Any,
     data: bytes,
@@ -1827,6 +2439,7 @@ def _iso_add_local_file(
     label: str,
 ) -> dict[str, Any]:
     info = _verified_regular_file_info(source, label)
+    ensure_iso9660_single_file_payload_size(info.st_size, label)
     iso.add_file(
         str(source),
         iso_path=iso_path,
@@ -1853,6 +2466,8 @@ def _xorriso_stage_bytes(staging_root: Path, relative: str, data: bytes, label: 
 
 
 def _xorriso_add_map(args: list[str], source: Path, iso_path: str, *, mode: int | None = 0o644) -> None:
+    info = _verified_regular_file_info(source, f"Wuci-OS ISO payload {iso_path}")
+    ensure_iso9660_single_file_payload_size(info.st_size, f"Wuci-OS ISO payload {iso_path}")
     args.extend(["-map", str(source), iso_path])
     if mode is not None:
         args.extend(["-chmod", f"{mode:04o}", iso_path, "--"])
@@ -2010,14 +2625,53 @@ def developer_package_manifest() -> dict[str, Any]:
     return {
         "schema": "wuci-os-developer-package-profile-v1",
         "desktop": {
-            "default": "terminal-first",
-            "desktop_environment": "xfce4",
-            "window_manager": "ratpoison",
-            "preferred_terminal": "kitty",
-            "alternate_terminal": "ghostty",
-            "fallback_terminal": "xfce4-terminal",
+            "default": "kde-flagship",
+            "release": AOS_RELEASE_NAME,
+            "desktop_environment": "KDE Plasma",
+            "window_manager": "KWin",
+            "preferred_terminal": "konsole",
+            "alternate_terminal": "xfce4-terminal",
+            "fallback_terminal": "sh",
             "terminal_candidates": list(TERMINAL_CANDIDATES),
-            "packages": list(DESKTOP_PACKAGES),
+            "packages": list(KDE_PACKAGES),
+            "fallback_packages": list(DESKTOP_PACKAGES),
+        },
+        "desktop_variants": {
+            "xfce_default": {
+                "status": "fallback-profile",
+                "theme": "Arc-Dark + Papirus-Dark + Noto",
+                "wallpaper": "/usr/share/backgrounds/wuci-os/wallpaper1.png",
+                "private_data_policy": "sanitized public defaults only",
+            },
+            "kde_dark_hacker": {
+                "status": "default-flagship",
+                "desktop_environment": "KDE Plasma 6",
+                "session": "Plasma X11",
+                "theme": "Breeze Dark + Papirus-Dark + Wuci Konsole colors",
+                "wallpaper": "/usr/share/backgrounds/wuci-os/wallpaper1.png",
+                "apply_command": "wuci-kde-apply",
+                "packages": list(KDE_PACKAGES),
+                "private_data_policy": "no accounts, wallets, cloud logins, histories, or location settings are baked in",
+            },
+        },
+        "aos": {
+            "release": AOS_RELEASE_NAME,
+            "default_user": "wj",
+            "greeting": AOS_GREETING,
+            "smart_profile": "local-only preference memory under ~/.config/wucia-os; no telemetry and no secrets",
+            "roles": ["kde", "sysadmin", "developer", "network-engineer", "minimal-server", "ai", "daylight", "virt-lab"],
+            "smart_typing": {
+                "default": "enabled",
+                "terminal": "fish autosuggestions/completions through wucia-terminal-shell",
+                "fallback": "bash readline menu completion through ~/.inputrc",
+                "disable_command": "wucia-smart-typing disable",
+            },
+            "github_workflow": {
+                "status_command": "wucia-github-setup",
+                "policy": "GitHub-ready but not logged in; no tokens or SSH keys are baked in",
+            },
+            "audit_command": "wucia-audit",
+            "welcome_command": "wucia-welcome",
         },
         "audio": {
             "boot_chime": "original Wuci-OS generated chime via wuci-boot-chime",
@@ -2062,11 +2716,10 @@ def developer_package_manifest() -> dict[str, Any]:
                 "credential": "OPENAI_API_KEY or interactive login",
                 "automation_boundary": "wuci-ai-setup prints a plan; it does not download or execute remote installers",
             },
-            "github_copilot": {
-                "setup": "operator-reviewed GitHub CLI/Copilot install flow or local package only",
-                "npm_fallback": "@github/copilot",
-                "credential": "GH_TOKEN, GITHUB_TOKEN, or interactive login",
-                "automation_boundary": "wuci-ai-setup prints a plan; it does not download or execute remote installers",
+            "claude": {
+                "setup": "operator-reviewed Anthropic Claude CLI or local package only",
+                "credential": "ANTHROPIC_API_KEY or interactive login when supported by the installed Claude CLI",
+                "automation_boundary": "wuci-ai-setup prints a plan; wuci-claude-build delegates to an installed claude command and does not bake credentials",
             },
             "grok_build": {
                 "api": "https://api.x.ai/v1/responses",
@@ -3749,25 +4402,36 @@ def seal_overlay(
 def overlay_files() -> dict[str, str]:
     readme = "\n".join(
         [
-            "Wuci-OS",
+            AOS_RELEASE_NAME,
             "",
-            "Wuci-OS is the Wuci-Ji/NOXFRAME operating-system image lane.",
-            "This live profile is the Wuci-OS operator substrate.",
+            "WuciA/OS is the Wuci-Ji/NOXFRAME advanced operating-system image lane.",
+            "This live profile is the Aperture Bastion v2.3 KDE-first operator substrate.",
             "",
             "Commands:",
             "  wuci-status   show the active Wuci-OS live profile",
             "  wuci-attest   run a short local proof marker",
             "  wuci-live-banner show the Wuci-OS activated-console banner",
             "  wuci-enter    enter the WJ>_ operator shell",
-            "  wuci-terminal open the preferred terminal: kitty, ghostty, then fallbacks",
+            "  wuci-firstboot open the public first-boot welcome/network setup flow",
+            "  wuci-firstboot-terminal open the screen-sized first-boot terminal",
+            "  wucia-welcome open the A/OS role configurator",
+            "  wucia-smart-profile show or record local non-secret preferences",
+            "  wucia-audit run the Daylight/security/AI/local-profile audit wrapper",
+            "  wucia-server-profile prepare minimalist server mode",
+            "  wucia-virt-lab verify virt-manager/libvirt readiness",
+            "  wuci-terminal open the preferred terminal: xfce4-terminal, xterm, then fallbacks",
             "  wuci-update   guarded update path; local overlay by default",
             "  wuci-boot-chime play the original Wuci-OS boot chime",
             "  wuci-network-apply install/enable Wi-Fi and network support",
             "  wuci-media-apply install/enable audio, video, Bluetooth, and portals",
             "  wuci-sdr-apply install/enable SDR/radio software and USB groups",
+            "  wuci-kde-apply apply the dark KDE Plasma profile",
+            "  wuci-kde-default make KDE Plasma the default graphical session",
+            "  wuci-session-start start the selected graphical session",
             "  wuci-guide    guided high-assurance setup",
             "  wuci-auto     mostly automated live workstation setup",
             "  wuci-source-status     show onboard Wuci-Ji source payload status",
+            "  wuci-release-hardware-trace  capture release-gate hardware trace markers",
             "  wuci-daylight-v14c-plus regenerate/verify the Daylight v14C+ candidate score",
             "  wuci-daylight-meridian verify/score/frontier/gate + the fail-closed Meridian vault (v15)",
             "  wj install <packages>  install Wuci-OS packages",
@@ -3778,7 +4442,8 @@ def overlay_files() -> dict[str, str]:
             "  wuci-dev-install       install desktop, editor, and developer packages",
             "  wuci-security-apply    apply SELinux-first high-assurance settings",
             "  wuci-security-status   verify SELinux/LUKS/firewall/hardening state",
-            "  wuci-ai-setup          print Codex, Copilot, and Grok Build setup plan",
+            "  wuci-ai-setup          print Codex, Claude, and Grok Build setup plan",
+            "  wuci-claude-build      delegate to an operator-installed Claude CLI",
             "",
             "Boundary:",
             "  This profile defaults to high-assurance configuration goals, but claims",
@@ -4032,6 +4697,1164 @@ if [ "$summary" -eq 1 ]; then
     fi
 fi
 exit "$fail"
+"""
+    daylight_ssv_script = """#!/bin/sh
+set -eu
+
+summary=0
+if [ "${1:-}" = "--summary" ]; then
+    summary=1
+fi
+
+repo="${WUCI_SOURCE_ROOT:-/opt/wuci-os/source/wuci-ji}"
+module="$repo/daylight/ssv/v1"
+out="${WUCI_DAYLIGHT_SSV_OUT:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/wuci-os/daylight-ssv.report.json}"
+baked="/usr/share/wuci-os/daylight-ssv.report.json"
+
+print_report() {
+    report=$1
+    label=$2
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$report" "$label" "$summary" <<'PY'
+import json
+import sys
+
+path, label, summary = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+with open(path, encoding="utf-8") as handle:
+    report = json.load(handle)
+score = report.get("score", "unknown")
+summary_data = report.get("summary") or {}
+passed = summary_data.get("checks_pass", "?")
+total = summary_data.get("checks_total", "?")
+coverage = summary_data.get("evidence_coverage", "unknown")
+reasons = report.get("reasons") or []
+if summary:
+    print(f"daylight-ssv: {score}/100 ({label}); checks {passed}/{total}; evidence {coverage}")
+else:
+    print(f"DaylightSSV score: {score}/100 ({label})")
+    print(f"Checks: {passed}/{total}")
+    print(f"Evidence coverage: {coverage}")
+    if reasons:
+        print("Reasons:")
+        for reason in reasons[:10]:
+            print(f"  - {reason}")
+    else:
+        print("Reasons: none")
+PY
+    else
+        printf 'daylight-ssv: %s (%s); python3 unavailable for JSON summary\\n' "$report" "$label"
+    fi
+}
+
+if command -v python3 >/dev/null 2>&1 && [ -d "$module/daylight_ssv" ]; then
+    mkdir -p "$(dirname "$out")"
+    if PYTHONPATH="$module" python3 -m daylight_ssv audit --out "$out" >/dev/null 2>&1; then
+        print_report "$out" "runtime"
+        exit 0
+    fi
+    printf 'daylight-ssv: runtime audit failed; falling back to baked evidence if present\\n' >&2
+fi
+
+if [ -r "$baked" ] && [ ! -L "$baked" ]; then
+    print_report "$baked" "baked-release"
+    exit 0
+fi
+
+printf 'daylight-ssv: runtime score unavailable; python3/source or baked report missing\\n' >&2
+wuci-daylight-status --summary 2>/dev/null || true
+exit 1
+"""
+    firstboot_script = """#!/bin/sh
+set -eu
+
+state="${XDG_STATE_HOME:-${HOME:-/tmp}/.local/state}/wuci-os"
+marker="$state/firstboot-complete"
+system_marker=/var/lib/wuci-os/firstboot-complete
+force=0
+if [ "${1:-}" = "--force" ]; then
+    force=1
+fi
+if [ "$force" -eq 0 ] && { [ -e "$marker" ] || [ -e "$system_marker" ]; }; then
+    printf 'wuci-firstboot: already completed; rerun with --force to show setup again.\\n'
+    exit 0
+fi
+
+mkdir -p "$state"
+if [ "$force" -eq 0 ]; then
+    date -u '+%Y-%m-%dT%H:%M:%SZ' > "$marker" 2>/dev/null || true
+    if [ "$(id -u)" = "0" ]; then
+        mkdir -p /var/lib/wuci-os 2>/dev/null || true
+        date -u '+%Y-%m-%dT%H:%M:%SZ' > "$system_marker" 2>/dev/null || true
+    fi
+fi
+clear 2>/dev/null || true
+
+cat <<'TEXT'
+Hello, hacker.
+
+WuciA/OS Aperture Bastion v2.3 first-boot setup
+
+This public image starts with the generic operator account:
+  username: wj
+  live password: press Enter
+
+No personal browser sessions, shell histories, SSH keys, GPG keys, API tokens,
+Wi-Fi credentials, or mail/chat accounts are baked into this image. Network
+credentials and AI credentials are supplied locally by the operator.
+
+KDE Plasma is the flagship default session. XFCE remains a fallback only.
+The local SMART profile remembers operator choices under ~/.config/wucia-os;
+it does not upload telemetry and refuses to store secrets.
+TEXT
+
+printf '\\nScreen and terminal:\\n'
+if [ -n "${DISPLAY:-}" ]; then
+    if command -v xdpyinfo >/dev/null 2>&1; then
+        xdpyinfo 2>/dev/null | awk '/dimensions:/ { print "  display: " $2; exit }' || true
+    elif command -v xrandr >/dev/null 2>&1; then
+        xrandr --current 2>/dev/null | awk '/ connected/ { for (i=1; i<=NF; i++) if ($i ~ /^[0-9]+x[0-9]+[+][0-9]+[+][0-9]+/) { split($i,a,"+"); print "  display: " a[1]; exit } }' || true
+    fi
+fi
+if command -v wuci-firstboot-terminal >/dev/null 2>&1; then
+    printf '  first-boot terminal geometry: '
+    wuci-firstboot-terminal --geometry || true
+fi
+
+printf '\\nDaylight score:\\n'
+printf '  intended release target: 100.0/100\\n'
+printf '  measured evidence follows; this script does not invent a score.\\n'
+if command -v wuci-daylight-ssv >/dev/null 2>&1; then
+    wuci-daylight-ssv --summary || true
+else
+    wuci-daylight-status --summary || true
+fi
+
+printf '\\nNetwork setup:\\n'
+wuci-network-status || true
+cat <<'TEXT'
+
+To configure networking now:
+  sudo wuci-network-connect
+  doas wuci-network-connect   # if using the opendoas package instead of sudo
+
+Useful first checks:
+  wuci-status
+  wuci-security-status
+  wuci-daylight-ssv --summary
+  wuci-daylight-status
+  wuci-wallpaper
+  wucia-welcome
+  wucia-audit
+  INSTALL
+TEXT
+
+if [ -t 0 ]; then
+    printf '\\nStart network configuration now? [Y/n] '
+    IFS= read -r answer || answer=
+    case "${answer:-Y}" in
+        y|Y|yes|YES|Yes)
+            if [ "$(id -u)" = "0" ]; then
+                wuci-network-connect || true
+            elif command -v sudo >/dev/null 2>&1; then
+                sudo wuci-network-connect || true
+            elif command -v doas >/dev/null 2>&1; then
+                doas wuci-network-connect || true
+            else
+                printf 'No sudo/doas command found; run wuci-network-connect from a root shell.\\n' >&2
+            fi
+            ;;
+        *)
+            printf 'Network configuration skipped. Run: sudo wuci-network-connect  # or: doas wuci-network-connect\\n'
+            ;;
+    esac
+
+    if command -v wucia-welcome >/dev/null 2>&1; then
+        wucia-welcome --firstboot || true
+    else
+        printf 'wuci-firstboot: A/OS welcome configurator is missing.\\n' >&2
+    fi
+fi
+
+printf '\\nFirst-boot setup note written to %s\\n' "$marker"
+date -u '+%Y-%m-%dT%H:%M:%SZ' > "$marker" 2>/dev/null || true
+if [ "$(id -u)" = "0" ]; then
+    mkdir -p /var/lib/wuci-os 2>/dev/null || true
+    date -u '+%Y-%m-%dT%H:%M:%SZ' > "$system_marker" 2>/dev/null || true
+fi
+"""
+    aos_smart_profile_script = """#!/bin/sh
+set -eu
+
+profile_home="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}/wucia-os"
+profile_file="$profile_home/profile.env"
+history_file="$profile_home/profile.log"
+
+usage() {
+    cat <<'TEXT'
+wucia-smart-profile - local WuciA/OS preference memory
+
+Usage:
+  wucia-smart-profile show
+  wucia-smart-profile set-role ROLE
+  wucia-smart-profile record KEY VALUE
+  wucia-smart-profile audit
+
+This stores local, non-secret preferences only. It refuses obvious secret keys
+such as password, token, secret, credential, and private key fields.
+TEXT
+}
+
+ensure_store() {
+    mkdir -p "$profile_home"
+    chmod 0700 "$profile_home" 2>/dev/null || true
+    touch "$profile_file" "$history_file"
+    chmod 0600 "$profile_file" "$history_file" 2>/dev/null || true
+}
+
+safe_key() {
+    key=$1
+    case "$key" in
+        ""|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-]*)
+            return 1
+            ;;
+    esac
+    lower=$(printf '%s' "$key" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')
+    case "$lower" in
+        *password*|*passwd*|*token*|*secret*|*credential*|*private*|*api_key*|*apikey*|*key)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+record_value() {
+    key=$1
+    shift
+    value=${*:-}
+    if ! safe_key "$key"; then
+        printf 'wucia-smart-profile: refusing unsafe or secret-like key: %s\\n' "$key" >&2
+        exit 2
+    fi
+    clean_value=$(printf '%s' "$value" | tr '\\r\\n' '  ')
+    ensure_store
+    timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf unknown)
+    tmp="$profile_file.tmp.$$"
+    if [ -r "$profile_file" ]; then
+        grep -v "^$key=" "$profile_file" > "$tmp" 2>/dev/null || true
+    else
+        : > "$tmp"
+    fi
+    printf '%s=%s\\n' "$key" "$clean_value" >> "$tmp"
+    mv "$tmp" "$profile_file"
+    printf '%s %s=%s\\n' "$timestamp" "$key" "$clean_value" >> "$history_file"
+    chmod 0600 "$profile_file" "$history_file" 2>/dev/null || true
+    printf 'wucia-smart-profile: recorded %s\\n' "$key"
+}
+
+case "${1:-show}" in
+    show|status)
+        ensure_store
+        printf 'WuciA/OS local SMART profile\\n'
+        printf '  store: %s\\n' "$profile_file"
+        if [ -s "$profile_file" ]; then
+            sed 's/^/  /' "$profile_file"
+        else
+            printf '  role=unset\\n'
+        fi
+        ;;
+    set-role)
+        [ -n "${2:-}" ] || { printf 'wucia-smart-profile: ROLE required\\n' >&2; exit 2; }
+        case "$2" in
+            kde|sysadmin|developer|network-engineer|minimal-server|ai|daylight|virt-lab)
+                record_value role "$2"
+                ;;
+            *)
+                printf 'wucia-smart-profile: unknown role: %s\\n' "$2" >&2
+                exit 2
+                ;;
+        esac
+        ;;
+    record)
+        [ -n "${2:-}" ] || { printf 'wucia-smart-profile: KEY required\\n' >&2; exit 2; }
+        shift
+        key=$1
+        shift
+        record_value "$key" "$@"
+        ;;
+    audit)
+        exec wucia-audit
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        printf 'wucia-smart-profile: unknown command: %s\\n' "$1" >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+"""
+    aos_audit_script = """#!/bin/sh
+set -eu
+
+cat <<'TEXT'
+WuciA/OS Aperture Bastion v2.3 audit
+
+This audit reports local evidence. It does not invent a Daylight score and it
+does not claim runtime containment or quantum safety without verified support.
+TEXT
+
+run_check() {
+    label=$1
+    shift
+    printf '\\n==> %s\\n' "$label"
+    "$@" 2>&1 | sed 's/^/  /' || true
+}
+
+run_check "system identity" wuci-status
+run_check "Daylight SSV" wuci-daylight-ssv --summary
+run_check "security profile" wuci-security-status
+run_check "network status" wuci-network-status
+run_check "AI toolchain" wuci-ai-status
+run_check "SMART profile" wucia-smart-profile show
+"""
+    aos_server_profile_script = """#!/bin/sh
+set -eu
+
+apply=0
+headless=0
+case "${1:-}" in
+    --apply) apply=1 ;;
+    --headless) apply=1; headless=1 ;;
+    --help|-h)
+        cat <<'TEXT'
+wucia-server-profile - prepare a minimalist server profile
+
+Usage:
+  wucia-server-profile
+  wucia-server-profile --apply
+  wucia-server-profile --headless
+
+The default command writes local guidance only. --apply enables safe service
+links where they exist. --headless additionally records a headless preference;
+it does not remove KDE packages.
+TEXT
+        exit 0 ;;
+    "") ;;
+    *) printf 'wucia-server-profile: unknown argument: %s\\n' "$1" >&2; exit 2 ;;
+esac
+
+wucia-smart-profile set-role minimal-server >/dev/null 2>&1 || true
+profile_home="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}/wucia-os"
+mkdir -p "$profile_home"
+guide="$profile_home/minimal-server-next-steps.txt"
+cat > "$guide" <<'TEXT'
+WuciA/OS minimalist server profile
+
+Recommended operator decisions:
+  1. Install to disk with LUKS before treating the host as high-assurance.
+  2. Rotate root and wj passwords after install.
+  3. Enable only required services.
+  4. Keep KDE installed for recovery unless storage policy requires removal.
+  5. Run wucia-audit after each configuration change.
+
+Useful commands:
+  sudo wuci-security-apply
+  sudo wuci-network-apply
+  sudo sv up sshd
+  sudo sv up nftables
+  wucia-audit
+TEXT
+chmod 0600 "$guide" 2>/dev/null || true
+
+as_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
+    else
+        printf 'wucia-server-profile: need root or sudo/doas for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+enable_service() {
+    service=$1
+    if [ -d "/etc/sv/$service" ]; then
+        as_root mkdir -p /etc/runit/runsvdir/default
+        as_root ln -sfn "/etc/sv/$service" "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+        command -v sv >/dev/null 2>&1 && as_root sv up "$service" >/dev/null 2>&1 || true
+        printf '  service prepared: %s\\n' "$service"
+    else
+        printf '  service missing: %s\\n' "$service"
+    fi
+}
+
+printf 'WuciA/OS minimalist server profile prepared.\\n'
+printf '  guide: %s\\n' "$guide"
+if [ "$apply" -eq 1 ]; then
+    printf '\\nApplying available service links:\\n'
+    enable_service dbus
+    enable_service NetworkManager
+    enable_service sshd
+    enable_service nftables
+    if [ "$headless" -eq 1 ]; then
+        wucia-smart-profile record session headless >/dev/null 2>&1 || true
+        printf '  headless preference recorded; KDE remains installed for recovery.\\n'
+    fi
+fi
+"""
+    aos_minimal_profile_script = """#!/bin/sh
+set -eu
+
+mode=${1:-status}
+profile_home="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}/wucia-os"
+guide="$profile_home/minimal-attack-surface.txt"
+policy_dir=/etc/wucia-os
+policy_file=$policy_dir/minimal-attack-surface.conf
+
+cat_policy() {
+    cat <<'TEXT'
+WuciA/OS minimal attack-surface profile
+
+Purpose:
+  Provide the smallest practical WuciA/OS operating posture while retaining a
+  usable Linux system for defensive administration.
+
+Assurance boundary:
+  This is seL4-inspired in discipline only: least service surface, explicit
+  operator consent, local evidence, and fail-closed wording. It is not seL4, is
+  not formally verified, and does not claim microkernel isolation.
+
+Default service posture:
+  keep:    dbus, NetworkManager, nftables, chronyd
+  optional ssh: sshd only when the operator enables remote administration
+  stop:    avahi, bluetooth, cups, libvirt, display manager, VM lab services
+
+Package posture:
+  The live ISO keeps the full flagship package set available. Installed systems
+  may use the generated removal plan after backup, audit, and explicit operator
+  approval. This helper never removes packages automatically.
+TEXT
+}
+
+write_guide() {
+    mkdir -p "$profile_home"
+    {
+        cat_policy
+        cat <<'TEXT'
+
+Suggested installed-system sequence:
+  1. Install to encrypted disk with INSTALL.
+  2. Reboot into the installed system.
+  3. Run: sudo wucia-minimal-profile --apply-workstation
+  4. If headless: sudo wucia-minimal-profile --apply-server
+  5. Review: ~/.config/wucia-os/minimal-package-removal-plan.txt
+  6. Run: wucia-audit
+TEXT
+    } > "$guide"
+    chmod 0600 "$guide" 2>/dev/null || true
+}
+
+as_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
+    else
+        printf 'wucia-minimal-profile: need root or sudo/doas for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+service_exists() {
+    [ -d "/etc/sv/$1" ]
+}
+
+enable_service() {
+    service=$1
+    service_exists "$service" || {
+        printf '  keep requested, service missing: %s\\n' "$service"
+        return 0
+    }
+    as_root mkdir -p /etc/runit/runsvdir/default
+    as_root ln -sfn "/etc/sv/$service" "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+    command -v sv >/dev/null 2>&1 && as_root sv up "$service" >/dev/null 2>&1 || true
+    printf '  keep enabled: %s\\n' "$service"
+}
+
+disable_service() {
+    service=$1
+    if [ -e "/etc/runit/runsvdir/default/$service" ] || service_exists "$service"; then
+        command -v sv >/dev/null 2>&1 && as_root sv down "$service" >/dev/null 2>&1 || true
+        as_root rm -f "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+        printf '  stopped/disabled link: %s\\n' "$service"
+    else
+        printf '  already absent: %s\\n' "$service"
+    fi
+}
+
+write_policy() {
+    as_root mkdir -p "$policy_dir"
+    tmp=$(mktemp)
+    cat > "$tmp" <<'TEXT'
+# WuciA/OS minimal attack-surface profile.
+# This file records local operator posture only; it is not a sandbox claim.
+profile=minimal-attack-surface
+claim=seL4-inspired-not-seL4
+keep_services=dbus NetworkManager nftables chronyd
+optional_services=sshd
+disable_services=avahi-daemon avahi bluetooth bluetoothd cups cupsd libvirtd virtlogd virtlockd sddm lightdm gdm
+package_removal_is_manual=true
+TEXT
+    as_root install -m 0644 "$tmp" "$policy_file"
+    rm -f "$tmp"
+}
+
+write_removal_plan() {
+    mkdir -p "$profile_home"
+    plan="$profile_home/minimal-package-removal-plan.txt"
+    cat > "$plan" <<'TEXT'
+WuciA/OS minimal package-removal review plan
+
+Do not run this blindly. Review hardware, backups, remote access, and recovery
+media first. The live ISO keeps these packages so operators can recover systems.
+
+Candidate desktop/media removal set for installed headless systems:
+  kde-plasma plasma-desktop plasma-workspace plasma-workspace-x11
+  kde-baseapps dolphin kate konsole okular gwenview spectacle yakuake
+  xfce4 xfce4-terminal xorg xinit xterm
+  pipewire wireplumber pavucontrol pulseaudio-utils
+  bluez cups avahi libvirt virt-manager qemu-system-amd64
+
+Candidate developer/workstation removal set when not needed:
+  nodejs npm pnpm yarn go rust cargo openjdk17 php ruby lua luarocks
+  qemu-tools podman podman-compose docker-cli docker-compose
+
+Operator-owned command pattern:
+  WJ_ALLOW_REMOVE=1 sudo wj remove PACKAGE ...
+TEXT
+    chmod 0600 "$plan" 2>/dev/null || true
+    printf '  removal plan: %s\\n' "$plan"
+}
+
+status_report() {
+    cat_policy
+    printf '\\nCurrent local service links:\\n'
+    if [ -d /etc/runit/runsvdir/default ]; then
+        find /etc/runit/runsvdir/default -maxdepth 1 -mindepth 1 -printf '  %f\\n' 2>/dev/null | sort || true
+    else
+        printf '  no runit default service directory\\n'
+    fi
+    [ -f "$policy_file" ] && sed 's/^/  policy: /' "$policy_file" || true
+}
+
+apply_workstation() {
+    wucia-smart-profile set-role minimal-attack-surface >/dev/null 2>&1 || true
+    wucia-smart-typing disable >/dev/null 2>&1 || true
+    write_guide
+    write_policy
+    printf 'Applying minimal workstation service posture.\\n'
+    for service in dbus NetworkManager nftables chronyd; do
+        enable_service "$service"
+    done
+    for service in avahi-daemon avahi bluetooth bluetoothd cups cupsd libvirtd virtlogd virtlockd; do
+        disable_service "$service"
+    done
+    write_removal_plan
+    wucia-audit || true
+}
+
+apply_server() {
+    apply_workstation
+    printf '\\nApplying additional headless server posture.\\n'
+    for service in sddm lightdm gdm; do
+        disable_service "$service"
+    done
+    enable_service sshd
+    wucia-smart-profile record session minimal-headless >/dev/null 2>&1 || true
+}
+
+case "$mode" in
+    status|plan|"")
+        write_guide
+        write_removal_plan
+        status_report
+        printf '\\nGuide: %s\\n' "$guide"
+        ;;
+    --apply|--apply-workstation|apply-workstation)
+        apply_workstation
+        ;;
+    --apply-server|apply-server|--headless)
+        apply_server
+        ;;
+    --help|-h|help)
+        cat <<'TEXT'
+wucia-minimal-profile - minimal attack-surface configuration
+
+Usage:
+  wucia-minimal-profile
+  wucia-minimal-profile --apply-workstation
+  wucia-minimal-profile --apply-server
+
+Default mode writes and displays the plan only. Apply modes adjust service
+links and local profile state; package removal remains manual.
+TEXT
+        ;;
+    *)
+        printf 'wucia-minimal-profile: unknown mode: %s\\n' "$mode" >&2
+        exit 2
+        ;;
+esac
+"""
+    aos_virt_lab_script = """#!/bin/sh
+set -eu
+
+templates=/usr/share/wuci-os/virt
+
+as_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
+    else
+        printf 'wucia-virt-lab: need root or sudo/doas for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+enable_service() {
+    service=$1
+    if [ -d "/etc/sv/$service" ]; then
+        as_root mkdir -p /etc/runit/runsvdir/default
+        as_root ln -sfn "/etc/sv/$service" "/etc/runit/runsvdir/default/$service" 2>/dev/null || true
+        command -v sv >/dev/null 2>&1 && as_root sv up "$service" >/dev/null 2>&1 || true
+        printf '  service prepared: %s\\n' "$service"
+    else
+        printf '  service missing: %s\\n' "$service"
+    fi
+}
+
+case "${1:-status}" in
+    status)
+        printf 'WuciA/OS virt-manager lab status\\n'
+        for cmd in virt-manager virsh qemu-system-x86_64 qemu-img; do
+            if command -v "$cmd" >/dev/null 2>&1; then
+                printf '  %-22s %s\\n' "$cmd" "$(command -v "$cmd")"
+            else
+                printf '  %-22s missing\\n' "$cmd"
+            fi
+        done
+        printf '  templates: %s\\n' "$templates"
+        ;;
+    --enable|enable)
+        wucia-smart-profile set-role virt-lab >/dev/null 2>&1 || true
+        printf 'Preparing libvirt services where available.\\n'
+        enable_service dbus
+        enable_service virtlogd
+        enable_service virtlockd
+        enable_service libvirtd
+        ;;
+    templates|--templates)
+        if [ -d "$templates" ]; then
+            find "$templates" -maxdepth 1 -type f -print | sort
+        else
+            printf 'wucia-virt-lab: template directory missing: %s\\n' "$templates" >&2
+            exit 1
+        fi
+        ;;
+    help|--help|-h)
+        cat <<'TEXT'
+wucia-virt-lab - virt-manager readiness helper
+
+Usage:
+  wucia-virt-lab status
+  wucia-virt-lab --enable
+  wucia-virt-lab templates
+
+The ISO ships templates and service helpers. It does not auto-start guest VMs or
+embed private VM disks.
+TEXT
+        ;;
+    *)
+        printf 'wucia-virt-lab: unknown command: %s\\n' "$1" >&2
+        exit 2
+        ;;
+esac
+"""
+    claude_build_script = """#!/bin/sh
+set -eu
+
+if command -v claude >/dev/null 2>&1; then
+    exec claude "$@"
+fi
+
+cat >&2 <<'TEXT'
+wuci-claude-build: Claude CLI is not installed.
+
+WuciA/OS is credential-ready, not credential-baked:
+  1. Install Claude through an operator-reviewed official flow or local package.
+  2. Export ANTHROPIC_API_KEY only in your private shell or the tool's login flow.
+  3. Re-run: wuci-claude-build "your defensive build task"
+
+No Anthropic token is included in this image.
+TEXT
+exit 127
+"""
+    aos_welcome_script = """#!/bin/sh
+set -eu
+
+firstboot=0
+if [ "${1:-}" = "--firstboot" ]; then
+    firstboot=1
+fi
+
+is_live_overlay() {
+    if findmnt -n -o FSTYPE / 2>/dev/null | grep -qx overlay; then
+        return 0
+    fi
+    [ -e /run/initramfs/live ] || [ -e /run/live ] || [ -e /.live ]
+}
+
+apply_kde_profile() {
+    wucia-smart-profile set-role kde >/dev/null 2>&1 || true
+    wuci-kde-default || true
+    wuci-wallpaper || true
+}
+
+print_manual_guide() {
+    cat <<'TEXT'
+Manual items that remain operator-owned:
+  - Wi-Fi SSID/password or Ethernet choice
+  - AI credentials: OPENAI_API_KEY, ANTHROPIC_API_KEY, XAI_API_KEY, or vendor login
+  - Disk selection for INSTALL because it erases the target
+  - Installed-system passwords for root and wj
+  - Any organization-specific VPN, SSH, Git, email, or cloud login
+TEXT
+}
+
+run_profile() {
+    role=$1
+    case "$role" in
+        kde)
+            apply_kde_profile
+            ;;
+        sysadmin)
+            wucia-smart-profile set-role sysadmin >/dev/null 2>&1 || true
+            wuci-network-apply || true
+            wuci-security-status || true
+            ;;
+        developer)
+            wucia-smart-profile set-role developer >/dev/null 2>&1 || true
+            if is_live_overlay; then
+                printf 'Live overlay detected; skipping large package mutation. The v2.3 ISO should already carry the baked developer set.\\n'
+            else
+                wuci-dev-install || true
+            fi
+            ;;
+        network-engineer)
+            wucia-smart-profile set-role network-engineer >/dev/null 2>&1 || true
+            wuci-network-apply || true
+            wuci-network-status || true
+            ;;
+        minimal-server)
+            wucia-server-profile || true
+            ;;
+        minimal-attack-surface)
+            wucia-minimal-profile || true
+            ;;
+        ai)
+            wucia-smart-profile set-role ai >/dev/null 2>&1 || true
+            wuci-ai-setup || true
+            ;;
+        daylight)
+            wucia-smart-profile set-role daylight >/dev/null 2>&1 || true
+            wucia-audit || true
+            ;;
+        virt-lab)
+            wucia-virt-lab status || true
+            ;;
+        smart-typing)
+            wucia-smart-typing status || true
+            ;;
+        github)
+            wucia-github-setup || true
+            ;;
+        control-center)
+            wucia-control-center || true
+            ;;
+    esac
+}
+
+cat <<'TEXT'
+Hello, hacker.
+
+WuciA/OS Aperture Bastion v2.3
+Choose how this system should configure itself.
+TEXT
+print_manual_guide
+
+if [ ! -t 0 ]; then
+    printf '\\nNo interactive terminal is attached; applying the KDE flagship profile.\\n'
+    run_profile kde
+    exit 0
+fi
+
+while :; do
+    cat <<'TEXT'
+
+Options:
+  1. KDE flagship workstation
+  2. Sysadmin / DevOps workstation
+  3. Developer workstation
+  4. Network engineer workstation
+  5. Minimal attack-surface profile
+  6. Minimalist server profile
+  7. AI tooling setup: Codex, Claude, Grok Build
+  8. Daylight audit
+  9. Virt-manager lab readiness
+  10. Smart Typing status
+  11. GitHub workflow setup
+  12. WuciA/OS Control Center
+  13. Show local SMART profile
+  q. Finish
+TEXT
+    if [ "$firstboot" -eq 1 ]; then
+        printf 'Selection [1]: '
+    else
+        printf 'Selection [q]: '
+    fi
+    IFS= read -r choice || choice=
+    default_choice=q
+    [ "$firstboot" -eq 1 ] && default_choice=1
+    choice=${choice:-$default_choice}
+    case "$choice" in
+        1) run_profile kde ;;
+        2) run_profile sysadmin ;;
+        3) run_profile developer ;;
+        4) run_profile network-engineer ;;
+        5) run_profile minimal-attack-surface ;;
+        6) run_profile minimal-server ;;
+        7) run_profile ai ;;
+        8) run_profile daylight ;;
+        9) run_profile virt-lab ;;
+        10) run_profile smart-typing ;;
+        11) run_profile github ;;
+        12) run_profile control-center ;;
+        13) wucia-smart-profile show || true ;;
+        q|Q|quit|exit) break ;;
+        *) printf 'Unknown selection.\\n' ;;
+    esac
+    firstboot=0
+done
+
+printf 'WuciA/OS configuration complete. Run wucia-audit any time.\\n'
+"""
+    aos_control_center_script = """#!/bin/sh
+set -eu
+
+run_choice() {
+    choice=$1
+    case "$choice" in
+        welcome) exec_interactive wucia-welcome ;;
+        network) exec_interactive wuci-network-apply ;;
+        audit) exec_interactive wucia-audit ;;
+        ai) exec_interactive wuci-ai-setup ;;
+        github) exec_interactive wucia-github-setup ;;
+        virt) exec_interactive wucia-virt-lab status ;;
+        minimal) exec_interactive wucia-minimal-profile ;;
+        server) exec_interactive wucia-server-profile ;;
+        install) exec_interactive INSTALL ;;
+        tour) exec_interactive wucia-system-tour ;;
+        smart-typing) exec_interactive wucia-smart-typing status ;;
+        settings)
+            if command -v systemsettings >/dev/null 2>&1; then
+                exec systemsettings
+            fi
+            printf 'wucia-control-center: KDE systemsettings is not installed.\\n' >&2
+            exit 127
+            ;;
+        quit|"") exit 0 ;;
+        *) printf 'wucia-control-center: unknown choice: %s\\n' "$choice" >&2; exit 2 ;;
+    esac
+}
+
+exec_interactive() {
+    if [ ! -t 0 ] && [ -n "${DISPLAY:-}" ] && command -v wuci-terminal >/dev/null 2>&1; then
+        exec wuci-terminal "$@"
+    fi
+    exec "$@"
+}
+
+if [ -n "${1:-}" ]; then
+    run_choice "$1"
+fi
+
+if [ -n "${DISPLAY:-}" ] && command -v kdialog >/dev/null 2>&1; then
+    choice=$(kdialog --title "WuciA/OS Control Center" --menu "Choose a configuration area" \
+        welcome "Welcome and role setup" \
+        network "Network and Wi-Fi" \
+        audit "Daylight and security audit" \
+        ai "Codex, Claude, Grok Build" \
+        github "GitHub workflow setup" \
+        smart-typing "Smart Typing suggestions" \
+        minimal "Minimal attack surface" \
+        virt "Virt-manager lab readiness" \
+        server "Minimal server profile" \
+        settings "KDE system settings" \
+        install "Install to disk" \
+        tour "System tour" 2>/dev/null || true)
+    run_choice "${choice:-quit}"
+fi
+
+cat <<'TEXT'
+WuciA/OS Control Center
+
+  1. Welcome and role setup
+  2. Network and Wi-Fi
+  3. Daylight and security audit
+  4. AI tooling: Codex, Claude, Grok Build
+  5. GitHub workflow setup
+  6. Smart Typing suggestions
+  7. Minimal attack surface
+  8. Virt-manager lab readiness
+  9. Minimal server profile
+  10. KDE system settings
+  11. Install to disk
+  12. System tour
+  q. Quit
+TEXT
+printf 'Selection [q]: '
+IFS= read -r choice || choice=
+case "${choice:-q}" in
+    1) run_choice welcome ;;
+    2) run_choice network ;;
+    3) run_choice audit ;;
+    4) run_choice ai ;;
+    5) run_choice github ;;
+    6) run_choice smart-typing ;;
+    7) run_choice minimal ;;
+    8) run_choice virt ;;
+    9) run_choice server ;;
+    10) run_choice settings ;;
+    11) run_choice install ;;
+    12) run_choice tour ;;
+    q|Q) exit 0 ;;
+    *) printf 'Unknown selection.\\n' >&2; exit 2 ;;
+esac
+"""
+    aos_github_setup_script = """#!/bin/sh
+set -eu
+
+cat <<'TEXT'
+WuciA/OS GitHub workflow setup
+
+This image is GitHub-ready, not GitHub-logged-in. No tokens, SSH keys, browser
+sessions, repository credentials, or account identity are baked into the ISO.
+TEXT
+
+for cmd in git gh git-lfs ssh; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        printf '  %-10s %s\\n' "$cmd" "$(command -v "$cmd")"
+    else
+        printf '  %-10s missing\\n' "$cmd"
+    fi
+done
+
+if command -v git >/dev/null 2>&1; then
+    printf '\\nGit identity currently visible to this shell:\\n'
+    git config --global user.name 2>/dev/null | sed 's/^/  user.name: /' || printf '  user.name: unset\\n'
+    git config --global user.email 2>/dev/null | sed 's/^/  user.email: /' || printf '  user.email: unset\\n'
+fi
+
+if command -v gh >/dev/null 2>&1; then
+    printf '\\nGitHub CLI auth status:\\n'
+    gh auth status 2>&1 | sed 's/^/  /' || true
+else
+    printf '\\nInstall GitHub CLI with: sudo wj install github-cli\\n'
+fi
+
+cat <<'TEXT'
+
+Operator-owned next steps:
+  gh auth login
+  git config --global user.name "Your Name"
+  git config --global user.email "<operator-email>"
+  ssh-keygen -t ed25519 -a 64 -f ~/.ssh/id_ed25519
+  gh ssh-key add ~/.ssh/id_ed25519.pub
+
+WuciA/OS keeps source integration close to the repo, but large ISO artifacts may
+need an external release mirror when repository hosting limits are not suitable.
+Keep GitHub as the signed source, issue, release-note, and checksum authority.
+TEXT
+
+wucia-smart-profile record github_ready checked >/dev/null 2>&1 || true
+"""
+    aos_system_tour_script = """#!/bin/sh
+set -eu
+
+cat <<'TEXT'
+WuciA/OS Aperture Bastion v2.3 system tour
+
+Desktop:
+  KDE Plasma is the flagship shell. Use the bottom panel, launcher, pinned apps,
+  Dolphin, Konsole, Kate, System Settings, and the WuciA/OS Control Center.
+
+Control:
+  wucia-control-center opens the main configuration surface.
+  wucia-welcome changes the local role profile.
+  wucia-smart-profile show displays local non-secret preference memory.
+
+Networking:
+  wuci-network-connect configures Wi-Fi or checks Ethernet.
+  wuci-network-status shows links without dumping SSIDs or secrets.
+
+Security and audit:
+  wucia-audit reports Daylight, security, network, AI, and local profile status.
+  wuci-security-apply prepares hardening where supported.
+  Claims come from measured evidence, not branding.
+
+Developers:
+  git, Git LFS, GitHub CLI, language toolchains, containers, virt-manager, and
+  editor tooling are part of the intended v2.3 experience.
+  wucia-github-setup walks through account-owned GitHub setup.
+
+AI:
+  wuci-ai-setup explains Codex, Claude, and Grok Build setup.
+  API keys and logins remain operator-owned.
+
+Server mode:
+  wucia-server-profile prepares minimalist server guidance without removing the
+  recovery desktop by surprise.
+TEXT
+"""
+    aos_smart_typing_script = """#!/bin/sh
+set -eu
+
+config_home="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}"
+state_dir="$config_home/wucia-os"
+state_file="$state_dir/smart-typing.env"
+
+ensure_state() {
+    mkdir -p "$state_dir"
+    chmod 0700 "$state_dir" 2>/dev/null || true
+    if [ ! -e "$state_file" ]; then
+        printf 'enabled=1\\nengine=fish-readline-kde\\n' > "$state_file"
+        chmod 0600 "$state_file" 2>/dev/null || true
+    fi
+}
+
+current_enabled() {
+    if [ "${WUCIA_SMART_TYPING:-}" = "0" ]; then
+        printf '0\\n'
+        return
+    fi
+    if [ -r "$state_file" ] && grep -q '^enabled=0$' "$state_file"; then
+        printf '0\\n'
+        return
+    fi
+    printf '1\\n'
+}
+
+write_enabled() {
+    value=$1
+    ensure_state
+    tmp="$state_file.tmp.$$"
+    grep -v '^enabled=' "$state_file" > "$tmp" 2>/dev/null || true
+    printf 'enabled=%s\\n' "$value" >> "$tmp"
+    if ! grep -q '^engine=' "$tmp" 2>/dev/null; then
+        printf 'engine=fish-readline-kde\\n' >> "$tmp"
+    fi
+    mv "$tmp" "$state_file"
+    chmod 0600 "$state_file" 2>/dev/null || true
+}
+
+status() {
+    ensure_state
+    enabled=$(current_enabled)
+    printf 'WuciA/OS Smart Typing status\\n'
+    printf '  enabled: %s\\n' "$enabled"
+    printf '  config: %s\\n' "$state_file"
+    for cmd in fish fzf bash konsole kdialog; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            printf '  %-10s %s\\n' "$cmd" "$(command -v "$cmd")"
+        else
+            printf '  %-10s missing\\n' "$cmd"
+        fi
+    done
+    printf '  terminal launcher: wucia-terminal-shell\\n'
+    printf '  disable: wucia-smart-typing disable\\n'
+}
+
+case "${1:-status}" in
+    enable|on)
+        write_enabled 1
+        printf 'wucia-smart-typing: enabled. New Konsole sessions use smart suggestions when fish is available.\\n'
+        ;;
+    disable|off)
+        write_enabled 0
+        printf 'wucia-smart-typing: disabled. New Konsole sessions use bash/sh fallback.\\n'
+        ;;
+    toggle)
+        ensure_state
+        if [ "$(current_enabled)" = "1" ]; then
+            write_enabled 0
+            printf 'wucia-smart-typing: disabled.\\n'
+        else
+            write_enabled 1
+            printf 'wucia-smart-typing: enabled.\\n'
+        fi
+        ;;
+    status|show)
+        status
+        ;;
+    help|--help|-h)
+        cat <<'TEXT'
+wucia-smart-typing - terminal and KDE typing assistance
+
+Usage:
+  wucia-smart-typing status
+  wucia-smart-typing enable
+  wucia-smart-typing disable
+  wucia-smart-typing toggle
+
+The terminal layer uses fish autosuggestions/completions when enabled and falls
+back to bash/readline when disabled or when fish is unavailable. GUI spellcheck
+depends on KDE/Sonnet and dictionaries provided by the installed package set.
+TEXT
+        ;;
+    *)
+        printf 'wucia-smart-typing: unknown command: %s\\n' "$1" >&2
+        exit 2
+        ;;
+esac
+"""
+    aos_terminal_shell_script = """#!/bin/sh
+set -eu
+
+config_home="${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}"
+state_file="$config_home/wucia-os/smart-typing.env"
+enabled=1
+if [ "${WUCIA_SMART_TYPING:-}" = "0" ]; then
+    enabled=0
+elif [ -r "$state_file" ] && grep -q '^enabled=0$' "$state_file"; then
+    enabled=0
+fi
+
+if [ "$enabled" = "1" ] && command -v fish >/dev/null 2>&1; then
+    exec fish -i "$@"
+fi
+
+if command -v bash >/dev/null 2>&1; then
+    exec bash -i "$@"
+fi
+exec "${SHELL:-/bin/sh}" -i "$@"
 """
     daylight_v14c_script = """#!/bin/sh
 set -eu
@@ -4321,7 +6144,11 @@ if ask 'Install developer workstation packages? This can take time.' Y; then
     run_step 'install developer workstation packages' wuci-dev-install || true
 fi
 
-if ask 'Print Codex, Copilot, and Grok Build setup plan?' Y; then
+if ask 'Reapply KDE flagship profile and wallpaper?' Y; then
+    run_step 'apply KDE flagship profile' wuci-kde-default || true
+fi
+
+if ask 'Print Codex, Claude, and Grok Build setup plan?' Y; then
     run_step 'prepare AI tool setup plan' wuci-ai-setup || true
 fi
 
@@ -4372,6 +6199,7 @@ empty_passwords=${WUCI_INSTALL_EMPTY_PASSWORDS:-0}
 target_password=${WUCI_INSTALL_PASSWORD:-}
 hostname=${WUCI_INSTALL_HOSTNAME:-wuci-os}
 arch=${WUCI_INSTALL_ARCH:-}
+kernel_package=${WUCI_INSTALL_KERNEL_PACKAGE:-}
 
 usage() {
     cat <<'TEXT'
@@ -4380,6 +6208,7 @@ Wuci-OS automatic installer
 Usage:
   INSTALL [--disk /dev/sdX] [--yes] [--bios|--uefi] [--reboot]
           [--password PW | --empty-passwords] [--hostname NAME] [--arch ARCH]
+          [--kernel-package PKG]
   INSTALL --disk /dev/sdX --disk /dev/sdY --raid1 [options]
 
 This command automates partitioning, formatting, package install, GRUB,
@@ -4456,7 +6285,10 @@ if [ "$(id -u)" != "0" ] && [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; th
     if command -v sudo >/dev/null 2>&1; then
         exec sudo INSTALL "$@"
     fi
-    die "run as root: sudo INSTALL"
+    if command -v doas >/dev/null 2>&1; then
+        exec doas INSTALL "$@"
+    fi
+    die "run as root: sudo INSTALL  # or: doas INSTALL after installing the opendoas package"
 fi
 
 while [ "$#" -gt 0 ]; do
@@ -4514,6 +6346,11 @@ while [ "$#" -gt 0 ]; do
             arch=$2
             shift 2
             ;;
+        --kernel-package)
+            [ "$#" -ge 2 ] || die "--kernel-package needs a package name"
+            kernel_package=$2
+            shift 2
+            ;;
         *)
             die "unknown argument: $1"
             ;;
@@ -4558,7 +6395,7 @@ fi
 if [ -z "$install_disks" ]; then
     printf 'INSTALL: could not safely auto-select a target disk. Available disks:\\n' >&2
     lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL >&2 || true
-    printf 'Run: sudo INSTALL --disk /dev/YOUR_DISK\\n' >&2
+    printf 'Run: sudo INSTALL --disk /dev/YOUR_DISK  # or: doas INSTALL --disk /dev/YOUR_DISK\\n' >&2
     exit 2
 fi
 
@@ -4640,6 +6477,7 @@ fi
 
 say "Install live-side toolchain"
 run xbps-install -S || true
+run xbps-install -y -u xbps || run xbps-install -y -Sy xbps || true
 live_toolchain_packages="xbps parted e2fsprogs dosfstools grub util-linux gawk"
 if [ "$multi_disk_mode" = "raid1" ]; then
     live_toolchain_packages="$live_toolchain_packages mdadm"
@@ -4740,14 +6578,41 @@ for repo in $(xbps-query -L 2>/dev/null | awk 'NF >= 2 { print $2 }'); do
 done
 
 say "Install required base, kernel, network, and desktop packages"
-required_packages="base-system linux6.12 grub sudo opendoas bash shadow util-linux coreutils findutils grep sed gawk less nano vim NetworkManager dbus wpa_supplicant iw rfkill dhcpcd iproute2 wireless-regdb linux-firmware linux-firmware-network linux-firmware-intel pciutils usbutils kmod e2fsprogs python3 git ca-certificates xorg xinit xfce4 xfce4-terminal xterm"
+# Void's package is opendoas; the installed privilege command is doas.
+base_required_packages="base-system grub sudo opendoas bash shadow util-linux coreutils findutils grep sed gawk less nano vim NetworkManager dbus wpa_supplicant iw rfkill dhcpcd iproute2 wireless-regdb linux-firmware linux-firmware-network linux-firmware-intel pciutils usbutils kmod e2fsprogs python3 git ca-certificates xorg xinit xfce4 xfce4-terminal xterm"
 if [ "$mode" = "uefi" ]; then
-    required_packages="$required_packages grub-x86_64-efi"
+    base_required_packages="$base_required_packages grub-x86_64-efi"
 fi
 if [ "$multi_disk_mode" = "raid1" ]; then
-    required_packages="$required_packages mdadm"
+    base_required_packages="$base_required_packages mdadm"
 fi
-run xbps-install -y -Sy -r "$target" $repo_args $required_packages
+kernel_candidates="linux6.12 linux6.6 linux6.1 linux"
+if [ -n "$kernel_package" ]; then
+    kernel_candidates="$kernel_package $kernel_candidates"
+fi
+install_log="/tmp/wuci-install-xbps.$$"
+installed_required=0
+tried_kernel_packages=
+for candidate_kernel in $kernel_candidates; do
+    case " $tried_kernel_packages " in
+        *" $candidate_kernel "*) continue ;;
+    esac
+    tried_kernel_packages="${tried_kernel_packages:+$tried_kernel_packages }$candidate_kernel"
+    printf '+ xbps-install -y -Sy -r %s %s %s\\n' "$target" "$candidate_kernel" "$base_required_packages"
+    if xbps-install -y -Sy -r "$target" $repo_args "$candidate_kernel" $base_required_packages >"$install_log" 2>&1; then
+        cat "$install_log"
+        kernel_package=$candidate_kernel
+        installed_required=1
+        break
+    fi
+    cat "$install_log" >&2 || true
+    if grep -q "The 'xbps' package must be updated" "$install_log" 2>/dev/null; then
+        run xbps-install -y -u xbps || run xbps-install -y -Sy xbps || true
+    fi
+done
+rm -f "$install_log"
+[ "$installed_required" = "1" ] || die "required package install failed for kernel candidates: $tried_kernel_packages"
+printf 'INSTALL: selected kernel package: %s\\n' "$kernel_package"
 
 say "Install best-effort media and preferred terminal packages"
 optional_packages="kitty alsa-utils pipewire wireplumber pulseaudio-utils mesa-dri mesa-vulkan-intel xf86-video-intel"
@@ -4936,13 +6801,14 @@ copy_tree() {
 
 printf 'wuci-install-target-activate: target %s\\n' "$target"
 
-for src in /usr/local/bin/INSTALL /usr/local/bin/wuci-* /usr/local/bin/wj; do
+for src in /usr/local/bin/INSTALL /usr/local/bin/wuci-* /usr/local/bin/wucia-* /usr/local/bin/wj; do
     [ -e "$src" ] || continue
     copy_file "$src" "${src#/}" 0755
 done
 
 copy_tree /usr/share/wuci-os usr/share/wuci-os
 copy_tree /usr/share/backgrounds/wuci-os usr/share/backgrounds/wuci-os
+copy_file /usr/share/applications/wucia-control-center.desktop usr/share/applications/wucia-control-center.desktop 0644
 
 for src in /etc/profile.d/wuci-*.sh; do
     [ -e "$src" ] || continue
@@ -4955,10 +6821,17 @@ done
 
 copy_file /etc/skel/.xinitrc etc/skel/.xinitrc 0644
 copy_file /etc/skel/.ratpoisonrc etc/skel/.ratpoisonrc 0644
+copy_file /etc/skel/.inputrc etc/skel/.inputrc 0644
+copy_file /etc/skel/.config/fish/config.fish etc/skel/.config/fish/config.fish 0644
+copy_file /etc/skel/.config/wucia-os/smart-typing.env etc/skel/.config/wucia-os/smart-typing.env 0644
 copy_file /etc/skel/.config/kitty/kitty.conf etc/skel/.config/kitty/kitty.conf 0644
 copy_file /root/.xinitrc root/.xinitrc 0644
 copy_file /root/.ratpoisonrc root/.ratpoisonrc 0644
+copy_file /root/.inputrc root/.inputrc 0644
+copy_file /root/.config/fish/config.fish root/.config/fish/config.fish 0644
+copy_file /root/.config/wucia-os/smart-typing.env root/.config/wucia-os/smart-typing.env 0644
 copy_file /root/.config/kitty/kitty.conf root/.config/kitty/kitty.conf 0644
+copy_file /etc/wuci-os/default-session etc/wuci-os/default-session 0644
 
 printf 'wuci-os\\n' > "$target/etc/hostname"
 rm -f "$target/etc/os-release" "$target/usr/lib/os-release"
@@ -4982,8 +6855,12 @@ fi
 for user in wj wj_low; do
     if [ -d "$target/home/$user" ]; then
         mkdir -p "$target/home/$user/.config/kitty"
+        mkdir -p "$target/home/$user/.config/fish" "$target/home/$user/.config/wucia-os"
         copy_file /etc/skel/.xinitrc "home/$user/.xinitrc" 0644
         copy_file /etc/skel/.ratpoisonrc "home/$user/.ratpoisonrc" 0644
+        copy_file /etc/skel/.inputrc "home/$user/.inputrc" 0644
+        copy_file /etc/skel/.config/fish/config.fish "home/$user/.config/fish/config.fish" 0644
+        copy_file /etc/skel/.config/wucia-os/smart-typing.env "home/$user/.config/wucia-os/smart-typing.env" 0644
         copy_file /etc/skel/.config/kitty/kitty.conf "home/$user/.config/kitty/kitty.conf" 0644
         if command -v chroot >/dev/null 2>&1; then
             chroot "$target" chown -R "$user:$user" "/home/$user" 2>/dev/null || true
@@ -5165,9 +7042,14 @@ Usage:
   wj search <terms...>            search package repository
   wj info <packages...>           show package information
   wj remove <packages...>         remove packages; requires WJ_ALLOW_REMOVE=1
-  wj guide                        run guided high-assurance setup
-  wj auto                         run mostly automated setup
-  wj status                       show Wuci-OS status
+	  wj guide                        run guided high-assurance setup
+	  wj auto                         run mostly automated setup
+	  wj aos                          open WuciA/OS welcome and role setup
+	  wj control                      open WuciA/OS Control Center
+	  wj github                       show GitHub workflow setup
+	  wj minimal                      show/apply minimal attack-surface profile
+	  wj smart-typing                 show/adjust terminal suggestions
+	  wj status                       show Wuci-OS status
   wj security                     show high-assurance security status
   wj daylight                     show Daylight evidence status
   wj daylight-v14c                verify/regenerate Daylight v14C+ candidate score
@@ -5206,8 +7088,10 @@ run_root_wait() {
         wuci-wait-run "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         wuci-wait-run "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        wuci-wait-run "$label" doas "$@"
     else
-        printf 'wj: run as root or use sudo: %s\\n' "$*" >&2
+        printf 'wj: run as root or use sudo/doas: %s\\n' "$*" >&2
         exit 1
     fi
 }
@@ -5217,8 +7101,10 @@ run_root_plain() {
         "$@"
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
     else
-        printf 'wj: run as root or use sudo: %s\\n' "$*" >&2
+        printf 'wj: run as root or use sudo/doas: %s\\n' "$*" >&2
         exit 1
     fi
 }
@@ -5306,6 +7192,21 @@ case "$cmd" in
     auto)
         exec wuci-auto "$@"
         ;;
+    aos|welcome)
+        exec wucia-welcome "$@"
+        ;;
+    control|control-center)
+        exec wucia-control-center "$@"
+        ;;
+    github)
+        exec wucia-github-setup "$@"
+        ;;
+    minimal|minimal-profile|minimal-surface)
+        exec wucia-minimal-profile "$@"
+        ;;
+    smart-typing|typing)
+        exec wucia-smart-typing "$@"
+        ;;
     status)
         exec wuci-status "$@"
         ;;
@@ -5351,8 +7252,10 @@ as_root() {
         "$@"
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
     else
-        printf 'wuci-dev-install: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-dev-install: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -5364,8 +7267,10 @@ run_root_wait() {
         wuci-wait-run "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         wuci-wait-run "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        wuci-wait-run "$label" doas "$@"
     else
-        printf 'wuci-dev-install: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-dev-install: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -5391,6 +7296,7 @@ fi
 
 run_root_wait "xbps refresh" xbps-install -Sy xbps || as_root xbps-install -u xbps || true
 install_group "xfce4 desktop" __DESKTOP_PACKAGES__
+install_group "KDE dark desktop" __KDE_PACKAGES__
 install_group "Wi-Fi network firmware and tools" __NETWORK_PACKAGES__ __FIRMWARE_PACKAGES__
 install_group "audio media stack" __AUDIO_PACKAGES__
 install_group "video graphics stack" __VIDEO_PACKAGES__
@@ -5412,16 +7318,58 @@ install_group "systems extras" __SYSTEMS_EXTRA_PACKAGES__
 install_group "databases" __DATABASE_PACKAGES__
 install_group "containers vm" __CONTAINERS_PACKAGES__
 
-mkdir -p /etc/xdg/xfce4 /etc/skel/.config/kitty /root/.config/kitty
+mkdir -p \
+  /etc/xdg/xfce4 \
+  /etc/skel/.config/kitty \
+  /etc/skel/.config/xfce4/terminal \
+  /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml \
+  /etc/skel/.config/wuci-os \
+  /etc/skel/.local/share/konsole \
+  /etc/skel/.config/gtk-3.0 \
+  /root/.config/kitty \
+  /root/.config/xfce4/terminal \
+  /root/.config/xfce4/xfconf/xfce-perchannel-xml \
+  /root/.config/wuci-os \
+  /root/.local/share/konsole \
+  /root/.config/gtk-3.0
 cp /usr/share/wuci-os/ratpoisonrc /etc/skel/.ratpoisonrc 2>/dev/null || true
 cp /usr/share/wuci-os/ratpoisonrc /root/.ratpoisonrc 2>/dev/null || true
 cp /usr/share/wuci-os/kitty.conf /etc/skel/.config/kitty/kitty.conf 2>/dev/null || true
 cp /usr/share/wuci-os/kitty.conf /root/.config/kitty/kitty.conf 2>/dev/null || true
-printf 'exec startxfce4\\n' >/etc/skel/.xinitrc
-printf 'exec startxfce4\\n' >/root/.xinitrc
+cp /usr/share/wuci-os/xfce4-terminalrc /etc/skel/.config/xfce4/terminal/terminalrc 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-terminalrc /root/.config/xfce4/terminal/terminalrc 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-desktop.xml /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-desktop.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-xsettings.xml /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-xsettings.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfwm4.xml /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfwm4.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-panel.xml /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml 2>/dev/null || true
+cp /usr/share/wuci-os/xfce4-panel.xml /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml 2>/dev/null || true
+cp /usr/share/wuci-os/gtk3-settings.ini /etc/skel/.config/gtk-3.0/settings.ini 2>/dev/null || true
+cp /usr/share/wuci-os/gtk3-settings.ini /root/.config/gtk-3.0/settings.ini 2>/dev/null || true
+cp /usr/share/wuci-os/kde/kdeglobals /etc/skel/.config/kdeglobals 2>/dev/null || true
+cp /usr/share/wuci-os/kde/kdeglobals /root/.config/kdeglobals 2>/dev/null || true
+cp /usr/share/wuci-os/kde/kwinrc /etc/skel/.config/kwinrc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/kwinrc /root/.config/kwinrc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/plasmarc /etc/skel/.config/plasmarc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/plasmarc /root/.config/plasmarc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/kscreenlockerrc /etc/skel/.config/kscreenlockerrc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/kscreenlockerrc /root/.config/kscreenlockerrc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/plasma-org.kde.plasma.desktop-appletsrc /etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/plasma-org.kde.plasma.desktop-appletsrc /root/.config/plasma-org.kde.plasma.desktop-appletsrc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/konsole/Wuci.colorscheme /etc/skel/.local/share/konsole/Wuci.colorscheme 2>/dev/null || true
+cp /usr/share/wuci-os/kde/konsole/Wuci.colorscheme /root/.local/share/konsole/Wuci.colorscheme 2>/dev/null || true
+cp /usr/share/wuci-os/kde/konsole/Wuci.profile /etc/skel/.local/share/konsole/Wuci.profile 2>/dev/null || true
+cp /usr/share/wuci-os/kde/konsole/Wuci.profile /root/.local/share/konsole/Wuci.profile 2>/dev/null || true
+cp /usr/share/wuci-os/kde/konsole/konsolerc /etc/skel/.config/konsolerc 2>/dev/null || true
+cp /usr/share/wuci-os/kde/konsole/konsolerc /root/.config/konsolerc 2>/dev/null || true
+printf '#!/bin/sh\\nexec wuci-session-start\\n' >/etc/skel/.xinitrc
+printf '#!/bin/sh\\nexec wuci-session-start\\n' >/root/.xinitrc
 
 printf '\\nWuci-OS developer workstation packages requested.\\n'
-printf 'Default desktop: XFCE4. Preferred terminal: kitty. Fallback: xfce4-terminal.\\n'
+printf 'Default desktop: XFCE4. Preferred terminal: xfce4-terminal. Fallback: xterm/plain shell.\\n'
+printf 'Optional desktop: dark KDE Plasma profile, activated with wuci-kde-default.\\n'
 printf 'Network: NetworkManager plus Wi-Fi firmware/tools requested.\\n'
 printf 'Media: PipeWire/ALSA/Pulse helpers, Mesa/video, Bluetooth, portals requested.\\n'
 printf 'SDR: GNU Radio, Gqrx, RTL-SDR, HackRF, Airspy, SoapySDR helpers requested.\\n'
@@ -5435,8 +7383,10 @@ as_root() {
         "$@"
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
     else
-        printf 'wuci-security-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-security-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -5448,8 +7398,10 @@ run_root_wait() {
         wuci-wait-run "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         wuci-wait-run "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        wuci-wait-run "$label" doas "$@"
     else
-        printf 'wuci-security-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-security-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -5627,8 +7579,10 @@ as_root() {
         "$@"
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
     else
-        printf 'wuci-users-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-users-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -5642,8 +7596,11 @@ ensure_user() {
     user=$1
     shell_path=$2
     groups=$3
+    comment=${4:-$user}
     if ! getent passwd "$user" >/dev/null 2>&1; then
-        as_root useradd -m -s "$shell_path" -G "$groups" "$user"
+        as_root useradd -m -s "$shell_path" -c "$comment" -G "$groups" "$user"
+    else
+        as_root usermod -c "$comment" "$user" 2>/dev/null || true
     fi
 }
 
@@ -5653,8 +7610,8 @@ done
 
 shell_path=/bin/bash
 [ -x "$shell_path" ] || shell_path=/bin/sh
-ensure_user wj "$shell_path" wheel,audio,video,input,kvm,network,storage
-ensure_user wj_low "$shell_path" audio,video
+ensure_user wj "$shell_path" wheel,audio,video,input,kvm,network,storage wj
+ensure_user wj_low "$shell_path" audio,video wj_low
 
 as_root passwd -d wj >/dev/null 2>&1 || true
 as_root passwd -d wj_low >/dev/null 2>&1 || true
@@ -5676,11 +7633,11 @@ fi
 for user in wj wj_low; do
     home=$(getent passwd "$user" | cut -d: -f6)
     [ -n "$home" ] || continue
-    as_root mkdir -p "$home/.config/kitty"
-    as_root cp /usr/share/wuci-os/kitty.conf "$home/.config/kitty/kitty.conf" 2>/dev/null || true
-    as_root cp /usr/share/wuci-os/ratpoisonrc "$home/.ratpoisonrc" 2>/dev/null || true
-    printf 'exec startxfce4\\n' | as_root tee "$home/.xinitrc" >/dev/null
-    as_root chown -R "$user:$user" "$home/.config" "$home/.ratpoisonrc" "$home/.xinitrc" 2>/dev/null || true
+    as_root mkdir -p "$home"
+    if [ -d /etc/skel ]; then
+        as_root cp -a /etc/skel/. "$home/" 2>/dev/null || true
+    fi
+    as_root chown -R "$user:$user" "$home/.config" "$home/.local" "$home/.ratpoisonrc" "$home/.xinitrc" 2>/dev/null || true
 done
 
 cat <<'TEXT'
@@ -5734,13 +7691,80 @@ esac
 exit "$fail"
 """
     prompt_script = """# Wuci-OS prompt identity
-if [ "${USER:-}" = "wj" ]; then
+_wuci_prompt_user=${USER:-${LOGNAME:-$(id -un 2>/dev/null || printf '')}}
+if [ "$_wuci_prompt_user" = "wj" ]; then
     PS1='WJ>_ '
-elif [ "${USER:-}" = "wj_low" ]; then
+elif [ "$_wuci_prompt_user" = "wj_low" ]; then
     PS1='WJ-low>_ '
 elif [ "$(id -u 2>/dev/null || printf 1)" = "0" ]; then
     PS1='WJ#_ '
 fi
+export PS1
+unset _wuci_prompt_user
+"""
+    bash_profile = """# Wuci-OS login shell profile
+if [ -r "$HOME/.profile" ]; then
+    . "$HOME/.profile"
+fi
+if [ -r "$HOME/.bashrc" ]; then
+    . "$HOME/.bashrc"
+fi
+"""
+    shell_profile = """# Wuci-OS POSIX shell profile
+if [ -r /etc/profile.d/wuci-prompt.sh ]; then
+    . /etc/profile.d/wuci-prompt.sh
+fi
+"""
+    bashrc = """# Wuci-OS interactive bash profile
+if [ -r /etc/profile.d/wuci-prompt.sh ]; then
+    . /etc/profile.d/wuci-prompt.sh
+fi
+"""
+    inputrc = """# WuciA/OS Smart Typing readline profile
+set editing-mode emacs
+set completion-ignore-case on
+set show-all-if-ambiguous on
+set show-all-if-unmodified on
+set menu-complete-display-prefix on
+set colored-stats on
+set colored-completion-prefix on
+set mark-symlinked-directories on
+TAB: menu-complete
+"\\e[Z": menu-complete-backward
+"""
+    smart_typing_env = """enabled=1
+engine=fish-readline-kde
+"""
+    fish_config = """# WuciA/OS Smart Typing fish profile
+set -g fish_greeting
+set -g fish_autosuggestion_enabled 1
+set -g fish_color_autosuggestion 5f6b7a
+set -g fish_color_command 7dd3fc
+set -g fish_color_param e6edf3
+set -g fish_color_error ff6b6b
+set -g fish_color_search_match --background=30363d
+set -g fish_pager_color_progress 7dd3fc
+set -g fish_pager_color_prefix 77dd77
+set -g fish_pager_color_completion e6edf3
+set -g fish_pager_color_description 94a3b8
+
+function fish_prompt
+    set -l user_name (id -un 2>/dev/null)
+    switch "$user_name"
+        case wj
+            printf 'WJ>_ '
+        case wj_low
+            printf 'WJ-low>_ '
+        case root
+            printf 'WJ#_ '
+        case '*'
+            printf '%s>_ ' "$user_name"
+    end
+end
+
+if type -q fzf
+    set -gx FZF_DEFAULT_OPTS "--height=40% --layout=reverse --border --prompt='WuciA> '"
+end
 """
     account_profile_json = json.dumps(
         {
@@ -5763,6 +7787,7 @@ fi
 
     dev_install_script = (
         dev_install_script.replace("__DESKTOP_PACKAGES__", sh_words(DESKTOP_PACKAGES))
+        .replace("__KDE_PACKAGES__", sh_words(KDE_PACKAGES))
         .replace("__NETWORK_PACKAGES__", sh_words(NETWORK_PACKAGES))
         .replace("__FIRMWARE_PACKAGES__", sh_words(FIRMWARE_PACKAGES))
         .replace("__AUDIO_PACKAGES__", sh_words(AUDIO_PACKAGES))
@@ -5849,12 +7874,51 @@ URI="file://$OUT"
 SET=0
 
 if command -v xfconf-query >/dev/null 2>&1; then
+    set_xfce_prop() {
+        prop=$1
+        type=$2
+        value=$3
+        xfconf-query -c xfce4-desktop -p "$prop" -s "$value" 2>/dev/null \
+            || xfconf-query -c xfce4-desktop -p "$prop" -n -t "$type" -s "$value" 2>/dev/null \
+            || true
+    }
+    set_xfce_monitor() {
+        monitor=$1
+        for ws in 0 1 2 3; do
+            base="/backdrop/screen0/${monitor}/workspace${ws}"
+            set_xfce_prop "$base/last-image" string "$OUT"
+            set_xfce_prop "$base/image-style" int 5
+        done
+    }
+    set_xfce_monitor monitor0
+    set_xfce_monitor monitorDefault
+    set_xfce_monitor monitorVirtual1
+    set_xfce_monitor monitorVirtual-1
+    set_xfce_monitor monitorVGA1
+    set_xfce_monitor monitorVGA-1
+    set_xfce_monitor monitorHDMI1
+    set_xfce_monitor monitorHDMI-1
+    set_xfce_monitor monitorDP1
+    set_xfce_monitor monitorDP-1
+    set_xfce_monitor monitoreDP1
+    set_xfce_monitor monitoreDP-1
+    if command -v xrandr >/dev/null 2>&1; then
+        xrandr --current 2>/dev/null | awk '/ connected/ { print $1 }' | while IFS= read -r output; do
+            [ -n "$output" ] || continue
+            compact=$(printf '%s' "$output" | tr -d '-')
+            set_xfce_monitor "monitor$output"
+            set_xfce_monitor "monitor$compact"
+        done
+    fi
     for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true); do
-        xfconf-query -c xfce4-desktop -p "$prop" -s "$OUT" 2>/dev/null || true
+        set_xfce_prop "$prop" string "$OUT"
         style="${prop%/last-image}/image-style"
-        xfconf-query -c xfce4-desktop -p "$style" -s 5 2>/dev/null || true
+        set_xfce_prop "$style" int 5
         SET=1
     done
+    if command -v xfdesktop >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
+        xfdesktop --reload >/dev/null 2>&1 || true
+    fi
 fi
 
 if command -v gsettings >/dev/null 2>&1; then
@@ -5924,6 +7988,126 @@ case "$base" in
         ;;
     *)
         exec "$terminal" -e "$@"
+        ;;
+esac
+"""
+    firstboot_terminal_script = """#!/bin/sh
+set -eu
+
+firstboot_candidates="${WUCI_FIRSTBOOT_TERMINAL:-} konsole xfce4-terminal xterm ghostty alacritty foot wezterm st urxvt rxvt"
+
+detect_pixels() {
+    if [ -n "${WUCI_FIRSTBOOT_PIXELS:-}" ]; then
+        printf '%s\\n' "$WUCI_FIRSTBOOT_PIXELS" | awk -Fx 'NF == 2 { print $1 " " $2; exit }'
+        return 0
+    fi
+    if command -v xrandr >/dev/null 2>&1; then
+        xrandr --current 2>/dev/null | awk '
+            / connected/ {
+                for (i = 1; i <= NF; i++) {
+                    if ($i ~ /^[0-9]+x[0-9]+[+][0-9]+[+][0-9]+/) {
+                        split($i, a, "+");
+                        split(a[1], g, "x");
+                        print g[1] " " g[2];
+                        exit;
+                    }
+                }
+            }'
+        return 0
+    fi
+    if command -v xdpyinfo >/dev/null 2>&1; then
+        xdpyinfo 2>/dev/null | awk '/dimensions:/ { split($2, g, "x"); print g[1] " " g[2]; exit }'
+        return 0
+    fi
+    printf '1280 720\\n'
+}
+
+terminal_geometry() {
+    pixels=$(detect_pixels | head -n 1)
+    set -- $pixels
+    width=${1:-1280}
+    height=${2:-720}
+    case "$width:$height" in
+        *[!0-9:]*|:) width=1280; height=720 ;;
+    esac
+    cols=$((width / 10))
+    rows=$((height / 24))
+    [ "$cols" -lt 82 ] && cols=82
+    [ "$cols" -gt 140 ] && cols=140
+    [ "$rows" -lt 24 ] && rows=24
+    [ "$rows" -gt 42 ] && rows=42
+    printf '%sx%s\\n' "$cols" "$rows"
+}
+
+if [ "${1:-}" = "--geometry" ]; then
+    terminal_geometry
+    exit 0
+fi
+
+force=0
+if [ "${1:-}" = "--force" ]; then
+    force=1
+fi
+
+state="${XDG_STATE_HOME:-${HOME:-/tmp}/.local/state}/wuci-os"
+marker="$state/firstboot-complete"
+system_marker=/var/lib/wuci-os/firstboot-complete
+uid=$(id -u 2>/dev/null || printf user)
+runtime_base="${XDG_RUNTIME_DIR:-/run/user/$uid}"
+if [ ! -d "$runtime_base" ] || [ ! -w "$runtime_base" ]; then
+    runtime_base=/tmp
+fi
+runtime_state="$runtime_base/wuci-os-firstboot-$uid"
+boot_marker="$runtime_state/firstboot-terminal-started"
+lockdir="$runtime_state/firstboot-terminal.lock"
+mkdir -p "$state" "$runtime_state"
+if [ "$force" -eq 0 ] && { [ -e "$marker" ] || [ -e "$system_marker" ] || [ -e "$boot_marker" ]; }; then
+    exit 0
+fi
+if [ "$force" -eq 0 ]; then
+    if ! mkdir "$lockdir" 2>/dev/null; then
+        exit 0
+    fi
+    date -u '+%Y-%m-%dT%H:%M:%SZ' > "$boot_marker" 2>/dev/null || true
+fi
+
+find_firstboot_terminal() {
+    for term in $firstboot_candidates; do
+        [ -n "$term" ] || continue
+        if command -v "$term" >/dev/null 2>&1; then
+            command -v "$term"
+            return 0
+        fi
+    done
+    return 1
+}
+
+terminal=$(find_firstboot_terminal || true)
+geometry=$(terminal_geometry)
+if [ "$force" -eq 1 ]; then
+    cmd='wuci-firstboot --force; printf "\\nfirst-boot shell: type exit to close.\\n"; exec "${SHELL:-/bin/sh}" -i'
+else
+    cmd='wuci-firstboot; printf "\\nfirst-boot shell: type exit to close.\\n"; exec "${SHELL:-/bin/sh}" -i'
+fi
+
+if [ -z "$terminal" ]; then
+    sh -lc "$cmd"
+    exit $?
+fi
+
+base=$(basename "$terminal")
+case "$base" in
+    konsole)
+        exec "$terminal" --geometry "$geometry" --title "WuciA/OS First Boot" -e sh -lc "$cmd"
+        ;;
+    xfce4-terminal)
+        exec "$terminal" --geometry="$geometry" --title="WuciA/OS First Boot" --command="sh -lc '$cmd'"
+        ;;
+    xterm|urxvt|rxvt)
+        exec "$terminal" -geometry "$geometry" -T "WuciA/OS First Boot" -e sh -lc "$cmd"
+        ;;
+    *)
+        exec "$terminal" -e sh -lc "$cmd"
         ;;
 esac
 """
@@ -6218,6 +8402,24 @@ try_dhcp() {
     online
 }
 
+wpa_quoted_value() {
+    value=$1
+    case "$value" in
+        *'
+'*) return 1 ;;
+    esac
+    printf '"'
+    printf '%s' "$value" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g'
+    printf '"'
+}
+
+write_wpa_quoted_field() {
+    key=$1
+    value=$2
+    escaped=$(wpa_quoted_value "$value") || return 1
+    printf '    %s=%s\\n' "$key" "$escaped"
+}
+
 if command -v ip >/dev/null 2>&1; then
     for iface in $(ip -o link show 2>/dev/null | awk -F': ' '$2 != "lo" { print $2 }' | cut -d@ -f1); do
         case "$iface" in
@@ -6391,15 +8593,24 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
             else
                 {
                     printf 'network={\\n'
-                    printf '    ssid="%s"\\n' "$ssid"
-                    printf '    psk="%s"\\n' "$pass"
+                    if ! write_wpa_quoted_field ssid "$ssid"; then
+                        printf 'wuci-network-connect: SSID contains unsupported newline characters\\n' >&2
+                        exit 1
+                    fi
+                    if ! write_wpa_quoted_field psk "$pass"; then
+                        printf 'wuci-network-connect: Wi-Fi password contains unsupported newline characters\\n' >&2
+                        exit 1
+                    fi
                     printf '}\\n'
                 } > "$conf"
             fi
         else
             {
                 printf 'network={\\n'
-                printf '    ssid="%s"\\n' "$ssid"
+                if ! write_wpa_quoted_field ssid "$ssid"; then
+                    printf 'wuci-network-connect: SSID contains unsupported newline characters\\n' >&2
+                    exit 1
+                fi
                 printf '    key_mgmt=NONE\\n'
                 printf '}\\n'
             } > "$conf"
@@ -6427,8 +8638,10 @@ run_root_wait() {
         wuci-wait-run "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         wuci-wait-run "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        wuci-wait-run "$label" doas "$@"
     else
-        printf 'wuci-network-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-network-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -6601,8 +8814,10 @@ run_root_wait() {
         wuci-wait-run "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         wuci-wait-run "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        wuci-wait-run "$label" doas "$@"
     else
-        printf 'wuci-media-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-media-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -6676,8 +8891,10 @@ run_root_wait() {
         wuci-wait-run "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         wuci-wait-run "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        wuci-wait-run "$label" doas "$@"
     else
-        printf 'wuci-sdr-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-sdr-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -6687,8 +8904,10 @@ as_root() {
         "$@"
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
     else
-        printf 'wuci-sdr-apply: need root or sudo for: %s\\n' "$*" >&2
+        printf 'wuci-sdr-apply: need root or sudo/doas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -6911,8 +9130,10 @@ as_root() {
         "$@"
     elif command -v sudo >/dev/null 2>&1; then
         sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
     else
-        printf 'wuci-update: run as root or install sudo for: %s\\n' "$*" >&2
+        printf 'wuci-update: run as root or install sudo/opendoas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -6934,8 +9155,10 @@ run_root_wait() {
         run_wait "$label" "$@"
     elif command -v sudo >/dev/null 2>&1; then
         run_wait "$label" sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        run_wait "$label" doas "$@"
     else
-        printf 'wuci-update: run as root or install sudo for: %s\\n' "$*" >&2
+        printf 'wuci-update: run as root or install sudo/opendoas for: %s\\n' "$*" >&2
         return 1
     fi
 }
@@ -7144,8 +9367,8 @@ printf 'wuci-update: complete\\n'
     ai_status_script = """#!/bin/sh
 set -eu
 
-printf 'Wuci-OS AI toolchain status\\n'
-for cmd in curl git codex copilot wuci-grok-build; do
+printf 'WuciA/OS AI toolchain status\\n'
+for cmd in curl git codex claude wuci-claude-build wuci-grok-build; do
     if command -v "$cmd" >/dev/null 2>&1; then
         printf '  %-16s %s\\n' "$cmd" "$(command -v "$cmd")"
     else
@@ -7159,10 +9382,10 @@ else
     printf '  %-16s not set; Codex can still use ChatGPT login if supported\\n' "OPENAI_API_KEY"
 fi
 
-if [ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]; then
-    printf '  %-16s set\\n' "GH_TOKEN"
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    printf '  %-16s set\\n' "ANTHROPIC_API_KEY"
 else
-    printf '  %-16s not set; Copilot CLI will ask you to log in\\n' "GH_TOKEN"
+    printf '  %-16s not set; Claude CLI/API usage remains private to the operator\\n' "ANTHROPIC_API_KEY"
 fi
 
 if [ -n "${XAI_API_KEY:-}" ]; then
@@ -7175,7 +9398,7 @@ fi
 set -eu
 
 cat <<'TEXT'
-Wuci-OS AI setup plan
+WuciA/OS AI setup plan
 
 This command is plan-only. It does not download installer scripts, run remote
 code, install global npm packages, or write credentials.
@@ -7186,8 +9409,10 @@ reviewed installer:
 
   sudo wj install ca-certificates curl git bash tar gzip xz unzip nodejs npm
   codex        # after operator-reviewed Codex CLI installation or login setup
-  copilot      # after operator-reviewed GitHub Copilot CLI installation
+  claude       # after operator-reviewed Claude CLI installation or login setup
+  export ANTHROPIC_API_KEY=...
   export XAI_API_KEY=...
+  wuci-claude-build "write a defensive build checklist"
   wuci-grok-build "write a defensive Wuci-OS task checklist"
 
 Credentials remain operator-supplied. Do not bake API keys into the image.
@@ -7227,12 +9452,113 @@ curl -fsS "$API" \
   }"
 printf '\\n'
 """
-    profile = """# Wuci-OS live profile
+    release_hardware_trace_script = """#!/bin/sh
+set -eu
+
+out=
+case "${1:-}" in
+    --help|-h)
+        cat <<'TEXT'
+Wuci-OS release hardware trace capture
+
+Usage:
+  wuci-release-hardware-trace [OUT]
+
+This emits a sanitized hardware boot transcript for the Wuci-OS release gate.
+It includes the required release markers:
+  WJ>_
+  Wuci-OS live profile
+  wuci-network
+  INSTALL
+
+No Wi-Fi SSIDs, Wi-Fi passwords, API keys, shell history, or home-directory
+contents are read.
+TEXT
+        exit 0
+        ;;
+    "")
+        ;;
+    *)
+        out=$1
+        ;;
+esac
+
+redact_link_values() {
+    sed -E 's/([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}/<mac-redacted>/g'
+}
+
+emit_trace() {
+    printf 'Wuci-OS release hardware trace\\n'
+    printf 'captured_utc=%s\\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf unknown)"
+    printf 'non_claim=hardware trace binds observable boot/network/install surface only\\n'
+    printf 'non_claim=does not include Wi-Fi credentials, SSIDs, API keys, or private home data\\n'
+    printf '\\nRequired release markers:\\n'
+    printf 'Wuci-OS live profile\\n'
+    printf 'WJ>_\\n'
+    printf 'wuci-network\\n'
+    printf 'INSTALL\\n'
+    printf '\\nCommand surface:\\n'
+    for cmd in wuci-status wuci-network-connect wuci-network-status wuci-security-status wuci-daylight-ssv INSTALL; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            printf '  %-28s %s\\n' "$cmd" "$(command -v "$cmd")"
+        else
+            printf '  %-28s missing\\n' "$cmd"
+        fi
+    done
+    printf '\\nSystem identity:\\n'
+    hostname 2>/dev/null | sed 's/^/  hostname: /' || true
+    uname -srmo 2>/dev/null | sed 's/^/  kernel: /' || true
+    if [ -r /etc/os-release ]; then
+        sed -n 's/^PRETTY_NAME=/  os: /p' /etc/os-release | tr -d '"' || true
+    fi
+    printf '\\nWuci status:\\n'
+    wuci-status 2>&1 | sed 's/^/  /' || true
+    printf '\\nDaylight SSV summary:\\n'
+    wuci-daylight-ssv --summary 2>&1 | sed 's/^/  /' || true
+    printf '\\nNetwork status:\\n'
+    wuci-network-status 2>&1 | redact_link_values | sed 's/^/  /' || true
+    printf '\\nNetwork links, redacted:\\n'
+    ip -br link 2>/dev/null | redact_link_values | sed 's/^/  /' || true
+    printf '\\nWireless device snapshot, no scan:\\n'
+    rfkill list all 2>/dev/null | redact_link_values | sed 's/^/  rfkill: /' || true
+    iw dev 2>/dev/null | redact_link_values | sed 's/^/  iw: /' || true
+    nmcli -f DEVICE,TYPE,STATE device status 2>/dev/null | redact_link_values | sed 's/^/  nmcli: /' || true
+    printf '\\nKernel module availability:\\n'
+    kernel_release=$(uname -r 2>/dev/null || printf unknown)
+    printf '  kernel_release=%s\\n' "$kernel_release"
+    for module in cfg80211 mac80211 iwlwifi iwldvm mt7921u mt76_usb mt76; do
+        if [ -d "/sys/module/$module" ]; then
+            printf '  module:%s loaded\\n' "$module"
+        elif find "/lib/modules/$kernel_release" "/usr/lib/modules/$kernel_release" -iname "$module.ko*" -print -quit 2>/dev/null | grep -q .; then
+            printf '  module:%s available\\n' "$module"
+        else
+            printf '  module:%s missing\\n' "$module"
+        fi
+    done
+    printf '\\nHardware buses, no home/private paths:\\n'
+    lspci -nnk 2>/dev/null | grep -A4 -iE 'network|wireless|wifi|ethernet|usb|vga|display' | redact_link_values | sed 's/^/  pci: /' || true
+    lsusb 2>/dev/null | redact_link_values | sed 's/^/  usb: /' || true
+    printf '\\nEnd Wuci-OS release hardware trace\\n'
+}
+
+if [ -n "$out" ]; then
+    tmp="${out}.tmp.$$"
+    umask 077
+    emit_trace > "$tmp"
+    mv "$tmp" "$out"
+    printf 'wuci-release-hardware-trace: wrote %s\\n' "$out"
+else
+    emit_trace
+fi
+"""
+    profile = """# WuciA/OS live profile
 export WUCI_OS=1
-export WUCI_OS_NAME="Wuci-OS"
-export WUCI_OS_BASE="Wuci-OS x86_64-musl"
+export WUCI_OS_NAME="WuciA/OS"
+export WUCI_AOS=1
+export WUCI_AOS_RELEASE="WuciA/OS Aperture Bastion v2.3"
+export WUCI_OS_BASE="WuciA/OS Aperture Bastion v2.3 x86_64-musl"
 if [ -t 1 ] && [ "${WUCI_OS_QUIET:-0}" != "1" ]; then
-    printf '\\nWuci-OS live profile active. Run: wuci-status | wuci-attest | wuci-enter\\n\\n'
+    printf '\\nWuciA/OS Aperture Bastion v2.3 active. Run: wucia-welcome | wucia-audit | wuci-enter\\n\\n'
 fi
 """
     xfce_autostart_profile = """# Wuci-OS tty1 XFCE autostart
@@ -7247,22 +9573,28 @@ if [ -z "${DISPLAY:-}" ] && [ "${WUCI_XFCE_AUTOSTART:-1}" = "1" ] && [ -t 0 ]; t
     fi
 fi
 """
-    issue = """Wuci-OS live profile
-Wuci-OS x86_64-musl base
+    issue = """WuciA/OS Aperture Bastion v2.3
+x86_64-musl base
 login: wj / press Enter  or  wj_low / press Enter
 admin: wj shows prompt WJ>_
 """
-    os_release = """NAME="Wuci-OS"
+    os_release = """NAME="WuciA/OS"
 ID=wuci-os
 ID_LIKE=linux
-PRETTY_NAME="Wuci-OS x86_64-musl"
-VERSION_ID="0"
+PRETTY_NAME="WuciA/OS Aperture Bastion v2.3 x86_64-musl"
+VERSION_ID="2.3"
+VERSION_CODENAME="aperture-bastion"
 HOME_URL="https://github.com/chasebryan/-wuci-ji"
 BUG_REPORT_URL="https://github.com/chasebryan/-wuci-ji/issues"
 """
-    motd = """Wuci-OS live profile
+    motd = """WuciA/OS Aperture Bastion v2.3
 
 Run:
+  wucia-welcome
+  wucia-audit
+  wucia-smart-profile show
+  wucia-server-profile
+  wucia-virt-lab status
   wuci-status
   wuci-attest
   wuci-live-banner
@@ -7270,6 +9602,7 @@ Run:
   wuci-guide
   wuci-auto
   wuci-source-status
+  wuci-release-hardware-trace
   INSTALL
   wuci-install
   wuci-install-target-activate
@@ -7284,6 +9617,9 @@ Run:
   wuci-media-session
   wuci-sdr-apply
   wuci-sdr-status
+  wuci-kde-apply
+  wuci-kde-default
+  wuci-session-start
   wuci-update
   wuci-users-apply
   wuci-users-status
@@ -7296,11 +9632,13 @@ Run:
   wuci-daylight-meridian
   wuci-ai-status
   wuci-ai-setup
+  wuci-claude-build
   wuci-grok-build
 
-This is a Wuci-Ji/NOXFRAME image lane on a Wuci-OS musl base. It defaults to
-SELinux-first high-assurance settings, XFCE4, kitty, ratpoison, emacs, vim, and
-developer toolchains. It is not a runtime sandbox or production trust authority.
+This is a Wuci-Ji/NOXFRAME image lane on a WuciA/OS musl base. It defaults to
+KDE Plasma, the WJ>_ operator shell, local SMART profile memory, Daylight audit
+hooks, and defensive operations tooling. It is not a runtime sandbox or
+production trust authority.
 """
     desktop_entry = """[Desktop Entry]
 Type=Application
@@ -7309,10 +9647,10 @@ Exec=/usr/local/bin/wuci-wallpaper
 OnlyShowIn=XFCE;GNOME;LXDE;LXQt;MATE;
 X-GNOME-Autostart-enabled=true
 """
-    terminal_desktop_entry = """[Desktop Entry]
+    firstboot_terminal_desktop_entry = """[Desktop Entry]
 Type=Application
-Name=Wuci-OS Terminal
-Exec=/usr/local/bin/wuci-terminal
+Name=Wuci-OS First Boot
+Exec=/usr/local/bin/wuci-firstboot-terminal
 OnlyShowIn=XFCE;GNOME;LXDE;LXQt;MATE;
 X-GNOME-Autostart-enabled=true
 """
@@ -7385,6 +9723,748 @@ color13 #ad68b0
 color14 #66c4c4
 color15 #ffffff
 """
+    xfce_terminalrc = """[Configuration]
+FontName=Noto Sans Mono 10
+MiscAlwaysShowTabs=FALSE
+MiscBell=FALSE
+MiscBordersDefault=TRUE
+MiscCursorBlinks=FALSE
+MiscCursorShape=TERMINAL_CURSOR_SHAPE_BLOCK
+MiscDefaultGeometry=112x32
+MiscMenubarDefault=FALSE
+MiscMouseAutohide=FALSE
+MiscToolbarDefault=FALSE
+MiscConfirmClose=FALSE
+ScrollingLines=20000
+ColorForeground=#e6edf3
+ColorBackground=#0b0f14
+ColorCursor=#7dd3fc
+ColorPalette=#0b0f14;#ff6b6b;#77dd77;#ffd166;#7dd3fc;#c084fc;#5eead4;#e6edf3;#475569;#ff8585;#9be89b;#ffe08a;#a5e4ff;#d7a7ff;#8df5e7;#ffffff
+"""
+    xfce_terminal_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-terminal" version="1.0">
+  <property name="background-mode" type="string" value="TERMINAL_BACKGROUND_SOLID"/>
+  <property name="background-darkness" type="double" value="1"/>
+  <property name="color-use-theme" type="bool" value="false"/>
+  <property name="color-background-vary" type="bool" value="false"/>
+  <property name="color-foreground" type="string" value="#e6edf3"/>
+  <property name="color-background" type="string" value="#0b0f14"/>
+  <property name="color-cursor-foreground" type="string" value="#0b0f14"/>
+  <property name="color-cursor" type="string" value="#7dd3fc"/>
+  <property name="color-cursor-use-default" type="bool" value="false"/>
+  <property name="color-selection" type="string" value="#e6edf3"/>
+  <property name="color-selection-background" type="string" value="#1f6feb"/>
+  <property name="color-selection-use-default" type="bool" value="false"/>
+  <property name="color-bold" type="string" value="#ffffff"/>
+  <property name="color-bold-use-default" type="bool" value="false"/>
+  <property name="color-palette" type="string" value="#0b0f14;#ff6b6b;#77dd77;#ffd166;#7dd3fc;#c084fc;#5eead4;#e6edf3;#475569;#ff8585;#9be89b;#ffe08a;#a5e4ff;#d7a7ff;#8df5e7;#ffffff"/>
+  <property name="color-bold-is-bright" type="bool" value="true"/>
+  <property name="tab-activity-color" type="string" value="#7dd3fc"/>
+  <property name="background-image-shading" type="double" value="1"/>
+  <property name="font-name" type="string" value="Noto Sans Mono 10"/>
+  <property name="font-use-system" type="bool" value="false"/>
+</channel>
+"""
+    xfce_desktop_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-desktop" version="1.0">
+  <property name="last-settings-migration-version" type="uint" value="1"/>
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="rgba1" type="array">
+            <value type="double" value="0.02"/>
+            <value type="double" value="0.03"/>
+            <value type="double" value="0.04"/>
+            <value type="double" value="1"/>
+          </property>
+        </property>
+        <property name="workspace1" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+        <property name="workspace2" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+        <property name="workspace3" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorLVDS1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorHDMI1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorDP1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorDP2" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorVGA1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorVirtual1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorVirtual-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorVGA-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorHDMI-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+      <property name="monitorDP-1" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/wuci-os/wallpaper1.png"/>
+          <property name="image-style" type="int" value="5"/>
+        </property>
+      </property>
+    </property>
+  </property>
+  <property name="last" type="empty">
+    <property name="window-width" type="int" value="672"/>
+    <property name="window-height" type="int" value="547"/>
+  </property>
+  <property name="desktop-icons" type="empty">
+    <property name="style" type="int" value="0"/>
+  </property>
+</channel>
+"""
+    xfce_xsettings_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="ThemeName" type="string" value="Arc-Dark"/>
+    <property name="IconThemeName" type="string" value="Papirus-Dark"/>
+    <property name="DoubleClickTime" type="int" value="250"/>
+    <property name="DoubleClickDistance" type="int" value="5"/>
+    <property name="DndDragThreshold" type="int" value="8"/>
+    <property name="CursorBlink" type="bool" value="false"/>
+    <property name="CursorBlinkTime" type="int" value="1200"/>
+    <property name="SoundThemeName" type="string" value="default"/>
+    <property name="EnableEventSounds" type="bool" value="false"/>
+    <property name="EnableInputFeedbackSounds" type="bool" value="false"/>
+  </property>
+  <property name="Xft" type="empty">
+    <property name="DPI" type="int" value="-1"/>
+    <property name="Antialias" type="int" value="1"/>
+    <property name="Hinting" type="int" value="1"/>
+    <property name="HintStyle" type="string" value="hintslight"/>
+    <property name="RGBA" type="string" value="rgb"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="CanChangeAccels" type="bool" value="false"/>
+    <property name="ColorPalette" type="empty"/>
+    <property name="FontName" type="string" value="Noto Sans 10"/>
+    <property name="MonospaceFontName" type="string" value="Noto Sans Mono 10"/>
+    <property name="IconSizes" type="empty"/>
+    <property name="KeyThemeName" type="empty"/>
+    <property name="CursorThemeName" type="string" value="Adwaita"/>
+    <property name="CursorThemeSize" type="int" value="24"/>
+    <property name="MenuImages" type="bool" value="true"/>
+    <property name="ButtonImages" type="bool" value="true"/>
+    <property name="MenuBarAccel" type="string" value="F10"/>
+    <property name="DecorationLayout" type="string" value="icon,menu:minimize,maximize,close"/>
+    <property name="DialogsUseHeader" type="bool" value="false"/>
+    <property name="TitlebarMiddleClick" type="string" value="none"/>
+  </property>
+  <property name="Gdk" type="empty">
+    <property name="WindowScalingFactor" type="int" value="1"/>
+  </property>
+</channel>
+"""
+    xfce_wm_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="activate_action" type="string" value="bring"/>
+    <property name="borderless_maximize" type="bool" value="true"/>
+    <property name="box_move" type="bool" value="false"/>
+    <property name="box_resize" type="bool" value="false"/>
+    <property name="button_layout" type="string" value="O|SHMC"/>
+    <property name="button_offset" type="int" value="0"/>
+    <property name="button_spacing" type="int" value="0"/>
+    <property name="click_to_focus" type="bool" value="true"/>
+    <property name="cycle_hidden" type="bool" value="true"/>
+    <property name="cycle_preview" type="bool" value="true"/>
+    <property name="double_click_action" type="string" value="maximize"/>
+    <property name="double_click_distance" type="int" value="5"/>
+    <property name="double_click_time" type="int" value="250"/>
+    <property name="easy_click" type="string" value="Alt"/>
+    <property name="focus_delay" type="int" value="150"/>
+    <property name="focus_hint" type="bool" value="true"/>
+    <property name="focus_new" type="bool" value="true"/>
+    <property name="frame_opacity" type="int" value="100"/>
+    <property name="frame_border_top" type="int" value="0"/>
+    <property name="full_width_title" type="bool" value="true"/>
+    <property name="inactive_opacity" type="int" value="100"/>
+    <property name="maximized_offset" type="int" value="0"/>
+    <property name="mousewheel_rollup" type="bool" value="false"/>
+    <property name="move_opacity" type="int" value="100"/>
+    <property name="placement_mode" type="string" value="center"/>
+    <property name="placement_ratio" type="int" value="20"/>
+    <property name="prevent_focus_stealing" type="bool" value="true"/>
+    <property name="raise_delay" type="int" value="150"/>
+    <property name="raise_on_click" type="bool" value="true"/>
+    <property name="raise_on_focus" type="bool" value="false"/>
+    <property name="resize_opacity" type="int" value="100"/>
+    <property name="scroll_workspaces" type="bool" value="false"/>
+    <property name="show_app_icon" type="bool" value="false"/>
+    <property name="show_dock_shadow" type="bool" value="false"/>
+    <property name="show_popup_shadow" type="bool" value="false"/>
+    <property name="snap_to_border" type="bool" value="true"/>
+    <property name="snap_to_windows" type="bool" value="true"/>
+    <property name="snap_width" type="int" value="12"/>
+    <property name="theme" type="string" value="Arc-Dark"/>
+    <property name="tile_on_move" type="bool" value="true"/>
+    <property name="title_alignment" type="string" value="center"/>
+    <property name="title_font" type="string" value="Noto Sans Bold 10"/>
+    <property name="use_compositing" type="bool" value="true"/>
+    <property name="workspace_count" type="int" value="2"/>
+    <property name="wrap_cycle" type="bool" value="true"/>
+    <property name="wrap_layout" type="bool" value="true"/>
+    <property name="wrap_resistance" type="int" value="10"/>
+    <property name="wrap_windows" type="bool" value="false"/>
+    <property name="wrap_workspaces" type="bool" value="false"/>
+    <property name="zoom_desktop" type="bool" value="true"/>
+    <property name="zoom_pointer" type="bool" value="true"/>
+    <property name="workspace_names" type="array">
+      <value type="string" value="Ops"/>
+      <value type="string" value="Build"/>
+      <value type="string" value="Research"/>
+      <value type="string" value="Isolate"/>
+    </property>
+  </property>
+</channel>
+"""
+    xfce_panel_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <property name="dark-mode" type="bool" value="true"/>
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=6;x=0;y=0"/>
+      <property name="length" type="double" value="100"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="icon-size" type="uint" value="18"/>
+      <property name="size" type="uint" value="30"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="16"/>
+        <value type="int" value="11"/>
+        <value type="int" value="12"/>
+        <value type="int" value="21"/>
+        <value type="int" value="13"/>
+        <value type="int" value="2"/>
+        <value type="int" value="3"/>
+        <value type="int" value="4"/>
+        <value type="int" value="5"/>
+        <value type="int" value="9"/>
+        <value type="int" value="25"/>
+        <value type="int" value="7"/>
+        <value type="int" value="15"/>
+        <value type="int" value="26"/>
+        <value type="int" value="14"/>
+        <value type="int" value="18"/>
+        <value type="int" value="24"/>
+        <value type="int" value="6"/>
+        <value type="int" value="8"/>
+        <value type="int" value="17"/>
+        <value type="int" value="10"/>
+      </property>
+      <property name="span-monitors" type="bool" value="true"/>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-1" type="string" value="whiskermenu">
+      <property name="button-icon" type="string" value="/usr/share/pixmaps/wuci-os-emblem.png"/>
+      <property name="show-menu-icons" type="bool" value="true"/>
+      <property name="button-title" type="string" value="Wuci"/>
+      <property name="profile-shape" type="int" value="0"/>
+      <property name="show-button-icon" type="bool" value="true"/>
+      <property name="show-button-title" type="bool" value="true"/>
+      <property name="favorites" type="array">
+        <value type="string" value="xfce4-web-browser.desktop"/>
+        <value type="string" value="xfce4-file-manager.desktop"/>
+        <value type="string" value="xfce4-terminal-emulator.desktop"/>
+        <value type="string" value="kitty.desktop"/>
+        <value type="string" value="virt-manager.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-2" type="string" value="tasklist">
+      <property name="grouping" type="uint" value="1"/>
+      <property name="show-labels" type="bool" value="true"/>
+      <property name="show-handle" type="bool" value="false"/>
+      <property name="middle-click" type="uint" value="1"/>
+    </property>
+    <property name="plugin-3" type="string" value="separator">
+      <property name="expand" type="bool" value="true"/>
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-4" type="string" value="pager">
+      <property name="rows" type="uint" value="1"/>
+    </property>
+    <property name="plugin-5" type="string" value="cpugraph"/>
+    <property name="plugin-6" type="string" value="systray">
+      <property name="square-icons" type="bool" value="true"/>
+    </property>
+    <property name="plugin-7" type="string" value="cpufreq"/>
+    <property name="plugin-8" type="string" value="clock">
+      <property name="mode" type="uint" value="2"/>
+      <property name="digital-layout" type="uint" value="3"/>
+      <property name="digital-date-format" type="string" value="%Y-%m-%d"/>
+      <property name="timezone" type="string" value="Etc/UTC"/>
+      <property name="digital-time-format" type="string" value="%H:%M:%S"/>
+      <property name="tooltip-format" type="string" value="%A %Y-%m-%d %H:%M:%S %Z"/>
+    </property>
+    <property name="plugin-9" type="string" value="fsguard"/>
+    <property name="plugin-10" type="string" value="actions">
+      <property name="appearance" type="uint" value="0"/>
+      <property name="items" type="array">
+        <value type="string" value="+lock-screen"/>
+        <value type="string" value="+separator"/>
+        <value type="string" value="+logout"/>
+        <value type="string" value="+shutdown"/>
+      </property>
+    </property>
+    <property name="plugin-11" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17828757891.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-12" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17828673516.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-13" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17828673687.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-14" type="string" value="wavelan"/>
+    <property name="plugin-15" type="string" value="diskperf"/>
+    <property name="plugin-16" type="string" value="showdesktop"/>
+    <property name="plugin-17" type="string" value="screenshooter"/>
+    <property name="plugin-18" type="string" value="pulseaudio">
+      <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
+      <property name="show-notifications" type="bool" value="true"/>
+    </property>
+    <property name="plugin-21" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="17830791051.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-24" type="string" value="notification-plugin"/>
+    <property name="plugin-25" type="string" value="systemload">
+      <property name="uptime" type="bool" value="false"/>
+      <property name="monitor-cpu" type="bool" value="true"/>
+      <property name="monitor-memory" type="bool" value="true"/>
+      <property name="monitor-swap" type="bool" value="false"/>
+    </property>
+    <property name="plugin-26" type="string" value="netload">
+      <property name="show-values" type="bool" value="false"/>
+    </property>
+  </property>
+</channel>
+"""
+    gtk3_settings = """[Settings]
+gtk-theme-name=Arc-Dark
+gtk-icon-theme-name=Papirus-Dark
+gtk-font-name=Noto Sans 10
+gtk-cursor-theme-name=Adwaita
+gtk-cursor-theme-size=24
+gtk-application-prefer-dark-theme=true
+gtk-enable-event-sounds=0
+gtk-enable-input-feedback-sounds=0
+gtk-button-images=true
+gtk-menu-images=true
+"""
+    xfce_session_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-session" version="1.0">
+  <property name="general" type="empty">
+    <property name="FailsafeSessionName" type="empty"/>
+    <property name="LockCommand" type="empty"/>
+    <property name="SessionName" type="string" value="Default"/>
+  </property>
+</channel>
+"""
+    xfce_power_manager_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-power-manager" version="1.0">
+  <property name="xfce4-power-manager" type="empty">
+    <property name="brightness-switch-restore-on-exit" type="int" value="0"/>
+    <property name="brightness-switch" type="int" value="0"/>
+    <property name="show-tray-icon" type="bool" value="true"/>
+    <property name="presentation-mode" type="bool" value="true"/>
+    <property name="blank-on-ac" type="int" value="20"/>
+    <property name="dpms-on-ac-off" type="uint" value="30"/>
+    <property name="dpms-on-ac-sleep" type="uint" value="25"/>
+    <property name="lock-screen-suspend-hibernate" type="bool" value="true"/>
+  </property>
+</channel>
+"""
+    xfce_notifyd_xml = """<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-notifyd" version="1.0">
+  <property name="log-max-size-enabled" type="bool" value="true"/>
+</channel>
+"""
+    launcher_web = """[Desktop Entry]
+Version=1.0
+Type=Application
+Exec=exo-open --launch WebBrowser %u
+Icon=org.xfce.webbrowser
+StartupNotify=true
+Terminal=false
+Categories=Network;X-XFCE;X-Xfce-Toplevel;
+Keywords=internet;web;browser;surf;explore;xfce;
+OnlyShowIn=XFCE;
+X-XFCE-MimeType=x-scheme-handler/http;x-scheme-handler/https;
+X-AppStream-Ignore=True
+Name=Web Browser
+Comment=Browse the web
+X-XFCE-Source=file:///usr/share/applications/xfce4-web-browser.desktop
+"""
+    launcher_terminal = """[Desktop Entry]
+Version=1.0
+Type=Application
+Exec=exo-open --launch TerminalEmulator
+Icon=org.xfce.terminalemulator
+StartupNotify=true
+Terminal=false
+Categories=Utility;X-XFCE;X-Xfce-Toplevel;
+Keywords=terminal;command line;shell;console;xfce;
+OnlyShowIn=XFCE;
+X-AppStream-Ignore=True
+Name=Terminal Emulator
+Comment=Use the command line
+X-XFCE-Source=file:///usr/share/applications/xfce4-terminal-emulator.desktop
+"""
+    launcher_thunar = """[Desktop Entry]
+Name=Thunar File Manager
+Comment=Browse the filesystem with the file manager
+GenericName=File Manager
+Keywords=file manager;explorer;finder;browser;folders;directory;directories;partitions;drives;network;devices;rename;move;copy;delete;permissions;home;trash;
+Exec=thunar %U
+Icon=org.xfce.thunar
+Terminal=false
+StartupNotify=true
+Type=Application
+Categories=System;Core;GTK;FileTools;FileManager;
+MimeType=inode/directory;
+Actions=open-home;open-computer;open-trash;
+X-XFCE-Source=file:///usr/share/applications/thunar.desktop
+
+[Desktop Action open-home]
+Name=Home
+Exec=thunar %U
+
+[Desktop Action open-computer]
+Name=Computer
+Exec=thunar computer:///
+
+[Desktop Action open-trash]
+Name=Trash
+Exec=thunar trash:///
+"""
+    launcher_kitty = """[Desktop Entry]
+Version=1.0
+Type=Application
+Name=kitty
+GenericName=Terminal emulator
+Comment=Fast, feature-rich terminal
+TryExec=kitty
+StartupNotify=true
+Exec=kitty
+Icon=kitty
+Categories=System;TerminalEmulator;
+X-TerminalArgExec=--
+X-TerminalArgTitle=--title
+X-TerminalArgAppId=--class
+X-TerminalArgDir=--working-directory
+X-TerminalArgHold=--hold
+X-XFCE-Source=file:///usr/share/applications/kitty.desktop
+"""
+    xfce_panel_cpufreq_rc = """show_icon=false
+show_label_governor=false
+"""
+    xfce_panel_diskperf_rc = """Device=/dev/sda
+UseLabel=0
+Text=sda
+UpdatePeriod=500
+Statistics=0
+XferRate=1024
+CombineRWdata=1
+MonitorBarOrder=0
+ReadColor=rgb(0,0,255)
+WriteColor=rgb(255,0,0)
+ReadWriteColor=rgb(0,255,0)
+"""
+    xfce_panel_fsguard_rc = """yellow=8
+red=2
+lab_size_visible=true
+progress_bar_visible=false
+hide_button=true
+label=
+label_visible=false
+mnt=/
+"""
+    xfce_panel_screenshooter_rc = """app=firefox
+custom_action_command=none
+last_user=
+last_extension=png
+show_in_folder=false
+screenshot_dir=file:///tmp
+action=1
+delay=0
+region=3
+show_mouse=0
+show_border=1
+"""
+    xfce_panel_wavelan_rc = """Interface=
+Autohide=false
+AutohideMissing=false
+SignalColors=true
+ShowIcon=true
+ShowBar=false
+Command=nm-connection-editor
+"""
+    kdeglobals = """[General]
+ColorScheme=BreezeDark
+Name=Breeze Dark
+TerminalApplication=konsole
+fixed=Noto Sans Mono,10,-1,5,50,0,0,0,0,0
+font=Noto Sans,10,-1,5,50,0,0,0,0,0
+menuFont=Noto Sans,10,-1,5,50,0,0,0,0,0
+smallestReadableFont=Noto Sans,8,-1,5,50,0,0,0,0,0
+toolBarFont=Noto Sans,10,-1,5,50,0,0,0,0,0
+
+[Icons]
+Theme=Papirus-Dark
+
+[KDE]
+SingleClick=false
+
+[KFileDialog Settings]
+Places Icons Auto-resize=false
+Show Bookmarks=false
+Show Full Path=true
+
+[Sonnet]
+checkerEnabledByDefault=true
+defaultLanguage=en_US
+ignoreUppercase=true
+skipRunTogether=true
+"""
+    kwinrc = """[Desktops]
+Number=4
+Rows=1
+Name_1=Ops
+Name_2=Build
+Name_3=Research
+Name_4=Isolate
+
+[Plugins]
+blurEnabled=true
+contrastEnabled=true
+kwin4_effect_dimscreenEnabled=false
+kwin4_effect_fadingpopupsEnabled=true
+kwin4_effect_frozenappEnabled=true
+kwin4_effect_loginEnabled=true
+kwin4_effect_logoutEnabled=true
+kwin4_effect_morphingpopupsEnabled=true
+kwin4_effect_scaleEnabled=true
+kwin4_effect_squashEnabled=true
+
+[Windows]
+FocusPolicy=ClickToFocus
+Placement=Centered
+RollOverDesktops=false
+"""
+    plasmarc = """[Theme]
+name=breeze-dark
+"""
+    kscreenlockerrc = """[Daemon]
+Autolock=false
+LockOnResume=true
+Timeout=15
+"""
+    konsole_colors = """[Background]
+Color=11,15,20
+
+[BackgroundIntense]
+Color=11,15,20
+
+[Color0]
+Color=11,15,20
+
+[Color0Intense]
+Color=71,85,105
+
+[Color1]
+Color=255,107,107
+
+[Color1Intense]
+Color=255,133,133
+
+[Color2]
+Color=119,221,119
+
+[Color2Intense]
+Color=155,232,155
+
+[Color3]
+Color=255,209,102
+
+[Color3Intense]
+Color=255,224,138
+
+[Color4]
+Color=125,211,252
+
+[Color4Intense]
+Color=165,228,255
+
+[Color5]
+Color=192,132,252
+
+[Color5Intense]
+Color=215,167,255
+
+[Color6]
+Color=94,234,212
+
+[Color6Intense]
+Color=141,245,231
+
+[Color7]
+Color=230,237,243
+
+[Color7Intense]
+Color=255,255,255
+
+[Foreground]
+Color=230,237,243
+
+[General]
+Description=Wuci Dark
+Opacity=1
+Wallpaper=
+"""
+    konsole_profile = """[Appearance]
+ColorScheme=Wuci
+Font=Noto Sans Mono,10,-1,5,50,0,0,0,0,0
+
+[General]
+Command=/usr/local/bin/wucia-terminal-shell
+Name=Wuci
+Parent=FALLBACK/
+TerminalColumns=112
+TerminalRows=32
+"""
+    konsolerc = """[Desktop Entry]
+DefaultProfile=Wuci.profile
+
+[MainWindow]
+MenuBar=Disabled
+State=AAAA/wAAAAD9AAAAAAAAB4AAAAN4AAAABAAAAAQAAAAIAAAACPwAAAAA
+"""
+    plasma_appletsrc = """[ActionPlugins][0]
+RightButton;NoModifier=org.kde.contextmenu
+
+[Containments][1]
+activityId=
+formfactor=0
+immutability=1
+lastScreen=0
+location=0
+plugin=org.kde.plasma.folder
+wallpaperplugin=org.kde.image
+
+[Containments][1][Wallpaper][org.kde.image][General]
+Image=file:///usr/share/backgrounds/wuci-os/wallpaper1.png
+SlidePaths=/usr/share/backgrounds/wuci-os
+
+[Containments][2]
+activityId=
+formfactor=2
+immutability=1
+lastScreen=0
+location=4
+plugin=org.kde.panel
+
+[Containments][2][Applets][3]
+immutability=1
+plugin=org.kde.plasma.kickoff
+
+[Containments][2][Applets][3][Configuration][General]
+icon=/usr/share/pixmaps/wuci-os-emblem.png
+favorites=wucia-control-center.desktop,preferred://browser,preferred://filemanager,org.kde.konsole.desktop,org.kde.dolphin.desktop,org.kde.kate.desktop,virt-manager.desktop
+
+[Containments][2][Applets][4]
+immutability=1
+plugin=org.kde.plasma.icontasks
+
+[Containments][2][Applets][5]
+immutability=1
+plugin=org.kde.plasma.marginsseparator
+
+[Containments][2][Applets][6]
+immutability=1
+plugin=org.kde.plasma.systemtray
+
+[Containments][2][Applets][7]
+immutability=1
+plugin=org.kde.plasma.digitalclock
+
+[Containments][2][Applets][8]
+immutability=1
+plugin=org.kde.plasma.lock_logout
+
+[Containments][2][General]
+AppletOrder=3;4;5;6;7;8
+"""
     xinitrc = """#!/bin/sh
 if command -v wuci-boot-chime >/dev/null 2>&1; then
     wuci-boot-chime --once --quiet &
@@ -7392,11 +10472,210 @@ fi
 if command -v wuci-media-session >/dev/null 2>&1; then
     wuci-media-session &
 fi
-if command -v wuci-terminal >/dev/null 2>&1; then
-    wuci-terminal &
-fi
-exec startxfce4
+exec wuci-session-start
 """
+    kde_apply_script = """#!/bin/sh
+set -eu
+
+target_user=${1:-${SUDO_USER:-$(id -un 2>/dev/null || printf wj)}}
+if [ "$target_user" = "root" ] && getent passwd wj >/dev/null 2>&1; then
+    target_user=wj
+fi
+home=$(getent passwd "$target_user" 2>/dev/null | cut -d: -f6)
+if [ -z "$home" ]; then
+    printf 'wuci-kde-apply: unknown user: %s\\n' "$target_user" >&2
+    exit 2
+fi
+
+copy_one() {
+    src=$1
+    rel=$2
+    mode=${3:-0644}
+    dst="$home/$rel"
+    mkdir -p "$(dirname "$dst")"
+    install -m "$mode" "$src" "$dst"
+}
+
+copy_one /usr/share/wuci-os/kde/kdeglobals .config/kdeglobals
+copy_one /usr/share/wuci-os/kde/kwinrc .config/kwinrc
+copy_one /usr/share/wuci-os/kde/plasmarc .config/plasmarc
+copy_one /usr/share/wuci-os/kde/kscreenlockerrc .config/kscreenlockerrc
+copy_one /usr/share/wuci-os/kde/plasma-org.kde.plasma.desktop-appletsrc .config/plasma-org.kde.plasma.desktop-appletsrc
+copy_one /usr/share/wuci-os/kde/konsole/Wuci.colorscheme .local/share/konsole/Wuci.colorscheme
+copy_one /usr/share/wuci-os/kde/konsole/Wuci.profile .local/share/konsole/Wuci.profile
+copy_one /usr/share/wuci-os/kde/konsole/konsolerc .config/konsolerc
+
+if [ "$(id -u)" = "0" ]; then
+    chown -R "$target_user:$target_user" "$home/.config" "$home/.local/share/konsole" 2>/dev/null || true
+fi
+
+if command -v plasma-apply-colorscheme >/dev/null 2>&1 && [ "$(id -un 2>/dev/null || true)" = "$target_user" ]; then
+    plasma-apply-colorscheme BreezeDark >/dev/null 2>&1 || true
+fi
+
+cat <<'TEXT'
+wuci-kde-apply: dark KDE Plasma profile applied.
+
+Use the Plasma X11 session or run startplasma-x11 when KDE packages are
+installed. This profile contains no KDE wallet secrets, cloud logins, browser
+sessions, shell history, Wi-Fi credentials, or private location settings.
+TEXT
+"""
+    session_start_script = """#!/bin/sh
+set -eu
+
+config_home=${XDG_CONFIG_HOME:-${HOME:-/tmp}/.config}
+session_file="$config_home/wuci-os/default-session"
+system_session_file=/etc/wuci-os/default-session
+session=kde
+if [ -r "$session_file" ] && [ ! -L "$session_file" ]; then
+    session=$(sed -n '1p' "$session_file" | tr -d '[:space:]')
+elif [ -r "$system_session_file" ] && [ ! -L "$system_session_file" ]; then
+    session=$(sed -n '1p' "$system_session_file" | tr -d '[:space:]')
+fi
+
+case "$session" in
+    kde|plasma)
+        if command -v startplasma-x11 >/dev/null 2>&1; then
+            exec startplasma-x11
+        fi
+        if command -v startkde >/dev/null 2>&1; then
+            exec startkde
+        fi
+        printf 'wuci-session-start: KDE requested but Plasma is not installed; falling back to XFCE.\\n' >&2
+        ;;
+    xfce|"")
+        ;;
+    *)
+        printf 'wuci-session-start: unknown session "%s"; falling back to XFCE.\\n' "$session" >&2
+        ;;
+esac
+
+if command -v startxfce4 >/dev/null 2>&1; then
+    exec startxfce4
+fi
+exec "${SHELL:-/bin/sh}" -i
+"""
+    kde_default_script = """#!/bin/sh
+set -eu
+
+install=0
+relogin=0
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --install) install=1; shift ;;
+        --relogin) relogin=1; shift ;;
+        --help|-h)
+            cat <<'TEXT'
+wuci-kde-default - make KDE Plasma the default Wuci graphical session
+
+Usage:
+  wuci-kde-default [--install] [--relogin]
+
+WuciA/OS v2.3 defaults to KDE. This command applies the public dark KDE profile,
+writes the user's default-session marker, and optionally logs out of the current
+graphical session so the next autologin starts KDE.
+TEXT
+            exit 0 ;;
+        *) printf 'wuci-kde-default: unknown argument: %s\\n' "$1" >&2; exit 2 ;;
+    esac
+done
+
+as_root() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+        doas "$@"
+    else
+        printf 'wuci-kde-default: need root or sudo/doas for: %s\\n' "$*" >&2
+        return 1
+    fi
+}
+
+run_root_wait() {
+    label=$1
+    shift
+    if command -v wuci-wait-run >/dev/null 2>&1; then
+        if [ "$(id -u)" = "0" ]; then
+            wuci-wait-run "$label" "$@"
+        elif command -v sudo >/dev/null 2>&1; then
+            wuci-wait-run "$label" sudo "$@"
+        elif command -v doas >/dev/null 2>&1; then
+            wuci-wait-run "$label" doas "$@"
+        else
+            printf 'wuci-kde-default: need root or sudo/doas for: %s\\n' "$*" >&2
+            return 1
+        fi
+    else
+        as_root "$@"
+    fi
+}
+
+install_kde() {
+    if command -v startplasma-x11 >/dev/null 2>&1; then
+        return 0
+    fi
+    [ "$install" -eq 1 ] || return 0
+    if findmnt -n -o FSTYPE / 2>/dev/null | grep -qx overlay || [ -e /run/initramfs/live ] || [ -e /run/live ]; then
+        printf 'wuci-kde-default: KDE is not present and this is a live overlay; refusing to fill live root storage. Use a v2.3 KDE-baked ISO or install to disk first.\\n' >&2
+        return 1
+    fi
+    if ! command -v xbps-install >/dev/null 2>&1; then
+        printf 'wuci-kde-default: xbps-install not found; cannot install KDE packages.\\n' >&2
+        return 1
+    fi
+    packages="__KDE_PACKAGES__"
+    run_root_wait "xbps kde refresh" xbps-install -Sy xbps || as_root xbps-install -u xbps || true
+    # shellcheck disable=SC2086
+    if run_root_wait "xbps kde plasma" xbps-install -Sy $packages; then
+        return 0
+    fi
+    printf 'wuci-kde-default: KDE group install had misses; trying package-by-package.\\n' >&2
+    for pkg in $packages; do
+        run_root_wait "xbps $pkg" xbps-install -Sy "$pkg" || printf 'optional KDE package unavailable: %s\\n' "$pkg" >&2
+    done
+}
+
+target_user=${SUDO_USER:-$(id -un 2>/dev/null || printf wj)}
+if [ "$target_user" = "root" ] && getent passwd wj >/dev/null 2>&1; then
+    target_user=wj
+fi
+home=$(getent passwd "$target_user" 2>/dev/null | cut -d: -f6)
+if [ -z "$home" ]; then
+    printf 'wuci-kde-default: unknown user: %s\\n' "$target_user" >&2
+    exit 2
+fi
+
+install_kde || true
+wuci-kde-apply "$target_user"
+
+session_dir="$home/.config/wuci-os"
+mkdir -p "$session_dir"
+printf 'kde\\n' > "$session_dir/default-session"
+if [ "$(id -u)" = "0" ]; then
+    chown -R "$target_user:$target_user" "$session_dir" 2>/dev/null || true
+fi
+
+cat <<'TEXT'
+wuci-kde-default: KDE is now the default graphical session.
+TEXT
+
+if [ "$relogin" -eq 1 ]; then
+    if [ -n "${DISPLAY:-}" ]; then
+        printf 'wuci-kde-default: logging out of XFCE so autologin can enter KDE.\\n'
+        if command -v xfce4-session-logout >/dev/null 2>&1; then
+            nohup sh -c 'sleep 2; xfce4-session-logout --logout --fast' >/tmp/wuci-kde-relogin.log 2>&1 &
+        else
+            nohup sh -c 'sleep 2; pkill -TERM -x xfce4-session || pkill -TERM -x startxfce4 || true' >/tmp/wuci-kde-relogin.log 2>&1 &
+        fi
+    else
+        printf 'wuci-kde-default: no DISPLAY; run startx to enter KDE.\\n'
+    fi
+fi
+"""
+    kde_default_script = kde_default_script.replace("__KDE_PACKAGES__", sh_words(KDE_PACKAGES))
     def command_wrapper(command: str) -> str:
         return (
             "#!/bin/sh\n"
@@ -7418,26 +10697,146 @@ while :; do
 done
 """
     package_profile_json = json.dumps(package_manifest(), indent=2, sort_keys=True) + "\n"
+    aos_profile_json = json.dumps(
+        {
+            "schema": "wucia-os-aperture-bastion-profile-v1",
+            "release": AOS_RELEASE_NAME,
+            "version": AOS_RELEASE_VERSION,
+            "default_user": "wj",
+            "default_session": AOS_DEFAULT_SESSION,
+            "greeting": AOS_GREETING,
+            "wallpaper": "/usr/share/backgrounds/wuci-os/wallpaper1.png",
+            "smart_profile": {
+                "storage": "~/.config/wucia-os",
+                "scope": "local non-secret preferences only",
+                "telemetry": False,
+                "secret_storage": False,
+            },
+            "roles": [
+                "kde",
+                "sysadmin",
+                "developer",
+                "network-engineer",
+                "minimal-attack-surface",
+                "minimal-server",
+                "ai",
+                "daylight",
+                "virt-lab",
+                "smart-typing",
+                "github",
+                "control-center",
+            ],
+            "smart_typing": {
+                "default": "enabled",
+                "status_command": "wucia-smart-typing status",
+                "disable_command": "wucia-smart-typing disable",
+                "terminal_shell": "wucia-terminal-shell",
+                "credential_policy": "no typed secrets are recorded by WuciA/OS Smart Typing",
+            },
+            "github_workflow": {
+                "status_command": "wucia-github-setup",
+                "credential_policy": "no GitHub tokens, SSH keys, or browser sessions are baked in",
+                "artifact_policy": "source and checksums can remain on GitHub while oversized ISO downloads can be mirrored externally",
+            },
+            "minimal_attack_surface": {
+                "status_command": "wucia-minimal-profile",
+                "workstation_command": "sudo wucia-minimal-profile --apply-workstation",
+                "server_command": "sudo wucia-minimal-profile --apply-server",
+                "policy": "seL4-inspired service minimization for Linux; does not claim seL4 or formal verification",
+                "package_removal": "manual only after install, backup, audit, and explicit operator approval",
+            },
+            "non_claims": list(BOUNDARY_DENIALS),
+        },
+        indent=2,
+        sort_keys=True,
+    ) + "\n"
     return {
         "etc/hostname": "wuci-os-live\n",
         "etc/issue": issue,
         "etc/motd": motd,
         "etc/os-release": os_release,
         "usr/lib/os-release": os_release,
+        "etc/wuci-os/default-session": f"{AOS_DEFAULT_SESSION}\n",
         "etc/profile.d/wuci-os.sh": profile,
         "etc/profile.d/wuci-xfce-autostart.sh": xfce_autostart_profile,
         "etc/profile.d/wuci-prompt.sh": prompt_script,
         "etc/xdg/autostart/wuci-wallpaper.desktop": desktop_entry,
-        "etc/xdg/autostart/wuci-terminal.desktop": terminal_desktop_entry,
+        "etc/xdg/autostart/wuci-firstboot-terminal.desktop": firstboot_terminal_desktop_entry,
         "etc/xdg/autostart/wuci-boot-chime.desktop": chime_desktop_entry,
         "etc/xdg/autostart/wuci-media-session.desktop": media_desktop_entry,
         "etc/runit/runsvdir/default/wuci-boot-chime/run": boot_chime_runit,
+        "etc/skel/.bash_profile": bash_profile,
+        "etc/skel/.bashrc": bashrc,
+        "etc/skel/.profile": shell_profile,
+        "etc/skel/.inputrc": inputrc,
         "etc/skel/.xinitrc": xinitrc,
         "etc/skel/.ratpoisonrc": ratpoisonrc,
+        "etc/skel/.config/fish/config.fish": fish_config,
+        "etc/skel/.config/wucia-os/smart-typing.env": smart_typing_env,
         "etc/skel/.config/kitty/kitty.conf": kitty_conf,
+        "etc/skel/.config/xfce4/terminal/terminalrc": xfce_terminalrc,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml": xfce_desktop_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml": xfce_xsettings_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml": xfce_wm_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml": xfce_panel_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml": xfce_terminal_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml": xfce_session_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml": xfce_power_manager_xml,
+        "etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-notifyd.xml": xfce_notifyd_xml,
+        "etc/skel/.config/xfce4/panel/launcher-11/17828757891.desktop": launcher_web,
+        "etc/skel/.config/xfce4/panel/launcher-12/17828673516.desktop": launcher_terminal,
+        "etc/skel/.config/xfce4/panel/launcher-13/17828673687.desktop": launcher_thunar,
+        "etc/skel/.config/xfce4/panel/launcher-21/17830791051.desktop": launcher_kitty,
+        "etc/skel/.config/xfce4/panel/cpufreq-7.rc": xfce_panel_cpufreq_rc,
+        "etc/skel/.config/xfce4/panel/diskperf-15.rc": xfce_panel_diskperf_rc,
+        "etc/skel/.config/xfce4/panel/fsguard-9.rc": xfce_panel_fsguard_rc,
+        "etc/skel/.config/xfce4/panel/screenshooter-17.rc": xfce_panel_screenshooter_rc,
+        "etc/skel/.config/xfce4/panel/wavelan-14.rc": xfce_panel_wavelan_rc,
+        "etc/skel/.config/gtk-3.0/settings.ini": gtk3_settings,
+        "etc/skel/.config/kdeglobals": kdeglobals,
+        "etc/skel/.config/kwinrc": kwinrc,
+        "etc/skel/.config/plasmarc": plasmarc,
+        "etc/skel/.config/kscreenlockerrc": kscreenlockerrc,
+        "etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc": plasma_appletsrc,
+        "etc/skel/.config/konsolerc": konsolerc,
+        "etc/skel/.local/share/konsole/Wuci.colorscheme": konsole_colors,
+        "etc/skel/.local/share/konsole/Wuci.profile": konsole_profile,
         "root/.xinitrc": xinitrc,
+        "root/.bash_profile": bash_profile,
+        "root/.bashrc": bashrc,
+        "root/.profile": shell_profile,
+        "root/.inputrc": inputrc,
         "root/.ratpoisonrc": ratpoisonrc,
+        "root/.config/fish/config.fish": fish_config,
+        "root/.config/wucia-os/smart-typing.env": smart_typing_env,
         "root/.config/kitty/kitty.conf": kitty_conf,
+        "root/.config/xfce4/terminal/terminalrc": xfce_terminalrc,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml": xfce_desktop_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml": xfce_xsettings_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml": xfce_wm_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml": xfce_panel_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-terminal.xml": xfce_terminal_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml": xfce_session_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml": xfce_power_manager_xml,
+        "root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-notifyd.xml": xfce_notifyd_xml,
+        "root/.config/xfce4/panel/launcher-11/17828757891.desktop": launcher_web,
+        "root/.config/xfce4/panel/launcher-12/17828673516.desktop": launcher_terminal,
+        "root/.config/xfce4/panel/launcher-13/17828673687.desktop": launcher_thunar,
+        "root/.config/xfce4/panel/launcher-21/17830791051.desktop": launcher_kitty,
+        "root/.config/xfce4/panel/cpufreq-7.rc": xfce_panel_cpufreq_rc,
+        "root/.config/xfce4/panel/diskperf-15.rc": xfce_panel_diskperf_rc,
+        "root/.config/xfce4/panel/fsguard-9.rc": xfce_panel_fsguard_rc,
+        "root/.config/xfce4/panel/screenshooter-17.rc": xfce_panel_screenshooter_rc,
+        "root/.config/xfce4/panel/wavelan-14.rc": xfce_panel_wavelan_rc,
+        "root/.config/gtk-3.0/settings.ini": gtk3_settings,
+        "root/.config/kdeglobals": kdeglobals,
+        "root/.config/kwinrc": kwinrc,
+        "root/.config/plasmarc": plasmarc,
+        "root/.config/kscreenlockerrc": kscreenlockerrc,
+        "root/.config/plasma-org.kde.plasma.desktop-appletsrc": plasma_appletsrc,
+        "root/.config/konsolerc": konsolerc,
+        "root/.local/share/konsole/Wuci.colorscheme": konsole_colors,
+        "root/.local/share/konsole/Wuci.profile": konsole_profile,
         "usr/local/bin/wuci-status": status_script,
         "usr/local/bin/wuci-attest": attest_script,
         "usr/local/bin/wuci-live-banner": live_banner_script,
@@ -7451,7 +10850,20 @@ done
         "usr/local/bin/wpa_passphrase": command_wrapper("wpa_passphrase"),
         "usr/local/bin/xbps-install": command_wrapper("xbps-install"),
         "usr/local/bin/wuci-source-status": source_status_script,
+        "usr/local/bin/wuci-release-hardware-trace": release_hardware_trace_script,
         "usr/local/bin/wuci-enter": enter_script,
+        "usr/local/bin/wuci-firstboot": firstboot_script,
+        "usr/local/bin/wucia-welcome": aos_welcome_script,
+        "usr/local/bin/wucia-smart-profile": aos_smart_profile_script,
+        "usr/local/bin/wucia-control-center": aos_control_center_script,
+        "usr/local/bin/wucia-minimal-profile": aos_minimal_profile_script,
+        "usr/local/bin/wucia-github-setup": aos_github_setup_script,
+        "usr/local/bin/wucia-system-tour": aos_system_tour_script,
+        "usr/local/bin/wucia-smart-typing": aos_smart_typing_script,
+        "usr/local/bin/wucia-terminal-shell": aos_terminal_shell_script,
+        "usr/local/bin/wucia-audit": aos_audit_script,
+        "usr/local/bin/wucia-server-profile": aos_server_profile_script,
+        "usr/local/bin/wucia-virt-lab": aos_virt_lab_script,
         "usr/local/bin/wuci-guide": guide_script,
         "usr/local/bin/wuci-auto": auto_script,
         "usr/local/bin/INSTALL": auto_install_script,
@@ -7460,6 +10872,7 @@ done
         "usr/local/bin/wuci-selfupdate": selfupdate_script,
         "usr/local/bin/wuci-wallpaper": wallpaper_script,
         "usr/local/bin/wuci-terminal": terminal_script.replace("__TERMINAL_CANDIDATES__", sh_words(TERMINAL_CANDIDATES)),
+        "usr/local/bin/wuci-firstboot-terminal": firstboot_terminal_script,
         "usr/local/bin/wuci-boot-chime": boot_chime_script,
         "usr/local/bin/wuci-network-connect": network_connect_script,
         "usr/local/bin/wuci-network-apply": network_apply_script,
@@ -7469,6 +10882,9 @@ done
         "usr/local/bin/wuci-media-session": media_session_script,
         "usr/local/bin/wuci-sdr-apply": sdr_apply_script,
         "usr/local/bin/wuci-sdr-status": sdr_status_script,
+        "usr/local/bin/wuci-kde-apply": kde_apply_script,
+        "usr/local/bin/wuci-kde-default": kde_default_script,
+        "usr/local/bin/wuci-session-start": session_start_script,
         "usr/local/bin/wuci-update": update_script,
         "usr/local/bin/wuci-wait-run": wait_run_script,
         "usr/local/bin/wj": wj_script,
@@ -7478,18 +10894,101 @@ done
         "usr/local/bin/wuci-security-apply": security_apply_script,
         "usr/local/bin/wuci-security-status": security_status_script,
         "usr/local/bin/wuci-selinux-status": selinux_status_script,
+        "usr/local/bin/wuci-daylight-ssv": daylight_ssv_script,
         "usr/local/bin/wuci-daylight-status": daylight_status_script,
         "usr/local/bin/wuci-daylight-v14c-plus": daylight_v14c_script,
         "usr/local/bin/wuci-daylight-meridian": daylight_meridian_script,
         "usr/local/bin/wuci-ai-status": ai_status_script,
         "usr/local/bin/wuci-ai-setup": ai_setup_script,
+        "usr/local/bin/wuci-claude-build": claude_build_script,
         "usr/local/bin/wuci-grok-build": grok_build_script,
         "usr/share/wuci-os/accounts.json": account_profile_json,
         "usr/share/wuci-os/packages.json": package_profile_json,
+        "usr/share/wuci-os/aos-profile.json": aos_profile_json,
+        "usr/share/wuci-os/minimal-attack-surface.txt": "\n".join(
+            [
+                "WuciA/OS minimal attack-surface profile",
+                "",
+                "Run `wucia-minimal-profile` to review the plan.",
+                "Run `sudo wucia-minimal-profile --apply-workstation` to keep a local workstation surface.",
+                "Run `sudo wucia-minimal-profile --apply-server` for a headless defensive server posture.",
+                "",
+                "This profile is seL4-inspired in minimality discipline only.",
+                "It is not seL4, not formally verified, and not a runtime sandbox claim.",
+                "Package removal is manual and operator-owned.",
+                "",
+            ]
+        ),
         "usr/share/wuci-os/security-profile.json": json.dumps(security_profile_manifest(), indent=2, sort_keys=True) + "\n",
+        "usr/share/applications/wucia-control-center.desktop": "\n".join(
+            [
+                "[Desktop Entry]",
+                "Type=Application",
+                "Name=WuciA/OS Control Center",
+                "GenericName=System Control Center",
+                "Comment=Configure WuciA/OS roles, network, audit, AI, GitHub, virtualization, and server mode",
+                "Exec=wucia-control-center",
+                "Icon=/usr/share/pixmaps/wuci-os-emblem.png",
+                "Terminal=false",
+                "Categories=Settings;System;KDE;",
+                "Keywords=wucia;wuci;advancedos;smart;daylight;github;network;security;ai;",
+                "",
+            ]
+        ),
         "usr/share/wuci-os/full-suite-packages.txt": "\n".join(full_suite_packages()) + "\n",
+        "usr/share/wuci-os/kde-suite-packages.txt": "\n".join(KDE_PACKAGES) + "\n",
         "usr/share/wuci-os/ratpoisonrc": ratpoisonrc,
         "usr/share/wuci-os/kitty.conf": kitty_conf,
+        "usr/share/wuci-os/xfce4-terminalrc": xfce_terminalrc,
+        "usr/share/wuci-os/xfce4-desktop.xml": xfce_desktop_xml,
+        "usr/share/wuci-os/xfce4-xsettings.xml": xfce_xsettings_xml,
+        "usr/share/wuci-os/xfwm4.xml": xfce_wm_xml,
+        "usr/share/wuci-os/xfce4-panel.xml": xfce_panel_xml,
+        "usr/share/wuci-os/gtk3-settings.ini": gtk3_settings,
+        "usr/share/wuci-os/kde/kdeglobals": kdeglobals,
+        "usr/share/wuci-os/kde/kwinrc": kwinrc,
+        "usr/share/wuci-os/kde/plasmarc": plasmarc,
+        "usr/share/wuci-os/kde/kscreenlockerrc": kscreenlockerrc,
+        "usr/share/wuci-os/kde/plasma-org.kde.plasma.desktop-appletsrc": plasma_appletsrc,
+        "usr/share/wuci-os/kde/konsole/Wuci.colorscheme": konsole_colors,
+        "usr/share/wuci-os/kde/konsole/Wuci.profile": konsole_profile,
+        "usr/share/wuci-os/kde/konsole/konsolerc": konsolerc,
+        "usr/share/wuci-os/smart-typing.txt": "\n".join(
+            [
+                "WuciA/OS Smart Typing",
+                "",
+                "Default: enabled",
+                "Terminal engine: fish autosuggestions and completions when fish is available",
+                "Fallback engine: Bash readline menu completion through ~/.inputrc",
+                "GUI spelling: KDE/Sonnet-compatible applications use their own spellcheck surfaces when dictionaries are installed",
+                "Status: wucia-smart-typing status",
+                "Disable: wucia-smart-typing disable",
+                "Enable: wucia-smart-typing enable",
+                "",
+            ]
+        ),
+        "usr/share/wuci-os/virt/README": "\n".join(
+            [
+                "WuciA/OS virt-manager lab templates",
+                "",
+                "Run: wucia-virt-lab status",
+                "Run: wucia-virt-lab --enable",
+                "",
+                "No VM disks, private guest images, SSH keys, API tokens, or user data are baked into this ISO.",
+                "Templates are off by default and require operator-owned disk images.",
+                "",
+            ]
+        ),
+        "usr/share/wuci-os/virt/wucia-minimal-server-notes.txt": "\n".join(
+            [
+                "WuciA/OS minimalist server profile",
+                "",
+                "Use wucia-server-profile to record the role and prepare service guidance.",
+                "Use INSTALL for a real disk install before treating the host as high-assurance.",
+                "Rotate root and wj passwords after installation.",
+                "",
+            ]
+        ),
         "usr/share/wuci-os/README": readme,
         "usr/share/wuci-os/OFFLINE-INSTALL.txt": offline_install_guide_text(),
         "usr/share/wuci-os/WUCI_DAYLIGHT_V8.md": _read_regular_bytes(
@@ -7523,14 +11022,14 @@ done
         "usr/share/wuci-os/kicksecure-inspired-hardening.txt": "\n".join(KICKSECURE_INSPIRED_HARDENING) + "\n",
         "usr/share/wuci-os/ai-tools.txt": "\n".join(
             [
-                "Wuci-OS AI tools",
+                "WuciA/OS AI tools",
                 "",
                 "Codex CLI: install only through an operator-reviewed official flow or local package.",
-                "GitHub Copilot CLI: install only through an operator-reviewed GitHub flow or local package.",
+                "Claude CLI: install only through an operator-reviewed official flow or local package.",
                 "Grok Build: call xAI Responses API with model grok-build-0.1 and XAI_API_KEY.",
                 "",
                 "wuci-ai-setup is plan-only: it does not download or execute remote installers.",
-                "No credentials are baked into Wuci-OS. Use environment variables or each tool's login flow.",
+                "No credentials are baked into WuciA/OS. Use environment variables or each tool's login flow.",
                 "",
             ]
         ),
@@ -7547,6 +11046,12 @@ def create_overlay(
     _reject_symlink_output_parents(root / ".wuci-output-check", "Wuci-OS overlay root")
     wallpaper = DEFAULT_WALLPAPER_SOURCE if wallpaper_source is None else wallpaper_source
     wallpaper_info = _verified_regular_file_info(wallpaper, "Wuci-OS wallpaper")
+    emblem = repo_root() / DEFAULT_EMBLEM_SOURCE
+    emblem_info = _verified_regular_file_info(emblem, "Wuci-OS emblem")
+    _validate_png_bytes(
+        _read_regular_bytes(emblem, "Wuci-OS emblem"),
+        "Wuci-OS emblem",
+    )
     model_diagram = repo_root() / DEFAULT_MODEL_DIAGRAM_SOURCE
     model_diagram_info = _verified_regular_file_info(model_diagram, "Wuci-OS Daylight wire model diagram")
     _validate_png_bytes(
@@ -7624,6 +11129,20 @@ def create_overlay(
         raise WuciOSError(f"Wuci-OS Daylight v15 Meridian execution package must not be a symlink: {daylight_v15_package}")
     if not stat.S_ISDIR(daylight_v15_package_info.st_mode):
         raise WuciOSError(f"Wuci-OS Daylight v15 Meridian execution package must be a directory: {daylight_v15_package}")
+    daylight_ssv_report = repo_root() / DEFAULT_DAYLIGHT_SSV_REPORT_SOURCE
+    daylight_ssv_report_info = None
+    try:
+        os.lstat(daylight_ssv_report)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise WuciOSError(f"could not inspect Wuci-OS DaylightSSV report: {daylight_ssv_report}") from exc
+    else:
+        daylight_ssv_report_info = _verified_regular_file_info(daylight_ssv_report, "Wuci-OS DaylightSSV report")
+        try:
+            json.loads(_read_regular_bytes(daylight_ssv_report, "Wuci-OS DaylightSSV report").decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise WuciOSError(f"Wuci-OS DaylightSSV report must be valid UTF-8 JSON: {daylight_ssv_report}") from exc
     try:
         root_info = os.lstat(root)
     except FileNotFoundError:
@@ -7662,6 +11181,33 @@ def create_overlay(
         mode=0o644,
     )
     written.append(str(OVERLAY_WALLPAPER_PATH))
+    emblem_dest = root / OVERLAY_EMBLEM_PATH
+    emblem_digest, emblem_bytes = _copy_verified_regular_file(
+        emblem,
+        emblem_dest,
+        "Wuci-OS overlay emblem",
+        expected_info=emblem_info,
+        mode=0o644,
+    )
+    written.append(str(OVERLAY_EMBLEM_PATH))
+    daylight_ssv_report_record = None
+    if daylight_ssv_report_info is not None:
+        daylight_ssv_report_overlay_path = Path("usr/share/wuci-os/daylight-ssv.report.json")
+        daylight_ssv_report_digest, daylight_ssv_report_bytes = _copy_verified_regular_file(
+            daylight_ssv_report,
+            root / daylight_ssv_report_overlay_path,
+            "Wuci-OS overlay DaylightSSV report",
+            expected_info=daylight_ssv_report_info,
+            mode=0o644,
+        )
+        written.append(str(daylight_ssv_report_overlay_path))
+        daylight_ssv_report_record = {
+            "path": str(daylight_ssv_report_overlay_path),
+            "source_path": str(daylight_ssv_report),
+            "bytes": daylight_ssv_report_bytes,
+            "digest_vector": daylight_ssv_report_digest,
+            "claim": "baked release report; wuci-daylight-ssv remeasures at runtime when python3 and onboard source are available",
+        }
     model_diagram_overlay_path = Path("usr/share/wuci-os/wuci-daylight-wire-model.png")
     model_diagram_digest, model_diagram_bytes = _copy_verified_regular_file(
         model_diagram,
@@ -7833,6 +11379,14 @@ def create_overlay(
             "digest_vector": wallpaper_digest,
             "resize_policy": "wuci-wallpaper detects screen geometry and creates an exact-size cache when ImageMagick or GraphicsMagick is present; otherwise it uses desktop fill/zoom setters",
         },
+        "emblem": {
+            "path": str(OVERLAY_EMBLEM_PATH),
+            "source_path": str(emblem),
+            "bytes": emblem_bytes,
+            "digest_vector": emblem_digest,
+            "claim": "public Wuci emblem used for desktop menus; no private home path is embedded",
+        },
+        "daylight_ssv_report": daylight_ssv_report_record,
         "substract_model_diagram": {
             "path": str(model_diagram_overlay_path),
             "source_path": str(model_diagram),
@@ -8576,6 +12130,11 @@ def _patch_ext_image_text_file(
     original = _debugfs_read_text_file(image, rel, work_root=work_root, default="")
     if not original:
         return None
+    original_stat = _debugfs_path_stat(image, rel, work_root=work_root)
+    original_mode_text = str(original_stat.get("mode") or "0100644")
+    original_mode = int(original_mode_text, 8) & 0o7777
+    if original_mode == 0:
+        original_mode = 0o644
     patched = original
     for old, new in replacements.items():
         patched = patched.replace(old, new)
@@ -8584,12 +12143,13 @@ def _patch_ext_image_text_file(
             "path": rel.as_posix(),
             "changed": False,
             "bytes": len(original.encode("utf-8")),
+            "mode": oct(original_mode),
         }
     return _debugfs_write_text_file(
         image,
         rel,
         patched,
-        mode=0o644,
+        mode=original_mode,
         work_root=work_root,
         label=f"Wuci-OS ext image patched text {rel.as_posix()}",
     ) | {"changed": True}
@@ -8632,6 +12192,51 @@ def _next_rootfs_id(lines: list[str], field_index: int, *, start: int) -> int:
     while candidate in used:
         candidate += 1
     return candidate
+
+
+def _ensure_passwd_line(
+    lines: list[str],
+    *,
+    name: str,
+    uid: int,
+    gid: int,
+    gecos: str,
+    home: str,
+    shell: str,
+) -> list[str]:
+    normalized = f"{name}:x:{uid}:{gid}:{gecos}:{home}:{shell}"
+    updated: list[str] = []
+    found = False
+    for line in lines:
+        parts = line.split(":")
+        if parts and parts[0] == name:
+            if len(parts) >= 7:
+                parts[4] = gecos
+                parts[5] = home
+                parts[6] = shell
+                updated.append(":".join(parts))
+            else:
+                updated.append(normalized)
+            found = True
+        else:
+            updated.append(line)
+    if not found:
+        updated.append(normalized)
+    return updated
+
+
+def _skel_file_map(skel_root: Path) -> dict[str, Path]:
+    files: dict[str, Path] = {}
+    if not skel_root.exists():
+        return files
+    for path in sorted(skel_root.rglob("*"), key=lambda item: item.relative_to(skel_root).as_posix()):
+        rel = path.relative_to(skel_root)
+        info = os.lstat(path)
+        if stat.S_ISLNK(info.st_mode):
+            raise WuciOSError(f"Wuci-OS skeleton must not contain symlinks: {path}")
+        if stat.S_ISREG(info.st_mode):
+            files[rel.as_posix()] = path
+    return files
 
 
 def _ensure_group_line(lines: list[str], name: str, gid: int, members: list[str]) -> list[str]:
@@ -8752,10 +12357,24 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
     uid_wj = _next_rootfs_id(passwd_lines, 2, start=1000)
     uid_low = uid_wj + 1 if uid_wj + 1 not in {int(line.split(":")[2]) for line in passwd_lines if len(line.split(":")) > 2 and line.split(":")[2].isdigit()} else _next_rootfs_id(passwd_lines, 2, start=uid_wj + 1)
     shell_path = "/bin/bash" if (rootfs / "bin/bash").exists() else "/bin/sh"
-    if not any(line.split(":", 1)[0] == "wj" for line in passwd_lines):
-        passwd_lines.append(f"wj:x:{uid_wj}:{gid_wj}:Wuci-OS Operator:/home/wj:{shell_path}")
-    if not any(line.split(":", 1)[0] == "wj_low" for line in passwd_lines):
-        passwd_lines.append(f"wj_low:x:{uid_low}:{gid_low}:Wuci-OS Low Privilege:/home/wj_low:{shell_path}")
+    passwd_lines = _ensure_passwd_line(
+        passwd_lines,
+        name="wj",
+        uid=uid_wj,
+        gid=gid_wj,
+        gecos="wj",
+        home="/home/wj",
+        shell=shell_path,
+    )
+    passwd_lines = _ensure_passwd_line(
+        passwd_lines,
+        name="wj_low",
+        uid=uid_low,
+        gid=gid_low,
+        gecos="wj_low",
+        home="/home/wj_low",
+        shell=shell_path,
+    )
     if (rootfs / "usr/bin/dbus-daemon").is_file() and not any(line.split(":", 1)[0] == "dbus" for line in passwd_lines):
         passwd_lines.append("dbus:x:22:22:System Message Bus:/var/run/dbus:/sbin/nologin")
     group_lines = _ensure_group_line(group_lines, "wj", gid_wj, ["wj"])
@@ -8794,27 +12413,24 @@ def apply_rootfs_account_profile(rootfs: Path) -> dict[str, Any]:
         )
     )
     homes: list[dict[str, Any]] = []
+    skeletons = _skel_file_map(rootfs / "etc/skel")
+    if ".xinitrc" not in skeletons:
+        skeletons[".xinitrc"] = rootfs / "etc/skel/.xinitrc"
     for user in ("wj", "wj_low"):
         home = rootfs / "home" / user
-        (home / ".config/kitty").mkdir(parents=True, exist_ok=True)
-        homes.append(_write_rootfs_text(rootfs, Path("home") / user / ".xinitrc", "exec startxfce4\n", mode=0o644))
-        kitty = rootfs / "usr/share/wuci-os/kitty.conf"
-        ratpoison = rootfs / "usr/share/wuci-os/ratpoisonrc"
-        if kitty.is_file():
+        home.mkdir(parents=True, exist_ok=True)
+        for dest_name, source in skeletons.items():
+            if source.is_file():
+                data = _read_regular_bytes(source, f"Wuci-OS rootfs skeleton {dest_name}")
+            elif dest_name == ".xinitrc":
+                data = b"exec wuci-session-start\n"
+            else:
+                continue
             homes.append(
                 _write_rootfs_file(
                     rootfs,
-                    Path("home") / user / ".config/kitty/kitty.conf",
-                    _read_regular_bytes(kitty, "Wuci-OS rootfs kitty profile"),
-                    mode=0o644,
-                )
-            )
-        if ratpoison.is_file():
-            homes.append(
-                _write_rootfs_file(
-                    rootfs,
-                    Path("home") / user / ".ratpoisonrc",
-                    _read_regular_bytes(ratpoison, "Wuci-OS rootfs ratpoison profile"),
+                    Path("home") / user / dest_name,
+                    data,
                     mode=0o644,
                 )
             )
@@ -8850,10 +12466,24 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
     used_uids = {int(line.split(":")[2]) for line in passwd_lines if len(line.split(":")) > 2 and line.split(":")[2].isdigit()}
     uid_low = uid_wj + 1 if uid_wj + 1 not in used_uids else _next_rootfs_id(passwd_lines, 2, start=uid_wj + 1)
     shell_path = "/bin/bash" if _debugfs_path_exists(ext_image, "bin/bash", work_root=work_root) else "/bin/sh"
-    if not any(line.split(":", 1)[0] == "wj" for line in passwd_lines):
-        passwd_lines.append(f"wj:x:{uid_wj}:{gid_wj}:Wuci-OS Operator:/home/wj:{shell_path}")
-    if not any(line.split(":", 1)[0] == "wj_low" for line in passwd_lines):
-        passwd_lines.append(f"wj_low:x:{uid_low}:{gid_low}:Wuci-OS Low Privilege:/home/wj_low:{shell_path}")
+    passwd_lines = _ensure_passwd_line(
+        passwd_lines,
+        name="wj",
+        uid=uid_wj,
+        gid=gid_wj,
+        gecos="wj",
+        home="/home/wj",
+        shell=shell_path,
+    )
+    passwd_lines = _ensure_passwd_line(
+        passwd_lines,
+        name="wj_low",
+        uid=uid_low,
+        gid=gid_low,
+        gecos="wj_low",
+        home="/home/wj_low",
+        shell=shell_path,
+    )
     group_lines = _ensure_group_line(group_lines, "wj", gid_wj, ["wj"])
     group_lines = _ensure_group_line(group_lines, "wj_low", gid_low, ["wj_low"])
     for group in ("wheel", "audio", "video", "input", "kvm", "network", "storage", "plugdev", "usb", "dialout", "uucp"):
@@ -8921,14 +12551,20 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
         ),
     ]
     homes: list[dict[str, Any]] = []
-    skeletons = {
-        ".xinitrc": overlay_root / "etc/skel/.xinitrc",
-        ".ratpoisonrc": overlay_root / "usr/share/wuci-os/ratpoisonrc",
-        ".config/kitty/kitty.conf": overlay_root / "usr/share/wuci-os/kitty.conf",
-    }
+    skeletons = _skel_file_map(overlay_root / "etc/skel")
+    if ".xinitrc" not in skeletons:
+        skeletons[".xinitrc"] = overlay_root / "etc/skel/.xinitrc"
     for user, uid, gid in (("wj", uid_wj, gid_wj), ("wj_low", uid_low, gid_low)):
         dir_commands: list[str] = []
-        for rel in (Path("home") / user, Path("home") / user / ".config", Path("home") / user / ".config/kitty"):
+        home_dirs = {Path("home") / user}
+        for dest_name in skeletons:
+            dest = Path("home") / user / dest_name
+            for parent in dest.parents:
+                if parent == Path("."):
+                    continue
+                if parent.parts[:2] == ("home", user):
+                    home_dirs.add(parent)
+        for rel in sorted(home_dirs, key=lambda item: (len(item.parts), item.as_posix())):
             remote = _debugfs_remote_path(rel)
             dir_commands.extend(_debugfs_mkdir_commands(rel))
             dir_commands.extend(
@@ -8943,7 +12579,7 @@ def apply_ext_image_account_profile(ext_image: Path, overlay_root: Path, work_ro
             if source.is_file():
                 data = _read_regular_bytes(source, f"Wuci-OS ext image skeleton {dest_name}")
             elif dest_name == ".xinitrc":
-                data = b"exec startxfce4\n"
+                data = b"exec wuci-session-start\n"
             else:
                 continue
             rel = Path("home") / user / dest_name
@@ -9172,6 +12808,96 @@ def validate_ext_image_live_command_surface(ext_image: Path, *, work_root: Path)
     return result
 
 
+def validate_firstboot_ready_surface(rootfs: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for relative in FIRSTBOOT_READY_EXECUTABLES:
+        path = rootfs / relative
+        exists = path.exists() or path.is_symlink()
+        executable = exists and os.access(path, os.X_OK)
+        records.append({"path": relative, "exists": exists, "executable": executable, "kind": "executable"})
+        if not executable:
+            missing.append(relative)
+    for relative in FIRSTBOOT_READY_FILES:
+        path = rootfs / relative
+        exists = path.exists() or path.is_symlink()
+        records.append({"path": relative, "exists": exists, "executable": False, "kind": "file"})
+        if not exists:
+            missing.append(relative)
+    result = {
+        "schema": "wuci-os-firstboot-ready-surface-v1",
+        "status": "pass" if not missing else "fail",
+        "required_executables": list(FIRSTBOOT_READY_EXECUTABLES),
+        "required_files": list(FIRSTBOOT_READY_FILES),
+        "records": records,
+        "missing": missing,
+    }
+    if missing:
+        raise WuciOSError("Wuci-OS first-boot ready surface incomplete: " + ", ".join(missing))
+    return result
+
+
+def validate_ext_image_firstboot_ready_surface(ext_image: Path, *, work_root: Path) -> dict[str, Any]:
+    records: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for relative in FIRSTBOOT_READY_EXECUTABLES:
+        record = _debugfs_path_stat(ext_image, relative, work_root=work_root) | {"kind": "executable"}
+        records.append(record)
+        if not record["executable"]:
+            missing.append(relative)
+    for relative in FIRSTBOOT_READY_FILES:
+        record = _debugfs_path_stat(ext_image, relative, work_root=work_root) | {"kind": "file"}
+        records.append(record)
+        if not record["exists"]:
+            missing.append(relative)
+    result = {
+        "schema": "wuci-os-firstboot-ready-surface-v1",
+        "status": "pass" if not missing else "fail",
+        "required_executables": list(FIRSTBOOT_READY_EXECUTABLES),
+        "required_files": list(FIRSTBOOT_READY_FILES),
+        "records": records,
+        "missing": missing,
+        "image_layout": "nested-ext-image",
+    }
+    if missing:
+        raise WuciOSError("Wuci-OS nested first-boot ready surface incomplete: " + ", ".join(missing))
+    return result
+
+
+def secure_default_package_closure(
+    *,
+    rootfs_image_layout: str,
+    package_install: dict[str, Any],
+    overlay_application: dict[str, Any],
+    command_surface: dict[str, Any],
+    firstboot_surface: dict[str, Any],
+) -> dict[str, Any]:
+    optional_suite_status = package_install.get("status")
+    checks = {
+        "overlay_application_pass": overlay_application.get("status") == "pass",
+        "account_profile_pass": (overlay_application.get("account_profile") or {}).get("status") == "pass",
+        "live_command_surface_pass": command_surface.get("status") == "pass",
+        "firstboot_ready_surface_pass": firstboot_surface.get("status") == "pass",
+    }
+    status = "pass" if all(checks.values()) else "blocked"
+    return {
+        "schema": "wuci-os-secure-default-package-closure-v1",
+        "status": status,
+        "policy": "secure-default-firstboot-v1",
+        "rootfs_image_layout": rootfs_image_layout,
+        "checks": checks,
+        "required_command_count": len(command_surface.get("required", [])),
+        "required_firstboot_executable_count": len(firstboot_surface.get("required_executables", [])),
+        "required_firstboot_file_count": len(firstboot_surface.get("required_files", [])),
+        "optional_suite_status": optional_suite_status,
+        "optional_suite_failed_count": package_install.get("failed_count", 0),
+        "non_claims": [
+            "secure-default closure proves first-boot/network/install readiness, not the optional 225-package workstation suite",
+            "optional developer/media/SDR packages remain post-boot install/update surface unless suite_package_install.status is pass",
+        ],
+    }
+
+
 def detect_kernel_release_from_bytes(data: bytes) -> str | None:
     text = data.decode("latin-1", "ignore")
     patterns = (
@@ -9274,6 +13000,45 @@ def rootfs_boot_artifacts_for_release(rootfs: Path, kernel_release: str) -> dict
         result["kernel"] = _regular_artifact_evidence(kernel, f"Wuci-OS rootfs boot kernel {kernel_release}")
         result["initrd"] = _regular_artifact_evidence(initrd, f"Wuci-OS rootfs initramfs {kernel_release}")
     return result
+
+
+def initrd_live_root_support_from_lsinitrd(text: str) -> dict[str, Any]:
+    markers = [marker for marker in LIVE_ROOT_INITRD_MARKERS if marker in text]
+    return {
+        "schema": "wuci-os-initrd-live-root-support-v1",
+        "status": "pass" if markers else "fail",
+        "markers_found": markers,
+        "required_any": list(LIVE_ROOT_INITRD_MARKERS),
+    }
+
+
+def inspect_initrd_live_root_support(initrd: Path) -> dict[str, Any]:
+    _verified_regular_file_info(initrd, "Wuci-OS replacement initramfs live-root check")
+    lsinitrd = shutil.which("lsinitrd")
+    if not lsinitrd:
+        return {
+            "schema": "wuci-os-initrd-live-root-support-v1",
+            "status": "blocked",
+            "reason": "lsinitrd is required to verify replacement initramfs live-root support",
+            "required_any": list(LIVE_ROOT_INITRD_MARKERS),
+        }
+    result = subprocess.run(
+        [lsinitrd, str(initrd)],
+        cwd=repo_root(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    support = initrd_live_root_support_from_lsinitrd(result.stdout or "")
+    support["tool"] = lsinitrd
+    support["returncode"] = result.returncode
+    support["stderr_tail"] = "\n".join((result.stderr or "").splitlines()[-8:])
+    if result.returncode != 0 and support["status"] != "pass":
+        support["status"] = "blocked"
+        support["reason"] = result.stderr.strip() or result.stdout.strip() or "lsinitrd failed"
+    return support
 
 
 def select_live_boot_kernel_surface(rootfs: Path, source_kernel_release: str | None) -> dict[str, Any]:
@@ -9520,6 +13285,10 @@ def _run_rootfs_xbps(rootfs: Path, args: list[str], *, label: str, ticker_mode: 
         )
 
 
+def _xbps_self_update_required(output: str) -> bool:
+    return "xbps' package must be updated" in output or "xbps package must be updated" in output
+
+
 def ensure_minimum_live_network_packages(
     rootfs: Path,
     *,
@@ -9554,7 +13323,7 @@ def ensure_minimum_live_network_packages(
     )
     install_output = (install.stdout or "") + (install.stderr or "")
     xbps_update: dict[str, Any] | None = None
-    if install.returncode != 0 and "xbps' package must be updated" in install_output:
+    if install.returncode != 0 and _xbps_self_update_required(install_output):
         update = _run_rootfs_xbps(
             rootfs,
             ["-y", "-u", "xbps"],
@@ -9620,6 +13389,57 @@ def run_e2fsck(image: Path, *, work_root: Path) -> dict[str, Any]:
         "returncode": result.returncode,
         "bytes": size,
         "digest_vector": digest,
+    }
+
+
+def grow_ext_image_for_suite_packages(
+    ext_image: Path,
+    *,
+    tools: dict[str, dict[str, Any]],
+    work_root: Path,
+    target_bytes: int = SUITE_NESTED_EXT_IMAGE_TARGET_BYTES,
+) -> dict[str, Any]:
+    resize2fs = _require_host_tool(tools, "resize2fs")
+    before = ext_image.stat().st_size
+    if before >= target_bytes:
+        return {
+            "schema": "wuci-os-ext-image-suite-growth-v1",
+            "status": "not-needed",
+            "path": str(ext_image),
+            "bytes_before": before,
+            "bytes_after": before,
+            "target_bytes": target_bytes,
+        }
+    pre_fsck = run_e2fsck(ext_image, work_root=work_root)
+    with ext_image.open("r+b") as handle:
+        handle.truncate(target_bytes)
+    resize = subprocess.run(
+        [resize2fs, str(ext_image)],
+        cwd=work_root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=False,
+        check=False,
+    )
+    if resize.returncode != 0:
+        raise WuciOSError(f"resize2fs failed for Wuci-OS suite ext image: {resize.stderr.strip() or resize.stdout.strip()}")
+    post_fsck = run_e2fsck(ext_image, work_root=work_root)
+    after = ext_image.stat().st_size
+    return {
+        "schema": "wuci-os-ext-image-suite-growth-v1",
+        "status": "pass",
+        "path": str(ext_image),
+        "bytes_before": before,
+        "bytes_after": after,
+        "target_bytes": target_bytes,
+        "pre_fsck": pre_fsck,
+        "resize2fs": {
+            "returncode": resize.returncode,
+            "stdout_tail": "\n".join((resize.stdout or "").splitlines()[-12:]),
+            "stderr_tail": "\n".join((resize.stderr or "").splitlines()[-12:]),
+        },
+        "post_fsck": post_fsck,
     }
 
 
@@ -9768,10 +13588,10 @@ def install_suite_packages_into_rootfs(rootfs: Path, *, ticker_mode: str = "auto
     host_xbps = shutil.which("xbps-install")
     rootfs_xbps = rootfs / "usr/bin/xbps-install"
     if host_xbps:
-        base_cmd = [host_xbps, "-r", str(rootfs), "-Sy"]
+        base_cmd = [host_xbps, "-r", str(rootfs)]
         method = "host-xbps-install-root"
     elif os.geteuid() == 0 and rootfs_xbps.is_file():
-        base_cmd = ["chroot", str(rootfs), "/usr/bin/xbps-install", "-Sy"]
+        base_cmd = ["chroot", str(rootfs), "/usr/bin/xbps-install"]
         method = "rootfs-chroot-xbps-install"
     else:
         raise WuciOSError(
@@ -9779,10 +13599,10 @@ def install_suite_packages_into_rootfs(rootfs: Path, *, ticker_mode: str = "auto
             "to a rootfs that already contains /usr/bin/xbps-install"
         )
 
-    def run_install(items: list[str], label: str) -> subprocess.CompletedProcess[str]:
+    def run_xbps(args: list[str], label: str) -> subprocess.CompletedProcess[str]:
         with wuci_progress.stage(label, ticker_mode):
             return subprocess.run(
-                base_cmd + items,
+                base_cmd + args,
                 cwd=repo_root(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -9791,13 +13611,50 @@ def install_suite_packages_into_rootfs(rootfs: Path, *, ticker_mode: str = "auto
                 check=False,
             )
 
+    def run_install(items: list[str], label: str) -> subprocess.CompletedProcess[str]:
+        return run_xbps(["-y", "-Sy", *items], label)
+
+    def result_record(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+        return {
+            "returncode": result.returncode,
+            "stdout_tail": "\n".join((result.stdout or "").splitlines()[-12:]),
+            "stderr_tail": "\n".join((result.stderr or "").splitlines()[-12:]),
+        }
+
+    sync = run_xbps(["-y", "-S"], "wuci-os suite xbps repository sync")
+    update = run_xbps(["-y", "-u", "xbps"], "wuci-os suite xbps self-update")
+    system_update = run_xbps(["-y", "-Syu"], "wuci-os suite base system update")
+    xbps_self_update: dict[str, Any] | None = {
+        "schema": "wuci-os-rootfs-xbps-self-update-v1",
+        "status": "pass" if sync.returncode == 0 and update.returncode == 0 and system_update.returncode == 0 else "fail",
+        "sync": result_record(sync),
+        "update": result_record(update),
+        "system_update": result_record(system_update),
+        "reason": "preflight sync, xbps self-update, and base upgrade keep the old live snapshot compatible with current repository metadata",
+    }
+    if xbps_self_update["status"] != "pass":
+        raise WuciOSError(
+            "rootfs xbps preflight update failed: "
+            + (
+                system_update.stderr.strip()
+                or system_update.stdout.strip()
+                or update.stderr.strip()
+                or update.stdout.strip()
+                or sync.stderr.strip()
+                or sync.stdout.strip()
+            )
+        )
     result = run_install(packages, "wuci-os suite packages")
+    bulk_attempts = [result_record(result)]
     installed = packages
     failed: list[dict[str, str]] = []
     if result.returncode != 0:
         installed = []
         for package in packages:
             package_result = run_install([package], f"wuci-os package {package}")
+            package_output = (package_result.stdout or "") + (package_result.stderr or "")
+            if package_result.returncode != 0 and _xbps_self_update_required(package_output):
+                package_result = run_install([package], f"wuci-os package {package} after xbps preflight update")
             if package_result.returncode == 0:
                 installed.append(package)
             else:
@@ -9814,6 +13671,122 @@ def install_suite_packages_into_rootfs(rootfs: Path, *, ticker_mode: str = "auto
         "packages": packages,
         "installed_packages": installed,
         "failed_packages": failed,
+        "bulk_attempts": bulk_attempts,
+        "xbps_self_update": xbps_self_update,
+    }
+
+
+def _remove_directory_contents(path: Path) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "path": str(path),
+        "status": "absent",
+        "removed_entries": 0,
+        "removed_bytes": 0,
+    }
+    if not path.exists():
+        return record
+    if path.is_symlink() or not path.is_dir():
+        record["status"] = "skipped"
+        record["reason"] = "not a real directory"
+        return record
+    removed_entries = 0
+    removed_bytes = 0
+    for child in path.iterdir():
+        try:
+            if child.is_symlink():
+                removed_bytes += child.lstat().st_size
+                child.unlink()
+            elif child.is_dir():
+                removed_bytes += _directory_payload_bytes(child)
+                shutil.rmtree(child)
+            else:
+                removed_bytes += child.stat().st_size
+                child.unlink()
+            removed_entries += 1
+        except FileNotFoundError:
+            continue
+    record.update({
+        "status": "pass",
+        "removed_entries": removed_entries,
+        "removed_bytes": removed_bytes,
+    })
+    return record
+
+
+def prune_rootfs_release_caches(rootfs: Path, *, zero_free_space: bool, ticker_mode: str = "auto") -> dict[str, Any]:
+    """Remove disposable package/temp state before squashfs packing.
+
+    For Void live media with a nested ext image, the ext image is compressed as
+    one opaque file. Removed package-cache blocks still contain old data until
+    the free space is zero-filled, so full-suite images need an explicit zero
+    pass to stay below the ISO payload gate.
+    """
+    records: list[dict[str, Any]] = []
+    for relative in (
+        "var/cache/xbps",
+        "tmp",
+        "var/tmp",
+        "root/.cache",
+        "home/wj/.cache",
+        "home/wj_low/.cache",
+    ):
+        records.append(_remove_directory_contents(rootfs / relative))
+
+    zero_record: dict[str, Any] = {
+        "status": "not-requested",
+        "reason": "direct squashfs trees do not need opaque-image free-space zeroing",
+    }
+    if zero_free_space:
+        filler = rootfs / ".wuci-zero-fill"
+        try:
+            before = shutil.disk_usage(rootfs).free
+        except OSError:
+            before = None
+        try:
+            if filler.exists() or filler.is_symlink():
+                filler.unlink()
+            with wuci_progress.stage("wuci-os zero ext image free space", ticker_mode):
+                zero = subprocess.run(
+                    [
+                        "dd",
+                        "if=/dev/zero",
+                        f"of={filler}",
+                        "bs=16M",
+                        "conv=fsync",
+                        "status=none",
+                    ],
+                    cwd=rootfs,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    shell=False,
+                    check=False,
+                )
+            expected_full = "No space left on device" in ((zero.stderr or "") + (zero.stdout or ""))
+            zero_status = "pass" if zero.returncode == 0 or expected_full else "blocked"
+            zero_record = {
+                "status": zero_status,
+                "returncode": zero.returncode,
+                "expected_full_device": expected_full,
+                "free_bytes_before": before,
+                "stdout_tail": "\n".join((zero.stdout or "").splitlines()[-4:]),
+                "stderr_tail": "\n".join((zero.stderr or "").splitlines()[-4:]),
+            }
+        finally:
+            try:
+                filler.unlink()
+            except FileNotFoundError:
+                pass
+            subprocess.run(["sync"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        try:
+            zero_record["free_bytes_after"] = shutil.disk_usage(rootfs).free
+        except OSError:
+            pass
+    return {
+        "schema": "wuci-os-rootfs-release-cache-prune-v1",
+        "status": "pass" if zero_record.get("status") != "blocked" else "blocked",
+        "records": records,
+        "zero_free_space": zero_record,
     }
 
 
@@ -10083,6 +14056,11 @@ def remaster_live_rootfs(
     rootfs = work_root / "rootfs"
     squashfs_source = rootfs
     generated_rootfs_image: dict[str, Any] | None = None
+    nested_ext_image_growth: dict[str, Any] = {
+        "schema": "wuci-os-ext-image-suite-growth-v1",
+        "status": "not-requested",
+        "reason": "suite package baking not requested for a nested ext image",
+    }
     for path in (old_squashfs, new_squashfs):
         _prepare_exclusive_output_path(path, f"Wuci-OS remaster artifact {path.name}", force=True)
     if rootfs.exists():
@@ -10155,6 +14133,7 @@ def remaster_live_rootfs(
                 "Wuci-OS suite package baking for this nested ext3 live image requires root chroot access; "
                 "rerun final-iso with sudo/root, or omit --install-suite-packages for identity-only remaster"
             )
+        nested_ext_image_growth = grow_ext_image_for_suite_packages(nested_ext_image, tools=tools, work_root=work_root)
         mount_root = work_root / "mounted-rootfs"
         mount_root.mkdir(parents=True, exist_ok=True)
         mounted = False
@@ -10172,7 +14151,19 @@ def remaster_live_rootfs(
         mounted = True
         try:
             package_install = install_suite_packages_into_rootfs(mount_root, ticker_mode=ticker_mode)
+            pre_overlay_pruning = prune_rootfs_release_caches(mount_root, zero_free_space=False, ticker_mode=ticker_mode)
             overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, mount_root)
+            post_overlay_pruning = prune_rootfs_release_caches(mount_root, zero_free_space=True, ticker_mode=ticker_mode)
+            package_install = package_install | {
+                "release_pruning": {
+                    "schema": "wuci-os-rootfs-release-pruning-sequence-v1",
+                    "status": "pass"
+                    if pre_overlay_pruning.get("status") == "pass" and post_overlay_pruning.get("status") == "pass"
+                    else "blocked",
+                    "pre_overlay": pre_overlay_pruning,
+                    "post_overlay": post_overlay_pruning,
+                }
+            }
         finally:
             if mounted:
                 umount = subprocess.run(
@@ -10190,7 +14181,19 @@ def remaster_live_rootfs(
         overlay_application = overlay_application | {"nested_ext_image_fsck": fsck}
     elif install_suite_packages:
         package_install = install_suite_packages_into_rootfs(rootfs, ticker_mode=ticker_mode)
+        pre_overlay_pruning = prune_rootfs_release_caches(rootfs, zero_free_space=False, ticker_mode=ticker_mode)
         overlay_application = apply_wuci_overlay_to_rootfs(overlay_root, rootfs)
+        post_overlay_pruning = prune_rootfs_release_caches(rootfs, zero_free_space=False, ticker_mode=ticker_mode)
+        package_install = package_install | {
+            "release_pruning": {
+                "schema": "wuci-os-rootfs-release-pruning-sequence-v1",
+                "status": "pass"
+                if pre_overlay_pruning.get("status") == "pass" and post_overlay_pruning.get("status") == "pass"
+                else "blocked",
+                "pre_overlay": pre_overlay_pruning,
+                "post_overlay": post_overlay_pruning,
+            }
+        }
     else:
         package_install = {
             "schema": "wuci-os-rootfs-suite-package-install-v1",
@@ -10208,6 +14211,11 @@ def remaster_live_rootfs(
         if not nested_ext_image.is_file()
         else validate_ext_image_live_command_surface(nested_ext_image, work_root=work_root)
     )
+    firstboot_surface = (
+        validate_firstboot_ready_surface(rootfs)
+        if not nested_ext_image.is_file()
+        else validate_ext_image_firstboot_ready_surface(nested_ext_image, work_root=work_root)
+    )
     kernel_hardware_surface = (
         boot_kernel_selection["kernel_hardware_surface"]
         if not nested_ext_image.is_file()
@@ -10217,6 +14225,13 @@ def remaster_live_rootfs(
             "reason": "nested ext image hardware surface is validated after image extraction in integration checks",
             "kernel_release": source_boot_kernel_release or "unknown",
         }
+    )
+    secure_default_closure = secure_default_package_closure(
+        rootfs_image_layout=rootfs_image_layout,
+        package_install=package_install,
+        overlay_application=overlay_application,
+        command_surface=command_surface,
+        firstboot_surface=firstboot_surface,
     )
     if rootfs_source_root is not None:
         squashfs_source = work_root / "squashfs-wrapper"
@@ -10283,8 +14298,11 @@ def remaster_live_rootfs(
         "depmod_refresh": depmod_refresh,
         "boot_kernel_selection": boot_kernel_selection,
         "suite_package_install": package_install,
+        "nested_ext_image_growth": nested_ext_image_growth,
         "overlay_application": overlay_application,
         "live_command_surface": command_surface,
+        "firstboot_ready_surface": firstboot_surface,
+        "secure_default_package_closure": secure_default_closure,
         "kernel_hardware_surface": kernel_hardware_surface,
         "host_tool_status": tools,
         "non_claims": list(BOUNDARY_DENIALS),
@@ -10465,6 +14483,23 @@ def build_final_iso(
             install_suite_packages=install_suite_packages,
             ticker_mode=ticker_mode,
         )
+        remastered_squashfs = remaster_result.get("remastered_squashfs")
+        if not isinstance(remastered_squashfs, dict):
+            raise WuciOSError("Wuci-OS remaster did not report remastered squashfs evidence")
+        remastered_squashfs_bytes = ensure_iso9660_single_file_payload_size(
+            remastered_squashfs.get("bytes"),
+            "Wuci-OS remastered LiveOS/squashfs.img",
+        )
+        remaster_result = remaster_result | {
+            "iso9660_payload_size_gate": {
+                "schema": "wuci-os-iso9660-payload-size-gate-v1",
+                "status": "pass",
+                "label": "LiveOS/squashfs.img",
+                "bytes": remastered_squashfs_bytes,
+                "max_single_file_bytes": ISO9660_SINGLE_FILE_SAFE_BYTES,
+                "reason": "fail closed before ISO assembly to avoid ISO9660 32-bit single-file truncation",
+            }
+        }
     boot_kernel_selection = remaster_result.get("boot_kernel_selection", {})
     replacement_kernel_path: Path | None = None
     replacement_initrd_path: Path | None = None
@@ -10478,6 +14513,15 @@ def build_final_iso(
         replacement_initrd_path = Path(replacement_initrd_text)
         _verified_regular_file_info(replacement_kernel_path, "Wuci-OS replacement boot kernel")
         _verified_regular_file_info(replacement_initrd_path, "Wuci-OS replacement initramfs")
+        replacement_initrd_live_root_support = inspect_initrd_live_root_support(replacement_initrd_path)
+        if replacement_initrd_live_root_support.get("status") != "pass":
+            raise WuciOSError(
+                "Wuci-OS replacement initramfs does not prove live-root support: "
+                + str(replacement_initrd_live_root_support.get("reason") or replacement_initrd_live_root_support)
+            )
+        boot_kernel_selection = boot_kernel_selection | {
+            "replacement_initrd_live_root_support": replacement_initrd_live_root_support,
+        }
 
     suite_packages_baked = bool(
         remaster_rootfs
@@ -10579,7 +14623,7 @@ def build_final_iso(
             "activation_helper": "wuci-os/wuci-os-live-activate",
             "offline_install_guide": "wuci-os/OFFLINE-INSTALL.txt gives beginning-to-end install and first-boot steps without internet",
             "update_command": "wuci-update applies the local overlay by default; --network explicitly updates packages and fast-forwards the onboard repo",
-            "terminal_resolver": "wuci-terminal prefers kitty, then ghostty, then safe fallbacks",
+            "terminal_resolver": "wuci-terminal prefers xfce4-terminal, then xterm, ghostty, kitty, then safe fallbacks",
             "boot_chime": "wuci-boot-chime generates the original Wuci-OS chime locally and falls back to terminal bell",
             "network_suite": "NetworkManager, Wi-Fi supplicants, firmware, VPN/mobile helpers, and nftables are listed for baked suite installs",
             "media_suite": "PipeWire/WirePlumber, ALSA/Pulse helpers, Mesa/video drivers, Bluetooth, printing, scanning, and portals are listed for baked suite installs",
@@ -11196,6 +15240,51 @@ def build_final_iso(
     ):
         _extract_iso_bytes(final_iso, subpath, label)
     layout = inspect_void_iso(final_iso)
+    final_rootfs_payload_size_gate: dict[str, Any] = {
+        "schema": "wuci-os-final-rootfs-payload-size-gate-v1",
+        "status": "not-requested",
+        "reason": "final ISO was built without remastering LiveOS/squashfs.img",
+    }
+    if remaster_rootfs:
+        remastered_squashfs = remaster_result.get("remastered_squashfs")
+        if not isinstance(remastered_squashfs, dict):
+            raise WuciOSError("Wuci-OS remaster did not report remastered squashfs evidence")
+        expected_rootfs_bytes = ensure_iso9660_single_file_payload_size(
+            remastered_squashfs.get("bytes"),
+            "Wuci-OS remastered LiveOS/squashfs.img",
+        )
+        found_records = layout.get("found", {})
+        embedded_squashfs = found_records.get("LiveOS/squashfs.img") if isinstance(found_records, dict) else None
+        if not isinstance(embedded_squashfs, dict):
+            try:
+                final_iso.unlink()
+            except FileNotFoundError:
+                pass
+            raise WuciOSError("Wuci-OS final ISO is missing embedded LiveOS/squashfs.img evidence")
+        try:
+            embedded_rootfs_bytes = int(embedded_squashfs.get("bytes"))
+        except (TypeError, ValueError) as exc:
+            try:
+                final_iso.unlink()
+            except FileNotFoundError:
+                pass
+            raise WuciOSError("Wuci-OS final ISO LiveOS/squashfs.img byte count is unavailable") from exc
+        if embedded_rootfs_bytes != expected_rootfs_bytes:
+            try:
+                final_iso.unlink()
+            except FileNotFoundError:
+                pass
+            raise WuciOSError(
+                "Wuci-OS final ISO LiveOS/squashfs.img size mismatch: "
+                f"embedded={embedded_rootfs_bytes}, expected={expected_rootfs_bytes}"
+            )
+        final_rootfs_payload_size_gate = {
+            "schema": "wuci-os-final-rootfs-payload-size-gate-v1",
+            "status": "pass",
+            "embedded_bytes": embedded_rootfs_bytes,
+            "expected_bytes": expected_rootfs_bytes,
+            "max_single_file_bytes": ISO9660_SINGLE_FILE_SAFE_BYTES,
+        }
     result = onboard_manifest | {
         "status": "built",
         "iso": {
@@ -11216,6 +15305,7 @@ def build_final_iso(
             "void_live_layout": layout,
             "payload_directory": "/wuci-os",
             "rootfs_remastered": remaster_rootfs,
+            "rootfs_payload_size_gate": final_rootfs_payload_size_gate,
         },
     }
     sha_text = f"{final_digest['sha256']}  {FINAL_ISO_NAME}\n".encode("ascii")
@@ -11223,6 +15313,8 @@ def build_final_iso(
     wuci_kaiju.write_json_atomic(manifest_path, result)
     wuci_kaiju.write_json_atomic(daylight_manifest_path, seal_manifest)
     wuci_kaiju.write_json_atomic(rootfs_manifest_path, remaster_result)
+    for public_json in (manifest_path, daylight_manifest_path, rootfs_manifest_path):
+        os.chmod(public_json, 0o644)
     _fsync_parent(final_iso)
     _fsync_parent(manifest_path)
     return result
@@ -11490,7 +15582,7 @@ def command_final_iso(args: argparse.Namespace) -> int:
         resolve_repo_path(args.rootfs_source, DEFAULT_ROOTFS_SOURCE_ROOT)
         if args.rootfs_source
         else auto_rootfs_source(resolve_repo_path(None, DEFAULT_ROOTFS_SOURCE_ROOT))
-        if args.remaster_rootfs
+        if args.remaster_rootfs and not args.no_auto_rootfs_source
         else None
     )
     keyfile = resolve_repo_path(args.keyfile, DEFAULT_SEAL_ROOT / "wuci-os-overlay.key")
@@ -11630,6 +15722,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     final_parser.add_argument("--seal-root", help="Daylight seal output directory")
     final_parser.add_argument("--final-root", help="final ISO output directory")
     final_parser.add_argument("--rootfs-source", help="extracted Void rootfs directory to pack directly into LiveOS/squashfs.img")
+    final_parser.add_argument(
+        "--no-auto-rootfs-source",
+        action="store_true",
+        help="remaster the source live ISO squashfs even if build/wuci-os/rootfs contains an extracted rootfs",
+    )
     final_parser.add_argument("--keyfile", help="local 32-byte hex WJSEAL keyfile")
     final_parser.add_argument("--bin", help="wuci-ji binary path")
     final_parser.add_argument("--remaster-rootfs", action="store_true", help="rebuild LiveOS/squashfs.img with Wuci-OS identity and overlay")

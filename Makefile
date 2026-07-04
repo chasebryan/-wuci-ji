@@ -71,6 +71,16 @@ DAYLIGHT_V20_APERTURE_SINGULARITY_PUBLIC_DIR ?= build/daylight/v20-aperture-sing
 DAYLIGHT_V20_APERTURE_SINGULARITY_TAR ?= build/daylight/v20-aperture-singularity-public-review-artifact.tar.gz
 DAYLIGHT_V20_APERTURE_SINGULARITY_FIREWALL_REPORT ?= build/daylight/firewall-report.v20.json
 DAYLIGHT_SSV_REPORT ?= build/daylight/ssv-v1/daylight-ssv.report.json
+WUCI_BACKUP_EVIDENCE ?= build/wuci-backup/backup-evidence.json
+WUCI_BACKUP_ARCHIVE ?= build/wuci-backup/wuci-ji-tracked-source.zip
+WUCI_OS_FINAL_ISO ?= build/wuci-os/final/Wuci-OS-x86_64-musl.iso
+WUCI_OS_FINAL_MANIFEST ?= build/wuci-os/final/manifest.json
+WUCI_OS_VIRTUALBOX_ROOT ?= build/wuci-os/virtualbox
+WUCI_OS_PRIVACY_AUDIT ?= build/wuci-os/privacy-audit.json
+WUCI_OS_RELEASE_EVIDENCE_ROOT ?= build/wuci-os/release-evidence
+WUCI_OS_RELEASE_GATE ?= $(WUCI_OS_RELEASE_EVIDENCE_ROOT)/release-gate.json
+WUCI_OS_RELEASE_CANDIDATE ?= build/wuci-os/release-candidate/Wuci-Ji-v2.2-Aperture-Bastion
+WUCI_OS_RELEASE_CONTINGENCIES ?= build/wuci-os/release-contingencies
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
@@ -144,7 +154,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-external-evidence daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
 .PHONY: daylight-v20-ed25519-attestation-test daylight-v20-canonical-verifier-output daylight-v20-verifier-output-digest daylight-v20-verifier-quorum daylight-v20-verifier-quorum-test
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
-.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
+.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check wuci-backup-evidence wuci-os-privacy-audit wuci-os-privacy-audit-test wuci-os-virtualbox-ova wuci-os-virtualbox-test wuci-os-release-gate wuci-os-release-gate-test wuci-os-release-bundle wuci-os-release-bundle-test wuci-os-release-contingencies wuci-os-release-contingencies-test wuci-os-release-preflight
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
@@ -161,7 +171,7 @@ daylight-npt-test:
 daylight-npt-ci: daylight-npt-test daylight-npt-report
 	@printf '%s\n' "daylight-npt-ci: complete"
 
-daylight-ssv:
+daylight-ssv: daylight-npt daylight-v20-aperture-singularity-capsule-demo wuci-backup-evidence
 	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv audit --out $(DAYLIGHT_SSV_REPORT)
 
 daylight-ssv-report: daylight-ssv
@@ -185,6 +195,42 @@ daylight-score-integrity-audit: daylight-npt
 
 daylight-score-integrity-audit-directory-check:
 	$(PYTHON) tools/daylight_score_integrity_record.py check
+
+wuci-backup-evidence:
+	$(PYTHON) tools/wuci_backup_evidence.py emit --out $(WUCI_BACKUP_EVIDENCE) --archive $(WUCI_BACKUP_ARCHIVE)
+
+wuci-os-privacy-audit:
+	$(PYTHON) tools/wuci_release_privacy_audit.py audit --out $(WUCI_OS_PRIVACY_AUDIT)
+
+wuci-os-privacy-audit-test:
+	$(PYTHON) tests/wuci_release_privacy_audit.py
+
+wuci-os-virtualbox-ova:
+	$(PYTHON) tools/wuci_virtualbox.py build --iso $(WUCI_OS_FINAL_ISO) --out-root $(WUCI_OS_VIRTUALBOX_ROOT) --force
+
+wuci-os-virtualbox-test:
+	$(PYTHON) tests/wuci_virtualbox.py
+
+wuci-os-release-gate:
+	$(PYTHON) tools/wuci_release_gate.py status --manifest $(WUCI_OS_FINAL_MANIFEST) --iso $(WUCI_OS_FINAL_ISO) --evidence-root $(WUCI_OS_RELEASE_EVIDENCE_ROOT) --out $(WUCI_OS_RELEASE_GATE)
+
+wuci-os-release-gate-test:
+	$(PYTHON) tests/wuci_release_gate.py
+
+wuci-os-release-bundle:
+	$(PYTHON) tools/wuci_release_bundle.py build --out $(WUCI_OS_RELEASE_CANDIDATE) --force
+
+wuci-os-release-bundle-test:
+	$(PYTHON) tests/wuci_release_bundle.py
+
+wuci-os-release-contingencies:
+	$(PYTHON) tools/wuci_release_contingencies.py build --out $(WUCI_OS_RELEASE_CONTINGENCIES) --force
+
+wuci-os-release-contingencies-test:
+	$(PYTHON) tests/wuci_release_contingencies.py
+
+wuci-os-release-preflight: daylight-ssv site-validate wuci-os-privacy-audit
+	$(PYTHON) tools/wuci_os.py iso-plan
 
 daylight-cplus-score:
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json --receipt daylight/v14c-plus/examples/reproducibility-receipt.v14c-plus.json --output-ledger daylight/v14c-plus/examples/ledger.with-scorecard.jsonl
@@ -1724,6 +1770,10 @@ ci-zig:
 	$(MAKE) witness-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
 	$(MAKE) zig-release-witness-archive
 	$(MAKE) witness-archive-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
+
+.PHONY: penumbra-test
+penumbra-test:
+	cd penumbra && $(CARGO) test
 
 clean:
 	rm -rf build

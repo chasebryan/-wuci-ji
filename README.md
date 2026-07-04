@@ -335,9 +335,9 @@ proof, not runtime containment, not production cryptography, not production
 identity, not FIPS validation, not external certification, and not whole-system
 post-quantum safety.
 
-## Wuci-Ji v2 — Aperture Bastion (Daylight v19)
+## Wuci-Ji v2.2 — Aperture Bastion (Daylight v19)
 
-Wuci-Ji v2 — Aperture Bastion is the public-review aperture over the
+Wuci-Ji v2.2 — Aperture Bastion is the public-review aperture over the
 Daylight/Wuci-Ji evidence stack. It produces deterministic public review
 capsules, verifies subject and manifest digests, runs a strict public
 artifact firewall, and keeps every claim tied to evidence. It is not
@@ -748,7 +748,7 @@ tar that uses fixed archive metadata and extracts the current Wuci-Ji checkout
 into `/opt/wuci-os/source/wuci-ji` inside the guest. `wuci-update` can update
 system packages and fast-forward or clone a live Wuci-Ji checkout from the repo
 when the embedded source is a deterministic snapshot. The overlay defaults to
-terminal-first XFCE4, kitty with Ghostty/xfce4-terminal/xterm fallbacks,
+terminal-first XFCE4, xfce4-terminal with xterm/Ghostty/kitty fallbacks,
 ratpoison, emacs, vim, Wi-Fi/network firmware tooling, PipeWire/ALSA/Pulse
 audio, Mesa/video helpers, Bluetooth/printing/scanning/portal helpers, an
 SDR/radio software lane for GNU Radio, Gqrx, RTL-SDR, HackRF, Airspy, SoapySDR,

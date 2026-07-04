@@ -241,7 +241,12 @@ make daylight-ssv
 make daylight-ssv-test
 make daylight-ssv-report
 make daylight-ssv-ci
+make wuci-backup-evidence
 ```
+
+`make daylight-ssv` regenerates its local evidence prerequisites before scoring:
+DaylightNPT, the Daylight v20 aperture-singularity capsule, and local
+restore-verified backup evidence.
 
 Exit codes:
 
@@ -270,6 +275,30 @@ private keys, or absolute local paths.
 
 The SSV report is evidence-derived and local. It is not external audit evidence.
 It is not a post-quantum verifier. It is not runtime containment.
+
+Optional local evidence paths:
+
+```text
+build/wuci-backup/backup-evidence.json
+docs/WUCI_LOGGING.md
+```
+
+The backup evidence report is credited only when it records a generated local
+tracked-file archive and a temporary restore verification. The logging document
+is configuration evidence only.
+
+Rootless host evidence:
+
+```text
+sudoers content is scanned only when safely readable
+unreadable, non-world-writable sudoers earns boundary credit without claiming content inspection
+SUID/SGID inventory is bounded to common executable directories and reports counts only
+account and process evidence is summarized as counts only
+```
+
+The SUID/SGID count is inventory evidence, not a claim that every privileged
+file on the host has been reviewed. A separate privileged operational review is
+still required for full path-level host analysis.
 
 ## Non-claim Boundary
 
@@ -309,4 +338,3 @@ The examples in `daylight/ssv/v1/examples/` are fixtures for validating the
 SSV model. They are not public claims about a real host. The illustrative math
 examples in this document are explicitly non-claim examples for the scoring
 model and rounding behavior.
-

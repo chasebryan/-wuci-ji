@@ -1,4 +1,4 @@
-# Wuci-Ji v2 — Aperture Bastion
+# Wuci-Ji v2.2 — Aperture Bastion
 
 Daylight v19. Source: [daylight/v19-aperture-bastion/](../daylight/v19-aperture-bastion/).
 Boundary tables: [APERTURE_BASTION_SECURITY_BOUNDARY.md](APERTURE_BASTION_SECURITY_BOUNDARY.md).
