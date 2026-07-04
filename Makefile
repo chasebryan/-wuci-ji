@@ -155,6 +155,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-ed25519-attestation-test daylight-v20-canonical-verifier-output daylight-v20-verifier-output-digest daylight-v20-verifier-quorum daylight-v20-verifier-quorum-test
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
 .PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check wuci-backup-evidence wuci-os-privacy-audit wuci-os-privacy-audit-test wuci-os-virtualbox-ova wuci-os-virtualbox-test wuci-os-release-gate wuci-os-release-gate-test wuci-os-release-bundle wuci-os-release-bundle-test wuci-os-release-contingencies wuci-os-release-contingencies-test wuci-os-release-preflight
+.PHONY: wuci-angel-gaps wuci-angel-test
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 
 all: check-native $(TARGET)
@@ -195,6 +196,12 @@ daylight-score-integrity-audit: daylight-npt
 
 daylight-score-integrity-audit-directory-check:
 	$(PYTHON) tools/daylight_score_integrity_record.py check
+
+wuci-angel-gaps:
+	$(PYTHON) tools/wuci_angel.py gaps
+
+wuci-angel-test:
+	$(PYTHON) tests/wuci_angel.py
 
 wuci-backup-evidence:
 	$(PYTHON) tools/wuci_backup_evidence.py emit --out $(WUCI_BACKUP_EVIDENCE) --archive $(WUCI_BACKUP_ARCHIVE)
