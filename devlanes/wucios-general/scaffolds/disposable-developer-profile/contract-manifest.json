@@ -1,8 +1,28 @@
 {
   "schema": "wucios-dev-lane-disposable-profile-contract-v1",
+  "schema_version": "1",
   "probe": "foundation-batch-1-contract-manifest",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
   "status": "scaffold_only",
   "profile_behavior": "not_implemented",
+  "foundation_only": true,
+  "dry_run_only": true,
+  "planner_contract": {
+    "planner_mode": "local_dry_run_evidence_only",
+    "planner": "devlanes/wucios-general/tools/plan-disposable-profile-dry-run.sh"
+  },
+  "input_contract": {
+    "schema": "wucios.disposable_profile.plan_input.v1",
+    "validator": "devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh",
+    "valid_minimal_fixture": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/valid-minimal-plan-input.json"
+  },
+  "evidence_contract": {
+    "id": "wucios.disposable_profile.dry_run_evidence.v1",
+    "summary_schema": "wucios-dev-lane-disposable-profile-dry-run-summary-v1",
+    "index_schema": "wucios-dev-lane-disposable-profile-evidence-index-v1",
+    "validator": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh",
+    "expected_files_allowlist": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/expected-dry-run-evidence-files.txt"
+  },
   "scope": {
     "lane": "devlanes/wucios-general",
     "scaffold": "devlanes/wucios-general/scaffolds/disposable-developer-profile",
@@ -62,7 +82,21 @@
     "developer_use_approval",
     "operational_approval"
   ],
+  "forbidden_operations": [
+    "runtime_behavior",
+    "profile_creation",
+    "package_install",
+    "package_manager_execution",
+    "network_enablement",
+    "host_configuration_change",
+    "isolation_enforcement",
+    "credential_handling",
+    "external_review_claim",
+    "production_status_claim"
+  ],
   "validation_requirements": [
+    "contract_manifest_validator_passes",
+    "planner_manifest_binding_validator_passes",
     "probe_3_validator_passes",
     "required_scaffold_files_exist",
     "required_contract_sections_exist",
