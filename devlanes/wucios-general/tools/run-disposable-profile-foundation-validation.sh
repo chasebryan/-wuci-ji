@@ -86,6 +86,7 @@ for index, entry in enumerate(validators, start=1):
         else:
             env = os.environ.copy()
             env["WUCIOS_SKIP_FOUNDATION_VALIDATION_REPORT"] = "1"
+            env["WUCIOS_SKIP_FOUNDATION_REVIEW_PACKET"] = "1"
             completed = subprocess.run(
                 parts,
                 cwd=repo_root,
