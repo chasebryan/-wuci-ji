@@ -3045,6 +3045,11 @@ figcaption {
   clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
 }
 
+.not-found-shell.nsm-aperture::before,
+.not-found-shell.nsm-aperture::after {
+  display: none;
+}
+
 .not-found-shell img {
   position: relative;
   z-index: 1;
