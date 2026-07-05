@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS synthetic smoke buildroom schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "display_name",
+    "phase_id",
+    "purpose",
+    "is_substrate",
+    "is_wucios_artifact",
+    "score_eligible",
+    "allowed_backends",
+    "forbidden_backends",
+    "base_image",
+    "base_image_pull_required",
+    "network_required",
+    "substrate_inputs_required",
+    "container_run_required",
+    "vm_required",
+    "default_authorization",
+    "evidence_outputs",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.synthetic_smoke_buildroom.v1"
+    },
+    "id": {
+      "const": "synthetic-smoke"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3c-a"
+    },
+    "is_substrate": {
+      "const": false
+    },
+    "is_wucios_artifact": {
+      "const": false
+    },
+    "score_eligible": {
+      "const": false
+    },
+    "base_image": {
+      "const": "scratch"
+    }
+  }
+}

@@ -31,6 +31,7 @@ The build feasibility probe phase is [EUCLID_TRIAL_PHASE_2.md](EUCLID_TRIAL_PHAS
 The full-cohort probe expansion is [EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md).
 The controlled build-room definition layer is [EUCLID_TRIAL_PHASE_3A.md](EUCLID_TRIAL_PHASE_3A.md).
 The backend readiness and future authorization matrix is [EUCLID_TRIAL_PHASE_3B_READINESS.md](EUCLID_TRIAL_PHASE_3B_READINESS.md).
+The rootless backend smoke guardrail layer is [EUCLID_TRIAL_PHASE_3C_A.md](EUCLID_TRIAL_PHASE_3C_A.md).
 
 ## Evidence Requirement
 
@@ -52,6 +53,8 @@ make wucios-euclid-trial-phase-2
 make wucios-euclid-trial-phase-2b
 make wucios-euclid-buildrooms-phase-3a
 make wucios-euclid-buildrooms-phase-3b-readiness
+make wucios-euclid-buildrooms-phase-3c-a
+make wucios-euclid-buildrooms-phase-3c-a-guardrails
 ```
 
 ## Controlling Doctrine
@@ -72,3 +75,4 @@ make wucios-euclid-buildrooms-phase-3b-readiness
 14. No document may claim external certification, military approval, government approval, perfect security, unbreakability, or production authority.
 15. Every current claim must point to evidence, a command, a generated report, or a documented non-claim boundary.
 16. The build room is not the substrate; the build room is the measuring chamber.
+17. A Phase 3C-A synthetic smoke image is not a WuciOS artifact, not a substrate artifact, and not score eligible.

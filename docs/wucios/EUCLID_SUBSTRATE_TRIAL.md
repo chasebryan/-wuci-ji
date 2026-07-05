@@ -55,5 +55,10 @@ Phase 3B readiness inspects backend, input, policy, and resource blockers for
 the controlled build rooms without executing them:
 [EUCLID_TRIAL_PHASE_3B_READINESS.md](EUCLID_TRIAL_PHASE_3B_READINESS.md).
 
+Phase 3C-A verifies rootless backend mechanics and buildroom preparation
+guardrails with a synthetic non-substrate smoke image:
+[EUCLID_TRIAL_PHASE_3C_A.md](EUCLID_TRIAL_PHASE_3C_A.md).
+The synthetic smoke image is not a substrate artifact and is not score eligible.
+
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.

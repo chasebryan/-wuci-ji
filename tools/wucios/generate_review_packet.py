@@ -48,6 +48,11 @@ REQUIRED_OUTPUTS = [
     "daylight-wucios-score.md",
 ]
 
+OPTIONAL_OUTPUTS = [
+    "euclid-trial-phase-3c-a.md",
+    "euclid-trial-phase-3c-a.json",
+]
+
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -150,6 +155,13 @@ def load_generated_summary() -> dict[str, str]:
     euclid_phase_3b_future_authorization = "NOT_RUN"
     euclid_phase_3b_score_status = "NOT_RUN"
     euclid_phase_3b_boundaries = "NOT_RUN"
+    euclid_phase_3c_a_status = "NOT_RUN"
+    euclid_phase_3c_a_execution = "NOT_RUN"
+    euclid_phase_3c_a_backend_summary = "NOT_RUN"
+    euclid_phase_3c_a_l2_synthetic_smoke = "NOT_RUN"
+    euclid_phase_3c_a_guardrails = "NOT_RUN"
+    euclid_phase_3c_a_boundaries = "NOT_RUN"
+    euclid_phase_3c_a_score_status = "NOT_RUN"
     score_status = "NO_ARTIFACT_SCORE"
     score_artifact_sha256 = "NOT_MEASURED"
 
@@ -283,6 +295,47 @@ def load_generated_summary() -> dict[str, str]:
         except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
             euclid_phase_3b_status = "NOT_MEASURED"
 
+    euclid_phase_3c_a = REVIEW_DIR / "euclid-trial-phase-3c-a.json"
+    if euclid_phase_3c_a.is_file():
+        try:
+            data = load_json(euclid_phase_3c_a)
+            euclid_phase_3c_a_status = str(data.get("global_status", euclid_phase_3c_a_status))
+            euclid_phase_3c_a_execution = str(data.get("execution_mode", euclid_phase_3c_a_execution))
+            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            euclid_phase_3c_a_score_status = str(data.get("score_status", euclid_phase_3c_a_score_status))
+            l1 = data.get("l1_backend_detection", {})
+            l1_summary = l1.get("summary", {}) if isinstance(l1, dict) else {}
+            euclid_phase_3c_a_backend_summary = ", ".join(
+                f"{key}:{value}" for key, value in sorted(l1_summary.items())
+            ) or "NOT_MEASURED"
+            l2 = data.get("l2_synthetic_smoke", {})
+            if isinstance(l2, dict):
+                euclid_phase_3c_a_l2_synthetic_smoke = ", ".join(
+                    f"{name}:{l2.get(name, {}).get('status', 'NOT_ATTEMPTED')}"
+                    for name in ["podman", "buildah"]
+                    if isinstance(l2.get(name, {}), dict)
+                ) or "NOT_ATTEMPTED"
+            guardrails = data.get("guardrails", [])
+            if isinstance(guardrails, list):
+                euclid_phase_3c_a_guardrails = ", ".join(
+                    str(item.get("status", "UNKNOWN")) for item in guardrails if isinstance(item, dict)
+                ) or "NO_GUARDRAIL_FAILURE_RECORDED"
+            euclid_phase_3c_a_boundaries = ", ".join(
+                f"{name}:{str(data.get(name, 'NOT_MEASURED')).lower()}"
+                for name in [
+                    "wucios_artifact_generated",
+                    "substrate_artifact_attempt_made",
+                    "runtime_inspection_attempted",
+                    "container_pull_attempted",
+                    "container_run_attempted",
+                    "vm_run_attempted",
+                    "network_used",
+                ]
+            )
+            score_status = str(data.get("score_status", score_status))
+        except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
+            euclid_phase_3c_a_status = "NOT_MEASURED"
+
     score_json = REVIEW_DIR / "daylight-wucios-score.json"
     if score_json.is_file():
         try:
@@ -323,6 +376,13 @@ def load_generated_summary() -> dict[str, str]:
         "euclid_phase_3b_future_authorization": euclid_phase_3b_future_authorization,
         "euclid_phase_3b_score_status": euclid_phase_3b_score_status,
         "euclid_phase_3b_boundaries": euclid_phase_3b_boundaries,
+        "euclid_phase_3c_a_status": euclid_phase_3c_a_status,
+        "euclid_phase_3c_a_execution": euclid_phase_3c_a_execution,
+        "euclid_phase_3c_a_backend_summary": euclid_phase_3c_a_backend_summary,
+        "euclid_phase_3c_a_l2_synthetic_smoke": euclid_phase_3c_a_l2_synthetic_smoke,
+        "euclid_phase_3c_a_guardrails": euclid_phase_3c_a_guardrails,
+        "euclid_phase_3c_a_score_status": euclid_phase_3c_a_score_status,
+        "euclid_phase_3c_a_boundaries": euclid_phase_3c_a_boundaries,
         "score_status": score_status,
         "score_artifact_sha256": score_artifact_sha256,
     }
@@ -360,7 +420,7 @@ def write_packet(prereq_notes: list[str]) -> dict[str, Any]:
     else:
         (REVIEW_DIR / "godel-boundary.md").write_text("NOT_MEASURED: GODEL_BOUNDARY.md missing\n", encoding="utf-8")
 
-    outputs = {name: (REVIEW_DIR / name).is_file() for name in REQUIRED_OUTPUTS}
+    outputs = {name: (REVIEW_DIR / name).is_file() for name in [*REQUIRED_OUTPUTS, *OPTIONAL_OUTPUTS]}
     packet = {
         "schema": "wucios.review_packet.v1",
         "review_status": status,
@@ -415,8 +475,16 @@ def write_packet(prereq_notes: list[str]) -> dict[str, Any]:
         f"- Euclid Trial Phase 3B Readiness future authorization levels: `{generated_summary['euclid_phase_3b_future_authorization']}`",
         f"- Euclid Trial Phase 3B Readiness score status: `{generated_summary['euclid_phase_3b_score_status']}`",
         f"- Euclid Trial Phase 3B Readiness boundary booleans: `{generated_summary['euclid_phase_3b_boundaries']}`",
+        f"- Euclid Trial Phase 3C-A: `{generated_summary['euclid_phase_3c_a_status']}`",
+        f"- Euclid Trial Phase 3C-A execution mode: `{generated_summary['euclid_phase_3c_a_execution']}`",
+        f"- Euclid Trial Phase 3C-A backend summary: `{generated_summary['euclid_phase_3c_a_backend_summary']}`",
+        f"- Euclid Trial Phase 3C-A L2 synthetic smoke: `{generated_summary['euclid_phase_3c_a_l2_synthetic_smoke']}`",
+        f"- Euclid Trial Phase 3C-A guardrails: `{generated_summary['euclid_phase_3c_a_guardrails']}`",
+        f"- Euclid Trial Phase 3C-A score status: `{generated_summary['euclid_phase_3c_a_score_status']}`",
+        f"- Euclid Trial Phase 3C-A boundary booleans: `{generated_summary['euclid_phase_3c_a_boundaries']}`",
         f"- Score status: `{generated_summary['score_status']}`",
         f"- Score artifact SHA-256: `{generated_summary['score_artifact_sha256']}`",
+        "- Phase 3C-A note: No WuciOS artifact generated. No substrate artifact attempted. No numeric WuciOS score generated.",
         "",
         "## Profiles",
         "",

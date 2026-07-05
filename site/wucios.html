@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="application-name" content="Wuci-Ji">
-    <meta name="description" content="WuciOS v2.4 Reduction Gate: Noether Core, Birkhoff Bastion, Tarski Review Appliance, Euclid Substrate Trial, Phase 3B readiness, and Gödel Boundary.">
+    <meta name="description" content="WuciOS v2.4 Reduction Gate: Noether Core, Birkhoff Bastion, Tarski Review Appliance, Euclid Substrate Trial, Phase 3C-A backend smoke guardrails, and Gödel Boundary.">
     <meta name="robots" content="index, follow">
     <meta name="color-scheme" content="dark">
     <link rel="canonical" href="https://nosuchmachine.net/wucios.html">
@@ -109,6 +109,11 @@
             blockers for those build rooms. It authorizes only L0 readiness
             checks by default and does not execute build rooms.
           </p>
+          <p>
+            Phase 3C-A verifies rootless backend smoke mechanics with a
+            synthetic non-substrate image. The smoke image is not a WuciOS
+            artifact, not a substrate artifact, and not score eligible.
+          </p>
         </div>
         <div class="aperture-panel">
           <dl class="verification-list">
@@ -143,6 +148,10 @@
             <div>
               <dt>Phase 3B readiness</dt>
               <dd><code>PHASE_3B_READINESS_COMPLETE</code> when readiness reports validate</dd>
+            </div>
+            <div>
+              <dt>Phase 3C-A</dt>
+              <dd><code>PHASE_3C_A_L1_COMPLETE</code> by default; L2 smoke requires explicit authorization</dd>
             </div>
           </dl>
         </div>
@@ -204,6 +213,10 @@
           <article class="command-card">
             <div class="command-card-head"><h3>Readiness</h3></div>
             <pre><code>make wucios-euclid-buildrooms-phase-3b-readiness</code></pre>
+          </article>
+          <article class="command-card">
+            <div class="command-card-head"><h3>Backend smoke</h3></div>
+            <pre><code>make wucios-euclid-buildrooms-phase-3c-a</code></pre>
           </article>
           <article class="command-card">
             <div class="command-card-head"><h3>Review packet</h3></div>

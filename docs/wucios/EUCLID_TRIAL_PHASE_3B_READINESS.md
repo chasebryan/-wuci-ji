@@ -72,3 +72,10 @@ make wucios-euclid-buildrooms-phase-3b-readiness-json
 make buildroom-remediation-plan
 make test-authorization-matrix
 ```
+
+## Phase 3C-A Boundary
+
+Phase 3C-A is the next controlled layer after Phase 3B readiness. It authorizes L1 backend detection by default and allows L2 synthetic non-substrate smoke only with explicit `WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1` authorization:
+[EUCLID_TRIAL_PHASE_3C_A.md](EUCLID_TRIAL_PHASE_3C_A.md).
+
+Phase 3C-A does not authorize L3 substrate artifact attempts, L4 runtime inspection, substrate selection, candidate ranking, or numeric WuciOS scoring.

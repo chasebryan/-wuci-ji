@@ -1,0 +1,40 @@
+{
+  "schema": "wucios.euclid.synthetic_smoke_buildroom.v1",
+  "id": "synthetic-smoke",
+  "display_name": "Synthetic Smoke Buildroom",
+  "phase_id": "euclid-trial-phase-3c-a",
+  "purpose": "Non-substrate backend smoke image for testing controlled buildroom preparation mechanics.",
+  "is_substrate": false,
+  "is_wucios_artifact": false,
+  "score_eligible": false,
+  "allowed_backends": [
+    "podman",
+    "buildah"
+  ],
+  "forbidden_backends": [
+    "docker"
+  ],
+  "base_image": "scratch",
+  "base_image_pull_required": false,
+  "network_required": false,
+  "substrate_inputs_required": false,
+  "container_run_required": false,
+  "vm_required": false,
+  "default_authorization": "NOT_AUTHORIZED_WITHOUT_WUCIOS_PHASE3CA_ALLOW_L2_SMOKE",
+  "evidence_outputs": [
+    "status.json",
+    "backend-smoke.json",
+    "synthetic-context-manifest.json",
+    "synthetic-image-inspect.json",
+    "synthetic-image-iid.txt",
+    "synthetic-image-archive.sha256",
+    "build-log.txt",
+    "cleanup-log.txt"
+  ],
+  "notes": [
+    "This smoke image is not a WuciOS artifact.",
+    "This smoke image is not a substrate artifact.",
+    "This smoke image must not be scored.",
+    "This smoke image tests only backend mechanics and evidence capture."
+  ]
+}

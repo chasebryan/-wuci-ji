@@ -22,6 +22,8 @@ Current status:
 - Phase 2B expands safe build feasibility probes to Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference
 - Phase 3A defines controlled build rooms and backend readiness without executing builds
 - Phase 3B readiness reports backend, input, policy, and resource blockers without executing build rooms
+- Phase 3C-A verifies rootless backend smoke guardrails with a synthetic non-substrate image
+- Phase 3C-A does not select a substrate, rank candidates, or generate a numeric WuciOS score
 - missing measurements are NOT_MEASURED
 
 Validation handles:
@@ -31,6 +33,7 @@ Validation handles:
 - make wucios-substrate-matrix
 - make wucios-euclid-buildrooms-phase-3a
 - make wucios-euclid-buildrooms-phase-3b-readiness
+- make wucios-euclid-buildrooms-phase-3c-a
 - make wucios-review
 - make site-validate
 

@@ -53,3 +53,9 @@ Phase 3A does not make the review packet release-complete. Without a current Wuc
 If `build/wucios/review/euclid-trial-phase-3b-readiness.json` exists, the review packet summarizes Phase 3B readiness global status, execution mode, backend summary, candidate readiness statuses, future authorization levels, score status, and build/container/VM boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3B Readiness: NOT_RUN`.
 
 Phase 3B readiness does not make the review packet release-complete. It does not authorize execution, select a substrate, rank candidates, or create an artifact score.
+
+## Phase 3C-A Review Status
+
+If `build/wucios/review/euclid-trial-phase-3c-a.json` exists, the review packet summarizes Phase 3C-A global status, execution mode, backend summary, L2 synthetic smoke status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-A: NOT_RUN`.
+
+Phase 3C-A does not make the review packet release-complete. The synthetic smoke image is not a WuciOS artifact, not a substrate artifact, and not score eligible.

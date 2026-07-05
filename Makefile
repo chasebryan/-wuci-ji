@@ -149,6 +149,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
 .PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2b wucios-euclid-trial-phase-2b-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal wucios-euclid-probe-void wucios-euclid-probe-nixos wucios-euclid-probe-guix wucios-euclid-probe-yocto wucios-euclid-probe-openbsd-reference wucios-euclid-buildrooms-phase-3a wucios-euclid-buildrooms-phase-3a-json wucios-buildroom-probe-buildroot wucios-buildroom-probe-alpine wucios-buildroom-probe-debian-minimal wucios-buildroom-probe-void wucios-buildroom-probe-nixos wucios-buildroom-probe-guix wucios-buildroom-probe-yocto wucios-buildroom-probe-openbsd-reference euclid-phase-2 euclid-phase-3a euclid-build-probes buildroom-readiness wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
 .PHONY: wucios-euclid-buildrooms-phase-3b-readiness wucios-euclid-buildrooms-phase-3b-readiness-json wucios-buildroom-readiness-buildroot wucios-buildroom-readiness-alpine wucios-buildroom-readiness-debian-minimal wucios-buildroom-readiness-void wucios-buildroom-readiness-nixos wucios-buildroom-readiness-guix wucios-buildroom-readiness-yocto wucios-buildroom-readiness-openbsd-reference euclid-phase-3b-readiness buildroom-remediation-plan test-authorization-matrix
+.PHONY: wucios-euclid-buildrooms-phase-3c-a wucios-euclid-buildrooms-phase-3c-a-json wucios-euclid-buildrooms-phase-3c-a-smoke wucios-euclid-buildrooms-phase-3c-a-smoke-json wucios-euclid-buildrooms-phase-3c-a-guardrails euclid-phase-3c-a buildroom-smoke-l1 buildroom-smoke-l2 buildroom-smoke-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
 
 all: check-native $(TARGET)
@@ -180,6 +181,16 @@ help:
 	@printf '%s\n' "                                Run Phase 3B readiness diagnostics"
 	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3b-readiness-json"
 	@printf '%s\n' "                                Run Phase 3B readiness diagnostics and print JSON"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3c-a"
+	@printf '%s\n' "                                Run Phase 3C-A L1 backend smoke detection"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3c-a-json"
+	@printf '%s\n' "                                Run Phase 3C-A L1 detection and print JSON"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3c-a-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-A negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 make wucios-euclid-buildrooms-phase-3c-a-smoke"
+	@printf '%s\n' "                                Run authorized synthetic non-substrate L2 smoke"
+	@printf '%s\n' "  WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 make wucios-euclid-buildrooms-phase-3c-a-smoke-json"
+	@printf '%s\n' "                                Run authorized synthetic non-substrate L2 smoke and print JSON"
 	@printf '%s\n' "  make buildroom-remediation-plan"
 	@printf '%s\n' "                                Alias for Phase 3B readiness diagnostics"
 	@printf '%s\n' "  make test-authorization-matrix"
@@ -716,6 +727,23 @@ wucios-euclid-buildrooms-phase-3b-readiness:
 wucios-euclid-buildrooms-phase-3b-readiness-json:
 	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --json
 
+wucios-euclid-buildrooms-phase-3c-a:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py
+
+wucios-euclid-buildrooms-phase-3c-a-json:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --json
+
+wucios-euclid-buildrooms-phase-3c-a-smoke:
+	@if [ "$${WUCIOS_PHASE3CA_ALLOW_L2_SMOKE:-}" != "1" ]; then printf '%s\n' "Phase 3C-A L2 synthetic smoke is not authorized. Set WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 to run the synthetic non-substrate backend smoke test."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --l2-smoke
+
+wucios-euclid-buildrooms-phase-3c-a-smoke-json:
+	@if [ "$${WUCIOS_PHASE3CA_ALLOW_L2_SMOKE:-}" != "1" ]; then printf '%s\n' "Phase 3C-A L2 synthetic smoke is not authorized. Set WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 to run the synthetic non-substrate backend smoke test."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --l2-smoke --json
+
+wucios-euclid-buildrooms-phase-3c-a-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --guardrails
+
 wucios-euclid-trial-phase-2-attempt:
 	@if [ "$${WUCIOS_EUCLID_ALLOW_ATTEMPT:-}" != "1" ]; then printf '%s\n' "Refusing Phase 2 build attempts: set WUCIOS_EUCLID_ALLOW_ATTEMPT=1 explicitly."; exit 1; fi
 	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --attempt-builds --allow-network
@@ -810,6 +838,7 @@ wucios-idempotence-check:
 	@$(MAKE) wucios-euclid-trial-phase-2b
 	@$(MAKE) wucios-euclid-buildrooms-phase-3a
 	@$(MAKE) wucios-euclid-buildrooms-phase-3b-readiness
+	@$(MAKE) wucios-euclid-buildrooms-phase-3c-a
 	@$(MAKE) wucios-review
 	@if ! git diff --exit-code; then printf '%s\n' "WuciOS idempotence check failed: safe validation modified tracked files."; exit 1; fi
 
@@ -827,6 +856,8 @@ euclid-phase-3a: wucios-euclid-buildrooms-phase-3a
 
 euclid-phase-3b-readiness: wucios-euclid-buildrooms-phase-3b-readiness
 
+euclid-phase-3c-a: wucios-euclid-buildrooms-phase-3c-a
+
 euclid-build-probes: wucios-euclid-trial-phase-2
 
 buildroom-readiness: wucios-euclid-buildrooms-phase-3a
@@ -834,6 +865,12 @@ buildroom-readiness: wucios-euclid-buildrooms-phase-3a
 buildroom-remediation-plan: wucios-euclid-buildrooms-phase-3b-readiness
 
 test-authorization-matrix: wucios-euclid-buildrooms-phase-3b-readiness
+
+buildroom-smoke-l1: wucios-euclid-buildrooms-phase-3c-a
+
+buildroom-smoke-l2: wucios-euclid-buildrooms-phase-3c-a-smoke
+
+buildroom-smoke-guardrails: wucios-euclid-buildrooms-phase-3c-a-guardrails
 
 tarski-review: wucios-review
 

@@ -38,8 +38,10 @@ REQUIRED_TOOLS = [
     "run_euclid_trial_phase_2.py",
     "run_euclid_buildrooms_phase_3a.py",
     "run_euclid_buildrooms_phase_3b_readiness.py",
+    "run_euclid_buildrooms_phase_3c_a.py",
     "buildroom_common.py",
     "backend_readiness_common.py",
+    "synthetic_smoke_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -125,6 +127,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_2B.md",
     "EUCLID_TRIAL_PHASE_3A.md",
     "EUCLID_TRIAL_PHASE_3B_READINESS.md",
+    "EUCLID_TRIAL_PHASE_3C_A.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -257,6 +260,55 @@ PHASE_3B_PLAN_KEYS = {
     "cohort",
     "objectives",
     "explicit_non_goals",
+}
+
+PHASE_3C_A_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "l1_authorized_by_default",
+    "l2_synthetic_smoke_authorized_by_default",
+    "l2_synthetic_smoke_authorization_env",
+    "substrate_selection",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "network_default",
+    "image_pulls_allowed",
+    "substrate_artifact_attempts_allowed",
+    "runtime_inspection_allowed",
+    "container_runs_allowed",
+    "vm_runs_allowed",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "host_mutation_allowed",
+    "allowed_l1_actions",
+    "allowed_l2_actions",
+    "forbidden_actions",
+    "objectives",
+}
+
+SYNTHETIC_SMOKE_BUILDROOM_KEYS = {
+    "schema",
+    "id",
+    "display_name",
+    "phase_id",
+    "purpose",
+    "is_substrate",
+    "is_wucios_artifact",
+    "score_eligible",
+    "allowed_backends",
+    "forbidden_backends",
+    "base_image",
+    "base_image_pull_required",
+    "network_required",
+    "substrate_inputs_required",
+    "container_run_required",
+    "vm_required",
+    "default_authorization",
+    "evidence_outputs",
+    "notes",
 }
 
 BUILDROOM_KEYS = {
@@ -767,6 +819,104 @@ def validate_euclid_buildrooms_phase_3b_readiness(failures: list[str], warnings:
             warnings.append("Phase 3B readiness remediation policy records human approval boundary")
 
 
+def validate_euclid_buildrooms_phase_3c_a(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3C_A.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3C-A doc: docs/wucios/EUCLID_TRIAL_PHASE_3C_A.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms"
+    required_paths = [
+        buildrooms_dir / "euclid-buildrooms-phase-3c-a.json",
+        buildrooms_dir / "synthetic-smoke/synthetic-smoke-buildroom.json",
+        buildrooms_dir / "synthetic-smoke/Containerfile.template",
+        buildrooms_dir / "synthetic-smoke/README.md",
+        ROOT / "wucios/schemas/euclid-buildrooms-phase-3c-a.schema.json",
+        ROOT / "wucios/schemas/synthetic-smoke-buildroom.schema.json",
+        ROOT / "tools/wucios/run_euclid_buildrooms_phase_3c_a.py",
+        ROOT / "tools/wucios/synthetic_smoke_common.py",
+    ]
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3C-A file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-buildrooms-phase-3c-a.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3C_A_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3c-a":
+            failures.append("Phase 3C-A plan must use phase_id euclid-trial-phase-3c-a")
+        if plan.get("default_execution_mode") != "L1_SAFE_BACKEND_DETECTION":
+            failures.append("Phase 3C-A plan must default to L1_SAFE_BACKEND_DETECTION")
+        if plan.get("l2_synthetic_smoke_authorized_by_default") is not False:
+            failures.append("Phase 3C-A plan must disable L2 synthetic smoke by default")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3C-A plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "image_pulls_allowed",
+            "substrate_artifact_attempts_allowed",
+            "runtime_inspection_allowed",
+            "container_runs_allowed",
+            "vm_runs_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3C-A plan must set {key} false")
+        forbidden = "\n".join(str(item) for item in plan.get("forbidden_actions", []))
+        for phrase in [
+            "substrate artifact attempt",
+            "runtime inspection",
+            "image pull",
+            "podman run",
+            "buildah run",
+            "docker run",
+            "VM launch",
+            "sudo",
+            "package installation",
+            "numeric WuciOS score",
+        ]:
+            if phrase not in forbidden:
+                failures.append(f"Phase 3C-A plan must forbid {phrase}")
+
+    buildroom_path = buildrooms_dir / "synthetic-smoke/synthetic-smoke-buildroom.json"
+    buildroom = load_json(buildroom_path, failures)
+    if isinstance(buildroom, dict):
+        require_keys(buildroom_path, buildroom, SYNTHETIC_SMOKE_BUILDROOM_KEYS, failures)
+        if buildroom.get("phase_id") != "euclid-trial-phase-3c-a":
+            failures.append("synthetic smoke buildroom must use Phase 3C-A phase_id")
+        for key in ["is_substrate", "is_wucios_artifact", "score_eligible"]:
+            if buildroom.get(key) is not False:
+                failures.append(f"synthetic smoke buildroom must set {key} false")
+        if buildroom.get("base_image") != "scratch":
+            failures.append("synthetic smoke buildroom must use scratch base")
+        if "docker" not in buildroom.get("forbidden_backends", []):
+            failures.append("synthetic smoke buildroom must forbid Docker")
+
+    template_path = buildrooms_dir / "synthetic-smoke/Containerfile.template"
+    if template_path.is_file():
+        template = template_path.read_text(encoding="utf-8")
+        instructions = [line.strip() for line in template.splitlines() if line.strip() and not line.strip().startswith("#")]
+        if [line for line in instructions if line.upper().startswith("FROM ")] != ["FROM scratch"]:
+            failures.append("synthetic smoke Containerfile.template must use FROM scratch")
+        for line in instructions:
+            if line.upper().startswith("RUN "):
+                failures.append("synthetic smoke Containerfile.template must not contain RUN")
+            if line.upper().startswith("ADD "):
+                failures.append("synthetic smoke Containerfile.template must not contain ADD")
+        if "http://" in template.lower() or "https://" in template.lower():
+            failures.append("synthetic smoke Containerfile.template must not contain remote URLs")
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if "wucios-euclid-buildrooms-phase-3c-a-smoke:" not in makefile:
+        failures.append("Makefile must contain Phase 3C-A guarded smoke target")
+    if "WUCIOS_PHASE3CA_ALLOW_L2_SMOKE" not in makefile:
+        failures.append("Makefile Phase 3C-A smoke target must check WUCIOS_PHASE3CA_ALLOW_L2_SMOKE")
+    if "wucios-euclid-buildrooms-phase-3c-a-guardrails" not in makefile:
+        failures.append("Makefile must contain Phase 3C-A guardrail target")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -785,6 +935,7 @@ def main() -> int:
     validate_euclid_trial_phase_2(failures, warnings)
     validate_euclid_buildrooms_phase_3a(failures, warnings)
     validate_euclid_buildrooms_phase_3b_readiness(failures, warnings)
+    validate_euclid_buildrooms_phase_3c_a(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -813,6 +964,7 @@ def main() -> int:
     print(f"- Euclid Phase 2 candidates: {len(FULL_TRIAL_COHORT)}")
     print(f"- Euclid Phase 3A build rooms: {len(FULL_TRIAL_COHORT)}")
     print(f"- Euclid Phase 3B readiness candidates: {len(FULL_TRIAL_COHORT)}")
+    print("- Euclid Phase 3C-A synthetic smoke buildroom: present")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS Euclid Phase 3C-A report schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "phase_name",
+    "global_status",
+    "execution_mode",
+    "substrate_selection",
+    "ranking_allowed",
+    "numeric_wucios_score_generated",
+    "score_status",
+    "wucios_artifact_generated",
+    "substrate_artifact_attempt_made",
+    "runtime_inspection_attempted",
+    "container_pull_attempted",
+    "container_run_attempted",
+    "vm_run_attempted",
+    "sudo_used",
+    "package_installation_attempted",
+    "source_clone_attempted",
+    "image_download_attempted",
+    "network_used",
+    "l1_backend_detection",
+    "l2_synthetic_smoke",
+    "synthetic_outputs",
+    "guardrails",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.phase3c_a.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3c-a"
+    },
+    "global_status": {
+      "enum": [
+        "PHASE_3C_A_NOT_RUN",
+        "PHASE_3C_A_L1_COMPLETE",
+        "PHASE_3C_A_L2_SMOKE_COMPLETE",
+        "PHASE_3C_A_PARTIAL",
+        "PHASE_3C_A_BLOCKED"
+      ]
+    },
+    "substrate_selection": {
+      "const": "NO_SUBSTRATE_SELECTED"
+    },
+    "score_status": {
+      "const": "NO_ARTIFACT_SCORE"
+    }
+  }
+}
