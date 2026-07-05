@@ -6,11 +6,11 @@ evidence or expand runtime claims.
 
 ## Current Authority
 
-- Latest completed gate: `RUNTIME_GATE_14_REVIEW_PACKET_FREEZE_DECISION_PUSHED`
+- Latest completed gate: `RUNTIME_GATE_15_BRANCH_CLOSEOUT_AND_MERGE_READINESS_DECISION_PUSHED`
 - Branch: `wucios-v24-reduction-gate`
-- HEAD at Gate 14 freeze decision: `96fb1c1c8f55bf5e61a66e391280ede3f50cf364`
+- HEAD at Gate 15 branch closeout decision start: `c79fdc8c3b8e2860c278f0eb71c49648b4883868`
 - Remote: `origin/wucios-v24-reduction-gate`
-- Pushed remote status at Gate 14 validation start: synced with HEAD
+- Pushed remote status at Gate 15 validation start: synced with HEAD
 - WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0
 - Canonical artifact SHA-256:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
@@ -35,6 +35,10 @@ Gate 11 aligned the public reviewer packet with the Gate 10 preservation status.
 Gate 14 freezes the current public reviewer packet as the WuciOS v2.4 Alpine
 runtime-validation status surface.
 
+Gate 15 records the branch closeout and merge-readiness decision. It selects
+`READY_FOR_PR_OR_MERGE_CONSIDERATION` for documentation/status review only and
+does not authorize a merge.
+
 Raw runtime evidence remains local/ignored unless separately authorized.
 
 ## Explicit Non-Claims
@@ -53,7 +57,7 @@ WuciOS v2.4 does not claim:
 - complete network security
 - broad runtime safety
 
-## Freeze Decision
+## Review Packet Freeze
 
 `RUNTIME_GATE_14_REVIEW_PACKET_FREEZE_DECISION_PUSHED`
 
@@ -63,9 +67,19 @@ operator decision for the next bounded gate. No runtime testing, score change,
 raw evidence commit, artifact mutation, branch change, merge, rebase, or runtime
 claim expansion is implied by the freeze.
 
+## Branch Closeout Decision
+
+`READY_FOR_PR_OR_MERGE_CONSIDERATION`
+
+The `wucios-v24-reduction-gate` branch is clean, pushed, frozen, and suitable to
+present for PR or merge consideration from a reviewer/status documentation
+perspective. This is not authorization to merge. No merge, rebase, force-push,
+runtime testing, score change, raw evidence commit, artifact mutation, branch
+change, or runtime claim expansion is implied.
+
 ## Last Validation
 
-- Validation timestamp: `2026-07-05T14:40:09Z`
-- Validation source: Gate 14 command transcript
+- Validation timestamp: `2026-07-05T14:57:02Z`
+- Validation source: Gate 15 command transcript
 - Artifact hash rechecked:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
