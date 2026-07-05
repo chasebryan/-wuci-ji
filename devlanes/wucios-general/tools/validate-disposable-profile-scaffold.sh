@@ -14,6 +14,8 @@ MANIFEST_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-contract-manifest.sh
 PLANNER_MANIFEST_BINDING_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-planner-manifest-binding.sh"
 PLAN_VOCABULARY_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-plan-vocabulary.sh"
 PLANNER_OUTPUT_VOCABULARY_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-planner-output-vocabulary.sh"
+TRACEABILITY_MATRIX_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-traceability-matrix.sh"
+FOUNDATION_REGISTRY_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-registry.sh"
 failures=0
 
 pass() {
@@ -73,6 +75,8 @@ check_file "$MANIFEST_VALIDATOR" "contract manifest validator"
 check_file "$PLANNER_MANIFEST_BINDING_VALIDATOR" "planner-manifest binding validator"
 check_file "$PLAN_VOCABULARY_VALIDATOR" "plan vocabulary validator"
 check_file "$PLANNER_OUTPUT_VOCABULARY_VALIDATOR" "planner output vocabulary validator"
+check_file "$TRACEABILITY_MATRIX_VALIDATOR" "traceability matrix validator"
+check_file "$FOUNDATION_REGISTRY_VALIDATOR" "foundation validation registry validator"
 
 check_text "$README" "README identifies Probe 4 scaffold-only scope" "Probe 4 is scaffold-only."
 check_text "$README" "README reserves later structure" "reserves structure for a later"
@@ -157,6 +161,22 @@ if [ -f "$PLANNER_OUTPUT_VOCABULARY_VALIDATOR" ]; then
 		pass "planner output vocabulary validator passes"
 	else
 		fail "planner output vocabulary validator failed"
+	fi
+fi
+
+if [ -f "$TRACEABILITY_MATRIX_VALIDATOR" ]; then
+	if sh "$TRACEABILITY_MATRIX_VALIDATOR"; then
+		pass "traceability matrix validator passes"
+	else
+		fail "traceability matrix validator failed"
+	fi
+fi
+
+if [ -f "$FOUNDATION_REGISTRY_VALIDATOR" ]; then
+	if sh "$FOUNDATION_REGISTRY_VALIDATOR"; then
+		pass "foundation validation registry validator passes"
+	else
+		fail "foundation validation registry validator failed"
 	fi
 fi
 
