@@ -51,6 +51,19 @@ discovery files, CodeMeta JSON-LD, hosted TLS requirements, claim/evidence
 mapping, status JSON, and official image assets are live. It is a hosted
 deployment gate, not a proof of host cleanliness or runtime containment.
 
+## ZP-1 / Wuci-Ji Coupling
+
+```sh
+make zp1-upstream-test
+make zp1-wuciji-bridge-test
+make zp1-wuciji-coupling-test
+```
+
+This lane checks a pinned ZP-1 reference implementation and a test-utils-only
+Wuci-Ji AAD binding bridge. It is not production cryptography, not
+post-quantum security, not external validation, not runtime containment, not
+production authority, and not a WuciOS score increase.
+
 ## Number Precision Gate
 
 ```sh
