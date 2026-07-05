@@ -6,11 +6,16 @@ evidence or expand runtime claims.
 
 ## Current Authority
 
-- Latest completed gate: `RUNTIME_GATE_16_PR_MERGE_CONSIDERATION_PACKET_PUSHED`
-- Branch: `wucios-v24-reduction-gate`
-- HEAD at Gate 16 PR/merge packet start: `6fe9b4aecc0f4a04bcf8d37ea9f18c64298ccb58`
-- Remote: `origin/wucios-v24-reduction-gate`
-- Pushed remote status at Gate 16 validation start: synced with HEAD
+- Latest completed gate: `RUNTIME_GATE_20_POST_MAIN_ADOPTION_STABILIZATION_COMPLETE`
+- Stabilization branch: `wucios-v24-post-main-adoption-stabilization`
+- Mainline baseline: `main`
+- Mainline HEAD at Gate 20 branch point:
+  `fb0274eac765e4e97e6738f0579bff523b9689c0`
+- Remote: `origin/main`
+- Pushed remote status at Gate 20 validation start: synced with mainline HEAD
+- Integrated source branch: `wucios-v24-reduction-gate`
+- Integrated source HEAD:
+  `ab0a2d0576eb5bf01fa277f919696dcbe2f4d9e8`
 - WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0
 - Canonical artifact SHA-256:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
@@ -20,6 +25,7 @@ evidence or expand runtime claims.
 - `docs/wucios/v2.4/runtime-validation-status.md`
 - `docs/wucios/v2.4/gate-status-ledger.md`
 - `docs/wucios/v2.4/pr-merge-consideration-packet.md`
+- `docs/wucios/v2.4/post-main-adoption-stabilization.md`
 - `docs/wucios/WUCIOS_V24_REDUCTION_GATE.md`
 - `README.md`
 
@@ -44,6 +50,16 @@ Gate 16 preparation note: PR/merge consideration packet prepared at
 `docs/wucios/v2.4/pr-merge-consideration-packet.md`. This packet is
 reviewer/status-documentation readiness only and does not expand runtime,
 production, or external-validation claims.
+
+Gate 19 adopted the WuciOS v2.4 reviewer/status-documentation baseline on
+`main` using a controlled no-ff merge commit with manual conflict resolution.
+Main is now the WuciOS v2.4 reviewer/status-documentation baseline. This does
+not expand runtime, production, deployment, or external-validation claims.
+
+Gate 20 records the post-main adoption stabilization pass in
+`docs/wucios/v2.4/post-main-adoption-stabilization.md`. It verifies
+reviewer/status consistency only and performs no runtime testing, score change,
+artifact mutation, or raw runtime evidence commit.
 
 Raw runtime evidence remains local/ignored unless separately authorized.
 
@@ -83,9 +99,24 @@ perspective. This is not authorization to merge. No merge, rebase, force-push,
 runtime testing, score change, raw evidence commit, artifact mutation, branch
 change, or runtime claim expansion is implied.
 
+## Mainline Adoption
+
+`RUNTIME_GATE_19_CONFLICT_RESOLVED_MAINLINE_INTEGRATION_PUSHED`
+
+Main adopted the WuciOS v2.4 reviewer/status-documentation baseline at
+`fb0274eac765e4e97e6738f0579bff523b9689c0`. Future WuciOS work should branch
+from updated `main`, not from the old reduction-gate branch, unless a later
+operator instruction says otherwise.
+
+The adoption does not claim production readiness, external validation, full
+runtime validation, bootability, operational deployment approval, certification,
+accreditation, government endorsement, score increase, or committed raw runtime
+evidence.
+
 ## Last Validation
 
-- Validation timestamp: `2026-07-05T15:06:49Z`
-- Validation source: Gate 16 command transcript
+- Validation timestamp: `2026-07-05T15:43:29Z`
+- Validation source: Gate 20 post-main adoption stabilization pass
+- Lightweight validation: `make site-validate`
 - Artifact hash rechecked:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`

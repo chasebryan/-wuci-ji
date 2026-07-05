@@ -57,7 +57,28 @@ Readiness Score was not reused as an artifact/security score.
 
 ## Runtime Validation Status Preservation
 
-Runtime Gates 5 through 9 are summarized in [v2.4/runtime-validation-status.md](v2.4/runtime-validation-status.md). The current gate status ledger is [v2.4/gate-status-ledger.md](v2.4/gate-status-ledger.md). Latest completed runtime status gate recorded for public review: `RUNTIME_GATE_14_REVIEW_PACKET_FREEZE_DECISION_PUSHED`. Gate 10 is a preservation/status commit, not a runtime test. Gate 11 aligned the public reviewer packet. Gate 12 created the gate status ledger. Gate 13 audited public links and status surfaces. Gate 14 froze the public reviewer packet as the current WuciOS v2.4 Alpine runtime-validation status surface. The raw runtime evidence remains local/ignored unless separately authorized. No full runtime validation, bootability, production readiness, external validation, complete hardening, complete network security, or broad runtime safety claim is made.
+Runtime Gates 5 through 9 are summarized in
+[v2.4/runtime-validation-status.md](v2.4/runtime-validation-status.md). The
+current gate status ledger is [v2.4/gate-status-ledger.md](v2.4/gate-status-ledger.md).
+The post-main adoption stabilization note is
+[v2.4/post-main-adoption-stabilization.md](v2.4/post-main-adoption-stabilization.md).
+
+Latest completed public reviewer/status gate:
+`RUNTIME_GATE_20_POST_MAIN_ADOPTION_STABILIZATION_COMPLETE`.
+
+Gate 10 is a preservation/status commit, not a runtime test. Gate 11 aligned the
+public reviewer packet. Gate 12 created the gate status ledger. Gate 13 audited
+public links and status surfaces. Gate 14 froze the public reviewer packet.
+Gate 15 recorded the branch closeout decision. Gate 16 prepared the PR/merge
+consideration packet. Gate 19 adopted the reviewer/status-documentation
+baseline on `main` by controlled no-ff merge commit with manual conflict
+resolution. Gate 20 verifies post-main reviewer/status consistency only.
+
+The raw runtime evidence remains local/ignored unless separately authorized. No
+full runtime validation, bootability, production readiness, external validation,
+complete hardening, complete network security, broad runtime safety,
+operational deployment approval, certification, accreditation, government
+endorsement, score increase, or committed raw runtime evidence claim is made.
 
 ## Evidence Requirement
 
