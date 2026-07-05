@@ -24,21 +24,67 @@ PHASE_NAME = "WuciOS v2.4 Euclid Trial Phase 2 - Build Feasibility Probes"
 CANDIDATES = {
     "buildroot": {
         "display_name": "Buildroot",
+        "substrate_class": "image-generator / embedded-appliance-builder",
+        "linux_based": True,
         "tools": ["make", "git", "tar"],
         "tool_blockers": {"make": "MISSING_MAKE", "git": "MISSING_GIT", "tar": "MISSING_TAR"},
         "artifact_candidates": ["rootfs.tar", "rootfs.cpio", "sdcard.img", "bzImage"],
     },
     "alpine": {
         "display_name": "Alpine Linux",
+        "substrate_class": "minimal-linux-distribution",
+        "linux_based": True,
         "tools": ["apk", "tar", "fakeroot"],
         "tool_blockers": {"apk": "MISSING_APK", "tar": "MISSING_TAR"},
         "artifact_candidates": ["rootfs.tar.gz"],
     },
     "debian-minimal": {
         "display_name": "Debian Minimal",
+        "substrate_class": "stable-linux-distribution",
+        "linux_based": True,
         "tools": ["debootstrap", "tar", "fakeroot", "fakechroot"],
         "tool_blockers": {"debootstrap": "MISSING_DEBOOTSTRAP", "tar": "MISSING_TAR"},
         "artifact_candidates": ["rootfs.tar.gz"],
+    },
+    "void": {
+        "display_name": "Void Linux",
+        "substrate_class": "independent-linux-distribution",
+        "linux_based": True,
+        "tools": ["xbps-install", "xbps-query", "xbps-rindex", "tar"],
+        "tool_blockers": {"xbps-install": "MISSING_XBPS_INSTALL", "tar": "MISSING_TAR"},
+        "artifact_candidates": ["rootfs.tar.gz"],
+    },
+    "nixos": {
+        "display_name": "NixOS",
+        "substrate_class": "declarative-linux-system",
+        "linux_based": True,
+        "tools": ["nix", "nix-build", "nix-shell", "tar"],
+        "tool_blockers": {"nix": "MISSING_NIX", "tar": "MISSING_TAR"},
+        "artifact_candidates": ["nixos-system-closure.txt", "rootfs.tar.gz", "qcow2.img"],
+    },
+    "guix": {
+        "display_name": "GNU Guix",
+        "substrate_class": "declarative-linux-system",
+        "linux_based": True,
+        "tools": ["guix", "tar"],
+        "tool_blockers": {"guix": "MISSING_GUIX", "tar": "MISSING_TAR"},
+        "artifact_candidates": ["guix-system-image", "rootfs.tar.gz", "system-closure.txt"],
+    },
+    "yocto": {
+        "display_name": "Yocto Project",
+        "substrate_class": "custom-linux-builder",
+        "linux_based": True,
+        "tools": ["bitbake", "python3", "git", "tar"],
+        "tool_blockers": {"bitbake": "MISSING_BITBAKE", "python3": "MISSING_PYTHON3", "git": "MISSING_GIT", "tar": "MISSING_TAR"},
+        "artifact_candidates": ["core-image-minimal-*.rootfs.tar.*", "core-image-minimal-*.wic", "core-image-minimal-*.ext4", "*.manifest"],
+    },
+    "openbsd-reference": {
+        "display_name": "OpenBSD Reference Path",
+        "substrate_class": "non-linux-security-reference",
+        "linux_based": False,
+        "tools": ["uname", "pkg_info", "sysctl", "qemu-system-x86_64", "vmd"],
+        "tool_blockers": {},
+        "artifact_candidates": ["openbsd.img", "install.iso", "runtime-inspection-report.json"],
     },
 }
 
@@ -145,13 +191,24 @@ def normalize_blockers(blockers: list[str]) -> list[str]:
         "MISSING_BUILDROOT_SOURCE",
         "MISSING_APK",
         "MISSING_DEBOOTSTRAP",
+        "MISSING_XBPS_INSTALL",
+        "MISSING_NIX",
+        "MISSING_GUIX",
+        "MISSING_BITBAKE",
+        "MISSING_PYTHON3",
         "MISSING_TAR",
         "MISSING_MAKE",
         "MISSING_GIT",
         "MISSING_QEMU_IMG",
+        "MISSING_YOCTO_SOURCE",
+        "MISSING_OPENBSD_IMAGE",
         "MISSING_ROOT_PRIVILEGE",
         "MISSING_FAKECHROOT_OR_ROOT",
         "NETWORK_DISABLED",
+        "HOST_STORE_REQUIRED",
+        "BUILDROOM_REQUIRED",
+        "REFERENCE_RUNTIME_PLAN_REQUIRED",
+        "NOT_APPLICABLE_NON_LINUX",
         "UNSUPPORTED_HOST",
         "ARTIFACT_NOT_FOUND",
         "BUILD_COMMAND_FAILED",
@@ -191,12 +248,91 @@ def detect_buildroot_source() -> dict[str, Any]:
     return {"present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
 
 
+def yocto_source_candidates() -> list[Path]:
+    paths: list[Path] = []
+    for name in ["YOCTO_DIR", "POKY_DIR"]:
+        env_path = os.environ.get(name)
+        if env_path:
+            paths.append(Path(env_path))
+    paths.extend(
+        [
+            ROOT / "wucios/trials/yocto/poky-src",
+            ROOT / "third_party/poky",
+            ROOT / "vendor/poky",
+        ]
+    )
+    return paths
+
+
+def detect_yocto_source() -> dict[str, Any]:
+    for path in yocto_source_candidates():
+        if path.is_dir() and ((path / "oe-init-build-env").is_file() or (path / "bitbake").is_dir()):
+            return {"present": True, "path": str(path)}
+    return {"present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
+
+
+def openbsd_image_candidates() -> list[Path]:
+    paths: list[Path] = []
+    env_path = os.environ.get("OPENBSD_IMAGE")
+    if env_path:
+        paths.append(Path(env_path))
+    paths.extend(
+        [
+            ROOT / "wucios/trials/openbsd-reference/openbsd.img",
+            ROOT / "wucios/trials/openbsd-reference/install.iso",
+            ROOT / "third_party/openbsd/openbsd.img",
+            ROOT / "vendor/openbsd/openbsd.img",
+        ]
+    )
+    return paths
+
+
+def detect_openbsd_image() -> dict[str, Any]:
+    for path in openbsd_image_candidates():
+        if path.is_file():
+            return {"present": True, "path": str(path)}
+    return {"present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
+
+
+def detect_nix_flake_support() -> dict[str, Any]:
+    nix = shutil.which("nix")
+    if not nix:
+        return {"name": "nix_flake", "present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
+    try:
+        result = subprocess.run([nix, "flake", "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:  # noqa: BLE001 - feature detection must degrade explicitly.
+        return {"name": "nix_flake", "present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
+    return {"name": "nix_flake", "present": result.returncode == 0, "path": nix if result.returncode == 0 else "NOT_MEASURED_MISSING_TOOL"}
+
+
+def detect_guix_subcommand(subcommand: str) -> dict[str, Any]:
+    guix = shutil.which("guix")
+    if not guix:
+        return {"name": f"guix_{subcommand}", "present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
+    try:
+        result = subprocess.run([guix, subcommand, "--help"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:  # noqa: BLE001 - feature detection must degrade explicitly.
+        return {"name": f"guix_{subcommand}", "present": False, "path": "NOT_MEASURED_MISSING_TOOL"}
+    return {"name": f"guix_{subcommand}", "present": result.returncode == 0, "path": guix if result.returncode == 0 else "NOT_MEASURED_MISSING_TOOL"}
+
+
 def detect_tooling(candidate: str) -> list[dict[str, Any]]:
     tooling = [detect_command(name) for name in CANDIDATES[candidate]["tools"]]
     tooling.append(detect_hash_tool())
     if candidate == "buildroot":
         source = detect_buildroot_source()
         tooling.append({"name": "buildroot_source", "present": source["present"], "path": source["path"]})
+    elif candidate == "nixos":
+        tooling.append(detect_nix_flake_support())
+    elif candidate == "guix":
+        tooling.append(detect_guix_subcommand("system"))
+        tooling.append(detect_guix_subcommand("pack"))
+    elif candidate == "yocto":
+        source = detect_yocto_source()
+        tooling.append({"name": "yocto_source", "present": source["present"], "path": source["path"]})
+    elif candidate == "openbsd-reference":
+        image = detect_openbsd_image()
+        tooling.append({"name": "openbsd_image", "present": image["present"], "path": image["path"]})
     tooling.append({"name": "host_os", "present": True, "path": json.dumps(detect_os(), sort_keys=True)})
     return tooling
 
@@ -219,12 +355,18 @@ def detect_artifact_candidates(candidate: str, output_dir: Path, work_dir: Path)
         work_dir,
         work_dir / "output/images",
         work_dir / "buildroot-output/images",
+        work_dir / "tmp/deploy/images",
     ]
     for directory in search_dirs:
         for name in names:
-            path = directory / name
-            if path.is_file():
-                return path
+            if any(char in name for char in ["*", "?", "["]):
+                for path in sorted(directory.glob(name)):
+                    if path.is_file():
+                        return path
+            else:
+                path = directory / name
+                if path.is_file():
+                    return path
     return None
 
 
@@ -277,6 +419,22 @@ def extract_buildroot_package_manifest(work_dir: Path, destination: Path) -> boo
         work_dir / "output/build/packages-file-list.txt",
     ]
     for path in candidates:
+        if path.is_file():
+            write_text(destination, path.read_text(encoding="utf-8", errors="replace"))
+            return True
+    return False
+
+
+def extract_void_package_manifest(rootfs: Path, destination: Path) -> bool:
+    candidates = sorted((rootfs / "var/db/xbps").glob("pkgdb-*.plist")) if (rootfs / "var/db/xbps").is_dir() else []
+    if not candidates:
+        return False
+    write_text(destination, "\n".join(path.name for path in candidates) + "\n")
+    return True
+
+
+def copy_candidate_manifest(paths: list[Path], destination: Path) -> bool:
+    for path in paths:
         if path.is_file():
             write_text(destination, path.read_text(encoding="utf-8", errors="replace"))
             return True
@@ -406,9 +564,9 @@ def write_noether_static_check(output_dir: Path, check: dict[str, Any]) -> None:
     write_text(output_dir / "noether-static-check.md", "\n".join(lines))
 
 
-def initial_measurements(artifact_present: bool) -> dict[str, str]:
+def initial_measurements(candidate: str, artifact_present: bool) -> dict[str, str]:
     no_artifact = "NOT_MEASURED_NO_ARTIFACT"
-    return {
+    measurements = {
         "package_manifest": no_artifact,
         "image_size": no_artifact,
         "enabled_services": no_artifact,
@@ -417,6 +575,9 @@ def initial_measurements(artifact_present: bool) -> dict[str, str]:
         "kernel_modules": "NOT_MEASURED_RUNTIME_REQUIRED",
         "dependency_tree": no_artifact,
     }
+    if candidate == "openbsd-reference":
+        measurements["kernel_modules"] = "NOT_APPLICABLE_NON_LINUX"
+    return measurements
 
 
 def missing_measurements(measurements: dict[str, str], artifact: dict[str, Any]) -> list[str]:
@@ -430,17 +591,34 @@ def missing_measurements(measurements: dict[str, str], artifact: dict[str, Any])
     return sorted(set(missing))
 
 
-def write_measurement_files(output_dir: Path, measurements: dict[str, str], artifact: dict[str, Any]) -> None:
+def write_measurement_files(candidate: str, output_dir: Path, measurements: dict[str, str], artifact: dict[str, Any]) -> None:
     for filename in MEASUREMENT_FILES:
         path = output_dir / filename
         if path.exists() and measurement_has_data(path):
             continue
-        if filename in RUNTIME_REQUIRED_TEXT:
+        key = {
+            "package-manifest.txt": "package_manifest",
+            "image-size.txt": "image_size",
+            "enabled-services.txt": "enabled_services",
+            "listening-ports.txt": "listening_ports",
+            "suid-sgid.txt": "suid_sgid",
+            "kernel-modules.txt": "kernel_modules",
+            "dependency-tree.txt": "dependency_tree",
+        }.get(filename)
+        value = measurements.get(str(key), "NOT_MEASURED")
+        if value == "NOT_APPLICABLE_NON_LINUX":
+            if filename == "kernel-modules.txt":
+                write_text(path, "NOT_APPLICABLE_NON_LINUX: OpenBSD reference path is not a Linux substrate candidate. Linux loaded kernel module inventory is not applicable.\n")
+            else:
+                write_text(path, "NOT_APPLICABLE_NON_LINUX: Measurement is not applicable to this reference path.\n")
+        elif filename in RUNTIME_REQUIRED_TEXT:
             write_text(path, RUNTIME_REQUIRED_TEXT[filename] + "\n")
         elif filename == "image-size.txt" and artifact["present"]:
             write_text(path, f"{artifact['size_bytes']}\n")
         elif filename == "build-manifest.sha256" and artifact["present"]:
             write_text(path, f"{artifact['sha256']}  {artifact['path']}\n")
+        elif candidate == "openbsd-reference" and filename == "package-manifest.txt":
+            not_measured_file(path, "NOT_MEASURED_NO_ARTIFACT", "No OpenBSD runtime inspection report or local image package inventory exists.")
         else:
             not_measured_file(path, "NOT_MEASURED_NO_ARTIFACT", "No artifact was generated.")
 
@@ -512,6 +690,34 @@ def attempt_debian(output_dir: Path, work_dir: Path, tooling: list[dict[str, Any
     return "BUILD_SUCCEEDED_PARTIAL", []
 
 
+def attempt_void(output_dir: Path, work_dir: Path, tooling: list[dict[str, Any]], log_path: Path) -> tuple[str, list[str]]:
+    blockers: list[str] = []
+    if not tool_present(tooling, "xbps-install"):
+        blockers.append("MISSING_XBPS_INSTALL")
+    if not tool_present(tooling, "tar"):
+        blockers.append("MISSING_TAR")
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
+        blockers.append("MISSING_ROOT_PRIVILEGE")
+    if blockers:
+        return "TRIAL_BLOCKED", blockers
+    rootfs = work_dir / "rootfs"
+    ensure_dir(rootfs)
+    command = ["xbps-install", "-Sy", "-r", str(rootfs), "base-files"]
+    exit_code = run_command(command, log_path)
+    if exit_code != 0:
+        return "BUILD_ATTEMPTED_FAILED", ["BUILD_COMMAND_FAILED"]
+    tar_rootfs(rootfs, output_dir / "rootfs.tar.gz")
+    return "BUILD_SUCCEEDED_PARTIAL", []
+
+
+def blocked_store_attempt(blocker: str = "HOST_STORE_REQUIRED") -> tuple[str, list[str]]:
+    return "TRIAL_BLOCKED", [blocker, "BUILDROOM_REQUIRED"]
+
+
+def blocked_runtime_attempt() -> tuple[str, list[str]]:
+    return "TRIAL_BLOCKED", ["REFERENCE_RUNTIME_PLAN_REQUIRED"]
+
+
 def update_static_artifact_evidence(candidate: str, output_dir: Path, work_dir: Path, artifact: dict[str, Any], measurements: dict[str, str]) -> None:
     rootfs = work_dir / "rootfs"
     if candidate == "alpine" and extract_alpine_package_manifest(rootfs, output_dir / "package-manifest.txt"):
@@ -520,6 +726,40 @@ def update_static_artifact_evidence(candidate: str, output_dir: Path, work_dir: 
         measurements["package_manifest"] = "STATIC_ARTIFACT_SCAN"
     elif candidate == "buildroot" and extract_buildroot_package_manifest(work_dir, output_dir / "package-manifest.txt"):
         measurements["package_manifest"] = "STATIC_ARTIFACT_SCAN"
+    elif candidate == "void" and extract_void_package_manifest(rootfs, output_dir / "package-manifest.txt"):
+        measurements["package_manifest"] = "STATIC_ARTIFACT_SCAN"
+    elif candidate == "nixos" and copy_candidate_manifest(
+        [
+            output_dir / "nixos-system-closure.txt",
+            work_dir / "nixos-system-closure.txt",
+        ],
+        output_dir / "package-manifest.txt",
+    ):
+        measurements["package_manifest"] = "HOST_TOOLING_SCAN"
+        measurements["dependency_tree"] = "HOST_TOOLING_SCAN"
+    elif candidate == "guix" and copy_candidate_manifest(
+        [
+            output_dir / "system-closure.txt",
+            work_dir / "system-closure.txt",
+        ],
+        output_dir / "package-manifest.txt",
+    ):
+        measurements["package_manifest"] = "HOST_TOOLING_SCAN"
+        measurements["dependency_tree"] = "HOST_TOOLING_SCAN"
+    elif candidate == "yocto" and copy_candidate_manifest(
+        [*sorted(output_dir.glob("*.manifest")), *sorted(work_dir.rglob("*.manifest"))],
+        output_dir / "package-manifest.txt",
+    ):
+        measurements["package_manifest"] = "STATIC_ARTIFACT_SCAN"
+        measurements["dependency_tree"] = "STATIC_ARTIFACT_SCAN"
+    elif candidate == "openbsd-reference" and copy_candidate_manifest(
+        [
+            output_dir / "runtime-inspection-report.json",
+            work_dir / "runtime-inspection-report.json",
+        ],
+        output_dir / "package-manifest.txt",
+    ):
+        measurements["package_manifest"] = "HOST_TOOLING_SCAN"
 
     if static_service_manifest(rootfs, output_dir / "enabled-services.txt"):
         measurements["enabled_services"] = "STATIC_ARTIFACT_SCAN"
@@ -537,6 +777,10 @@ def candidate_blockers(candidate: str, tooling: list[dict[str, Any]]) -> list[st
             blockers.append(blocker)
     if candidate == "buildroot" and buildroot_source_path(tooling) is None:
         blockers.append("MISSING_BUILDROOT_SOURCE")
+    if candidate == "yocto" and not tool_present(tooling, "yocto_source"):
+        blockers.append("MISSING_YOCTO_SOURCE")
+    if candidate == "openbsd-reference" and not tool_present(tooling, "openbsd_image"):
+        blockers.append("MISSING_OPENBSD_IMAGE")
     if candidate == "debian-minimal":
         is_root = hasattr(os, "geteuid") and os.geteuid() == 0
         fake_available = tool_present(tooling, "fakeroot") and tool_present(tooling, "fakechroot")
@@ -576,22 +820,40 @@ def run_probe(candidate: str, output_dir: Path, work_dir: Path, attempt: bool, a
         blockers = normalize_blockers([*blockers, "TRIAL_BLOCKED"])
         with log_path.open("a", encoding="utf-8") as log:
             log.write("TRIAL_BLOCKED: Explicit build attempt requested, but WUCIOS_EUCLID_ALLOW_ATTEMPT=1 was not set.\n")
-    elif attempt and not allow_network:
-        phase_status = "TRIAL_BLOCKED"
-        blockers = normalize_blockers([*blockers, "NETWORK_DISABLED"])
-        with log_path.open("a", encoding="utf-8") as log:
-            log.write("TRIAL_BLOCKED: NETWORK_DISABLED\n")
     elif attempt:
-        build_attempted = True
-        with log_path.open("a", encoding="utf-8") as log:
-            log.write("Explicit build attempt enabled by WUCIOS_EUCLID_ALLOW_ATTEMPT=1.\n")
-        if candidate == "buildroot":
-            phase_status, attempt_blockers = attempt_buildroot(output_dir, work_dir, tooling, log_path)
-        elif candidate == "alpine":
-            phase_status, attempt_blockers = attempt_alpine(output_dir, work_dir, tooling, log_path)
+        if candidate in {"nixos", "guix"}:
+            phase_status, attempt_blockers = blocked_store_attempt()
+            blockers = normalize_blockers([*blockers, *attempt_blockers])
+            with log_path.open("a", encoding="utf-8") as log:
+                log.write("TRIAL_BLOCKED: HOST_STORE_REQUIRED\n")
+        elif candidate == "yocto":
+            phase_status, attempt_blockers = blocked_store_attempt("BUILDROOM_REQUIRED")
+            blockers = normalize_blockers([*blockers, *attempt_blockers])
+            with log_path.open("a", encoding="utf-8") as log:
+                log.write("TRIAL_BLOCKED: BUILDROOM_REQUIRED\n")
+        elif candidate == "openbsd-reference":
+            phase_status, attempt_blockers = blocked_runtime_attempt()
+            blockers = normalize_blockers([*blockers, *attempt_blockers])
+            with log_path.open("a", encoding="utf-8") as log:
+                log.write("TRIAL_BLOCKED: REFERENCE_RUNTIME_PLAN_REQUIRED\n")
+        elif not allow_network:
+            phase_status = "TRIAL_BLOCKED"
+            blockers = normalize_blockers([*blockers, "NETWORK_DISABLED"])
+            with log_path.open("a", encoding="utf-8") as log:
+                log.write("TRIAL_BLOCKED: NETWORK_DISABLED\n")
         else:
-            phase_status, attempt_blockers = attempt_debian(output_dir, work_dir, tooling, log_path)
-        blockers = normalize_blockers([*blockers, *attempt_blockers])
+            build_attempted = True
+            with log_path.open("a", encoding="utf-8") as log:
+                log.write("Explicit build attempt enabled by WUCIOS_EUCLID_ALLOW_ATTEMPT=1.\n")
+            if candidate == "buildroot":
+                phase_status, attempt_blockers = attempt_buildroot(output_dir, work_dir, tooling, log_path)
+            elif candidate == "alpine":
+                phase_status, attempt_blockers = attempt_alpine(output_dir, work_dir, tooling, log_path)
+            elif candidate == "debian-minimal":
+                phase_status, attempt_blockers = attempt_debian(output_dir, work_dir, tooling, log_path)
+            else:
+                phase_status, attempt_blockers = attempt_void(output_dir, work_dir, tooling, log_path)
+            blockers = normalize_blockers([*blockers, *attempt_blockers])
 
     artifact_path = detect_artifact_candidates(candidate, output_dir, work_dir)
     artifact = {
@@ -606,16 +868,16 @@ def run_probe(candidate: str, output_dir: Path, work_dir: Path, attempt: bool, a
     elif attempt and not artifact["present"] and phase_status == "BUILD_SUCCEEDED_PARTIAL":
         blockers = normalize_blockers([*blockers, "ARTIFACT_NOT_FOUND"])
 
-    measurements = initial_measurements(artifact["present"])
+    measurements = initial_measurements(candidate, artifact["present"])
     update_static_artifact_evidence(candidate, output_dir, work_dir, artifact, measurements)
-    write_measurement_files(output_dir, measurements, artifact)
+    write_measurement_files(candidate, output_dir, measurements, artifact)
     noether_check = noether_static_check(output_dir)
     if noether_check["status"] == "NOETHER_STATIC_CHECK_INCOMPLETE":
         blockers = normalize_blockers([*blockers, "NOETHER_STATIC_CHECK_INCOMPLETE"])
     write_noether_static_check(output_dir, noether_check)
 
     if not artifact["present"] and not attempt:
-        measurements = initial_measurements(False)
+        measurements = initial_measurements(candidate, False)
 
     missing = missing_measurements(measurements, artifact)
     artifact_manifest = {
@@ -640,6 +902,8 @@ def run_probe(candidate: str, output_dir: Path, work_dir: Path, attempt: bool, a
         "candidate": candidate,
         "id": candidate,
         "display_name": CANDIDATES[candidate]["display_name"],
+        "substrate_class": CANDIDATES[candidate]["substrate_class"],
+        "linux_based": CANDIDATES[candidate]["linux_based"],
         "phase_status": validate_status(phase_status),
         "build_attempted": build_attempted,
         "execution_mode": mode,

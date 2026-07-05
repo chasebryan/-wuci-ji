@@ -37,3 +37,8 @@ Static HTML, CSS, and JavaScript from the repository site/ directory.
 
 Validation:
 make site-validate
+
+WuciOS Phase 2B:
+Safe build feasibility probes cover Buildroot, Alpine, Debian minimal, Void,
+NixOS, Guix, Yocto, and OpenBSD reference without selecting a substrate or
+generating an artifact score.

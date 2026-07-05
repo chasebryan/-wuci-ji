@@ -14,6 +14,8 @@ Safe validation targets must not modify tracked files. Timestamped evidence is w
 - `build/wucios/review/euclid-trial-phase-1.json`
 - `build/wucios/review/euclid-trial-phase-2.md`
 - `build/wucios/review/euclid-trial-phase-2.json`
+- `build/wucios/review/euclid-trial-phase-2b.md`
+- `build/wucios/review/euclid-trial-phase-2b.json`
 - `build/wucios/review/substrate-matrix.md`
 - `build/wucios/review/substrate-matrix.json`
 - `build/wucios/review/surface-report.md`

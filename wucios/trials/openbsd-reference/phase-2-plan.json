@@ -1,0 +1,31 @@
+{
+  "artifact_candidates": [
+    "openbsd.img",
+    "install.iso",
+    "runtime-inspection-report.json"
+  ],
+  "attempt_requires": [
+    "WUCIOS_EUCLID_ALLOW_ATTEMPT=1",
+    "--attempt-builds",
+    "explicit future runtime/VM plan",
+    "local OpenBSD image if runtime inspection is planned"
+  ],
+  "blockers": [
+    "MISSING_OPENBSD_IMAGE",
+    "REFERENCE_RUNTIME_PLAN_REQUIRED",
+    "NOT_APPLICABLE_NON_LINUX",
+    "ARTIFACT_NOT_FOUND"
+  ],
+  "candidate": "openbsd-reference",
+  "default_status": "BUILD_NOT_ATTEMPTED",
+  "linux_based": false,
+  "never_do": [
+    "do not download OpenBSD images by default",
+    "do not install OpenBSD",
+    "do not launch a VM by default",
+    "do not use sudo",
+    "do not treat OpenBSD as a Linux substrate equivalent"
+  ],
+  "phase_id": "euclid-trial-phase-2",
+  "reference_path": true
+}

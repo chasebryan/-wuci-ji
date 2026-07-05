@@ -27,6 +27,8 @@ REQUIRED_OUTPUTS = [
     "euclid-trial-phase-1.json",
     "euclid-trial-phase-2.md",
     "euclid-trial-phase-2.json",
+    "euclid-trial-phase-2b.md",
+    "euclid-trial-phase-2b.json",
     "substrate-matrix.md",
     "substrate-matrix.json",
     "surface-report.md",
@@ -66,6 +68,9 @@ def ensure_prerequisites() -> list[str]:
     if not (REVIEW_DIR / "euclid-trial-phase-2.json").is_file():
         result = subprocess.run([sys.executable, str(ROOT / "tools/wucios/run_euclid_trial_phase_2.py")], cwd=ROOT)
         notes.append(f"generated Euclid Trial Phase 2 report: exit {result.returncode}")
+    if not (REVIEW_DIR / "euclid-trial-phase-2b.json").is_file():
+        result = subprocess.run([sys.executable, str(ROOT / "tools/wucios/run_euclid_trial_phase_2.py"), "--phase2b"], cwd=ROOT)
+        notes.append(f"generated Euclid Trial Phase 2B report: exit {result.returncode}")
     if not (REVIEW_DIR / "daylight-wucios-score.json").is_file():
         result = subprocess.run([sys.executable, str(ROOT / "tools/wucios/score_wucios.py")], cwd=ROOT)
         notes.append(f"generated score material: exit {result.returncode}")
@@ -99,6 +104,7 @@ def measurement_summary() -> dict[str, str]:
         "substrate-matrix.json",
         "euclid-trial-phase-1.json",
         "euclid-trial-phase-2.json",
+        "euclid-trial-phase-2b.json",
     ]:
         text = read_text_or_not_measured(name)
         if text == "NOT_MEASURED":
@@ -117,6 +123,13 @@ def load_generated_summary() -> dict[str, str]:
     euclid_phase_2_execution = "NOT_RUN"
     euclid_phase_2_candidates = "NOT_RUN"
     euclid_phase_2_artifacts = "NOT_RUN"
+    euclid_phase_2b_status = "NOT_RUN"
+    euclid_phase_2b_execution = "NOT_RUN"
+    euclid_phase_2b_candidate_count = "NOT_RUN"
+    euclid_phase_2b_candidates = "NOT_RUN"
+    euclid_phase_2b_artifacts = "NOT_RUN"
+    euclid_phase_2b_blockers = "NOT_RUN"
+    euclid_phase_2b_missing = "NOT_RUN"
     score_status = "NO_ARTIFACT_SCORE"
     score_artifact_sha256 = "NOT_MEASURED"
 
@@ -157,6 +170,34 @@ def load_generated_summary() -> dict[str, str]:
         except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
             euclid_phase_2_status = "NOT_MEASURED"
 
+    euclid_phase_2b = REVIEW_DIR / "euclid-trial-phase-2b.json"
+    if euclid_phase_2b.is_file():
+        try:
+            data = load_json(euclid_phase_2b)
+            euclid_phase_2b_status = str(data.get("global_status", euclid_phase_2b_status))
+            euclid_phase_2b_execution = str(data.get("execution_mode", euclid_phase_2b_execution))
+            euclid_phase_2b_candidate_count = str(data.get("candidate_count", euclid_phase_2b_candidate_count))
+            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            euclid_phase_2b_candidates = ", ".join(
+                f"{candidate.get('id', candidate.get('candidate', 'unknown'))}:{candidate.get('phase_status', 'NOT_MEASURED')}"
+                for candidate in data.get("candidates", [])
+                if isinstance(candidate, dict)
+            ) or "NOT_MEASURED"
+            euclid_phase_2b_artifacts = ", ".join(
+                f"{candidate.get('id', candidate.get('candidate', 'unknown'))}:{str(candidate.get('artifact', {}).get('present', False)).lower()}"
+                for candidate in data.get("candidates", [])
+                if isinstance(candidate, dict)
+            ) or "NOT_MEASURED"
+            euclid_phase_2b_blockers = ", ".join(
+                f"{candidate.get('id', candidate.get('candidate', 'unknown'))}:{'/'.join(candidate.get('blockers', [])) or 'NONE_DETECTED'}"
+                for candidate in data.get("candidates", [])
+                if isinstance(candidate, dict)
+            ) or "NOT_MEASURED"
+            euclid_phase_2b_missing = ", ".join(str(item) for item in data.get("missing_measurements", [])) or "NONE"
+            score_status = str(data.get("score_status", score_status))
+        except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
+            euclid_phase_2b_status = "NOT_MEASURED"
+
     score_json = REVIEW_DIR / "daylight-wucios-score.json"
     if score_json.is_file():
         try:
@@ -176,6 +217,13 @@ def load_generated_summary() -> dict[str, str]:
         "euclid_phase_2_execution": euclid_phase_2_execution,
         "euclid_phase_2_candidates": euclid_phase_2_candidates,
         "euclid_phase_2_artifacts": euclid_phase_2_artifacts,
+        "euclid_phase_2b_status": euclid_phase_2b_status,
+        "euclid_phase_2b_execution": euclid_phase_2b_execution,
+        "euclid_phase_2b_candidate_count": euclid_phase_2b_candidate_count,
+        "euclid_phase_2b_candidates": euclid_phase_2b_candidates,
+        "euclid_phase_2b_artifacts": euclid_phase_2b_artifacts,
+        "euclid_phase_2b_blockers": euclid_phase_2b_blockers,
+        "euclid_phase_2b_missing": euclid_phase_2b_missing,
         "score_status": score_status,
         "score_artifact_sha256": score_artifact_sha256,
     }
@@ -247,6 +295,13 @@ def write_packet(prereq_notes: list[str]) -> dict[str, Any]:
         f"- Euclid Trial Phase 2 execution mode: `{generated_summary['euclid_phase_2_execution']}`",
         f"- Euclid Trial Phase 2 candidates: `{generated_summary['euclid_phase_2_candidates']}`",
         f"- Euclid Trial Phase 2 artifacts: `{generated_summary['euclid_phase_2_artifacts']}`",
+        f"- Euclid Trial Phase 2B: `{generated_summary['euclid_phase_2b_status']}`",
+        f"- Euclid Trial Phase 2B execution mode: `{generated_summary['euclid_phase_2b_execution']}`",
+        f"- Euclid Trial Phase 2B candidate count: `{generated_summary['euclid_phase_2b_candidate_count']}`",
+        f"- Euclid Trial Phase 2B candidates: `{generated_summary['euclid_phase_2b_candidates']}`",
+        f"- Euclid Trial Phase 2B artifacts: `{generated_summary['euclid_phase_2b_artifacts']}`",
+        f"- Euclid Trial Phase 2B blockers: `{generated_summary['euclid_phase_2b_blockers']}`",
+        f"- Euclid Trial Phase 2B missing measurements: `{generated_summary['euclid_phase_2b_missing']}`",
         f"- Score status: `{generated_summary['score_status']}`",
         f"- Score artifact SHA-256: `{generated_summary['score_artifact_sha256']}`",
         "",

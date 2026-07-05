@@ -28,6 +28,7 @@ Current substrate selection status: `NO_SUBSTRATE_SELECTED`.
 The first trial readiness plan is [EUCLID_SUBSTRATE_TRIAL_PLAN.md](EUCLID_SUBSTRATE_TRIAL_PLAN.md).
 The first artifact cohort protocol is [EUCLID_TRIAL_PHASE_1.md](EUCLID_TRIAL_PHASE_1.md).
 The build feasibility probe phase is [EUCLID_TRIAL_PHASE_2.md](EUCLID_TRIAL_PHASE_2.md).
+The full-cohort probe expansion is [EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md).
 
 ## Evidence Requirement
 
@@ -46,6 +47,7 @@ make wucios-review
 make wucios-substrate-matrix
 make wucios-euclid-trial-phase-1
 make wucios-euclid-trial-phase-2
+make wucios-euclid-trial-phase-2b
 ```
 
 ## Controlling Doctrine

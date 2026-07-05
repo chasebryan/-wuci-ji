@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Phase 2 tests build feasibility for Buildroot, Alpine, and Debian minimal. It
-checks whether each candidate can move from protocol placeholders toward early
-Noether Core-style build artifacts under identical reporting rules.
+Phase 2 tests build feasibility. The initial implementation covered Buildroot,
+Alpine, and Debian minimal; Phase 2B expands the active probe surface to all
+originally named substrate candidates under identical reporting rules.
 
 ## Non-Selection Rule
 
@@ -29,11 +29,16 @@ timestamps is written to ignored `build/wucios/` outputs.
 `WUCIOS_EUCLID_ALLOW_ATTEMPT=1`. Network-dependent commands also require
 `--allow-network`. The probes do not call `sudo`.
 
-## First Cohort
+## Active Cohort
 
 - Buildroot
 - Alpine Linux
 - Debian Minimal
+- Void
+- NixOS
+- GNU Guix
+- Yocto
+- OpenBSD reference path
 
 ## Candidate Evidence Files
 
@@ -65,6 +70,8 @@ Each candidate writes the same generated files under
 
 - `build/wucios/review/euclid-trial-phase-2.md`
 - `build/wucios/review/euclid-trial-phase-2.json`
+- `build/wucios/review/euclid-trial-phase-2b.md`
+- `build/wucios/review/euclid-trial-phase-2b.json`
 
 ## Runtime Measurements
 
@@ -82,9 +89,16 @@ requirements are satisfied.
 ```sh
 make wucios-euclid-trial-phase-2
 make wucios-euclid-trial-phase-2-json
+make wucios-euclid-trial-phase-2b
+make wucios-euclid-trial-phase-2b-json
 make wucios-euclid-probe-buildroot
 make wucios-euclid-probe-alpine
 make wucios-euclid-probe-debian-minimal
+make wucios-euclid-probe-void
+make wucios-euclid-probe-nixos
+make wucios-euclid-probe-guix
+make wucios-euclid-probe-yocto
+make wucios-euclid-probe-openbsd-reference
 ```
 
 Attempt mode:

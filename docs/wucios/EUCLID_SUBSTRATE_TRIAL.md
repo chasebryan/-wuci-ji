@@ -44,6 +44,9 @@ The first artifact cohort protocol is
 The second phase adds safe build feasibility probes:
 [EUCLID_TRIAL_PHASE_2.md](EUCLID_TRIAL_PHASE_2.md).
 
-These phases prepare Buildroot, Alpine Linux, and Debian Minimal first. They do
-not select a substrate, generate a score, rank candidates, or invent
-measurements.
+Phase 2B expands safe build feasibility probes to the full original substrate
+candidate set:
+[EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md).
+
+These phases do not select a substrate, generate a score, rank candidates, or
+invent measurements.

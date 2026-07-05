@@ -13,6 +13,7 @@ WuciOS v2.4 is the current reduction-controlled design path. The larger v2.3 dir
 - [Euclid Substrate Trial](docs/wucios/EUCLID_SUBSTRATE_TRIAL.md)
 - [Euclid Trial Phase 1](docs/wucios/EUCLID_TRIAL_PHASE_1.md)
 - [Euclid Trial Phase 2](docs/wucios/EUCLID_TRIAL_PHASE_2.md)
+- [Euclid Trial Phase 2B](docs/wucios/EUCLID_TRIAL_PHASE_2B.md)
 - [Tarski Review Appliance](docs/wucios/TARSKI_REVIEW_APPLIANCE.md)
 - [Gödel Boundary](docs/wucios/GODEL_BOUNDARY.md)
 - [Mathematician Naming Scheme](docs/wucios/MATHEMATICIAN_NAMING_SCHEME.md)
@@ -42,7 +43,7 @@ Euclid Substrate Trial compares Buildroot, Alpine, Debian minimal, Void, NixOS, 
 
 Euclid Trial Phase 1 prepares the first artifact cohort: Buildroot, Alpine, and Debian minimal. It standardizes comparable evidence outputs and reports `NO_SUBSTRATE_SELECTED` until generated trial data exists.
 
-Euclid Trial Phase 2 runs safe detect-only build feasibility probes for the same first cohort. It records tooling blockers and missing evidence without selecting or ranking a substrate.
+Euclid Trial Phase 2B expands safe detect-only build feasibility probes to the full original substrate candidate set: Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference. It records tooling blockers and missing evidence without selecting or ranking a substrate.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 

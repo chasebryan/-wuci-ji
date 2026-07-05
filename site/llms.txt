@@ -19,6 +19,7 @@ Current status:
 - Noether Core is GUI-free
 - Birkhoff Bastion is optional
 - Tarski Review Appliance generates the review packet
+- Phase 2B expands safe build feasibility probes to Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference
 - missing measurements are NOT_MEASURED
 
 Validation handles:

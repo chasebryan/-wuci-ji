@@ -117,6 +117,7 @@ REQUIRED_DOCS = [
     "EUCLID_SUBSTRATE_TRIAL_PLAN.md",
     "EUCLID_TRIAL_PHASE_1.md",
     "EUCLID_TRIAL_PHASE_2.md",
+    "EUCLID_TRIAL_PHASE_2B.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -146,6 +147,17 @@ FIRST_TRIAL_COHORT = [
     "buildroot",
     "alpine",
     "debian-minimal",
+]
+
+FULL_TRIAL_COHORT = [
+    "buildroot",
+    "alpine",
+    "debian-minimal",
+    "void",
+    "nixos",
+    "guix",
+    "yocto",
+    "openbsd-reference",
 ]
 
 REQUIRED_TRIAL_FILES = [
@@ -188,6 +200,11 @@ PHASE_2_PLAN_KEYS = {
     "objectives",
     "candidate_status_values",
     "global_status_values",
+}
+
+PHASE_2B_PLAN_KEYS = {
+    *PHASE_2_PLAN_KEYS,
+    "measurement_values",
 }
 
 
@@ -379,8 +396,8 @@ def validate_euclid_trial_phase_2(failures: list[str], warnings: list[str]) -> N
             failures.append("Phase 2 plan must set sudo_allowed false")
         if phase_plan.get("default_execution_mode") != "SAFE_DETECT_ONLY":
             failures.append("Phase 2 plan must default to SAFE_DETECT_ONLY")
-        if phase_plan.get("cohort") != FIRST_TRIAL_COHORT:
-            failures.append("Phase 2 plan cohort must match first trial cohort")
+        if phase_plan.get("cohort") != FULL_TRIAL_COHORT:
+            failures.append("Phase 2 plan cohort must match full trial cohort")
 
     schema_path = ROOT / "wucios/schemas/euclid-trial-phase-2.schema.json"
     if not schema_path.is_file():
@@ -392,8 +409,38 @@ def validate_euclid_trial_phase_2(failures: list[str], warnings: list[str]) -> N
     if not helper_path.is_file():
         failures.append("missing Phase 2 helper: tools/wucios/trial_collectors/build_probe.py")
 
-    for candidate in FIRST_TRIAL_COHORT:
+    phase_2b_doc = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_2B.md"
+    if not phase_2b_doc.is_file():
+        failures.append("missing Phase 2B doc: docs/wucios/EUCLID_TRIAL_PHASE_2B.md")
+
+    phase_2b_plan_path = ROOT / "wucios/trials/euclid-substrate-trial-phase-2b.json"
+    phase_2b_plan = load_json(phase_2b_plan_path, failures)
+    if isinstance(phase_2b_plan, dict):
+        require_keys(phase_2b_plan_path, phase_2b_plan, PHASE_2B_PLAN_KEYS, failures)
+        if phase_2b_plan.get("phase_id") != "euclid-trial-phase-2b":
+            failures.append("Phase 2B plan must use phase_id euclid-trial-phase-2b")
+        if phase_2b_plan.get("cohort") != FULL_TRIAL_COHORT:
+            failures.append("Phase 2B plan cohort must match full trial cohort")
+        if phase_2b_plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 2B plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        if phase_2b_plan.get("ranking_allowed") is not False:
+            failures.append("Phase 2B plan must set ranking_allowed false")
+        if phase_2b_plan.get("emotional_testing_allowed") is not False:
+            failures.append("Phase 2B plan must set emotional_testing_allowed false")
+        if phase_2b_plan.get("sudo_allowed") is not False:
+            failures.append("Phase 2B plan must set sudo_allowed false")
+
+    phase_2b_schema = ROOT / "wucios/schemas/euclid-trial-phase-2b.schema.json"
+    if not phase_2b_schema.is_file():
+        failures.append("missing Phase 2B schema: wucios/schemas/euclid-trial-phase-2b.schema.json")
+    else:
+        load_json(phase_2b_schema, failures)
+
+    for candidate in FULL_TRIAL_COHORT:
         directory = ROOT / "wucios/trials" / candidate
+        if not directory.is_dir():
+            failures.append(f"missing Phase 2 candidate directory: {directory.relative_to(ROOT)}")
+            continue
         for filename in REQUIRED_PHASE_2_CANDIDATE_FILES:
             path = directory / filename
             if not path.is_file():
@@ -419,6 +466,16 @@ def validate_euclid_trial_phase_2(failures: list[str], warnings: list[str]) -> N
                 failures.append(f"{plan_path.relative_to(ROOT)} must not declare substrate selection")
             if plan.get("selected") is True:
                 failures.append(f"{plan_path.relative_to(ROOT)} must not declare itself selected")
+            if candidate == "openbsd-reference":
+                if plan.get("linux_based") is not False and plan.get("reference_path") is not True:
+                    failures.append(f"{plan_path.relative_to(ROOT)} must mark OpenBSD as non-Linux reference path")
+            if candidate in {"nixos", "guix"}:
+                never_do = "\n".join(str(item) for item in plan.get("never_do", []))
+                attempt_requires = "\n".join(str(item) for item in plan.get("attempt_requires", []))
+                if "future" not in attempt_requires or "host-store" not in attempt_requires:
+                    failures.append(f"{plan_path.relative_to(ROOT)} must require future host-store or build-room policy")
+                if "outside build/wucios" not in never_do:
+                    failures.append(f"{plan_path.relative_to(ROOT)} must deny default writes outside build/wucios")
 
 
 def main() -> int:
@@ -462,7 +519,7 @@ def main() -> int:
     print(f"- substrates: {len(substrates)}")
     print(f"- components: {len(components)}")
     print(f"- Euclid Phase 1 candidates: {len(FIRST_TRIAL_COHORT)}")
-    print(f"- Euclid Phase 2 candidates: {len(FIRST_TRIAL_COHORT)}")
+    print(f"- Euclid Phase 2 candidates: {len(FULL_TRIAL_COHORT)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

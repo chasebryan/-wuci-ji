@@ -147,7 +147,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 .PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
-.PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal euclid-phase-2 euclid-build-probes wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
+.PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2b wucios-euclid-trial-phase-2b-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal wucios-euclid-probe-void wucios-euclid-probe-nixos wucios-euclid-probe-guix wucios-euclid-probe-yocto wucios-euclid-probe-openbsd-reference euclid-phase-2 euclid-build-probes wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
 .PHONY: wucios-idempotence-check wucios-clean-validation
 
 all: check-native $(TARGET)
@@ -165,6 +165,10 @@ help:
 	@printf '%s\n' "                                Run safe detect-only build feasibility probes"
 	@printf '%s\n' "  make wucios-euclid-trial-phase-2-json"
 	@printf '%s\n' "                                Run Phase 2 probes and print JSON"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2b"
+	@printf '%s\n' "                                Run Phase 2B full-cohort safe probes"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2b-json"
+	@printf '%s\n' "                                Run Phase 2B full-cohort probes and print JSON"
 	@printf '%s\n' "  make wucios-euclid-trial-phase-2-attempt"
 	@printf '%s\n' "                                Guarded opt-in Phase 2 build attempt"
 	@printf '%s\n' "  make wucios-euclid-probe-buildroot"
@@ -173,6 +177,16 @@ help:
 	@printf '%s\n' "                                Run Alpine Phase 2 detect-only probe"
 	@printf '%s\n' "  make wucios-euclid-probe-debian-minimal"
 	@printf '%s\n' "                                Run Debian minimal Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-void"
+	@printf '%s\n' "                                Run Void Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-nixos"
+	@printf '%s\n' "                                Run NixOS Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-guix"
+	@printf '%s\n' "                                Run Guix Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-yocto"
+	@printf '%s\n' "                                Run Yocto Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-openbsd-reference"
+	@printf '%s\n' "                                Run OpenBSD reference Phase 2 detect-only probe"
 	@printf '%s\n' "  make wucios-surface-inventory Collect local surface inventory"
 	@printf '%s\n' "  make wucios-score             Generate invalid/no-artifact score material"
 	@printf '%s\n' "  make wucios-review            Generate partial Tarski review packet"
@@ -670,6 +684,12 @@ wucios-euclid-trial-phase-2:
 wucios-euclid-trial-phase-2-json:
 	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --json
 
+wucios-euclid-trial-phase-2b:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --phase2b
+
+wucios-euclid-trial-phase-2b-json:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --phase2b --json
+
 wucios-euclid-trial-phase-2-attempt:
 	@if [ "$${WUCIOS_EUCLID_ALLOW_ATTEMPT:-}" != "1" ]; then printf '%s\n' "Refusing Phase 2 build attempts: set WUCIOS_EUCLID_ALLOW_ATTEMPT=1 explicitly."; exit 1; fi
 	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --attempt-builds --allow-network
@@ -683,13 +703,28 @@ wucios-euclid-probe-alpine:
 wucios-euclid-probe-debian-minimal:
 	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate debian-minimal
 
+wucios-euclid-probe-void:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate void
+
+wucios-euclid-probe-nixos:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate nixos
+
+wucios-euclid-probe-guix:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate guix
+
+wucios-euclid-probe-yocto:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate yocto
+
+wucios-euclid-probe-openbsd-reference:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate openbsd-reference
+
 wucios-surface-inventory:
 	tools/wucios/surface_inventory.sh
 
 wucios-score:
 	$(PYTHON) tools/wucios/score_wucios.py
 
-wucios-review: wucios-surface-inventory wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-score
+wucios-review: wucios-surface-inventory wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2b wucios-score
 	$(PYTHON) tools/wucios/generate_review_packet.py
 
 wucios-idempotence-check:
@@ -698,6 +733,7 @@ wucios-idempotence-check:
 	@$(MAKE) wucios-substrate-matrix
 	@$(MAKE) wucios-euclid-trial-phase-1
 	@$(MAKE) wucios-euclid-trial-phase-2
+	@$(MAKE) wucios-euclid-trial-phase-2b
 	@$(MAKE) wucios-review
 	@if ! git diff --exit-code; then printf '%s\n' "WuciOS idempotence check failed: safe validation modified tracked files."; exit 1; fi
 

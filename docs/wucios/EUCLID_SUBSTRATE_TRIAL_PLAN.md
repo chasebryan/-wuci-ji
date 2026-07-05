@@ -39,6 +39,7 @@ Missing values remain `NOT_MEASURED`.
 
 - [EUCLID_TRIAL_PHASE_1.md](EUCLID_TRIAL_PHASE_1.md) defines the common evidence protocol.
 - [EUCLID_TRIAL_PHASE_2.md](EUCLID_TRIAL_PHASE_2.md) adds safe detect-only build feasibility probes.
+- [EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md) expands safe probes to the full original substrate candidate set.
 
 ## Mechanical Preconditions
 

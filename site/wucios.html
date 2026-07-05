@@ -94,8 +94,10 @@
             Debian minimal. It does not rank or select a substrate.
           </p>
           <p>
-            Phase 2 runs safe detect-only build feasibility probes for the same
-            cohort. Attempt mode is not part of default validation.
+            Phase 2B expands safe build feasibility probes to the full original
+            substrate candidate set: Buildroot, Alpine, Debian minimal, Void,
+            NixOS, Guix, Yocto, and OpenBSD reference. Attempt mode is not part
+            of default validation.
           </p>
         </div>
         <div class="aperture-panel">
@@ -106,7 +108,7 @@
             </div>
             <div>
               <dt>Score status</dt>
-              <dd><code>INVALID_WITHOUT_ARTIFACT</code></dd>
+              <dd><code>NO_ARTIFACT_SCORE</code></dd>
             </div>
             <div>
               <dt>Evidence packet</dt>
@@ -119,6 +121,10 @@
             <div>
               <dt>Phase 2 mode</dt>
               <dd><code>SAFE_DETECT_ONLY</code></dd>
+            </div>
+            <div>
+              <dt>Phase 2B status</dt>
+              <dd><code>TRIAL_DATA_PARTIAL</code> until comparable artifacts exist</dd>
             </div>
           </dl>
         </div>
@@ -137,7 +143,9 @@
         </p>
         <p>
           This Daylight site status is not a WuciOS substrate score and is not a
-          WuciOS release-authoritative artifact score.
+          WuciOS release-authoritative artifact score. Diagnostic score material
+          remains <code>INVALID_WITHOUT_ARTIFACT</code> until artifact-bound
+          evidence exists.
         </p>
       </section>
 
@@ -166,6 +174,10 @@
           <article class="command-card">
             <div class="command-card-head"><h3>Trial phase 2</h3></div>
             <pre><code>make wucios-euclid-trial-phase-2</code></pre>
+          </article>
+          <article class="command-card">
+            <div class="command-card-head"><h3>Trial phase 2B</h3></div>
+            <pre><code>make wucios-euclid-trial-phase-2b</code></pre>
           </article>
           <article class="command-card">
             <div class="command-card-head"><h3>Review packet</h3></div>
