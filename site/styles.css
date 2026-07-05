@@ -2307,13 +2307,16 @@ figure:hover figcaption {
 
 body {
   background:
+    linear-gradient(132deg, transparent 0 23%, rgba(216, 213, 206, 0.032) 23.1% 23.22%, transparent 23.34% 74%, rgba(155, 17, 24, 0.04) 74.1% 74.26%, transparent 74.38%),
     linear-gradient(90deg, rgba(247, 242, 232, 0.018) 1px, transparent 1px),
     linear-gradient(180deg, var(--nsm-bg) 0%, #0b0b0a 48%, #080807 100%);
-  background-size: 72px 72px, auto;
+  background-size: auto, 72px 72px, auto;
 }
 
 body::before {
   background:
+    linear-gradient(48deg, transparent 0 18%, rgba(216, 213, 206, 0.035) 18.08% 18.18%, transparent 18.28% 82%, rgba(155, 17, 24, 0.048) 82.08% 82.2%, transparent 82.32%),
+    linear-gradient(132deg, transparent 0 66%, rgba(155, 17, 24, 0.035) 66.08% 66.22%, transparent 66.34%),
     linear-gradient(180deg, rgba(247, 242, 232, 0.04), transparent 24%),
     linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.06), transparent);
 }
@@ -2432,6 +2435,8 @@ body::before {
   inset: 0;
   z-index: -3;
   background:
+    linear-gradient(126deg, transparent 0 26%, rgba(216, 213, 206, 0.07) 26.08% 26.24%, transparent 26.36% 72%, rgba(155, 17, 24, 0.08) 72.08% 72.28%, transparent 72.42%),
+    linear-gradient(54deg, transparent 0 18%, rgba(216, 213, 206, 0.045) 18.08% 18.2%, transparent 18.32%),
     radial-gradient(ellipse 780px 360px at 50% 48%, rgba(247, 242, 232, 0.15), transparent 68%),
     radial-gradient(ellipse 680px 260px at 22% 54%, rgba(155, 17, 24, 0.11), transparent 72%),
     linear-gradient(180deg, rgba(247, 242, 232, 0.055) 0%, transparent 20%, rgba(0, 0, 0, 0.28) 100%),
@@ -2446,6 +2451,7 @@ body::before {
   background:
     linear-gradient(90deg, transparent, rgba(247, 242, 232, 0.09), transparent) top / 100% 1px no-repeat,
     linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.16), transparent) bottom / 100% 1px no-repeat,
+    linear-gradient(132deg, transparent 0 34%, rgba(216, 213, 206, 0.08) 34.08% 34.22%, transparent 34.34% 70%, rgba(155, 17, 24, 0.08) 70.08% 70.24%, transparent 70.36%),
     repeating-linear-gradient(90deg, transparent 0 24.85%, rgba(216, 213, 206, 0.052) 24.85% 25%, transparent 25% 50%);
   opacity: 0.86;
 }
@@ -2690,6 +2696,7 @@ body::before {
 .daylight-ladder {
   border-bottom: 1px solid var(--nsm-line);
   background:
+    linear-gradient(126deg, transparent 0 18%, rgba(216, 213, 206, 0.035) 18.08% 18.18%, transparent 18.3% 78%, rgba(155, 17, 24, 0.04) 78.08% 78.2%, transparent 78.32%),
     linear-gradient(180deg, rgba(17, 16, 15, 0.98), rgba(12, 12, 11, 0.98));
 }
 
@@ -2697,6 +2704,7 @@ body::before {
 .command-section {
   border-bottom: 1px solid var(--nsm-line);
   background:
+    linear-gradient(48deg, transparent 0 24%, rgba(155, 17, 24, 0.045) 24.08% 24.22%, transparent 24.34%),
     repeating-linear-gradient(135deg, rgba(216, 213, 206, 0.04) 0 1px, transparent 1px 56px),
     linear-gradient(180deg, #0b0b0a 0%, #11100f 100%);
 }
@@ -3065,6 +3073,7 @@ pre::before {
 .nsm-gallery {
   border-bottom: 1px solid var(--nsm-line);
   background:
+    linear-gradient(132deg, transparent 0 28%, rgba(216, 213, 206, 0.04) 28.08% 28.22%, transparent 28.34% 82%, rgba(155, 17, 24, 0.05) 82.08% 82.24%, transparent 82.36%),
     linear-gradient(180deg, #11100f 0%, #0a0a09 100%);
 }
 
@@ -3096,6 +3105,9 @@ figcaption {
 .domain-review-section {
   border-bottom: 1px solid var(--nsm-line);
   background:
+    linear-gradient(125deg, transparent 0 19%, rgba(216, 213, 206, 0.08) 19.08% 19.26%, transparent 19.4% 67%, rgba(155, 17, 24, 0.1) 67.08% 67.28%, transparent 67.42%),
+    linear-gradient(55deg, transparent 0 42%, rgba(216, 213, 206, 0.045) 42.08% 42.2%, transparent 42.34%),
+    radial-gradient(ellipse 760px 280px at 58% 46%, rgba(216, 213, 206, 0.08), transparent 70%),
     linear-gradient(180deg, #0a0a09 0%, #141211 54%, #0b0b0a 100%);
 }
 
@@ -3158,6 +3170,7 @@ figcaption {
 .nsm-final-boundary {
   grid-template-columns: minmax(220px, 0.58fr) minmax(0, 1fr) auto;
   background:
+    linear-gradient(132deg, transparent 0 30%, rgba(216, 213, 206, 0.045) 30.08% 30.2%, transparent 30.32% 88%, rgba(155, 17, 24, 0.07) 88.08% 88.24%, transparent 88.36%),
     linear-gradient(90deg, rgba(77, 9, 13, 0.42), transparent 42%),
     linear-gradient(180deg, #171514, #0c0c0b);
 }
