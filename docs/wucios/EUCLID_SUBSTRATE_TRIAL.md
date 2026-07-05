@@ -2,9 +2,9 @@
 
 Euclid Substrate Trial is the substrate comparison framework for WuciOS v2.4. It defines candidate bases, axioms, required evidence, and measurable comparison criteria.
 
-No substrate is selected until evidence exists.
+A substrate is selected only when measured trial evidence exists.
 
-Current status: `NO_SUBSTRATE_SELECTED`.
+Current measured trial status: `SUBSTRATE_SELECTED: Alpine` for WuciOS v2.4 substrate trial scope only.
 
 ## Candidates
 
@@ -147,3 +147,39 @@ Review architecture status:
 “WuciOS v2.4 Euclid Trial Phase 3C is closed at origin/wucios-v24-reduction-gate commit 0f06b62. All Phase 3C preparation lanes are integrated and bounded. No artifact, artifact hash, substrate selection, ranking, or numeric WuciOS score exists. L3 and L4 remain unauthorized. Further movement requires explicit human authorization.”
 
 No next implementation phase is authorized or inferred by this closeout.
+
+## WuciOS v2.4 Alpine Substrate Trial
+
+The staged Alpine substrate trial ran after Phase 3C closeout and produced local
+trial evidence under `build/wucios/full-trial/alpine/`.
+
+Trial status:
+
+- Candidate: Alpine
+- Candidate family: direct-rootfs
+- Input: Alpine release minirootfs `3.24.1` x86_64, recorded in generated input evidence
+- Artifact path: `build/wucios/full-trial/alpine/artifact/wucios-v2.4-alpine-trial-rootfs.tar.gz`
+- Artifact SHA-256: `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
+- Generated score evidence: `build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json` records `score_value: 96.0`
+- Selection decision: `SUBSTRATE_SELECTED: Alpine`
+- Selection scope: WuciOS v2.4 substrate trial
+- Artifact eligibility: trial artifact only
+- External validation: `NO`
+- Production readiness: `NO`
+- Runtime validation: `NO`
+
+The generated score evidence also records that the earlier Daylight Candidate
+Readiness Score was not reused as an artifact/security score.
+
+Boundary confirmations:
+
+- No sudo was used.
+- No package installation occurred.
+- No host package index update occurred.
+- No source tree was cloned.
+- No container was built or run.
+- No VM was launched.
+- No chroot or mount operation occurred.
+- No unapproved download occurred.
+- No external validation is claimed.
+- No production readiness is claimed.

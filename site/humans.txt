@@ -92,3 +92,16 @@ Phase 3C is integrated and closed at origin/wucios-v24-reduction-gate commit
 0f06b62. No WuciOS artifact, artifact hash, substrate selection, ranking, or
 numeric WuciOS score exists from Phase 3C. L3 and L4 remain unauthorized. No
 next implementation phase is authorized or inferred by this closeout.
+
+WuciOS v2.4 Alpine Substrate Trial:
+The Alpine trial produced a bounded trial artifact under
+build/wucios/full-trial/alpine/ from an Alpine release minirootfs 3.24.1
+x86_64 input. Artifact SHA-256:
+95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f.
+Generated score evidence file
+build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json records
+score_value 96.0. Selection decision: SUBSTRATE_SELECTED: Alpine for WuciOS
+v2.4 substrate trial scope only. External validation is not claimed. Production
+readiness is not claimed. Runtime validation did not occur. Generated score
+evidence records that the Daylight Candidate Readiness Score was not reused as a
+WuciOS artifact/security score.

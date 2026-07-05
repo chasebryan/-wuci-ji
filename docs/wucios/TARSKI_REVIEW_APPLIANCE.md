@@ -100,3 +100,23 @@ Phase 3C is closed at `origin/wucios-v24-reduction-gate` commit `0f06b62`. The r
 Preserved warnings remain: the existing Phase 3B readiness remediation human-approval boundary warning, and existing fluff-audit allowlisted non-claim phrases and skipped historical non-authoritative fixtures.
 
 No next implementation phase is authorized or inferred by this closeout.
+
+## WuciOS v2.4 Alpine Substrate Trial Evidence Status
+
+The staged Alpine substrate trial produced local evidence under
+`build/wucios/full-trial/alpine/`. The trial evidence records:
+
+- Bounded Alpine trial artifact: `build/wucios/full-trial/alpine/artifact/wucios-v2.4-alpine-trial-rootfs.tar.gz`
+- Artifact SHA-256: `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
+- Generated score evidence: `build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json` records `score_value: 96.0`
+- Selection decision: `SUBSTRATE_SELECTED: Alpine`
+- Selection scope: WuciOS v2.4 substrate trial
+- External validation: `NO`
+- Production readiness: `NO`
+- Runtime validation: `NO`
+
+The generated score evidence records that the Daylight Candidate Readiness
+Score was not reused as an artifact/security score. The Alpine trial did not
+use sudo, install packages, mutate the host package database, clone sources,
+run containers, launch VMs, chroot, mount filesystems, or perform runtime
+validation.

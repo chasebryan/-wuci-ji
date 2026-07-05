@@ -23,7 +23,7 @@ WuciOS v2.4 is not attempting to ship a large consumer desktop OS. The serious b
 
 Void is one candidate only. The project will compare Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference before selecting any final base.
 
-Current substrate selection status: `NO_SUBSTRATE_SELECTED`.
+Current measured trial substrate selection status: `SUBSTRATE_SELECTED: Alpine` for WuciOS v2.4 substrate trial scope only.
 
 The first trial readiness plan is [EUCLID_SUBSTRATE_TRIAL_PLAN.md](EUCLID_SUBSTRATE_TRIAL_PLAN.md).
 The first artifact cohort protocol is [EUCLID_TRIAL_PHASE_1.md](EUCLID_TRIAL_PHASE_1.md).
@@ -36,6 +36,24 @@ The direct-rootfs preparation policy layer is [EUCLID_TRIAL_PHASE_3C_B.md](EUCLI
 The NixOS/Guix store-root preparation policy layer is [EUCLID_TRIAL_PHASE_3C_C.md](EUCLID_TRIAL_PHASE_3C_C.md).
 The Yocto layer/recipe preparation policy layer is [EUCLID_TRIAL_PHASE_3C_D.md](EUCLID_TRIAL_PHASE_3C_D.md).
 The OpenBSD reference preparation policy layer is [EUCLID_TRIAL_PHASE_3C_E.md](EUCLID_TRIAL_PHASE_3C_E.md).
+
+## Alpine Substrate Trial Status
+
+WuciOS v2.4 Alpine Substrate Trial produced a bounded trial artifact under
+`build/wucios/full-trial/alpine/` from an Alpine release minirootfs `3.24.1`
+x86_64 input recorded in generated input evidence.
+
+- Artifact SHA-256: `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
+- Generated score evidence: `build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json` records `score_value: 96.0`
+- Selection decision: `SUBSTRATE_SELECTED: Alpine`
+- Selection scope: WuciOS v2.4 substrate trial
+- Artifact eligibility: trial artifact only
+- External validation: `NO`
+- Production readiness: `NO`
+- Runtime validation: `NO`
+
+The generated score evidence records that the earlier Daylight Candidate
+Readiness Score was not reused as an artifact/security score.
 
 ## Evidence Requirement
 
@@ -93,3 +111,4 @@ make wucios-euclid-openbsd-reference-phase-3c-e-guardrails
 20. Phase 3C-D Yocto layer/recipe preparation rules do not run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate rootfs or image outputs, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 21. Phase 3C-E OpenBSD reference preparation rules do not install, boot, inspect runtime behavior, run package/admin commands, clone source trees, download ports trees or install media, launch VMs, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 22. Phase 3C is closed at `origin/wucios-v24-reduction-gate` commit `0f06b62`; no next implementation phase is authorized or inferred by this closeout.
+23. The Alpine substrate trial decision is scoped to WuciOS v2.4 substrate trial evidence. It does not claim production readiness, external validation, runtime validation, or broader substrate certification.

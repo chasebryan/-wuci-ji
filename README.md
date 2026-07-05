@@ -59,7 +59,7 @@ Birkhoff Bastion is optional operator shell material. Ratpoison and DWM are cand
 
 Tarski Review Appliance generates the review packet. A WuciOS release is incomplete without this packet.
 
-Euclid Substrate Trial compares Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference. Void is one candidate only. No substrate is selected in this pass.
+Euclid Substrate Trial compares Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference. Void is one candidate only. Phase 3C closed without a selected substrate; the later staged Alpine substrate trial records the current measured trial decision.
 
 Euclid Trial Phase 1 prepares the first artifact cohort: Buildroot, Alpine, and Debian minimal. It standardizes comparable evidence outputs and reports `NO_SUBSTRATE_SELECTED` until generated trial data exists.
 
@@ -80,6 +80,13 @@ Euclid Trial Phase 3C-D defines Yocto layer/recipe preparation rules and is inte
 Euclid Trial Phase 3C-E defines OpenBSD reference preparation rules and is integrated and closed at `0f06b62`. Optional L2 scaffolding requires explicit `WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1` authorization and generates only non-artifact reference scaffolding under `build/wucios/`. Phase 3C-E does not install or boot OpenBSD, inspect runtime behavior, run OpenBSD package/admin commands, clone source trees, download ports trees or install media, launch VMs, generate rootfs or image outputs, attempt substrate artifacts, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 
 Euclid Trial Phase 3C is closed at `origin/wucios-v24-reduction-gate` commit `0f06b62`. All Phase 3C preparation lanes are integrated and bounded. No WuciOS artifact, artifact hash, substrate selection, ranking, or numeric WuciOS score exists. L3 and L4 remain unauthorized. No next implementation phase is authorized or inferred by this closeout.
+
+WuciOS v2.4 Alpine Substrate Trial produced a bounded Alpine trial artifact under `build/wucios/full-trial/alpine/`.
+Input evidence records Alpine release minirootfs `3.24.1` x86_64.
+The trial artifact SHA-256 is `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`.
+Generated score evidence file `build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json` records `score_value: 96.0`.
+Selection decision: `SUBSTRATE_SELECTED: Alpine` for WuciOS v2.4 substrate trial scope only.
+External validation is not claimed. Production readiness is not claimed. Runtime validation did not occur.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 

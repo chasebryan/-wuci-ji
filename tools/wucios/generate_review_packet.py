@@ -135,6 +135,16 @@ def measurement_summary() -> dict[str, str]:
     return summary
 
 
+def merge_substrate_selection(current: str, incoming: object) -> str:
+    """Keep measured current selection above phase-local historical defaults."""
+    incoming_status = str(incoming)
+    if incoming_status.startswith("SUBSTRATE_SELECTED:"):
+        return incoming_status
+    if current.startswith("SUBSTRATE_SELECTED:"):
+        return current
+    return incoming_status
+
+
 def load_generated_summary() -> dict[str, str]:
     substrate_selection = "NO_SUBSTRATE_SELECTED"
     euclid_phase_1_status = "TRIAL_DATA_PARTIAL"
@@ -213,7 +223,7 @@ def load_generated_summary() -> dict[str, str]:
     if substrate_matrix.is_file():
         try:
             data = load_json(substrate_matrix)
-            substrate_selection = str(data.get("selection_status", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("selection_status", substrate_selection))
         except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
             substrate_selection = "NOT_MEASURED"
 
@@ -231,7 +241,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_2)
             euclid_phase_2_status = str(data.get("global_status", euclid_phase_2_status))
             euclid_phase_2_execution = str(data.get("execution_mode", euclid_phase_2_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_2_candidates = ", ".join(
                 f"{candidate.get('id', candidate.get('candidate', 'unknown'))}:{candidate.get('phase_status', 'NOT_MEASURED')}"
                 for candidate in data.get("candidates", [])
@@ -253,7 +263,7 @@ def load_generated_summary() -> dict[str, str]:
             euclid_phase_2b_status = str(data.get("global_status", euclid_phase_2b_status))
             euclid_phase_2b_execution = str(data.get("execution_mode", euclid_phase_2b_execution))
             euclid_phase_2b_candidate_count = str(data.get("candidate_count", euclid_phase_2b_candidate_count))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_2b_candidates = ", ".join(
                 f"{candidate.get('id', candidate.get('candidate', 'unknown'))}:{candidate.get('phase_status', 'NOT_MEASURED')}"
                 for candidate in data.get("candidates", [])
@@ -281,7 +291,7 @@ def load_generated_summary() -> dict[str, str]:
             euclid_phase_3a_status = str(data.get("global_status", euclid_phase_3a_status))
             euclid_phase_3a_execution = str(data.get("execution_mode", euclid_phase_3a_execution))
             euclid_phase_3a_candidate_count = str(data.get("candidate_count", euclid_phase_3a_candidate_count))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3a_backend_summary = ", ".join(
                 f"{key}:{value}" for key, value in sorted(data.get("backend_summary", {}).items())
             ) or "NOT_MEASURED"
@@ -310,7 +320,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_3b)
             euclid_phase_3b_status = str(data.get("global_status", euclid_phase_3b_status))
             euclid_phase_3b_execution = str(data.get("execution_mode", euclid_phase_3b_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3b_backend_summary = ", ".join(
                 f"{key}:{value}" for key, value in sorted(data.get("backend_summary", {}).items())
             ) or "NOT_MEASURED"
@@ -345,7 +355,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_3c_a)
             euclid_phase_3c_a_status = str(data.get("global_status", euclid_phase_3c_a_status))
             euclid_phase_3c_a_execution = str(data.get("execution_mode", euclid_phase_3c_a_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3c_a_score_status = str(data.get("score_status", euclid_phase_3c_a_score_status))
             l1 = data.get("l1_backend_detection", {})
             l1_summary = l1.get("summary", {}) if isinstance(l1, dict) else {}
@@ -386,7 +396,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_3c_b)
             euclid_phase_3c_b_status = str(data.get("global_status", euclid_phase_3c_b_status))
             euclid_phase_3c_b_execution = str(data.get("execution_mode", euclid_phase_3c_b_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3c_b_score_status = str(data.get("score_status", euclid_phase_3c_b_score_status))
             euclid_phase_3c_b_in_scope = ", ".join(str(item) for item in data.get("in_scope_candidates", [])) or "NOT_MEASURED"
             out_of_scope = data.get("out_of_scope_preserved", {})
@@ -436,7 +446,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_3c_c)
             euclid_phase_3c_c_status = str(data.get("global_status", euclid_phase_3c_c_status))
             euclid_phase_3c_c_execution = str(data.get("execution_mode", euclid_phase_3c_c_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3c_c_score_status = str(data.get("score_status", euclid_phase_3c_c_score_status))
             euclid_phase_3c_c_in_scope = ", ".join(str(item) for item in data.get("in_scope_candidates", [])) or "NOT_MEASURED"
             out_of_scope = data.get("out_of_scope_preserved", {})
@@ -488,7 +498,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_3c_d)
             euclid_phase_3c_d_status = str(data.get("global_status", euclid_phase_3c_d_status))
             euclid_phase_3c_d_execution = str(data.get("execution_mode", euclid_phase_3c_d_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3c_d_score_status = str(data.get("score_status", euclid_phase_3c_d_score_status))
             euclid_phase_3c_d_in_scope = ", ".join(str(item) for item in data.get("in_scope_candidates", [])) or "NOT_MEASURED"
             out_of_scope = data.get("out_of_scope_preserved", {})
@@ -543,7 +553,7 @@ def load_generated_summary() -> dict[str, str]:
             data = load_json(euclid_phase_3c_e)
             euclid_phase_3c_e_status = str(data.get("global_status", euclid_phase_3c_e_status))
             euclid_phase_3c_e_execution = str(data.get("execution_mode", euclid_phase_3c_e_execution))
-            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            substrate_selection = merge_substrate_selection(substrate_selection, data.get("substrate_selection", substrate_selection))
             euclid_phase_3c_e_score_status = str(data.get("score_status", euclid_phase_3c_e_score_status))
             euclid_phase_3c_e_in_scope = ", ".join(str(item) for item in data.get("in_scope_references", [])) or "NOT_MEASURED"
             out_of_scope = data.get("out_of_scope_preserved", {})
