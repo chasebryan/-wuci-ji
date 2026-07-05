@@ -17,6 +17,7 @@ PLANNER_OUTPUT_VOCABULARY_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-pla
 TRACEABILITY_MATRIX_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-traceability-matrix.sh"
 FOUNDATION_REGISTRY_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-registry.sh"
 FOUNDATION_REPORT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-validation-report.sh"
+FOUNDATION_REVIEW_PACKET_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-review-packet.sh"
 failures=0
 
 pass() {
@@ -79,6 +80,7 @@ check_file "$PLANNER_OUTPUT_VOCABULARY_VALIDATOR" "planner output vocabulary val
 check_file "$TRACEABILITY_MATRIX_VALIDATOR" "traceability matrix validator"
 check_file "$FOUNDATION_REGISTRY_VALIDATOR" "foundation validation registry validator"
 check_file "$FOUNDATION_REPORT_VALIDATOR" "foundation validation report validator"
+check_file "$FOUNDATION_REVIEW_PACKET_VALIDATOR" "foundation review packet validator"
 
 check_text "$README" "README identifies Probe 4 scaffold-only scope" "Probe 4 is scaffold-only."
 check_text "$README" "README reserves later structure" "reserves structure for a later"
@@ -189,6 +191,16 @@ if [ -f "$FOUNDATION_REPORT_VALIDATOR" ]; then
 		pass "foundation validation report validator passes"
 	else
 		fail "foundation validation report validator failed"
+	fi
+fi
+
+if [ -f "$FOUNDATION_REVIEW_PACKET_VALIDATOR" ]; then
+	if [ "${WUCIOS_SKIP_FOUNDATION_REVIEW_PACKET:-0}" = "1" ]; then
+		pass "foundation review packet validator skipped for nested runner validation"
+	elif sh "$FOUNDATION_REVIEW_PACKET_VALIDATOR"; then
+		pass "foundation review packet validator passes"
+	else
+		fail "foundation review packet validator failed"
 	fi
 fi
 
