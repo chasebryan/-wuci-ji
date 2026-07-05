@@ -3227,7 +3227,7 @@ figcaption {
 
 @media (max-width: 640px) {
   .nsm-shell {
-    width: min(100% - 36px, 1240px);
+    width: min(100% - 28px, 1240px);
   }
 
   .brand-mark {
@@ -3244,15 +3244,16 @@ figcaption {
   }
 
   .nsm-hero-copy > .eyebrow {
-    justify-self: start;
-    max-width: 100%;
-    padding: 7px 9px;
+    justify-self: stretch;
+    width: 100%;
+    padding: 9px 10px;
     border: 1px solid rgba(216, 213, 206, 0.24);
     background: rgba(8, 8, 7, 0.78);
     color: var(--nsm-ink);
-    font-size: 0.68rem;
-    line-height: 1.25;
-    overflow-wrap: anywhere;
+    font-size: clamp(0.66rem, 2.75vw, 0.74rem);
+    line-height: 1.35;
+    text-align: center;
+    overflow-wrap: normal;
   }
 
   .nsm-hero::after {
