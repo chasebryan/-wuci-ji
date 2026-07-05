@@ -29,9 +29,10 @@ Current status:
 - Phase 3C-B is integrated and closed at 9be4dcc
 - Phase 3C-C is integrated and closed at c3a16e4 for NixOS and Guix store-root policy only
 - Phase 3C-C does not build or run NixOS or Guix, realize store paths, generate artifacts, generate artifact hashes, select a substrate, rank candidates, or generate a numeric WuciOS score
-- Phase 3C-D is the active authorized preparation phase for Yocto layer/recipe policy only
+- Phase 3C-D is integrated and closed at 8204015 for Yocto layer/recipe policy only
 - Phase 3C-D does not run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate rootfs or image outputs, generate artifacts, generate artifact hashes, select a substrate, rank candidates, or generate a numeric WuciOS score
-- OpenBSD reference remains deferred to Phase 3C-E
+- Phase 3C-E is the active authorized preparation phase for OpenBSD reference policy only
+- Phase 3C-E does not install or boot OpenBSD, inspect runtime behavior, run package/admin commands, clone source trees, download ports trees or install media, launch VMs, generate rootfs or image outputs, generate artifacts, generate artifact hashes, select a substrate, rank candidates, or generate a numeric WuciOS score
 - missing measurements are NOT_MEASURED
 
 Validation handles:

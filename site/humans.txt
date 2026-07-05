@@ -78,4 +78,11 @@ Yocto layer/recipe preparation policy covers Yocto only. It does not run
 BitBake, initialize a Yocto build environment, clone or download Yocto sources
 or layers, generate rootfs or image outputs, attempt substrate artifacts,
 generate artifact hashes, select a substrate, rank candidates, or generate an
-artifact score. OpenBSD reference remains deferred to Phase 3C-E.
+artifact score. Phase 3C-D is integrated and closed at 8204015.
+
+WuciOS Phase 3C-E:
+OpenBSD reference preparation policy covers OpenBSD reference only. It does not
+install or boot OpenBSD, inspect runtime behavior, run package/admin commands,
+clone source trees, download ports trees or install media, launch VMs, generate
+rootfs or image outputs, attempt substrate artifacts, generate artifact hashes,
+select a substrate, rank candidates, or generate an artifact score.

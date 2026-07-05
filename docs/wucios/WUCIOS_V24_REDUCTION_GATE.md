@@ -35,6 +35,7 @@ The rootless backend smoke guardrail layer is [EUCLID_TRIAL_PHASE_3C_A.md](EUCLI
 The direct-rootfs preparation policy layer is [EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
 The NixOS/Guix store-root preparation policy layer is [EUCLID_TRIAL_PHASE_3C_C.md](EUCLID_TRIAL_PHASE_3C_C.md).
 The Yocto layer/recipe preparation policy layer is [EUCLID_TRIAL_PHASE_3C_D.md](EUCLID_TRIAL_PHASE_3C_D.md).
+The OpenBSD reference preparation policy layer is [EUCLID_TRIAL_PHASE_3C_E.md](EUCLID_TRIAL_PHASE_3C_E.md).
 
 ## Evidence Requirement
 
@@ -64,6 +65,8 @@ make wucios-euclid-store-root-phase-3c-c
 make wucios-euclid-store-root-phase-3c-c-guardrails
 make wucios-euclid-yocto-phase-3c-d
 make wucios-euclid-yocto-phase-3c-d-guardrails
+make wucios-euclid-openbsd-reference-phase-3c-e
+make wucios-euclid-openbsd-reference-phase-3c-e-guardrails
 ```
 
 ## Controlling Doctrine
@@ -88,3 +91,4 @@ make wucios-euclid-yocto-phase-3c-d-guardrails
 18. Phase 3C-B direct-rootfs preparation rules do not generate rootfs images, select a substrate, rank candidates, or generate a numeric WuciOS score.
 19. Phase 3C-C NixOS/Guix store-root preparation rules do not realize store paths, build NixOS or Guix systems, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 20. Phase 3C-D Yocto layer/recipe preparation rules do not run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate rootfs or image outputs, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
+21. Phase 3C-E OpenBSD reference preparation rules do not install, boot, inspect runtime behavior, run package/admin commands, clone source trees, download ports trees or install media, launch VMs, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.

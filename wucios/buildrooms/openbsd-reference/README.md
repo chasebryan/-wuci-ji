@@ -1,7 +1,9 @@
-# OpenBSD Reference Runtime Room
+# OpenBSD Reference Phase 3C-E
 
-Execution class: `reference-runtime-room`
+This directory defines Phase 3C-E OpenBSD reference preparation policy.
 
-OpenBSD remains a non-Linux reference path. This directory defines a future controlled runtime inspection room and does not launch a VM.
+In scope:
 
-Blocked until a local OpenBSD image or approved image acquisition policy exists, a reference runtime inspection plan exists, VM execution is authorized, and a future explicit runtime attempt authorization exists.
+- `openbsd_reference`
+
+Phase 3C-E is policy-only by default. It does not boot, install, download, clone, package, inspect, virtualize, image, score, select, or rank OpenBSD.

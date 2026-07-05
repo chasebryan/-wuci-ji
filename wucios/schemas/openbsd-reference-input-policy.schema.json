@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS OpenBSD Reference Input Policy",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "status",
+    "reference_inputs_evaluated_in_phase_3c_e",
+    "openbsd_runtime_inspected_in_phase_3c_e",
+    "openbsd_install_boot_or_package_command_invoked_in_phase_3c_e",
+    "network_allowed_in_phase_3c_e",
+    "references"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.euclid.openbsd_reference_input_policy.v1"},
+    "phase_id": {"const": "euclid-trial-phase-3c-e"},
+    "status": {"const": "POLICY_ONLY_NOT_EXECUTABLE"},
+    "reference_inputs_evaluated_in_phase_3c_e": {"const": false},
+    "openbsd_runtime_inspected_in_phase_3c_e": {"const": false},
+    "openbsd_install_boot_or_package_command_invoked_in_phase_3c_e": {"const": false},
+    "network_allowed_in_phase_3c_e": {"const": false},
+    "references": {"type": "object"}
+  },
+  "additionalProperties": true
+}

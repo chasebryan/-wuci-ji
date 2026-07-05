@@ -1,0 +1,43 @@
+{
+  "schema": "wucios.euclid.openbsd_reference_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-e",
+  "applies_to": [
+    "openbsd_reference"
+  ],
+  "default_allowed_level": "L1_OPENBSD_REFERENCE_POLICY_ONLY",
+  "l2_scaffold_requires": "WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1",
+  "l3_artifact_attempts_allowed": false,
+  "runtime_inspection_allowed": false,
+  "openbsd_boot_allowed": false,
+  "openbsd_install_allowed": false,
+  "openbsd_package_admin_allowed": false,
+  "source_clone_allowed": false,
+  "ports_tree_download_allowed": false,
+  "install_media_download_allowed": false,
+  "network_allowed": false,
+  "vm_launch_allowed": false,
+  "hypervisor_tooling_allowed": false,
+  "rootfs_generation_allowed": false,
+  "image_generation_allowed": false,
+  "container_builds_allowed": false,
+  "container_runs_allowed": false,
+  "image_pulls_allowed": false,
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "os_image_download_allowed": false,
+  "selection_allowed": false,
+  "ranking_allowed": false,
+  "output_root": "build/wucios/buildrooms/openbsd-reference",
+  "future_l3_l4_requirements": [
+    "explicit future authorization",
+    "clean worktree",
+    "approved OpenBSD reference input policy",
+    "approved media and source acquisition policy",
+    "approved runtime inspection policy before L4",
+    "approved VM or hardware runtime policy before L4",
+    "candidate-specific evidence hooks",
+    "Tarski Review Appliance integration",
+    "NO_SUBSTRATE_SELECTED preserved until comparable evidence exists",
+    "NO_ARTIFACT_SCORE preserved unless artifact-bound scoring is complete"
+  ]
+}

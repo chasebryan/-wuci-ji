@@ -20,6 +20,7 @@ WuciOS v2.4 is the current reduction-controlled design path. The larger v2.3 dir
 - [Euclid Trial Phase 3C-B](docs/wucios/EUCLID_TRIAL_PHASE_3C_B.md)
 - [Euclid Trial Phase 3C-C](docs/wucios/EUCLID_TRIAL_PHASE_3C_C.md)
 - [Euclid Trial Phase 3C-D](docs/wucios/EUCLID_TRIAL_PHASE_3C_D.md)
+- [Euclid Trial Phase 3C-E](docs/wucios/EUCLID_TRIAL_PHASE_3C_E.md)
 - [Tarski Review Appliance](docs/wucios/TARSKI_REVIEW_APPLIANCE.md)
 - [Gödel Boundary](docs/wucios/GODEL_BOUNDARY.md)
 - [Mathematician Naming Scheme](docs/wucios/MATHEMATICIAN_NAMING_SCHEME.md)
@@ -44,6 +45,8 @@ make wucios-euclid-store-root-phase-3c-c
 make wucios-euclid-store-root-phase-3c-c-guardrails
 make wucios-euclid-yocto-phase-3c-d
 make wucios-euclid-yocto-phase-3c-d-guardrails
+make wucios-euclid-openbsd-reference-phase-3c-e
+make wucios-euclid-openbsd-reference-phase-3c-e-guardrails
 ```
 
 Status: Local evidence only. Not externally certified. Not production authorized.
@@ -72,7 +75,9 @@ Euclid Trial Phase 3C-B defines direct-rootfs preparation rules for Buildroot, A
 
 Euclid Trial Phase 3C-C defines NixOS/Guix store-root preparation rules and is integrated and closed at `c3a16e4`. Optional L2 scaffolding requires explicit `WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1` authorization and generates only non-artifact preparation scaffolding under `build/wucios/`. Phase 3C-C does not build or run NixOS or Guix, realize store paths, generate rootfs images, attempt substrate artifacts, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 
-Euclid Trial Phase 3C-D defines Yocto layer/recipe preparation rules. Optional L2 scaffolding requires explicit `WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1` authorization and generates only non-artifact preparation scaffolding under `build/wucios/`. Phase 3C-D does not run BitBake, initialize a Yocto build environment, clone or download Yocto layers or sources, generate rootfs or image outputs, attempt substrate artifacts, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score. OpenBSD reference remains deferred to Phase 3C-E.
+Euclid Trial Phase 3C-D defines Yocto layer/recipe preparation rules and is integrated and closed at `8204015`. Optional L2 scaffolding requires explicit `WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1` authorization and generates only non-artifact preparation scaffolding under `build/wucios/`. Phase 3C-D does not run BitBake, initialize a Yocto build environment, clone or download Yocto layers or sources, generate rootfs or image outputs, attempt substrate artifacts, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
+
+Euclid Trial Phase 3C-E defines OpenBSD reference preparation rules. Optional L2 scaffolding requires explicit `WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1` authorization and generates only non-artifact reference scaffolding under `build/wucios/`. Phase 3C-E does not install or boot OpenBSD, inspect runtime behavior, run OpenBSD package/admin commands, clone source trees, download ports trees or install media, launch VMs, generate rootfs or image outputs, attempt substrate artifacts, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 

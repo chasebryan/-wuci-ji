@@ -85,4 +85,10 @@ Phase 3C-C does not make the review packet release-complete. It does not generat
 
 If `build/wucios/review/euclid-trial-phase-3c-d.json` exists, the review packet summarizes Phase 3C-D global status, execution mode, in-scope Yocto layer/recipe candidate, preserved out-of-scope candidates, preparation status, L2 scaffold status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-D: NOT_RUN`.
 
-Phase 3C-D does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate a rootfs, generate an image, generate an artifact hash, or produce a numeric WuciOS score. The review packet records Phase 3C-E OpenBSD reference as deferred.
+Phase 3C-D does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate a rootfs, generate an image, generate an artifact hash, or produce a numeric WuciOS score. The review packet keeps Phase 3C-E OpenBSD reference preparation distinct from Yocto layer/recipe preparation.
+
+## Phase 3C-E Review Status
+
+If `build/wucios/review/euclid-trial-phase-3c-e.json` exists, the review packet summarizes Phase 3C-E global status, execution mode, in-scope OpenBSD reference target, preserved out-of-scope candidates, reference preparation status, L2 scaffold status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-E: NOT_RUN`.
+
+Phase 3C-E does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, install or boot OpenBSD, inspect runtime behavior, run package/admin commands, clone source trees, download ports trees or install media, launch VMs, generate a rootfs, generate an image, generate an artifact hash, or produce a numeric WuciOS score. OpenBSD reference status is not substrate selection or ranking.

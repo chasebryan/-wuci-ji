@@ -12,7 +12,7 @@ Phase 3C-D defines controlled preparation rules for Yocto as a build-system, met
 
 - Buildroot, Alpine, Debian minimal, and Void remain Phase 3C-B direct-rootfs candidates.
 - NixOS and Guix remain Phase 3C-C store-root candidates.
-- OpenBSD reference remains deferred to Phase 3C-E Reference Runtime Policy.
+- OpenBSD reference remains assigned to Phase 3C-E OpenBSD Reference Preparation.
 
 ## Yocto Preparation Concept
 
@@ -69,3 +69,7 @@ Yocto preparation readiness does not select or rank any substrate.
 ## Score Boundary
 
 Phase 3C-D cannot produce a numeric WuciOS score. It does not create a WuciOS artifact, artifact hash, rootfs, image, SDK, Yocto build output, or score-eligible evidence.
+
+## Phase 3C-E Boundary
+
+Phase 3C-D is integrated and closed at `8204015`. Phase 3C-E handles OpenBSD reference preparation separately. OpenBSD reference work does not imply substrate selection, substrate ranking, runtime validation, or artifact eligibility.

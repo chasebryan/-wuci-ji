@@ -1,0 +1,43 @@
+{
+  "schema": "wucios.euclid.openbsd_reference_input_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-e",
+  "status": "POLICY_ONLY_NOT_EXECUTABLE",
+  "reference_inputs_evaluated_in_phase_3c_e": false,
+  "openbsd_runtime_inspected_in_phase_3c_e": false,
+  "openbsd_install_boot_or_package_command_invoked_in_phase_3c_e": false,
+  "network_allowed_in_phase_3c_e": false,
+  "references": {
+    "openbsd_reference": {
+      "openbsd_reference_input_type": "reference-manifest-media-source-runtime-policy",
+      "future_level_required": "L3_OR_L4",
+      "required_manifest_concepts": [
+        "OpenBSD reference target identity policy",
+        "install media acquisition policy",
+        "sets and signature policy",
+        "source tree acquisition policy",
+        "ports tree acquisition policy",
+        "package/admin command policy",
+        "runtime authorization policy",
+        "VM or hardware runtime policy",
+        "output path policy",
+        "evidence hook policy"
+      ],
+      "forbidden_in_phase_3c_e": [
+        "install OpenBSD",
+        "boot OpenBSD",
+        "inspect OpenBSD runtime behavior",
+        "execute package or admin command",
+        "clone OpenBSD source or mirror",
+        "download OpenBSD media, sets, packages, ports, snapshots, signatures, source archives, or mirrors",
+        "launch VM",
+        "use qemu or hypervisor tooling",
+        "generate rootfs",
+        "generate image",
+        "generate artifact",
+        "select substrate",
+        "rank candidate",
+        "generate numeric score"
+      ]
+    }
+  }
+}

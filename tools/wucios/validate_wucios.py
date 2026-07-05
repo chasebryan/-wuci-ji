@@ -42,12 +42,14 @@ REQUIRED_TOOLS = [
     "run_euclid_direct_rootfs_phase_3c_b.py",
     "run_euclid_store_root_phase_3c_c.py",
     "run_euclid_yocto_phase_3c_d.py",
+    "run_euclid_openbsd_reference_phase_3c_e.py",
     "buildroom_common.py",
     "backend_readiness_common.py",
     "synthetic_smoke_common.py",
     "direct_rootfs_prep_common.py",
     "store_root_prep_common.py",
     "yocto_prep_common.py",
+    "openbsd_reference_prep_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -137,6 +139,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_3C_B.md",
     "EUCLID_TRIAL_PHASE_3C_C.md",
     "EUCLID_TRIAL_PHASE_3C_D.md",
+    "EUCLID_TRIAL_PHASE_3C_E.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -508,6 +511,92 @@ YOCTO_CANDIDATE_POLICY_KEYS = {
     "layer_download_allowed",
     "future_artifact_candidates",
     "phase_3c_d_allowed_outputs",
+    "blocked_until",
+    "notes",
+}
+
+PHASE_3C_E_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "l1_authorized_by_default",
+    "l2_scaffold_authorized_by_default",
+    "l2_scaffold_authorization_env",
+    "l3_substrate_artifact_attempts_allowed",
+    "runtime_inspection_allowed",
+    "openbsd_boot_allowed",
+    "openbsd_install_allowed",
+    "openbsd_package_admin_allowed",
+    "source_clone_allowed",
+    "ports_tree_download_allowed",
+    "install_media_download_allowed",
+    "snapshot_download_allowed",
+    "signature_download_allowed",
+    "rootfs_generation_allowed",
+    "image_generation_allowed",
+    "vm_launch_allowed",
+    "hypervisor_tooling_allowed",
+    "substrate_selection",
+    "selection_allowed",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "numeric_score_allowed",
+    "network_default",
+    "image_pulls_allowed",
+    "container_builds_allowed",
+    "container_runs_allowed",
+    "vm_runs_allowed",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "os_image_download_allowed",
+    "in_scope_references",
+    "out_of_scope_preserved",
+    "direct_rootfs_assumptions_insufficient_because",
+    "store_root_assumptions_insufficient_because",
+    "yocto_assumptions_insufficient_because",
+    "allowed_l1_actions",
+    "allowed_l2_actions",
+    "forbidden_actions",
+    "objectives",
+    "explicit_non_goals",
+}
+
+OPENBSD_REFERENCES = ["openbsd_reference"]
+
+OPENBSD_REFERENCE_POLICY_KEYS = {
+    "schema",
+    "phase_id",
+    "reference_id",
+    "reference_name",
+    "reference_family",
+    "phase",
+    "preparation_level",
+    "openbsd_reference_input_type",
+    "required_inputs",
+    "optional_inputs",
+    "forbidden_commands",
+    "l1_status",
+    "l2_status",
+    "artifact_status",
+    "score_status",
+    "authorization_status",
+    "selection_status",
+    "ranking_status",
+    "l3_artifact_attempt_allowed",
+    "runtime_inspection_allowed",
+    "openbsd_boot_allowed",
+    "openbsd_install_allowed",
+    "openbsd_package_admin_allowed",
+    "source_clone_allowed",
+    "ports_tree_download_allowed",
+    "install_media_download_allowed",
+    "vm_launch_allowed",
+    "rootfs_generation_allowed",
+    "image_generation_allowed",
+    "future_artifact_candidates",
+    "phase_3c_e_allowed_outputs",
     "blocked_until",
     "notes",
 }
@@ -1702,6 +1791,240 @@ def validate_euclid_yocto_phase_3c_d(failures: list[str], warnings: list[str]) -
         failures.append("Makefile must contain Phase 3C-D guardrail target")
 
 
+def validate_euclid_openbsd_reference_phase_3c_e(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3C_E.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3C-E doc: docs/wucios/EUCLID_TRIAL_PHASE_3C_E.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms/openbsd-reference"
+    required_paths = [
+        buildrooms_dir / "euclid-openbsd-reference-phase-3c-e.json",
+        buildrooms_dir / "openbsd-reference-policy.json",
+        buildrooms_dir / "openbsd-reference-input-policy.json",
+        buildrooms_dir / "evidence-requirements.json",
+        buildrooms_dir / "guardrail-policy.json",
+        buildrooms_dir / "README.md",
+        ROOT / "wucios/schemas/euclid-openbsd-reference-phase-3c-e.schema.json",
+        ROOT / "wucios/schemas/openbsd-reference-preparation.schema.json",
+        ROOT / "wucios/schemas/openbsd-reference-input-policy.schema.json",
+        ROOT / "tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py",
+        ROOT / "tools/wucios/openbsd_reference_prep_common.py",
+    ]
+    for reference in OPENBSD_REFERENCES:
+        required_paths.extend([
+            buildrooms_dir / reference / "preparation-policy.json",
+            buildrooms_dir / reference / "README.md",
+        ])
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3C-E file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-openbsd-reference-phase-3c-e.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3C_E_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3c-e":
+            failures.append("Phase 3C-E plan must use phase_id euclid-trial-phase-3c-e")
+        if plan.get("default_execution_mode") != "L1_OPENBSD_REFERENCE_POLICY_AND_INPUTS":
+            failures.append("Phase 3C-E plan must default to L1_OPENBSD_REFERENCE_POLICY_AND_INPUTS")
+        if plan.get("l2_scaffold_authorized_by_default") is not False:
+            failures.append("Phase 3C-E plan must disable L2 scaffold by default")
+        if plan.get("l2_scaffold_authorization_env") != "WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1":
+            failures.append("Phase 3C-E plan must require WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3C-E plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "l3_substrate_artifact_attempts_allowed",
+            "runtime_inspection_allowed",
+            "openbsd_boot_allowed",
+            "openbsd_install_allowed",
+            "openbsd_package_admin_allowed",
+            "source_clone_allowed",
+            "ports_tree_download_allowed",
+            "install_media_download_allowed",
+            "snapshot_download_allowed",
+            "signature_download_allowed",
+            "rootfs_generation_allowed",
+            "image_generation_allowed",
+            "vm_launch_allowed",
+            "hypervisor_tooling_allowed",
+            "selection_allowed",
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "numeric_score_allowed",
+            "image_pulls_allowed",
+            "container_builds_allowed",
+            "container_runs_allowed",
+            "vm_runs_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "os_image_download_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3C-E plan must set {key} false")
+        if plan.get("network_default") != "DISABLED":
+            failures.append("Phase 3C-E plan must disable network by default")
+        if plan.get("in_scope_references") != OPENBSD_REFERENCES:
+            failures.append("Phase 3C-E plan must scope only the OpenBSD reference target")
+        out_of_scope = plan.get("out_of_scope_preserved", {})
+        if not isinstance(out_of_scope, dict) or "phase_3c_b_direct_rootfs" not in out_of_scope or "phase_3c_c_store_root" not in out_of_scope or "phase_3c_d_yocto_layer_recipe" not in out_of_scope:
+            failures.append("Phase 3C-E plan must preserve Phase 3C-B, 3C-C, and 3C-D boundaries")
+        forbidden = "\n".join(str(item) for item in plan.get("forbidden_actions", []))
+        for phrase in [
+            "OpenBSD install",
+            "OpenBSD boot",
+            "runtime inspection",
+            "pkg_add",
+            "pkg_info",
+            "syspatch",
+            "sysupgrade",
+            "fw_update",
+            "rcctl",
+            "doas",
+            "mount",
+            "disklabel",
+            "installboot",
+            "sysctl",
+            "git clone",
+            "curl or wget",
+            "qemu",
+            "vmd",
+            "virt-install",
+            "docker",
+            "podman build",
+            "podman run",
+            "buildah",
+            "sudo",
+            "package installation",
+            "rootfs generation",
+            "image generation",
+            "artifact generation",
+            "artifact hash",
+            "numeric WuciOS score",
+            "substrate selection",
+            "candidate ranking",
+        ]:
+            if phrase not in forbidden:
+                failures.append(f"Phase 3C-E plan must forbid {phrase}")
+
+    reference_policy_path = buildrooms_dir / "openbsd-reference-policy.json"
+    reference_policy = load_json(reference_policy_path, failures)
+    if isinstance(reference_policy, dict):
+        if reference_policy.get("phase_id") != "euclid-trial-phase-3c-e":
+            failures.append("OpenBSD reference policy must use Phase 3C-E phase_id")
+        if reference_policy.get("applies_to") != OPENBSD_REFERENCES:
+            failures.append("OpenBSD reference policy must apply only to openbsd_reference")
+        for key in [
+            "l3_artifact_attempts_allowed",
+            "runtime_inspection_allowed",
+            "openbsd_boot_allowed",
+            "openbsd_install_allowed",
+            "openbsd_package_admin_allowed",
+            "source_clone_allowed",
+            "ports_tree_download_allowed",
+            "install_media_download_allowed",
+            "network_allowed",
+            "vm_launch_allowed",
+            "hypervisor_tooling_allowed",
+            "rootfs_generation_allowed",
+            "image_generation_allowed",
+            "container_builds_allowed",
+            "container_runs_allowed",
+            "image_pulls_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "os_image_download_allowed",
+            "selection_allowed",
+            "ranking_allowed",
+        ]:
+            if reference_policy.get(key) is not False:
+                failures.append(f"OpenBSD reference policy must set {key} false")
+
+    input_path = buildrooms_dir / "openbsd-reference-input-policy.json"
+    input_policy = load_json(input_path, failures)
+    if isinstance(input_policy, dict):
+        if input_policy.get("status") != "POLICY_ONLY_NOT_EXECUTABLE":
+            failures.append("openbsd-reference-input-policy.json must be POLICY_ONLY_NOT_EXECUTABLE")
+        for key in ["reference_inputs_evaluated_in_phase_3c_e", "openbsd_runtime_inspected_in_phase_3c_e", "openbsd_install_boot_or_package_command_invoked_in_phase_3c_e", "network_allowed_in_phase_3c_e"]:
+            if input_policy.get(key) is not False:
+                failures.append(f"openbsd-reference-input-policy.json must set {key} false")
+        references = input_policy.get("references", {})
+        if not isinstance(references, dict):
+            failures.append("openbsd-reference-input-policy.json references must be an object")
+        else:
+            for reference in OPENBSD_REFERENCES:
+                item = references.get(reference, {})
+                if not isinstance(item, dict):
+                    failures.append(f"openbsd-reference-input-policy.json missing {reference}")
+                    continue
+                if item.get("future_level_required") != "L3_OR_L4":
+                    failures.append(f"{reference} input policy must require future L3 or L4")
+                forbidden = "\n".join(str(entry) for entry in item.get("forbidden_in_phase_3c_e", []))
+                for phrase in ["install OpenBSD", "boot OpenBSD", "inspect OpenBSD runtime behavior", "execute package or admin command", "clone OpenBSD source or mirror", "download OpenBSD media, sets, packages, ports, snapshots, signatures, source archives, or mirrors", "launch VM", "use qemu or hypervisor tooling", "generate rootfs", "generate image", "generate artifact", "select substrate", "rank candidate", "generate numeric score"]:
+                    if phrase not in forbidden:
+                        failures.append(f"{reference} input policy must forbid {phrase}")
+
+    evidence_path = buildrooms_dir / "evidence-requirements.json"
+    evidence = load_json(evidence_path, failures)
+    if isinstance(evidence, dict):
+        for key in ["phase_3c_e_generates_substrate_evidence", "phase_3c_e_generates_artifact_hashes", "phase_3c_e_generates_numeric_scores", "phase_3c_e_generates_rootfs_or_images", "phase_3c_e_launches_vms"]:
+            if evidence.get(key) is not False:
+                failures.append(f"Phase 3C-E evidence requirements must set {key} false")
+        required_outputs = evidence.get("future_l3_l4_required_outputs", [])
+        for name in ["openbsd-reference-input-manifest.json", "media-acquisition-policy.json", "source-acquisition-policy.json", "ports-acquisition-policy.json", "runtime-authorization-policy.json", "vm-or-hardware-policy.json", "command-policy.json", "runtime-inspection-log.txt", "artifact-manifest.json", "artifact.sha256", "substrate-report.json", "missing-measurements.txt"]:
+            if name not in required_outputs:
+                failures.append(f"Phase 3C-E evidence requirements must include {name}")
+
+    guardrail_path = buildrooms_dir / "guardrail-policy.json"
+    guardrail_policy = load_json(guardrail_path, failures)
+    if isinstance(guardrail_policy, dict):
+        refusal_text = "\n".join(str(item) for item in guardrail_policy.get("required_refusal_checks", []))
+        for phrase in ["WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD", "WUCIOS_EUCLID_ALLOW_ATTEMPT", "WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD"]:
+            if phrase not in refusal_text:
+                failures.append(f"Phase 3C-E guardrail policy must include refusal check for {phrase}")
+        forbidden_text = "\n".join(str(item) for item in guardrail_policy.get("phase_3c_e_must_not_execute", []))
+        for phrase in ["pkg_add", "pkg_info", "syspatch", "sysupgrade", "fw_update", "rcctl", "doas", "mount", "disklabel", "installboot", "sysctl", "OpenBSD install", "OpenBSD boot", "OpenBSD runtime inspection", "git clone", "curl download", "wget download", "qemu", "vmd", "virt-install", "hypervisor launch", "docker", "podman build", "podman run", "buildah", "sudo", "apt", "apk", "xbps-install", "pacman", "dnf", "rootfs generation", "image generation", "artifact generation", "numeric WuciOS score"]:
+            if phrase not in forbidden_text:
+                failures.append(f"Phase 3C-E guardrail policy must forbid {phrase}")
+
+    for reference in OPENBSD_REFERENCES:
+        policy_path = buildrooms_dir / reference / "preparation-policy.json"
+        policy = load_json(policy_path, failures)
+        if isinstance(policy, dict):
+            require_keys(policy_path, policy, OPENBSD_REFERENCE_POLICY_KEYS, failures)
+            if policy.get("phase_id") != "euclid-trial-phase-3c-e":
+                failures.append(f"{reference} policy must use Phase 3C-E phase_id")
+            if policy.get("reference_id") != reference:
+                failures.append(f"{reference} policy reference id mismatch")
+            if policy.get("l1_status") != "PREP_OPENBSD_REFERENCE_INPUTS_MISSING":
+                failures.append(f"{reference} policy must define PREP_OPENBSD_REFERENCE_INPUTS_MISSING L1 status")
+            if policy.get("l2_status") != "PREP_OPENBSD_REFERENCE_SCAFFOLD_GENERATED":
+                failures.append(f"{reference} policy must define PREP_OPENBSD_REFERENCE_SCAFFOLD_GENERATED L2 status")
+            if policy.get("artifact_status") != "NO_WUCIOS_ARTIFACT":
+                failures.append(f"{reference} policy must keep NO_WUCIOS_ARTIFACT")
+            if policy.get("score_status") != "NO_ARTIFACT_SCORE":
+                failures.append(f"{reference} policy must keep NO_ARTIFACT_SCORE")
+            if policy.get("selection_status") != "NO_SUBSTRATE_SELECTED":
+                failures.append(f"{reference} policy must keep NO_SUBSTRATE_SELECTED")
+            if policy.get("ranking_status") != "NO_CANDIDATE_RANKED":
+                failures.append(f"{reference} policy must keep NO_CANDIDATE_RANKED")
+            for key in ["l3_artifact_attempt_allowed", "runtime_inspection_allowed", "openbsd_boot_allowed", "openbsd_install_allowed", "openbsd_package_admin_allowed", "source_clone_allowed", "ports_tree_download_allowed", "install_media_download_allowed", "vm_launch_allowed", "rootfs_generation_allowed", "image_generation_allowed"]:
+                if policy.get(key) is not False:
+                    failures.append(f"{reference} policy must set {key} false")
+            forbidden = "\n".join(str(item) for item in policy.get("forbidden_commands", []))
+            for phrase in ["pkg_add", "pkg_info", "syspatch", "sysupgrade", "fw_update", "rcctl", "doas", "mount", "disklabel", "installboot", "sysctl", "git clone", "curl", "wget", "qemu", "vmd", "virt-install", "docker", "podman run", "podman build", "buildah", "sudo", "apt", "apk", "xbps-install", "pacman", "dnf"]:
+                if phrase not in forbidden:
+                    failures.append(f"{reference} policy must forbid {phrase}")
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if "wucios-euclid-openbsd-reference-phase-3c-e-scaffold:" not in makefile:
+        failures.append("Makefile must contain Phase 3C-E guarded scaffold target")
+    if "WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD" not in makefile:
+        failures.append("Makefile Phase 3C-E scaffold target must check WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD")
+    if "wucios-euclid-openbsd-reference-phase-3c-e-guardrails" not in makefile:
+        failures.append("Makefile must contain Phase 3C-E guardrail target")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -1724,6 +2047,7 @@ def main() -> int:
     validate_euclid_direct_rootfs_phase_3c_b(failures, warnings)
     validate_euclid_store_root_phase_3c_c(failures, warnings)
     validate_euclid_yocto_phase_3c_d(failures, warnings)
+    validate_euclid_openbsd_reference_phase_3c_e(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -1756,6 +2080,7 @@ def main() -> int:
     print(f"- Euclid Phase 3C-B direct rootfs preparation candidates: {len(DIRECT_ROOTFS_CANDIDATES)}")
     print(f"- Euclid Phase 3C-C store-root preparation candidates: {len(STORE_ROOT_CANDIDATES)}")
     print(f"- Euclid Phase 3C-D Yocto preparation candidates: {len(YOCTO_CANDIDATES)}")
+    print(f"- Euclid Phase 3C-E OpenBSD reference preparation targets: {len(OPENBSD_REFERENCES)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

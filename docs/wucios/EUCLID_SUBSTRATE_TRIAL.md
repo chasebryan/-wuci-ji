@@ -76,7 +76,13 @@ Phase 3C-D defines Yocto layer/recipe preparation rules without running
 BitBake, initializing a Yocto build environment, cloning or downloading Yocto
 sources or layers, generating rootfs or image outputs, or creating artifacts:
 [EUCLID_TRIAL_PHASE_3C_D.md](EUCLID_TRIAL_PHASE_3C_D.md).
-OpenBSD reference remains assigned to Phase 3C-E.
+Phase 3C-D is integrated at `8204015` and closed for automated work.
+
+Phase 3C-E defines OpenBSD reference preparation rules without installing,
+booting, inspecting runtime behavior, running package/admin commands, cloning
+source trees, downloading ports trees or install media, launching VMs,
+generating rootfs or image outputs, or creating artifacts:
+[EUCLID_TRIAL_PHASE_3C_E.md](EUCLID_TRIAL_PHASE_3C_E.md).
 
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.
