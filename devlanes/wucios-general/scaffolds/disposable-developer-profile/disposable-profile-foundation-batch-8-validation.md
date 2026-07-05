@@ -19,6 +19,7 @@ commit is pushed.
 - `Add WuciOS disposable profile foundation validation runner`
 - `Validate disposable profile foundation validation report output`
 - `Record WuciOS disposable profile foundation batch 8 validation`
+- `Avoid nested disposable profile report validation in planner`
 
 ## Added Checks
 
@@ -33,6 +34,9 @@ commit is pushed.
   contract, and confirms every registry validator appears in the report.
 - Scaffold validation now runs the foundation validation report validator, with
   a skip flag for nested runner validation.
+- The dry-run planner also carries the report-validation skip flag into its
+  nested scaffold check so planner calls do not recursively launch the
+  foundation validation runner.
 
 ## Generated Evidence Paths
 
