@@ -1,0 +1,175 @@
+{
+  "schema": "wucios.disposable_profile.foundation_frozen_asset_ledger.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "foundation_frozen_for_review": true,
+  "dry_run_only": true,
+  "foundation_only": true,
+  "assets": [
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json",
+      "asset_kind": "contract",
+      "foundation_role": "canonical_manifest"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/plan-vocabulary-contract.json",
+      "asset_kind": "contract",
+      "foundation_role": "no_execution_plan_vocabulary"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-traceability-matrix.json",
+      "asset_kind": "traceability",
+      "foundation_role": "foundation_claim_traceability"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-validation-registry.json",
+      "asset_kind": "registry",
+      "foundation_role": "canonical_validator_order"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-validation-report-contract.json",
+      "asset_kind": "contract",
+      "foundation_role": "foundation_validation_report_shape"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-review-packet-contract.json",
+      "asset_kind": "contract",
+      "foundation_role": "review_packet_shape"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-contract.json",
+      "asset_kind": "contract",
+      "foundation_role": "closeout_contract"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-index.json",
+      "asset_kind": "index",
+      "foundation_role": "closeout_asset_index"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-summary.md",
+      "asset_kind": "summary",
+      "foundation_role": "closeout_review_summary"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision-contract.json",
+      "asset_kind": "contract",
+      "foundation_role": "freeze_decision_contract"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision.json",
+      "asset_kind": "decision",
+      "foundation_role": "freeze_decision_record"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-summary.md",
+      "asset_kind": "summary",
+      "foundation_role": "freeze_review_summary"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/disposable-profile-foundation-batch-10-validation.md",
+      "asset_kind": "validation_record",
+      "foundation_role": "closeout_validation_record"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/disposable-profile-foundation-batch-11-validation.md",
+      "asset_kind": "validation_record",
+      "foundation_role": "freeze_validation_record"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/plan-disposable-profile-dry-run.sh",
+      "asset_kind": "generator_script",
+      "foundation_role": "dry_run_planner"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/run-disposable-profile-foundation-validation.sh",
+      "asset_kind": "generator_script",
+      "foundation_role": "canonical_foundation_validation_runner"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/run-disposable-profile-foundation-review-packet.sh",
+      "asset_kind": "generator_script",
+      "foundation_role": "review_packet_generator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-developer-profile.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "profile_claim_boundary_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "outer_scaffold_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "plan_input_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "negative_input_harness"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "dry_run_stability_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "evidence_contract_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "manifest_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-manifest-binding.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "planner_manifest_binding_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "plan_vocabulary_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "planner_output_vocabulary_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-traceability-matrix.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "traceability_matrix_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-foundation-registry.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "foundation_registry_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-foundation-validation-report.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "validation_report_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-foundation-review-packet.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "review_packet_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-foundation-closeout.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "closeout_validator"
+    },
+    {
+      "asset_path": "devlanes/wucios-general/tools/validate-disposable-profile-foundation-freeze-decision.sh",
+      "asset_kind": "validator_script",
+      "foundation_role": "freeze_decision_validator"
+    }
+  ]
+}
