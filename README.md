@@ -33,6 +33,8 @@ research system.
 | Need | Entry point |
 | --- | --- |
 | Current handoff checkpoint | [BUILD_NOTES.md](BUILD_NOTES.md) |
+| Workspace hub and laptop organization | [docs/WORKSPACE_HUB.md](docs/WORKSPACE_HUB.md) |
+| Workspace inventory snapshot | [docs/WORKSPACE_INVENTORY_2026-07-04.md](docs/WORKSPACE_INVENTORY_2026-07-04.md) |
 | Exact claim boundary | [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) |
 | Fresh-machine continuation | [docs/MACHINE_PASSOFF.md](docs/MACHINE_PASSOFF.md) |
 | Proof and test targets | [docs/BUILD_TARGETS.md](docs/BUILD_TARGETS.md) |
