@@ -1,0 +1,71 @@
+{
+  "schema": "wucios.disposable_profile.foundation_adoption_readiness_contract.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "foundation_adoption_readiness_kind": "frozen_foundation_adoption_review_readiness",
+  "allowed_readiness_values": [
+    "FOUNDATION_ADOPTION_REVIEW_READY",
+    "FOUNDATION_ADOPTION_REVIEW_BLOCKED",
+    "FOUNDATION_ADOPTION_REVIEW_INCOMPLETE"
+  ],
+  "required_referenced_freeze_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-summary.md",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/disposable-profile-foundation-batch-11-validation.md"
+  ],
+  "required_referenced_closeout_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-index.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-summary.md",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/disposable-profile-foundation-batch-10-validation.md"
+  ],
+  "required_validation_commands": [
+    "sh devlanes/wucios-general/tools/validate-disposable-developer-profile.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/valid-minimal-plan-input.json",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-manifest-binding.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-traceability-matrix.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-foundation-registry.sh",
+    "sh devlanes/wucios-general/tools/run-disposable-profile-foundation-validation.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-foundation-validation-report.sh",
+    "sh devlanes/wucios-general/tools/run-disposable-profile-foundation-review-packet.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-foundation-review-packet.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-foundation-closeout.sh",
+    "sh devlanes/wucios-general/tools/validate-disposable-profile-foundation-freeze-decision.sh"
+  ],
+  "dry_run_only": true,
+  "foundation_only": true,
+  "forbidden_adoption_fields": [
+    "timestamp",
+    "hostname",
+    "username",
+    "absolute_path",
+    "mount_path",
+    "mnt-samsung-t7",
+    "environment_dump",
+    "secret",
+    "token",
+    "credential"
+  ],
+  "forbidden_claim_terms": [
+    "runtime_provisioning_claim",
+    "actual_install_claim",
+    "host_change_claim",
+    "credential_setup_claim",
+    "package_install_claim",
+    "service_setup_claim",
+    "production_status_claim",
+    "real_profile_creation_claim",
+    "external_review_claim",
+    "high_assurance_claim",
+    "mainline_adoption_complete_claim",
+    "release_status_claim"
+  ]
+}
