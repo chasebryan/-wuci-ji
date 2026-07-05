@@ -1,0 +1,336 @@
+{
+  "schema": "wucios.disposable_profile.contract_traceability_matrix.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "plan_vocabulary_contract_id": "wucios.disposable_profile.no_execution_plan_vocabulary.v1",
+  "dry_run_only": true,
+  "foundation_only": true,
+  "entries": [
+    {
+      "claim_id": "disposable_profile_scaffold_identity",
+      "claim_summary": "The disposable developer profile foundation has a stable scaffold identity.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/profile-contract.md",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/README.md"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh"
+        }
+      ],
+      "negative_coverage": [],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh"
+      ],
+      "evidence_outputs": [],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "dry_run_only_behavior",
+      "claim_summary": "Planner behavior is limited to local dry-run output.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/plan-vocabulary-contract.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-2/run-1/dry-run-summary.json",
+        "build/wucios/devlanes/disposable-profile-foundation-batch-4/evidence-contract/no-input/dry-run-summary.json"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "foundation_only_behavior",
+      "claim_summary": "The scaffold remains a foundation layer with no profile behavior.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/profile-contract.md"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+        }
+      ],
+      "negative_coverage": [],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-6/plan-vocabulary/no-input/plan-summary.json"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "valid_input_acceptance",
+      "claim_summary": "The minimal valid planning input is accepted by the input boundary.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/valid-minimal-plan-input.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/valid-minimal-plan-input.json"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh"
+        }
+      ],
+      "negative_coverage": [],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/valid-minimal-plan-input.json"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-3/negative-input-harness/valid-run-1/dry-run-summary.json"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "invalid_input_rejection",
+      "claim_summary": "Invalid planning inputs are rejected before successful dry-run evidence is emitted.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-host-mutation-request.json"
+        },
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-install-request.json"
+        },
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-missing-schema-version.json"
+        },
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-production-readiness-claim.json"
+        },
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-runtime-claim.json"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-3/negative-input-harness/valid-run-1/dry-run-plan.txt"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "evidence_contract_stability",
+      "claim_summary": "Dry-run evidence files follow the expected allowlist and repeat stably.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/expected-dry-run-evidence-files.txt",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-4/evidence-contract/valid-input-run-1/dry-run-plan.txt",
+        "build/wucios/devlanes/disposable-profile-foundation-batch-4/evidence-contract/valid-input-run-2/dry-run-plan.txt"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "manifest_binding",
+      "claim_summary": "Planner output and evidence metadata bind back to the canonical manifest identifiers.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-manifest-binding.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-manifest-binding.sh"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-manifest-binding.sh"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-5/manifest-binding/no-input/dry-run-summary.json",
+        "build/wucios/devlanes/disposable-profile-foundation-batch-5/manifest-binding/valid-input/dry-run-summary.json"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "no_execution_plan_vocabulary",
+      "claim_summary": "Planner output uses an allowlisted non-executing action vocabulary.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/plan-vocabulary-contract.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh"
+        },
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+      ],
+      "evidence_outputs": [
+        "build/wucios/devlanes/disposable-profile-foundation-batch-6/plan-vocabulary/no-input/plan-summary.json",
+        "build/wucios/devlanes/disposable-profile-foundation-batch-6/plan-vocabulary/valid-input/plan-summary.json"
+      ],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "forbidden_host_configuration_change_boundary",
+      "claim_summary": "Host configuration change requests remain outside the accepted input boundary.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-host-mutation-request.json"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh"
+      ],
+      "evidence_outputs": [],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "forbidden_install_and_profile_creation_boundary",
+      "claim_summary": "Package-manager, profile creation, and related operational requests are rejected at the planning boundary.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json",
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/plan-vocabulary-contract.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-install-request.json"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+      ],
+      "evidence_outputs": [],
+      "status": "foundation_checkable"
+    },
+    {
+      "claim_id": "forbidden_production_status_boundary",
+      "claim_summary": "Production-status assertions remain rejected examples rather than accepted foundation claims.",
+      "contract_sources": [
+        "devlanes/wucios-general/scaffolds/disposable-developer-profile/contract-manifest.json"
+      ],
+      "positive_coverage": [
+        {
+          "kind": "validator",
+          "path": "devlanes/wucios-general/tools/validate-disposable-developer-profile.sh"
+        }
+      ],
+      "negative_coverage": [
+        {
+          "kind": "fixture",
+          "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/invalid-production-readiness-claim.json"
+        }
+      ],
+      "validator_commands": [
+        "sh devlanes/wucios-general/tools/validate-disposable-developer-profile.sh",
+        "sh devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh"
+      ],
+      "evidence_outputs": [],
+      "status": "foundation_checkable"
+    }
+  ]
+}
