@@ -22,6 +22,7 @@ WuciOS v2.4 is the current reduction-controlled design path. The larger v2.3 dir
 - [Euclid Trial Phase 3C-D](docs/wucios/EUCLID_TRIAL_PHASE_3C_D.md)
 - [Euclid Trial Phase 3C-E](docs/wucios/EUCLID_TRIAL_PHASE_3C_E.md)
 - [Tarski Review Appliance](docs/wucios/TARSKI_REVIEW_APPLIANCE.md)
+- [WuciOS v2.4 Gate Status Ledger](docs/wucios/v2.4/gate-status-ledger.md)
 - [Gödel Boundary](docs/wucios/GODEL_BOUNDARY.md)
 - [Mathematician Naming Scheme](docs/wucios/MATHEMATICIAN_NAMING_SCHEME.md)
 
@@ -86,7 +87,7 @@ Input evidence records Alpine release minirootfs `3.24.1` x86_64.
 The trial artifact SHA-256 is `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`.
 Generated score evidence file `build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json` records `score_value: 96.0`.
 Selection decision: `SUBSTRATE_SELECTED: Alpine` for WuciOS v2.4 substrate trial scope only.
-External validation is not claimed. Production readiness is not claimed. Full runtime validation is not claimed. Runtime Gates 5 through 9 are summarized by the Gate 10 preservation note at [docs/wucios/v2.4/runtime-validation-status.md](docs/wucios/v2.4/runtime-validation-status.md), with raw runtime evidence remaining local/ignored unless separately authorized.
+External validation is not claimed. Production readiness is not claimed. Full runtime validation is not claimed. Runtime Gates 5 through 9 are summarized by the Gate 10 preservation note at [docs/wucios/v2.4/runtime-validation-status.md](docs/wucios/v2.4/runtime-validation-status.md) and the [WuciOS v2.4 Gate Status Ledger](docs/wucios/v2.4/gate-status-ledger.md), with raw runtime evidence remaining local/ignored unless separately authorized.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 

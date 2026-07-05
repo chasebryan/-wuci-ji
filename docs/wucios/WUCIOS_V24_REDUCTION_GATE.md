@@ -57,7 +57,7 @@ Readiness Score was not reused as an artifact/security score.
 
 ## Runtime Validation Status Preservation
 
-Runtime Gates 5 through 9 are summarized in [v2.4/runtime-validation-status.md](v2.4/runtime-validation-status.md). Latest completed runtime gate: `RUNTIME_GATE_10_RUNTIME_STATUS_PRESERVATION_DECISION_PUSHED`. Gate 10 is a preservation/status commit, not a runtime test. The raw runtime evidence remains local/ignored unless separately authorized. No full runtime validation, bootability, production readiness, external validation, complete hardening, complete network security, or broad runtime safety claim is made.
+Runtime Gates 5 through 9 are summarized in [v2.4/runtime-validation-status.md](v2.4/runtime-validation-status.md). The current gate status ledger is [v2.4/gate-status-ledger.md](v2.4/gate-status-ledger.md). Latest completed runtime gate recorded for public review: `RUNTIME_GATE_11_PUBLIC_REVIEW_PACKET_ALIGNMENT_COMMITTED`. Gate 10 is a preservation/status commit, not a runtime test. Gate 11 aligned the public reviewer packet. The raw runtime evidence remains local/ignored unless separately authorized. No full runtime validation, bootability, production readiness, external validation, complete hardening, complete network security, or broad runtime safety claim is made.
 
 ## Evidence Requirement
 

@@ -34,6 +34,8 @@ No new runtime test is introduced by this preservation commit.
 
 Raw evidence remains local/ignored unless separately authorized.
 
+Gate status ledger: [gate-status-ledger.md](gate-status-ledger.md).
+
 ## Claim Boundary
 
 This commit does not claim:
