@@ -1,0 +1,54 @@
+{
+  "schema": "wucios.disposable_profile.foundation_validation_report_contract.v1",
+  "schema_version": "1",
+  "foundation_validation_report_contract_id": "wucios.disposable_profile.foundation_validation_report.batch8.v1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "foundation_validation_registry_id": "wucios.disposable_profile.foundation_validation_registry.batch7.v1",
+  "contract_traceability_matrix_id": "wucios.disposable_profile.contract_traceability_matrix.batch7.v1",
+  "dry_run_only": true,
+  "foundation_only": true,
+  "report_kind": "foundation_validation_run_report",
+  "allowed_result_values": [
+    "PASS",
+    "FAIL",
+    "SKIP",
+    "NOT_RUN"
+  ],
+  "required_report_sections": [
+    "identifiers",
+    "boundaries",
+    "summary",
+    "validator_results",
+    "generated_evidence"
+  ],
+  "forbidden_report_fields": [
+    "timestamp",
+    "hostname",
+    "username",
+    "absolute_path",
+    "mount_path",
+    "mnt-samsung-t7",
+    "environment_dump",
+    "secret",
+    "token",
+    "credential"
+  ],
+  "forbidden_claim_terms": [
+    "runtime_provisioning_claim",
+    "actual_install_claim",
+    "host_change_claim",
+    "credential_setup_claim",
+    "package_install_claim",
+    "service_setup_claim",
+    "production_status_claim",
+    "real_profile_creation_claim",
+    "external_review_claim",
+    "high_assurance_claim"
+  ],
+  "generated_evidence_policy": {
+    "output_root": "build/wucios/devlanes/disposable-profile-foundation-batch-8/foundation-validation-run",
+    "tracked": false,
+    "local_only": true,
+    "stable_paths_only": true
+  }
+}

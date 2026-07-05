@@ -1,0 +1,57 @@
+{
+  "schema": "wucios.disposable_profile.plan_vocabulary_contract.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "plan_vocabulary_contract_id": "wucios.disposable_profile.no_execution_plan_vocabulary.v1",
+  "planner_mode": "local_dry_run_evidence_only",
+  "dry_run_only": true,
+  "foundation_only": true,
+  "plan_summary_schema": "wucios.disposable_profile.no_execution_plan_summary.v1",
+  "allowed_plan_phases": [
+    "document_boundary",
+    "input_boundary",
+    "profile_request_summary",
+    "evidence_metadata",
+    "manifest_binding",
+    "execution_report"
+  ],
+  "allowed_action_kinds": [
+    "document_boundary",
+    "validate_input",
+    "summarize_requested_profile",
+    "emit_dry_run_evidence",
+    "record_manifest_binding",
+    "report_no_execution"
+  ],
+  "forbidden_field_names": [
+    "shell_command",
+    "sudo_request",
+    "package_manager_request",
+    "user_creation_request",
+    "host_file_write",
+    "mount_request",
+    "service_enable_request",
+    "credential_material",
+    "secret_value",
+    "token_value"
+  ],
+  "forbidden_claim_ids": [
+    "runtime_provisioning_claim",
+    "actual_install_claim",
+    "host_change_claim",
+    "credential_setup_claim",
+    "package_install_claim",
+    "service_setup_claim",
+    "production_status_claim",
+    "real_profile_creation_claim",
+    "external_review_claim",
+    "high_assurance_claim"
+  ],
+  "execution_status": "not_executed",
+  "planner_outputs": [
+    "dry-run-plan.txt",
+    "dry-run-summary.json",
+    "evidence-index.json",
+    "plan-summary.json"
+  ]
+}

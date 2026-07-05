@@ -1,0 +1,34 @@
+{
+  "lane_name": "WuciOS Development Lane",
+  "classification": "WUCIOS_DEV_GENERAL_USAGE_LANE",
+  "parent_context_branch": "wucios-v24-reduction-gate",
+  "isolated_branch": "wucios-dev-general-lane",
+  "selected_substrate": "Alpine",
+  "substrate_version": "Alpine Linux 3.24.1",
+  "alpine_trial_score_reference": "96.0 / 100.0",
+  "score_mutation_allowed": false,
+  "production_readiness_claim_allowed": false,
+  "external_validation_claim_allowed": false,
+  "full_runtime_validation_claim_allowed": false,
+  "runtime_validation_status": "incomplete",
+  "external_validation_status": "NO",
+  "production_readiness_status": "NO",
+  "allowed_activity": [
+    "developer profile design",
+    "package set planning",
+    "shell/user environment planning",
+    "documentation",
+    "build scripts",
+    "smoke-friendly tooling",
+    "non-production usability testing"
+  ],
+  "forbidden_activity": [
+    "altering validation gate history",
+    "altering score",
+    "claiming production readiness",
+    "claiming external certification",
+    "claiming full runtime validation",
+    "enabling networked package installation without a separate authorization gate",
+    "treating development usability as security validation"
+  ]
+}
