@@ -86,3 +86,9 @@ install or boot OpenBSD, inspect runtime behavior, run package/admin commands,
 clone source trees, download ports trees or install media, launch VMs, generate
 rootfs or image outputs, attempt substrate artifacts, generate artifact hashes,
 select a substrate, rank candidates, or generate an artifact score.
+
+WuciOS Phase 3C aggregate closeout:
+Phase 3C is integrated and closed at origin/wucios-v24-reduction-gate commit
+0f06b62. No WuciOS artifact, artifact hash, substrate selection, ranking, or
+numeric WuciOS score exists from Phase 3C. L3 and L4 remain unauthorized. No
+next implementation phase is authorized or inferred by this closeout.
