@@ -1,4 +1,7 @@
-build/
+build/*
+!build/wucios/
+build/wucios/*
+!build/wucios/.gitkeep
 __pycache__/
 node_modules/
 .env

@@ -1,0 +1,2 @@
+NOT_MEASURED
+reason: No candidate image artifact exists.

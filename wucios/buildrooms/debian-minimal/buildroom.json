@@ -1,0 +1,57 @@
+{
+  "schema": "wucios.euclid.buildroom.v1",
+  "candidate": "debian-minimal",
+  "display_name": "Debian Minimal",
+  "phase_id": "euclid-trial-phase-3a",
+  "execution_class": "direct-rootfs-image-build-room",
+  "linux_based": true,
+  "reference_path": false,
+  "definition_status": "BUILDROOM_DEFINITION_PRESENT",
+  "default_execution_mode": "SAFE_DETECT_ONLY",
+  "build_attempt_default": false,
+  "network_default": "DISABLED",
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "host_mutation_allowed": false,
+  "container_run_default": false,
+  "container_pull_default": false,
+  "vm_run_default": false,
+  "allowed_backends": [
+    "docker",
+    "podman",
+    "buildah"
+  ],
+  "blocked_backends": [
+    "qemu",
+    "nix",
+    "guix"
+  ],
+  "required_host_tools": [
+    "tar",
+    "sha256sum-or-shasum"
+  ],
+  "required_local_inputs": [
+    "future controlled debootstrap/fakechroot strategy"
+  ],
+  "artifact_candidates": [
+    "rootfs.tar.gz"
+  ],
+  "evidence_outputs": [
+    "status.json",
+    "status.md",
+    "backend-detection.json",
+    "input-detection.json",
+    "readiness.md",
+    "missing-inputs.txt",
+    "blocked-actions.txt"
+  ],
+  "blocked_until": [
+    "controlled debootstrap or rootfs strategy exists",
+    "controlled container backend is usable",
+    "future explicit build attempt authorization exists"
+  ],
+  "notes": [
+    "Phase 3A defines the Debian minimal build room only.",
+    "No debootstrap or fakechroot operation is attempted by default."
+  ]
+}

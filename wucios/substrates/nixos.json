@@ -1,0 +1,44 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "nixos",
+  "display_name": "NixOS",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "declarative-linux-system",
+  "linux_based": true,
+  "package_manager": "nix",
+  "init_or_supervision": "systemd",
+  "libc": "glibc by default",
+  "reason_to_test": [
+    "strong declarative configuration model",
+    "useful for reproducible profile definitions",
+    "rollback and closure inspection may help review"
+  ],
+  "expected_strengths": [
+    "explicit closure graph",
+    "declarative system state",
+    "rollback support"
+  ],
+  "expected_risks": [
+    "store size and closure size may be too large",
+    "complexity may become its own surface",
+    "reviewer burden may be higher"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "closure size exceeds future measured budget"
+  ],
+  "notes": []
+}

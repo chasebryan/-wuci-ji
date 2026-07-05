@@ -204,6 +204,6 @@ evidence statement.
 It does not certify, validate, approve, or audit anything. All v20
 non-claims remain in force (see `NON_CLAIMS.md` in the public artifact),
 including: not production cryptography, not an independent audit, not
-externally certified, not FIPS validated, not government validated, not
+covered by external-certification evidence from any outside auditor, not FIPS validated, not government validated, not
 whole-system post-quantum safe, and not a perfect Daylight score claim from
 repository-owned evidence.

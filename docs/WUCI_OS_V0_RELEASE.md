@@ -1,5 +1,11 @@
 # Wuci-OS v0
 
+> [!IMPORTANT]
+> This is historical evidence-candidate material for the earlier Wuci-OS image
+> lane. It is not WuciOS v2.4 release evidence and does not select the v2.4
+> substrate. Current status is `NO_SUBSTRATE_SELECTED` under the
+> [Euclid Substrate Trial](wucios/EUCLID_SUBSTRATE_TRIAL.md).
+
 Status: evidence candidate, not release-gate pass.
 
 Local artifact:

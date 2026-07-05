@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS Kolmogorov budget schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "display_name",
+    "profile",
+    "status",
+    "hard_limits",
+    "measured_limits",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.budget.v1"
+    }
+  }
+}

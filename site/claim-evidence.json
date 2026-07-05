@@ -3,7 +3,7 @@
   "project": "wuci-ji",
   "surface": "Wuci-Ji v2.2 — Aperture Bastion website",
   "canonical_url": "https://nosuchmachine.net/",
-  "last_updated": "2026-07-02",
+  "last_updated": "2026-07-03",
   "purpose": "Map public website claims to the local evidence files and commands that can check them.",
   "claim_boundary": "Every listed claim is repository-local or hosted-site evidence only; no listed claim is external certification, production cryptography, runtime containment, host-cleanliness proof, or independent audit completion.",
   "primary_validation": [
@@ -45,7 +45,7 @@
       "evidence_paths": [
         "site/aperture-status.json",
         "docs/WUCI_JI_V2_APERTURE_BASTION.md",
-        "docs/APERTURE_BASTION_PASS_REPORT.md"
+        "docs/archive/aperture-bastion/APERTURE_BASTION_PASS_REPORT.md"
       ],
       "evidence_values": {
         "release_tag": "v2.2.0-aperture-bastion",
@@ -68,7 +68,7 @@
       "evidence_paths": [
         "site/aperture-status.json",
         "docs/APERTURE_BASTION_SECURITY_BOUNDARY.md",
-        "docs/APERTURE_BASTION_PASS_REPORT.md"
+        "docs/archive/aperture-bastion/APERTURE_BASTION_PASS_REPORT.md"
       ],
       "evidence_values": {
         "firewall_profile_id": "aperture-bastion-public-v1",
@@ -175,16 +175,169 @@
       ]
     },
     {
+      "id": "defense-assurance-roadmap-exists",
+      "public_claim": "The repository and website publish a public defense-assurance roadmap for the path from research-proof artifact to high-assurance defense-system candidacy.",
+      "status": "roadmap-only; non-certifying",
+      "evidence_paths": [
+        "docs/DEFENSE_ASSURANCE_ROADMAP.md",
+        "docs/DEFENSE_ASSURANCE_CONTINGENCIES.md",
+        "docs/DEFENSE_ASSURANCE_CONTROL_MAP.md",
+        "site/defense-assurance.html",
+        "site/defense-assurance-status.json",
+        "docs/defense-assurance-roadmap.v1.json"
+      ],
+      "evidence_values": {
+        "status": "roadmap_only",
+        "warning_level": "BLUE",
+        "external_evidence_required": true
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-npt-ci"
+      ],
+      "does_not_prove": [
+        "Department of War approval",
+        "production authority",
+        "external certification"
+      ]
+    },
+    {
+      "id": "defense-assurance-roadmap-non-certifying",
+      "public_claim": "The defense-assurance roadmap is explicitly non-certifying and does not claim Department of War approval, cATO authorization, RMF authorization, FIPS validation, production authority, or external certification.",
+      "status": "non-claim-boundary",
+      "evidence_paths": [
+        "docs/DEFENSE_ASSURANCE_ROADMAP.md",
+        "docs/DEFENSE_ASSURANCE_CONTINGENCIES.md",
+        "docs/DEFENSE_ASSURANCE_CONTROL_MAP.md",
+        "site/defense-assurance.html",
+        "site/defense-assurance-status.json",
+        "docs/defense-assurance-roadmap.v1.json"
+      ],
+      "evidence_values": {
+        "roadmap_only": true,
+        "forbidden_authority_claims": [
+          "Department of War approved",
+          "cATO authorized",
+          "RMF authorized",
+          "FIPS validated",
+          "production authority",
+          "government endorsed"
+        ]
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-npt-ci"
+      ],
+      "does_not_prove": [
+        "government endorsement",
+        "formal authorization",
+        "independent audit completion"
+      ]
+    },
+    {
+      "id": "defense-assurance-required-external-contingencies",
+      "public_claim": "The defense-assurance roadmap records required external contingencies before any stronger defense-system claim can be considered.",
+      "status": "open-contingencies",
+      "evidence_paths": [
+        "docs/DEFENSE_ASSURANCE_ROADMAP.md",
+        "docs/DEFENSE_ASSURANCE_CONTINGENCIES.md",
+        "docs/DEFENSE_ASSURANCE_CONTROL_MAP.md",
+        "site/defense-assurance.html",
+        "site/defense-assurance-status.json",
+        "docs/defense-assurance-roadmap.v1.json"
+      ],
+      "evidence_values": {
+        "required_external_contingencies": [
+          "independent_rebuild",
+          "external_verifier_quorum",
+          "external_security_audit",
+          "red_team_or_falsification_review",
+          "cryptographic_review",
+          "installation_use_testing",
+          "sbom_and_provenance",
+          "continuous_monitoring_model",
+          "rmf_control_mapping",
+          "claim_surface_review"
+        ]
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-npt-ci"
+      ],
+      "does_not_prove": [
+        "that the contingencies are closed",
+        "external validation",
+        "operational deployment readiness"
+      ]
+    },
+    {
+      "id": "defense-assurance-scope-bound-perfect-contingency",
+      "public_claim": "The possible 100.0/100.0 defense-assurance contingency is scope-bound to a defined evidence rubric and validated audit scope.",
+      "status": "conditional; scope-bound; not current score credit",
+      "evidence_paths": [
+        "docs/DEFENSE_ASSURANCE_ROADMAP.md",
+        "docs/DEFENSE_ASSURANCE_CONTINGENCIES.md",
+        "docs/DEFENSE_ASSURANCE_CONTROL_MAP.md",
+        "site/defense-assurance.html",
+        "site/defense-assurance-status.json",
+        "docs/defense-assurance-roadmap.v1.json"
+      ],
+      "evidence_values": {
+        "possible_score": "100.0/100.0",
+        "scope": "defined evidence rubric and validated audit scope only",
+        "score_rule": "Roadmap documentation creates obligations, not score credit. Credit requires evidence-derived closure."
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-npt-ci"
+      ],
+      "does_not_prove": [
+        "perfection",
+        "invulnerability",
+        "government approval",
+        "production authority",
+        "validity outside the tested scope"
+      ]
+    },
+    {
+      "id": "defense-assurance-no-government-approval",
+      "public_claim": "The defense-assurance roadmap and website do not claim government approval, Department of War approval, production authority, cATO authorization, RMF authorization, FIPS validation, or external certification.",
+      "status": "non-claim-boundary",
+      "evidence_paths": [
+        "docs/DEFENSE_ASSURANCE_ROADMAP.md",
+        "docs/DEFENSE_ASSURANCE_CONTINGENCIES.md",
+        "docs/DEFENSE_ASSURANCE_CONTROL_MAP.md",
+        "site/defense-assurance.html",
+        "site/defense-assurance-status.json",
+        "docs/defense-assurance-roadmap.v1.json"
+      ],
+      "evidence_values": {
+        "status": "roadmap_only",
+        "warning_level": "BLUE",
+        "no_government_approval_claimed": true
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-npt-ci"
+      ],
+      "does_not_prove": [
+        "approval",
+        "authorization",
+        "certification",
+        "endorsement"
+      ]
+    },
+    {
       "id": "ai-scoring-integrity-audit",
       "public_claim": "The website and repository publish a bounded AI scoring-integrity audit separating model-confidence assessments from evidence-derived Daylight runtime scores.",
       "status": "public-ledger; non-claim-bounded",
       "evidence_paths": [
         "site/ai-scoring-integrity.html",
-        "site/daylight-grok-audit.html",
-        "docs/GROK_SCORE_INFLATION_AUDIT.md",
+        "docs/archive/site/daylight-grok-audit.html",
+        "docs/archive/scores/GROK_SCORE_INFLATION_AUDIT.md",
         "docs/DAYLIGHT_AI_SCORING_ASSURANCE_LEDGER.md",
         "docs/DAYLIGHT_AI_ASSURANCE_STANDARD.md",
-        "docs/DAYLIGHT_GROK_AUDIT_EXHIBITS.md",
+        "docs/archive/scores/DAYLIGHT_GROK_AUDIT_EXHIBITS.md",
         "data/daylight/grok-scoring-audit/ledger.json",
         "data/daylight/grok-scoring-audit/exhibits.json"
       ],
@@ -256,6 +409,178 @@
       "does_not_prove": [
         "third-party indexing",
         "external endorsement"
+      ]
+    },
+    {
+      "id": "daylight-equation-standard-exists",
+      "public_claim": "The Daylight Equation Standard exists as a standard candidate with documentation, schemas, examples, and conformance tooling.",
+      "status": "standard-candidate; evidence-bound",
+      "evidence_paths": [
+        "docs/DAYLIGHT_EQUATION_STANDARD.md",
+        "specs/daylight-equation/v1/README.md",
+        "specs/daylight-equation/v1/daylight-equation.v1.schema.json",
+        "specs/daylight-equation/v1/daylight-claim.v1.schema.json",
+        "specs/daylight-equation/v1/daylight-evidence.v1.schema.json",
+        "specs/daylight-equation/v1/daylight-scorecard.v1.schema.json",
+        "examples/daylight-standard/minimal-claim.json",
+        "tools/daylight_standard_validate.py",
+        "tools/daylight_conformance.py"
+      ],
+      "evidence_values": {
+        "equation": "Claim + Evidence + Provenance + Reproducibility + Boundary + Monitoring + Falsification = Authority",
+        "status": "standard_candidate"
+      },
+      "validation_commands": [
+        "make daylight-standard-schema-test",
+        "make daylight-standard-examples-test",
+        "make daylight-conformance-test"
+      ],
+      "does_not_prove": [
+        "certification",
+        "production authority",
+        "government approval"
+      ]
+    },
+    {
+      "id": "wuci-evidence-bound-control-plane-path",
+      "public_claim": "Wuci-Ji is developing into an evidence-bound security control plane for claim verification, release gates, control maps, and audit-boundary discipline.",
+      "status": "roadmap-and-standard-candidate",
+      "evidence_paths": [
+        "docs/WUCI_PRODUCT_STANDARD.md",
+        "docs/WUCI_CONTROL_PLANE_ARCHITECTURE.md",
+        "site/security-product-roadmap.html",
+        "site/wuci-product-standard-status.json"
+      ],
+      "evidence_values": {
+        "product_category": "Evidence-Bound Security Control Plane",
+        "current_status": "product_standard_candidate"
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-standard-ci"
+      ],
+      "does_not_prove": [
+        "production security replacement",
+        "runtime containment",
+        "security operations replacement"
+      ]
+    },
+    {
+      "id": "wuci-not-production-security-replacement",
+      "public_claim": "Wuci-Ji / Daylight is not currently a production security replacement.",
+      "status": "controlling-non-claim",
+      "evidence_paths": [
+        "docs/WUCI_SECURITY_PRODUCT_BOUNDARY.md",
+        "docs/PRODUCTION_READINESS.md",
+        "docs/SECURITY_BOUNDARY.md",
+        "site/product-boundary.html"
+      ],
+      "evidence_values": {
+        "replacement_claim_allowed": false,
+        "runtime_sandbox_claim_allowed": false,
+        "production_crypto_claim_allowed": false
+      },
+      "validation_commands": [
+        "make daylight-npt-ci",
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "endpoint protection",
+        "SIEM replacement",
+        "IAM replacement",
+        "incident response replacement"
+      ]
+    },
+    {
+      "id": "wuci-no-external-validation-value",
+      "public_claim": "Wuci-Ji remains useful without external validation for claim discipline, evidence discipline, reproducibility discipline, release gates, control mapping, and internal audit packets.",
+      "status": "bounded-internal-value",
+      "evidence_paths": [
+        "docs/WUCI_NO_EXTERNAL_VALIDATION_VALUE.md",
+        "site/no-external-validation-value.html",
+        "examples/daylight-standard/no-external-validation-example.json"
+      ],
+      "evidence_values": {
+        "external_validation_required_for_d9": true,
+        "internal_value_without_external_validation": true
+      },
+      "validation_commands": [
+        "make daylight-standard-examples-test",
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "independent audit",
+        "external certification",
+        "D9 formal authority"
+      ]
+    },
+    {
+      "id": "wuci-external-validation-uplift",
+      "public_claim": "External validation can increase authority for the reviewed scope, but does not create unlimited security, certification, or government-approval claims.",
+      "status": "uplift-boundary",
+      "evidence_paths": [
+        "docs/WUCI_EXTERNAL_VALIDATION_UPLIFT.md",
+        "site/external-validation-uplift.html",
+        "specs/daylight-equation/v1/daylight-attestation.v1.schema.json"
+      ],
+      "evidence_values": {
+        "d9_self_issued": false,
+        "external_validation_is_unlimited_claim": false
+      },
+      "validation_commands": [
+        "make daylight-standard-schema-test",
+        "make site-validate"
+      ],
+      "does_not_prove": [
+        "universal security",
+        "permanent safety",
+        "certification outside the issuing scheme"
+      ]
+    },
+    {
+      "id": "wuci-default-standard-exit-criteria",
+      "public_claim": "Default-standard status requires adoption, conformance tooling, evidence schemas, integrations, and governance; formal authority cannot be self-issued.",
+      "status": "roadmap-exit-criteria",
+      "evidence_paths": [
+        "docs/WUCI_DEFAULT_STANDARD_EXIT_CRITERIA.md",
+        "docs/WUCI_STANDARD_GOVERNANCE.md",
+        "site/default-standard.html"
+      ],
+      "evidence_values": {
+        "default_standard_self_declared": false,
+        "formal_authority_self_issued": false
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make daylight-standard-ci"
+      ],
+      "does_not_prove": [
+        "ecosystem adoption",
+        "formal authority",
+        "certification"
+      ]
+    },
+    {
+      "id": "wuci-product-readiness-separate-from-security-score",
+      "public_claim": "The product readiness score is separate from the Daylight security score and measures standard/product maturity rather than security perfection.",
+      "status": "generated-product-maturity-metric",
+      "evidence_paths": [
+        "docs/WUCI_PRODUCT_REQUIREMENTS.md",
+        "tools/daylight_product_score.py",
+        "site/wuci-product-standard-status.json"
+      ],
+      "evidence_values": {
+        "score_type": "product_standard_readiness",
+        "security_score": false
+      },
+      "validation_commands": [
+        "make daylight-product-score",
+        "make daylight-standard-ci"
+      ],
+      "does_not_prove": [
+        "security perfection",
+        "production authority",
+        "certification"
       ]
     }
   ],

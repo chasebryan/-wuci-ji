@@ -1,0 +1,21 @@
+{
+  "schema": "wucios.budget.v1",
+  "id": "kolmogorov-tarski-review",
+  "display_name": "Kolmogorov Budget - Tarski Review Appliance",
+  "profile": "tarski-review-appliance",
+  "status": "CANDIDATE_BUDGET",
+  "hard_limits": {
+    "network_submission_tools": 0,
+    "telemetry_by_default": 0,
+    "external_upload_by_default": 0
+  },
+  "measured_limits": {
+    "tool_count": "NOT_MEASURED",
+    "generated_output_count": "NOT_MEASURED",
+    "review_packet_size_bytes": "NOT_MEASURED"
+  },
+  "notes": [
+    "Review tooling may generate local packets only by default.",
+    "Missing measurements must remain NOT_MEASURED."
+  ]
+}

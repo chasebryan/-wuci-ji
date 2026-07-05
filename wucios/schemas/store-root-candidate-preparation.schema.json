@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS Store-Root Candidate Preparation Policy",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "candidate_id",
+    "candidate_name",
+    "candidate_family",
+    "phase",
+    "preparation_level",
+    "declarative_input_type",
+    "required_inputs",
+    "optional_inputs",
+    "forbidden_commands",
+    "l1_status",
+    "l2_status",
+    "artifact_status",
+    "score_status",
+    "authorization_status"
+  ],
+  "properties": {
+    "schema": { "const": "wucios.euclid.store_root_candidate_preparation.v1" },
+    "phase_id": { "const": "euclid-trial-phase-3c-c" },
+    "candidate_id": { "enum": ["nixos_store_root", "guix_store_root"] },
+    "candidate_name": { "type": "string" },
+    "candidate_family": { "enum": ["nixos", "guix"] },
+    "phase": { "const": "Phase 3C-C" },
+    "preparation_level": { "type": "string" },
+    "declarative_input_type": { "type": "string" },
+    "required_inputs": { "type": "array", "items": { "type": "string" } },
+    "optional_inputs": { "type": "array", "items": { "type": "string" } },
+    "forbidden_commands": { "type": "array", "items": { "type": "string" } },
+    "l1_status": { "const": "PREP_DECLARATIVE_INPUTS_MISSING" },
+    "l2_status": { "const": "PREP_DECLARATIVE_SCAFFOLD_GENERATED" },
+    "artifact_status": { "const": "NO_WUCIOS_ARTIFACT" },
+    "score_status": { "const": "NO_ARTIFACT_SCORE" },
+    "authorization_status": { "const": "L3_AND_L4_UNAUTHORIZED" }
+  },
+  "additionalProperties": true
+}

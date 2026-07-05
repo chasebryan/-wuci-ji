@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS Store-Root Declarative Input Policy",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "status",
+    "inputs_evaluated_in_phase_3c_c",
+    "inputs_realized_in_phase_3c_c",
+    "network_allowed_in_phase_3c_c",
+    "candidates"
+  ],
+  "properties": {
+    "schema": { "const": "wucios.euclid.store_root_declarative_input_policy.v1" },
+    "phase_id": { "const": "euclid-trial-phase-3c-c" },
+    "status": { "const": "POLICY_ONLY_NOT_EXECUTABLE" },
+    "inputs_evaluated_in_phase_3c_c": { "const": false },
+    "inputs_realized_in_phase_3c_c": { "const": false },
+    "network_allowed_in_phase_3c_c": { "const": false },
+    "candidates": {
+      "type": "object",
+      "required": ["nixos_store_root", "guix_store_root"]
+    }
+  },
+  "additionalProperties": true
+}

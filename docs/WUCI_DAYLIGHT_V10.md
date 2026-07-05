@@ -1,5 +1,11 @@
 # Daylight v10
 
+> [!IMPORTANT]
+> WuciOS-Fluff-Audit: historical-non-authoritative
+> This file is retained as a legacy Wuci-OS/Daylight fixture for existing tools
+> and tests. It is not WuciOS v2.4 release evidence, not a current score source,
+> and not part of Noether Core.
+
 ## Minimal Verified Release Kernel for Wuci-Ji
 
 ![Daylight v10 vs Major Crypto Algorithms](wuci-os/assets/wuci-daylight-v10-scoreboard.png)

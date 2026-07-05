@@ -24,7 +24,7 @@ prove, because that is where overclaims start.
 
 Aperture Bastion is not production cryptography, not runtime containment or
 sandboxing, not host cleanliness proof, not FIPS validated, not government
-validated, not externally certified, not whole-system post-quantum safe, not
+validated, without external-certification evidence from any outside auditor, not whole-system post-quantum safe, not
 an independent audit, and not a perfect Daylight score claim from
 repository-owned evidence. Its verification chain runs on an untrusted host
 with repository-owned fixtures; every guarantee above is exactly as strong

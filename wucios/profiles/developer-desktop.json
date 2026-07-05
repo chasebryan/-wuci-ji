@@ -1,0 +1,35 @@
+{
+  "schema": "wucios.profile.v1",
+  "id": "developer-desktop",
+  "display_name": "Developer Desktop",
+  "status": "NON_AUTHORITATIVE_CONVENIENCE_PROFILE",
+  "role": "Convenience profile for development only. Not a WuciOS high-assurance base.",
+  "default_profile": false,
+  "authoritative_for_release": false,
+  "allowed_component_classes": [
+    "desktop-environment",
+    "browser",
+    "editor",
+    "compiler",
+    "debugger",
+    "build-tooling"
+  ],
+  "forbidden_component_classes": [
+    "release-authoritative-claim",
+    "external-certification-claim",
+    "production-authority-claim"
+  ],
+  "required_evidence_outputs": [],
+  "invariants": [
+    "Developer Desktop must never be confused with Noether Core",
+    "Developer Desktop must not be used for release score unless explicitly marked diagnostic"
+  ],
+  "disqualifying_conditions": [
+    "presented as Noether Core",
+    "used for release-authoritative score",
+    "external certification or production authority claim attached"
+  ],
+  "notes": [
+    "Xfce may exist here only as non-authoritative convenience material."
+  ]
+}

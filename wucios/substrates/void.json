@@ -1,0 +1,47 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "void",
+  "display_name": "Void Linux",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "independent-linux-distribution",
+  "linux_based": true,
+  "package_manager": "xbps",
+  "init_or_supervision": "runit",
+  "libc": "glibc or musl",
+  "reason_to_test": [
+    "existing candidate direction",
+    "runit simplicity",
+    "XBPS packaging",
+    "non-systemd orientation"
+  ],
+  "expected_strengths": [
+    "simple supervision model",
+    "existing Wuci-OS tooling familiarity",
+    "musl path available"
+  ],
+  "expected_risks": [
+    "rolling release complicates pinning",
+    "less institutional familiarity than Debian",
+    "not purpose-built for tiny appliance images"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "rolling package state cannot be pinned for review"
+  ],
+  "notes": [
+    "Void is a candidate only. It is not selected by default for WuciOS v2.4."
+  ]
+}

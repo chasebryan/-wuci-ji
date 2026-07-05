@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "candidate_count": {
+      "const": 8
+    },
+    "candidates": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "artifact": {
+            "additionalProperties": true,
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "present": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size_bytes": {}
+            },
+            "required": [
+              "present",
+              "path",
+              "sha256",
+              "size_bytes"
+            ],
+            "type": "object"
+          },
+          "blockers": {
+            "type": "array"
+          },
+          "build_attempted": {
+            "type": "boolean"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "linux_based": {
+            "type": "boolean"
+          },
+          "measurements": {
+            "type": "object"
+          },
+          "noether_core_static_check": {
+            "type": "object"
+          },
+          "phase_status": {
+            "enum": [
+              "BUILD_NOT_ATTEMPTED",
+              "BUILD_ATTEMPTED_FAILED",
+              "BUILD_SUCCEEDED_PARTIAL",
+              "ARTIFACT_GENERATED",
+              "TRIAL_BLOCKED"
+            ]
+          },
+          "report_paths": {
+            "type": "object"
+          },
+          "substrate_class": {
+            "type": "string"
+          },
+          "tooling": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "substrate_class",
+          "linux_based",
+          "phase_status",
+          "build_attempted",
+          "artifact",
+          "tooling",
+          "blockers",
+          "measurements",
+          "noether_core_static_check",
+          "report_paths"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "execution_mode": {
+      "enum": [
+        "SAFE_DETECT_ONLY",
+        "EXPLICIT_BUILD_ATTEMPT"
+      ]
+    },
+    "global_status": {
+      "enum": [
+        "TRIAL_DATA_PARTIAL",
+        "TRIAL_DATA_COMPARABLE",
+        "TRIAL_BLOCKED"
+      ]
+    },
+    "numeric_wucios_score_generated": {
+      "const": false
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-2b"
+    },
+    "phase_name": {
+      "const": "WuciOS v2.4 Euclid Trial Phase 2B — Full Substrate Cohort Probe Expansion"
+    },
+    "schema": {
+      "const": "wucios.euclid.phase2b.v1"
+    },
+    "substrate_selection": {
+      "const": "NO_SUBSTRATE_SELECTED"
+    },
+    "sudo_used": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema",
+    "phase_id",
+    "phase_name",
+    "global_status",
+    "substrate_selection",
+    "numeric_wucios_score_generated",
+    "score_status",
+    "execution_mode",
+    "network_allowed",
+    "root_required_by_runner",
+    "sudo_used",
+    "candidate_count",
+    "candidates",
+    "missing_measurements",
+    "notes"
+  ],
+  "title": "WuciOS Euclid Trial Phase 2B Report",
+  "type": "object"
+}

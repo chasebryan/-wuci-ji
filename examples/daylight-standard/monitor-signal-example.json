@@ -1,0 +1,11 @@
+{
+  "schema": "daylight-monitor-signal-v1",
+  "signal_id": "signal.control.evidence.expired",
+  "source": "daylight-monitor",
+  "timestamp": "2026-07-03T00:00:00Z",
+  "signal_type": "control evidence expired",
+  "related_claim": "claim.daylight.standard.exists",
+  "state": "downgrade",
+  "downgrade_rule": "expired control evidence marks the related control-map claim provisional",
+  "action_required": "regenerate conformance report and renew evidence"
+}

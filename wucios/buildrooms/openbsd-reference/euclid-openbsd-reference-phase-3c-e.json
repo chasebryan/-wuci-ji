@@ -1,0 +1,143 @@
+{
+  "schema": "wucios.euclid.phase3c_e.plan.v1",
+  "phase_id": "euclid-trial-phase-3c-e",
+  "phase_name": "WuciOS v2.4 Euclid Trial Phase 3C-E — OpenBSD Reference Preparation",
+  "status": "CANDIDATE_TRIAL_PHASE",
+  "default_execution_mode": "L1_OPENBSD_REFERENCE_POLICY_AND_INPUTS",
+  "l1_authorized_by_default": true,
+  "l2_scaffold_authorized_by_default": false,
+  "l2_scaffold_authorization_env": "WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1",
+  "l3_substrate_artifact_attempts_allowed": false,
+  "runtime_inspection_allowed": false,
+  "openbsd_boot_allowed": false,
+  "openbsd_install_allowed": false,
+  "openbsd_package_admin_allowed": false,
+  "source_clone_allowed": false,
+  "ports_tree_download_allowed": false,
+  "install_media_download_allowed": false,
+  "snapshot_download_allowed": false,
+  "signature_download_allowed": false,
+  "rootfs_generation_allowed": false,
+  "image_generation_allowed": false,
+  "vm_launch_allowed": false,
+  "hypervisor_tooling_allowed": false,
+  "substrate_selection": "NO_SUBSTRATE_SELECTED",
+  "selection_allowed": false,
+  "ranking_allowed": false,
+  "emotional_testing_allowed": false,
+  "numeric_score_allowed": false,
+  "network_default": "DISABLED",
+  "image_pulls_allowed": false,
+  "container_builds_allowed": false,
+  "container_runs_allowed": false,
+  "vm_runs_allowed": false,
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "os_image_download_allowed": false,
+  "in_scope_references": [
+    "openbsd_reference"
+  ],
+  "out_of_scope_preserved": {
+    "phase_3c_b_direct_rootfs": [
+      "buildroot",
+      "alpine",
+      "debian-minimal",
+      "void"
+    ],
+    "phase_3c_c_store_root": [
+      "nixos_store_root",
+      "guix_store_root"
+    ],
+    "phase_3c_d_yocto_layer_recipe": [
+      "yocto_layer_recipe"
+    ]
+  },
+  "direct_rootfs_assumptions_insufficient_because": [
+    "OpenBSD reference preparation is not a Linux rootfs package-manager operation",
+    "OpenBSD reference status is not rootfs generation or package-manager installation",
+    "OpenBSD reference evidence requires runtime and acquisition policy that Phase 3C-E does not authorize"
+  ],
+  "store_root_assumptions_insufficient_because": [
+    "OpenBSD reference preparation does not use a Nix or Guix declarative store-root model",
+    "OpenBSD reference preparation requires install media, source, runtime, and package-admin policy rather than store realization policy"
+  ],
+  "yocto_assumptions_insufficient_because": [
+    "OpenBSD reference preparation is not BitBake-driven image construction",
+    "OpenBSD reference preparation does not use Yocto layers, recipes, machine configuration, or distro configuration"
+  ],
+  "allowed_l1_actions": [
+    "static policy recognition",
+    "schema validation",
+    "reference-target status reporting",
+    "missing OpenBSD reference input detection",
+    "OpenBSD reference manifest checks",
+    "forbidden-command guardrail checks",
+    "ignored report generation"
+  ],
+  "allowed_l2_actions": [
+    "generate non-artifact reference scaffold files under build/wucios",
+    "generate OpenBSD reference input placeholder manifests",
+    "generate future command manifests as non-executable policy artifacts",
+    "generate placeholder evidence manifests",
+    "do not execute scaffold files",
+    "do not boot, install, download, clone, package, virtualize, image, inspect, or score anything"
+  ],
+  "forbidden_actions": [
+    "OpenBSD install",
+    "OpenBSD boot",
+    "runtime inspection",
+    "pkg_add",
+    "pkg_info",
+    "syspatch",
+    "sysupgrade",
+    "fw_update",
+    "rcctl",
+    "doas",
+    "mount",
+    "disklabel",
+    "installboot",
+    "sysctl",
+    "git clone for OpenBSD src, ports, xenocara, mirror, or related source acquisition",
+    "curl or wget for OpenBSD media, sets, packages, ports, snapshots, signatures, source archives, or mirror download",
+    "qemu",
+    "vmd",
+    "virt-install",
+    "hypervisor launch",
+    "docker",
+    "podman build",
+    "podman run",
+    "buildah",
+    "sudo",
+    "package installation",
+    "rootfs generation",
+    "image generation",
+    "artifact generation",
+    "artifact hash",
+    "numeric WuciOS score",
+    "substrate selection",
+    "candidate ranking"
+  ],
+  "objectives": [
+    "Define controlled OpenBSD reference preparation rules.",
+    "Separate OpenBSD reference preparation from direct-rootfs, store-root, and Yocto assumptions.",
+    "Define future evidence requirements without executing them.",
+    "Generate optional non-artifact scaffolding only when explicitly authorized.",
+    "Preserve NO_SUBSTRATE_SELECTED.",
+    "Preserve NO_ARTIFACT_SCORE.",
+    "Preserve validation idempotence."
+  ],
+  "explicit_non_goals": [
+    "No OpenBSD install or boot.",
+    "No OpenBSD runtime inspection.",
+    "No OpenBSD package or admin command.",
+    "No source clone.",
+    "No ports tree or install media download.",
+    "No VM launch.",
+    "No rootfs generation.",
+    "No image generation.",
+    "No substrate artifact attempt.",
+    "No substrate selection.",
+    "No candidate ranking.",
+    "No numeric WuciOS score."
+  ]
+}

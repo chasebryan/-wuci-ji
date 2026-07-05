@@ -1,0 +1,78 @@
+{
+  "schema": "wucios.euclid.store_root_candidate_preparation.v1",
+  "phase_id": "euclid-trial-phase-3c-c",
+  "candidate_id": "guix_store_root",
+  "candidate_name": "Guix Store Root",
+  "candidate_family": "guix",
+  "phase": "Phase 3C-C",
+  "preparation_level": "L1_STORE_ROOT_POLICY_ONLY",
+  "declarative_input_type": "guix-system-configuration-policy",
+  "required_inputs": [
+    "approved Guix system configuration policy",
+    "pinned channel manifest identity policy",
+    "store root policy",
+    "cache policy",
+    "evidence hook policy"
+  ],
+  "optional_inputs": [
+    "local read-only Guix system configuration manifest",
+    "local read-only channels manifest"
+  ],
+  "forbidden_commands": [
+    "nix-build",
+    "nixos-rebuild",
+    "nix develop",
+    "nix shell",
+    "nix flake check",
+    "guix build",
+    "guix system",
+    "guix shell",
+    "guix environment",
+    "guix pull",
+    "docker",
+    "podman run",
+    "podman build",
+    "buildah",
+    "qemu",
+    "virt-install",
+    "sudo",
+    "apt",
+    "apk",
+    "xbps-install",
+    "pacman",
+    "curl",
+    "wget",
+    "git clone"
+  ],
+  "l1_status": "PREP_DECLARATIVE_INPUTS_MISSING",
+  "l2_status": "PREP_DECLARATIVE_SCAFFOLD_GENERATED",
+  "artifact_status": "NO_WUCIOS_ARTIFACT",
+  "score_status": "NO_ARTIFACT_SCORE",
+  "authorization_status": "L3_AND_L4_UNAUTHORIZED",
+  "l3_artifact_attempt_allowed": false,
+  "rootfs_generation_allowed": false,
+  "store_realization_allowed": false,
+  "future_artifact_candidates": [
+    "store-rooted-system-closure",
+    "system-image-or-rootfs-only-after-future-policy"
+  ],
+  "phase_3c_c_allowed_outputs": [
+    "policy reports",
+    "non-artifact scaffolding",
+    "declarative-input placeholder manifests",
+    "future command manifest templates",
+    "missing-input reports",
+    "guardrail logs"
+  ],
+  "blocked_until": [
+    "declarative input policy exists",
+    "store realization policy exists",
+    "future L3 authorization exists",
+    "evidence hooks exist"
+  ],
+  "notes": [
+    "Direct-rootfs assumptions are insufficient for this candidate.",
+    "Phase 3C-C does not evaluate or realize Guix store inputs.",
+    "No substrate selection or ranking is implied."
+  ]
+}

@@ -36,6 +36,15 @@ https://nosuchmachine.net/hosting-requirements.json
 Claim/evidence map:
 https://nosuchmachine.net/claim-evidence.json
 
+WuciOS v2.4 reviewer/status baseline:
+https://nosuchmachine.net/wucios.html
+Score: 96.0 / 100.0
+Canonical artifact SHA-256:
+95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f
+Boundary:
+No production readiness, external validation, full runtime validation,
+bootability validation, or operational deployment approval is claimed.
+
 Purpose:
 Defensive, evidence-bound, public-review research artifacts with explicit
 claim boundaries.

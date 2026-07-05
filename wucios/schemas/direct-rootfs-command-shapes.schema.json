@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS direct-rootfs command shapes policy schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "status",
+    "commands_execute_in_phase_3c_b",
+    "candidates"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.direct_rootfs_command_shapes.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3c-b"
+    },
+    "status": {
+      "const": "POLICY_ONLY_NOT_EXECUTABLE"
+    },
+    "commands_execute_in_phase_3c_b": {
+      "const": false
+    }
+  }
+}

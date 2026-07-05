@@ -1,0 +1,36 @@
+{
+  "schema": "wuci-product-standard-status-v1",
+  "project": "wuci-ji",
+  "status": "product_standard_candidate",
+  "last_updated": "2026-07-03",
+  "product_category": "Evidence-Bound Security Control Plane",
+  "current_use": [
+    "claim integrity",
+    "release evidence",
+    "conformance reporting",
+    "control mapping"
+  ],
+  "target_use": [
+    "release authority gate",
+    "audit score integrity layer",
+    "supply-chain assurance layer",
+    "standards-mapped security claim system",
+    "enterprise pilot-ready security assurance product"
+  ],
+  "vulnerability_response_model": "documented",
+  "non_claims": [
+    "not production cryptography",
+    "not a general runtime sandbox",
+    "not post-quantum secure",
+    "not independently audited",
+    "not Department of War approved",
+    "not government endorsed",
+    "not cATO authorized",
+    "not RMF authorized",
+    "not FIPS validated",
+    "not FedRAMP authorized",
+    "not NIAP/Common Criteria certified",
+    "not a replacement for EDR, SIEM, IAM, backups, patch management, or incident response"
+  ],
+  "next_blocker": "third-party pilot adoption with signed external review evidence and copied CI workflow"
+}

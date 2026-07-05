@@ -1,0 +1,21 @@
+{
+  "schema": "daylight-conformance-report-v1",
+  "project": "wuci-ji",
+  "commit": "working-tree",
+  "conformance_level": "D2",
+  "evidence_summary": {
+    "claims": 1,
+    "evidence": 1,
+    "release_gates": 2,
+    "control_maps": 1,
+    "external_validation": false
+  },
+  "blockers": [
+    "external validation absent",
+    "runtime enforcement profile not implemented"
+  ],
+  "forbidden_claims_found": [],
+  "recommended_next_level": "D3",
+  "claim_allowed": "Project has Daylight-compatible claim and evidence objects.",
+  "claim_forbidden": "Not certification, production authority, government approval, or runtime sandboxing."
+}

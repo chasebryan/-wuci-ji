@@ -1,0 +1,11 @@
+daylight-standard:
+  image: python:3.12
+  script:
+    - python3 tools/daylight_standard_validate.py schema-test
+    - python3 tools/daylight_standard_validate.py examples-test
+    - python3 tools/daylight_conformance.py status --project .
+    - python3 tools/daylight_conformance.py reject-overclaims --path README.md
+  artifacts:
+    when: always
+    paths:
+      - build/daylight/product-standard-readiness.json

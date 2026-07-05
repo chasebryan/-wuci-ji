@@ -71,16 +71,6 @@ DAYLIGHT_V20_APERTURE_SINGULARITY_PUBLIC_DIR ?= build/daylight/v20-aperture-sing
 DAYLIGHT_V20_APERTURE_SINGULARITY_TAR ?= build/daylight/v20-aperture-singularity-public-review-artifact.tar.gz
 DAYLIGHT_V20_APERTURE_SINGULARITY_FIREWALL_REPORT ?= build/daylight/firewall-report.v20.json
 DAYLIGHT_SSV_REPORT ?= build/daylight/ssv-v1/daylight-ssv.report.json
-WUCI_BACKUP_EVIDENCE ?= build/wuci-backup/backup-evidence.json
-WUCI_BACKUP_ARCHIVE ?= build/wuci-backup/wuci-ji-tracked-source.zip
-WUCI_OS_FINAL_ISO ?= build/wuci-os/final/Wuci-OS-x86_64-musl.iso
-WUCI_OS_FINAL_MANIFEST ?= build/wuci-os/final/manifest.json
-WUCI_OS_VIRTUALBOX_ROOT ?= build/wuci-os/virtualbox
-WUCI_OS_PRIVACY_AUDIT ?= build/wuci-os/privacy-audit.json
-WUCI_OS_RELEASE_EVIDENCE_ROOT ?= build/wuci-os/release-evidence
-WUCI_OS_RELEASE_GATE ?= $(WUCI_OS_RELEASE_EVIDENCE_ROOT)/release-gate.json
-WUCI_OS_RELEASE_CANDIDATE ?= build/wuci-os/release-candidate/Wuci-Ji-v2.2-Aperture-Bastion
-WUCI_OS_RELEASE_CONTINGENCIES ?= build/wuci-os/release-contingencies
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
@@ -129,7 +119,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test daylight-scorecard-test daylight-v06-1000-checkpoint-test daylight-v06-1000-claim-gate-test daylight-v06-1000-preflight-test daylight-v06-authority-verifier-test daylight-v06-cap-removal-test daylight-v06-external-review-packet-test daylight-v06-external-review-verifier-test daylight-v06-fail-closed-model-test daylight-v06-m1-cross-agreement-test daylight-v06-m1-fixture-test daylight-v06-m1-independent-open-test daylight-v06-m1-static-test daylight-v06-m4-symbolic-model-test daylight-v06-m4-z3-proof-test daylight-v06-peer-review-score-test daylight-v06-schema-freeze-test daylight-v6-kat-reproduction-bundle-test daylight-v6-provider-kem-evidence-test daylight-v6-provider-private-roundtrip-test daylight-v6-provider-vector-agreement-test daylight-v6-reference-negative-corpus-test daylight-v6-reference-seal-open-test external-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow golden-lock-policy-matrix harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof host-capacity install-audit install-key-check install-manifest install-proof install-sign-current install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history machine-passoff-test parser-adversarial-test parser-corpus-replay parser-corpus-replay-test parser-hardening-proof pq-verifier-detect pq-verifier-fips204-build pq-verifier-fips204-proof pq-verifier-real pq-verifier-real-attest pq-verifier-test production-authority-verify production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build rust-sandbox-test sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-release-bundle verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test wjgold-model-test wjnext-model-test wjstar-model-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: help aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test daylight-scorecard-test daylight-v06-1000-checkpoint-test daylight-v06-1000-claim-gate-test daylight-v06-1000-preflight-test daylight-v06-authority-verifier-test daylight-v06-cap-removal-test daylight-v06-external-review-packet-test daylight-v06-external-review-verifier-test daylight-v06-fail-closed-model-test daylight-v06-m1-cross-agreement-test daylight-v06-m1-fixture-test daylight-v06-m1-independent-open-test daylight-v06-m1-static-test daylight-v06-m4-symbolic-model-test daylight-v06-m4-z3-proof-test daylight-v06-peer-review-score-test daylight-v06-schema-freeze-test daylight-v6-kat-reproduction-bundle-test daylight-v6-provider-kem-evidence-test daylight-v6-provider-private-roundtrip-test daylight-v6-provider-vector-agreement-test daylight-v6-reference-negative-corpus-test daylight-v6-reference-seal-open-test external-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow golden-lock-policy-matrix harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof host-capacity install-audit install-key-check install-manifest install-proof install-sign-current install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history machine-passoff-test parser-adversarial-test parser-corpus-replay parser-corpus-replay-test parser-hardening-proof pq-verifier-detect pq-verifier-fips204-build pq-verifier-fips204-proof pq-verifier-real pq-verifier-real-attest pq-verifier-test production-authority-verify production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build rust-sandbox-test sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-release-bundle verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test wjgold-model-test wjnext-model-test wjstar-model-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 .PHONY: daylight-v06-protocol-state-test
 .PHONY: wuci-daylight-bridge-test
 .PHONY: daylight-v6-nightlight-battery-test
@@ -154,11 +144,128 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-aperture-singularity-doctor daylight-v20-aperture-singularity-test daylight-v20-aperture-singularity-capsule-demo daylight-v20-aperture-singularity-agreement daylight-v20-aperture-singularity-blockers daylight-v20-aperture-singularity-evidence-audit daylight-v20-aperture-singularity-score-ceiling daylight-v20-aperture-singularity-external-evidence daylight-v20-aperture-singularity-declaration-gate daylight-v20-aperture-singularity-public-artifact daylight-v20-aperture-singularity-verify-public-artifact daylight-v20-aperture-singularity-firewall daylight-v20-aperture-singularity-ci
 .PHONY: daylight-v20-ed25519-attestation-test daylight-v20-canonical-verifier-output daylight-v20-verifier-output-digest daylight-v20-verifier-quorum daylight-v20-verifier-quorum-test
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
-.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check wuci-backup-evidence wuci-os-privacy-audit wuci-os-privacy-audit-test wuci-os-virtualbox-ova wuci-os-virtualbox-test wuci-os-release-gate wuci-os-release-gate-test wuci-os-release-bundle wuci-os-release-bundle-test wuci-os-release-contingencies wuci-os-release-contingencies-test wuci-os-release-preflight
-.PHONY: wuci-angel-gaps wuci-angel-test
+.PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
+.PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
+.PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2b wucios-euclid-trial-phase-2b-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal wucios-euclid-probe-void wucios-euclid-probe-nixos wucios-euclid-probe-guix wucios-euclid-probe-yocto wucios-euclid-probe-openbsd-reference wucios-euclid-buildrooms-phase-3a wucios-euclid-buildrooms-phase-3a-json wucios-buildroom-probe-buildroot wucios-buildroom-probe-alpine wucios-buildroom-probe-debian-minimal wucios-buildroom-probe-void wucios-buildroom-probe-nixos wucios-buildroom-probe-guix wucios-buildroom-probe-yocto wucios-buildroom-probe-openbsd-reference euclid-phase-2 euclid-phase-3a euclid-build-probes buildroom-readiness wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
+.PHONY: wucios-euclid-buildrooms-phase-3b-readiness wucios-euclid-buildrooms-phase-3b-readiness-json wucios-buildroom-readiness-buildroot wucios-buildroom-readiness-alpine wucios-buildroom-readiness-debian-minimal wucios-buildroom-readiness-void wucios-buildroom-readiness-nixos wucios-buildroom-readiness-guix wucios-buildroom-readiness-yocto wucios-buildroom-readiness-openbsd-reference euclid-phase-3b-readiness buildroom-remediation-plan test-authorization-matrix
+.PHONY: wucios-euclid-buildrooms-phase-3c-a wucios-euclid-buildrooms-phase-3c-a-json wucios-euclid-buildrooms-phase-3c-a-smoke wucios-euclid-buildrooms-phase-3c-a-smoke-json wucios-euclid-buildrooms-phase-3c-a-guardrails euclid-phase-3c-a buildroom-smoke-l1 buildroom-smoke-l2 buildroom-smoke-guardrails
+.PHONY: wucios-euclid-direct-rootfs-phase-3c-b wucios-euclid-direct-rootfs-phase-3c-b-json wucios-euclid-direct-rootfs-phase-3c-b-scaffold wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json wucios-euclid-direct-rootfs-phase-3c-b-guardrails wucios-direct-rootfs-prep-buildroot wucios-direct-rootfs-prep-alpine wucios-direct-rootfs-prep-debian-minimal wucios-direct-rootfs-prep-void euclid-phase-3c-b direct-rootfs-prep direct-rootfs-scaffold direct-rootfs-guardrails
+.PHONY: wucios-euclid-store-root-phase-3c-c wucios-euclid-store-root-phase-3c-c-json wucios-euclid-store-root-phase-3c-c-scaffold wucios-euclid-store-root-phase-3c-c-scaffold-json wucios-euclid-store-root-phase-3c-c-guardrails wucios-store-root-prep-nixos wucios-store-root-prep-guix euclid-phase-3c-c store-root-prep store-root-scaffold store-root-guardrails
+.PHONY: wucios-euclid-yocto-phase-3c-d wucios-euclid-yocto-phase-3c-d-json wucios-euclid-yocto-phase-3c-d-scaffold wucios-euclid-yocto-phase-3c-d-scaffold-json wucios-euclid-yocto-phase-3c-d-guardrails wucios-yocto-prep euclid-phase-3c-d yocto-prep yocto-scaffold yocto-guardrails
+.PHONY: wucios-euclid-openbsd-reference-phase-3c-e wucios-euclid-openbsd-reference-phase-3c-e-json wucios-euclid-openbsd-reference-phase-3c-e-scaffold wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json wucios-euclid-openbsd-reference-phase-3c-e-guardrails wucios-openbsd-reference-prep euclid-phase-3c-e openbsd-reference-prep openbsd-reference-scaffold openbsd-reference-guardrails
+.PHONY: wucios-idempotence-check wucios-clean-validation
 
 all: check-native $(TARGET)
+
+help:
+	@printf '%s\n' "Wuci-Ji local targets"
+	@printf '%s\n' ""
+	@printf '%s\n' "WuciOS v2.4 Reduction Gate:"
+	@printf '%s\n' "  make wucios-validate          Validate WuciOS v2.4 structure"
+	@printf '%s\n' "  make wucios-fluff-audit       Scan current surfaces for denied claim phrases"
+	@printf '%s\n' "  make wucios-substrate-matrix  Generate Euclid substrate matrix"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-1"
+	@printf '%s\n' "                                Generate first-cohort substrate trial protocol"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2"
+	@printf '%s\n' "                                Run safe detect-only build feasibility probes"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2-json"
+	@printf '%s\n' "                                Run Phase 2 probes and print JSON"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2b"
+	@printf '%s\n' "                                Run Phase 2B full-cohort safe probes"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2b-json"
+	@printf '%s\n' "                                Run Phase 2B full-cohort probes and print JSON"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2-attempt"
+	@printf '%s\n' "                                Guarded opt-in Phase 2 build attempt"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3a"
+	@printf '%s\n' "                                Define and detect Phase 3A build-room readiness"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3a-json"
+	@printf '%s\n' "                                Run Phase 3A readiness and print JSON"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3b-readiness"
+	@printf '%s\n' "                                Run Phase 3B readiness diagnostics"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3b-readiness-json"
+	@printf '%s\n' "                                Run Phase 3B readiness diagnostics and print JSON"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3c-a"
+	@printf '%s\n' "                                Run Phase 3C-A L1 backend smoke detection"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3c-a-json"
+	@printf '%s\n' "                                Run Phase 3C-A L1 detection and print JSON"
+	@printf '%s\n' "  make wucios-euclid-buildrooms-phase-3c-a-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-A negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 make wucios-euclid-buildrooms-phase-3c-a-smoke"
+	@printf '%s\n' "                                Run authorized synthetic non-substrate L2 smoke"
+	@printf '%s\n' "  WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 make wucios-euclid-buildrooms-phase-3c-a-smoke-json"
+	@printf '%s\n' "                                Run authorized synthetic non-substrate L2 smoke and print JSON"
+	@printf '%s\n' "  make wucios-euclid-direct-rootfs-phase-3c-b"
+	@printf '%s\n' "                                Run Phase 3C-B direct-rootfs L1 policy checks"
+	@printf '%s\n' "  make wucios-euclid-direct-rootfs-phase-3c-b-json"
+	@printf '%s\n' "                                Run Phase 3C-B L1 policy checks and print JSON"
+	@printf '%s\n' "  make wucios-euclid-direct-rootfs-phase-3c-b-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-B negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-direct-rootfs-phase-3c-b-scaffold"
+	@printf '%s\n' "                                Generate authorized non-artifact direct-rootfs scaffolding"
+	@printf '%s\n' "  WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json"
+	@printf '%s\n' "                                Generate authorized non-artifact scaffolding and print JSON"
+	@printf '%s\n' "  make wucios-euclid-store-root-phase-3c-c"
+	@printf '%s\n' "                                Run Phase 3C-C NixOS/Guix store-root L1 policy checks"
+	@printf '%s\n' "  make wucios-euclid-store-root-phase-3c-c-json"
+	@printf '%s\n' "                                Run Phase 3C-C L1 policy checks and print JSON"
+	@printf '%s\n' "  make wucios-euclid-store-root-phase-3c-c-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-C negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-store-root-phase-3c-c-scaffold"
+	@printf '%s\n' "                                Generate authorized non-artifact NixOS/Guix scaffolding"
+	@printf '%s\n' "  WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-store-root-phase-3c-c-scaffold-json"
+	@printf '%s\n' "                                Generate authorized NixOS/Guix scaffolding and print JSON"
+	@printf '%s\n' "  make wucios-euclid-yocto-phase-3c-d"
+	@printf '%s\n' "                                Run Phase 3C-D Yocto layer/recipe L1 policy checks"
+	@printf '%s\n' "  make wucios-euclid-yocto-phase-3c-d-json"
+	@printf '%s\n' "                                Run Phase 3C-D L1 policy checks and print JSON"
+	@printf '%s\n' "  make wucios-euclid-yocto-phase-3c-d-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-D negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-yocto-phase-3c-d-scaffold"
+	@printf '%s\n' "                                Generate authorized non-artifact Yocto scaffolding"
+	@printf '%s\n' "  WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-yocto-phase-3c-d-scaffold-json"
+	@printf '%s\n' "                                Generate authorized Yocto scaffolding and print JSON"
+	@printf '%s\n' "  make wucios-euclid-openbsd-reference-phase-3c-e"
+	@printf '%s\n' "                                Run Phase 3C-E OpenBSD reference L1 policy checks"
+	@printf '%s\n' "  make wucios-euclid-openbsd-reference-phase-3c-e-json"
+	@printf '%s\n' "                                Run Phase 3C-E L1 policy checks and print JSON"
+	@printf '%s\n' "  make wucios-euclid-openbsd-reference-phase-3c-e-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-E negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-openbsd-reference-phase-3c-e-scaffold"
+	@printf '%s\n' "                                Generate authorized non-artifact OpenBSD reference scaffolding"
+	@printf '%s\n' "  WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json"
+	@printf '%s\n' "                                Generate authorized OpenBSD reference scaffolding and print JSON"
+	@printf '%s\n' "  make buildroom-remediation-plan"
+	@printf '%s\n' "                                Alias for Phase 3B readiness diagnostics"
+	@printf '%s\n' "  make test-authorization-matrix"
+	@printf '%s\n' "                                Alias for Phase 3B readiness diagnostics"
+	@printf '%s\n' "  make wucios-euclid-probe-buildroot"
+	@printf '%s\n' "                                Run Buildroot Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-alpine"
+	@printf '%s\n' "                                Run Alpine Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-debian-minimal"
+	@printf '%s\n' "                                Run Debian minimal Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-void"
+	@printf '%s\n' "                                Run Void Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-nixos"
+	@printf '%s\n' "                                Run NixOS Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-guix"
+	@printf '%s\n' "                                Run Guix Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-yocto"
+	@printf '%s\n' "                                Run Yocto Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-openbsd-reference"
+	@printf '%s\n' "                                Run OpenBSD reference Phase 2 detect-only probe"
+	@printf '%s\n' "  make buildroom-readiness      Alias for Phase 3A build-room readiness"
+	@printf '%s\n' "  make wucios-surface-inventory Collect local surface inventory"
+	@printf '%s\n' "  make wucios-score             Generate invalid/no-artifact score material"
+	@printf '%s\n' "  make wucios-review            Generate partial Tarski review packet"
+	@printf '%s\n' "  make wucios-idempotence-check"
+	@printf '%s\n' "                                Verify safe validation does not modify tracked files"
+	@printf '%s\n' ""
+	@printf '%s\n' "Safe local checks:"
+	@printf '%s\n' "  make site-validate"
+	@printf '%s\n' "  make daylight-npt-test"
+	@printf '%s\n' "  make daylight-standard-schema-test"
 
 daylight-npt:
 	PYTHONPATH=daylight/npt/v1 $(PYTHON) -m daylight_npt scan --registry daylight/npt/v1/number-claims.registry.json --out build/daylight/npt-v1/daylight-npt.report.json README.md BUILD_NOTES.md SECURITY.md docs daylight site data audits
@@ -172,7 +279,7 @@ daylight-npt-test:
 daylight-npt-ci: daylight-npt-test daylight-npt-report
 	@printf '%s\n' "daylight-npt-ci: complete"
 
-daylight-ssv: daylight-npt daylight-v20-aperture-singularity-capsule-demo wuci-backup-evidence
+daylight-ssv:
 	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv audit --out $(DAYLIGHT_SSV_REPORT)
 
 daylight-ssv-report: daylight-ssv
@@ -197,47 +304,33 @@ daylight-score-integrity-audit: daylight-npt
 daylight-score-integrity-audit-directory-check:
 	$(PYTHON) tools/daylight_score_integrity_record.py check
 
-wuci-angel-gaps:
-	$(PYTHON) tools/wuci_angel.py gaps
+daylight-standard-schema-test:
+	$(PYTHON) tools/daylight_standard_validate.py schema-test
 
-wuci-angel-test:
-	$(PYTHON) tests/wuci_angel.py
+daylight-standard-examples-test:
+	$(PYTHON) tools/daylight_standard_validate.py examples-test
 
-wuci-backup-evidence:
-	$(PYTHON) tools/wuci_backup_evidence.py emit --out $(WUCI_BACKUP_EVIDENCE) --archive $(WUCI_BACKUP_ARCHIVE)
+daylight-conformance-test:
+	@mkdir -p build/daylight
+	$(PYTHON) tools/daylight_conformance.py validate --input examples/daylight-standard/minimal-claim.json
+	$(PYTHON) tools/daylight_conformance.py validate --input examples/daylight-standard/evidence-example.json
+	! $(PYTHON) tools/daylight_conformance.py validate --input examples/daylight-standard/unsupported-certification-claim.json
+	$(PYTHON) tools/daylight_conformance.py score --claims examples/daylight-standard/minimal-claim.json --evidence examples/daylight-standard/evidence-example.json --out build/daylight/daylight-standard-scorecard.json
+	$(PYTHON) tools/daylight_conformance.py gate --release examples/daylight-standard/release-gate-pass.json --scorecard build/daylight/daylight-standard-scorecard.json
+	! $(PYTHON) tools/daylight_conformance.py gate --release examples/daylight-standard/release-gate-fail-no-evidence.json --scorecard build/daylight/daylight-standard-scorecard.json
+	$(PYTHON) tools/daylight_conformance.py explain --scorecard build/daylight/daylight-standard-scorecard.json
+	$(PYTHON) tools/daylight_conformance.py control-map --claims examples/daylight-standard/minimal-claim.json --out build/daylight/daylight-standard-control-map.json
+	$(PYTHON) tools/daylight_conformance.py status --project . > build/daylight/daylight-standard-conformance-report.json
+	! $(PYTHON) tools/daylight_conformance.py monitor-signal --input examples/daylight-standard/monitor-signal-example.json --state build/daylight/daylight-monitor-state.json
 
-wuci-os-privacy-audit:
-	$(PYTHON) tools/wuci_release_privacy_audit.py audit --out $(WUCI_OS_PRIVACY_AUDIT)
+daylight-product-score:
+	$(PYTHON) tools/daylight_product_score.py
 
-wuci-os-privacy-audit-test:
-	$(PYTHON) tests/wuci_release_privacy_audit.py
+daylight-standard-site-test:
+	$(MAKE) site-validate
 
-wuci-os-virtualbox-ova:
-	$(PYTHON) tools/wuci_virtualbox.py build --iso $(WUCI_OS_FINAL_ISO) --out-root $(WUCI_OS_VIRTUALBOX_ROOT) --force
-
-wuci-os-virtualbox-test:
-	$(PYTHON) tests/wuci_virtualbox.py
-
-wuci-os-release-gate:
-	$(PYTHON) tools/wuci_release_gate.py status --manifest $(WUCI_OS_FINAL_MANIFEST) --iso $(WUCI_OS_FINAL_ISO) --evidence-root $(WUCI_OS_RELEASE_EVIDENCE_ROOT) --out $(WUCI_OS_RELEASE_GATE)
-
-wuci-os-release-gate-test:
-	$(PYTHON) tests/wuci_release_gate.py
-
-wuci-os-release-bundle:
-	$(PYTHON) tools/wuci_release_bundle.py build --out $(WUCI_OS_RELEASE_CANDIDATE) --force
-
-wuci-os-release-bundle-test:
-	$(PYTHON) tests/wuci_release_bundle.py
-
-wuci-os-release-contingencies:
-	$(PYTHON) tools/wuci_release_contingencies.py build --out $(WUCI_OS_RELEASE_CONTINGENCIES) --force
-
-wuci-os-release-contingencies-test:
-	$(PYTHON) tests/wuci_release_contingencies.py
-
-wuci-os-release-preflight: daylight-ssv site-validate wuci-os-privacy-audit
-	$(PYTHON) tools/wuci_os.py iso-plan
+daylight-standard-ci: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-npt-ci daylight-standard-site-test
+	@printf '%s\n' "daylight-standard-ci: complete"
 
 daylight-cplus-score:
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m src.cli score --ledger daylight/v14c-plus/examples/ledger.seed.jsonl --corpus daylight/v14c-plus/examples/corpus.seed.jsonl --out daylight/v14c-plus/examples/expected-scorecard.v14c-plus.json --receipt daylight/v14c-plus/examples/reproducibility-receipt.v14c-plus.json --output-ledger daylight/v14c-plus/examples/ledger.with-scorecard.jsonl
@@ -641,6 +734,321 @@ site-validate: site-daylight-status-check
 
 site-live-check:
 	$(PYTHON) tools/site_live_check.py
+
+wucios-validate:
+	$(PYTHON) tools/wucios/validate_wucios.py
+
+wucios-fluff-audit:
+	$(PYTHON) tools/wucios/scan_claims.py
+
+wucios-substrate-matrix:
+	$(PYTHON) tools/wucios/generate_substrate_matrix.py
+
+wucios-euclid-trial-phase-1:
+	$(PYTHON) tools/wucios/run_euclid_trial.py
+
+wucios-euclid-trial-phase-2:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py
+
+wucios-euclid-trial-phase-2-json:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --json
+
+wucios-euclid-trial-phase-2b:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --phase2b
+
+wucios-euclid-trial-phase-2b-json:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --phase2b --json
+
+wucios-euclid-buildrooms-phase-3a:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py
+
+wucios-euclid-buildrooms-phase-3a-json:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --json
+
+wucios-euclid-buildrooms-phase-3b-readiness:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py
+
+wucios-euclid-buildrooms-phase-3b-readiness-json:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --json
+
+wucios-euclid-buildrooms-phase-3c-a:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py
+
+wucios-euclid-buildrooms-phase-3c-a-json:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --json
+
+wucios-euclid-buildrooms-phase-3c-a-smoke:
+	@if [ "$${WUCIOS_PHASE3CA_ALLOW_L2_SMOKE:-}" != "1" ]; then printf '%s\n' "Phase 3C-A L2 synthetic smoke is not authorized. Set WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 to run the synthetic non-substrate backend smoke test."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --l2-smoke
+
+wucios-euclid-buildrooms-phase-3c-a-smoke-json:
+	@if [ "$${WUCIOS_PHASE3CA_ALLOW_L2_SMOKE:-}" != "1" ]; then printf '%s\n' "Phase 3C-A L2 synthetic smoke is not authorized. Set WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 to run the synthetic non-substrate backend smoke test."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --l2-smoke --json
+
+wucios-euclid-buildrooms-phase-3c-a-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --guardrails
+
+wucios-euclid-direct-rootfs-phase-3c-b:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py
+
+wucios-euclid-direct-rootfs-phase-3c-b-json:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --json
+
+wucios-euclid-direct-rootfs-phase-3c-b-scaffold:
+	@if [ "$${WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-B L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 to generate non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --l2-scaffold
+
+wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json:
+	@if [ "$${WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-B L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 to generate non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --l2-scaffold --json
+
+wucios-euclid-direct-rootfs-phase-3c-b-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --guardrails
+
+wucios-direct-rootfs-prep-buildroot:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate buildroot
+
+wucios-direct-rootfs-prep-alpine:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate alpine
+
+wucios-direct-rootfs-prep-debian-minimal:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate debian-minimal
+
+wucios-direct-rootfs-prep-void:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate void
+
+wucios-euclid-store-root-phase-3c-c:
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py
+
+wucios-euclid-store-root-phase-3c-c-json:
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --json
+
+wucios-euclid-store-root-phase-3c-c-scaffold:
+	@if [ "$${WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-C L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1 to generate NixOS/Guix non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --l2-scaffold
+
+wucios-euclid-store-root-phase-3c-c-scaffold-json:
+	@if [ "$${WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-C L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1 to generate NixOS/Guix non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --l2-scaffold --json
+
+wucios-euclid-store-root-phase-3c-c-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --guardrails
+
+wucios-store-root-prep-nixos:
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --candidate nixos_store_root
+
+wucios-store-root-prep-guix:
+	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --candidate guix_store_root
+
+wucios-euclid-yocto-phase-3c-d:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py
+
+wucios-euclid-yocto-phase-3c-d-json:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --json
+
+wucios-euclid-yocto-phase-3c-d-scaffold:
+	@if [ "$${WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-D L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 to generate Yocto non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --l2-scaffold
+
+wucios-euclid-yocto-phase-3c-d-scaffold-json:
+	@if [ "$${WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-D L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 to generate Yocto non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --l2-scaffold --json
+
+wucios-euclid-yocto-phase-3c-d-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --guardrails
+
+wucios-yocto-prep:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --candidate yocto_layer_recipe
+
+wucios-euclid-openbsd-reference-phase-3c-e:
+	$(PYTHON) tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py
+
+wucios-euclid-openbsd-reference-phase-3c-e-json:
+	$(PYTHON) tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py --json
+
+wucios-euclid-openbsd-reference-phase-3c-e-scaffold:
+	@if [ "$${WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-E L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1 to generate OpenBSD reference non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py --l2-scaffold
+
+wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json:
+	@if [ "$${WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-E L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CE_ALLOW_L2_SCAFFOLD=1 to generate OpenBSD reference non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py --l2-scaffold --json
+
+wucios-euclid-openbsd-reference-phase-3c-e-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py --guardrails
+
+wucios-openbsd-reference-prep:
+	$(PYTHON) tools/wucios/run_euclid_openbsd_reference_phase_3c_e.py --reference openbsd_reference
+
+wucios-euclid-trial-phase-2-attempt:
+	@if [ "$${WUCIOS_EUCLID_ALLOW_ATTEMPT:-}" != "1" ]; then printf '%s\n' "Refusing Phase 2 build attempts: set WUCIOS_EUCLID_ALLOW_ATTEMPT=1 explicitly."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --attempt-builds --allow-network
+
+wucios-euclid-probe-buildroot:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate buildroot
+
+wucios-euclid-probe-alpine:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate alpine
+
+wucios-euclid-probe-debian-minimal:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate debian-minimal
+
+wucios-euclid-probe-void:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate void
+
+wucios-euclid-probe-nixos:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate nixos
+
+wucios-euclid-probe-guix:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate guix
+
+wucios-euclid-probe-yocto:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate yocto
+
+wucios-euclid-probe-openbsd-reference:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate openbsd-reference
+
+wucios-buildroom-probe-buildroot:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate buildroot
+
+wucios-buildroom-probe-alpine:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate alpine
+
+wucios-buildroom-probe-debian-minimal:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate debian-minimal
+
+wucios-buildroom-probe-void:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate void
+
+wucios-buildroom-probe-nixos:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate nixos
+
+wucios-buildroom-probe-guix:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate guix
+
+wucios-buildroom-probe-yocto:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate yocto
+
+wucios-buildroom-probe-openbsd-reference:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3a.py --candidate openbsd-reference
+
+wucios-buildroom-readiness-buildroot:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate buildroot
+
+wucios-buildroom-readiness-alpine:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate alpine
+
+wucios-buildroom-readiness-debian-minimal:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate debian-minimal
+
+wucios-buildroom-readiness-void:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate void
+
+wucios-buildroom-readiness-nixos:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate nixos
+
+wucios-buildroom-readiness-guix:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate guix
+
+wucios-buildroom-readiness-yocto:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate yocto
+
+wucios-buildroom-readiness-openbsd-reference:
+	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py --candidate openbsd-reference
+
+wucios-surface-inventory:
+	tools/wucios/surface_inventory.sh
+
+wucios-score:
+	$(PYTHON) tools/wucios/score_wucios.py
+
+wucios-review: wucios-surface-inventory wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2b wucios-score
+	$(PYTHON) tools/wucios/generate_review_packet.py
+
+wucios-idempotence-check:
+	@$(MAKE) wucios-validate
+	@$(MAKE) wucios-fluff-audit
+	@$(MAKE) wucios-substrate-matrix
+	@$(MAKE) wucios-euclid-trial-phase-1
+	@$(MAKE) wucios-euclid-trial-phase-2
+	@$(MAKE) wucios-euclid-trial-phase-2b
+	@$(MAKE) wucios-euclid-buildrooms-phase-3a
+	@$(MAKE) wucios-euclid-buildrooms-phase-3b-readiness
+	@$(MAKE) wucios-euclid-buildrooms-phase-3c-a
+	@$(MAKE) wucios-euclid-direct-rootfs-phase-3c-b
+	@$(MAKE) wucios-euclid-store-root-phase-3c-c
+	@$(MAKE) wucios-euclid-yocto-phase-3c-d
+	@$(MAKE) wucios-euclid-openbsd-reference-phase-3c-e
+	@$(MAKE) wucios-review
+	@if ! git diff --exit-code; then printf '%s\n' "WuciOS idempotence check failed: safe validation modified tracked files."; exit 1; fi
+
+wucios-clean-validation: wucios-idempotence-check
+
+noether-check: wucios-validate
+
+godel-check: wucios-fluff-audit
+
+euclid-matrix: wucios-substrate-matrix
+
+euclid-phase-2: wucios-euclid-trial-phase-2
+
+euclid-phase-3a: wucios-euclid-buildrooms-phase-3a
+
+euclid-phase-3b-readiness: wucios-euclid-buildrooms-phase-3b-readiness
+
+euclid-phase-3c-a: wucios-euclid-buildrooms-phase-3c-a
+
+euclid-phase-3c-b: wucios-euclid-direct-rootfs-phase-3c-b
+
+euclid-phase-3c-c: wucios-euclid-store-root-phase-3c-c
+
+euclid-phase-3c-d: wucios-euclid-yocto-phase-3c-d
+
+euclid-phase-3c-e: wucios-euclid-openbsd-reference-phase-3c-e
+
+euclid-build-probes: wucios-euclid-trial-phase-2
+
+buildroom-readiness: wucios-euclid-buildrooms-phase-3a
+
+buildroom-remediation-plan: wucios-euclid-buildrooms-phase-3b-readiness
+
+test-authorization-matrix: wucios-euclid-buildrooms-phase-3b-readiness
+
+buildroom-smoke-l1: wucios-euclid-buildrooms-phase-3c-a
+
+buildroom-smoke-l2: wucios-euclid-buildrooms-phase-3c-a-smoke
+
+buildroom-smoke-guardrails: wucios-euclid-buildrooms-phase-3c-a-guardrails
+
+direct-rootfs-prep: wucios-euclid-direct-rootfs-phase-3c-b
+
+direct-rootfs-scaffold: wucios-euclid-direct-rootfs-phase-3c-b-scaffold
+
+direct-rootfs-guardrails: wucios-euclid-direct-rootfs-phase-3c-b-guardrails
+
+store-root-prep: wucios-euclid-store-root-phase-3c-c
+
+store-root-scaffold: wucios-euclid-store-root-phase-3c-c-scaffold
+
+store-root-guardrails: wucios-euclid-store-root-phase-3c-c-guardrails
+
+yocto-prep: wucios-euclid-yocto-phase-3c-d
+
+yocto-scaffold: wucios-euclid-yocto-phase-3c-d-scaffold
+
+yocto-guardrails: wucios-euclid-yocto-phase-3c-d-guardrails
+
+openbsd-reference-prep: wucios-euclid-openbsd-reference-phase-3c-e
+
+openbsd-reference-scaffold: wucios-euclid-openbsd-reference-phase-3c-e-scaffold
+
+openbsd-reference-guardrails: wucios-euclid-openbsd-reference-phase-3c-e-guardrails
+
+tarski-review: wucios-review
+
+kolmogorov-budget: wucios-validate
+
+shannon-ledger: wucios-surface-inventory
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^
@@ -1777,10 +2185,6 @@ ci-zig:
 	$(MAKE) witness-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
 	$(MAKE) zig-release-witness-archive
 	$(MAKE) witness-archive-zig-test RELEASE_BIN=$(abspath $(CROSS_TARGET)) WITNESS_BUNDLE_DIR=build/wuci-zig-release-witness-bundle
-
-.PHONY: penumbra-test
-penumbra-test:
-	cd penumbra && $(CARGO) test
 
 clean:
 	rm -rf build

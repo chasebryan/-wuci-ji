@@ -35,13 +35,18 @@ Euclid Substrate Trial.
 Current status:
 
 - local evidence only
-- no substrate selected
-- Void is one candidate only
+- Alpine selected for WuciOS v2.4 substrate trial scope only
+- WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0
+- Alpine trial artifact SHA-256: 95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f
+- Raw runtime evidence remains local/ignored unless separately authorized
+- Gate 16 prepared the PR/merge consideration packet for reviewer/status documentation only
+- Void remains one preserved historical candidate, not the selected substrate
 - Noether Core is GUI-free
 - Birkhoff Bastion is optional
 - Tarski Review Appliance generates the review packet
 - Phase 2B expands safe build feasibility probes to Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference
 - Phase 3A defines controlled build rooms and backend readiness without executing builds
+- WuciOS v2.4 docs: docs/wucios/v2.4/pr-merge-consideration-packet.md and docs/wucios/v2.4/gate-status-ledger.md
 - missing measurements are NOT_MEASURED
 
 Validation handles:
@@ -62,5 +67,8 @@ Non-claims:
 - not FIPS validation
 - not government validation
 - not external certification
+- not full runtime validation
+- not bootability validation
+- not operational deployment approval
 - not independent audit completion
 - not production authority

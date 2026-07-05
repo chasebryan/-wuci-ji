@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS Euclid Phase 3A buildrooms report schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "phase_name",
+    "global_status",
+    "execution_mode",
+    "substrate_selection",
+    "ranking_allowed",
+    "numeric_wucios_score_generated",
+    "score_status",
+    "build_attempt_made",
+    "container_build_attempted",
+    "container_run_attempted",
+    "container_pull_attempted",
+    "vm_run_attempted",
+    "sudo_used",
+    "package_installation_attempted",
+    "candidate_count",
+    "backend_summary",
+    "candidates",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.phase3a.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3a"
+    },
+    "global_status": {
+      "enum": [
+        "PHASE_3A_NOT_RUN",
+        "PHASE_3A_DEFINITIONS_PARTIAL",
+        "PHASE_3A_DEFINITIONS_COMPLETE",
+        "PHASE_3A_BLOCKED"
+      ]
+    },
+    "execution_mode": {
+      "const": "SAFE_DETECT_ONLY"
+    },
+    "substrate_selection": {
+      "const": "NO_SUBSTRATE_SELECTED"
+    },
+    "score_status": {
+      "const": "NO_ARTIFACT_SCORE"
+    },
+    "candidate_count": {
+      "type": "integer"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "execution_class",
+          "definition_status",
+          "attempt_readiness",
+          "allowed_backends",
+          "backend_findings",
+          "missing_inputs",
+          "blocked_until",
+          "artifact_candidates",
+          "report_paths"
+        ],
+        "properties": {
+          "attempt_readiness": {
+            "enum": [
+              "BUILDROOM_ATTEMPT_NOT_AUTHORIZED",
+              "BUILDROOM_BACKEND_ABSENT",
+              "BUILDROOM_BACKEND_PRESENT",
+              "BUILDROOM_BACKEND_PERMISSION_BLOCKED",
+              "BUILDROOM_BACKEND_CONFIG_BLOCKED",
+              "BUILDROOM_BACKEND_USABILITY_UNKNOWN",
+              "BUILDROOM_INPUTS_MISSING",
+              "BUILDROOM_READY_FOR_FUTURE_ATTEMPT"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

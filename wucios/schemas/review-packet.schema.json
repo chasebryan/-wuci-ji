@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS review packet schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "review_status",
+    "generated_utc",
+    "profiles",
+    "substrates",
+    "components",
+    "measurements",
+    "non_claims",
+    "outputs"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.review_packet.v1"
+    },
+    "review_status": {
+      "enum": [
+        "REVIEW_PACKET_GENERATED",
+        "REVIEW_PACKET_PARTIAL",
+        "REVIEW_PACKET_INVALID"
+      ]
+    }
+  }
+}

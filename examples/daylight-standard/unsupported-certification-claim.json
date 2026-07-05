@@ -1,0 +1,25 @@
+{
+  "schema": "daylight-claim-v1",
+  "claim_id": "claim.unsupported.fips.validation",
+  "claim_text": "Wuci-Ji is FIPS validated.",
+  "claim_type": "security",
+  "scope": "unsupported negative policy example",
+  "allowed_boundary": "This object is a policy rejection fixture and must not be used as a public claim.",
+  "forbidden_expansions": [
+    "FIPS validated",
+    "certified security product",
+    "government approved"
+  ],
+  "evidence_refs": [],
+  "provenance_refs": [],
+  "reproduction_refs": [],
+  "monitoring_refs": [],
+  "control_refs": [],
+  "status": "forbidden",
+  "score_impact": {
+    "authority_field": "CertificationAuthority",
+    "weight": 0,
+    "manual_score_allowed": false
+  },
+  "expiry_or_review_interval": "never claim without actual certification evidence"
+}

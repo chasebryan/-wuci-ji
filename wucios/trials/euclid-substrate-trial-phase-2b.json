@@ -1,0 +1,57 @@
+{
+  "candidate_status_values": [
+    "BUILD_NOT_ATTEMPTED",
+    "BUILD_ATTEMPTED_FAILED",
+    "BUILD_SUCCEEDED_PARTIAL",
+    "ARTIFACT_GENERATED",
+    "TRIAL_BLOCKED"
+  ],
+  "cohort": [
+    "buildroot",
+    "alpine",
+    "debian-minimal",
+    "void",
+    "nixos",
+    "guix",
+    "yocto",
+    "openbsd-reference"
+  ],
+  "default_execution_mode": "SAFE_DETECT_ONLY",
+  "emotional_testing_allowed": false,
+  "global_status_values": [
+    "TRIAL_DATA_PARTIAL",
+    "TRIAL_DATA_COMPARABLE",
+    "TRIAL_BLOCKED"
+  ],
+  "measurement_values": [
+    "NOT_MEASURED",
+    "NOT_MEASURED_RUNTIME_REQUIRED",
+    "NOT_MEASURED_NO_ARTIFACT",
+    "NOT_MEASURED_MISSING_TOOL",
+    "NOT_MEASURED_PERMISSION_BLOCKED",
+    "NOT_MEASURED_NETWORK_DISABLED",
+    "NOT_APPLICABLE_NON_LINUX",
+    "PARTIAL",
+    "STATIC_ARTIFACT_SCAN",
+    "HOST_TOOLING_SCAN"
+  ],
+  "network_default": "DISABLED",
+  "objectives": [
+    "Expand Phase 2 probe coverage to all originally named substrate candidates.",
+    "Detect build prerequisites for each candidate.",
+    "Attempt no build unless explicitly requested.",
+    "Write identical evidence files for each candidate.",
+    "Record blockers instead of hiding them.",
+    "Generate combined Phase 2B reports.",
+    "Keep substrate selection at NO_SUBSTRATE_SELECTED.",
+    "Keep candidate ranking disallowed."
+  ],
+  "phase_id": "euclid-trial-phase-2b",
+  "phase_name": "WuciOS v2.4 Euclid Trial Phase 2B — Full Substrate Cohort Probe Expansion",
+  "ranking_allowed": false,
+  "root_default": "NOT_REQUIRED",
+  "schema": "wucios.euclid.phase2b.plan.v1",
+  "status": "CANDIDATE_TRIAL_PHASE",
+  "substrate_selection": "NO_SUBSTRATE_SELECTED",
+  "sudo_allowed": false
+}

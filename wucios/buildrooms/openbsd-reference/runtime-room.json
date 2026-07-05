@@ -1,0 +1,18 @@
+{
+  "schema": "wucios.euclid.reference_runtime_room.v1",
+  "candidate": "openbsd-reference",
+  "phase_id": "euclid-trial-phase-3a",
+  "runtime_backend": "qemu",
+  "linux_based": false,
+  "reference_path": true,
+  "default_execution_mode": "SAFE_DETECT_ONLY",
+  "vm_run_default": false,
+  "network_default": "DISABLED",
+  "sudo_allowed": false,
+  "host_mutation_allowed": false,
+  "requires_future_authorization": true,
+  "notes": [
+    "This file defines the reference runtime room only.",
+    "Phase 3A does not launch the OpenBSD reference runtime."
+  ]
+}

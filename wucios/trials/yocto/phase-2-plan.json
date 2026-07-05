@@ -1,0 +1,30 @@
+{
+  "artifact_candidates": [
+    "core-image-minimal rootfs tarball",
+    "core-image-minimal wic image",
+    "core-image-minimal ext4 image",
+    "image manifest"
+  ],
+  "attempt_requires": [
+    "WUCIOS_EUCLID_ALLOW_ATTEMPT=1",
+    "--attempt-builds",
+    "--allow-network if downloads are needed",
+    "local Yocto/Poky source tree through YOCTO_DIR, POKY_DIR, or configured local path"
+  ],
+  "blockers": [
+    "MISSING_YOCTO_SOURCE",
+    "MISSING_BITBAKE",
+    "NETWORK_DISABLED",
+    "BUILDROOM_REQUIRED",
+    "BUILD_COMMAND_FAILED",
+    "ARTIFACT_NOT_FOUND"
+  ],
+  "candidate": "yocto",
+  "default_status": "BUILD_NOT_ATTEMPTED",
+  "never_do": [
+    "do not clone Yocto or Poky by default",
+    "do not use sudo",
+    "do not write outside build/wucios/trials/yocto/phase-2"
+  ],
+  "phase_id": "euclid-trial-phase-2"
+}

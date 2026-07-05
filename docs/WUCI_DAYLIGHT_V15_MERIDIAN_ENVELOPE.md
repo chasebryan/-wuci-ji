@@ -1,5 +1,11 @@
 # Daylight v15 Meridian Authorized Envelope (MAE)
 
+> [!IMPORTANT]
+> WuciOS-Fluff-Audit: historical-non-authoritative
+> This file is retained as historical Daylight envelope material. It is not
+> WuciOS v2.4 release evidence, not a current score source, and not part of
+> Noether Core.
+
 Date: 2026-06-30
 
 The Meridian Authorized Envelope is the full realization of v15 Meridian as a

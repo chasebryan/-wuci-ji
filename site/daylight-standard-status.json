@@ -1,0 +1,35 @@
+{
+  "schema": "daylight-standard-status-v1",
+  "standard": "Daylight Equation Standard",
+  "status": "standard_candidate",
+  "last_updated": "2026-07-03",
+  "category": "Evidence-Bound Security Control Plane",
+  "equation": "Claim + Evidence + Provenance + Reproducibility + Boundary + Monitoring + Falsification = Authority",
+  "conformance_profile": "D0-D9 draft standard",
+  "vulnerability_response_model": "documented",
+  "current_allowed_claims": [
+    "high-assurance research/proof artifact",
+    "evidence-bound release and claim-integrity system",
+    "security-claim verification framework",
+    "product-standard candidate"
+  ],
+  "non_claims": [
+    "not production cryptography",
+    "not a general runtime sandbox",
+    "not post-quantum secure",
+    "not independently audited",
+    "not Department of War approved",
+    "not government endorsed",
+    "not cATO authorized",
+    "not RMF authorized",
+    "not FIPS validated",
+    "not FedRAMP authorized",
+    "not NIAP/Common Criteria certified",
+    "not a replacement for EDR, SIEM, IAM, backups, patch management, or incident response"
+  ],
+  "validation": [
+    "make daylight-standard-ci",
+    "make daylight-npt-ci",
+    "make site-validate"
+  ]
+}

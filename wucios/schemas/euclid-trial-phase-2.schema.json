@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "candidates": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "artifact": {
+            "additionalProperties": true,
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "present": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size_bytes": {}
+            },
+            "required": [
+              "present",
+              "path",
+              "sha256",
+              "size_bytes"
+            ],
+            "type": "object"
+          },
+          "build_attempted": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "measurements": {
+            "type": "object"
+          },
+          "phase_status": {
+            "enum": [
+              "BUILD_NOT_ATTEMPTED",
+              "BUILD_ATTEMPTED_FAILED",
+              "BUILD_SUCCEEDED_PARTIAL",
+              "ARTIFACT_GENERATED",
+              "TRIAL_BLOCKED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "phase_status",
+          "build_attempted",
+          "artifact",
+          "measurements"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "execution_mode": {
+      "enum": [
+        "SAFE_DETECT_ONLY",
+        "EXPLICIT_BUILD_ATTEMPT"
+      ]
+    },
+    "global_status": {
+      "enum": [
+        "TRIAL_DATA_PARTIAL",
+        "TRIAL_DATA_COMPARABLE",
+        "TRIAL_BLOCKED"
+      ]
+    },
+    "numeric_wucios_score_generated": {
+      "type": "boolean"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-2"
+    },
+    "phase_name": {
+      "const": "WuciOS v2.4 Euclid Trial Phase 2 — Build Feasibility Probes"
+    },
+    "schema": {
+      "const": "wucios.euclid.phase2.v1"
+    },
+    "substrate_selection": {
+      "const": "NO_SUBSTRATE_SELECTED"
+    },
+    "sudo_used": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema",
+    "phase_id",
+    "phase_name",
+    "global_status",
+    "substrate_selection",
+    "numeric_wucios_score_generated",
+    "score_status",
+    "execution_mode",
+    "network_allowed",
+    "root_required_by_runner",
+    "sudo_used",
+    "candidates",
+    "missing_measurements",
+    "notes"
+  ],
+  "title": "WuciOS Euclid Trial Phase 2 Report",
+  "type": "object"
+}

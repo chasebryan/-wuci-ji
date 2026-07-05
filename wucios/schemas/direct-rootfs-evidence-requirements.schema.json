@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS direct-rootfs evidence requirements schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "status",
+    "future_l3_required_outputs",
+    "phase_3c_b_generates_substrate_evidence",
+    "runtime_only_measurements_status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.direct_rootfs_evidence_requirements.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3c-b"
+    },
+    "phase_3c_b_generates_substrate_evidence": {
+      "const": false
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "wucios.euclid.direct_rootfs_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-b",
+  "applies_to": [
+    "buildroot",
+    "alpine",
+    "debian-minimal",
+    "void"
+  ],
+  "default_allowed_level": "L1_POLICY_ONLY",
+  "l2_scaffold_requires": "WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1",
+  "l3_artifact_attempts_allowed": false,
+  "rootfs_generation_allowed": false,
+  "network_allowed": false,
+  "container_runs_allowed": false,
+  "image_pulls_allowed": false,
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "source_clone_allowed": false,
+  "output_root": "build/wucios/buildrooms/direct-rootfs",
+  "future_l3_requirements": [
+    "explicit future authorization",
+    "clean worktree",
+    "approved backend",
+    "approved cache policy",
+    "approved source/input policy",
+    "candidate-specific evidence hooks",
+    "Tarski Review Appliance integration",
+    "NO_SUBSTRATE_SELECTED preserved until comparable evidence exists",
+    "NO_ARTIFACT_SCORE preserved unless artifact-bound scoring is complete"
+  ]
+}

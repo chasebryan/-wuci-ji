@@ -1,0 +1,46 @@
+{
+  "schema": "wucios.euclid.store_root_guardrail_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-c",
+  "required_refusal_checks": [
+    "L2 scaffold target without WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD must fail",
+    "Phase 2 attempt without WUCIOS_EUCLID_ALLOW_ATTEMPT must fail",
+    "Phase 3C-B L2 scaffold without WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD must fail"
+  ],
+  "phase_3c_c_must_not_execute": [
+    "nix-build",
+    "nixos-rebuild",
+    "nix develop",
+    "nix shell",
+    "nix flake check",
+    "guix build",
+    "guix system",
+    "guix shell",
+    "guix environment",
+    "guix pull",
+    "docker",
+    "podman build",
+    "podman run",
+    "buildah",
+    "qemu",
+    "virt-install",
+    "sudo",
+    "apt",
+    "apk",
+    "xbps-install",
+    "pacman",
+    "curl download",
+    "wget download",
+    "git clone"
+  ],
+  "phase_3c_c_must_not_produce": [
+    "rootfs",
+    "store realization",
+    "substrate artifact",
+    "WuciOS artifact",
+    "artifact hash",
+    "numeric WuciOS score",
+    "substrate selection",
+    "candidate ranking"
+  ],
+  "command_manifests_execute_in_phase_3c_c": false
+}

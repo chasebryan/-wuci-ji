@@ -1,0 +1,17 @@
+sshd
+httpd
+nginx
+apache2
+avahi-daemon
+cups
+bluetoothd
+smbd
+nmbd
+vsftpd
+telnetd
+rpcbind
+named
+postgresql
+mysql
+redis
+docker

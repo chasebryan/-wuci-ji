@@ -143,6 +143,21 @@
       "evidence": [],
       "check": "exact_text_non_claim",
       "rationale": "Positive fixture number is explicitly a non-claim ordered-list marker."
+    },
+    {
+      "id": "defense_assurance.phase_2_ordinal",
+      "status": "non_claim",
+      "claim_type": "other",
+      "value_raw": "2",
+      "value_canonical": "2",
+      "unit": "none",
+      "allowed_files": [
+        "docs/DEFENSE_ASSURANCE_ROADMAP.md"
+      ],
+      "context_regex": "Phase 2 .* Independent Verifier Quorum",
+      "evidence": [],
+      "check": "exact_text_non_claim",
+      "rationale": "The value is a roadmap phase ordinal, not a score, quorum, count, or evidence-derived numeric claim."
     }
   ]
 }

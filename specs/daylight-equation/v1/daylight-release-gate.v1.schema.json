@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-release-gate.v1.schema.json",
+  "title": "Daylight Release Gate v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "release_id",
+    "artifact_digest",
+    "policy",
+    "minimum_conformance_level",
+    "required_evidence",
+    "required_controls",
+    "forbidden_claims",
+    "decision",
+    "reasons",
+    "allowed_actions",
+    "blocked_actions"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-release-gate-v1" },
+    "release_id": { "type": "string", "minLength": 1 },
+    "artifact_digest": { "type": "string", "minLength": 1 },
+    "policy": { "type": "string", "minLength": 1 },
+    "minimum_conformance_level": { "type": "string", "pattern": "^D[0-9]$" },
+    "required_evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "required_controls": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "forbidden_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "decision": { "type": "string", "enum": ["pass", "fail", "provisional"] },
+    "reasons": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "blocked_actions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

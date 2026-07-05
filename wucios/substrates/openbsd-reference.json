@@ -1,0 +1,46 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "openbsd-reference",
+  "display_name": "OpenBSD Reference Path",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "non-linux-security-reference",
+  "linux_based": false,
+  "package_manager": "pkg_add",
+  "init_or_supervision": "rc",
+  "libc": "OpenBSD libc",
+  "reason_to_test": [
+    "security reference and comparison path",
+    "useful for reducing Linux assumptions",
+    "can inform surface discipline"
+  ],
+  "expected_strengths": [
+    "security-focused reference posture",
+    "useful comparison point",
+    "helps expose Linux-only assumptions"
+  ],
+  "expected_risks": [
+    "not Linux",
+    "not compatible with Linux-only tooling",
+    "should not be treated as WuciOS Linux base unless project direction changes"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "treated as Linux base without an explicit project direction change",
+    "cannot produce comparable trial outputs"
+  ],
+  "notes": [
+    "OpenBSD is a reference path, not the default WuciOS Linux base."
+  ]
+}

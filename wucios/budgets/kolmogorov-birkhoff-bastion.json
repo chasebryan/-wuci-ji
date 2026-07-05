@@ -1,0 +1,24 @@
+{
+  "schema": "wucios.budget.v1",
+  "id": "kolmogorov-birkhoff-bastion",
+  "display_name": "Kolmogorov Budget - Birkhoff Bastion",
+  "profile": "birkhoff-bastion",
+  "status": "CANDIDATE_BUDGET",
+  "hard_limits": {
+    "full_desktop_environments": 0,
+    "browsers_by_default": 0,
+    "office_suites": 0,
+    "media_suites": 0,
+    "default_network_services": 0
+  },
+  "measured_limits": {
+    "image_size_mb": "NOT_MEASURED",
+    "package_count": "NOT_MEASURED",
+    "suid_sgid_count": "NOT_MEASURED",
+    "kernel_module_count": "NOT_MEASURED"
+  },
+  "notes": [
+    "Ratpoison and DWM are candidates only.",
+    "Birkhoff Bastion must remain separable from Noether Core."
+  ]
+}

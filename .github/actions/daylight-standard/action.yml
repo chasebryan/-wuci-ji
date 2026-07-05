@@ -1,0 +1,23 @@
+name: Daylight Standard Gate
+description: Validate Daylight standard schemas, examples, conformance, product score, NPT, and site surfaces.
+runs:
+  using: composite
+  steps:
+    - name: Schema test
+      shell: bash
+      run: make daylight-standard-schema-test
+    - name: Example test
+      shell: bash
+      run: make daylight-standard-examples-test
+    - name: Conformance test
+      shell: bash
+      run: make daylight-conformance-test
+    - name: Product score
+      shell: bash
+      run: make daylight-product-score
+    - name: Claim precision scan
+      shell: bash
+      run: make daylight-npt-ci
+    - name: Site validation
+      shell: bash
+      run: make daylight-standard-site-test

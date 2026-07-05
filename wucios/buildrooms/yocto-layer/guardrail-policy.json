@@ -1,0 +1,49 @@
+{
+  "schema": "wucios.euclid.yocto_guardrail_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-d",
+  "required_refusal_checks": [
+    "L2 scaffold target without WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD must fail",
+    "Phase 2 attempt without WUCIOS_EUCLID_ALLOW_ATTEMPT must fail",
+    "Phase 3C-C L2 scaffold without WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD must fail"
+  ],
+  "phase_3c_d_must_not_execute": [
+    "bitbake",
+    "oe-init-build-env",
+    "devtool",
+    "kas",
+    "repo init",
+    "repo sync",
+    "git clone",
+    "curl download",
+    "wget download",
+    "docker",
+    "podman build",
+    "podman run",
+    "buildah",
+    "qemu",
+    "virt-install",
+    "sudo",
+    "apt",
+    "apk",
+    "xbps-install",
+    "pacman",
+    "dnf",
+    "rootfs generation",
+    "image generation",
+    "artifact generation",
+    "numeric WuciOS score"
+  ],
+  "phase_3c_d_must_not_produce": [
+    "rootfs",
+    "Yocto image",
+    "Yocto SDK",
+    "Yocto build output",
+    "substrate artifact",
+    "WuciOS artifact",
+    "artifact hash",
+    "numeric WuciOS score",
+    "substrate selection",
+    "candidate ranking"
+  ],
+  "command_manifests_execute_in_phase_3c_d": false
+}

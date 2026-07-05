@@ -1,0 +1,35 @@
+{
+  "schema": "daylight-claim-v1",
+  "claim_id": "claim.daylight.standard.exists",
+  "claim_text": "The Daylight Equation Standard exists as a standard candidate with schemas, examples, and conformance tooling.",
+  "claim_type": "product-standard",
+  "scope": "Daylight Equation Standard v1 repository files",
+  "allowed_boundary": "Standard candidate evidence only; not certification or production authority.",
+  "forbidden_expansions": [
+    "certified security product",
+    "production cryptography",
+    "government approval"
+  ],
+  "evidence_refs": [
+    "evidence.daylight.standard.docs"
+  ],
+  "provenance_refs": [
+    "docs/DAYLIGHT_EQUATION_STANDARD.md"
+  ],
+  "reproduction_refs": [
+    "make daylight-standard-ci"
+  ],
+  "monitoring_refs": [
+    "site/daylight-standard-status.json"
+  ],
+  "control_refs": [
+    "NIST-CSF-2.0-GV"
+  ],
+  "status": "active",
+  "score_impact": {
+    "authority_field": "SpecCompleteness",
+    "weight": 1,
+    "manual_score_allowed": false
+  },
+  "expiry_or_review_interval": "review every standard version"
+}

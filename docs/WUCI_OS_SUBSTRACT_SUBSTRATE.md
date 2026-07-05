@@ -1,5 +1,11 @@
 # Wuci-OS Substract Substrate Model
 
+> [!IMPORTANT]
+> This legacy model is kept for existing Wuci-OS tooling. It is not the
+> authoritative WuciOS v2.4 substrate decision. The current substrate-neutral
+> framework is [Euclid Substrate Trial](wucios/EUCLID_SUBSTRATE_TRIAL.md), and
+> its current selection status is `NO_SUBSTRATE_SELECTED`.
+
 Wuci-OS is a proof-carrying substrate lane, not a prettier ISO remaster.
 Every public OS claim must be proven by local evidence or subtracted from the
 release surface.

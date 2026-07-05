@@ -1,0 +1,29 @@
+{
+  "artifact_candidates": [
+    "guix-system-image",
+    "rootfs.tar.gz",
+    "system-closure.txt"
+  ],
+  "attempt_requires": [
+    "WUCIOS_EUCLID_ALLOW_ATTEMPT=1",
+    "--attempt-builds",
+    "guix installed",
+    "explicit future authorization for host-store writes or a controlled build room"
+  ],
+  "blockers": [
+    "MISSING_GUIX",
+    "HOST_STORE_REQUIRED",
+    "BUILDROOM_REQUIRED",
+    "BUILD_COMMAND_FAILED",
+    "ARTIFACT_NOT_FOUND"
+  ],
+  "candidate": "guix",
+  "default_status": "BUILD_NOT_ATTEMPTED",
+  "never_do": [
+    "do not install Guix",
+    "do not start or configure guix-daemon",
+    "do not use sudo",
+    "do not write outside build/wucios unless a future host-store policy explicitly permits it"
+  ],
+  "phase_id": "euclid-trial-phase-2"
+}

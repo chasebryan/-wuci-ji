@@ -1,0 +1,59 @@
+{
+  "schema": "wucios.euclid.buildroom.v1",
+  "candidate": "nixos",
+  "display_name": "NixOS",
+  "phase_id": "euclid-trial-phase-3a",
+  "execution_class": "store-aware-build-room",
+  "linux_based": true,
+  "reference_path": false,
+  "definition_status": "BUILDROOM_DEFINITION_PRESENT",
+  "default_execution_mode": "SAFE_DETECT_ONLY",
+  "build_attempt_default": false,
+  "network_default": "DISABLED",
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "host_mutation_allowed": false,
+  "container_run_default": false,
+  "container_pull_default": false,
+  "vm_run_default": false,
+  "allowed_backends": [
+    "docker",
+    "podman",
+    "buildah",
+    "nix"
+  ],
+  "blocked_backends": [
+    "qemu",
+    "guix"
+  ],
+  "required_host_tools": [
+    "nix or controlled container backend"
+  ],
+  "required_local_inputs": [
+    "future host-store policy or controlled isolated Nix store policy"
+  ],
+  "artifact_candidates": [
+    "nixos-system-closure.txt",
+    "rootfs.tar.gz",
+    "qcow2.img"
+  ],
+  "evidence_outputs": [
+    "status.json",
+    "status.md",
+    "backend-detection.json",
+    "input-detection.json",
+    "readiness.md",
+    "missing-inputs.txt",
+    "blocked-actions.txt"
+  ],
+  "blocked_until": [
+    "explicit host-store policy or controlled build room execution policy exists",
+    "explicit host-store policy or isolated store policy exists",
+    "controlled backend is usable",
+    "future explicit build attempt authorization exists"
+  ],
+  "notes": [
+    "Phase 3A defines the NixOS build room only.",
+    "Nix store writes require a future explicit policy."
+  ]
+}

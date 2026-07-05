@@ -1,0 +1,15 @@
+{
+  "schema": "daylight-control-map-v1",
+  "control_framework": "NIST CSF 2.0",
+  "control_family": "Govern",
+  "control_id": "GV.OV",
+  "evidence_refs": [
+    "claim.daylight.standard.exists",
+    "evidence.daylight.standard.docs"
+  ],
+  "status": "mapped",
+  "gap": "Mapping is an evidence index only and does not assert compliance.",
+  "next_artifact": "third-party adoption conformance report",
+  "claim_allowed": "Daylight evidence can be mapped to the Govern function as an internal review aid.",
+  "claim_forbidden": "This map does not prove NIST compliance, certification, authorization, or production security."
+}

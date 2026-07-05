@@ -1,0 +1,20 @@
+{
+  "schema": "daylight-scorecard-v1",
+  "scorecard_id": "scorecard.no_external_validation.value",
+  "score_model": "daylight-product-standard-readiness-v1",
+  "score": 60,
+  "max_score": 100,
+  "authority_level": "D2",
+  "blocker_vector": [
+    "external validation absent",
+    "D9 cannot be self-issued"
+  ],
+  "weakest_field": "ExternalValidation",
+  "derived_from": [
+    "docs/WUCI_NO_EXTERNAL_VALIDATION_VALUE.md",
+    "docs/WUCI_EXTERNAL_VALIDATION_UPLIFT.md"
+  ],
+  "manual_score_rejected": true,
+  "unsupported_claims": [],
+  "generated_at": "2026-07-03T00:00:00Z"
+}

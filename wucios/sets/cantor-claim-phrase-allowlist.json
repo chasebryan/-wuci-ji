@@ -1,0 +1,105 @@
+{
+  "schema": "wucios.claim_phrase_allowlist.v1",
+  "entries": [
+    {
+      "path": "README.md",
+      "phrase": "externally certified",
+      "reason": "Required root README status non-claim."
+    },
+    {
+      "path": "README.md",
+      "phrase": "production authorized",
+      "reason": "Required root README status non-claim."
+    },
+    {
+      "path": "README.md",
+      "phrase": "perfect security",
+      "reason": "Root README non-claim boundary language."
+    },
+    {
+      "path": "docs/wucios/NOETHER_CORE.md",
+      "phrase": "perfect security",
+      "reason": "Noether Core disqualifier language."
+    },
+    {
+      "path": "docs/wucios/WUCIOS_V24_REDUCTION_GATE.md",
+      "phrase": "perfect security",
+      "reason": "Required controlling doctrine forbidden-claim language."
+    },
+    {
+      "path": "docs/wucios/GODEL_BOUNDARY.md",
+      "phrase": "externally certified",
+      "reason": "Required non-claim boundary language."
+    },
+    {
+      "path": "docs/wucios/GODEL_BOUNDARY.md",
+      "phrase": "government approved",
+      "reason": "Required non-claim boundary language."
+    },
+    {
+      "path": "docs/wucios/GODEL_BOUNDARY.md",
+      "phrase": "production authorized",
+      "reason": "Required non-claim boundary language."
+    },
+    {
+      "path": "docs/wucios/GODEL_BOUNDARY.md",
+      "phrase": "seL4 equivalent",
+      "reason": "Required non-claim boundary language."
+    },
+    {
+      "path": "docs/wucios/GODEL_BOUNDARY.md",
+      "phrase": "perfect security",
+      "reason": "Required non-claim boundary language."
+    },
+    {
+      "path": "docs/wucios/GODEL_BOUNDARY.md",
+      "phrase": "cannot be hacked",
+      "reason": "Required non-claim boundary language."
+    },
+    {
+      "path": "site/index.html",
+      "phrase": "externally certified",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/index.html",
+      "phrase": "government approved",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/index.html",
+      "phrase": "production authorized",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/wucios.html",
+      "phrase": "externally certified",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/wucios.html",
+      "phrase": "government approved",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/wucios.html",
+      "phrase": "production authorized",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/wucios.html",
+      "phrase": "seL4 equivalent",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/wucios.html",
+      "phrase": "perfect security",
+      "reason": "Required public non-claim boundary language."
+    },
+    {
+      "path": "site/wucios.html",
+      "phrase": "cannot be hacked",
+      "reason": "Required public non-claim boundary language."
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS Euclid buildroom schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "candidate",
+    "display_name",
+    "phase_id",
+    "execution_class",
+    "linux_based",
+    "reference_path",
+    "definition_status",
+    "default_execution_mode",
+    "build_attempt_default",
+    "network_default",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "host_mutation_allowed",
+    "container_run_default",
+    "container_pull_default",
+    "vm_run_default",
+    "allowed_backends",
+    "blocked_backends",
+    "required_host_tools",
+    "required_local_inputs",
+    "artifact_candidates",
+    "evidence_outputs",
+    "blocked_until",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.buildroom.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3a"
+    },
+    "execution_class": {
+      "enum": [
+        "direct-rootfs-image-build-room",
+        "store-aware-build-room",
+        "heavy-source-build-system-room",
+        "reference-runtime-room"
+      ]
+    },
+    "definition_status": {
+      "const": "BUILDROOM_DEFINITION_PRESENT"
+    },
+    "default_execution_mode": {
+      "const": "SAFE_DETECT_ONLY"
+    },
+    "build_attempt_default": {
+      "const": false
+    },
+    "network_default": {
+      "const": "DISABLED"
+    },
+    "sudo_allowed": {
+      "const": false
+    },
+    "host_package_install_allowed": {
+      "const": false
+    },
+    "host_mutation_allowed": {
+      "const": false
+    },
+    "container_run_default": {
+      "const": false
+    },
+    "container_pull_default": {
+      "const": false
+    },
+    "vm_run_default": {
+      "const": false
+    }
+  }
+}

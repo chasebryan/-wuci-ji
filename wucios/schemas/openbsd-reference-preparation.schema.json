@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS OpenBSD Reference Preparation",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "reference_id",
+    "reference_name",
+    "reference_family",
+    "phase",
+    "preparation_level",
+    "openbsd_reference_input_type",
+    "required_inputs",
+    "optional_inputs",
+    "forbidden_commands",
+    "l1_status",
+    "l2_status",
+    "artifact_status",
+    "score_status",
+    "authorization_status",
+    "selection_status",
+    "ranking_status",
+    "notes"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.euclid.openbsd_reference_preparation.v1"},
+    "phase_id": {"const": "euclid-trial-phase-3c-e"},
+    "reference_id": {"const": "openbsd_reference"},
+    "l1_status": {"const": "PREP_OPENBSD_REFERENCE_INPUTS_MISSING"},
+    "l2_status": {"const": "PREP_OPENBSD_REFERENCE_SCAFFOLD_GENERATED"},
+    "artifact_status": {"const": "NO_WUCIOS_ARTIFACT"},
+    "score_status": {"const": "NO_ARTIFACT_SCORE"},
+    "selection_status": {"const": "NO_SUBSTRATE_SELECTED"},
+    "ranking_status": {"const": "NO_CANDIDATE_RANKED"}
+  },
+  "additionalProperties": true
+}

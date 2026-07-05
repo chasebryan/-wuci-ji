@@ -1,0 +1,54 @@
+{
+  "schema": "wucios.euclid.phase3a.plan.v1",
+  "phase_id": "euclid-trial-phase-3a",
+  "phase_name": "WuciOS v2.4 Euclid Trial Phase 3A — Controlled Build Room Definitions",
+  "status": "CANDIDATE_TRIAL_PHASE",
+  "default_execution_mode": "SAFE_DETECT_ONLY",
+  "substrate_selection": "NO_SUBSTRATE_SELECTED",
+  "ranking_allowed": false,
+  "emotional_testing_allowed": false,
+  "build_attempts_allowed_by_default": false,
+  "container_builds_allowed_by_default": false,
+  "container_runs_allowed_by_default": false,
+  "container_pulls_allowed_by_default": false,
+  "vm_runs_allowed_by_default": false,
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "host_mutation_allowed": false,
+  "cohort": [
+    "buildroot",
+    "alpine",
+    "debian-minimal",
+    "void",
+    "nixos",
+    "guix",
+    "yocto",
+    "openbsd-reference"
+  ],
+  "execution_classes": {
+    "direct-rootfs-image-build-room": [
+      "buildroot",
+      "alpine",
+      "debian-minimal",
+      "void"
+    ],
+    "store-aware-build-room": [
+      "nixos",
+      "guix"
+    ],
+    "heavy-source-build-system-room": [
+      "yocto"
+    ],
+    "reference-runtime-room": [
+      "openbsd-reference"
+    ]
+  },
+  "objectives": [
+    "Define controlled build-room files for every original substrate candidate.",
+    "Detect local backend readiness without starting containers or VMs.",
+    "Keep all generated readiness output under ignored build/wucios paths.",
+    "Preserve NO_SUBSTRATE_SELECTED.",
+    "Preserve NO_ARTIFACT_SCORE.",
+    "Preserve safe validation idempotence."
+  ]
+}

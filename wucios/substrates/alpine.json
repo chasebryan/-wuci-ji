@@ -1,0 +1,44 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "alpine",
+  "display_name": "Alpine Linux",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "minimal-linux-distribution",
+  "linux_based": true,
+  "package_manager": "apk",
+  "init_or_supervision": "OpenRC",
+  "libc": "musl",
+  "reason_to_test": [
+    "small practical Linux base",
+    "good candidate for fast WuciOS v2.4 realization",
+    "OpenRC/musl/BusyBox minimalism may support reduction goals"
+  ],
+  "expected_strengths": [
+    "small default footprint",
+    "simple service model",
+    "practical package ecosystem"
+  ],
+  "expected_risks": [
+    "musl compatibility issues",
+    "some audit scripts may need BusyBox-aware handling",
+    "package ecosystem differs from glibc-first systems"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "package closure cannot be pinned for review"
+  ],
+  "notes": []
+}

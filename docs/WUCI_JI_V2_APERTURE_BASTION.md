@@ -74,7 +74,7 @@ Every capsule carries, and validation enforces, all of:
 - not host cleanliness proof
 - not FIPS validated
 - not government validated
-- not externally certified
+- no external-certification evidence from any outside auditor
 - not whole-system post-quantum safe
 - not an independent audit
 - not a perfect Daylight score claim from repository-owned evidence

@@ -1,5 +1,13 @@
 # Wuci-OS
 
+> [!IMPORTANT]
+> This is legacy Wuci-OS image-lane documentation kept for path compatibility
+> with existing tooling and tests. It is not the authoritative WuciOS v2.4
+> direction. The current direction is
+> [WuciOS v2.4 Reduction Gate](wucios/WUCIOS_V24_REDUCTION_GATE.md):
+> Noether Core is GUI-free, Void is only a substrate candidate, and Xfce is
+> non-authoritative Developer Desktop material only.
+
 `Wuci-OS` is the Wuci-Ji operating-system image lane. The product surface is
 Wuci-OS: prompt, user accounts, desktop profile, security commands, wallpaper,
 and operator tooling all present Wuci-OS as the system.
@@ -27,8 +35,8 @@ capability algebra, meet-style gate algebra, transcript-bound cryptographic
 wire state, proof-carrying artifacts, boot/build bisimulation, double-entry
 ledger accounting, and claim subtraction.
 
-Daylight v9 locks v8 at `973/1000` and converts the remaining 27 points into a
-formal spine in [`docs/WUCI_DAYLIGHT_V9.md`](WUCI_DAYLIGHT_V9.md): a
+Daylight v9 locks the legacy v8 benchmark and converts the remaining budget into
+a formal spine in [`docs/WUCI_DAYLIGHT_V9.md`](WUCI_DAYLIGHT_V9.md): a
 proof-carrying subtractive cryptographic operating substrate with a commutative
 evidence-sheaf condition, a Z3 fail-closed semilattice proof box, a Lean-style
 gate sketch, and explicit attack-surface closure. The v9 target range is

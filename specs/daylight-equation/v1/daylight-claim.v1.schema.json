@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/specs/daylight-equation/v1/daylight-claim.v1.schema.json",
+  "title": "Daylight Claim v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "claim_id",
+    "claim_text",
+    "claim_type",
+    "scope",
+    "allowed_boundary",
+    "forbidden_expansions",
+    "evidence_refs",
+    "provenance_refs",
+    "reproduction_refs",
+    "monitoring_refs",
+    "control_refs",
+    "status",
+    "score_impact",
+    "expiry_or_review_interval"
+  ],
+  "properties": {
+    "schema": { "const": "daylight-claim-v1" },
+    "claim_id": { "type": "string", "minLength": 1 },
+    "claim_text": { "type": "string", "minLength": 1 },
+    "claim_type": {
+      "type": "string",
+      "enum": ["security", "release", "audit", "cryptographic-boundary", "supply-chain", "deployment-authority", "non-claim", "product-standard"]
+    },
+    "scope": { "type": "string", "minLength": 1 },
+    "allowed_boundary": { "type": "string", "minLength": 1 },
+    "forbidden_expansions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "provenance_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "reproduction_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "monitoring_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "control_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "provisional", "blocked", "forbidden", "expired", "non-claim"]
+    },
+    "score_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority_field", "weight", "manual_score_allowed"],
+      "properties": {
+        "authority_field": { "type": "string", "minLength": 1 },
+        "weight": { "type": "integer", "minimum": 0 },
+        "manual_score_allowed": { "type": "boolean" }
+      }
+    },
+    "expiry_or_review_interval": { "type": "string", "minLength": 1 }
+  }
+}

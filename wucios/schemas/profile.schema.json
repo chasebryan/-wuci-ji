@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS profile schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "display_name",
+    "status",
+    "role",
+    "default_profile",
+    "authoritative_for_release",
+    "allowed_component_classes",
+    "forbidden_component_classes",
+    "required_evidence_outputs",
+    "invariants",
+    "disqualifying_conditions",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.profile.v1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "default_profile": {
+      "type": "boolean"
+    },
+    "authoritative_for_release": {
+      "type": "boolean"
+    },
+    "allowed_component_classes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbidden_component_classes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_evidence_outputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "disqualifying_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "wucios.profile.v1",
+  "id": "birkhoff-bastion",
+  "display_name": "Birkhoff Bastion",
+  "status": "CANDIDATE_PROFILE",
+  "role": "Optional minimal operator shell. May evaluate ratpoison and DWM. Not part of Noether Core.",
+  "default_profile": false,
+  "authoritative_for_release": false,
+  "allowed_component_classes": [
+    "minimal-window-manager",
+    "terminal",
+    "local-doc-viewer",
+    "local-report-viewer",
+    "daylight-report-viewer",
+    "prism-artifact-viewer",
+    "operator-shortcuts"
+  ],
+  "forbidden_component_classes": [
+    "full-desktop-environment",
+    "browser-by-default",
+    "office-suite",
+    "media-suite",
+    "network-service-by-default",
+    "unregistered-window-manager",
+    "unjustified-X-extension",
+    "unjustified-wayland-service"
+  ],
+  "required_evidence_outputs": [
+    "package-manifest.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "surface-report.json",
+    "review.json",
+    "review.md"
+  ],
+  "invariants": [
+    "Noether Core must build without Birkhoff Bastion",
+    "Birkhoff Bastion must not enable default network services",
+    "window manager source/version must be pinned",
+    "all patches must be documented",
+    "DWM must remain candidate until stricter gate passes",
+    "ratpoison must remain candidate until accepted by component register"
+  ],
+  "disqualifying_conditions": [
+    "component enters Noether Core by dependency",
+    "default network service enabled",
+    "unregistered window manager present",
+    "unpinned window manager source or package",
+    "DWM accepted without stricter gate evidence"
+  ],
+  "notes": [
+    "Birkhoff Bastion is optional and non-authoritative unless a future gate promotes it.",
+    "Ratpoison and DWM are candidate-only in this pass."
+  ]
+}

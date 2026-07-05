@@ -44,6 +44,24 @@ research system.
 | Daylight v14C+ execution package | [daylight/v14c-plus/](daylight/v14c-plus/) |
 | Daylight v20 external evidence packet | [docs/DAYLIGHT_V20_REVIEWER_PACKET.md](docs/DAYLIGHT_V20_REVIEWER_PACKET.md) |
 
+## WuciOS v2.4 Reviewer/Status Baseline
+
+`main` adopts the WuciOS v2.4 reviewer/status-documentation baseline from
+`wucios-v24-reduction-gate`. The merge is a public review and status
+integration boundary, not a production or deployment authorization.
+
+- PR/merge packet: [docs/wucios/v2.4/pr-merge-consideration-packet.md](docs/wucios/v2.4/pr-merge-consideration-packet.md)
+- Gate status ledger: [docs/wucios/v2.4/gate-status-ledger.md](docs/wucios/v2.4/gate-status-ledger.md)
+- WuciOS v2.4 Alpine Substrate Trial Score: `96.0 / 100.0`
+- Canonical artifact SHA-256:
+  `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
+
+This does not claim production readiness, external validation, full runtime
+validation, bootability, long-running stability, operational deployment
+approval, certification or accreditation, government endorsement, or a score
+increase. Raw runtime evidence remains local/ignored unless separately
+authorized.
+
 ## Daylight score-integrity audits
 
 Daylight score-integrity audit records are stored under:

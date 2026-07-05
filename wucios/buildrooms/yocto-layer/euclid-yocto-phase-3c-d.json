@@ -1,0 +1,129 @@
+{
+  "schema": "wucios.euclid.phase3c_d.plan.v1",
+  "phase_id": "euclid-trial-phase-3c-d",
+  "phase_name": "WuciOS v2.4 Euclid Trial Phase 3C-D — Yocto Layer/Recipe Preparation",
+  "status": "CANDIDATE_TRIAL_PHASE",
+  "default_execution_mode": "L1_YOCTO_POLICY_AND_METADATA_INPUTS",
+  "l1_authorized_by_default": true,
+  "l2_scaffold_authorized_by_default": false,
+  "l2_scaffold_authorization_env": "WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1",
+  "l3_substrate_artifact_attempts_allowed": false,
+  "runtime_inspection_allowed": false,
+  "bitbake_execution_allowed": false,
+  "build_environment_initialization_allowed": false,
+  "yocto_build_allowed": false,
+  "source_clone_allowed": false,
+  "layer_download_allowed": false,
+  "sdk_download_allowed": false,
+  "toolchain_download_allowed": false,
+  "source_mirror_download_allowed": false,
+  "rootfs_generation_allowed": false,
+  "image_generation_allowed": false,
+  "substrate_selection": "NO_SUBSTRATE_SELECTED",
+  "ranking_allowed": false,
+  "emotional_testing_allowed": false,
+  "numeric_score_allowed": false,
+  "network_default": "DISABLED",
+  "image_pulls_allowed": false,
+  "container_builds_allowed": false,
+  "container_runs_allowed": false,
+  "vm_runs_allowed": false,
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "os_image_download_allowed": false,
+  "in_scope_candidates": [
+    "yocto_layer_recipe"
+  ],
+  "out_of_scope_preserved": {
+    "phase_3c_b_direct_rootfs": [
+      "buildroot",
+      "alpine",
+      "debian-minimal",
+      "void"
+    ],
+    "phase_3c_c_store_root": [
+      "nixos_store_root",
+      "guix_store_root"
+    ],
+    "phase_3c_e_reference_runtime": [
+      "openbsd-reference"
+    ]
+  },
+  "direct_rootfs_assumptions_insufficient_because": [
+    "Yocto image construction is metadata, recipe, layer, machine, and distro configuration driven",
+    "BitBake task graphs are not direct package-manager rootfs operations",
+    "Yocto build outputs require separate source, layer, cache, and evidence policy"
+  ],
+  "store_root_assumptions_insufficient_because": [
+    "Yocto does not use a Nix or Guix declarative store-root model",
+    "Yocto preparation requires layer and recipe policy rather than store realization policy",
+    "Yocto build-environment initialization is a distinct forbidden boundary in Phase 3C-D"
+  ],
+  "allowed_l1_actions": [
+    "static policy recognition",
+    "schema validation",
+    "candidate status reporting",
+    "missing Yocto input detection",
+    "Yocto metadata-input manifest checks",
+    "forbidden-command guardrail checks",
+    "ignored report generation"
+  ],
+  "allowed_l2_actions": [
+    "generate non-artifact scaffold files under build/wucios",
+    "generate Yocto metadata-input placeholder manifests",
+    "generate future command manifests as non-executable policy artifacts",
+    "generate placeholder evidence manifests",
+    "do not execute scaffold files",
+    "do not run BitBake or initialize a Yocto build environment",
+    "do not download, clone, build, generate rootfs, generate images, or score anything"
+  ],
+  "forbidden_actions": [
+    "bitbake",
+    "oe-init-build-env",
+    "devtool",
+    "kas",
+    "repo init",
+    "repo sync",
+    "git clone for Yocto, Poky, OpenEmbedded, BSP, or layer acquisition",
+    "curl or wget for Yocto source, layer, SDK, toolchain, mirror, or image download",
+    "docker",
+    "podman build",
+    "podman run",
+    "buildah",
+    "qemu",
+    "virt-install",
+    "sudo",
+    "package installation",
+    "rootfs generation",
+    "image generation",
+    "artifact generation",
+    "artifact hash",
+    "numeric WuciOS score",
+    "substrate selection",
+    "candidate ranking"
+  ],
+  "objectives": [
+    "Define controlled Yocto layer and recipe preparation rules.",
+    "Separate Yocto metadata preparation from direct-rootfs and store-root assumptions.",
+    "Define future L3 evidence requirements without executing them.",
+    "Generate optional non-artifact scaffolding only when explicitly authorized.",
+    "Preserve NO_SUBSTRATE_SELECTED.",
+    "Preserve NO_ARTIFACT_SCORE.",
+    "Preserve validation idempotence."
+  ],
+  "explicit_non_goals": [
+    "No BitBake execution.",
+    "No Yocto build.",
+    "No build-environment initialization.",
+    "No source clone.",
+    "No layer download.",
+    "No rootfs generation.",
+    "No image generation.",
+    "No substrate artifact attempt.",
+    "No runtime inspection.",
+    "No substrate selection.",
+    "No candidate ranking.",
+    "No numeric WuciOS score.",
+    "No OpenBSD runtime execution."
+  ]
+}

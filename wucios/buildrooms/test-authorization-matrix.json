@@ -1,0 +1,87 @@
+{
+  "schema": "wucios.euclid.test_authorization_matrix.v1",
+  "phase_id": "euclid-trial-phase-3b-readiness",
+  "default_authorization": "NO_EXECUTION_AUTHORIZED",
+  "test_levels": [
+    {
+      "id": "L0",
+      "name": "definition and readiness only",
+      "authorized_by_default": true,
+      "allows": [
+        "read tracked definitions",
+        "detect commands",
+        "run backend info commands",
+        "inspect readonly host files",
+        "generate ignored readiness reports"
+      ],
+      "forbids": [
+        "container pull",
+        "container build",
+        "container run",
+        "VM launch",
+        "package installation",
+        "sudo",
+        "source clone",
+        "artifact download"
+      ]
+    },
+    {
+      "id": "L1",
+      "name": "backend dry-run authorization",
+      "authorized_by_default": false,
+      "requires_future_explicit_authorization": true,
+      "allows": [
+        "backend-specific non-mutating dry-run commands if available"
+      ],
+      "forbids": [
+        "artifact generation",
+        "substrate build",
+        "container pull unless separately authorized",
+        "container run unless separately authorized"
+      ]
+    },
+    {
+      "id": "L2",
+      "name": "controlled buildroom image preparation",
+      "authorized_by_default": false,
+      "requires_future_explicit_authorization": true,
+      "allows": [
+        "container pull if pinned and authorized",
+        "container build if output path and cache policy are authorized"
+      ],
+      "forbids": [
+        "substrate selection",
+        "candidate ranking",
+        "numeric WuciOS score unless artifact-bound evidence is complete"
+      ]
+    },
+    {
+      "id": "L3",
+      "name": "controlled substrate artifact attempt",
+      "authorized_by_default": false,
+      "requires_future_explicit_authorization": true,
+      "allows": [
+        "candidate-specific artifact attempt inside approved buildroom"
+      ],
+      "forbids": [
+        "substrate selection",
+        "candidate ranking",
+        "release score without full artifact-bound evidence"
+      ]
+    },
+    {
+      "id": "L4",
+      "name": "runtime inspection",
+      "authorized_by_default": false,
+      "requires_future_explicit_authorization": true,
+      "allows": [
+        "VM or runtime boot inspection"
+      ],
+      "forbids": [
+        "uncontrolled host mutation",
+        "untracked runtime evidence",
+        "release claims without review packet integration"
+      ]
+    }
+  ]
+}
