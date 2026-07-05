@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS Yocto Metadata Input Policy",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "status",
+    "metadata_evaluated_in_phase_3c_d",
+    "build_environment_initialized_in_phase_3c_d",
+    "bitbake_invoked_in_phase_3c_d",
+    "network_allowed_in_phase_3c_d",
+    "candidates"
+  ],
+  "properties": {
+    "schema": { "const": "wucios.euclid.yocto_metadata_input_policy.v1" },
+    "phase_id": { "const": "euclid-trial-phase-3c-d" },
+    "status": { "const": "POLICY_ONLY_NOT_EXECUTABLE" },
+    "metadata_evaluated_in_phase_3c_d": { "const": false },
+    "build_environment_initialized_in_phase_3c_d": { "const": false },
+    "bitbake_invoked_in_phase_3c_d": { "const": false },
+    "network_allowed_in_phase_3c_d": { "const": false },
+    "candidates": {
+      "type": "object",
+      "required": ["yocto_layer_recipe"]
+    }
+  },
+  "additionalProperties": true
+}

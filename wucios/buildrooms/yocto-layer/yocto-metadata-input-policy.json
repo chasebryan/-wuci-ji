@@ -1,0 +1,43 @@
+{
+  "schema": "wucios.euclid.yocto_metadata_input_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-d",
+  "status": "POLICY_ONLY_NOT_EXECUTABLE",
+  "metadata_evaluated_in_phase_3c_d": false,
+  "build_environment_initialized_in_phase_3c_d": false,
+  "bitbake_invoked_in_phase_3c_d": false,
+  "network_allowed_in_phase_3c_d": false,
+  "candidates": {
+    "yocto_layer_recipe": {
+      "yocto_input_type": "layer-recipe-machine-distro-image-policy",
+      "future_level_required": "L3",
+      "required_manifest_concepts": [
+        "Poky or OpenEmbedded source identity policy",
+        "layer manifest policy",
+        "recipe manifest policy",
+        "machine configuration policy",
+        "distro configuration policy",
+        "image target policy",
+        "download and source mirror policy",
+        "cache policy",
+        "output path policy",
+        "evidence hook policy"
+      ],
+      "forbidden_in_phase_3c_d": [
+        "execute bitbake",
+        "initialize build environment",
+        "execute devtool",
+        "execute kas",
+        "execute repo init",
+        "execute repo sync",
+        "clone Yocto source or layers",
+        "download Yocto source, layer, SDK, toolchain, mirror, or image",
+        "generate rootfs",
+        "generate image",
+        "generate artifact",
+        "select substrate",
+        "rank candidate",
+        "generate numeric score"
+      ]
+    }
+  }
+}

@@ -152,6 +152,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-euclid-buildrooms-phase-3c-a wucios-euclid-buildrooms-phase-3c-a-json wucios-euclid-buildrooms-phase-3c-a-smoke wucios-euclid-buildrooms-phase-3c-a-smoke-json wucios-euclid-buildrooms-phase-3c-a-guardrails euclid-phase-3c-a buildroom-smoke-l1 buildroom-smoke-l2 buildroom-smoke-guardrails
 .PHONY: wucios-euclid-direct-rootfs-phase-3c-b wucios-euclid-direct-rootfs-phase-3c-b-json wucios-euclid-direct-rootfs-phase-3c-b-scaffold wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json wucios-euclid-direct-rootfs-phase-3c-b-guardrails wucios-direct-rootfs-prep-buildroot wucios-direct-rootfs-prep-alpine wucios-direct-rootfs-prep-debian-minimal wucios-direct-rootfs-prep-void euclid-phase-3c-b direct-rootfs-prep direct-rootfs-scaffold direct-rootfs-guardrails
 .PHONY: wucios-euclid-store-root-phase-3c-c wucios-euclid-store-root-phase-3c-c-json wucios-euclid-store-root-phase-3c-c-scaffold wucios-euclid-store-root-phase-3c-c-scaffold-json wucios-euclid-store-root-phase-3c-c-guardrails wucios-store-root-prep-nixos wucios-store-root-prep-guix euclid-phase-3c-c store-root-prep store-root-scaffold store-root-guardrails
+.PHONY: wucios-euclid-yocto-phase-3c-d wucios-euclid-yocto-phase-3c-d-json wucios-euclid-yocto-phase-3c-d-scaffold wucios-euclid-yocto-phase-3c-d-scaffold-json wucios-euclid-yocto-phase-3c-d-guardrails wucios-yocto-prep euclid-phase-3c-d yocto-prep yocto-scaffold yocto-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
 
 all: check-native $(TARGET)
@@ -213,6 +214,16 @@ help:
 	@printf '%s\n' "                                Generate authorized non-artifact NixOS/Guix scaffolding"
 	@printf '%s\n' "  WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-store-root-phase-3c-c-scaffold-json"
 	@printf '%s\n' "                                Generate authorized NixOS/Guix scaffolding and print JSON"
+	@printf '%s\n' "  make wucios-euclid-yocto-phase-3c-d"
+	@printf '%s\n' "                                Run Phase 3C-D Yocto layer/recipe L1 policy checks"
+	@printf '%s\n' "  make wucios-euclid-yocto-phase-3c-d-json"
+	@printf '%s\n' "                                Run Phase 3C-D L1 policy checks and print JSON"
+	@printf '%s\n' "  make wucios-euclid-yocto-phase-3c-d-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-D negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-yocto-phase-3c-d-scaffold"
+	@printf '%s\n' "                                Generate authorized non-artifact Yocto scaffolding"
+	@printf '%s\n' "  WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-yocto-phase-3c-d-scaffold-json"
+	@printf '%s\n' "                                Generate authorized Yocto scaffolding and print JSON"
 	@printf '%s\n' "  make buildroom-remediation-plan"
 	@printf '%s\n' "                                Alias for Phase 3B readiness diagnostics"
 	@printf '%s\n' "  make test-authorization-matrix"
@@ -818,6 +829,26 @@ wucios-store-root-prep-nixos:
 wucios-store-root-prep-guix:
 	$(PYTHON) tools/wucios/run_euclid_store_root_phase_3c_c.py --candidate guix_store_root
 
+wucios-euclid-yocto-phase-3c-d:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py
+
+wucios-euclid-yocto-phase-3c-d-json:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --json
+
+wucios-euclid-yocto-phase-3c-d-scaffold:
+	@if [ "$${WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-D L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 to generate Yocto non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --l2-scaffold
+
+wucios-euclid-yocto-phase-3c-d-scaffold-json:
+	@if [ "$${WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-D L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1 to generate Yocto non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --l2-scaffold --json
+
+wucios-euclid-yocto-phase-3c-d-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --guardrails
+
+wucios-yocto-prep:
+	$(PYTHON) tools/wucios/run_euclid_yocto_phase_3c_d.py --candidate yocto_layer_recipe
+
 wucios-euclid-trial-phase-2-attempt:
 	@if [ "$${WUCIOS_EUCLID_ALLOW_ATTEMPT:-}" != "1" ]; then printf '%s\n' "Refusing Phase 2 build attempts: set WUCIOS_EUCLID_ALLOW_ATTEMPT=1 explicitly."; exit 1; fi
 	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --attempt-builds --allow-network
@@ -915,6 +946,7 @@ wucios-idempotence-check:
 	@$(MAKE) wucios-euclid-buildrooms-phase-3c-a
 	@$(MAKE) wucios-euclid-direct-rootfs-phase-3c-b
 	@$(MAKE) wucios-euclid-store-root-phase-3c-c
+	@$(MAKE) wucios-euclid-yocto-phase-3c-d
 	@$(MAKE) wucios-review
 	@if ! git diff --exit-code; then printf '%s\n' "WuciOS idempotence check failed: safe validation modified tracked files."; exit 1; fi
 
@@ -937,6 +969,8 @@ euclid-phase-3c-a: wucios-euclid-buildrooms-phase-3c-a
 euclid-phase-3c-b: wucios-euclid-direct-rootfs-phase-3c-b
 
 euclid-phase-3c-c: wucios-euclid-store-root-phase-3c-c
+
+euclid-phase-3c-d: wucios-euclid-yocto-phase-3c-d
 
 euclid-build-probes: wucios-euclid-trial-phase-2
 
@@ -963,6 +997,12 @@ store-root-prep: wucios-euclid-store-root-phase-3c-c
 store-root-scaffold: wucios-euclid-store-root-phase-3c-c-scaffold
 
 store-root-guardrails: wucios-euclid-store-root-phase-3c-c-guardrails
+
+yocto-prep: wucios-euclid-yocto-phase-3c-d
+
+yocto-scaffold: wucios-euclid-yocto-phase-3c-d-scaffold
+
+yocto-guardrails: wucios-euclid-yocto-phase-3c-d-guardrails
 
 tarski-review: wucios-review
 

@@ -70,7 +70,13 @@ Phase 3C-C defines NixOS/Guix store-root preparation rules without building or
 running NixOS or Guix, realizing store paths, generating rootfs images, or
 creating artifacts:
 [EUCLID_TRIAL_PHASE_3C_C.md](EUCLID_TRIAL_PHASE_3C_C.md).
-Yocto and OpenBSD reference remain assigned to later dedicated policy phases.
+Phase 3C-C is integrated at `c3a16e4` and closed for automated work.
+
+Phase 3C-D defines Yocto layer/recipe preparation rules without running
+BitBake, initializing a Yocto build environment, cloning or downloading Yocto
+sources or layers, generating rootfs or image outputs, or creating artifacts:
+[EUCLID_TRIAL_PHASE_3C_D.md](EUCLID_TRIAL_PHASE_3C_D.md).
+OpenBSD reference remains assigned to Phase 3C-E.
 
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.

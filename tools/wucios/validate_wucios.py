@@ -41,11 +41,13 @@ REQUIRED_TOOLS = [
     "run_euclid_buildrooms_phase_3c_a.py",
     "run_euclid_direct_rootfs_phase_3c_b.py",
     "run_euclid_store_root_phase_3c_c.py",
+    "run_euclid_yocto_phase_3c_d.py",
     "buildroom_common.py",
     "backend_readiness_common.py",
     "synthetic_smoke_common.py",
     "direct_rootfs_prep_common.py",
     "store_root_prep_common.py",
+    "yocto_prep_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -134,6 +136,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_3C_A.md",
     "EUCLID_TRIAL_PHASE_3C_B.md",
     "EUCLID_TRIAL_PHASE_3C_C.md",
+    "EUCLID_TRIAL_PHASE_3C_D.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -428,6 +431,83 @@ STORE_ROOT_CANDIDATE_POLICY_KEYS = {
     "rootfs_generation_allowed",
     "store_realization_allowed",
     "phase_3c_c_allowed_outputs",
+    "blocked_until",
+    "notes",
+}
+
+PHASE_3C_D_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "l1_authorized_by_default",
+    "l2_scaffold_authorized_by_default",
+    "l2_scaffold_authorization_env",
+    "l3_substrate_artifact_attempts_allowed",
+    "runtime_inspection_allowed",
+    "bitbake_execution_allowed",
+    "build_environment_initialization_allowed",
+    "yocto_build_allowed",
+    "source_clone_allowed",
+    "layer_download_allowed",
+    "sdk_download_allowed",
+    "toolchain_download_allowed",
+    "source_mirror_download_allowed",
+    "rootfs_generation_allowed",
+    "image_generation_allowed",
+    "substrate_selection",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "numeric_score_allowed",
+    "network_default",
+    "image_pulls_allowed",
+    "container_builds_allowed",
+    "container_runs_allowed",
+    "vm_runs_allowed",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "os_image_download_allowed",
+    "in_scope_candidates",
+    "out_of_scope_preserved",
+    "direct_rootfs_assumptions_insufficient_because",
+    "store_root_assumptions_insufficient_because",
+    "allowed_l1_actions",
+    "allowed_l2_actions",
+    "forbidden_actions",
+    "objectives",
+    "explicit_non_goals",
+}
+
+YOCTO_CANDIDATES = ["yocto_layer_recipe"]
+
+YOCTO_CANDIDATE_POLICY_KEYS = {
+    "schema",
+    "phase_id",
+    "candidate_id",
+    "candidate_name",
+    "candidate_family",
+    "phase",
+    "preparation_level",
+    "yocto_input_type",
+    "required_inputs",
+    "optional_inputs",
+    "forbidden_commands",
+    "l1_status",
+    "l2_status",
+    "artifact_status",
+    "score_status",
+    "authorization_status",
+    "l3_artifact_attempt_allowed",
+    "bitbake_execution_allowed",
+    "build_environment_initialization_allowed",
+    "yocto_build_allowed",
+    "rootfs_generation_allowed",
+    "image_generation_allowed",
+    "source_clone_allowed",
+    "layer_download_allowed",
+    "future_artifact_candidates",
+    "phase_3c_d_allowed_outputs",
     "blocked_until",
     "notes",
 }
@@ -1410,6 +1490,218 @@ def validate_euclid_store_root_phase_3c_c(failures: list[str], warnings: list[st
         failures.append("Makefile must contain Phase 3C-C guardrail target")
 
 
+def validate_euclid_yocto_phase_3c_d(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3C_D.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3C-D doc: docs/wucios/EUCLID_TRIAL_PHASE_3C_D.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms/yocto-layer"
+    required_paths = [
+        buildrooms_dir / "euclid-yocto-phase-3c-d.json",
+        buildrooms_dir / "yocto-layer-policy.json",
+        buildrooms_dir / "yocto-metadata-input-policy.json",
+        buildrooms_dir / "evidence-requirements.json",
+        buildrooms_dir / "guardrail-policy.json",
+        buildrooms_dir / "README.md",
+        ROOT / "wucios/schemas/euclid-yocto-phase-3c-d.schema.json",
+        ROOT / "wucios/schemas/yocto-candidate-preparation.schema.json",
+        ROOT / "wucios/schemas/yocto-metadata-input-policy.schema.json",
+        ROOT / "tools/wucios/run_euclid_yocto_phase_3c_d.py",
+        ROOT / "tools/wucios/yocto_prep_common.py",
+    ]
+    for candidate in YOCTO_CANDIDATES:
+        required_paths.extend([
+            buildrooms_dir / candidate / "preparation-policy.json",
+            buildrooms_dir / candidate / "README.md",
+        ])
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3C-D file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-yocto-phase-3c-d.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3C_D_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3c-d":
+            failures.append("Phase 3C-D plan must use phase_id euclid-trial-phase-3c-d")
+        if plan.get("default_execution_mode") != "L1_YOCTO_POLICY_AND_METADATA_INPUTS":
+            failures.append("Phase 3C-D plan must default to L1_YOCTO_POLICY_AND_METADATA_INPUTS")
+        if plan.get("l2_scaffold_authorized_by_default") is not False:
+            failures.append("Phase 3C-D plan must disable L2 scaffold by default")
+        if plan.get("l2_scaffold_authorization_env") != "WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1":
+            failures.append("Phase 3C-D plan must require WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3C-D plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "l3_substrate_artifact_attempts_allowed",
+            "runtime_inspection_allowed",
+            "bitbake_execution_allowed",
+            "build_environment_initialization_allowed",
+            "yocto_build_allowed",
+            "source_clone_allowed",
+            "layer_download_allowed",
+            "sdk_download_allowed",
+            "toolchain_download_allowed",
+            "source_mirror_download_allowed",
+            "rootfs_generation_allowed",
+            "image_generation_allowed",
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "numeric_score_allowed",
+            "image_pulls_allowed",
+            "container_builds_allowed",
+            "container_runs_allowed",
+            "vm_runs_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "os_image_download_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3C-D plan must set {key} false")
+        if plan.get("network_default") != "DISABLED":
+            failures.append("Phase 3C-D plan must disable network by default")
+        if plan.get("in_scope_candidates") != YOCTO_CANDIDATES:
+            failures.append("Phase 3C-D plan must scope only the Yocto layer/recipe candidate")
+        out_of_scope = plan.get("out_of_scope_preserved", {})
+        if not isinstance(out_of_scope, dict) or "phase_3c_b_direct_rootfs" not in out_of_scope or "phase_3c_c_store_root" not in out_of_scope or "phase_3c_e_reference_runtime" not in out_of_scope:
+            failures.append("Phase 3C-D plan must preserve Phase 3C-B, 3C-C, and 3C-E boundaries")
+        forbidden = "\n".join(str(item) for item in plan.get("forbidden_actions", []))
+        for phrase in [
+            "bitbake",
+            "oe-init-build-env",
+            "devtool",
+            "kas",
+            "repo init",
+            "repo sync",
+            "git clone",
+            "curl or wget",
+            "docker",
+            "podman build",
+            "podman run",
+            "buildah",
+            "qemu",
+            "virt-install",
+            "sudo",
+            "package installation",
+            "rootfs generation",
+            "image generation",
+            "artifact generation",
+            "artifact hash",
+            "numeric WuciOS score",
+            "substrate selection",
+            "candidate ranking",
+        ]:
+            if phrase not in forbidden:
+                failures.append(f"Phase 3C-D plan must forbid {phrase}")
+
+    yocto_policy_path = buildrooms_dir / "yocto-layer-policy.json"
+    yocto_policy = load_json(yocto_policy_path, failures)
+    if isinstance(yocto_policy, dict):
+        if yocto_policy.get("phase_id") != "euclid-trial-phase-3c-d":
+            failures.append("Yocto policy must use Phase 3C-D phase_id")
+        if yocto_policy.get("applies_to") != YOCTO_CANDIDATES:
+            failures.append("Yocto policy must apply only to yocto_layer_recipe")
+        for key in [
+            "l3_artifact_attempts_allowed",
+            "bitbake_execution_allowed",
+            "build_environment_initialization_allowed",
+            "yocto_build_allowed",
+            "rootfs_generation_allowed",
+            "image_generation_allowed",
+            "source_clone_allowed",
+            "layer_download_allowed",
+            "network_allowed",
+            "container_builds_allowed",
+            "container_runs_allowed",
+            "image_pulls_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "os_image_download_allowed",
+        ]:
+            if yocto_policy.get(key) is not False:
+                failures.append(f"Yocto policy must set {key} false")
+
+    metadata_path = buildrooms_dir / "yocto-metadata-input-policy.json"
+    metadata_policy = load_json(metadata_path, failures)
+    if isinstance(metadata_policy, dict):
+        if metadata_policy.get("status") != "POLICY_ONLY_NOT_EXECUTABLE":
+            failures.append("yocto-metadata-input-policy.json must be POLICY_ONLY_NOT_EXECUTABLE")
+        for key in ["metadata_evaluated_in_phase_3c_d", "build_environment_initialized_in_phase_3c_d", "bitbake_invoked_in_phase_3c_d", "network_allowed_in_phase_3c_d"]:
+            if metadata_policy.get(key) is not False:
+                failures.append(f"yocto-metadata-input-policy.json must set {key} false")
+        candidates = metadata_policy.get("candidates", {})
+        if not isinstance(candidates, dict):
+            failures.append("yocto-metadata-input-policy.json candidates must be an object")
+        else:
+            for candidate in YOCTO_CANDIDATES:
+                item = candidates.get(candidate, {})
+                if not isinstance(item, dict):
+                    failures.append(f"yocto-metadata-input-policy.json missing {candidate}")
+                    continue
+                if item.get("future_level_required") != "L3":
+                    failures.append(f"{candidate} metadata input policy must require L3")
+                forbidden = "\n".join(str(entry) for entry in item.get("forbidden_in_phase_3c_d", []))
+                for phrase in ["execute bitbake", "initialize build environment", "execute devtool", "execute kas", "execute repo init", "execute repo sync", "clone Yocto source or layers", "download Yocto source, layer, SDK, toolchain, mirror, or image", "generate rootfs", "generate image", "generate artifact", "select substrate", "rank candidate", "generate numeric score"]:
+                    if phrase not in forbidden:
+                        failures.append(f"{candidate} metadata input policy must forbid {phrase}")
+
+    evidence_path = buildrooms_dir / "evidence-requirements.json"
+    evidence = load_json(evidence_path, failures)
+    if isinstance(evidence, dict):
+        for key in ["phase_3c_d_generates_substrate_evidence", "phase_3c_d_generates_artifact_hashes", "phase_3c_d_generates_numeric_scores", "phase_3c_d_generates_rootfs_or_images"]:
+            if evidence.get(key) is not False:
+                failures.append(f"Phase 3C-D evidence requirements must set {key} false")
+        required_outputs = evidence.get("future_l3_required_outputs", [])
+        for name in ["yocto-metadata-input-manifest.json", "layer-manifest.json", "recipe-manifest.json", "machine-configuration.json", "distro-configuration.json", "image-target-policy.json", "bitbake-log.txt", "artifact-manifest.json", "artifact.sha256", "substrate-report.json", "missing-measurements.txt"]:
+            if name not in required_outputs:
+                failures.append(f"Phase 3C-D evidence requirements must include {name}")
+
+    guardrail_path = buildrooms_dir / "guardrail-policy.json"
+    guardrail_policy = load_json(guardrail_path, failures)
+    if isinstance(guardrail_policy, dict):
+        refusal_text = "\n".join(str(item) for item in guardrail_policy.get("required_refusal_checks", []))
+        for phrase in ["WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD", "WUCIOS_EUCLID_ALLOW_ATTEMPT", "WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD"]:
+            if phrase not in refusal_text:
+                failures.append(f"Phase 3C-D guardrail policy must include refusal check for {phrase}")
+        forbidden_text = "\n".join(str(item) for item in guardrail_policy.get("phase_3c_d_must_not_execute", []))
+        for phrase in ["bitbake", "oe-init-build-env", "devtool", "kas", "repo init", "repo sync", "git clone", "curl download", "wget download", "docker", "podman build", "podman run", "buildah", "qemu", "virt-install", "sudo", "apt", "apk", "xbps-install", "pacman", "dnf", "rootfs generation", "image generation", "artifact generation", "numeric WuciOS score"]:
+            if phrase not in forbidden_text:
+                failures.append(f"Phase 3C-D guardrail policy must forbid {phrase}")
+
+    for candidate in YOCTO_CANDIDATES:
+        policy_path = buildrooms_dir / candidate / "preparation-policy.json"
+        policy = load_json(policy_path, failures)
+        if isinstance(policy, dict):
+            require_keys(policy_path, policy, YOCTO_CANDIDATE_POLICY_KEYS, failures)
+            if policy.get("phase_id") != "euclid-trial-phase-3c-d":
+                failures.append(f"{candidate} policy must use Phase 3C-D phase_id")
+            if policy.get("candidate_id") != candidate:
+                failures.append(f"{candidate} policy candidate id mismatch")
+            if policy.get("l1_status") != "PREP_YOCTO_INPUTS_MISSING":
+                failures.append(f"{candidate} policy must define PREP_YOCTO_INPUTS_MISSING L1 status")
+            if policy.get("l2_status") != "PREP_YOCTO_SCAFFOLD_GENERATED":
+                failures.append(f"{candidate} policy must define PREP_YOCTO_SCAFFOLD_GENERATED L2 status")
+            if policy.get("artifact_status") != "NO_WUCIOS_ARTIFACT":
+                failures.append(f"{candidate} policy must keep NO_WUCIOS_ARTIFACT")
+            if policy.get("score_status") != "NO_ARTIFACT_SCORE":
+                failures.append(f"{candidate} policy must keep NO_ARTIFACT_SCORE")
+            for key in ["l3_artifact_attempt_allowed", "bitbake_execution_allowed", "build_environment_initialization_allowed", "yocto_build_allowed", "rootfs_generation_allowed", "image_generation_allowed", "source_clone_allowed", "layer_download_allowed"]:
+                if policy.get(key) is not False:
+                    failures.append(f"{candidate} policy must set {key} false")
+            forbidden = "\n".join(str(item) for item in policy.get("forbidden_commands", []))
+            for phrase in ["bitbake", "oe-init-build-env", "devtool", "kas", "repo init", "repo sync", "git clone", "curl", "wget", "docker", "podman run", "podman build", "buildah", "qemu", "virt-install", "sudo", "apt", "apk", "xbps-install", "pacman", "dnf"]:
+                if phrase not in forbidden:
+                    failures.append(f"{candidate} policy must forbid {phrase}")
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if "wucios-euclid-yocto-phase-3c-d-scaffold:" not in makefile:
+        failures.append("Makefile must contain Phase 3C-D guarded scaffold target")
+    if "WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD" not in makefile:
+        failures.append("Makefile Phase 3C-D scaffold target must check WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD")
+    if "wucios-euclid-yocto-phase-3c-d-guardrails" not in makefile:
+        failures.append("Makefile must contain Phase 3C-D guardrail target")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -1431,6 +1723,7 @@ def main() -> int:
     validate_euclid_buildrooms_phase_3c_a(failures, warnings)
     validate_euclid_direct_rootfs_phase_3c_b(failures, warnings)
     validate_euclid_store_root_phase_3c_c(failures, warnings)
+    validate_euclid_yocto_phase_3c_d(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -1462,6 +1755,7 @@ def main() -> int:
     print("- Euclid Phase 3C-A synthetic smoke buildroom: present")
     print(f"- Euclid Phase 3C-B direct rootfs preparation candidates: {len(DIRECT_ROOTFS_CANDIDATES)}")
     print(f"- Euclid Phase 3C-C store-root preparation candidates: {len(STORE_ROOT_CANDIDATES)}")
+    print(f"- Euclid Phase 3C-D Yocto preparation candidates: {len(YOCTO_CANDIDATES)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

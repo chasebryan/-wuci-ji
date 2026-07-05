@@ -34,6 +34,7 @@ The backend readiness and future authorization matrix is [EUCLID_TRIAL_PHASE_3B_
 The rootless backend smoke guardrail layer is [EUCLID_TRIAL_PHASE_3C_A.md](EUCLID_TRIAL_PHASE_3C_A.md).
 The direct-rootfs preparation policy layer is [EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
 The NixOS/Guix store-root preparation policy layer is [EUCLID_TRIAL_PHASE_3C_C.md](EUCLID_TRIAL_PHASE_3C_C.md).
+The Yocto layer/recipe preparation policy layer is [EUCLID_TRIAL_PHASE_3C_D.md](EUCLID_TRIAL_PHASE_3C_D.md).
 
 ## Evidence Requirement
 
@@ -61,6 +62,8 @@ make wucios-euclid-direct-rootfs-phase-3c-b
 make wucios-euclid-direct-rootfs-phase-3c-b-guardrails
 make wucios-euclid-store-root-phase-3c-c
 make wucios-euclid-store-root-phase-3c-c-guardrails
+make wucios-euclid-yocto-phase-3c-d
+make wucios-euclid-yocto-phase-3c-d-guardrails
 ```
 
 ## Controlling Doctrine
@@ -84,3 +87,4 @@ make wucios-euclid-store-root-phase-3c-c-guardrails
 17. A Phase 3C-A synthetic smoke image is not a WuciOS artifact, not a substrate artifact, and not score eligible.
 18. Phase 3C-B direct-rootfs preparation rules do not generate rootfs images, select a substrate, rank candidates, or generate a numeric WuciOS score.
 19. Phase 3C-C NixOS/Guix store-root preparation rules do not realize store paths, build NixOS or Guix systems, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
+20. Phase 3C-D Yocto layer/recipe preparation rules do not run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate rootfs or image outputs, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.

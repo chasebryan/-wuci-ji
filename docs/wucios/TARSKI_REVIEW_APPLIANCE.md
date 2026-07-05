@@ -79,4 +79,10 @@ Phase 3C-B does not make the review packet release-complete. It does not generat
 
 If `build/wucios/review/euclid-trial-phase-3c-c.json` exists, the review packet summarizes Phase 3C-C global status, execution mode, in-scope NixOS/Guix store-root candidates, preserved out-of-scope candidates, preparation statuses, L2 scaffold status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-C: NOT_RUN`.
 
-Phase 3C-C does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, generate a rootfs, realize a store path, generate an artifact hash, or produce a numeric WuciOS score. The review packet keeps Phase 3C-B direct-rootfs preparation distinct from Phase 3C-C store-root preparation and records Phase 3C-D Yocto and Phase 3C-E OpenBSD reference as deferred.
+Phase 3C-C does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, generate a rootfs, realize a store path, generate an artifact hash, or produce a numeric WuciOS score. The review packet keeps Phase 3C-B direct-rootfs preparation distinct from Phase 3C-C store-root preparation.
+
+## Phase 3C-D Review Status
+
+If `build/wucios/review/euclid-trial-phase-3c-d.json` exists, the review packet summarizes Phase 3C-D global status, execution mode, in-scope Yocto layer/recipe candidate, preserved out-of-scope candidates, preparation status, L2 scaffold status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-D: NOT_RUN`.
+
+Phase 3C-D does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, run BitBake, initialize a Yocto build environment, clone or download Yocto sources or layers, generate a rootfs, generate an image, generate an artifact hash, or produce a numeric WuciOS score. The review packet records Phase 3C-E OpenBSD reference as deferred.

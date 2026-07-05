@@ -74,3 +74,7 @@ Store-root preparation readiness does not select or rank any substrate.
 ## Score Boundary
 
 Phase 3C-C cannot produce a numeric WuciOS score. It does not create a WuciOS artifact, artifact hash, or score-eligible evidence.
+
+## Phase 3C-D Boundary
+
+Phase 3C-D follows Phase 3C-C by defining Yocto layer/recipe preparation rules. Phase 3C-D must not reuse store-root assumptions without explicit policy justification. It does not authorize L3 substrate artifact attempts, L4 runtime inspection, BitBake execution, Yocto build-environment initialization, Yocto source or layer acquisition, rootfs generation, image generation, substrate selection, candidate ranking, artifact hashes, or numeric WuciOS scoring.

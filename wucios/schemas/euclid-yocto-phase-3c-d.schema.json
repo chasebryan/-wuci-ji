@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS Euclid Phase 3C-D Yocto Plan",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "phase_name",
+    "default_execution_mode",
+    "l1_authorized_by_default",
+    "l2_scaffold_authorized_by_default",
+    "l2_scaffold_authorization_env",
+    "l3_substrate_artifact_attempts_allowed",
+    "runtime_inspection_allowed",
+    "bitbake_execution_allowed",
+    "yocto_build_allowed",
+    "substrate_selection",
+    "ranking_allowed",
+    "numeric_score_allowed",
+    "in_scope_candidates",
+    "out_of_scope_preserved"
+  ],
+  "properties": {
+    "schema": { "const": "wucios.euclid.phase3c_d.plan.v1" },
+    "phase_id": { "const": "euclid-trial-phase-3c-d" },
+    "phase_name": { "type": "string" },
+    "default_execution_mode": { "const": "L1_YOCTO_POLICY_AND_METADATA_INPUTS" },
+    "l1_authorized_by_default": { "const": true },
+    "l2_scaffold_authorized_by_default": { "const": false },
+    "l2_scaffold_authorization_env": { "const": "WUCIOS_PHASE3CD_ALLOW_L2_SCAFFOLD=1" },
+    "l3_substrate_artifact_attempts_allowed": { "const": false },
+    "runtime_inspection_allowed": { "const": false },
+    "bitbake_execution_allowed": { "const": false },
+    "yocto_build_allowed": { "const": false },
+    "substrate_selection": { "const": "NO_SUBSTRATE_SELECTED" },
+    "ranking_allowed": { "const": false },
+    "numeric_score_allowed": { "const": false },
+    "in_scope_candidates": {
+      "type": "array",
+      "items": { "const": "yocto_layer_recipe" }
+    },
+    "out_of_scope_preserved": { "type": "object" }
+  },
+  "additionalProperties": true
+}
