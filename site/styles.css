@@ -2736,7 +2736,8 @@ body::before {
 .nsm-bastion-card,
 .proof-step,
 .sealed-list,
-.challenge-callout {
+.challenge-callout,
+.field-review-callout {
   border: 1px solid var(--nsm-line);
   background:
     linear-gradient(180deg, rgba(25, 23, 21, 0.98), rgba(13, 13, 12, 0.98));
@@ -2793,6 +2794,59 @@ body::before {
 .evidence-grid .text-link {
   justify-self: start;
   align-self: end;
+}
+
+.field-review-callout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.46fr);
+  gap: clamp(20px, 4vw, 42px);
+  align-items: stretch;
+  margin-top: clamp(18px, 3vw, 30px);
+  padding: clamp(16px, 2.6vw, 28px);
+  overflow: hidden;
+}
+
+.field-review-callout figure {
+  min-width: 0;
+  margin: 0;
+  border-color: rgba(216, 213, 206, 0.24);
+}
+
+.field-review-callout img {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  aspect-ratio: 1497 / 842;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.86) contrast(1.05) brightness(0.88);
+}
+
+.field-review-copy {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.field-review-copy h3 {
+  max-width: 15ch;
+  margin: 0;
+  color: var(--nsm-ink);
+  font-size: clamp(1.7rem, 3vw, 3rem);
+  line-height: 1;
+}
+
+.field-review-copy p {
+  margin: 0;
+  color: var(--nsm-muted);
+}
+
+.field-review-copy .does-not {
+  padding-top: 12px;
+  border-top: 1px solid rgba(216, 213, 206, 0.13);
+  color: var(--nsm-quiet);
+  font-size: 0.92rem;
 }
 
 .proof-ladder {
@@ -3019,7 +3073,8 @@ pre::before {
 }
 
 .nsm-gallery figure,
-.challenge-callout figure {
+.challenge-callout figure,
+.field-review-callout figure {
   background: #070707;
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
@@ -3180,6 +3235,7 @@ figcaption {
 
   .meridian-grid,
   .challenge-callout,
+  .field-review-callout,
   .nsm-final-boundary,
   .not-found-shell {
     grid-template-columns: 1fr;
@@ -3318,6 +3374,14 @@ figcaption {
 
   .challenge-callout {
     padding: 16px;
+  }
+
+  .field-review-callout {
+    padding: 16px;
+  }
+
+  .field-review-callout img {
+    min-height: 190px;
   }
 
   .wucios-actions,
