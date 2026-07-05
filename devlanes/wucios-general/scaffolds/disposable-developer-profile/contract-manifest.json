@@ -1,0 +1,72 @@
+{
+  "schema": "wucios-dev-lane-disposable-profile-contract-v1",
+  "probe": "foundation-batch-1-contract-manifest",
+  "status": "scaffold_only",
+  "profile_behavior": "not_implemented",
+  "scope": {
+    "lane": "devlanes/wucios-general",
+    "scaffold": "devlanes/wucios-general/scaffolds/disposable-developer-profile",
+    "profile_document": "devlanes/wucios-general/profiles/disposable-developer-profile.md",
+    "claim_boundary_validator": "devlanes/wucios-general/tools/validate-disposable-developer-profile.sh"
+  },
+  "required_scaffold_files": [
+    ".gitkeep",
+    "README.md",
+    "profile-contract.md",
+    "contract-manifest.json"
+  ],
+  "required_contract_sections": [
+    "Purpose",
+    "Non-Claims",
+    "Future Inputs",
+    "Future Outputs",
+    "Future Validation Requirements",
+    "Forbidden Claims",
+    "Current Status"
+  ],
+  "future_inputs": [
+    "reviewed_design_notes",
+    "candidate_layout_decisions",
+    "preview_bound_path_names",
+    "cleanup_policy",
+    "separate_package_manager_authorization",
+    "separate_network_authorization"
+  ],
+  "future_outputs": [
+    "profile_subdocuments",
+    "reviewed_layout_notes",
+    "preview_bound_file_naming_rules",
+    "cleanup_records",
+    "local_reviewer_commands"
+  ],
+  "non_claims": [
+    "no_runtime_behavior",
+    "no_profile_creation",
+    "no_package_install",
+    "no_package_manager_execution",
+    "no_network_enablement",
+    "no_isolation_enforcement",
+    "no_external_review_result",
+    "no_host_mutation_guarantee",
+    "no_developer_use_approval",
+    "no_operational_approval"
+  ],
+  "forbidden_claim_ids": [
+    "production_status_approval",
+    "external_review_approval",
+    "runtime_proof_approval",
+    "install_approval",
+    "default_security_posture",
+    "complete_isolation_proof",
+    "implemented_profile_behavior",
+    "developer_use_approval",
+    "operational_approval"
+  ],
+  "validation_requirements": [
+    "probe_3_validator_passes",
+    "required_scaffold_files_exist",
+    "required_contract_sections_exist",
+    "forbidden_claim_phrases_absent",
+    "git_diff_check_clean"
+  ]
+}
