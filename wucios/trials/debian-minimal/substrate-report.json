@@ -5,7 +5,7 @@
   "default_services": "NOT_MEASURED",
   "dependency_tree_status": "NOT_MEASURED",
   "display_name": "Debian Minimal",
-  "generated_utc": "2026-07-05T02:52:35Z",
+  "generated_utc": "STATIC_TRACKED_TEMPLATE",
   "image_size": "NOT_MEASURED",
   "kernel_module_count": "NOT_MEASURED",
   "listening_ports": "NOT_MEASURED",

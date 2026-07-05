@@ -22,6 +22,9 @@ or project loyalty. Candidates are judged only by comparable evidence.
 source or probe prerequisites, writes evidence files, and does not build,
 install, clone, require root, or use network access.
 
+Safe validation targets must not modify tracked files. Generated evidence with
+timestamps is written to ignored `build/wucios/` outputs.
+
 `EXPLICIT_BUILD_ATTEMPT` is opt-in. It requires `--attempt-builds` and
 `WUCIOS_EUCLID_ALLOW_ATTEMPT=1`. Network-dependent commands also require
 `--allow-network`. The probes do not call `sudo`.

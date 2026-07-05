@@ -4,6 +4,8 @@ Tarski Review Appliance is the reviewer-facing evidence generator and claim-to-e
 
 The generated review packet is local evidence. It is not an external audit, certification, or approval.
 
+Safe validation targets must not modify tracked files. Timestamped evidence is written only to ignored `build/wucios/` outputs.
+
 ## Expected Output Files
 
 - `build/wucios/review/review.md`

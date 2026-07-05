@@ -27,6 +27,7 @@ from trial_collectors.common import (
 ROOT = Path(__file__).resolve().parents[2]
 TRIAL_ROOT = ROOT / "wucios/trials"
 REVIEW_DIR = ROOT / "build/wucios/review"
+GENERATED_TRIAL_ROOT = ROOT / "build/wucios/trials"
 
 OUTPUT_JSON = REVIEW_DIR / "euclid-trial-phase-1.json"
 OUTPUT_MD = REVIEW_DIR / "euclid-trial-phase-1.md"
@@ -73,6 +74,10 @@ def placeholder_text(filename: str) -> str:
 
 def candidate_dir(candidate_id: str) -> Path:
     return TRIAL_ROOT / candidate_id
+
+
+def generated_candidate_dir(candidate_id: str) -> Path:
+    return GENERATED_TRIAL_ROOT / candidate_id / "phase-1"
 
 
 def default_trial_plan(candidate_id: str) -> dict[str, Any]:
@@ -123,62 +128,23 @@ def default_artifact_manifest(candidate_id: str) -> dict[str, Any]:
     }
 
 
-def ensure_candidate_files(candidate_id: str) -> None:
+def validate_candidate_files(candidate_id: str) -> None:
     directory = candidate_dir(candidate_id)
-    directory.mkdir(parents=True, exist_ok=True)
-
-    plan_path = directory / "trial-plan.json"
-    if not plan_path.exists():
-        write_json(plan_path, default_trial_plan(candidate_id))
-    else:
-        plan = load_json(plan_path) or default_trial_plan(candidate_id)
-        plan["allowed_candidate_status_values"] = CANDIDATE_BUILD_STATUS_VALUES
-        plan["required_outputs"] = REQUIRED_TRIAL_FILES
-        plan["noether_core_requirements"] = NOETHER_REQUIREMENTS
-        plan.setdefault("selection_status", "NO_SUBSTRATE_SELECTED")
-        write_json(plan_path, plan)
-
-    manifest_path = directory / "artifact-manifest.json"
-    if not manifest_path.exists():
-        write_json(manifest_path, default_artifact_manifest(candidate_id))
-
-    write_text_if_missing(
-        directory / "build-notes.md",
-        "\n".join(
-            [
-                f"# {FIRST_COHORT[candidate_id]['display_name']} Trial Build Notes",
-                "",
-                "Status: `BUILD_NOT_ATTEMPTED`",
-                "",
-                "No build was attempted in Euclid Trial Phase 1. This pass",
-                "standardizes the evidence protocol before substrate builds.",
-                "",
-            ]
-        ),
-    )
-    write_text_if_missing(
-        directory / "failure-report.md",
-        "\n".join(
-            [
-                f"# {FIRST_COHORT[candidate_id]['display_name']} Failure Report",
-                "",
-                "Status: `BUILD_NOT_ATTEMPTED`",
-                "",
-                "Failure is not inferred. No candidate build has been attempted.",
-                "Missing measurements are recorded as `NOT_MEASURED`.",
-                "",
-            ]
-        ),
-    )
-
-    for filename in MEASUREMENT_FILES:
-        write_text_if_missing(directory / filename, placeholder_text(filename))
+    missing = [
+        filename
+        for filename in REQUIRED_TRIAL_FILES
+        if not (directory / filename).is_file()
+    ]
+    if missing:
+        joined = ", ".join(str(directory.relative_to(ROOT) / name) for name in missing)
+        raise SystemExit(f"missing Phase 1 tracked trial file(s): {joined}")
 
 
 def update_artifact_hash(candidate_id: str) -> dict[str, Any]:
     path = candidate_dir(candidate_id) / "artifact-manifest.json"
-    manifest = load_json(path) or default_artifact_manifest(candidate_id)
-    artifact = manifest.setdefault("artifact", {})
+    manifest = dict(load_json(path) or default_artifact_manifest(candidate_id))
+    artifact = dict(manifest.get("artifact", {}))
+    manifest["artifact"] = artifact
     artifact_path = artifact.get("path", "NOT_MEASURED")
     if isinstance(artifact_path, str) and artifact_path not in {"", "NOT_MEASURED"}:
         resolved = (ROOT / artifact_path).resolve() if not Path(artifact_path).is_absolute() else Path(artifact_path)
@@ -187,7 +153,6 @@ def update_artifact_hash(candidate_id: str) -> dict[str, Any]:
             artifact["size_bytes"] = resolved.stat().st_size
             if manifest.get("build_status") == "BUILD_NOT_ATTEMPTED":
                 manifest["build_status"] = "NOT_MEASURED"
-            write_json(path, manifest)
     return manifest
 
 
@@ -257,12 +222,13 @@ def summarize_candidate(candidate_id: str) -> dict[str, Any]:
         "noether_core_violations": noether_violations(directory),
         "missing_measurements": sorted(set(missing)),
     }
-    write_candidate_report(candidate_id, summary)
+    summary["report_paths"] = write_candidate_report(candidate_id, summary)
     return summary
 
 
-def write_candidate_report(candidate_id: str, summary: dict[str, Any]) -> None:
-    directory = candidate_dir(candidate_id)
+def write_candidate_report(candidate_id: str, summary: dict[str, Any]) -> dict[str, str]:
+    directory = generated_candidate_dir(candidate_id)
+    directory.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema": "wucios.euclid_substrate_report.v1",
         "generated_utc": utc_now(),
@@ -300,6 +266,10 @@ def write_candidate_report(candidate_id: str, summary: dict[str, Any]) -> None:
     lines.extend(f"- `{item}`" for item in summary["missing_measurements"])
     lines.append("")
     (directory / "substrate-report.md").write_text("\n".join(lines), encoding="utf-8")
+    return {
+        "candidate_report_json": str(directory / "substrate-report.json"),
+        "candidate_report_md": str(directory / "substrate-report.md"),
+    }
 
 
 def combined_status(candidates: list[dict[str, Any]]) -> str:
@@ -379,8 +349,8 @@ def main() -> int:
     args = parser.parse_args()
 
     candidate_ids = selected_candidates(args.candidate or ["all"])
-    for candidate_id in candidate_ids:
-        ensure_candidate_files(candidate_id)
+    for candidate_id in list(FIRST_COHORT):
+        validate_candidate_files(candidate_id)
     summaries = [summarize_candidate(candidate_id) for candidate_id in list(FIRST_COHORT)]
     payload = write_combined_report(summaries)
 

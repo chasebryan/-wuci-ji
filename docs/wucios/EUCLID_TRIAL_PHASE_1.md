@@ -46,6 +46,10 @@ Each directory contains the same evidence protocol:
 - `substrate-report.md`
 - `failure-report.md`
 
+Tracked trial files are static seed material. Safe Phase 1 validation writes
+timestamped candidate reports under `build/wucios/trials/<candidate>/phase-1/`
+and combined reports under `build/wucios/review/`.
+
 Missing evidence must be written as `NOT_MEASURED`. If no build was attempted,
 the candidate status remains `BUILD_NOT_ATTEMPTED`. If tooling is absent, the
 candidate records `MISSING_TOOLING`. If a build is attempted and fails, the
@@ -57,6 +61,8 @@ measurements as `NOT_MEASURED`.
 
 The runner writes:
 
+- `build/wucios/trials/<candidate>/phase-1/substrate-report.md`
+- `build/wucios/trials/<candidate>/phase-1/substrate-report.json`
 - `build/wucios/review/euclid-trial-phase-1.md`
 - `build/wucios/review/euclid-trial-phase-1.json`
 
