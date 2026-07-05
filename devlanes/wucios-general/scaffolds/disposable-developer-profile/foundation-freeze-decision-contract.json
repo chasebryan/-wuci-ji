@@ -1,0 +1,47 @@
+{
+  "schema": "wucios.disposable_profile.foundation_freeze_decision_contract.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "foundation_freeze_decision_kind": "foundation_review_freeze_decision",
+  "allowed_decision_values": [
+    "FOUNDATION_FROZEN_FOR_REVIEW",
+    "FOUNDATION_NOT_FROZEN",
+    "FOUNDATION_FREEZE_BLOCKED"
+  ],
+  "required_decision_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-summary.md"
+  ],
+  "required_referenced_closeout_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-index.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-summary.md"
+  ],
+  "dry_run_only": true,
+  "foundation_only": true,
+  "forbidden_freeze_fields": [
+    "timestamp",
+    "hostname",
+    "username",
+    "absolute_path",
+    "mount_path",
+    "mnt-samsung-t7",
+    "environment_dump",
+    "secret",
+    "token",
+    "credential"
+  ],
+  "forbidden_claim_terms": [
+    "runtime_provisioning_claim",
+    "actual_install_claim",
+    "host_change_claim",
+    "credential_setup_claim",
+    "package_install_claim",
+    "service_setup_claim",
+    "production_status_claim",
+    "real_profile_creation_claim",
+    "external_review_claim",
+    "high_assurance_claim"
+  ]
+}
