@@ -18,7 +18,12 @@
     "no_profile_creation",
     "no_package_install",
     "no_runtime_execution",
-    "no_host_config_mutation"
+    "no_host_config_mutation",
+    "no_network_enablement",
+    "no_external_review_result",
+    "no_production_readiness",
+    "no_installation_readiness",
+    "no_developer_use_approval"
   ],
   "production_readiness_claim": true
 }
