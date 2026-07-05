@@ -14,7 +14,7 @@ This reviewer note preserves the status of local WuciOS v2.4 Alpine runtime-vali
 
 Runtime Gates 5, 5A, 6, 7, 8, and 9 have been completed as local/ignored evidence.
 
-Latest completed runtime gate: `RUNTIME_GATE_10_RUNTIME_STATUS_PRESERVATION_DECISION_PUSHED`.
+Latest completed runtime status gate: `RUNTIME_GATE_14_REVIEW_PACKET_FREEZE_DECISION_PUSHED`.
 
 Gate 9 closed the runtime evidence ledger as a boundary/index gate.
 
@@ -25,12 +25,17 @@ Gate 9 closed the runtime evidence ledger as a boundary/index gate.
 - Gate 8: selected prior probes were repeated twice and produced a consistent evidence pattern.
 - Gate 9: runtime-validation evidence ledger was closed as a boundary/index gate.
 - Gate 10: preservation/status commit recorded this reviewer note and did not introduce a new runtime test.
+- Gate 11: public reviewer packet alignment was committed.
+- Gate 12: gate status ledger was committed and pushed.
+- Gate 13: public link and status surface audit completed with no tracked changes.
+- Gate 14: current public reviewer packet was frozen as the WuciOS v2.4 Alpine runtime-validation status surface.
 
 Current score remains 96.0 / 100.0.
 
 Canonical artifact SHA-256 remains `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`.
 
-No new runtime test is introduced by this preservation commit.
+No new runtime test is introduced by the preservation, alignment, ledger, audit,
+or freeze commits.
 
 Raw evidence remains local/ignored unless separately authorized.
 
@@ -51,4 +56,4 @@ This commit does not claim:
 
 This note also does not claim init/system service correctness, package-manager correctness, long-running stability, or runtime safety outside the tested method and commands.
 
-The WuciOS v2.4 Alpine Substrate Trial Score remains 96.0 / 100.0. Runtime Gate 10 does not alter score files or score semantics.
+The WuciOS v2.4 Alpine Substrate Trial Score remains 96.0 / 100.0. Runtime Gates 10 through 14 do not alter score files or score semantics.
