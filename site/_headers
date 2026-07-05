@@ -48,5 +48,13 @@
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=86400
 
+/styles.css
+  Content-Type: text/css; charset=utf-8
+  Cache-Control: no-store
+
+/app.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: no-store
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
