@@ -1,5 +1,3 @@
-<img width="1672" height="941" alt="Wuci-Ji white brick banner" src="site/assets/wuci-ji-white-brick-banner.jpg" />
-
 # Wuci-Ji / 无此机
 
 <p align="center">
