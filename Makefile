@@ -7,6 +7,8 @@ OBJDUMP ?= objdump
 RUSTC ?= $(shell if command -v rustc >/dev/null 2>&1; then command -v rustc; elif [ -x "$(HOME)/.cargo/bin/rustc" ]; then printf '%s\n' "$(HOME)/.cargo/bin/rustc"; fi)
 CARGO ?= $(shell if command -v cargo >/dev/null 2>&1; then command -v cargo; elif [ -x "$(HOME)/.cargo/bin/cargo" ]; then printf '%s\n' "$(HOME)/.cargo/bin/cargo"; fi)
 ZIG ?= zig
+ZIG_VERSION := $(shell if command -v $(ZIG) >/dev/null 2>&1; then $(ZIG) version; fi)
+ZIG_TOOL_IMPL ?= $(if $(filter 0.13.%,$(ZIG_VERSION)),python-compat,zig)
 QEMU_X86_64 ?= qemu-x86_64
 QEMU_CPU ?= Haswell-v4
 QEMU_RUNNER ?= $(QEMU_X86_64) -cpu $(QEMU_CPU)
@@ -1141,6 +1143,30 @@ $(CROSS_TARGET): $(CROSS_SOURCES)
 	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
 	$(ZIG) cc -target $(ZIG_TARGET) -nostdlib -static -o $(CROSS_TARGET) $(CROSS_SOURCES)
 
+ifeq ($(ZIG_TOOL_IMPL),python-compat)
+
+$(ZIG_GATE_CONTRACT): tools/wuci_gate_contract_compat.py tools/wuci_receipt_contract.py tools/wuci_gate.py
+	mkdir -p build
+	printf '%s\n' '#!/bin/sh' 'set -eu' 'exec $(PYTHON) "$$(dirname "$$0")/../tools/wuci_gate_contract_compat.py" "$$@"' > $(ZIG_GATE_CONTRACT)
+	chmod +x $(ZIG_GATE_CONTRACT)
+
+$(ZIG_WARRANT): tools/wuci_frost_authorize.py
+	mkdir -p build
+	printf '%s\n' '#!/bin/sh' 'set -eu' 'exec $(PYTHON) "$$(dirname "$$0")/../tools/wuci_frost_authorize.py" "$$@"' > $(ZIG_WARRANT)
+	chmod +x $(ZIG_WARRANT)
+
+$(ZIG_WITNESS): tools/wuci_witness_compat.py tools/wuci_witness.py
+	mkdir -p build
+	printf '%s\n' '#!/bin/sh' 'set -eu' 'exec $(PYTHON) "$$(dirname "$$0")/../tools/wuci_witness_compat.py" "$$@"' > $(ZIG_WITNESS)
+	chmod +x $(ZIG_WITNESS)
+
+$(ZIG_LEDGER): tools/wuci_ledger.py
+	mkdir -p build
+	printf '%s\n' '#!/bin/sh' 'set -eu' 'exec $(PYTHON) "$$(dirname "$$0")/../tools/wuci_ledger.py" "$$@"' > $(ZIG_LEDGER)
+	chmod +x $(ZIG_LEDGER)
+
+else
+
 $(ZIG_GATE_CONTRACT): tools/wuci_gate_contract.zig
 	mkdir -p build $(ZIG_GLOBAL_CACHE_DIR) $(ZIG_LOCAL_CACHE_DIR)
 	ZIG_GLOBAL_CACHE_DIR=$(abspath $(ZIG_GLOBAL_CACHE_DIR)) \
@@ -1164,6 +1190,8 @@ $(ZIG_LEDGER): tools/wuci_ledger.zig
 	ZIG_GLOBAL_CACHE_DIR=$(abspath $(ZIG_GLOBAL_CACHE_DIR)) \
 	ZIG_LOCAL_CACHE_DIR=$(abspath $(ZIG_LOCAL_CACHE_DIR)) \
 	$(ZIG) build-exe tools/wuci_ledger.zig -femit-bin=$(ZIG_LEDGER)
+
+endif
 
 selftest: check-native $(TARGET)
 	$(TARGET) selftest
@@ -1553,13 +1581,13 @@ self-release-witness-archive: self-release-witness-bundle
 
 self-release-ledger-bundle: $(RELEASE_BIN) self-release-witness-bundle $(ZIG_LEDGER) $(ZIG_WITNESS)
 	rm -rf $(LEDGER_DIR)
-	$(abspath $(ZIG_LEDGER)) init --ledger $(LEDGER_DIR)
-	$(abspath $(ZIG_LEDGER)) append --ledger $(LEDGER_DIR) --witness-bundle $(WITNESS_BUNDLE_DIR)
-	$(abspath $(ZIG_LEDGER)) prove-inclusion --ledger $(LEDGER_DIR) --sequence 0 --out $(LEDGER_INCLUSION_PROOF)
-	$(abspath $(ZIG_LEDGER)) verify-inclusion --entry $(LEDGER_DIR)/ledger-entry.txt --proof $(LEDGER_INCLUSION_PROOF) --head $(LEDGER_DIR)/ledger-head.txt
-	$(abspath $(ZIG_LEDGER)) prove-consistency --ledger $(LEDGER_DIR) --from-head $(LEDGER_DIR)/previous-ledger-head.txt --to-head $(LEDGER_DIR)/ledger-head.txt --out $(LEDGER_CONSISTENCY_PROOF)
-	$(abspath $(ZIG_LEDGER)) verify-consistency --proof $(LEDGER_CONSISTENCY_PROOF)
-	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
+	$(abspath $(ZIG_LEDGER)) init --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR)
+	$(abspath $(ZIG_LEDGER)) append --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --witness-bundle $(WITNESS_BUNDLE_DIR)
+	$(abspath $(ZIG_LEDGER)) prove-inclusion --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --sequence 0 --out $(LEDGER_INCLUSION_PROOF)
+	$(abspath $(ZIG_LEDGER)) verify-inclusion --bin $(abspath $(RELEASE_BIN)) --entry $(LEDGER_DIR)/ledger-entry.txt --proof $(LEDGER_INCLUSION_PROOF) --head $(LEDGER_DIR)/ledger-head.txt
+	$(abspath $(ZIG_LEDGER)) prove-consistency --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR) --from-head $(LEDGER_DIR)/previous-ledger-head.txt --to-head $(LEDGER_DIR)/ledger-head.txt --out $(LEDGER_CONSISTENCY_PROOF)
+	$(abspath $(ZIG_LEDGER)) verify-consistency --bin $(abspath $(RELEASE_BIN)) --proof $(LEDGER_CONSISTENCY_PROOF)
+	$(abspath $(ZIG_LEDGER)) verify-history --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(abspath $(ZIG_WITNESS)) verify $(WITNESS_BUNDLE_DIR) --bin $(abspath $(RELEASE_BIN))
 	@printf 'WUCI self-release ledger bundle complete\n'
 	@printf 'ledger: %s\n' "$(LEDGER_DIR)"
@@ -2082,11 +2110,11 @@ ledger-proof-test: check-native $(TARGET)
 	WUCI_JI_BIN=$(abspath $(TARGET)) $(PYTHON) tests/wuci_ledger.py --ledger-only --quiet
 
 ledger-zig-history: $(ZIG_LEDGER)
-	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
+	$(abspath $(ZIG_LEDGER)) verify-history --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR)
 
 pythonless-public-verify: $(ZIG_WITNESS) $(ZIG_LEDGER)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(abspath $(ZIG_WITNESS)) verify $(WITNESS_BUNDLE_DIR) --bin $(abspath $(RELEASE_BIN))
-	$(abspath $(ZIG_LEDGER)) verify-history --ledger $(LEDGER_DIR)
+	$(abspath $(ZIG_LEDGER)) verify-history --bin $(abspath $(RELEASE_BIN)) --ledger $(LEDGER_DIR)
 	@printf 'WUCI Pythonless public verification complete\n'
 
 test: check-native-x25519 $(TARGET) asm-smoke authority-root-check frost-workflow frost-authz gate-boundary gate-workflow gate-policy-matrix gate-receipt-contract parser-adversarial-test authority-anchor-test ledger-asm-test ledger-proof-test cage-policy-matrix cage-bundle-test qcage-model-test qcage-policy-matrix harden-policy-matrix harden-safeio-test secret-path-isolation-test wuci-prism-test wuci-progress-test noxframe-launch-test aead-boundary-test self-release-attestation-test publish-attestation-test
@@ -2202,3 +2230,5 @@ ci-zig:
 
 clean:
 	rm -rf build
+	mkdir -p build/wucios
+	printf '\n' > build/wucios/.gitkeep
