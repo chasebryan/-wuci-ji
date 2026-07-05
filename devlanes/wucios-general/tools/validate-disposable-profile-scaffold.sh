@@ -21,6 +21,7 @@ FOUNDATION_REVIEW_PACKET_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foun
 FOUNDATION_CLOSEOUT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-closeout.sh"
 FOUNDATION_FREEZE_DECISION_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-freeze-decision.sh"
 FOUNDATION_ADOPTION_READINESS_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-adoption-readiness.sh"
+FOUNDATION_ADOPTION_COMMAND_PACKET_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-adoption-command-packet.sh"
 failures=0
 
 pass() {
@@ -87,6 +88,7 @@ check_file "$FOUNDATION_REVIEW_PACKET_VALIDATOR" "foundation review packet valid
 check_file "$FOUNDATION_CLOSEOUT_VALIDATOR" "foundation closeout validator"
 check_file "$FOUNDATION_FREEZE_DECISION_VALIDATOR" "foundation freeze decision validator"
 check_file "$FOUNDATION_ADOPTION_READINESS_VALIDATOR" "foundation adoption readiness validator"
+check_file "$FOUNDATION_ADOPTION_COMMAND_PACKET_VALIDATOR" "foundation adoption command packet validator"
 
 check_text "$README" "README identifies Probe 4 scaffold-only scope" "Probe 4 is scaffold-only."
 check_text "$README" "README reserves later structure" "reserves structure for a later"
@@ -237,6 +239,16 @@ if [ -f "$FOUNDATION_ADOPTION_READINESS_VALIDATOR" ]; then
 		pass "foundation adoption readiness validator passes"
 	else
 		fail "foundation adoption readiness validator failed"
+	fi
+fi
+
+if [ -f "$FOUNDATION_ADOPTION_COMMAND_PACKET_VALIDATOR" ]; then
+	if [ "${WUCIOS_SKIP_FOUNDATION_ADOPTION_COMMAND_PACKET:-0}" = "1" ]; then
+		pass "foundation adoption command packet validator skipped for nested runner validation"
+	elif sh "$FOUNDATION_ADOPTION_COMMAND_PACKET_VALIDATOR"; then
+		pass "foundation adoption command packet validator passes"
+	else
+		fail "foundation adoption command packet validator failed"
 	fi
 fi
 
