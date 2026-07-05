@@ -23,6 +23,15 @@
     "validator": "devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh",
     "expected_files_allowlist": "devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/expected-dry-run-evidence-files.txt"
   },
+  "plan_vocabulary_contract": {
+    "id": "wucios.disposable_profile.no_execution_plan_vocabulary.v1",
+    "schema": "wucios.disposable_profile.plan_vocabulary_contract.v1",
+    "schema_version": "1",
+    "plan_summary_schema": "wucios.disposable_profile.no_execution_plan_summary.v1",
+    "path": "devlanes/wucios-general/scaffolds/disposable-developer-profile/plan-vocabulary-contract.json",
+    "validator": "devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh",
+    "planner_output_validator": "devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh"
+  },
   "scope": {
     "lane": "devlanes/wucios-general",
     "scaffold": "devlanes/wucios-general/scaffolds/disposable-developer-profile",
@@ -97,6 +106,8 @@
   "validation_requirements": [
     "contract_manifest_validator_passes",
     "planner_manifest_binding_validator_passes",
+    "plan_vocabulary_validator_passes",
+    "planner_output_vocabulary_validator_passes",
     "probe_3_validator_passes",
     "required_scaffold_files_exist",
     "required_contract_sections_exist",

@@ -117,6 +117,29 @@ if isinstance(evidence, dict):
         "evidence_contract.index_schema must match planner index evidence",
     )
 
+plan_vocabulary = manifest.get("plan_vocabulary_contract")
+require(isinstance(plan_vocabulary, dict), "plan_vocabulary_contract must be an object")
+if isinstance(plan_vocabulary, dict):
+    require(
+        plan_vocabulary.get("id")
+        == "wucios.disposable_profile.no_execution_plan_vocabulary.v1",
+        "plan_vocabulary_contract.id must identify the no-execution plan vocabulary",
+    )
+    require(
+        plan_vocabulary.get("schema")
+        == "wucios.disposable_profile.plan_vocabulary_contract.v1",
+        "plan_vocabulary_contract.schema must identify the plan vocabulary contract",
+    )
+    require(
+        plan_vocabulary.get("schema_version") == "1",
+        "plan_vocabulary_contract.schema_version must be 1",
+    )
+    require(
+        plan_vocabulary.get("plan_summary_schema")
+        == "wucios.disposable_profile.no_execution_plan_summary.v1",
+        "plan_vocabulary_contract.plan_summary_schema must match planner plan summary",
+    )
+
 required_non_claims = {
     "no_runtime_behavior",
     "no_profile_creation",
@@ -159,6 +182,8 @@ if isinstance(forbidden_operations, list):
 for key in (
     "contract_manifest_validator_passes",
     "planner_manifest_binding_validator_passes",
+    "plan_vocabulary_validator_passes",
+    "planner_output_vocabulary_validator_passes",
 ):
     requirements = manifest.get("validation_requirements")
     require(isinstance(requirements, list), "validation_requirements must be a list")
