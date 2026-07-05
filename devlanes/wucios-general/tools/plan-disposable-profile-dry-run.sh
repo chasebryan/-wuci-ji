@@ -14,6 +14,16 @@ INPUT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-plan-input.sh"
 EVIDENCE_DIR=
 INPUT_FILE=
 INPUT_PROFILE_ID="none"
+CONTRACT_MANIFEST_SCHEMA=
+CONTRACT_MANIFEST_SCHEMA_VERSION=
+PROFILE_CONTRACT_ID=
+PLANNER_MODE=
+FOUNDATION_ONLY=
+DRY_RUN_ONLY=
+INPUT_SCHEMA_ID=
+EVIDENCE_CONTRACT_ID=
+EVIDENCE_SUMMARY_SCHEMA=
+EVIDENCE_INDEX_SCHEMA=
 
 LANE_REL="devlanes/wucios-general"
 SCAFFOLD_REL="$LANE_REL/scaffolds/disposable-developer-profile"
@@ -34,6 +44,25 @@ require_file() {
 	if [ ! -f "$file" ]; then
 		fail "$label missing: $file"
 	fi
+}
+
+manifest_value() {
+	key=$1
+	python3 - "$MANIFEST" "$key" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    value = json.load(handle)
+
+for part in sys.argv[2].split("."):
+    value = value[part]
+
+if isinstance(value, bool):
+    print("true" if value else "false")
+else:
+    print(value)
+PY
 }
 
 print_item() {
@@ -91,6 +120,14 @@ Source lane: $LANE_REL
 Scaffold path: $SCAFFOLD_REL
 Source contract path: $CONTRACT_REL
 Contract manifest path: $MANIFEST_REL
+Contract manifest schema: $CONTRACT_MANIFEST_SCHEMA
+Contract manifest schema version: $CONTRACT_MANIFEST_SCHEMA_VERSION
+Profile contract id: $PROFILE_CONTRACT_ID
+Planner mode: $PLANNER_MODE
+Foundation only: $FOUNDATION_ONLY
+Dry-run only: $DRY_RUN_ONLY
+Input schema id: $INPUT_SCHEMA_ID
+Evidence contract id: $EVIDENCE_CONTRACT_ID
 Scaffold README path: $README_REL
 Plan input path: ${INPUT_FILE:-none}
 Plan input profile id: $INPUT_PROFILE_ID
@@ -132,9 +169,17 @@ EOF
 
 	cat > "$out_dir/dry-run-summary.json" <<EOF
 {
-  "schema": "wucios-dev-lane-disposable-profile-dry-run-summary-v1",
+  "schema": "$EVIDENCE_SUMMARY_SCHEMA",
   "mode": "local_dry_run_evidence_only",
   "planner_command": "$planner_command",
+  "contract_manifest_schema": "$CONTRACT_MANIFEST_SCHEMA",
+  "contract_manifest_schema_version": "$CONTRACT_MANIFEST_SCHEMA_VERSION",
+  "profile_contract_id": "$PROFILE_CONTRACT_ID",
+  "planner_mode": "$PLANNER_MODE",
+  "foundation_only": $FOUNDATION_ONLY,
+  "dry_run_only": $DRY_RUN_ONLY,
+  "input_schema_id": "$INPUT_SCHEMA_ID",
+  "evidence_contract_id": "$EVIDENCE_CONTRACT_ID",
   "source_lane": "$LANE_REL",
   "scaffold_path": "$SCAFFOLD_REL",
   "source_contract_path": "$CONTRACT_REL",
@@ -181,9 +226,17 @@ EOF
 
 	cat > "$out_dir/evidence-index.json" <<EOF
 {
-  "schema": "wucios-dev-lane-disposable-profile-evidence-index-v1",
+  "schema": "$EVIDENCE_INDEX_SCHEMA",
   "mode": "local_dry_run_evidence_only",
   "planner_command": "$planner_command",
+  "contract_manifest_schema": "$CONTRACT_MANIFEST_SCHEMA",
+  "contract_manifest_schema_version": "$CONTRACT_MANIFEST_SCHEMA_VERSION",
+  "profile_contract_id": "$PROFILE_CONTRACT_ID",
+  "planner_mode": "$PLANNER_MODE",
+  "foundation_only": $FOUNDATION_ONLY,
+  "dry_run_only": $DRY_RUN_ONLY,
+  "input_schema_id": "$INPUT_SCHEMA_ID",
+  "evidence_contract_id": "$EVIDENCE_CONTRACT_ID",
   "source_contract_path": "$CONTRACT_REL",
   "scaffold_path": "$SCAFFOLD_REL",
   "plan_input_path": "${INPUT_FILE:-none}",
@@ -241,6 +294,17 @@ if [ -n "$INPUT_FILE" ]; then
 	require_file "$INPUT_VALIDATOR" "input validator"
 fi
 
+CONTRACT_MANIFEST_SCHEMA=$(manifest_value schema) || fail "could not read manifest schema"
+CONTRACT_MANIFEST_SCHEMA_VERSION=$(manifest_value schema_version) || fail "could not read manifest schema version"
+PROFILE_CONTRACT_ID=$(manifest_value profile_contract_id) || fail "could not read profile contract id"
+PLANNER_MODE=$(manifest_value planner_contract.planner_mode) || fail "could not read planner mode"
+FOUNDATION_ONLY=$(manifest_value foundation_only) || fail "could not read foundation-only flag"
+DRY_RUN_ONLY=$(manifest_value dry_run_only) || fail "could not read dry-run-only flag"
+INPUT_SCHEMA_ID=$(manifest_value input_contract.schema) || fail "could not read input schema id"
+EVIDENCE_CONTRACT_ID=$(manifest_value evidence_contract.id) || fail "could not read evidence contract id"
+EVIDENCE_SUMMARY_SCHEMA=$(manifest_value evidence_contract.summary_schema) || fail "could not read evidence summary schema"
+EVIDENCE_INDEX_SCHEMA=$(manifest_value evidence_contract.index_schema) || fail "could not read evidence index schema"
+
 printf '%s\n' 'Disposable developer profile dry-run planner'
 printf '%s\n' 'Mode: dry-run only'
 printf '%s\n' 'Action: validate scaffold contract, then print a proposed plan'
@@ -284,6 +348,14 @@ print_item "source lane" "$LANE_DIR"
 print_item "scaffold" "$SCAFFOLD"
 print_item "contract manifest" "$MANIFEST"
 print_item "contract document" "$CONTRACT"
+print_item "contract manifest schema" "$CONTRACT_MANIFEST_SCHEMA"
+print_item "contract manifest schema version" "$CONTRACT_MANIFEST_SCHEMA_VERSION"
+print_item "profile contract id" "$PROFILE_CONTRACT_ID"
+print_item "planner mode" "$PLANNER_MODE"
+print_item "foundation only" "$FOUNDATION_ONLY"
+print_item "dry-run only" "$DRY_RUN_ONLY"
+print_item "input schema id" "$INPUT_SCHEMA_ID"
+print_item "evidence contract id" "$EVIDENCE_CONTRACT_ID"
 print_item "plan input" "${INPUT_FILE:-none}"
 print_item "plan input validator" "$INPUT_VALIDATOR_REL"
 print_item "plan input profile id" "$INPUT_PROFILE_ID"
