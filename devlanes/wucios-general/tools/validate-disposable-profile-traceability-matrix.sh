@@ -59,6 +59,11 @@ if isinstance(matrix, dict):
     )
     require(matrix.get("schema_version") == "1", "matrix schema_version must be 1")
     require(
+        matrix.get("contract_traceability_matrix_id")
+        == "wucios.disposable_profile.contract_traceability_matrix.batch7.v1",
+        "matrix contract_traceability_matrix_id must identify the Batch 7 matrix",
+    )
+    require(
         matrix.get("profile_contract_id") == manifest.get("profile_contract_id"),
         "matrix profile contract identity must match contract manifest",
     )

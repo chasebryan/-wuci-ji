@@ -1,6 +1,7 @@
 {
   "schema": "wucios.disposable_profile.contract_traceability_matrix.v1",
   "schema_version": "1",
+  "contract_traceability_matrix_id": "wucios.disposable_profile.contract_traceability_matrix.batch7.v1",
   "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
   "plan_vocabulary_contract_id": "wucios.disposable_profile.no_execution_plan_vocabulary.v1",
   "dry_run_only": true,
