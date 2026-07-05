@@ -6,7 +6,8 @@ https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301
 /docs/security-boundary https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md 302
 /docs/aperture-bastion https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_JI_V2_APERTURE_BASTION.md 302
 /docs/aperture-boundary https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md 302
-/docs/aperture-pass-report https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md 302
+/daylight-grok-audit.html https://github.com/chasebryan/-wuci-ji/blob/main/docs/archive/site/daylight-grok-audit.html 302
+/docs/aperture-pass-report https://github.com/chasebryan/-wuci-ji/blob/main/docs/archive/aperture-bastion/APERTURE_BASTION_PASS_REPORT.md 302
 /docs/defense-assurance-roadmap https://github.com/chasebryan/-wuci-ji/blob/main/docs/DEFENSE_ASSURANCE_ROADMAP.md 302
 /docs/defense-assurance-contingencies https://github.com/chasebryan/-wuci-ji/blob/main/docs/DEFENSE_ASSURANCE_CONTINGENCIES.md 302
 /docs/defense-assurance-control-map https://github.com/chasebryan/-wuci-ji/blob/main/docs/DEFENSE_ASSURANCE_CONTROL_MAP.md 302

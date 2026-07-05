@@ -1,0 +1,378 @@
+{
+  "schema": "wucios.component_register.v1",
+  "components": [
+    {
+      "name": "kernel",
+      "display_name": "Kernel",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "kernel",
+      "default_in_noether_core": true,
+      "reason": "Boots and mediates the system.",
+      "network_surface": "NOT_MEASURED",
+      "privilege_surface": "kernel",
+      "language_surface": [
+        "C",
+        "assembly"
+      ],
+      "dependency_notes": [
+        "Substrate-specific kernel choice is not selected in this pass."
+      ],
+      "risk_notes": [
+        "Large trusted computing base; must be bounded by substrate trial evidence."
+      ],
+      "acceptance_gate": [
+        "kernel version recorded",
+        "kernel modules inventoried",
+        "artifact hash recorded"
+      ],
+      "evidence_hooks": [
+        "kernel-modules.txt",
+        "surface-report.json"
+      ],
+      "rejection_conditions": [
+        "kernel version not recorded",
+        "module inventory missing from release packet"
+      ]
+    },
+    {
+      "name": "bootloader",
+      "display_name": "Bootloader",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "bootloader",
+      "default_in_noether_core": true,
+      "reason": "Boots the selected artifact.",
+      "network_surface": "none expected by default",
+      "privilege_surface": "pre-kernel boot authority",
+      "language_surface": [
+        "C",
+        "assembly",
+        "configuration"
+      ],
+      "dependency_notes": [
+        "Substrate and firmware mode determine final bootloader."
+      ],
+      "risk_notes": [
+        "Misconfiguration can invalidate boot evidence."
+      ],
+      "acceptance_gate": [
+        "bootloader package/version recorded",
+        "boot configuration included in manifest"
+      ],
+      "evidence_hooks": [
+        "build-manifest.sha256",
+        "review.json"
+      ],
+      "rejection_conditions": [
+        "unrecorded bootloader configuration"
+      ]
+    },
+    {
+      "name": "shell",
+      "display_name": "Shell",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "shell",
+      "default_in_noether_core": true,
+      "reason": "Provides local operator and reviewer command access.",
+      "network_surface": "none expected by default",
+      "privilege_surface": "user command interpreter",
+      "language_surface": [
+        "C",
+        "shell"
+      ],
+      "dependency_notes": [
+        "Exact shell depends on substrate."
+      ],
+      "risk_notes": [
+        "Shell expansion and script behavior must stay deterministic in tooling."
+      ],
+      "acceptance_gate": [
+        "shell package/version recorded",
+        "no network service enabled by shell profile"
+      ],
+      "evidence_hooks": [
+        "package-manifest.txt"
+      ],
+      "rejection_conditions": [
+        "shell pulls GUI or default network service into Noether Core"
+      ]
+    },
+    {
+      "name": "firewall-tooling",
+      "display_name": "Firewall Tooling",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "firewall-tooling",
+      "default_in_noether_core": true,
+      "reason": "Supports default-deny local network posture and surface evidence.",
+      "network_surface": "configuration only",
+      "privilege_surface": "root configuration authority when applied",
+      "language_surface": [
+        "C",
+        "shell",
+        "configuration"
+      ],
+      "dependency_notes": [
+        "Candidate implementations include nftables or substrate equivalent."
+      ],
+      "risk_notes": [
+        "Firewall presence does not prove runtime sandboxing or no-network enforcement."
+      ],
+      "acceptance_gate": [
+        "default policy documented",
+        "listening ports inventoried",
+        "enabled services inventoried"
+      ],
+      "evidence_hooks": [
+        "enabled-services.txt",
+        "listening-ports.txt",
+        "surface-report.json"
+      ],
+      "rejection_conditions": [
+        "firewall policy claims OS containment without kernel-level enforcement"
+      ]
+    },
+    {
+      "name": "daylight-validator",
+      "display_name": "Daylight Validator",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core",
+        "tarski-review-appliance"
+      ],
+      "component_class": "daylight-tooling",
+      "default_in_noether_core": true,
+      "reason": "Validates claim-to-evidence and score discipline.",
+      "network_surface": "none by default",
+      "privilege_surface": "local user tooling",
+      "language_surface": [
+        "Python",
+        "Rust",
+        "shell"
+      ],
+      "dependency_notes": [
+        "Use existing Daylight lanes where they remain deterministic and local."
+      ],
+      "risk_notes": [
+        "No hand-written score is authoritative."
+      ],
+      "acceptance_gate": [
+        "tool version or commit recorded",
+        "score bound to current artifact hash before release authority"
+      ],
+      "evidence_hooks": [
+        "daylight-wucios-score.json",
+        "review.json"
+      ],
+      "rejection_conditions": [
+        "numeric score emitted without artifact hash",
+        "manual score used as authoritative"
+      ]
+    },
+    {
+      "name": "wuci-prism-tooling",
+      "display_name": "Wuci-Prism Tooling",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core",
+        "tarski-review-appliance"
+      ],
+      "component_class": "wuci-prism-tooling",
+      "default_in_noether_core": true,
+      "reason": "Repository contains Wuci-Prism tooling; v2.4 treats it as review/support tooling when present.",
+      "network_surface": "NOT_MEASURED",
+      "privilege_surface": "local tooling",
+      "language_surface": [
+        "Python",
+        "shell"
+      ],
+      "dependency_notes": [
+        "Presence verified by repository paths tools/wuci-prism and tools/wuci_prism.py."
+      ],
+      "risk_notes": [
+        "Must not create external validation or production authority claims."
+      ],
+      "acceptance_gate": [
+        "tool path recorded",
+        "local-only behavior documented for review use"
+      ],
+      "evidence_hooks": [
+        "component-register.json",
+        "review.json"
+      ],
+      "rejection_conditions": [
+        "external upload by default",
+        "claim of external authority"
+      ]
+    },
+    {
+      "name": "ratpoison",
+      "display_name": "ratpoison",
+      "status": "CANDIDATE",
+      "profiles": [
+        "birkhoff-bastion"
+      ],
+      "component_class": "minimal-window-manager",
+      "default_in_noether_core": false,
+      "reason": "Candidate minimal operator shell window manager.",
+      "network_surface": "none expected by default",
+      "privilege_surface": "user graphical session",
+      "language_surface": [
+        "C"
+      ],
+      "dependency_notes": [
+        "Requires graphical stack."
+      ],
+      "risk_notes": [
+        "requires graphical stack",
+        "must not enter Noether Core",
+        "version and package hash must be pinned before acceptance"
+      ],
+      "acceptance_gate": [
+        "source or package version recorded",
+        "dependency list recorded",
+        "no network service enabled",
+        "excluded from Noether Core",
+        "included only in Birkhoff Bastion"
+      ],
+      "evidence_hooks": [
+        "package-manifest.txt",
+        "surface-report.json"
+      ],
+      "rejection_conditions": [
+        "present in Noether Core",
+        "unpinned source or package",
+        "enables network service by default"
+      ]
+    },
+    {
+      "name": "dwm",
+      "display_name": "DWM",
+      "status": "HOLD_CANDIDATE",
+      "profiles": [
+        "birkhoff-bastion"
+      ],
+      "component_class": "minimal-window-manager",
+      "default_in_noether_core": false,
+      "reason": "Candidate minimal operator shell window manager with stricter patch and ownership gate.",
+      "network_surface": "none expected by default",
+      "privilege_surface": "user graphical session",
+      "language_surface": [
+        "C"
+      ],
+      "dependency_notes": [
+        "Requires graphical stack.",
+        "Patched or vendored code becomes WuciOS-owned review surface."
+      ],
+      "risk_notes": [
+        "C language surface",
+        "patched/vendored code becomes WuciOS-owned attack surface",
+        "requires stricter patch audit"
+      ],
+      "acceptance_gate": [
+        "pinned source version",
+        "patchset documented line-by-line",
+        "reproducible binary hash recorded",
+        "dependency list recorded",
+        "no default network service enabled",
+        "measurable advantage over ratpoison documented"
+      ],
+      "evidence_hooks": [
+        "package-manifest.txt",
+        "surface-report.json",
+        "review.json"
+      ],
+      "rejection_conditions": [
+        "present in Noether Core",
+        "patchset undocumented",
+        "accepted without measurable advantage over ratpoison"
+      ]
+    },
+    {
+      "name": "xfce4",
+      "display_name": "Xfce4",
+      "status": "DEMOTED",
+      "profiles": [
+        "developer-desktop"
+      ],
+      "component_class": "desktop-environment",
+      "default_in_noether_core": false,
+      "reason": "Convenience desktop only; too broad for the serious base profile.",
+      "network_surface": "NOT_MEASURED",
+      "privilege_surface": "user graphical session plus desktop services",
+      "language_surface": [
+        "C",
+        "shell",
+        "configuration"
+      ],
+      "dependency_notes": [
+        "Broad desktop dependency surface."
+      ],
+      "risk_notes": [
+        "too large for Noether Core",
+        "broad desktop dependency surface",
+        "may exist only as non-authoritative convenience profile"
+      ],
+      "acceptance_gate": [
+        "developer-desktop only",
+        "not used for release score"
+      ],
+      "evidence_hooks": [
+        "component-register.json"
+      ],
+      "rejection_conditions": [
+        "present in Noether Core",
+        "used as basis for release score",
+        "presented as high-assurance profile"
+      ]
+    },
+    {
+      "name": "browser",
+      "display_name": "Browser",
+      "status": "FORBIDDEN_IN_NOETHER_CORE",
+      "profiles": [
+        "developer-desktop"
+      ],
+      "component_class": "browser",
+      "default_in_noether_core": false,
+      "reason": "General browsing is outside the Noether Core release profile.",
+      "network_surface": "high by design",
+      "privilege_surface": "user application with web content exposure",
+      "language_surface": [
+        "C",
+        "C++",
+        "JavaScript",
+        "Rust"
+      ],
+      "dependency_notes": [
+        "Large dependency graph and web attack surface."
+      ],
+      "risk_notes": [
+        "forbidden in Noether Core",
+        "developer convenience only"
+      ],
+      "acceptance_gate": [
+        "developer-desktop only",
+        "not present in Noether Core package manifest"
+      ],
+      "evidence_hooks": [
+        "package-manifest.txt",
+        "surface-report.json"
+      ],
+      "rejection_conditions": [
+        "present in Noether Core",
+        "installed by default in release profile"
+      ]
+    }
+  ]
+}

@@ -119,7 +119,7 @@ RELEASE_AUTHORITY_ROOT ?= authority/wuci-release-root.fixture.txt
 RELEASE_AUTHORITY_ROOT_SHA256 ?= authority/wuci-release-root.fixture.sha256
 FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4
 
-.PHONY: aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test daylight-scorecard-test daylight-v06-1000-checkpoint-test daylight-v06-1000-claim-gate-test daylight-v06-1000-preflight-test daylight-v06-authority-verifier-test daylight-v06-cap-removal-test daylight-v06-external-review-packet-test daylight-v06-external-review-verifier-test daylight-v06-fail-closed-model-test daylight-v06-m1-cross-agreement-test daylight-v06-m1-fixture-test daylight-v06-m1-independent-open-test daylight-v06-m1-static-test daylight-v06-m4-symbolic-model-test daylight-v06-m4-z3-proof-test daylight-v06-peer-review-score-test daylight-v06-schema-freeze-test daylight-v6-kat-reproduction-bundle-test daylight-v6-provider-kem-evidence-test daylight-v6-provider-private-roundtrip-test daylight-v6-provider-vector-agreement-test daylight-v6-reference-negative-corpus-test daylight-v6-reference-seal-open-test external-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow golden-lock-policy-matrix harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof host-capacity install-audit install-key-check install-manifest install-proof install-sign-current install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history machine-passoff-test parser-adversarial-test parser-corpus-replay parser-corpus-replay-test parser-hardening-proof pq-verifier-detect pq-verifier-fips204-build pq-verifier-fips204-proof pq-verifier-real pq-verifier-real-attest pq-verifier-test production-authority-verify production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build rust-sandbox-test sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-release-bundle verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test wjgold-model-test wjnext-model-test wjstar-model-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
+.PHONY: help aead-boundary-test all asm-regression asm-smoke authority-anchor-test authority-root-check authority-root-fixture authority-root-metal-check build-linux cage-attestation-test cage-bundle-test cage-ledger-entry cage-policy-matrix cage-proof carrot-policy check-asm-immediates check-native check-native-x25519 check-pypy check-qemu-user check-qemu-x25519-cpu ci ci-native ci-zig clean crypto-self-audit crypto-self-audit-test daylight-scorecard-test daylight-v06-1000-checkpoint-test daylight-v06-1000-claim-gate-test daylight-v06-1000-preflight-test daylight-v06-authority-verifier-test daylight-v06-cap-removal-test daylight-v06-external-review-packet-test daylight-v06-external-review-verifier-test daylight-v06-fail-closed-model-test daylight-v06-m1-cross-agreement-test daylight-v06-m1-fixture-test daylight-v06-m1-independent-open-test daylight-v06-m1-static-test daylight-v06-m4-symbolic-model-test daylight-v06-m4-z3-proof-test daylight-v06-peer-review-score-test daylight-v06-schema-freeze-test daylight-v6-kat-reproduction-bundle-test daylight-v6-provider-kem-evidence-test daylight-v6-provider-private-roundtrip-test daylight-v6-provider-vector-agreement-test daylight-v6-reference-negative-corpus-test daylight-v6-reference-seal-open-test external-audit-test frost-authz frost-authz-demo frost-demo frost-workflow gate-boundary gate-contract-asm gate-contract-zig gate-demo gate-policy-matrix gate-receipt-contract gate-workflow golden-lock-policy-matrix harden-action-policy-test harden-fixture-quarantine-test harden-ledger-mutation-test harden-policy-matrix harden-proof harden-safeio-test harden-verifier-identity-test harden-witness-symlink-test harden0-action-policy-test harden0-fixture-quarantine-test harden0-policy-matrix harden0-proof harden0-safeio-test harden0-verifier-identity-test harden0-witness-safeio-test high-attestation-profile high-attestation-proof host-capacity install-audit install-key-check install-manifest install-proof install-sign-current install-test install-verify kernel-sandbox-proof ledger-asm-demo ledger-asm-test ledger-proof-test ledger-zig-history machine-passoff-test parser-adversarial-test parser-corpus-replay parser-corpus-replay-test parser-hardening-proof pq-verifier-detect pq-verifier-fips204-build pq-verifier-fips204-proof pq-verifier-real pq-verifier-real-attest pq-verifier-test production-authority-verify production-readiness-gates publish-attestation-test publish-index publish-witness pythonless-public-verify qcage-attestation-test qcage-build-graph qcage-crypto-inventory qcage-model-test qcage-policy-matrix qcage-proof qcage-risk release-rooted-contract reproducible-build-metadata rooted-proof-display rust-sandbox-build rust-sandbox-test sbom-provenance sbom-provenance-test secret-path-isolation-test self-release-anchored-proof self-release-asm-contract-bundle self-release-asm-contract-demo self-release-ledger-bundle self-release-publish-bundle self-release-release-contract-demo self-release-release-contract-proof self-release-rooted-bundle self-release-rooted-demo self-release-rooted-proof self-release-witness-archive self-release-witness-bundle test test-linux test-pypy selftest selftest-linux verify-release-bundle verify-self-release-bundle witness-archive witness-archive-test witness-archive-verify witness-archive-zig-test witness-archive-zig-verify witness-attestation-test witness-zig witness-zig-test wjgold-model-test wjnext-model-test wjstar-model-test zig-release-anchored-proof zig-release-asm-contract-proof zig-release-contract-proof zig-release-ledger-bundle zig-release-proof zig-release-publish-bundle zig-release-release-contract-proof zig-release-rooted-proof zig-release-witness-archive zig-release-witness-bundle
 .PHONY: daylight-v06-protocol-state-test
 .PHONY: wuci-daylight-bridge-test
 .PHONY: daylight-v6-nightlight-battery-test
@@ -147,8 +147,39 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 .PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
+.PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal euclid-phase-2 euclid-build-probes wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
 
 all: check-native $(TARGET)
+
+help:
+	@printf '%s\n' "Wuci-Ji local targets"
+	@printf '%s\n' ""
+	@printf '%s\n' "WuciOS v2.4 Reduction Gate:"
+	@printf '%s\n' "  make wucios-validate          Validate WuciOS v2.4 structure"
+	@printf '%s\n' "  make wucios-fluff-audit       Scan current surfaces for denied claim phrases"
+	@printf '%s\n' "  make wucios-substrate-matrix  Generate Euclid substrate matrix"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-1"
+	@printf '%s\n' "                                Generate first-cohort substrate trial protocol"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2"
+	@printf '%s\n' "                                Run safe detect-only build feasibility probes"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2-json"
+	@printf '%s\n' "                                Run Phase 2 probes and print JSON"
+	@printf '%s\n' "  make wucios-euclid-trial-phase-2-attempt"
+	@printf '%s\n' "                                Guarded opt-in Phase 2 build attempt"
+	@printf '%s\n' "  make wucios-euclid-probe-buildroot"
+	@printf '%s\n' "                                Run Buildroot Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-alpine"
+	@printf '%s\n' "                                Run Alpine Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-euclid-probe-debian-minimal"
+	@printf '%s\n' "                                Run Debian minimal Phase 2 detect-only probe"
+	@printf '%s\n' "  make wucios-surface-inventory Collect local surface inventory"
+	@printf '%s\n' "  make wucios-score             Generate invalid/no-artifact score material"
+	@printf '%s\n' "  make wucios-review            Generate partial Tarski review packet"
+	@printf '%s\n' ""
+	@printf '%s\n' "Safe local checks:"
+	@printf '%s\n' "  make site-validate"
+	@printf '%s\n' "  make daylight-npt-test"
+	@printf '%s\n' "  make daylight-standard-schema-test"
 
 daylight-npt:
 	PYTHONPATH=daylight/npt/v1 $(PYTHON) -m daylight_npt scan --registry daylight/npt/v1/number-claims.registry.json --out build/daylight/npt-v1/daylight-npt.report.json README.md BUILD_NOTES.md SECURITY.md docs daylight site data audits
@@ -617,6 +648,62 @@ site-validate: site-daylight-status-check
 
 site-live-check:
 	$(PYTHON) tools/site_live_check.py
+
+wucios-validate:
+	$(PYTHON) tools/wucios/validate_wucios.py
+
+wucios-fluff-audit:
+	$(PYTHON) tools/wucios/scan_claims.py
+
+wucios-substrate-matrix:
+	$(PYTHON) tools/wucios/generate_substrate_matrix.py
+
+wucios-euclid-trial-phase-1:
+	$(PYTHON) tools/wucios/run_euclid_trial.py
+
+wucios-euclid-trial-phase-2:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py
+
+wucios-euclid-trial-phase-2-json:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --json
+
+wucios-euclid-trial-phase-2-attempt:
+	@if [ "$${WUCIOS_EUCLID_ALLOW_ATTEMPT:-}" != "1" ]; then printf '%s\n' "Refusing Phase 2 build attempts: set WUCIOS_EUCLID_ALLOW_ATTEMPT=1 explicitly."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --attempt-builds --allow-network
+
+wucios-euclid-probe-buildroot:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate buildroot
+
+wucios-euclid-probe-alpine:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate alpine
+
+wucios-euclid-probe-debian-minimal:
+	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --candidate debian-minimal
+
+wucios-surface-inventory:
+	tools/wucios/surface_inventory.sh
+
+wucios-score:
+	$(PYTHON) tools/wucios/score_wucios.py
+
+wucios-review: wucios-surface-inventory wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-score
+	$(PYTHON) tools/wucios/generate_review_packet.py
+
+noether-check: wucios-validate
+
+godel-check: wucios-fluff-audit
+
+euclid-matrix: wucios-substrate-matrix
+
+euclid-phase-2: wucios-euclid-trial-phase-2
+
+euclid-build-probes: wucios-euclid-trial-phase-2
+
+tarski-review: wucios-review
+
+kolmogorov-budget: wucios-validate
+
+shannon-ledger: wucios-surface-inventory
 
 $(TARGET): $(OBJECTS)
 	$(LD) -o $@ $^

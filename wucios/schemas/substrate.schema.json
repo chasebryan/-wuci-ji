@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS substrate schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "id",
+    "display_name",
+    "status",
+    "substrate_class",
+    "linux_based",
+    "package_manager",
+    "init_or_supervision",
+    "libc",
+    "reason_to_test",
+    "expected_strengths",
+    "expected_risks",
+    "required_trial_outputs",
+    "disqualifying_conditions",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.substrate.v1"
+    },
+    "status": {
+      "const": "CANDIDATE_SUBSTRATE"
+    }
+  }
+}

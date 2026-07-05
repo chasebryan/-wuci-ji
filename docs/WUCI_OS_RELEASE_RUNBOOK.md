@@ -1,5 +1,10 @@
 # Wuci-OS Release Runbook
 
+> [!IMPORTANT]
+> This runbook belongs to the legacy Wuci-OS image lane. WuciOS v2.4 release
+> authority now requires the Reduction Gate review packet and substrate trial
+> evidence. See [WuciOS v2.4 Reduction Gate](wucios/WUCIOS_V24_REDUCTION_GATE.md).
+
 Status: the released-OS gate is intentionally **blocked**. This runbook is the
 exact, ordered path that retires every blocker. It exists so "make Wuci-OS
 release-ready" is a checklist with verifiable evidence — not a claim.

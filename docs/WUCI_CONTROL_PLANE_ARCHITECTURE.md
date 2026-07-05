@@ -68,7 +68,7 @@ Daylight can index:
 - SBOM and provenance outputs.
 - OpenSSF Scorecard as an external project-health signal.
 
-These references do not create certification or complete assurance by
+These references do not create certification or total assurance by
 themselves.
 
 ## Vulnerability Operations

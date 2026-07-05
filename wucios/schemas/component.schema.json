@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WuciOS component register schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "components"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.component_register.v1"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "display_name",
+          "status",
+          "profiles",
+          "component_class",
+          "default_in_noether_core",
+          "reason",
+          "network_surface",
+          "privilege_surface",
+          "language_surface",
+          "dependency_notes",
+          "risk_notes",
+          "acceptance_gate",
+          "evidence_hooks",
+          "rejection_conditions"
+        ]
+      }
+    }
+  }
+}

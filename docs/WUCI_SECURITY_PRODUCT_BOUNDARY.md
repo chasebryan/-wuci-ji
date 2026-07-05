@@ -30,7 +30,7 @@ Wuci-Ji / Daylight is not currently:
 - A general runtime sandbox.
 - Post-quantum secure.
 - Independently audited.
-- Department of War approved.
+- Department-of-War approval.
 - Government endorsed.
 - cATO authorized.
 - RMF authorized.

@@ -1,0 +1,23 @@
+{
+  "artifact": {
+    "path": "NOT_MEASURED",
+    "sha256": "NOT_MEASURED",
+    "size_bytes": "NOT_MEASURED"
+  },
+  "build": {
+    "command": "NOT_MEASURED",
+    "completed_utc": "NOT_MEASURED",
+    "started_utc": "NOT_MEASURED",
+    "tooling_notes": [
+      "No candidate-specific build recipe is implemented in this pass."
+    ],
+    "tooling_status": "MISSING_TOOLING"
+  },
+  "build_status": "BUILD_NOT_ATTEMPTED",
+  "candidate": "debian-minimal",
+  "non_claims": [
+    "No artifact exists for this candidate until a build creates one.",
+    "No artifact hash exists for this candidate until a build creates one."
+  ],
+  "schema": "wucios.euclid_artifact_manifest.v1"
+}

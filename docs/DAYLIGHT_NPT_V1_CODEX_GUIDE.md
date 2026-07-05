@@ -41,7 +41,7 @@ It must not say or imply:
 
 Required documentation statement:
 
-    DaylightNPT v1 is a project-local deterministic precision gate. It checks whether numeric claims in Wuci-Ji / Daylight public surfaces are supported by registered evidence, recomputable artifacts, exact formulas, valid digest formats, or explicit non-claim markings. It does not prove that every number is globally true, externally certified, secure, production-ready, audited, or final. Its role is to make unsupported numeric claims fail closed.
+    DaylightNPT v1 is a project-local deterministic precision gate. It checks whether numeric claims in Wuci-Ji / Daylight public surfaces are supported by registered evidence, recomputable artifacts, exact formulas, valid digest formats, or explicit non-claim markings. It does not prove that every number is globally true, certified by external evidence, secure, production-ready, audited, or final. Its role is to make unsupported numeric claims fail closed.
 
 Required AI-specific caveat:
 

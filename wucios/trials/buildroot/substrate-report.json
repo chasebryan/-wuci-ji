@@ -1,0 +1,36 @@
+{
+  "artifact_hash": "NOT_MEASURED",
+  "artifact_path": "NOT_MEASURED",
+  "candidate": "buildroot",
+  "default_services": "NOT_MEASURED",
+  "dependency_tree_status": "NOT_MEASURED",
+  "display_name": "Buildroot",
+  "generated_utc": "2026-07-05T02:52:35Z",
+  "image_size": "NOT_MEASURED",
+  "kernel_module_count": "NOT_MEASURED",
+  "listening_ports": "NOT_MEASURED",
+  "missing_measurements": [
+    "artifact.sha256",
+    "build-manifest.sha256",
+    "dependency-tree.txt",
+    "enabled-services.txt",
+    "image-size.txt",
+    "kernel-modules.txt",
+    "listening-ports.txt",
+    "package-count.txt",
+    "package-manifest.txt",
+    "suid-sgid.txt"
+  ],
+  "noether_core_violations": [
+    "NOT_MEASURED"
+  ],
+  "non_claims": [
+    "This report does not rank or select a substrate.",
+    "NOT_MEASURED values are missing measurements, not estimates."
+  ],
+  "package_count": "NOT_MEASURED",
+  "schema": "wucios.euclid_substrate_report.v1",
+  "selection_status": "NO_SUBSTRATE_SELECTED",
+  "suid_sgid_count": "NOT_MEASURED",
+  "trial_status": "BUILD_NOT_ATTEMPTED"
+}

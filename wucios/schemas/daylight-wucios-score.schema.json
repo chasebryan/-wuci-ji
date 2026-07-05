@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Daylight WuciOS score schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "score_valid",
+    "score_value",
+    "score_scale",
+    "score_precision",
+    "score_status",
+    "artifact",
+    "warning_level",
+    "warning_text",
+    "categories",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.daylight.score.v1"
+    },
+    "score_valid": {
+      "type": "boolean"
+    },
+    "score_value": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "score_scale": {
+      "const": "0.0-100.0"
+    },
+    "score_precision": {
+      "const": "one decimal place"
+    },
+    "warning_level": {
+      "enum": [
+        "UNASSESSED",
+        "LOW",
+        "MODERATE",
+        "HIGH",
+        "CRITICAL"
+      ]
+    }
+  }
+}

@@ -1,5 +1,10 @@
 # Daylight v15 Meridian
 
+> [!IMPORTANT]
+> WuciOS-Fluff-Audit: historical-non-authoritative
+> This file is retained as historical Daylight score material. It is not WuciOS
+> v2.4 release evidence, not a current score source, and not part of Noether Core.
+
 Daylight v15 Meridian is the executable successor to the
 [Daylight v14C+](../daylight/v14c-plus/) execution package. It is not a roadmap
 profile and not a narrated score. It is a runnable scoring **condition** whose

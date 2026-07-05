@@ -50,7 +50,7 @@ runtime claim.
 
 Allowed claims: release is evidence-bound under stated policy.
 
-Forbidden claims: release is secure, certified, unbreakable, or approved unless
+Forbidden claims: release is secure, certified, invulnerable, or approved unless
 the issuing evidence exists.
 
 ## Mode C: Supply-Chain Evidence Gate

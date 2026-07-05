@@ -28,7 +28,8 @@ Claim allowed after closure:
 "External review evidence exists for the stated scope."
 
 Claim still forbidden:
-"Government approved," "production certified," "unbreakable," "FIPS validated," "cATO authorized," or "Department of War system."
+Government-approval, production-certification, invulnerability, FIPS-validation,
+cATO-authorization, or Department-of-War-system language.
 
 ## Reproducibility
 
@@ -56,7 +57,8 @@ Claim allowed after closure:
 "Independent rebuild evidence exists for the stated artifact and commit."
 
 Claim still forbidden:
-"Production release authority," "government approved," "cATO authorized," "RMF authorized," or "independently audited."
+Production-release-authority, government-approval, cATO-authorization,
+RMF-authorization, or independent-audit language.
 
 ## Security Review
 
@@ -83,7 +85,8 @@ Claim allowed after closure:
 "External security review evidence exists for the stated scope."
 
 Claim still forbidden:
-"Invulnerable," "independently audited" without an actual audit report, "operational defense system," or "Department of War approved."
+Invulnerability, independent-audit language without an actual audit report,
+operational-defense-system language, or Department-of-War-approval language.
 
 ## Cryptographic Review
 
@@ -138,7 +141,8 @@ Claim allowed after closure:
 "Installation/use evidence exists for the stated supported host profile."
 
 Claim still forbidden:
-"Operational deployment ready," "production authority," "runtime sandboxing," or "government approved."
+Operational-deployment-ready, production-authority, runtime-sandboxing, or
+government-approval language.
 
 ## Continuous Monitoring
 
@@ -193,7 +197,8 @@ Claim allowed after closure:
 "Supply-chain evidence exists for the stated source, toolchain, and release scope."
 
 Claim still forbidden:
-"SLSA certified," "government approved," "production authority," or "complete supply-chain assurance" without external authority.
+SLSA-certification, government-approval, production-authority, or total
+supply-chain-assurance language without external authority.
 
 ## Operational Boundary
 
@@ -249,7 +254,8 @@ Claim allowed after closure:
 "Public claim surfaces passed the stated DaylightNPT and boundary review."
 
 Claim still forbidden:
-"No risk," "complete assurance," "government endorsed," "FIPS validated," "cATO authorized," or "RMF authorized."
+No-risk, total-assurance, government-endorsement, FIPS-validation,
+cATO-authorization, or RMF-authorization language.
 
 ## Website/Public Surface Review
 
@@ -276,4 +282,5 @@ Claim allowed after closure:
 "The public defense-assurance roadmap surface is published and claim-bounded."
 
 Claim still forbidden:
-"Department of War approved," "cATO authorized," "RMF authorized," "FIPS validated," "production authority," or "external certification."
+Department-of-War-approval, cATO-authorization, RMF-authorization,
+FIPS-validation, production-authority, or external-certification language.

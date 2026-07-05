@@ -410,7 +410,7 @@ CLAIMS = [
     {
         "id": "npt.clean_baseline",
         "claim_text": "DaylightNPT v1 clean-checkout report summary",
-        "value_raw": "pass; verified 6; exempt 1; errors 0",
+        "value_raw": "pass; verified 6; exempt 2; errors 0",
         "value_canonical": "npt-summary",
         "numerator": None,
         "denominator": None,
@@ -454,11 +454,11 @@ CLAIMS = [
         "denominator": None,
         "unit": "mixed",
         "stated_percent": None,
-        "version_context": "site/daylight-grok-audit.html",
+        "version_context": "docs/archive/site/daylight-grok-audit.html",
         "score_family": "external-quotation",
-        "original_claim_source": "site/daylight-grok-audit.html",
+        "original_claim_source": "docs/archive/site/daylight-grok-audit.html",
         "original_claim_commit": "3718c24",
-        "evidence_files": ["site/daylight-grok-audit.html"],
+        "evidence_files": ["docs/archive/site/daylight-grok-audit.html"],
         "commands_to_recompute": ["make site-validate"],
         "expected_boundary": "Grok-attributed, not authenticated; quoted, never adopted as Daylight scores",
         "patterns": ["973/1000"],
@@ -475,7 +475,7 @@ def check_static_boundary(claim: dict, files: list[str]) -> tuple[str, dict]:
         ok = "Target score" in text and "991,300M / 1,000,000M" in text
         return ("PASS_NON_CLAIM_BOUNDARY" if ok else "FAIL_BOUNDARY_INFLATION"), {"target_wording_present": ok}
     if claim["id"] == "grok.quoted_third_party_scores":
-        text = Path("site/daylight-grok-audit.html").read_text(encoding="utf-8")
+        text = Path("docs/archive/site/daylight-grok-audit.html").read_text(encoding="utf-8")
         ok = "Grok-attributed, not authenticated" in text and "973/1000" in text
         return ("PASS_NON_CLAIM_BOUNDARY" if ok else "FAIL_EXTERNALITY_MISSTATED"), {"attribution_boundary_present": ok}
     return "UNRESOLVED_NO_EVIDENCE", {}

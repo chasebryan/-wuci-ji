@@ -1,0 +1,48 @@
+{
+  "allowed_candidate_status_values": [
+    "BUILD_SUCCEEDED",
+    "BUILD_NOT_ATTEMPTED",
+    "BUILD_ATTEMPTED_FAILED",
+    "MISSING_TOOLING",
+    "NOT_MEASURED"
+  ],
+  "candidate": "alpine",
+  "display_name": "Alpine Linux",
+  "id": "euclid-phase-1-alpine",
+  "noether_core_requirements": [
+    "GUI absent",
+    "default network services absent",
+    "listening ports absent unless explicitly allowed",
+    "runtime compilers absent unless explicitly justified",
+    "each included component has a component-register entry",
+    "each current claim has evidence or is listed as a non-claim",
+    "release score is invalid without artifact hash"
+  ],
+  "non_claims": [
+    "This candidate is not selected.",
+    "No ranking is assigned by Phase 1.",
+    "Missing measurements remain NOT_MEASURED."
+  ],
+  "phase": "WuciOS v2.4 Euclid Trial Phase 1",
+  "required_outputs": [
+    "trial-plan.json",
+    "build-notes.md",
+    "artifact-manifest.json",
+    "package-manifest.txt",
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "failure-report.md"
+  ],
+  "schema": "wucios.euclid_candidate_trial.v1",
+  "selection_status": "NO_SUBSTRATE_SELECTED",
+  "substrate_class": "minimal-linux-distribution",
+  "trial_status": "BUILD_NOT_ATTEMPTED"
+}

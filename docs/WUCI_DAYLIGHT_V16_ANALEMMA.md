@@ -1,5 +1,10 @@
 # Wuci-Ji Daylight v16 Analemma
 
+> [!IMPORTANT]
+> WuciOS-Fluff-Audit: historical-non-authoritative
+> This file is retained as historical Daylight score material. It is not WuciOS
+> v2.4 release evidence, not a current score source, and not part of Noether Core.
+
 Daylight v16 Analemma separates self-progress measurement from conservative
 claim scoring. Solstice keeps the honest claim score at the current internal
 ceiling, while Analemma measures how much verified proof mass exists relative to

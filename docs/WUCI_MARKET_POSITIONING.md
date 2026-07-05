@@ -23,7 +23,7 @@ Wuci-Ji earns trust by refusing unsupported claims, not by maximizing claims.
    `Daylight D2 Claim-Bounded`, `Daylight D3 Reproducible`,
    `Daylight D4 Release-Gated`, and `Daylight D5 Control-Mapped`.
 5. No fake authority: badges must not say secure, certified, unhackable,
-   government approved, or production authorized.
+   government-approved, or production-authorized.
 6. Third-party compatibility: allow other tools to generate
    Daylight-compatible evidence objects.
 7. Competitive neutrality: do not require users to replace current security

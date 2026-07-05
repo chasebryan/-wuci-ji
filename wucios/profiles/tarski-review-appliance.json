@@ -1,0 +1,59 @@
+{
+  "schema": "wucios.profile.v1",
+  "id": "tarski-review-appliance",
+  "display_name": "Tarski Review Appliance",
+  "status": "CANDIDATE_PROFILE",
+  "role": "Reviewer-facing evidence generator and claim-to-evidence mapper.",
+  "default_profile": false,
+  "authoritative_for_release": true,
+  "allowed_component_classes": [
+    "review-generator",
+    "json-report-tooling",
+    "markdown-report-tooling",
+    "hashing-tooling",
+    "signature-tooling",
+    "sbom-tooling",
+    "surface-inventory-tooling",
+    "claim-scanner",
+    "score-generator"
+  ],
+  "forbidden_component_classes": [
+    "claim-without-evidence",
+    "score-without-inputs",
+    "network-submission-tool",
+    "telemetry-by-default",
+    "external-upload-by-default"
+  ],
+  "required_evidence_outputs": [
+    "review.md",
+    "review.json",
+    "substrate-matrix.md",
+    "substrate-matrix.json",
+    "surface-report.md",
+    "surface-report.json",
+    "package-manifest.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "hash-manifest.sha256",
+    "godel-boundary.md",
+    "daylight-wucios-score.json",
+    "daylight-wucios-score.md"
+  ],
+  "invariants": [
+    "review packet must be generated locally",
+    "review packet must include non-claims",
+    "review packet must include NOT_MEASURED when data is missing",
+    "review packet must not fabricate measurements"
+  ],
+  "disqualifying_conditions": [
+    "review packet omits non-claims",
+    "missing measurement is replaced by an invented value",
+    "numeric score is emitted without current artifact evidence",
+    "external upload occurs by default"
+  ],
+  "notes": [
+    "Tarski Review Appliance maps current claims to local evidence and non-claims."
+  ]
+}

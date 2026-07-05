@@ -1,5 +1,10 @@
 # Wuci-OS Offline Install Guide
 
+> [!IMPORTANT]
+> This is legacy offline-install documentation for the earlier image lane. It is
+> not Noether Core and is not WuciOS v2.4 release evidence. Current WuciOS v2.4
+> doctrine is in [WuciOS v2.4 Reduction Gate](wucios/WUCIOS_V24_REDUCTION_GATE.md).
+
 This is the offline checklist to use after booting the ISO. The same guide is
 embedded in the ISO at `/wuci-os/OFFLINE-INSTALL.txt` and in the live system at
 `/usr/share/wuci-os/OFFLINE-INSTALL.txt`.

@@ -592,8 +592,8 @@ make daylight-horizon-alpha-release-demo
 
 `daylight-v17-event-horizon-score` regenerates the committed current scorecard.
 `daylight-v17-event-horizon-fixture-demo` regenerates the declaration fixture,
-which reaches `999,999,999 AM+` only as a math fixture with `fixture=true` and
-`claim_usable=false`.
+which reaches the reserved declaration ceiling only as a math fixture with
+`fixture=true` and `claim_usable=false`.
 `daylight-v17-event-horizon-declaration-gate` runs the Event Horizon checks:
 proof-atom verification, weakest-field scoring, scorecard digest verification,
 fracture mutations, and the cross-verifier data-model gate. It is expected to

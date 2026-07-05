@@ -1,98 +1,32 @@
-# Wuci-Ji v2 — Aperture Bastion
+# Wuci-Ji
 
 Site: https://nosuchmachine.net/
 Repository: https://github.com/chasebryan/-wuci-ji
-Official emblem: https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
-Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9
-Machine status: https://nosuchmachine.net/aperture-status.json
-Daylight status: https://nosuchmachine.net/daylight-status.json
-Daylight v20 Aperture Singularity status: https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json
-Defense Assurance Roadmap: https://nosuchmachine.net/defense-assurance.html
-Defense Assurance Roadmap status: https://nosuchmachine.net/defense-assurance-status.json
-Daylight Equation Standard: https://nosuchmachine.net/daylight-standard.html
-Daylight Standard status: https://nosuchmachine.net/daylight-standard-status.json
-Security Product Roadmap: https://nosuchmachine.net/security-product-roadmap.html
-Conformance Profile: https://nosuchmachine.net/conformance.html
-Enterprise Adoption: https://nosuchmachine.net/enterprise-adoption.html
-Product Boundary: https://nosuchmachine.net/product-boundary.html
-No External Validation Value: https://nosuchmachine.net/no-external-validation-value.html
-External Validation Uplift: https://nosuchmachine.net/external-validation-uplift.html
-Default Standard Path: https://nosuchmachine.net/default-standard.html
-Wuci Product Standard status: https://nosuchmachine.net/wuci-product-standard-status.json
-AI scoring integrity audit: https://nosuchmachine.net/ai-scoring-integrity.html
-Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
-Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
-Daylight v20 repo-owned score surface: https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp
-Daylight v20 public challenge poster: https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg
-Research metadata: https://nosuchmachine.net/codemeta.json
-Citation metadata: https://nosuchmachine.net/citation.cff
-Hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
-Claim/evidence map: https://nosuchmachine.net/claim-evidence.json
+WuciOS v2.4: https://nosuchmachine.net/wucios.html
 
-Wuci-Ji is a defensive research artifact for evidence-bound release and review
-lanes. Wuci-Ji v2 Aperture Bastion adds a public-review layer that produces
-deterministic Aperture Review Capsules, binds subject bytes and public manifest
-entries to digests, and runs a strict public artifact firewall before release.
+Current public focus:
+WuciOS v2.4 Reduction Gate.
 
-Primary review paths:
+WuciOS v2.4 is a reduction-controlled, evidence-bound operating environment
+organized around Noether Core, Birkhoff Bastion, Tarski Review Appliance, and
+Euclid Substrate Trial.
 
-- v2 overview: https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_JI_V2_APERTURE_BASTION.md
-- security boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md
-- pass report: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md
-- repository boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md
-- CodeMeta JSON-LD: https://nosuchmachine.net/codemeta.json
-- citation metadata: https://nosuchmachine.net/citation.cff
-- hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
-- claim/evidence map: https://nosuchmachine.net/claim-evidence.json
-- AI scoring integrity: https://nosuchmachine.net/ai-scoring-integrity.html
-- Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
-- Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
-- Defense Assurance Roadmap: https://nosuchmachine.net/defense-assurance.html
+Current status:
 
-AI scoring-integrity audit:
+- local evidence only
+- no substrate selected
+- Void is one candidate only
+- Noether Core is GUI-free
+- Birkhoff Bastion is optional
+- Tarski Review Appliance generates the review packet
+- missing measurements are NOT_MEASURED
 
-- scoring-integrity concern
-- provenance failure
-- capability-disclosure inconsistency
-- unsupported validation language
-- false precision risk
-- national defense AI assurance concern
-- standards-level review concern
-- NoEvidence(x) → NoScore(x)
-- NoProvenance(x) → NoAuthority(x)
-- NoExecution(x) → NoRuntimeScore(x)
-- Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.
+Validation handles:
 
-Public challenge:
-
-- Daylight v20 / Wuci-Ji current no-external score: 999,801,305 AM+
-- Daylight Audit Portal v1 result: PASS_SCORE_INTEGRITY
-- Latest score-integrity audit run: 2026-07-03-558d9fa
-- repo_owned_code_gap_count = 0
-- repo_owned_ceiling_reached = true
-- singularity_possible_without_external_validation = false
-- declaration_allowed = false
-- Recompute the Daylight v20 score.
-- Check the claim ledger.
-- Check the ratio math.
-- Check the v20.3 quorum boundary.
-- Find a mismatch.
-- If you find one, file it.
-- Challenge lane: review the evidence, reproduce the lane, challenge the claim surface
-- Remaining path: independent rebuild receipts, external firewall-profile review, non-fixture claim-usable 3-of-3 verifier vectors, and pinned cryptographic attestation verification
-- No endorsement is requested or implied
-
-Defense Assurance Roadmap — explains the evidence-gated path from research-proof artifact to high-assurance defense-system candidacy. It is not government approval, production authority, cATO authorization, RMF authorization, FIPS validation, or external certification.
-
-Daylight Equation Standard — defines Claim + Evidence + Provenance + Reproducibility + Boundary + Monitoring + Falsification = Authority. It is a standard candidate for evidence-bound security assurance, not production cryptography, not a general runtime sandbox, not post-quantum secure, not independently audited, not government endorsed, not cATO authorized, not RMF authorized, not FIPS validated, and not external certification.
-
-Wuci-Ji product standard path — positions Daylight as an Evidence-Bound Security Control Plane that verifies claims, gates releases, maps controls, and exposes unproven assumptions. It does not replace EDR, SIEM, IAM, backups, patch management, or incident response.
-
-Local validation handles:
-
-- make daylight-v19-aperture-bastion-ci
-- make daylight-public-artifact-firewall
-- make daylight-standard-ci
+- make wucios-validate
+- make wucios-fluff-audit
+- make wucios-substrate-matrix
+- make wucios-review
 - make site-validate
 
 Non-claims:
@@ -105,4 +39,4 @@ Non-claims:
 - not government validation
 - not external certification
 - not independent audit completion
-- not a perfect score claim from repository-owned evidence
+- not production authority

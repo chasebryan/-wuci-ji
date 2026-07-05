@@ -1,0 +1,44 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "guix",
+  "display_name": "GNU Guix",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "declarative-linux-system",
+  "linux_based": true,
+  "package_manager": "guix",
+  "init_or_supervision": "GNU Shepherd",
+  "libc": "glibc",
+  "reason_to_test": [
+    "source-oriented declarative system model",
+    "clean configuration-as-code direction",
+    "useful long-term research branch"
+  ],
+  "expected_strengths": [
+    "source-oriented provenance model",
+    "declarative system graph",
+    "reviewable configuration language"
+  ],
+  "expected_risks": [
+    "hardware and firmware friction",
+    "smaller ecosystem",
+    "Guile/Scheme maintenance burden"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "firmware requirements cannot be bounded for target hardware"
+  ],
+  "notes": []
+}

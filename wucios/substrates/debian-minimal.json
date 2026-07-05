@@ -1,0 +1,44 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "debian-minimal",
+  "display_name": "Debian Minimal",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "stable-linux-distribution",
+  "linux_based": true,
+  "package_manager": "apt/dpkg",
+  "init_or_supervision": "systemd by default unless reduced",
+  "libc": "glibc",
+  "reason_to_test": [
+    "reviewer familiarity",
+    "stable package ecosystem",
+    "broad hardware compatibility"
+  ],
+  "expected_strengths": [
+    "widely reviewed distribution base",
+    "large package availability",
+    "strong hardware support"
+  ],
+  "expected_risks": [
+    "larger dependency gravity",
+    "may require more work to enforce severe reduction",
+    "systemd/default package assumptions may expand surface if uncontrolled"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "uncontrolled default service expansion"
+  ],
+  "notes": []
+}

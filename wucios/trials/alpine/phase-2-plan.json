@@ -1,0 +1,26 @@
+{
+  "artifact_candidates": [
+    "rootfs.tar.gz"
+  ],
+  "attempt_requires": [
+    "WUCIOS_EUCLID_ALLOW_ATTEMPT=1",
+    "--attempt-builds",
+    "--allow-network if apk repositories are used",
+    "apk installed on host or available in configured path"
+  ],
+  "blockers": [
+    "MISSING_APK",
+    "NETWORK_DISABLED",
+    "MISSING_ROOT_PRIVILEGE",
+    "BUILD_COMMAND_FAILED",
+    "ARTIFACT_NOT_FOUND"
+  ],
+  "candidate": "alpine",
+  "default_status": "BUILD_NOT_ATTEMPTED",
+  "never_do": [
+    "do not install packages on the host",
+    "do not use sudo",
+    "do not write outside build/wucios/trials/alpine/phase-2"
+  ],
+  "phase_id": "euclid-trial-phase-2"
+}

@@ -1,0 +1,29 @@
+{
+  "artifact_candidates": [
+    "rootfs.tar",
+    "rootfs.cpio",
+    "sdcard.img",
+    "bzImage"
+  ],
+  "attempt_requires": [
+    "WUCIOS_EUCLID_ALLOW_ATTEMPT=1",
+    "--attempt-builds",
+    "--allow-network if downloads are needed",
+    "local Buildroot source tree through BUILDROOT_DIR or configured path"
+  ],
+  "blockers": [
+    "MISSING_BUILDROOT_SOURCE",
+    "MISSING_MAKE",
+    "NETWORK_DISABLED",
+    "BUILD_COMMAND_FAILED",
+    "ARTIFACT_NOT_FOUND"
+  ],
+  "candidate": "buildroot",
+  "default_status": "BUILD_NOT_ATTEMPTED",
+  "never_do": [
+    "do not clone Buildroot by default",
+    "do not use sudo",
+    "do not write outside build/wucios/trials/buildroot/phase-2"
+  ],
+  "phase_id": "euclid-trial-phase-2"
+}

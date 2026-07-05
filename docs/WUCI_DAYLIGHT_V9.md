@@ -1,5 +1,11 @@
 # Daylight v9
 
+> [!IMPORTANT]
+> WuciOS-Fluff-Audit: historical-non-authoritative
+> This file is retained as a legacy Wuci-OS/Daylight fixture for existing tools
+> and tests. It is not WuciOS v2.4 release evidence, not a current score source,
+> and not part of Noether Core.
+
 ## Proof-Carrying Subtractive Cryptographic Operating Substrate
 
 Benchmark lock:

@@ -1,0 +1,27 @@
+{
+  "artifact_candidates": [
+    "rootfs.tar.gz"
+  ],
+  "attempt_requires": [
+    "WUCIOS_EUCLID_ALLOW_ATTEMPT=1",
+    "--attempt-builds",
+    "--allow-network if Debian mirrors are used",
+    "debootstrap installed on host",
+    "root or fakechroot/fakeroot path if needed"
+  ],
+  "blockers": [
+    "MISSING_DEBOOTSTRAP",
+    "MISSING_FAKECHROOT_OR_ROOT",
+    "NETWORK_DISABLED",
+    "BUILD_COMMAND_FAILED",
+    "ARTIFACT_NOT_FOUND"
+  ],
+  "candidate": "debian-minimal",
+  "default_status": "BUILD_NOT_ATTEMPTED",
+  "never_do": [
+    "do not install packages on the host",
+    "do not use sudo",
+    "do not write outside build/wucios/trials/debian-minimal/phase-2"
+  ],
+  "phase_id": "euclid-trial-phase-2"
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "yocto",
+  "display_name": "Yocto Project",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "custom-linux-builder",
+  "linux_based": true,
+  "package_manager": "build-time recipes",
+  "init_or_supervision": "configurable",
+  "libc": "configurable",
+  "reason_to_test": [
+    "industrial embedded/custom Linux seriousness",
+    "long-term defense/industrial fit",
+    "highly controlled image generation"
+  ],
+  "expected_strengths": [
+    "industrial custom-image discipline",
+    "highly controlled build graph",
+    "long-term appliance fit"
+  ],
+  "expected_risks": [
+    "high complexity",
+    "large learning curve",
+    "may exceed immediate v2.4 implementation capacity"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "build complexity prevents reviewable v2.4 gate"
+  ],
+  "notes": []
+}

@@ -1,0 +1,38 @@
+{
+  "candidate_status_values": [
+    "BUILD_NOT_ATTEMPTED",
+    "BUILD_ATTEMPTED_FAILED",
+    "BUILD_SUCCEEDED_PARTIAL",
+    "ARTIFACT_GENERATED",
+    "TRIAL_BLOCKED"
+  ],
+  "cohort": [
+    "buildroot",
+    "alpine",
+    "debian-minimal"
+  ],
+  "default_execution_mode": "SAFE_DETECT_ONLY",
+  "emotional_testing_allowed": false,
+  "global_status_values": [
+    "TRIAL_DATA_PARTIAL",
+    "TRIAL_DATA_COMPARABLE",
+    "TRIAL_BLOCKED"
+  ],
+  "network_default": "DISABLED",
+  "objectives": [
+    "Detect build prerequisites for each first-cohort substrate.",
+    "Attempt no build unless explicitly requested.",
+    "Write identical evidence files for each candidate.",
+    "Record blockers instead of hiding them.",
+    "Generate a combined Phase 2 report.",
+    "Keep substrate selection at NO_SUBSTRATE_SELECTED."
+  ],
+  "phase_id": "euclid-trial-phase-2",
+  "phase_name": "WuciOS v2.4 Euclid Trial Phase 2 — Build Feasibility Probes",
+  "ranking_allowed": false,
+  "root_default": "NOT_REQUIRED",
+  "schema": "wucios.euclid.phase2.plan.v1",
+  "status": "CANDIDATE_TRIAL_PHASE",
+  "substrate_selection": "NO_SUBSTRATE_SELECTED",
+  "sudo_allowed": false
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "wucios.substrate.v1",
+  "id": "buildroot",
+  "display_name": "Buildroot",
+  "status": "CANDIDATE_SUBSTRATE",
+  "substrate_class": "image-generator / embedded-appliance-builder",
+  "linux_based": true,
+  "package_manager": "build-time configuration",
+  "init_or_supervision": "configurable",
+  "libc": "configurable",
+  "reason_to_test": [
+    "strongest candidate for tiny appliance-like Noether Core",
+    "controlled root filesystem generation",
+    "strong fit for evidence-bound review image"
+  ],
+  "expected_strengths": [
+    "small generated images",
+    "explicit root filesystem construction",
+    "low runtime package-manager surface"
+  ],
+  "expected_risks": [
+    "higher engineering burden",
+    "less convenient daily package management",
+    "build responsibility shifts to WuciOS maintainers"
+  ],
+  "required_trial_outputs": [
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "build-manifest.sha256",
+    "substrate-report.json",
+    "substrate-report.md",
+    "claim-boundary.md"
+  ],
+  "disqualifying_conditions": [
+    "cannot produce required trial outputs",
+    "requires unbounded network services in Noether Core"
+  ],
+  "notes": []
+}

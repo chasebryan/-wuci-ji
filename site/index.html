@@ -3,158 +3,65 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Defense-in-depth: the GitHub Pages deploy path ignores _headers, so the
-         script/style/object policy must also travel inside the document. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="application-name" content="Wuci-Ji">
-    <meta name="author" content="No Such Machine">
-    <meta name="creator" content="No Such Machine">
-    <meta name="publisher" content="No Such Machine">
+    <meta name="description" content="Wuci-Ji publishes local evidence, bounded claims, and WuciOS v2.4 Reduction Gate review surfaces.">
+    <meta name="robots" content="index, follow">
     <meta name="color-scheme" content="dark">
-    <meta name="format-detection" content="telephone=no">
-    <meta
-      name="description"
-      content="No Such Machine publishes Wuci-Ji v2 Aperture Bastion and Daylight v20 public challenge surfaces: digest-bound capsules, firewalled evidence, and falsification lanes for defensive proof review."
-    >
-    <meta name="robots" content="index, follow, max-image-preview:large">
-    <meta
-      name="keywords"
-      content="No Such Machine, Wuci-Ji v2, Aperture Bastion, Daylight v20, public challenge, reproducible builds, external evidence, software assurance, Wuci-OS, Daylight v17 Singularity, evidence-derived cryptography, proof-carrying artifacts"
-    >
-    <meta name="theme-color" content="#0f1411">
-    <meta property="og:title" content="Daylight v20 / Wuci-Ji — Public Challenge">
-    <meta
-      property="og:description"
-      content="Review the evidence, reproduce the lane, challenge the claim surface. Daylight v20 refuses Singularity from repository-owned evidence alone."
-    >
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://nosuchmachine.net/">
-    <meta property="og:image" content="https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg">
-    <meta property="og:site_name" content="No Such Machine">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Daylight v20 / Wuci-Ji — Public Challenge">
-    <meta
-      name="twitter:description"
-      content="Review the evidence, reproduce the lane, challenge the claim surface. No endorsement requested or implied."
-    >
-    <meta name="twitter:image" content="https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg">
     <link rel="canonical" href="https://nosuchmachine.net/">
-    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
-    <link rel="author" href="/humans.txt">
-    <link rel="alternate" type="text/plain" href="/llms.txt" title="Wuci-Ji v2 Aperture Bastion summary for research agents">
-    <link rel="alternate" type="text/plain" href="/citation.cff" title="Wuci-Ji v2 Aperture Bastion citation metadata">
-    <link rel="alternate" type="application/ld+json" href="/codemeta.json" title="Wuci-Ji v2 Aperture Bastion research software metadata">
-    <link rel="alternate" type="application/json" href="/hosting-requirements.json" title="Wuci-Ji website hosted TLS requirements">
-    <link rel="alternate" type="application/json" href="/claim-evidence.json" title="Wuci-Ji public claim-to-evidence map">
-    <link rel="alternate" type="application/json" href="/aperture-status.json" title="Aperture Bastion machine-readable status">
-    <link rel="alternate" type="application/json" href="/daylight-status.json" title="Daylight machine-readable status">
-    <link rel="alternate" type="application/json" href="/daylight-v20-aperture-singularity-status.json" title="Daylight v20 Aperture Singularity status">
-    <link rel="alternate" type="application/json" href="/defense-assurance-status.json" title="Defense assurance roadmap status">
-    <link rel="alternate" type="application/json" href="/daylight-standard-status.json" title="Daylight standard status">
-    <link rel="alternate" type="application/json" href="/wuci-product-standard-status.json" title="Wuci product standard status">
-    <link rel="preload" as="image" href="assets/wuci-ji-v2-aperture-bastion.jpeg" fetchpriority="high">
     <link rel="manifest" href="site.webmanifest">
-    <link rel="apple-touch-icon" href="assets/wuci-ji-official-emblem.jpg">
-    <link rel="icon" href="assets/wuci-ji-official-emblem.jpg" type="image/jpeg">
     <link rel="icon" href="favicon.png" type="image/png">
-    <title>Wuci-Ji v2 — Aperture Bastion</title>
     <link rel="stylesheet" href="styles.css">
+    <title>Wuci-Ji</title>
   </head>
   <body>
     <a class="skip-link" href="#top">Skip to content</a>
     <header class="site-header" data-header>
       <a class="brand" href="#top" aria-label="Wuci-Ji home">
-        <img
-          class="brand-mark"
-          src="assets/wuci-ji-official-emblem.jpg"
-          alt=""
-          aria-hidden="true"
-          width="400"
-          height="400"
-          decoding="async"
-        >
+        <img class="brand-mark" src="assets/wuci-ji-official-emblem.jpg" alt="" aria-hidden="true" width="400" height="400" decoding="async">
         <span>Wuci-Ji</span>
       </a>
       <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
-        <a href="#daylight">Daylight</a>
-        <a href="#aperture">Aperture</a>
-        <a href="#assurance">Assurance</a>
-        <a href="defense-assurance.html">Defense Roadmap</a>
-        <a href="daylight-standard.html">Daylight Standard</a>
+        <a href="wucios.html">WuciOS v2.4</a>
+        <a href="product-boundary.html">Boundary</a>
         <a href="conformance.html">Conformance</a>
-        <a href="#review">Review</a>
-        <a href="ai-scoring-integrity.html">AI Scoring Integrity</a>
-        <a href="daylight-grok-audit.html">Daylight / Grok Audit</a>
         <a href="audits/daylight/score-integrity/">Audit Portal</a>
-        <a href="#meridian">Meridian</a>
-        <a href="#challenge">Challenge</a>
-        <a href="#evidence">Evidence</a>
-        <a href="#os">Wuci-OS</a>
-        <a href="#catalog">Catalog</a>
-        <a href="#boundary">Boundary</a>
         <a class="nav-repo" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
       </nav>
       <a class="repo-link" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
-      <button
-        class="nav-toggle"
-        type="button"
-        aria-controls="site-nav"
-        aria-expanded="false"
-        aria-label="Toggle navigation menu"
-      >
+      <button class="nav-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="Toggle navigation menu">
         <span class="nav-toggle-bars" aria-hidden="true"></span>
       </button>
     </header>
 
-    <main id="top" itemscope itemtype="https://schema.org/SoftwareSourceCode" itemid="https://nosuchmachine.net/">
-      <meta itemprop="name" content="Wuci-Ji v2 — Aperture Bastion">
-      <meta itemprop="alternateName" content="No Such Machine">
-      <meta itemprop="description" content="Digest-bound public review capsules and firewalled evidence artifacts for Wuci-Ji / Daylight research.">
-      <meta itemprop="codeRepository" content="https://github.com/chasebryan/-wuci-ji">
-      <meta itemprop="url" content="https://nosuchmachine.net/">
-      <meta itemprop="image" content="https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg">
-      <meta itemprop="logo" content="https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg">
-      <meta itemprop="license" content="https://github.com/chasebryan/-wuci-ji/blob/main/LICENSE">
-      <meta itemprop="programmingLanguage" content="Python">
-      <meta itemprop="programmingLanguage" content="x86_64 assembly">
-      <meta itemprop="programmingLanguage" content="JavaScript">
+    <main id="top">
       <section class="hero" aria-labelledby="hero-title">
-        <img
-          class="hero-image"
-          src="assets/wuci-ji-v2-aperture-bastion.jpeg"
-          alt="Wuci-Ji v2 Aperture Bastion emblem with review aperture and bastion mark"
-          width="1672"
-          height="941"
-          fetchpriority="high"
-          decoding="async"
-        >
+        <img class="hero-image" src="assets/wuci-ji-v2-aperture-bastion.jpeg" alt="Wuci-Ji public review emblem" width="1672" height="941" fetchpriority="high" decoding="async">
         <div class="hero-shade" aria-hidden="true"></div>
         <div class="hero-content">
-          <p class="eyebrow">Wuci-Ji v2 / Aperture Bastion</p>
-          <h1 id="hero-title">Wuci-Ji v2</h1>
+          <p class="eyebrow">Local evidence / bounded claims</p>
+          <h1 id="hero-title">Wuci-Ji</h1>
           <p class="hero-copy">
-            A public-review layer for defensive machine-code research:
-            deterministic Aperture Review Capsules, firewalled public evidence,
-            and Daylight proof lanes that refuse claims the repository cannot
-            regenerate.
+            Defensive research software for sealed artifacts, receipt-bound checks,
+            public evidence, and reviewable claim boundaries.
           </p>
           <div class="hero-actions" aria-label="Primary actions">
-            <a class="button primary" href="https://github.com/chasebryan/-wuci-ji">View source</a>
-            <a class="button secondary" href="#aperture">Review Aperture</a>
+            <a class="button primary" href="wucios.html">Open WuciOS v2.4</a>
+            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji">View source</a>
           </div>
-          <dl class="hero-metrics" aria-label="Current Daylight posture">
+          <dl class="hero-metrics" aria-label="Current posture">
             <div>
-              <dt>v2 layer</dt>
-              <dd>Aperture Bastion</dd>
+              <dt>Current OS path</dt>
+              <dd>v2.4 Reduction Gate</dd>
             </div>
             <div>
-              <dt>Artifact</dt>
-              <dd>firewalled public set</dd>
+              <dt>Evidence</dt>
+              <dd>local only</dd>
             </div>
             <div>
-              <dt>Boundary</dt>
-              <dd>claim-bounded</dd>
+              <dt>Authority</dt>
+              <dd>not production</dd>
             </div>
           </dl>
         </div>
@@ -162,782 +69,81 @@
 
       <section class="truth-band" aria-label="Current status">
         <div>
-          <strong>Public-review aperture</strong>
-          <span>Capsules bind subject bytes, evidence references, and public files.</span>
+          <strong>Noether Core</strong>
+          <span>GUI-free, TTY-first, network-minimized base profile.</span>
         </div>
         <div>
-          <strong>Firewall first</strong>
-          <span>Public artifacts are scanned before upload, with no broad build-directory release.</span>
+          <strong>Euclid Trial</strong>
+          <span>Phase 2 runs safe detect-only build feasibility probes for Buildroot, Alpine, and Debian minimal.</span>
         </div>
         <div>
-          <strong>Bounded claims</strong>
-          <span>Not production cryptography, not runtime sandboxing, not audit completion, and not certification.</span>
+          <strong>Gödel Boundary</strong>
+          <span>Local evidence only. No external certification or production authority.</span>
         </div>
       </section>
 
-      <section class="aperture-section" id="aperture" aria-labelledby="aperture-title">
+      <section class="aperture-section" id="wucios" aria-labelledby="wucios-title">
         <div class="aperture-copy">
-          <p class="eyebrow">Aperture Bastion release surface</p>
-          <h2 id="aperture-title">The public artifact is a capsule, not a promise.</h2>
+          <p class="eyebrow">WuciOS v2.4 Reduction Gate</p>
+          <h2 id="wucios-title">A reduction-controlled operating environment, not a desktop distro direction.</h2>
           <p>
-            Aperture Bastion sits above v18 Binaric Bastion as a review layer.
-            It hashes the subject bytes, pins the exact public file set, records
-            optional upstream evidence references, and rejects forbidden
-            authority claims even if an edited capsule is re-digested.
+            The v2.4 path separates Noether Core, Birkhoff Bastion, Tarski Review
+            Appliance, and Developer Desktop. Void is no longer treated as the
+            selected base. Xfce is non-authoritative development convenience only.
           </p>
-          <div class="aperture-actions" aria-label="Aperture documents">
-            <a class="button primary" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_JI_V2_APERTURE_BASTION.md">Read v2 overview</a>
-            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md">Read boundary</a>
-            <a class="button secondary" href="aperture-status.json">Machine status</a>
+          <div class="aperture-actions" aria-label="WuciOS documents">
+            <a class="button primary" href="wucios.html">Read WuciOS page</a>
+            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/wucios/WUCIOS_V24_REDUCTION_GATE.md">Reduction Gate doc</a>
           </div>
         </div>
-        <div class="aperture-panel" aria-label="Aperture Bastion verification snapshot">
+        <div class="aperture-panel" aria-label="Validation commands">
           <dl class="verification-list">
             <div>
-              <dt>Release tag</dt>
-              <dd><code>v2.0.0-aperture-bastion</code></dd>
+              <dt>Validate structure</dt>
+              <dd><code>make wucios-validate</code></dd>
             </div>
             <div>
-              <dt>Commit</dt>
-              <dd><code>ce077fea615528634ad27fec516fdb402f101602</code></dd>
+              <dt>Audit claims</dt>
+              <dd><code>make wucios-fluff-audit</code></dd>
             </div>
             <div>
-              <dt>Capsule digest</dt>
-              <dd><code>9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0</code></dd>
+              <dt>Substrate matrix</dt>
+              <dd><code>make wucios-substrate-matrix</code></dd>
             </div>
             <div>
-              <dt>Public artifact</dt>
-              <dd>8-file firewalled directory: capsule, SHA256SUMS, v15/v17/v18 evidence files, and example subject.</dd>
+              <dt>Trial phase 1</dt>
+              <dd><code>make wucios-euclid-trial-phase-1</code></dd>
             </div>
             <div>
-              <dt>Firewall profile</dt>
-              <dd><code>aperture-bastion-public-v1</code></dd>
+              <dt>Trial phase 2</dt>
+              <dd><code>make wucios-euclid-trial-phase-2</code></dd>
             </div>
             <div>
-              <dt>Local gate</dt>
-              <dd><code>make daylight-v19-aperture-bastion-ci</code></dd>
-            </div>
-            <div>
-              <dt>Hosted gate</dt>
-              <dd><code>daylight-v19-aperture-bastion</code> passed on the merged main commit.</dd>
+              <dt>Review packet</dt>
+              <dd><code>make wucios-review</code></dd>
             </div>
           </dl>
-        </div>
-      </section>
-
-      <section class="assurance-section" id="assurance" aria-labelledby="assurance-title">
-        <div class="section-heading assurance-heading">
-          <div>
-            <p class="eyebrow">Research assurance</p>
-            <h2 id="assurance-title">Every public claim needs a local handle.</h2>
-          </div>
-          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md">
-            Open pass report
-          </a>
-        </div>
-        <div class="assurance-layout">
-          <div class="assurance-grid" aria-label="Reviewer assurance handles">
-            <article class="assurance-card">
-              <span>Capsule binding</span>
-              <h3>Subject bytes are pinned before review.</h3>
-              <p>
-                The capsule binds SHA-256, SHA3-512, size, manifest entries,
-                optional evidence references, and the final canonical digest.
-              </p>
-              <em>Does not turn a claim into authority.</em>
-            </article>
-            <article class="assurance-card">
-              <span>Artifact firewall</span>
-              <h3>Public output has to pass before it is written.</h3>
-              <p>
-                The pinned profile rejects private names, secret markers,
-                hidden paths, symlinks, hardlinks, unexpected files, and
-                SHA256SUMS drift.
-              </p>
-              <em>Does not prove host cleanliness.</em>
-            </article>
-            <article class="assurance-card">
-              <span>Evidence recomputation</span>
-              <h3>Upstream references are checked as data.</h3>
-              <p>
-                v18 vectors, previous-vector chains, transition-ledger heads,
-                Meridian scorecards, and Event Horizon scorecards are
-                independently recomputed where the capsule references them.
-              </p>
-              <em>Does not replace independent audit.</em>
-            </article>
-            <article class="assurance-card">
-              <span>Hosted comparison</span>
-              <h3>The CI artifact matched the local firewalled artifact.</h3>
-              <p>
-                GitHub Actions run <code>28564990503</code> uploaded the v19
-                public artifact, and the hosted directory diff matched the
-                local firewalled directory.
-              </p>
-              <em>Does not imply external certification.</em>
-            </article>
-          </div>
-          <aside class="assurance-runbook" aria-label="Public review command lane">
-            <h3>Reproduce the public lane</h3>
-            <ol>
-              <li><code>make daylight-v19-aperture-bastion-ci</code></li>
-              <li><code>make daylight-public-artifact-firewall</code></li>
-              <li><code>make site-validate</code></li>
-            </ol>
-            <p>
-              Treat any changed digest, changed artifact directory, failed
-              firewall report, or missing hosted diff as a release blocker.
-            </p>
-          </aside>
-        </div>
-      </section>
-
-      <section class="section review-index" id="review" aria-labelledby="review-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Public review index</p>
-            <h2 id="review-title">Claims, evidence, metadata, and host gates in one place.</h2>
-          </div>
-          <a class="text-link" href="claim-evidence.json">Open claim/evidence map</a>
-        </div>
-        <div class="review-grid" aria-label="Public review resources">
-          <article class="review-item">
-            <span>Claim map</span>
-            <h3>Claim/evidence map</h3>
-            <p>
-              Public claims are mapped to local evidence files, evidence values,
-              validation commands, and explicit non-claims.
-            </p>
-            <a class="text-link" href="claim-evidence.json">claim-evidence.json</a>
-          </article>
-          <article class="review-item">
-            <span>Research metadata</span>
-            <h3>CodeMeta and citation metadata</h3>
-            <p>
-              Software identity, repository, license, language surface, capsule
-              digest, firewall profile, citation metadata, and non-claims for
-              crawlers and archives.
-            </p>
-            <div class="review-links" aria-label="Research metadata">
-              <a class="text-link" href="codemeta.json">codemeta.json</a>
-              <a class="text-link" href="citation.cff">citation.cff</a>
-            </div>
-          </article>
-          <article class="review-item">
-            <span>Hosted gate</span>
-            <h3>TLS requirements</h3>
-            <p>
-              Canonical HTTPS origin, required redirects, required HSTS header,
-              and public paths checked by the live site gate.
-            </p>
-            <a class="text-link" href="hosting-requirements.json">hosting-requirements.json</a>
-          </article>
-          <article class="review-item">
-            <span>AI scoring audit</span>
-            <h3>AI scoring integrity</h3>
-            <p>
-              Public record separating model-confidence assessments from
-              evidence-derived Daylight runtime scores.
-            </p>
-            <div class="review-links" aria-label="AI scoring audit">
-              <a class="text-link" href="ai-scoring-integrity.html">AI Scoring Integrity</a>
-              <a class="text-link" href="daylight-grok-audit.html">Daylight / Grok Audit</a>
-            </div>
-          </article>
-          <article class="review-item">
-            <span>Status records</span>
-            <h3>Aperture and Daylight status</h3>
-            <p>
-              Capsule digest, firewalled artifact metadata, hosted artifact diff,
-              and the evidence-bound AM+ scorecard summary.
-            </p>
-            <div class="review-links" aria-label="Status records">
-              <a class="text-link" href="aperture-status.json">aperture-status.json</a>
-              <a class="text-link" href="daylight-status.json">daylight-status.json</a>
-              <a class="text-link" href="daylight-v20-aperture-singularity-status.json">daylight-v20-aperture-singularity-status.json</a>
-            </div>
-          </article>
-          <article class="review-item">
-            <span>Defense roadmap</span>
-            <h3>Defense Assurance Roadmap</h3>
-            <p>
-              Roadmap for moving Wuci-Ji / Daylight from research-proof artifact
-              toward high-assurance defense-system candidacy. Roadmap only; no government approval
-              or production authority claimed.
-            </p>
-            <div class="review-links" aria-label="Defense assurance roadmap">
-              <a class="text-link" href="defense-assurance.html">Defense Roadmap</a>
-              <a class="text-link" href="defense-assurance-status.json">defense-assurance-status.json</a>
-            </div>
-          </article>
-          <article class="review-item">
-            <span>Standard</span>
-            <h3>Daylight Standard</h3>
-            <p>
-              Formal claim-authority equation, vocabulary, schemas, examples,
-              and conformance rules for evidence-derived security assurance.
-            </p>
-            <div class="review-links" aria-label="Daylight standard">
-              <a class="text-link" href="daylight-standard.html">Daylight Standard</a>
-              <a class="text-link" href="daylight-standard-status.json">daylight-standard-status.json</a>
-            </div>
-          </article>
-          <article class="review-item">
-            <span>Roadmap</span>
-            <h3>Security Product Roadmap</h3>
-            <p>
-              Product-standard path from research/proof artifact to
-              evidence-bound security control plane, without claiming current
-              production authority.
-            </p>
-            <a class="text-link" href="security-product-roadmap.html">Security Product Roadmap</a>
-          </article>
-          <article class="review-item">
-            <span>Conformance</span>
-            <h3>Conformance</h3>
-            <p>
-              D0-D9 classification for claim-bounded, evidence-bound,
-              reproducible, release-gated, monitored, and externally reviewed
-              profiles.
-            </p>
-            <a class="text-link" href="conformance.html">Conformance</a>
-          </article>
-          <article class="review-item">
-            <span>Adoption</span>
-            <h3>Enterprise Adoption</h3>
-            <p>
-              Safe local, CI, release-gate, control-map, monitoring, and
-              security-product evaluation modes.
-            </p>
-            <a class="text-link" href="enterprise-adoption.html">Enterprise Adoption</a>
-          </article>
-          <article class="review-item">
-            <span>Boundary</span>
-            <h3>Product Boundary</h3>
-            <p>
-              Current allowed claims, forbidden claims, runtime boundary,
-              cryptographic boundary, and certification boundary.
-            </p>
-            <a class="text-link" href="product-boundary.html">Product Boundary</a>
-          </article>
-          <article class="review-item">
-            <span>Default path</span>
-            <h3>Default Standard Path</h3>
-            <p>
-              Criteria for standard-candidate, usable-standard,
-              product-standard, ecosystem-standard, and formal-authority
-              status.
-            </p>
-            <div class="review-links" aria-label="Default standard path">
-              <a class="text-link" href="default-standard.html">Default Standard Path</a>
-              <a class="text-link" href="wuci-product-standard-status.json">wuci-product-standard-status.json</a>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="daylight-stack" id="daylight" aria-labelledby="daylight-title">
-        <div class="section-heading daylight-heading">
-          <div>
-            <p class="eyebrow">Daylight proof ladder</p>
-            <h2 id="daylight-title">Three layers, one refusal discipline.</h2>
-          </div>
-          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/tree/main/daylight">
-            Open Daylight source
-          </a>
-        </div>
-        <div class="stage-grid">
-          <article class="stage-card is-current" id="v17">
-            <figure>
-              <img
-                src="assets/daylight-v17-singularity.jpg"
-                alt="Daylight v17 Singularity residue-collapse mathematical notice"
-                width="1672"
-                height="941"
-                loading="lazy"
-                decoding="async"
-              >
-            </figure>
-            <div class="stage-copy">
-              <p class="stage-kicker">v17 Singularity</p>
-              <h3>Event Horizon decides whether declaration is allowed.</h3>
-              <p>
-                The new kernel uses proof atoms, fracture mutations, open-break
-                checks, and a weakest-field governor so one weak lane limits the
-                whole AM+ declaration.
-              </p>
-              <ul class="stage-facts">
-                <li data-am-plus="999999687">Current scorecard: 999,999,687 AM+</li>
-                <li>Declaration gate: refused by design</li>
-                <li>Fixture 999,999,999 AM+ is not claim-usable</li>
-              </ul>
-              <a class="text-link" href="daylight-status.json">Verify the current AM+ number</a>
-            </div>
-          </article>
-
-          <article class="stage-card" id="v16">
-            <figure>
-              <img
-                src="assets/daylight-v16-analemma.png"
-                alt="Daylight v16 Analemma self-progress mathematical notice"
-                width="1672"
-                height="941"
-                loading="lazy"
-                decoding="async"
-              >
-            </figure>
-            <div class="stage-copy">
-              <p class="stage-kicker">v16 Analemma</p>
-              <h3>Self-progress grows without inflating the conservative claim.</h3>
-              <p>
-                Analemma measures proof mass against the project itself. It
-                records internal progress while keeping external trust,
-                production authority, and score inflation outside the claim.
-              </p>
-              <ul class="stage-facts">
-                <li>No verifier means no credit</li>
-                <li>Regression becomes debt</li>
-                <li>External review upgrades authority, not self-progress</li>
-              </ul>
-            </div>
-          </article>
-
-          <article class="stage-card" id="solstice">
-            <figure>
-              <img
-                src="assets/wuci-daylight-v15-plus-solstice.png"
-                alt="Daylight v15+ Solstice evidence-derived solstice mathematics public notice"
-                width="1672"
-                height="941"
-                loading="lazy"
-                decoding="async"
-              >
-            </figure>
-            <div class="stage-copy">
-              <p class="stage-kicker">v15+ Solstice</p>
-              <h3>The conservative M score stays capped by external residue.</h3>
-              <p>
-                Solstice is the v15 visual boundary: internal closure remains
-                at 998,900M, 1,100M stays external frontier, and mutation of
-                the artifact is rejected.
-              </p>
-              <ul class="stage-facts">
-                <li>998,900M internal ceiling</li>
-                <li>1,100M external frontier</li>
-                <li>No fake perfect internal claim</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="section intro" aria-labelledby="intro-title">
-        <div class="section-copy">
-          <p class="eyebrow">System shape</p>
-          <h2 id="intro-title">A small machine for claims that can be checked.</h2>
-          <p>
-            Wuci-Ji composes WJSEAL artifacts, authorization receipts, Gate
-            checks, witness bundles, ledger history, signed local installation
-            evidence, and Daylight protocol-state evidence into an inspectable
-            research system.
-          </p>
-        </div>
-        <ol class="flow" aria-label="Release flow">
-          <li>sealed artifact</li>
-          <li>authorization receipt</li>
-          <li>Gate contract check</li>
-          <li>controlled release</li>
-          <li>public witness bundle</li>
-          <li>ledger history</li>
-        </ol>
-      </section>
-
-      <section class="challenge-section" id="challenge" aria-labelledby="challenge-title">
-        <div class="challenge-copy">
-          <p class="eyebrow">Challenge updated 2026-07-02 / @780thC</p>
-          <h2 id="challenge-title">Review the evidence. Reproduce the lane.</h2>
-          <p>
-            Daylight v20 / Wuci-Ji is published with a machine-checkable
-            external evidence intake gate. The current no-external score is
-            <strong data-v20-am-plus="999801305">999,801,305 AM+</strong>, but
-            the important result is refusal: repository-owned evidence alone
-            cannot declare Singularity.
-          </p>
-          <p>
-            The challenge is narrow and public: break the evidence chain, find
-            a false claim, show a reproducibility failure, defeat the artifact
-            firewall, prove the score-ceiling report wrong, or provide external
-            evidence the gate can verify.
-          </p>
-          <div class="challenge-actions" aria-label="Challenge links">
-            <a class="button primary" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/DAYLIGHT_V20_REVIEWER_PACKET.md">Review packet</a>
-            <a class="button secondary" href="audits/daylight/score-integrity/">Audit portal</a>
-            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/tree/main/daylight/v20-aperture-singularity">Open v20 gate</a>
-            <a class="button secondary" href="daylight-v20-aperture-singularity-status.json">Machine status</a>
-          </div>
-        </div>
-        <div class="challenge-panel">
-          <figure class="challenge-poster">
-            <img
-              src="assets/daylight-v20-public-challenge-780thc.jpg"
-              alt="Daylight v20 Wuci-Ji public challenge poster asking reviewers to review the evidence, reproduce the lane, and challenge the claim surface with no endorsement implied"
-              width="1122"
-              height="1402"
-              loading="lazy"
-              decoding="async"
-            >
-            <figcaption>Technical review requested. No endorsement is requested or implied.</figcaption>
-          </figure>
-          <div class="readiness-board" aria-label="Challenge readiness">
-            <article class="readiness-item is-ready">
-              <span>Repository code gap</span>
-              <strong><code>repo_owned_code_gap_count = 0</code></strong>
-              <p>
-                The repo-owned implementation path has no remaining code gap in
-                the v20 ceiling report.
-              </p>
-            </article>
-            <article class="readiness-item is-ready">
-              <span>Ceiling reached</span>
-              <strong><code>repo_owned_ceiling_reached = true</code></strong>
-              <p>
-                The gate is at the truthful no-external ceiling and still
-                refuses declaration.
-              </p>
-            </article>
-            <article class="readiness-item is-blocked">
-              <span>Declaration gate</span>
-              <strong><code>declaration_allowed = false</code></strong>
-              <p>
-                <code>singularity_possible_without_external_validation = false</code>.
-                External evidence is required.
-              </p>
-            </article>
-            <article class="readiness-item is-bounded">
-              <span>Remaining evidence</span>
-              <strong>External only</strong>
-              <p>
-                Independent rebuild receipts, external firewall-profile review,
-                non-fixture 3-of-3 verifier vectors, and pinned cryptographic
-                attestation verification.
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="meridian-section" id="meridian" aria-labelledby="meridian-title">
-        <div class="meridian-copy">
-          <p class="eyebrow">Meridian evidence lane</p>
-          <h2 id="meridian-title">Evidence is reviewable; browser cryptography is not shipped.</h2>
-          <p>
-            The public site exposes the Meridian score boundary, envelope
-            documentation, and reproducible command handles. It does not accept
-            files, generate keys, encrypt payloads, open envelopes, or ship a
-            browser file-opening tool.
-          </p>
-          <ul class="meridian-laws" aria-label="Meridian refusal laws">
-            <li>NoEvidence(x) -> NoSeal(x)</li>
-            <li>NoProof(x) -> NoOpen(x)</li>
-            <li>ManualScore(x) -> Reject(x)</li>
-          </ul>
-        </div>
-
-        <div class="meridian-review-panel" aria-label="Meridian public review posture">
-          <dl class="review-list">
-            <div>
-              <dt>Current internal ceiling</dt>
-              <dd><code>998,900M</code></dd>
-            </div>
-            <div>
-              <dt>External frontier</dt>
-              <dd><code>1,100M</code> remains outside the repository-owned claim.</dd>
-            </div>
-            <div>
-              <dt>Browser posture</dt>
-              <dd>No public browser encryptor, private-key handler, or file opener is shipped.</dd>
-            </div>
-            <div>
-              <dt>Envelope reference</dt>
-              <dd>
-                <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md">
-                  Read the MAE design document
-                </a>
-              </dd>
-            </div>
-            <div>
-              <dt>Local tests</dt>
-              <dd><code>make daylight-meridian-test</code> and <code>make daylight-meridian-envelope-test</code></dd>
-            </div>
-            <div>
-              <dt>Non-claim</dt>
-              <dd>Not production cryptography, not a secret-management service, and not external certification.</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
-
-      <section class="mae-plate-section" id="mae" aria-labelledby="mae-title">
-        <div class="mae-plate-copy">
-          <p class="eyebrow">Meridian Authorized Envelope</p>
-          <h2 id="mae-title">Seal by evidence. Open by proof.</h2>
-          <p>
-            The MAE plate is the visual map for the v15 envelope lane: evidence
-            derives the scorecard, policy binds into the authorization tag, and
-            open remains bottom unless the caller re-derives a verifying state.
-          </p>
-          <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_DAYLIGHT_V15_MERIDIAN_ENVELOPE.md">
-            Read the envelope design
-          </a>
-        </div>
-        <figure class="mae-plate">
-          <picture>
-            <source srcset="assets/wuci-v15-mae-meridian-authorized-envelope.webp" type="image/webp">
-            <img
-              src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg"
-              alt="WUCI v15 MAE Meridian Authorized Envelope visual map"
-              width="1672"
-              height="941"
-              loading="lazy"
-              decoding="async"
-            >
-          </picture>
-          <figcaption>
-            WUCI v15 MAE: evidence-bound cryptographic gate, 30 June 2026.
-          </figcaption>
-        </figure>
-      </section>
-
-      <section class="section" id="evidence" aria-labelledby="evidence-title">
-        <div class="section-heading">
-          <p class="eyebrow">Evidence lanes</p>
-          <h2 id="evidence-title">Proof surfaces with explicit refusal lines.</h2>
-        </div>
-        <div class="lane-grid">
-          <article class="lane">
-            <h3>Aperture Bastion</h3>
-            <p>Digest-bound public review capsules and firewalled public artifacts.</p>
-            <span>Boundary: review hygiene, not production authority.</span>
-          </article>
-          <article class="lane">
-            <h3>Envelope</h3>
-            <p>Assembly-owned WJSEAL artifact sealing and opening paths.</p>
-            <span>Boundary: not a general secret-management platform.</span>
-          </article>
-          <article class="lane">
-            <h3>Gate + Warrant</h3>
-            <p>Contract checks and deterministic fixture quorum receipts.</p>
-            <span>Boundary: fixture authority only.</span>
-          </article>
-          <article class="lane">
-            <h3>Witness + Ledger</h3>
-            <p>Public evidence bundles and local deterministic hash history.</p>
-            <span>Boundary: not an operated public log service.</span>
-          </article>
-          <article class="lane">
-            <h3>CAGE + QCAGE</h3>
-            <p>Artifact legitimacy checks and quantum-risk metadata.</p>
-            <span>Boundary: not OS containment or PQ security.</span>
-          </article>
-          <article class="lane">
-            <h3>INSTALL</h3>
-            <p>Signed local install manifest checks and copied root-key proof.</p>
-            <span>Boundary: no remote-code shell pipeline.</span>
-          </article>
-          <article class="lane">
-            <h3>Daylight v15 Meridian</h3>
-            <p>Evidence-derived scoring, obligation closure, and refusal of manual scores.</p>
-            <span>Boundary: research artifact, not external certification.</span>
-          </article>
-        </div>
-      </section>
-
-      <section class="split-section" id="os" aria-labelledby="os-title">
-        <div class="split-media">
-          <picture>
-            <source srcset="assets/wuci-daylight-v15-meridian.webp" type="image/webp">
-            <img
-              src="assets/wuci-daylight-v15-meridian.png"
-              alt="Wuci Daylight v15 Meridian sheet"
-              width="1672"
-              height="941"
-              loading="lazy"
-              decoding="async"
-            >
-          </picture>
-        </div>
-        <div class="split-copy">
-          <p class="eyebrow">Wuci-OS image lane</p>
-          <h2 id="os-title">An evidence-first operating-system image surface.</h2>
-          <p>
-            Wuci-OS verifies an operator-supplied musl ISO, records digest
-            evidence, checks live layout, emits QEMU boot plans, and presents a
-            Wuci-native live profile with the WJ prompt identity.
-          </p>
-          <dl class="fact-list">
-            <div>
-              <dt>Live command</dt>
-              <dd><code>INSTALL</code> starts the automated Wuci install path.</dd>
-            </div>
-            <div>
-              <dt>Default account</dt>
-              <dd><code>wj</code> is the live/demo admin login and prompt identity.</dd>
-            </div>
-            <div>
-              <dt>Release stance</dt>
-              <dd>Current OS work remains local image evidence and boot planning.</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
-
-      <section class="section command-section" id="commands" aria-labelledby="commands-title">
-        <div class="section-heading">
-          <p class="eyebrow">Command deck</p>
-          <h2 id="commands-title">Focused lanes for build, proof, and preview.</h2>
-        </div>
-        <div class="command-grid">
-          <article class="command-card">
-            <div class="command-card-head">
-              <h3>Wuci-OS regression</h3>
-              <button class="copy-button" type="button" data-copy="make wuci-os-test">Copy</button>
-            </div>
-            <pre><code>make wuci-os-test</code></pre>
-          </article>
-          <article class="command-card">
-            <div class="command-card-head">
-              <h3>Final ISO lane</h3>
-              <button class="copy-button" type="button" data-copy="tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages">Copy</button>
-            </div>
-            <pre><code>tools/wuci-os final-iso --force --remaster-rootfs --install-suite-packages</code></pre>
-          </article>
-          <article class="command-card">
-            <div class="command-card-head">
-              <h3>NOXFRAME console</h3>
-              <button class="copy-button" type="button" data-copy="tools/wuci-noxframe --console --yes">Copy</button>
-            </div>
-            <pre><code>tools/wuci-noxframe --console --yes</code></pre>
-          </article>
-        </div>
-      </section>
-
-      <section class="gallery" id="catalog" aria-labelledby="gallery-title">
-        <div class="section-heading">
-          <p class="eyebrow">Catalog</p>
-          <h2 id="gallery-title">Visual artifacts kept for inspection.</h2>
-        </div>
-        <div class="image-grid">
-          <figure>
-            <img src="assets/wuci-ji-official-emblem.jpg" alt="Official Wuci-Ji emblem" width="400" height="400" loading="lazy" decoding="async">
-            <figcaption>Official Wuci-Ji emblem</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/wuci-ji-v2-aperture-bastion.jpeg" alt="Wuci-Ji v2 Aperture Bastion public review emblem" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Wuci-Ji v2 Aperture Bastion</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/daylight-v17-singularity.jpg" alt="Daylight v17 Singularity residue-collapse mathematical notice" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Daylight v17 Singularity</figcaption>
-          </figure>
-          <figure data-v20-am-plus="999801305">
-            <picture>
-              <source srcset="assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp" type="image/webp">
-              <img src="assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png" alt="Daylight v20 Gate 999,801,305 AM+ repo-owned ceiling score surface, non-declaration" width="1254" height="1254" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>Daylight v20 repo-owned score surface</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/daylight-v20-public-challenge-780thc.jpg" alt="Daylight v20 Wuci-Ji public technical review challenge poster" width="1122" height="1402" loading="lazy" decoding="async">
-            <figcaption>Daylight v20 public challenge</figcaption>
-          </figure>
-          <figure>
-            <picture>
-              <source srcset="assets/daylight-v20-gate-fixture-score-surface.webp" type="image/webp">
-              <img src="assets/daylight-v20-gate-fixture-score-surface.png" alt="Daylight v20 Gate fixture score surface, marked non-declaration" width="1254" height="1254" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>Daylight v20 Gate fixture surface</figcaption>
-          </figure>
-          <figure>
-            <picture>
-              <source srcset="assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp" type="image/webp">
-              <img src="assets/daylight-v20-gate-aes-256-gcm-comparison-surface.png" alt="Daylight v20 Gate versus AES-256-GCM comparative heuristic surface, not external certification" width="1448" height="1086" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>Daylight v20 heuristic comparison</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/daylight-v16-analemma.png" alt="Daylight v16 Analemma self-progress mathematical notice" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Daylight v16 Analemma</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/wuci-daylight-v15-plus-solstice.png" alt="Daylight v15+ Solstice evidence-derived mathematics notice" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Daylight v15+ Solstice</figcaption>
-          </figure>
-          <figure>
-            <picture>
-              <source srcset="assets/wuci-v15-mae-meridian-authorized-envelope.webp" type="image/webp">
-              <img src="assets/wuci-v15-mae-meridian-authorized-envelope.jpeg" alt="WUCI v15 MAE Meridian Authorized Envelope sheet" width="1672" height="941" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>WUCI v15 MAE envelope</figcaption>
-          </figure>
-          <figure>
-            <picture>
-              <source srcset="assets/wuci-daylight-v15-meridian.webp" type="image/webp">
-              <img src="assets/wuci-daylight-v15-meridian.png" alt="Daylight v15 Meridian evidence sheet" width="1672" height="941" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>Daylight v15 Meridian</figcaption>
-          </figure>
-          <figure>
-            <picture>
-              <source srcset="assets/wuci-daylight-wire-model.webp" type="image/webp">
-              <img src="assets/wuci-daylight-wire-model.png" alt="Daylight and Wuci wire model" width="1491" height="1055" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>Daylight/Wuci wire model</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/wuci-daylight-v14c-plus-ascendant-wide.png" alt="Daylight v14C+ Ascendant wide evidence sheet" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Daylight v14C+ wide</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/wuci-daylight-v14c-plus-ascendant.png" alt="Daylight v14C+ Ascendant evidence sheet" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Daylight v14C+ Ascendant</figcaption>
-          </figure>
-          <figure>
-            <picture>
-              <source srcset="assets/wuci-daylight-v10-scoreboard.webp" type="image/webp">
-              <img src="assets/wuci-daylight-v10-scoreboard.png" alt="Daylight v10 scoreboard" width="1672" height="941" loading="lazy" decoding="async">
-            </picture>
-            <figcaption>Daylight v10 scoreboard</figcaption>
-          </figure>
-          <figure>
-            <img src="assets/wuci-os-boot-splash.svg" alt="Wuci-OS boot splash" width="1672" height="941" loading="lazy" decoding="async">
-            <figcaption>Wuci-OS boot splash</figcaption>
-          </figure>
         </div>
       </section>
 
       <section class="boundary" id="boundary" aria-labelledby="boundary-title">
         <div>
-          <p class="eyebrow">Boundary</p>
-          <h2 id="boundary-title">Blunt by design.</h2>
+          <p class="eyebrow">Non-claims</p>
+          <h2 id="boundary-title">Current status is local and bounded.</h2>
         </div>
         <p>
-          Wuci-Ji is not production cryptography, not a general runtime sandbox,
-          not host-cleanliness proof, not whole-system post-quantum secure, not
-          FIPS validation, not government validation, not external
-          certification, not production authority, and not independently
-          audited. A boundary is only treated as enforced when the repository
-          has implementation and tests for that behavior.
+          Wuci-Ji and WuciOS v2.4 are not externally certified, not production
+          authorized, not government approved, not a runtime sandbox claim, and
+          not a quantum-safe claim from classical-only evidence.
         </p>
-        <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md">
-          Open the full security boundary
-        </a>
+        <a class="text-link" href="wucios.html#godel">Open the WuciOS non-claim boundary</a>
       </section>
     </main>
 
     <footer class="site-footer">
       <span>No Such Machine</span>
       <a href="https://github.com/chasebryan/-wuci-ji/blob/main/README.md">README</a>
-      <a href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_OS.md">Wuci-OS docs</a>
+      <a href="wucios.html">WuciOS v2.4</a>
       <a href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/PRODUCTION_READINESS.md">Production blockers</a>
     </footer>
     <script src="app.js" defer></script>

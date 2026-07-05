@@ -5,7 +5,7 @@ Repository:
 https://github.com/chasebryan/-wuci-ji
 
 Current public surface:
-Wuci-Ji v2 — Aperture Bastion
+WuciOS v2.4 Reduction Gate
 
 Official Wuci-Ji emblem:
 https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
@@ -28,6 +28,9 @@ https://nosuchmachine.net/claim-evidence.json
 Purpose:
 Defensive, evidence-bound, public-review research artifacts with explicit
 claim boundaries.
+
+WuciOS:
+https://nosuchmachine.net/wucios.html
 
 Build:
 Static HTML, CSS, and JavaScript from the repository site/ directory.

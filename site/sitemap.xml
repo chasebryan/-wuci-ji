@@ -5,78 +5,23 @@
 >
   <url>
     <loc>https://nosuchmachine.net/</loc>
-    <lastmod>2026-07-02</lastmod>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <image:image>
       <image:loc>https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg</image:loc>
-      <image:title>Wuci-Ji v2 Aperture Bastion</image:title>
-      <image:caption>Wuci-Ji v2 Aperture Bastion public review emblem.</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>
-      <image:title>Official Wuci-Ji emblem</image:title>
-      <image:caption>Official Wuci-Ji project emblem.</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp</image:loc>
-      <image:title>Daylight v20 Gate repo-owned score surface</image:title>
-      <image:caption>Daylight v20 Gate 999,801,305 AM+ repo-owned ceiling score surface, marked non-declaration.</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg</image:loc>
-      <image:title>Daylight v20 public challenge</image:title>
-      <image:caption>Daylight v20 / Wuci-Ji public challenge poster requesting technical review, falsification, and reproduction with no endorsement implied.</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-fixture-score-surface.webp</image:loc>
-      <image:title>Daylight v20 Gate fixture surface</image:title>
-      <image:caption>Daylight v20 Gate fixture score surface, marked non-declaration.</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp</image:loc>
-      <image:title>Daylight v20 Gate heuristic comparison</image:title>
-      <image:caption>Daylight v20 Gate versus AES-256-GCM comparative heuristic surface, not external certification.</image:caption>
+      <image:title>Wuci-Ji public review emblem</image:title>
+      <image:caption>Wuci-Ji local evidence and bounded-claim research surface.</image:caption>
     </image:image>
   </url>
   <url>
-    <loc>https://nosuchmachine.net/aperture-status.json</loc>
-    <lastmod>2026-07-02</lastmod>
+    <loc>https://nosuchmachine.net/wucios.html</loc>
+    <lastmod>2026-07-04</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://nosuchmachine.net/daylight-status.json</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/defense-assurance.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/defense-assurance-status.json</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/daylight-standard.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/security-product-roadmap.html</loc>
+    <loc>https://nosuchmachine.net/product-boundary.html</loc>
     <lastmod>2026-07-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
@@ -88,87 +33,9 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://nosuchmachine.net/enterprise-adoption.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/product-boundary.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/no-external-validation-value.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/external-validation-uplift.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/default-standard.html</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/daylight-standard-status.json</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/wuci-product-standard-status.json</loc>
-    <lastmod>2026-07-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/ai-scoring-integrity.html</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/daylight-grok-audit.html</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://nosuchmachine.net/audits/daylight/score-integrity/</loc>
     <lastmod>2026-07-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/codemeta.json</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/citation.cff</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/hosting-requirements.json</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://nosuchmachine.net/claim-evidence.json</loc>
-    <lastmod>2026-07-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.5</priority>
   </url>
 </urlset>

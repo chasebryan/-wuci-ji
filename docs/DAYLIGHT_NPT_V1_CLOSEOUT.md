@@ -40,14 +40,14 @@ verification-coverage hardening pass:
 
 ```text
 result: pass
-files_scanned: 247
-numbers_seen: 1196
-claims_checked: 7
+files_scanned: 324
+numbers_seen: 1404
+claims_checked: 8
 verified: 6
-exempt: 1
+exempt: 2
 warnings: 0
 errors: 0
-registry_sha256: 6fd6118b613eb2a8469bde09419be0bb4096003435fe775683712e8401f99455
+registry_sha256: 23c8bebdd2e19826adce62204c431000b784e2bc636506988885c4ba5c449016
 ```
 
 `files_scanned` and `numbers_seen` are properties of the scanned tree, not
