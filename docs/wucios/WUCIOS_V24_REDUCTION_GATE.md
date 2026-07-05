@@ -55,6 +55,10 @@ x86_64 input recorded in generated input evidence.
 The generated score evidence records that the earlier Daylight Candidate
 Readiness Score was not reused as an artifact/security score.
 
+## Runtime Validation Status Preservation
+
+Runtime Gates 5 through 9 are summarized in [v2.4/runtime-validation-status.md](v2.4/runtime-validation-status.md). The raw runtime evidence remains local/ignored unless separately authorized. No full runtime validation, bootability, production readiness, external validation, complete hardening, complete network security, or broad runtime safety claim is made.
+
 ## Evidence Requirement
 
 WuciOS is incomplete without a generated review packet. A bootable image alone is not a release. The review packet must include artifact manifests, surface inventory, claim boundaries, score material, and `NOT_MEASURED` for missing data.
