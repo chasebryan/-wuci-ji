@@ -1,78 +1,47 @@
-# Wuci-Ji v2.2 — Aperture Bastion
+# No Such Machine / Wuci-Ji
 
 Site: https://nosuchmachine.net/
 Repository: https://github.com/chasebryan/-wuci-ji
-Official emblem: https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
-Official emblem SHA-256: 716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9
-Machine status: https://nosuchmachine.net/aperture-status.json
-Daylight status: https://nosuchmachine.net/daylight-status.json
-Daylight v20 Aperture Singularity status: https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json
-AI scoring integrity audit: https://nosuchmachine.net/ai-scoring-integrity.html
-Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
-Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
-Daylight v20 repo-owned score surface: https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp
-Daylight v20 public challenge poster: https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg
-Research metadata: https://nosuchmachine.net/codemeta.json
-Citation metadata: https://nosuchmachine.net/citation.cff
-Hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
-Claim/evidence map: https://nosuchmachine.net/claim-evidence.json
+WuciOS v2.4: https://nosuchmachine.net/wucios.html
 
-Wuci-Ji is a defensive research artifact for evidence-bound release and review
-lanes. Wuci-Ji v2.2 Aperture Bastion adds a public-review layer that produces
-deterministic Aperture Review Capsules, binds subject bytes and public manifest
-entries to digests, and runs a strict public artifact firewall before release.
+Public brand:
+No Such Machine
 
-Primary review paths:
+Project surface:
+Wuci-Ji / 无此机
 
-- v2 overview: https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_JI_V2_APERTURE_BASTION.md
-- security boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_SECURITY_BOUNDARY.md
-- pass report: https://github.com/chasebryan/-wuci-ji/blob/main/docs/APERTURE_BASTION_PASS_REPORT.md
-- repository boundary: https://github.com/chasebryan/-wuci-ji/blob/main/docs/SECURITY_BOUNDARY.md
-- CodeMeta JSON-LD: https://nosuchmachine.net/codemeta.json
-- citation metadata: https://nosuchmachine.net/citation.cff
-- hosted TLS requirements: https://nosuchmachine.net/hosting-requirements.json
-- claim/evidence map: https://nosuchmachine.net/claim-evidence.json
-- AI scoring integrity: https://nosuchmachine.net/ai-scoring-integrity.html
-- Daylight / Grok scoring audit: https://nosuchmachine.net/daylight-grok-audit.html
-- Daylight Audit Portal v1: https://nosuchmachine.net/audits/daylight/score-integrity/
+Official assets:
 
-AI scoring-integrity audit:
+- https://nosuchmachine.net/assets/no-such-machine-official-emblem.svg
+- https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg
+- https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg
 
-- scoring-integrity concern
-- provenance failure
-- capability-disclosure inconsistency
-- unsupported validation language
-- false precision risk
-- national defense AI assurance concern
-- standards-level review concern
-- NoEvidence(x) → NoScore(x)
-- NoProvenance(x) → NoAuthority(x)
-- NoExecution(x) → NoRuntimeScore(x)
-- Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.
+Current public focus:
+WuciOS v2.4 Reduction Gate.
 
-Public challenge:
+WuciOS v2.4 is a reduction-controlled, evidence-bound operating environment
+organized around Noether Core, Birkhoff Bastion, Tarski Review Appliance, and
+Euclid Substrate Trial.
 
-- Daylight v20 / Wuci-Ji current no-external score: 999,801,305 AM+
-- Daylight Audit Portal v1 result: PASS_SCORE_INTEGRITY
-- Latest score-integrity audit run: 2026-07-03-558d9fa
-- repo_owned_code_gap_count = 0
-- repo_owned_ceiling_reached = true
-- singularity_possible_without_external_validation = false
-- declaration_allowed = false
-- Recompute the Daylight v20 score.
-- Check the claim ledger.
-- Check the ratio math.
-- Check the v20.3 quorum boundary.
-- Find a mismatch.
-- If you find one, file it.
-- Challenge lane: review the evidence, reproduce the lane, challenge the claim surface
-- Remaining path: independent rebuild receipts, external firewall-profile review, non-fixture claim-usable 3-of-3 verifier vectors, and pinned cryptographic attestation verification
-- No endorsement is requested or implied
+Current status:
 
-Local validation handles:
+- local evidence only
+- no substrate selected
+- Void is one candidate only
+- Noether Core is GUI-free
+- Birkhoff Bastion is optional
+- Tarski Review Appliance generates the review packet
+- Phase 2B expands safe build feasibility probes to Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference
+- Phase 3A defines controlled build rooms and backend readiness without executing builds
+- missing measurements are NOT_MEASURED
 
-- make daylight-v19-aperture-bastion-ci
-- make daylight-public-artifact-firewall
+Validation handles:
+
+- make wucios-validate
+- make wucios-fluff-audit
+- make wucios-substrate-matrix
+- make wucios-euclid-buildrooms-phase-3a
+- make wucios-review
 - make site-validate
 
 Non-claims:
@@ -85,4 +54,4 @@ Non-claims:
 - not government validation
 - not external certification
 - not independent audit completion
-- not a perfect score claim from repository-owned evidence
+- not production authority

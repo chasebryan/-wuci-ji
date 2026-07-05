@@ -77,14 +77,14 @@ def check_https_root() -> list[Check]:
         Check("https-root-wuci-marker", contains(response.body, "Wuci-Ji v2"), "homepage contains Wuci-Ji v2"),
         Check(
             "https-root-emblem-marker",
-            contains(response.body, "assets/wuci-ji-official-emblem.jpg"),
-            "homepage references official emblem",
+            contains(response.body, "assets/no-such-machine-official-emblem.svg"),
+            "homepage references transparent official emblem",
         ),
         Check(
             "https-root-v20-challenge-marker",
             contains(response.body, "assets/daylight-v20-public-challenge-780thc.jpg")
-            and contains(response.body, "Review the evidence. Reproduce the lane.")
-            and contains(response.body, "No endorsement is requested or implied."),
+            and contains(response.body, "Review evidence, reproduce the lane")
+            and contains(response.body, "Endorsement is not implied."),
             "homepage references Daylight v20 public challenge",
         ),
     ]
@@ -231,7 +231,9 @@ def run_checks() -> list[Check]:
             [
                 "https://nosuchmachine.net/",
                 "audits/daylight/score-integrity/",
-                "wuci-ji-official-emblem.jpg",
+                "no-such-machine-official-banner.jpg",
+                "no-such-machine-official-emblem.svg",
+                "no-such-machine-official-emblem.jpg",
                 "daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
                 "daylight-v20-public-challenge-780thc.jpg",
                 "daylight-v20-gate-fixture-score-surface.webp",
@@ -288,6 +290,9 @@ def run_checks() -> list[Check]:
         )
     )
     checks.extend(check_binary_asset("assets/wuci-ji-official-emblem.jpg", "image/jpeg"))
+    checks.extend(check_binary_asset("assets/no-such-machine-official-emblem.svg", "image/svg+xml"))
+    checks.extend(check_binary_asset("assets/no-such-machine-official-emblem.jpg", "image/jpeg"))
+    checks.extend(check_binary_asset("assets/no-such-machine-official-banner.jpg", "image/jpeg"))
     checks.extend(check_binary_asset("assets/wuci-ji-v2-aperture-bastion.jpeg", "image/jpeg"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp", "image/webp"))
     checks.extend(check_binary_asset("assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png", "image/png"))

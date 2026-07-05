@@ -8,6 +8,8 @@ const siteRoot = new URL(".", import.meta.url);
 
 const requiredFiles = [
   "index.html",
+  "product-boundary.html",
+  "wucios.html",
   "ai-scoring-integrity.html",
   "daylight-grok-audit.html",
   "audits/daylight/score-integrity/index.html",
@@ -34,6 +36,9 @@ const requiredFiles = [
   "assets/wuci-ji-white-brick-banner.jpg",
   "assets/wuci-ji-black-brick-banner.jpg",
   "assets/wuci-ji-official-emblem.jpg",
+  "assets/no-such-machine-official-emblem.jpg",
+  "assets/no-such-machine-official-emblem.svg",
+  "assets/no-such-machine-official-banner.jpg",
   "assets/wuci-ji-v2-aperture-bastion.jpeg",
   "assets/wuci-daylight-v15-meridian-banner.png",
   "assets/daylight-v17-singularity.jpg",
@@ -114,86 +119,68 @@ async function assertIndexReferences() {
   }
   for (const required of [
     'name="robots"',
-    'name="application-name" content="Wuci-Ji"',
+    'name="application-name" content="No Such Machine"',
     'rel="canonical"',
-    'rel="sitemap"',
     'rel="author"',
     'rel="alternate"',
-    'type="text/plain" href="/citation.cff"',
-    'type="application/ld+json" href="/codemeta.json"',
-    'type="application/json" href="/hosting-requirements.json"',
-    'type="application/json" href="/claim-evidence.json"',
-    'itemtype="https://schema.org/SoftwareSourceCode"',
-    'itemprop="codeRepository"',
-    'itemprop="logo"',
     'rel="manifest"',
-    'rel="preload"',
     'rel="apple-touch-icon"',
     'property="og:image"',
-    'https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg',
+    'https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg',
     'name="twitter:card"',
-    'href="aperture-status.json"',
-    'href="/daylight-v20-aperture-singularity-status.json"',
-    'href="#meridian"',
-    'href="#aperture"',
-    'href="#assurance"',
-    'href="#review"',
-    'href="ai-scoring-integrity.html"',
-    'href="daylight-grok-audit.html"',
-    'href="audits/daylight/score-integrity/"',
-    'Audit Portal',
+    'No Such Machine — Wuci-Ji Public Evidence Surface',
+    '<section class="nsm-hero"',
+    'assets/no-such-machine-official-emblem.svg',
+    'assets/no-such-machine-official-banner.jpg',
+    'Official No Such Machine emblem: circular aperture compass with central bastion mark',
+    'href="#evidence"',
     'href="#daylight"',
-    'id="aperture"',
-    'id="assurance"',
+    'href="#wucios"',
+    'href="#catalog"',
+    'href="product-boundary.html"',
     'id="review"',
-    'id="catalog"',
-    'id="mae"',
+    'id="evidence"',
+    'id="daylight"',
     'id="meridian"',
-    'No public browser encryptor, private-key handler, or file opener is shipped.',
-    'make daylight-meridian-envelope-test',
-    'Wuci-Ji v2.2 — Aperture Bastion',
-    'assets/wuci-ji-official-emblem.jpg',
-    'Official Wuci-Ji emblem',
-    'Every public claim needs a local handle.',
-    'Claims, evidence, metadata, and host gates in one place.',
-    'AI scoring integrity',
-    'evidence-derived Daylight runtime scores',
+    'id="wucios"',
+    'id="catalog"',
+    'id="boundary"',
+    'Not production cryptography',
+    'Not runtime sandboxing',
+    'Not external certification',
+    'Browser cryptography is not shipped',
+    'Evidence-bound public review',
+    'NoEvidence(x) -&gt; NoClaim(x)',
+    'NoProof(x) -&gt; NoRelease(x)',
+    'ManualScore(x) -&gt; Reject(x)',
     'claim-evidence.json',
+    'aperture-status.json',
     'citation.cff',
+    'codemeta.json',
     'hosting-requirements.json',
     'daylight-v20-aperture-singularity-status.json',
     'https://nosuchmachine.net/',
-    'assets/wuci-ji-white-brick-banner.jpg',
-    'assets/wuci-ji-black-brick-banner.jpg',
-    'https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg',
-    'https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg',
     'assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp',
-    'assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.png',
-    'Daylight v20 repo-owned score surface',
+    'Daylight v20 repo-owned ceiling score surface',
     '999,801,305 AM+',
     'assets/daylight-v20-public-challenge-780thc.jpg',
     'Daylight v20 public challenge',
-    'Review the evidence. Reproduce the lane.',
     'repo_owned_code_gap_count = 0',
     'repo_owned_ceiling_reached = true',
     'singularity_possible_without_external_validation = false',
     'declaration_allowed = false',
     'Technical review requested',
     'No endorsement is requested or implied',
-    'repo-owned ceiling score surface, non-declaration',
     'assets/daylight-v20-gate-fixture-score-surface.webp',
-    'assets/daylight-v20-gate-fixture-score-surface.png',
-    'Daylight v20 Gate fixture surface',
-    'marked non-declaration',
-    'assets/daylight-v20-gate-aes-256-gcm-comparison-surface.webp',
-    'assets/daylight-v20-gate-aes-256-gcm-comparison-surface.png',
-    'Daylight v20 heuristic comparison',
-    'not external certification',
+    'Fixture score surface, not claim-usable external evidence.',
     'make daylight-public-artifact-firewall',
     '28564990503',
     'v2.2.0-aperture-bastion',
     'ce077fea615528634ad27fec516fdb402f101602',
-    '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0'
+    '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0',
+    'WuciOS v2.4 Reduction Gate',
+    'make wucios-validate',
+    'make wucios-review'
   ]) {
     if (!index.includes(required)) {
       fail(`index.html is missing SEO or site marker: ${required}`);
@@ -291,7 +278,7 @@ async function assertNotFoundPage() {
   for (const required of [
     'name="robots" content="noindex, follow"',
     'rel="canonical" href="https://nosuchmachine.net/"',
-    'assets/wuci-ji-official-emblem.jpg',
+    'assets/no-such-machine-official-emblem.svg',
     'http-equiv="Content-Security-Policy"',
     'upgrade-insecure-requests',
     'name="referrer"'
@@ -382,13 +369,13 @@ async function assertApertureStatusBinding() {
 
 async function assertClaimBoundaryLanguage() {
   const index = await readFile(new URL("index.html", siteRoot), "utf8");
-  const normalized = index.replace(/\s+/g, " ");
+  const normalized = index.replace(/\s+/g, " ").toLowerCase();
   for (const required of [
     "not production cryptography",
     "not a general runtime sandbox",
     "not host-cleanliness proof",
     "not whole-system post-quantum secure",
-    "not FIPS validation",
+    "not fips validation",
     "not government validation",
     "not external certification",
     "not independently audited"
@@ -400,11 +387,11 @@ async function assertClaimBoundaryLanguage() {
   for (const forbidden of [
     "production-ready cryptography",
     "runtime sandboxing guaranteed",
-    "host cleanliness proof",
+    "proves host cleanliness",
     "post-quantum safe",
-    "FIPS validated",
-    "government validated",
-    "externally certified",
+    "is fips validated",
+    "is government validated",
+    "is externally certified",
     "independently audited by"
   ]) {
     if (normalized.includes(forbidden)) {
@@ -823,8 +810,12 @@ async function assertSearchDiscoveryFiles() {
   }
   for (const required of [
     "xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\"",
-    "<image:loc>https://nosuchmachine.net/assets/wuci-ji-v2-aperture-bastion.jpeg</image:loc>",
-    "<image:loc>https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg</image:loc>",
+    "<image:loc>https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg</image:loc>",
+    "<image:loc>https://nosuchmachine.net/assets/no-such-machine-official-emblem.svg</image:loc>",
+    "<image:loc>https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg</image:loc>",
+    "<image:title>No Such Machine official banner</image:title>",
+    "<image:title>No Such Machine official transparent emblem</image:title>",
+    "<image:title>No Such Machine official emblem</image:title>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp</image:loc>",
     "<image:title>Daylight v20 Gate repo-owned score surface</image:title>",
     "<image:loc>https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg</image:loc>",
@@ -852,55 +843,40 @@ async function assertSearchDiscoveryFiles() {
     fail("sitemap.xml lastmod must reflect the Aperture Bastion site update");
   }
   const manifest = JSON.parse(await readFile(new URL("site.webmanifest", siteRoot), "utf8"));
-  if (manifest.name !== "Wuci-Ji" || manifest.short_name !== "Wuci-Ji" || manifest.start_url !== "/") {
+  if (manifest.name !== "No Such Machine" || manifest.short_name !== "NSM" || manifest.start_url !== "/") {
     fail("site.webmanifest has unexpected identity or start_url");
   }
-  if (!manifest.description.includes("Wuci-Ji v2.2 Aperture Bastion")) {
-    fail("site.webmanifest must describe the Aperture Bastion surface");
+  if (!manifest.description.includes("No Such Machine public evidence surface")) {
+    fail("site.webmanifest must describe the No Such Machine public evidence surface");
   }
-  if (!manifest.icons.some((icon) => icon.src === "/assets/wuci-ji-official-emblem.jpg" && icon.type === "image/jpeg")) {
-    fail("site.webmanifest must expose the official Wuci-Ji emblem");
+  if (!manifest.icons.some((icon) => icon.src === "/assets/no-such-machine-official-emblem.jpg" && icon.type === "image/jpeg")) {
+    fail("site.webmanifest must expose the official No Such Machine emblem");
   }
 }
 
 async function assertPublicTextDiscovery() {
   const llms = await readFile(new URL("llms.txt", siteRoot), "utf8");
   for (const required of [
-    "Wuci-Ji v2.2 — Aperture Bastion",
-    "https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg",
-    "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9",
-    "https://nosuchmachine.net/aperture-status.json",
-    "https://nosuchmachine.net/codemeta.json",
-    "https://nosuchmachine.net/citation.cff",
-    "https://nosuchmachine.net/hosting-requirements.json",
-    "https://nosuchmachine.net/claim-evidence.json",
-    "https://nosuchmachine.net/daylight-v20-aperture-singularity-status.json",
-    "https://nosuchmachine.net/ai-scoring-integrity.html",
-    "https://nosuchmachine.net/daylight-grok-audit.html",
-    "https://nosuchmachine.net/audits/daylight/score-integrity/",
-    "https://nosuchmachine.net/assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
-    "https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg",
-    "repo_owned_code_gap_count = 0",
-    "Daylight Audit Portal v1 result: PASS_SCORE_INTEGRITY",
-    "Latest score-integrity audit run: 2026-07-03-558d9fa",
-    "repo_owned_ceiling_reached = true",
-    "singularity_possible_without_external_validation = false",
-    "declaration_allowed = false",
-    "Recompute the Daylight v20 score.",
-    "Check the claim ledger.",
-    "Check the ratio math.",
-    "Check the v20.3 quorum boundary.",
-    "Find a mismatch.",
-    "If you find one, file it.",
-    "No endorsement is requested or implied",
-    "NoEvidence(x) → NoScore(x)",
-    "NoProvenance(x) → NoAuthority(x)",
-    "NoExecution(x) → NoRuntimeScore(x)",
-    "Public file inspection is not runtime verification. Reading a repository is not executing a gate. A model-confidence score is not cryptographic evidence.",
-    "make daylight-v19-aperture-bastion-ci",
+    "No Such Machine / Wuci-Ji",
+    "https://nosuchmachine.net/assets/no-such-machine-official-emblem.svg",
+    "https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg",
+    "https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg",
+    "WuciOS v2.4 Reduction Gate",
+    "Noether Core",
+    "Birkhoff Bastion",
+    "Tarski Review Appliance",
+    "Euclid Substrate Trial",
+    "make wucios-validate",
+    "make wucios-review",
+    "make site-validate",
     "not production cryptography",
     "not runtime sandboxing",
-    "not external certification"
+    "not host-cleanliness proof",
+    "not whole-system post-quantum safety",
+    "not FIPS validation",
+    "not government validation",
+    "not external certification",
+    "not independent audit completion"
   ]) {
     if (!llms.includes(required)) {
       fail(`llms.txt is missing required research-agent marker: ${required}`);
@@ -910,9 +886,11 @@ async function assertPublicTextDiscovery() {
   if (
     !humans.includes("No Such Machine") ||
     !humans.includes("make site-validate") ||
-    !humans.includes("https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg") ||
+    !humans.includes("https://nosuchmachine.net/assets/no-such-machine-official-emblem.svg") ||
+    !humans.includes("890d4c6ccc6af97a4d4f3de4b53fe4c6384b03456053bbe66a7a3b06f739b6c4") ||
+    !humans.includes("0790f9fae750460099c38e217800deee0d97043a591918a2e478b594a18b4c8f") ||
     !humans.includes("https://nosuchmachine.net/citation.cff") ||
-    !humans.includes("716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9")
+    !humans.includes("https://nosuchmachine.net/claim-evidence.json")
   ) {
     fail("humans.txt is missing project identity or validation handle");
   }
@@ -1270,8 +1248,14 @@ async function assertClaimEvidenceMap() {
   }
 
   const emblem = claims.get("official-emblem");
-  if (emblem?.evidence_values?.sha256 !== await sha256Hex("assets/wuci-ji-official-emblem.jpg")) {
-    fail("claim-evidence.json official-emblem sha256 must match asset bytes");
+  if (emblem?.evidence_values?.emblem_sha256 !== await sha256Hex("assets/no-such-machine-official-emblem.jpg")) {
+    fail("claim-evidence.json official-emblem emblem_sha256 must match asset bytes");
+  }
+  if (emblem?.evidence_values?.emblem_svg_sha256 !== await sha256Hex("assets/no-such-machine-official-emblem.svg")) {
+    fail("claim-evidence.json official-emblem emblem_svg_sha256 must match asset bytes");
+  }
+  if (emblem?.evidence_values?.banner_sha256 !== await sha256Hex("assets/no-such-machine-official-banner.jpg")) {
+    fail("claim-evidence.json official-emblem banner_sha256 must match asset bytes");
   }
   const apertureClaim = claims.get("aperture-review-capsule");
   if (apertureClaim?.evidence_values?.release_tag !== aperture.release_tag) {

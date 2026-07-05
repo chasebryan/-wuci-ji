@@ -15,15 +15,20 @@
   "claims": [
     {
       "id": "official-emblem",
-      "public_claim": "The website publishes the official Wuci-Ji emblem asset.",
+      "public_claim": "The website publishes the official No Such Machine / Wuci-Ji emblem asset.",
       "status": "local-static-artifact",
       "evidence_paths": [
         "site/assets/wuci-ji-official-emblem.jpg",
+        "site/assets/no-such-machine-official-emblem.svg",
+        "site/assets/no-such-machine-official-emblem.jpg",
+        "site/assets/no-such-machine-official-banner.jpg",
         "site/humans.txt",
         "site/llms.txt"
       ],
       "evidence_values": {
-        "sha256": "716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9"
+        "emblem_sha256": "890d4c6ccc6af97a4d4f3de4b53fe4c6384b03456053bbe66a7a3b06f739b6c4",
+        "emblem_svg_sha256": "0790f9fae750460099c38e217800deee0d97043a591918a2e478b594a18b4c8f",
+        "banner_sha256": "ecdd6006344afd0ec6aacc9c46765deb9210360359601ace9dec13e02e47ecb3"
       },
       "validation_commands": [
         "make site-validate"
