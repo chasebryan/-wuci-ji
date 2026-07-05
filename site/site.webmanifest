@@ -1,16 +1,22 @@
 {
-  "name": "Wuci-Ji",
-  "short_name": "Wuci-Ji",
-  "description": "Wuci-Ji v2 Aperture Bastion and Daylight v20 public challenge artifacts with explicit evidence boundaries.",
+  "name": "No Such Machine",
+  "short_name": "NSM",
+  "description": "No Such Machine public evidence surface for Wuci-Ji defensive machine-code research with explicit claim boundaries.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0f1411",
-  "theme_color": "#0f1411",
+  "background_color": "#080807",
+  "theme_color": "#080807",
   "icons": [
     {
+      "src": "/assets/no-such-machine-official-emblem.jpg",
+      "sizes": "1254x1254",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
       "src": "/assets/wuci-ji-official-emblem.jpg",
-      "sizes": "400x400",
+      "sizes": "1254x1254",
       "type": "image/jpeg",
       "purpose": "any"
     },

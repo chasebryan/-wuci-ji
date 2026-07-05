@@ -7,11 +7,22 @@ https://github.com/chasebryan/-wuci-ji
 Current public surface:
 WuciOS v2.4 Reduction Gate
 
-Official Wuci-Ji emblem:
+Official No Such Machine / Wuci-Ji emblem:
 https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
+https://nosuchmachine.net/assets/no-such-machine-official-emblem.svg
+https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg
+
+Official No Such Machine banner:
+https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg
 
 Official emblem SHA-256:
-716a6a2f845ef9f5c8ae1493474db1ec653fdb09a478089fd144b09c4fd04de9
+890d4c6ccc6af97a4d4f3de4b53fe4c6384b03456053bbe66a7a3b06f739b6c4
+
+Official transparent emblem SVG SHA-256:
+0790f9fae750460099c38e217800deee0d97043a591918a2e478b594a18b4c8f
+
+Official banner SHA-256:
+ecdd6006344afd0ec6aacc9c46765deb9210360359601ace9dec13e02e47ecb3
 
 Research metadata:
 https://nosuchmachine.net/codemeta.json

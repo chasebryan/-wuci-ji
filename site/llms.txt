@@ -1,8 +1,20 @@
-# Wuci-Ji
+# No Such Machine / Wuci-Ji
 
 Site: https://nosuchmachine.net/
 Repository: https://github.com/chasebryan/-wuci-ji
 WuciOS v2.4: https://nosuchmachine.net/wucios.html
+
+Public brand:
+No Such Machine
+
+Project surface:
+Wuci-Ji / 无此机
+
+Official assets:
+
+- https://nosuchmachine.net/assets/no-such-machine-official-emblem.svg
+- https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg
+- https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg
 
 Current public focus:
 WuciOS v2.4 Reduction Gate.

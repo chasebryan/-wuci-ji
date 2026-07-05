@@ -5,28 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="application-name" content="Wuci-Ji">
-    <meta name="description" content="Wuci-Ji publishes local evidence, bounded claims, and WuciOS v2.4 Reduction Gate review surfaces.">
+    <meta name="application-name" content="No Such Machine">
+    <meta name="author" content="No Such Machine">
+    <meta name="creator" content="No Such Machine">
+    <meta name="publisher" content="No Such Machine">
+    <meta name="description" content="Public evidence, review capsules, and claim-boundary documentation for Wuci-Ji defensive machine-code research.">
     <meta name="robots" content="index, follow">
     <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#080807">
+    <meta property="og:title" content="No Such Machine — Wuci-Ji Public Evidence Surface">
+    <meta property="og:description" content="Evidence-bound public review surface for Wuci-Ji defensive machine-code research.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nosuchmachine.net/">
+    <meta property="og:image" content="https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg">
+    <meta property="og:site_name" content="No Such Machine">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="No Such Machine — Wuci-Ji Public Evidence Surface">
+    <meta name="twitter:description" content="Public evidence, review capsules, and claim-boundary documentation for Wuci-Ji defensive machine-code research.">
+    <meta name="twitter:image" content="https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg">
     <link rel="canonical" href="https://nosuchmachine.net/">
     <link rel="manifest" href="site.webmanifest">
+    <link rel="author" href="humans.txt" type="text/plain">
+    <link rel="alternate" href="codemeta.json" type="application/ld+json" title="CodeMeta">
+    <link rel="alternate" href="citation.cff" type="text/plain" title="Citation metadata">
+    <link rel="apple-touch-icon" href="assets/no-such-machine-official-emblem.jpg">
+    <link rel="icon" href="assets/no-such-machine-official-emblem.jpg" type="image/jpeg">
     <link rel="icon" href="favicon.png" type="image/png">
     <link rel="stylesheet" href="styles.css">
-    <title>Wuci-Ji</title>
+    <title>No Such Machine — Wuci-Ji Public Evidence Surface</title>
   </head>
   <body>
-    <a class="skip-link" href="#top">Skip to content</a>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header" data-header>
-      <a class="brand" href="#top" aria-label="Wuci-Ji home">
-        <img class="brand-mark" src="assets/wuci-ji-official-emblem.jpg" alt="" aria-hidden="true" width="400" height="400" decoding="async">
-        <span>Wuci-Ji</span>
+      <a class="brand" href="#main-content" aria-label="No Such Machine home">
+        <img class="brand-mark" src="assets/no-such-machine-official-emblem.svg" alt="" aria-hidden="true" width="1254" height="1254" decoding="async">
+        <span class="brand-copy">
+          <strong>No Such Machine</strong>
+          <small>Wuci-Ji / 无此机</small>
+        </span>
       </a>
       <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
-        <a href="wucios.html">WuciOS v2.4</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#daylight">Daylight</a>
+        <a href="#wucios">WuciOS</a>
+        <a href="#catalog">Catalog</a>
         <a href="product-boundary.html">Boundary</a>
-        <a href="conformance.html">Conformance</a>
-        <a href="audits/daylight/score-integrity/">Audit Portal</a>
         <a class="nav-repo" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
       </nav>
       <a class="repo-link" href="https://github.com/chasebryan/-wuci-ji">Repository</a>
@@ -35,120 +58,397 @@
       </button>
     </header>
 
-    <main id="top">
-      <section class="hero" aria-labelledby="hero-title">
-        <img class="hero-image" src="assets/wuci-ji-v2-aperture-bastion.jpeg" alt="Wuci-Ji public review emblem" width="1672" height="941" fetchpriority="high" decoding="async">
-        <div class="hero-shade" aria-hidden="true"></div>
-        <div class="hero-content">
-          <p class="eyebrow">Local evidence / bounded claims</p>
-          <h1 id="hero-title">Wuci-Ji</h1>
-          <p class="hero-copy">
-            Defensive research software for sealed artifacts, receipt-bound checks,
-            public evidence, and reviewable claim boundaries.
-          </p>
-          <div class="hero-actions" aria-label="Primary actions">
-            <a class="button primary" href="wucios.html">Open WuciOS v2.4</a>
-            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji">View source</a>
+    <main id="main-content">
+      <section class="nsm-hero" aria-labelledby="hero-title">
+        <img class="nsm-hero-banner" src="assets/no-such-machine-official-banner.jpg" alt="" aria-hidden="true" width="1672" height="941" fetchpriority="high" decoding="async">
+        <div class="nsm-shell nsm-hero-grid">
+          <div class="nsm-hero-copy">
+            <p class="eyebrow">Aperture Bastion / Daylight / public review capsule</p>
+            <div class="nsm-hero-lockup">
+              <div class="nsm-emblem-stage nsm-aperture" aria-label="Official emblem">
+                <img class="hero-emblem" src="assets/no-such-machine-official-emblem.svg" alt="Official No Such Machine emblem: circular aperture compass with central bastion mark" width="1254" height="1254" fetchpriority="high" decoding="async">
+                <p class="nsm-seal-note">Official emblem / evidence-bound public surface</p>
+              </div>
+              <div class="nsm-hero-wordmark">
+                <h1 id="hero-title">No Such Machine</h1>
+                <p class="hero-copy">
+                  Public evidence for defensive machine-code research. Claims stay bounded
+                  to what the repository can regenerate.
+                </p>
+                <div class="hero-actions" aria-label="Primary actions">
+                  <a class="button primary" href="#evidence">Inspect evidence</a>
+                  <a class="button secondary" href="product-boundary.html">Read claim boundary</a>
+                </div>
+              </div>
+            </div>
+            <dl class="hero-metrics" aria-label="Current posture">
+              <div>
+                <dt>Public brand</dt>
+                <dd>No Such Machine</dd>
+              </div>
+              <div>
+                <dt>Project surface</dt>
+                <dd>Wuci-Ji / 无此机</dd>
+              </div>
+              <div>
+                <dt>Current OS path</dt>
+                <dd>WuciOS v2.4 Reduction Gate</dd>
+              </div>
+            </dl>
           </div>
-          <dl class="hero-metrics" aria-label="Current posture">
-            <div>
-              <dt>Current OS path</dt>
-              <dd>v2.4 Reduction Gate</dd>
-            </div>
-            <div>
-              <dt>Evidence</dt>
-              <dd>local only</dd>
-            </div>
-            <div>
-              <dt>Authority</dt>
-              <dd>not production</dd>
-            </div>
-          </dl>
         </div>
       </section>
 
-      <section class="truth-band" aria-label="Current status">
+      <section class="truth-band nsm-boundary-rail" aria-label="Claim boundary summary">
         <div>
-          <strong>Noether Core</strong>
-          <span>GUI-free, TTY-first, network-minimized base profile.</span>
+          <strong>Not production cryptography</strong>
+          <span>Classical and fixture evidence does not create production authority.</span>
         </div>
         <div>
-          <strong>Euclid Trial</strong>
-          <span>Phase 3A defines controlled build rooms for Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference.</span>
+          <strong>Not runtime sandboxing</strong>
+          <span>No OS containment claim is shown without equivalent enforcement and tests.</span>
         </div>
         <div>
-          <strong>Gödel Boundary</strong>
-          <span>Local evidence only. No external certification or production authority.</span>
+          <strong>Not external certification</strong>
+          <span>No independent audit, government validation, FIPS validation, or endorsement is claimed.</span>
+        </div>
+        <div>
+          <strong>Browser cryptography is not shipped</strong>
+          <span>No browser encryptor, private-key handler, or file opener is part of this public surface.</span>
+        </div>
+        <div>
+          <strong>Evidence-bound public review</strong>
+          <span>NoEvidence(x) -&gt; NoClaim(x). NoProof(x) -&gt; NoRelease(x).</span>
         </div>
       </section>
 
-      <section class="aperture-section" id="wucios" aria-labelledby="wucios-title">
-        <div class="aperture-copy">
-          <p class="eyebrow">WuciOS v2.4 Reduction Gate</p>
-          <h2 id="wucios-title">A reduction-controlled operating environment, not a desktop distro direction.</h2>
-          <p>
-            The v2.4 path separates Noether Core, Birkhoff Bastion, Tarski Review
-            Appliance, and Developer Desktop. Void is no longer treated as the
-            selected base. Xfce is non-authoritative development convenience only.
-          </p>
-          <div class="aperture-actions" aria-label="WuciOS documents">
-            <a class="button primary" href="wucios.html">Read WuciOS page</a>
+      <section class="nsm-section nsm-review-surface" id="review" aria-labelledby="review-title">
+        <div class="nsm-shell">
+          <div class="section-heading nsm-heading">
+            <div>
+              <p class="eyebrow">Aperture review surface</p>
+              <h2 id="review-title">A public capsule, not a trust shortcut.</h2>
+            </div>
+            <p>
+              Aperture Bastion binds public artifacts to subject bytes, manifest
+              references, and non-claim boundaries. The capsule gives reviewers
+              handles to inspect; it does not promote local evidence into external authority.
+            </p>
+          </div>
+          <div class="nsm-card-grid">
+            <article class="nsm-bastion-card">
+              <span>01 / subject bytes</span>
+              <h3>Subject bytes pinned</h3>
+              <p>The capsule digest is published with the release tag and commit reference.</p>
+              <p class="does-not">Does not prove: production cryptography or runtime containment.</p>
+              <a class="text-link" href="aperture-status.json">aperture-status.json</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>02 / public artifact</span>
+              <h3>Firewalled artifact</h3>
+              <p>The public artifact profile rejects private-material patterns and unexpected files before publication.</p>
+              <p class="does-not">Does not prove: host cleanliness or unknown-secret absence.</p>
+              <a class="text-link" href="hosting-requirements.json">hosting-requirements.json</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>03 / references</span>
+              <h3>Evidence references checked</h3>
+              <p>Claim text is mapped to paths, commands, status values, and explicit non-claims.</p>
+              <p class="does-not">Does not prove: certification, endorsement, or independent audit completion.</p>
+              <a class="text-link" href="claim-evidence.json">claim-evidence.json</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>04 / hosted surface</span>
+              <h3>Hosted/local comparison</h3>
+              <p>Hosting requirements declare canonical HTTPS, redirects, status JSON, and required public assets.</p>
+              <p class="does-not">Does not prove: current hosted compliance until the live gate passes.</p>
+              <a class="text-link" href="hosting-requirements.json">hosting requirements</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="nsm-section evidence-index" id="evidence" aria-labelledby="evidence-title">
+        <div class="nsm-shell">
+          <div class="section-heading nsm-heading">
+            <div>
+              <p class="eyebrow">Evidence index</p>
+              <h2 id="evidence-title">Inspection ports for the public surface.</h2>
+            </div>
+            <p>
+              Each handle below answers what is shown, what local evidence checks it,
+              and what it does not claim.
+            </p>
+          </div>
+          <div class="evidence-grid">
+            <article class="nsm-bastion-card">
+              <span>claim map</span>
+              <h3>claim-evidence.json</h3>
+              <p>Maps public claims to local files, values, and validation commands.</p>
+              <p class="does-not">Does not prove: external certification or government validation.</p>
+              <a class="text-link" href="claim-evidence.json">Open JSON</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>capsule status</span>
+              <h3>aperture-status.json</h3>
+              <p>Publishes release tag, capsule digest, hosted workflow, and artifact-diff status.</p>
+              <p class="does-not">Does not prove: runtime sandboxing or host-cleanliness proof.</p>
+              <a class="text-link" href="aperture-status.json">Open status</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>daylight gate</span>
+              <h3>daylight-v20 status</h3>
+              <p>Records declaration refusal, fixture limits, external evidence gaps, and blockers.</p>
+              <p class="does-not">Does not prove: Singularity declaration or independent audit.</p>
+              <a class="text-link" href="daylight-v20-aperture-singularity-status.json">Open status</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>metadata</span>
+              <h3>CodeMeta / citation</h3>
+              <p>Provides machine-readable research software metadata and citation information.</p>
+              <p class="does-not">Does not prove: third-party indexing or endorsement.</p>
+              <a class="text-link" href="codemeta.json">CodeMeta</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>hosting</span>
+              <h3>hosting-requirements.json</h3>
+              <p>Declares canonical URL, header expectations, redirects, and public assets.</p>
+              <p class="does-not">Does not prove: server compromise resistance.</p>
+              <a class="text-link" href="hosting-requirements.json">Open requirements</a>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>boundary</span>
+              <h3>product-boundary.html</h3>
+              <p>Separates evidence-bound claim verification from production security replacement claims.</p>
+              <p class="does-not">Does not prove: endpoint protection, SIEM replacement, or IAM replacement.</p>
+              <a class="text-link" href="product-boundary.html">Read boundary</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="nsm-section daylight-ladder" id="daylight" aria-labelledby="daylight-title">
+        <div class="nsm-shell">
+          <div class="section-heading nsm-heading">
+            <div>
+              <p class="eyebrow">Daylight proof ladder</p>
+              <h2 id="daylight-title">Conservative claim, self-progress, external evidence.</h2>
+            </div>
+            <p>
+              Daylight distinguishes repository-owned progress from claim-usable
+              external evidence. The v20 surface records a refusal, not a declaration.
+            </p>
+          </div>
+          <div class="proof-ladder">
+            <article class="proof-step">
+              <span class="nsm-status-pill steel">Conservative claim</span>
+              <h3>Aperture Bastion capsule</h3>
+              <p>Release evidence is local and reviewable through the Aperture status file and CI handles.</p>
+              <code class="nsm-command">make daylight-v19-aperture-bastion-ci</code>
+            </article>
+            <article class="proof-step">
+              <span class="nsm-status-pill crimson">Declaration refused</span>
+              <h3>Daylight v20 Gate</h3>
+              <p>Repo-owned ceiling progress is recorded, while fixture vectors and missing external evidence keep the declaration blocked.</p>
+              <code class="nsm-command">make daylight-v20-aperture-singularity-ci</code>
+            </article>
+            <article class="proof-step">
+              <span class="nsm-status-pill steel">External evidence required</span>
+              <h3>Review challenge</h3>
+              <p>Review evidence, reproduce the lane, find a false claim, or show a reproducibility failure. Endorsement is not implied.</p>
+              <code class="nsm-command">make site-validate</code>
+            </article>
+          </div>
+          <div class="challenge-callout">
+            <figure>
+              <img src="assets/daylight-v20-public-challenge-780thc.jpg" alt="Daylight v20 public technical review challenge poster" width="1122" height="1402" loading="lazy" decoding="async">
+              <figcaption>Daylight v20 public review challenge: evidence review request, not endorsement.</figcaption>
+            </figure>
+            <div class="challenge-copy">
+              <p class="eyebrow">Public technical review requested</p>
+              <h3>Challenge the evidence, not the boundary.</h3>
+              <p>
+                The requested review actions are narrow: inspect the evidence map,
+                reproduce the lane, identify false claim text, or show a reproducibility
+                failure. No bounty, certification, or adoption claim is made here.
+              </p>
+              <div class="challenge-actions">
+                <a class="button primary" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/DAYLIGHT_V20_REVIEWER_PACKET.md">Reviewer packet</a>
+                <a class="button secondary" href="daylight-v20-aperture-singularity-status.json">Gate status</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="nsm-section meridian-seal" id="meridian" aria-labelledby="meridian-title">
+        <div class="nsm-shell meridian-grid">
+          <div>
+            <p class="eyebrow">Meridian / envelope lane</p>
+            <h2 id="meridian-title">Browser cryptography is not shipped.</h2>
+            <p>
+              Evidence is reviewable; browser cryptography is not shipped.
+              No public browser encryptor, private-key handler, or file opener is shipped.
+              The website is a static read-only review surface, not a client-side trust
+              decision engine.
+            </p>
+          </div>
+          <div class="sealed-list" aria-label="Browser boundary">
+            <div>
+              <strong>No browser encryption or decryption tool</strong>
+              <span>Evidence pages link to artifacts; they do not process private material.</span>
+            </div>
+            <div>
+              <strong>No browser private-key handling</strong>
+              <span>Trust decisions remain outside the public static page runtime.</span>
+            </div>
+            <div>
+              <strong>No browser file-opening surface</strong>
+              <span>Reviewers use repository-local commands and published status files.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="nsm-section command-section" id="wucios" aria-labelledby="wucios-title">
+        <div class="nsm-shell">
+          <div class="section-heading nsm-heading">
+            <div>
+              <p class="eyebrow">WuciOS v2.4 Reduction Gate</p>
+              <h2 id="wucios-title">Reduction-controlled, not substrate-selected.</h2>
+            </div>
+            <p>
+              Noether Core, Birkhoff Bastion, Tarski Review Appliance, and Euclid Trial
+              remain separated. Void is no longer treated as the selected base.
+              Xfce is non-authoritative development convenience only.
+            </p>
+          </div>
+          <div class="command-grid">
+            <article class="command-card">
+              <div class="command-card-head">
+                <h3>Validate structure</h3>
+                <button class="copy-button" type="button" data-copy="make wucios-validate">Copy</button>
+              </div>
+              <pre><code>make wucios-validate</code></pre>
+            </article>
+            <article class="command-card">
+              <div class="command-card-head">
+                <h3>Audit claims</h3>
+                <button class="copy-button" type="button" data-copy="make wucios-fluff-audit">Copy</button>
+              </div>
+              <pre><code>make wucios-fluff-audit</code></pre>
+            </article>
+            <article class="command-card">
+              <div class="command-card-head">
+                <h3>Substrate matrix</h3>
+                <button class="copy-button" type="button" data-copy="make wucios-substrate-matrix">Copy</button>
+              </div>
+              <pre><code>make wucios-substrate-matrix</code></pre>
+            </article>
+            <article class="command-card">
+              <div class="command-card-head">
+                <h3>Euclid Trial phase 1</h3>
+                <button class="copy-button" type="button" data-copy="make wucios-euclid-trial-phase-1">Copy</button>
+              </div>
+              <pre><code>make wucios-euclid-trial-phase-1</code></pre>
+            </article>
+            <article class="command-card">
+              <div class="command-card-head">
+                <h3>Euclid Trial phase 2</h3>
+                <button class="copy-button" type="button" data-copy="make wucios-euclid-trial-phase-2">Copy</button>
+              </div>
+              <pre><code>make wucios-euclid-trial-phase-2</code></pre>
+            </article>
+            <article class="command-card">
+              <div class="command-card-head">
+                <h3>Review packet</h3>
+                <button class="copy-button" type="button" data-copy="make wucios-review">Copy</button>
+              </div>
+              <pre><code>make wucios-review</code></pre>
+            </article>
+          </div>
+          <div class="wucios-actions">
+            <a class="button primary" href="wucios.html">Open WuciOS v2.4</a>
             <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/wucios/WUCIOS_V24_REDUCTION_GATE.md">Reduction Gate doc</a>
           </div>
         </div>
-        <div class="aperture-panel" aria-label="Validation commands">
-          <dl class="verification-list">
+      </section>
+
+      <section class="gallery nsm-gallery" id="catalog" aria-labelledby="catalog-title">
+        <div class="nsm-shell">
+          <div class="section-heading nsm-heading">
             <div>
-              <dt>Validate structure</dt>
-              <dd><code>make wucios-validate</code></dd>
+              <p class="eyebrow">Artifact catalog</p>
+              <h2 id="catalog-title">Official emblem first, evidence surfaces after.</h2>
             </div>
-            <div>
-              <dt>Audit claims</dt>
-              <dd><code>make wucios-fluff-audit</code></dd>
-            </div>
-            <div>
-              <dt>Substrate matrix</dt>
-              <dd><code>make wucios-substrate-matrix</code></dd>
-            </div>
-            <div>
-              <dt>Trial phase 1</dt>
-              <dd><code>make wucios-euclid-trial-phase-1</code></dd>
-            </div>
-            <div>
-              <dt>Trial phase 2</dt>
-              <dd><code>make wucios-euclid-trial-phase-2</code></dd>
-            </div>
-            <div>
-              <dt>Build rooms</dt>
-              <dd><code>make buildroom-readiness</code></dd>
-            </div>
-            <div>
-              <dt>Review packet</dt>
-              <dd><code>make wucios-review</code></dd>
-            </div>
-          </dl>
+            <p>
+              Visual artifacts are cataloged as public inspection material. They are
+              not used to replace status JSON, commands, or claim boundaries.
+            </p>
+          </div>
+          <div class="image-grid">
+            <figure>
+              <img src="assets/no-such-machine-official-emblem.svg" alt="Official No Such Machine emblem: circular aperture compass with central bastion mark" width="1254" height="1254" loading="lazy" decoding="async">
+              <figcaption>Official No Such Machine emblem / circular aperture compass with central bastion mark.</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/no-such-machine-official-banner.jpg" alt="No Such Machine official banner with circular aperture compass and central bastion mark" width="1672" height="941" loading="lazy" decoding="async">
+              <figcaption>No Such Machine official banner for the public evidence surface.</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/wuci-ji-v2-aperture-bastion.jpeg" alt="Wuci-Ji v2 Aperture Bastion public review surface" width="1672" height="941" loading="lazy" decoding="async">
+              <figcaption>Aperture Bastion visual surface for public review.</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp" alt="Daylight v20 repo-owned ceiling score surface" width="1254" height="1254" loading="lazy" decoding="async">
+              <figcaption>Daylight v20 repo-owned ceiling surface; declaration remains refused.</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/daylight-v20-gate-fixture-score-surface.webp" alt="Daylight v20 fixture score surface" width="1254" height="1254" loading="lazy" decoding="async">
+              <figcaption>Fixture score surface, not claim-usable external evidence.</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/wuci-daylight-v15-meridian.webp" alt="Wuci Daylight v15 Meridian evidence surface" width="1672" height="941" loading="lazy" decoding="async">
+              <figcaption>Meridian evidence surface with browser-crypto refusal posture.</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/wuci-os-boot-splash.svg" alt="WuciOS boot splash mark" width="1200" height="675" loading="lazy" decoding="async">
+              <figcaption>WuciOS boot splash artifact for the reduction-gate surface.</figcaption>
+            </figure>
+          </div>
         </div>
       </section>
 
-      <section class="boundary" id="boundary" aria-labelledby="boundary-title">
+      <section class="boundary nsm-final-boundary" id="boundary" aria-labelledby="boundary-title">
         <div>
-          <p class="eyebrow">Non-claims</p>
-          <h2 id="boundary-title">Current status is local and bounded.</h2>
+          <p class="eyebrow">Gödel Boundary</p>
+          <h2 id="boundary-title">The claim boundary is the trust anchor.</h2>
         </div>
-        <p>
-          Wuci-Ji and WuciOS v2.4 are not externally certified, not production
-          authorized, not government approved, not a runtime sandbox claim, and
-          not a quantum-safe claim from classical-only evidence.
-        </p>
-        <a class="text-link" href="wucios.html#godel">Open the WuciOS non-claim boundary</a>
+        <div class="boundary-copy">
+          <p>
+            Wuci-Ji and WuciOS v2.4 are not externally certified, not production
+            authorized, not government approved, not a runtime sandbox claim, and
+            not a quantum-safe claim from classical-only evidence.
+          </p>
+          <ul class="boundary-rules" aria-label="Refusal discipline">
+            <li><code>NoEvidence(x) -&gt; NoClaim(x)</code></li>
+            <li><code>NoProof(x) -&gt; NoRelease(x)</code></li>
+            <li><code>ManualScore(x) -&gt; Reject(x)</code></li>
+          </ul>
+        </div>
+        <a class="text-link" href="wucios.html#godel">Open WuciOS non-claims</a>
       </section>
     </main>
 
-    <footer class="site-footer">
-      <span>No Such Machine</span>
+    <footer class="site-footer nsm-footer">
+      <div class="footer-brand">
+        <img src="assets/no-such-machine-official-emblem.svg" alt="" aria-hidden="true" width="1254" height="1254" loading="lazy" decoding="async">
+        <span>No Such Machine</span>
+      </div>
       <a href="https://github.com/chasebryan/-wuci-ji/blob/main/README.md">README</a>
       <a href="wucios.html">WuciOS v2.4</a>
-      <a href="https://github.com/chasebryan/-wuci-ji/blob/main/docs/PRODUCTION_READINESS.md">Production blockers</a>
+      <a href="product-boundary.html">Product boundary</a>
+      <a href="https://github.com/chasebryan/-wuci-ji">Repository</a>
     </footer>
     <script src="app.js" defer></script>
   </body>
