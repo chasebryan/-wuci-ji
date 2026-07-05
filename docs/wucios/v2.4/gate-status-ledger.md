@@ -26,6 +26,7 @@ evidence or expand runtime claims.
 - `docs/wucios/v2.4/gate-status-ledger.md`
 - `docs/wucios/v2.4/pr-merge-consideration-packet.md`
 - `docs/wucios/v2.4/post-main-adoption-stabilization.md`
+- `docs/wucios/v2.4/external-transmission-packet.md`
 - `docs/wucios/WUCIOS_V24_REDUCTION_GATE.md`
 - `README.md`
 
@@ -60,6 +61,11 @@ Gate 20 records the post-main adoption stabilization pass in
 `docs/wucios/v2.4/post-main-adoption-stabilization.md`. It verifies
 reviewer/status consistency only and performs no runtime testing, score change,
 artifact mutation, or raw runtime evidence commit.
+
+Gate 27 adopted the external transmission packet at
+`docs/wucios/v2.4/external-transmission-packet.md`. The packet is externally
+viewable reviewer/status documentation only and does not expand runtime,
+production, or external-validation claims.
 
 Raw runtime evidence remains local/ignored unless separately authorized.
 
