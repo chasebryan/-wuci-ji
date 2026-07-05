@@ -19,6 +19,15 @@ Official assets:
 Current public focus:
 WuciOS v2.4 Reduction Gate.
 
+Public evidence surface:
+Wuci-Ji v2 / Aperture Bastion.
+
+Daylight v20 public challenge poster:
+https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg
+
+Daylight declaration state:
+declaration_allowed = false
+
 WuciOS v2.4 is a reduction-controlled, evidence-bound operating environment
 organized around Noether Core, Birkhoff Bastion, Tarski Review Appliance, and
 Euclid Substrate Trial.
