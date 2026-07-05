@@ -1,0 +1,22 @@
+{
+  "profile_id": "missing-schema-version-plan",
+  "profile_purpose": "local dry-run planning input missing its schema marker",
+  "allowed_scope": [
+    "local_only",
+    "dry_run_only",
+    "repo_local",
+    "non_runtime",
+    "non_installing",
+    "non_profile_creating",
+    "non_host_mutating"
+  ],
+  "requested_outputs": [
+    "dry_run_plan"
+  ],
+  "non_claims_acknowledged": [
+    "no_profile_creation",
+    "no_package_install",
+    "no_runtime_execution",
+    "no_host_config_mutation"
+  ]
+}
