@@ -3074,7 +3074,8 @@ pre::before {
 
 .nsm-gallery figure,
 .challenge-callout figure,
-.field-review-callout figure {
+.field-review-callout figure,
+.domain-review-visual {
   background: #070707;
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
@@ -3090,6 +3091,68 @@ figure img {
 
 figcaption {
   border-top-color: rgba(216, 213, 206, 0.14);
+}
+
+.domain-review-section {
+  border-bottom: 1px solid var(--nsm-line);
+  background:
+    linear-gradient(180deg, #0a0a09 0%, #141211 54%, #0b0b0a 100%);
+}
+
+.domain-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+  gap: clamp(22px, 4vw, 48px);
+  align-items: center;
+}
+
+.domain-review-visual {
+  margin: 0;
+  border: 1px solid rgba(216, 213, 206, 0.22);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
+}
+
+.domain-review-visual img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1672 / 941;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.85) contrast(1.05) brightness(0.9);
+}
+
+.domain-review-copy {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.domain-review-copy h2 {
+  max-width: 12ch;
+  margin: 0;
+  color: var(--nsm-ink);
+  font-size: clamp(2.2rem, 4.6vw, 4.8rem);
+  line-height: 0.96;
+}
+
+.domain-review-copy p {
+  margin: 0;
+  color: var(--nsm-muted);
+}
+
+.domain-review-list {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.domain-review-list li {
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 213, 206, 0.16);
+  background: rgba(8, 8, 7, 0.42);
+  color: var(--nsm-steel);
 }
 
 .nsm-final-boundary {
@@ -3236,6 +3299,7 @@ figcaption {
   .meridian-grid,
   .challenge-callout,
   .field-review-callout,
+  .domain-review-grid,
   .nsm-final-boundary,
   .not-found-shell {
     grid-template-columns: 1fr;
@@ -3382,6 +3446,11 @@ figcaption {
 
   .field-review-callout img {
     min-height: 190px;
+  }
+
+  .domain-review-copy h2 {
+    max-width: 11ch;
+    font-size: clamp(2rem, 10vw, 3.4rem);
   }
 
   .wucios-actions,
