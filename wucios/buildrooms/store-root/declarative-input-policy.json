@@ -1,0 +1,56 @@
+{
+  "schema": "wucios.euclid.store_root_declarative_input_policy.v1",
+  "phase_id": "euclid-trial-phase-3c-c",
+  "status": "POLICY_ONLY_NOT_EXECUTABLE",
+  "inputs_evaluated_in_phase_3c_c": false,
+  "inputs_realized_in_phase_3c_c": false,
+  "network_allowed_in_phase_3c_c": false,
+  "candidates": {
+    "nixos_store_root": {
+      "declarative_input_type": "nixos-module-or-flake-policy",
+      "future_level_required": "L3",
+      "required_manifest_concepts": [
+        "flake.nix or configuration.nix policy",
+        "pinned nixpkgs identity",
+        "store root policy",
+        "cache policy",
+        "output path policy",
+        "evidence hook policy"
+      ],
+      "forbidden_in_phase_3c_c": [
+        "evaluate declarative input",
+        "realize store path",
+        "build derivation",
+        "activate system",
+        "use network",
+        "generate rootfs",
+        "select substrate",
+        "rank candidate",
+        "generate numeric score"
+      ]
+    },
+    "guix_store_root": {
+      "declarative_input_type": "guix-system-configuration-policy",
+      "future_level_required": "L3",
+      "required_manifest_concepts": [
+        "system configuration policy",
+        "channel manifest identity",
+        "store root policy",
+        "cache policy",
+        "output path policy",
+        "evidence hook policy"
+      ],
+      "forbidden_in_phase_3c_c": [
+        "evaluate declarative input",
+        "realize store path",
+        "build package",
+        "activate system",
+        "use network",
+        "generate rootfs",
+        "select substrate",
+        "rank candidate",
+        "generate numeric score"
+      ]
+    }
+  }
+}

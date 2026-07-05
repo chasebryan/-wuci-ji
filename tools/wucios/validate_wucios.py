@@ -40,10 +40,12 @@ REQUIRED_TOOLS = [
     "run_euclid_buildrooms_phase_3b_readiness.py",
     "run_euclid_buildrooms_phase_3c_a.py",
     "run_euclid_direct_rootfs_phase_3c_b.py",
+    "run_euclid_store_root_phase_3c_c.py",
     "buildroom_common.py",
     "backend_readiness_common.py",
     "synthetic_smoke_common.py",
     "direct_rootfs_prep_common.py",
+    "store_root_prep_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -131,6 +133,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_3B_READINESS.md",
     "EUCLID_TRIAL_PHASE_3C_A.md",
     "EUCLID_TRIAL_PHASE_3C_B.md",
+    "EUCLID_TRIAL_PHASE_3C_C.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -361,6 +364,72 @@ DIRECT_ROOTFS_CANDIDATE_POLICY_KEYS = {
     "phase_3c_b_forbidden_actions",
     "future_evidence_requirements",
     "blocked_until",
+}
+
+PHASE_3C_C_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "l1_authorized_by_default",
+    "l2_scaffold_authorized_by_default",
+    "l2_scaffold_authorization_env",
+    "l3_substrate_artifact_attempts_allowed",
+    "runtime_inspection_allowed",
+    "store_realization_allowed",
+    "derivation_build_allowed",
+    "package_build_allowed",
+    "system_activation_allowed",
+    "rootfs_generation_allowed",
+    "substrate_selection",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "numeric_score_allowed",
+    "network_default",
+    "image_pulls_allowed",
+    "container_builds_allowed",
+    "container_runs_allowed",
+    "vm_runs_allowed",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "source_clone_allowed",
+    "os_image_download_allowed",
+    "in_scope_candidates",
+    "out_of_scope_preserved",
+    "direct_rootfs_assumptions_insufficient_because",
+    "allowed_l1_actions",
+    "allowed_l2_actions",
+    "forbidden_actions",
+    "objectives",
+    "explicit_non_goals",
+}
+
+STORE_ROOT_CANDIDATES = ["nixos_store_root", "guix_store_root"]
+
+STORE_ROOT_CANDIDATE_POLICY_KEYS = {
+    "schema",
+    "phase_id",
+    "candidate_id",
+    "candidate_name",
+    "candidate_family",
+    "phase",
+    "preparation_level",
+    "declarative_input_type",
+    "required_inputs",
+    "optional_inputs",
+    "forbidden_commands",
+    "l1_status",
+    "l2_status",
+    "artifact_status",
+    "score_status",
+    "authorization_status",
+    "l3_artifact_attempt_allowed",
+    "rootfs_generation_allowed",
+    "store_realization_allowed",
+    "phase_3c_c_allowed_outputs",
+    "blocked_until",
+    "notes",
 }
 
 BUILDROOM_KEYS = {
@@ -1136,6 +1205,211 @@ def validate_euclid_direct_rootfs_phase_3c_b(failures: list[str], warnings: list
         failures.append("Makefile must contain Phase 3C-B guardrail target")
 
 
+def validate_euclid_store_root_phase_3c_c(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3C_C.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3C-C doc: docs/wucios/EUCLID_TRIAL_PHASE_3C_C.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms/store-root"
+    required_paths = [
+        buildrooms_dir / "euclid-store-root-phase-3c-c.json",
+        buildrooms_dir / "store-root-policy.json",
+        buildrooms_dir / "declarative-input-policy.json",
+        buildrooms_dir / "evidence-requirements.json",
+        buildrooms_dir / "guardrail-policy.json",
+        buildrooms_dir / "README.md",
+        ROOT / "wucios/schemas/euclid-store-root-phase-3c-c.schema.json",
+        ROOT / "wucios/schemas/store-root-candidate-preparation.schema.json",
+        ROOT / "wucios/schemas/store-root-declarative-input-policy.schema.json",
+        ROOT / "tools/wucios/run_euclid_store_root_phase_3c_c.py",
+        ROOT / "tools/wucios/store_root_prep_common.py",
+    ]
+    for candidate in STORE_ROOT_CANDIDATES:
+        required_paths.extend([
+            buildrooms_dir / candidate / "preparation-policy.json",
+            buildrooms_dir / candidate / "README.md",
+        ])
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3C-C file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-store-root-phase-3c-c.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3C_C_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3c-c":
+            failures.append("Phase 3C-C plan must use phase_id euclid-trial-phase-3c-c")
+        if plan.get("default_execution_mode") != "L1_STORE_ROOT_POLICY_AND_DECLARATIVE_INPUTS":
+            failures.append("Phase 3C-C plan must default to L1_STORE_ROOT_POLICY_AND_DECLARATIVE_INPUTS")
+        if plan.get("l2_scaffold_authorized_by_default") is not False:
+            failures.append("Phase 3C-C plan must disable L2 scaffold by default")
+        if plan.get("l2_scaffold_authorization_env") != "WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1":
+            failures.append("Phase 3C-C plan must require WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD=1")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3C-C plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "l3_substrate_artifact_attempts_allowed",
+            "runtime_inspection_allowed",
+            "numeric_score_allowed",
+            "image_pulls_allowed",
+            "container_builds_allowed",
+            "container_runs_allowed",
+            "vm_runs_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "source_clone_allowed",
+            "os_image_download_allowed",
+            "store_realization_allowed",
+            "derivation_build_allowed",
+            "package_build_allowed",
+            "system_activation_allowed",
+            "rootfs_generation_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3C-C plan must set {key} false")
+        if plan.get("network_default") != "DISABLED":
+            failures.append("Phase 3C-C plan must disable network by default")
+        if plan.get("in_scope_candidates") != STORE_ROOT_CANDIDATES:
+            failures.append("Phase 3C-C plan must scope only NixOS and Guix store-root candidates")
+        out_of_scope = plan.get("out_of_scope_preserved", {})
+        if not isinstance(out_of_scope, dict) or "phase_3c_b_direct_rootfs" not in out_of_scope or "phase_3c_d_heavy_source" not in out_of_scope or "phase_3c_e_reference_runtime" not in out_of_scope:
+            failures.append("Phase 3C-C plan must preserve Phase 3C-B, 3C-D, and 3C-E boundaries")
+        forbidden = "\n".join(str(item) for item in plan.get("forbidden_actions", []))
+        for phrase in [
+            "nix-build",
+            "nixos-rebuild",
+            "nix develop",
+            "nix shell",
+            "nix flake check",
+            "guix build",
+            "guix system",
+            "guix shell",
+            "guix environment",
+            "guix pull",
+            "store realization",
+            "network fetch",
+            "OS image download",
+            "rootfs generation",
+            "VM launch",
+            "sudo",
+            "package installation",
+            "source clone",
+            "substrate selection",
+            "candidate ranking",
+            "numeric WuciOS score",
+        ]:
+            if phrase not in forbidden:
+                failures.append(f"Phase 3C-C plan must forbid {phrase}")
+
+    store_policy_path = buildrooms_dir / "store-root-policy.json"
+    store_policy = load_json(store_policy_path, failures)
+    if isinstance(store_policy, dict):
+        if store_policy.get("phase_id") != "euclid-trial-phase-3c-c":
+            failures.append("store-root policy must use Phase 3C-C phase_id")
+        if store_policy.get("applies_to") != STORE_ROOT_CANDIDATES:
+            failures.append("store-root policy must apply only to NixOS and Guix store-root candidates")
+        for key in [
+            "l3_artifact_attempts_allowed",
+            "rootfs_generation_allowed",
+            "store_realization_allowed",
+            "derivation_build_allowed",
+            "package_build_allowed",
+            "system_activation_allowed",
+            "network_allowed",
+            "container_builds_allowed",
+            "container_runs_allowed",
+            "image_pulls_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "source_clone_allowed",
+            "os_image_download_allowed",
+        ]:
+            if store_policy.get(key) is not False:
+                failures.append(f"store-root policy must set {key} false")
+
+    declarative_path = buildrooms_dir / "declarative-input-policy.json"
+    declarative_policy = load_json(declarative_path, failures)
+    if isinstance(declarative_policy, dict):
+        if declarative_policy.get("status") != "POLICY_ONLY_NOT_EXECUTABLE":
+            failures.append("declarative-input-policy.json must be POLICY_ONLY_NOT_EXECUTABLE")
+        for key in ["inputs_evaluated_in_phase_3c_c", "inputs_realized_in_phase_3c_c", "network_allowed_in_phase_3c_c"]:
+            if declarative_policy.get(key) is not False:
+                failures.append(f"declarative-input-policy.json must set {key} false")
+        candidates = declarative_policy.get("candidates", {})
+        if not isinstance(candidates, dict):
+            failures.append("declarative-input-policy.json candidates must be an object")
+        else:
+            for candidate in STORE_ROOT_CANDIDATES:
+                item = candidates.get(candidate, {})
+                if not isinstance(item, dict):
+                    failures.append(f"declarative-input-policy.json missing {candidate}")
+                    continue
+                if item.get("future_level_required") != "L3":
+                    failures.append(f"{candidate} declarative input policy must require L3")
+                forbidden = "\n".join(str(entry) for entry in item.get("forbidden_in_phase_3c_c", []))
+                for phrase in ["evaluate declarative input", "realize store path", "use network", "generate rootfs", "select substrate", "rank candidate", "generate numeric score"]:
+                    if phrase not in forbidden:
+                        failures.append(f"{candidate} declarative input policy must forbid {phrase}")
+
+    evidence_path = buildrooms_dir / "evidence-requirements.json"
+    evidence = load_json(evidence_path, failures)
+    if isinstance(evidence, dict):
+        for key in ["phase_3c_c_generates_substrate_evidence", "phase_3c_c_generates_artifact_hashes", "phase_3c_c_generates_numeric_scores"]:
+            if evidence.get(key) is not False:
+                failures.append(f"Phase 3C-C evidence requirements must set {key} false")
+        required_outputs = evidence.get("future_l3_required_outputs", [])
+        for name in ["declarative-input-manifest.json", "store-policy.json", "store-realization-log.txt", "artifact-manifest.json", "artifact.sha256", "substrate-report.json", "missing-measurements.txt"]:
+            if name not in required_outputs:
+                failures.append(f"Phase 3C-C evidence requirements must include {name}")
+
+    guardrail_path = buildrooms_dir / "guardrail-policy.json"
+    guardrail_policy = load_json(guardrail_path, failures)
+    if isinstance(guardrail_policy, dict):
+        refusal_text = "\n".join(str(item) for item in guardrail_policy.get("required_refusal_checks", []))
+        for phrase in ["WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD", "WUCIOS_EUCLID_ALLOW_ATTEMPT", "WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD"]:
+            if phrase not in refusal_text:
+                failures.append(f"Phase 3C-C guardrail policy must include refusal check for {phrase}")
+        forbidden_text = "\n".join(str(item) for item in guardrail_policy.get("phase_3c_c_must_not_execute", []))
+        for phrase in ["nix-build", "nixos-rebuild", "nix develop", "nix shell", "nix flake check", "guix build", "guix system", "guix shell", "guix environment", "guix pull", "docker", "podman run", "buildah", "qemu", "virt-install", "sudo", "apt", "apk", "xbps-install", "pacman", "git clone"]:
+            if phrase not in forbidden_text:
+                failures.append(f"Phase 3C-C guardrail policy must forbid {phrase}")
+
+    for candidate in STORE_ROOT_CANDIDATES:
+        policy_path = buildrooms_dir / candidate / "preparation-policy.json"
+        policy = load_json(policy_path, failures)
+        if isinstance(policy, dict):
+            require_keys(policy_path, policy, STORE_ROOT_CANDIDATE_POLICY_KEYS, failures)
+            if policy.get("phase_id") != "euclid-trial-phase-3c-c":
+                failures.append(f"{candidate} policy must use Phase 3C-C phase_id")
+            if policy.get("candidate_id") != candidate:
+                failures.append(f"{candidate} policy candidate id mismatch")
+            if policy.get("l1_status") != "PREP_DECLARATIVE_INPUTS_MISSING":
+                failures.append(f"{candidate} policy must define PREP_DECLARATIVE_INPUTS_MISSING L1 status")
+            if policy.get("l2_status") != "PREP_DECLARATIVE_SCAFFOLD_GENERATED":
+                failures.append(f"{candidate} policy must define PREP_DECLARATIVE_SCAFFOLD_GENERATED L2 status")
+            if policy.get("artifact_status") != "NO_WUCIOS_ARTIFACT":
+                failures.append(f"{candidate} policy must keep NO_WUCIOS_ARTIFACT")
+            if policy.get("score_status") != "NO_ARTIFACT_SCORE":
+                failures.append(f"{candidate} policy must keep NO_ARTIFACT_SCORE")
+            for key in ["l3_artifact_attempt_allowed", "rootfs_generation_allowed", "store_realization_allowed"]:
+                if policy.get(key) is not False:
+                    failures.append(f"{candidate} policy must set {key} false")
+            forbidden = "\n".join(str(item) for item in policy.get("forbidden_commands", []))
+            for phrase in ["nix-build", "nixos-rebuild", "nix develop", "nix shell", "nix flake check", "guix build", "guix system", "guix shell", "guix environment", "guix pull", "docker", "podman run", "podman build", "buildah", "qemu", "virt-install", "sudo", "apt", "apk", "xbps-install", "pacman", "curl", "wget", "git clone"]:
+                if phrase not in forbidden:
+                    failures.append(f"{candidate} policy must forbid {phrase}")
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if "wucios-euclid-store-root-phase-3c-c-scaffold:" not in makefile:
+        failures.append("Makefile must contain Phase 3C-C guarded scaffold target")
+    if "WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD" not in makefile:
+        failures.append("Makefile Phase 3C-C scaffold target must check WUCIOS_PHASE3CC_ALLOW_L2_SCAFFOLD")
+    if "wucios-euclid-store-root-phase-3c-c-guardrails" not in makefile:
+        failures.append("Makefile must contain Phase 3C-C guardrail target")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -1156,6 +1430,7 @@ def main() -> int:
     validate_euclid_buildrooms_phase_3b_readiness(failures, warnings)
     validate_euclid_buildrooms_phase_3c_a(failures, warnings)
     validate_euclid_direct_rootfs_phase_3c_b(failures, warnings)
+    validate_euclid_store_root_phase_3c_c(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -1186,6 +1461,7 @@ def main() -> int:
     print(f"- Euclid Phase 3B readiness candidates: {len(FULL_TRIAL_COHORT)}")
     print("- Euclid Phase 3C-A synthetic smoke buildroom: present")
     print(f"- Euclid Phase 3C-B direct rootfs preparation candidates: {len(DIRECT_ROOTFS_CANDIDATES)}")
+    print(f"- Euclid Phase 3C-C store-root preparation candidates: {len(STORE_ROOT_CANDIDATES)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

@@ -60,3 +60,7 @@ Phase 3C-B follows Phase 3C-A by defining direct-rootfs preparation rules for Bu
 [EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
 
 Phase 3C-B remains a policy and non-artifact scaffold layer. It does not authorize L3 substrate artifact attempts, L4 runtime inspection, substrate selection, candidate ranking, or numeric WuciOS scoring.
+
+## Phase 3C-C Boundary
+
+Phase 3C-C defines NixOS/Guix store-root preparation rules. It does not build or run NixOS or Guix, realize store paths, generate rootfs images, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.

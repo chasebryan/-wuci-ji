@@ -65,3 +65,10 @@ Direct-rootfs preparation policy covers Buildroot, Alpine, Debian minimal, and
 Void. It does not generate rootfs images, attempt substrate artifacts, select a
 substrate, rank candidates, or generate an artifact score. NixOS/Guix, Yocto,
 and OpenBSD reference remain preserved for later dedicated policy phases.
+
+WuciOS Phase 3C-C:
+NixOS/Guix store-root preparation policy covers NixOS and Guix only. It does
+not build or run NixOS or Guix, realize store paths, generate rootfs images,
+attempt substrate artifacts, generate artifact hashes, select a substrate, rank
+candidates, or generate an artifact score. Yocto remains deferred to Phase 3C-D
+and OpenBSD reference remains deferred to Phase 3C-E.

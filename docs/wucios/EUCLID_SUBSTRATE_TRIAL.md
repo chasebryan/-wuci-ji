@@ -64,8 +64,13 @@ Phase 3C-B defines direct-rootfs preparation rules for Buildroot, Alpine,
 Debian minimal, and Void without generating rootfs images or substrate
 artifacts:
 [EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
-NixOS/Guix, Yocto, and OpenBSD reference remain assigned to later dedicated
-policy phases.
+Phase 3C-B is integrated at `9be4dcc` and closed for automated work.
+
+Phase 3C-C defines NixOS/Guix store-root preparation rules without building or
+running NixOS or Guix, realizing store paths, generating rootfs images, or
+creating artifacts:
+[EUCLID_TRIAL_PHASE_3C_C.md](EUCLID_TRIAL_PHASE_3C_C.md).
+Yocto and OpenBSD reference remain assigned to later dedicated policy phases.
 
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.

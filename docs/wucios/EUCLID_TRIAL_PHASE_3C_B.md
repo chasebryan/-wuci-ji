@@ -72,3 +72,7 @@ Preparation readiness does not select or rank any substrate.
 ## Score Boundary
 
 Phase 3C-B cannot produce a numeric WuciOS score.
+
+## Phase 3C-C Boundary
+
+Phase 3C-C follows Phase 3C-B by defining NixOS/Guix store-root preparation rules. Phase 3C-C must not reuse direct-rootfs assumptions without explicit policy justification. It does not authorize L3 substrate artifact attempts, L4 runtime inspection, store realization, substrate selection, candidate ranking, artifact hashes, or numeric WuciOS scoring.
