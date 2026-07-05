@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS Euclid Phase 3B readiness report schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "phase_name",
+    "global_status",
+    "execution_mode",
+    "substrate_selection",
+    "ranking_allowed",
+    "numeric_wucios_score_generated",
+    "score_status",
+    "build_attempt_made",
+    "container_pull_attempted",
+    "container_build_attempted",
+    "container_run_attempted",
+    "vm_run_attempted",
+    "sudo_used",
+    "package_installation_attempted",
+    "source_clone_attempted",
+    "image_download_attempted",
+    "candidate_count",
+    "host_summary",
+    "backend_summary",
+    "authorization_summary",
+    "candidates",
+    "phase_3c_preconditions",
+    "notes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.phase3b_readiness.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3b-readiness"
+    },
+    "global_status": {
+      "enum": [
+        "PHASE_3B_READINESS_NOT_RUN",
+        "PHASE_3B_READINESS_PARTIAL",
+        "PHASE_3B_READINESS_COMPLETE",
+        "PHASE_3B_READINESS_BLOCKED"
+      ]
+    },
+    "execution_mode": {
+      "const": "SAFE_READINESS_ONLY"
+    },
+    "substrate_selection": {
+      "const": "NO_SUBSTRATE_SELECTED"
+    },
+    "score_status": {
+      "const": "NO_ARTIFACT_SCORE"
+    },
+    "candidate_count": {
+      "type": "integer"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_name",
+          "execution_class",
+          "readiness",
+          "backend_blockers",
+          "input_blockers",
+          "policy_blockers",
+          "resource_blockers",
+          "future_authorization_level_required",
+          "recommended_next_action",
+          "report_paths"
+        ],
+        "properties": {
+          "readiness": {
+            "enum": [
+              "BACKEND_BLOCKED",
+              "INPUTS_BLOCKED",
+              "POLICY_BLOCKED",
+              "RESOURCE_BLOCKED",
+              "READY_FOR_FUTURE_CONTROLLED_ATTEMPT",
+              "REFERENCE_RUNTIME_BLOCKED"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

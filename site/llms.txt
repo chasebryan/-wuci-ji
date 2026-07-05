@@ -21,6 +21,7 @@ Current status:
 - Tarski Review Appliance generates the review packet
 - Phase 2B expands safe build feasibility probes to Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference
 - Phase 3A defines controlled build rooms and backend readiness without executing builds
+- Phase 3B readiness reports backend, input, policy, and resource blockers without executing build rooms
 - missing measurements are NOT_MEASURED
 
 Validation handles:
@@ -29,6 +30,7 @@ Validation handles:
 - make wucios-fluff-audit
 - make wucios-substrate-matrix
 - make wucios-euclid-buildrooms-phase-3a
+- make wucios-euclid-buildrooms-phase-3b-readiness
 - make wucios-review
 - make site-validate
 

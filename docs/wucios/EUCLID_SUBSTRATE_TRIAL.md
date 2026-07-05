@@ -51,5 +51,9 @@ candidate set:
 Phase 3A defines controlled build rooms for the full cohort:
 [EUCLID_TRIAL_PHASE_3A.md](EUCLID_TRIAL_PHASE_3A.md).
 
+Phase 3B readiness inspects backend, input, policy, and resource blockers for
+the controlled build rooms without executing them:
+[EUCLID_TRIAL_PHASE_3B_READINESS.md](EUCLID_TRIAL_PHASE_3B_READINESS.md).
+
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.

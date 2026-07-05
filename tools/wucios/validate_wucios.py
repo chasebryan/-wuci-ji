@@ -37,7 +37,9 @@ REQUIRED_TOOLS = [
     "run_euclid_trial.py",
     "run_euclid_trial_phase_2.py",
     "run_euclid_buildrooms_phase_3a.py",
+    "run_euclid_buildrooms_phase_3b_readiness.py",
     "buildroom_common.py",
+    "backend_readiness_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -122,6 +124,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_2.md",
     "EUCLID_TRIAL_PHASE_2B.md",
     "EUCLID_TRIAL_PHASE_3A.md",
+    "EUCLID_TRIAL_PHASE_3B_READINESS.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -231,6 +234,29 @@ PHASE_3A_PLAN_KEYS = {
     "cohort",
     "execution_classes",
     "objectives",
+}
+
+PHASE_3B_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "substrate_selection",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "build_attempts_allowed_by_default",
+    "container_builds_allowed_by_default",
+    "container_runs_allowed_by_default",
+    "container_pulls_allowed_by_default",
+    "vm_runs_allowed_by_default",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "host_mutation_allowed",
+    "network_default",
+    "cohort",
+    "objectives",
+    "explicit_non_goals",
 }
 
 BUILDROOM_KEYS = {
@@ -647,6 +673,100 @@ def validate_euclid_buildrooms_phase_3a(failures: list[str], warnings: list[str]
             warnings.append(f"{buildroom_path.relative_to(ROOT)} mentions sudo boundary")
 
 
+def validate_euclid_buildrooms_phase_3b_readiness(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3B_READINESS.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3B readiness doc: docs/wucios/EUCLID_TRIAL_PHASE_3B_READINESS.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms"
+    required_paths = [
+        buildrooms_dir / "euclid-buildrooms-phase-3b-readiness.json",
+        buildrooms_dir / "backend-remediation-policy.json",
+        buildrooms_dir / "test-authorization-matrix.json",
+        ROOT / "wucios/schemas/euclid-buildrooms-phase-3b-readiness.schema.json",
+        ROOT / "wucios/schemas/test-authorization-matrix.schema.json",
+        ROOT / "tools/wucios/run_euclid_buildrooms_phase_3b_readiness.py",
+        ROOT / "tools/wucios/backend_readiness_common.py",
+    ]
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3B readiness file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-buildrooms-phase-3b-readiness.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3B_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3b-readiness":
+            failures.append("Phase 3B readiness plan must use phase_id euclid-trial-phase-3b-readiness")
+        if plan.get("cohort") != FULL_TRIAL_COHORT:
+            failures.append("Phase 3B readiness plan cohort must match full trial cohort")
+        if plan.get("default_execution_mode") != "SAFE_READINESS_ONLY":
+            failures.append("Phase 3B readiness plan must default to SAFE_READINESS_ONLY")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3B readiness plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "build_attempts_allowed_by_default",
+            "container_builds_allowed_by_default",
+            "container_runs_allowed_by_default",
+            "container_pulls_allowed_by_default",
+            "vm_runs_allowed_by_default",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "host_mutation_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3B readiness plan must set {key} false")
+
+    matrix_path = buildrooms_dir / "test-authorization-matrix.json"
+    matrix = load_json(matrix_path, failures)
+    if isinstance(matrix, dict):
+        if matrix.get("phase_id") != "euclid-trial-phase-3b-readiness":
+            failures.append("test authorization matrix must use Phase 3B readiness phase_id")
+        levels = matrix.get("test_levels", [])
+        if not isinstance(levels, list):
+            failures.append("test authorization matrix test_levels must be a list")
+        else:
+            by_id = {str(level.get("id")): level for level in levels if isinstance(level, dict)}
+            if set(by_id) != {"L0", "L1", "L2", "L3", "L4"}:
+                failures.append("test authorization matrix must define L0 through L4")
+            if by_id.get("L0", {}).get("authorized_by_default") is not True:
+                failures.append("test authorization matrix must authorize L0 by default")
+            for level_id in ["L1", "L2", "L3", "L4"]:
+                if by_id.get(level_id, {}).get("authorized_by_default") is not False:
+                    failures.append(f"test authorization matrix must not authorize {level_id} by default")
+                if by_id.get(level_id, {}).get("requires_future_explicit_authorization") is not True:
+                    failures.append(f"test authorization matrix must require future explicit authorization for {level_id}")
+
+    policy_path = buildrooms_dir / "backend-remediation-policy.json"
+    policy = load_json(policy_path, failures)
+    if isinstance(policy, dict):
+        if policy.get("phase_id") != "euclid-trial-phase-3b-readiness":
+            failures.append("backend remediation policy must use Phase 3B readiness phase_id")
+        if policy.get("safe_readiness_only") is not True:
+            failures.append("backend remediation policy must be safe_readiness_only")
+        forbidden = "\n".join(str(item) for item in policy.get("forbidden_actions", []))
+        for phrase in [
+            "sudo",
+            "package installation",
+            "source tree cloning",
+            "artifact download",
+            "docker pull",
+            "docker build",
+            "docker run",
+            "podman pull",
+            "podman build",
+            "podman run",
+            "buildah bud",
+            "VM launch",
+        ]:
+            if phrase not in forbidden:
+                failures.append(f"backend remediation policy must forbid {phrase}")
+        if "host configuration change" in "\n".join(str(item) for item in policy.get("notes", [])):
+            warnings.append("Phase 3B readiness remediation policy records human approval boundary")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -664,6 +784,7 @@ def main() -> int:
     validate_euclid_trial_phase_1(failures)
     validate_euclid_trial_phase_2(failures, warnings)
     validate_euclid_buildrooms_phase_3a(failures, warnings)
+    validate_euclid_buildrooms_phase_3b_readiness(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -691,6 +812,7 @@ def main() -> int:
     print(f"- Euclid Phase 1 candidates: {len(FIRST_TRIAL_COHORT)}")
     print(f"- Euclid Phase 2 candidates: {len(FULL_TRIAL_COHORT)}")
     print(f"- Euclid Phase 3A build rooms: {len(FULL_TRIAL_COHORT)}")
+    print(f"- Euclid Phase 3B readiness candidates: {len(FULL_TRIAL_COHORT)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

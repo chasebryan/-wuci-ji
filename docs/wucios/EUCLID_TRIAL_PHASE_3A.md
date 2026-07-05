@@ -54,10 +54,16 @@ OpenBSD is a non-Linux reference runtime path and requires a future explicit run
 - `build/wucios/review/euclid-trial-phase-3a.json`
 - `build/wucios/buildrooms/<candidate>/phase-3a/`
 
+## Phase 3B Readiness
+
+Phase 3B readiness adds backend remediation diagnostics and a future test authorization matrix without executing build rooms:
+[EUCLID_TRIAL_PHASE_3B_READINESS.md](EUCLID_TRIAL_PHASE_3B_READINESS.md).
+
 ## Commands
 
 ```sh
 make wucios-euclid-buildrooms-phase-3a
 make wucios-euclid-buildrooms-phase-3a-json
 make buildroom-readiness
+make wucios-euclid-buildrooms-phase-3b-readiness
 ```

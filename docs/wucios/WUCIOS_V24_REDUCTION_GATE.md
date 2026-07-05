@@ -30,6 +30,7 @@ The first artifact cohort protocol is [EUCLID_TRIAL_PHASE_1.md](EUCLID_TRIAL_PHA
 The build feasibility probe phase is [EUCLID_TRIAL_PHASE_2.md](EUCLID_TRIAL_PHASE_2.md).
 The full-cohort probe expansion is [EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md).
 The controlled build-room definition layer is [EUCLID_TRIAL_PHASE_3A.md](EUCLID_TRIAL_PHASE_3A.md).
+The backend readiness and future authorization matrix is [EUCLID_TRIAL_PHASE_3B_READINESS.md](EUCLID_TRIAL_PHASE_3B_READINESS.md).
 
 ## Evidence Requirement
 
@@ -50,6 +51,7 @@ make wucios-euclid-trial-phase-1
 make wucios-euclid-trial-phase-2
 make wucios-euclid-trial-phase-2b
 make wucios-euclid-buildrooms-phase-3a
+make wucios-euclid-buildrooms-phase-3b-readiness
 ```
 
 ## Controlling Doctrine

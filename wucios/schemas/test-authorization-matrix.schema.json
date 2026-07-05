@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS Euclid test authorization matrix schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "default_authorization",
+    "test_levels"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.test_authorization_matrix.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3b-readiness"
+    },
+    "default_authorization": {
+      "const": "NO_EXECUTION_AUTHORIZED"
+    },
+    "test_levels": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "authorized_by_default",
+          "allows",
+          "forbids"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "L0",
+              "L1",
+              "L2",
+              "L3",
+              "L4"
+            ]
+          },
+          "authorized_by_default": {
+            "type": "boolean"
+          },
+          "allows": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "forbids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

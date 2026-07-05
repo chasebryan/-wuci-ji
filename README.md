@@ -15,6 +15,7 @@ WuciOS v2.4 is the current reduction-controlled design path. The larger v2.3 dir
 - [Euclid Trial Phase 2](docs/wucios/EUCLID_TRIAL_PHASE_2.md)
 - [Euclid Trial Phase 2B](docs/wucios/EUCLID_TRIAL_PHASE_2B.md)
 - [Euclid Trial Phase 3A](docs/wucios/EUCLID_TRIAL_PHASE_3A.md)
+- [Euclid Trial Phase 3B Readiness](docs/wucios/EUCLID_TRIAL_PHASE_3B_READINESS.md)
 - [Tarski Review Appliance](docs/wucios/TARSKI_REVIEW_APPLIANCE.md)
 - [Gödel Boundary](docs/wucios/GODEL_BOUNDARY.md)
 - [Mathematician Naming Scheme](docs/wucios/MATHEMATICIAN_NAMING_SCHEME.md)
@@ -30,6 +31,7 @@ make wucios-euclid-trial-phase-1
 make wucios-euclid-trial-phase-2
 make wucios-euclid-trial-phase-2b
 make wucios-euclid-buildrooms-phase-3a
+make wucios-euclid-buildrooms-phase-3b-readiness
 ```
 
 Status: Local evidence only. Not externally certified. Not production authorized.
@@ -49,6 +51,8 @@ Euclid Trial Phase 1 prepares the first artifact cohort: Buildroot, Alpine, and 
 Euclid Trial Phase 2B expands safe detect-only build feasibility probes to the full original substrate candidate set: Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference. It records tooling blockers and missing evidence without selecting or ranking a substrate.
 
 Euclid Trial Phase 3A defines controlled build rooms for the same full cohort. The build room is not the substrate; the build room is the measuring chamber. Phase 3A detects backend and input readiness only. It does not build containers, run containers, launch VMs, produce artifacts, select a substrate, rank candidates, or generate a numeric WuciOS score.
+
+Euclid Trial Phase 3B readiness inspects backend, input, policy, and resource blockers for those build rooms. It creates a future test authorization matrix and authorizes only L0 readiness checks by default. It does not execute build rooms, select a substrate, rank candidates, or generate a numeric WuciOS score.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 

@@ -18,6 +18,8 @@ Safe validation targets must not modify tracked files. Timestamped evidence is w
 - `build/wucios/review/euclid-trial-phase-2b.json`
 - `build/wucios/review/euclid-trial-phase-3a.md`
 - `build/wucios/review/euclid-trial-phase-3a.json`
+- `build/wucios/review/euclid-trial-phase-3b-readiness.md`
+- `build/wucios/review/euclid-trial-phase-3b-readiness.json`
 - `build/wucios/review/substrate-matrix.md`
 - `build/wucios/review/substrate-matrix.json`
 - `build/wucios/review/surface-report.md`
@@ -45,3 +47,9 @@ If only the current host repo is scanned, the score status is `DIAGNOSTIC_ONLY` 
 If `build/wucios/review/euclid-trial-phase-3a.json` exists, the review packet summarizes Phase 3A global status, execution mode, backend summary, candidate definition statuses, attempt readiness, and missing inputs. If the file does not exist, the review packet records `Euclid Trial Phase 3A: NOT_RUN`.
 
 Phase 3A does not make the review packet release-complete. Without a current WuciOS artifact and artifact-bound evidence, review status remains partial and score status remains `NO_ARTIFACT_SCORE`.
+
+## Phase 3B Readiness Review Status
+
+If `build/wucios/review/euclid-trial-phase-3b-readiness.json` exists, the review packet summarizes Phase 3B readiness global status, execution mode, backend summary, candidate readiness statuses, future authorization levels, score status, and build/container/VM boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3B Readiness: NOT_RUN`.
+
+Phase 3B readiness does not make the review packet release-complete. It does not authorize execution, select a substrate, rank candidates, or create an artifact score.
