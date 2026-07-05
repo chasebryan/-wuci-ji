@@ -24,6 +24,8 @@ Current status:
 - Phase 3B readiness reports backend, input, policy, and resource blockers without executing build rooms
 - Phase 3C-A verifies rootless backend smoke guardrails with a synthetic non-substrate image
 - Phase 3C-A does not select a substrate, rank candidates, or generate a numeric WuciOS score
+- Phase 3C-B defines direct-rootfs preparation policy for Buildroot, Alpine, Debian minimal, and Void
+- Phase 3C-B does not generate rootfs images, attempt substrate artifacts, select a substrate, rank candidates, or generate a numeric WuciOS score
 - missing measurements are NOT_MEASURED
 
 Validation handles:
@@ -34,6 +36,7 @@ Validation handles:
 - make wucios-euclid-buildrooms-phase-3a
 - make wucios-euclid-buildrooms-phase-3b-readiness
 - make wucios-euclid-buildrooms-phase-3c-a
+- make wucios-euclid-direct-rootfs-phase-3c-b
 - make wucios-review
 - make site-validate
 

@@ -6,7 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="application-name" content="Wuci-Ji">
-    <meta name="description" content="WuciOS v2.4 Reduction Gate: Noether Core, Birkhoff Bastion, Tarski Review Appliance, Euclid Substrate Trial, Phase 3C-A backend smoke guardrails, and Gödel Boundary.">
+    <meta name="description" content="WuciOS v2.4 Reduction Gate: Noether Core, Birkhoff Bastion, Tarski Review Appliance, Euclid Substrate Trial, Phase 3C-B direct-rootfs preparation policy, and Gödel Boundary.">
     <meta name="robots" content="index, follow">
     <meta name="color-scheme" content="dark">
     <link rel="canonical" href="https://nosuchmachine.net/wucios.html">
@@ -114,6 +114,12 @@
             synthetic non-substrate image. The smoke image is not a WuciOS
             artifact, not a substrate artifact, and not score eligible.
           </p>
+          <p>
+            Phase 3C-B defines direct-rootfs preparation policy for Buildroot,
+            Alpine, Debian minimal, and Void. It does not generate rootfs
+            images, attempt substrate artifacts, select a substrate, rank
+            candidates, or generate a numeric WuciOS score.
+          </p>
         </div>
         <div class="aperture-panel">
           <dl class="verification-list">
@@ -152,6 +158,10 @@
             <div>
               <dt>Phase 3C-A</dt>
               <dd><code>PHASE_3C_A_L1_COMPLETE</code> by default; L2 smoke requires explicit authorization</dd>
+            </div>
+            <div>
+              <dt>Phase 3C-B</dt>
+              <dd><code>PHASE_3C_B_RULES_COMPLETE</code> by default; L2 scaffold requires explicit authorization</dd>
             </div>
           </dl>
         </div>
@@ -217,6 +227,10 @@
           <article class="command-card">
             <div class="command-card-head"><h3>Backend smoke</h3></div>
             <pre><code>make wucios-euclid-buildrooms-phase-3c-a</code></pre>
+          </article>
+          <article class="command-card">
+            <div class="command-card-head"><h3>Direct rootfs prep</h3></div>
+            <pre><code>make wucios-euclid-direct-rootfs-phase-3c-b</code></pre>
           </article>
           <article class="command-card">
             <div class="command-card-head"><h3>Review packet</h3></div>

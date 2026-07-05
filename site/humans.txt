@@ -59,3 +59,9 @@ Rootless backend smoke guardrails use a synthetic non-substrate image only. The
 smoke image is not a WuciOS artifact, not a substrate artifact, and not score
 eligible. Phase 3C-A does not select a substrate, rank candidates, or generate
 an artifact score.
+
+WuciOS Phase 3C-B:
+Direct-rootfs preparation policy covers Buildroot, Alpine, Debian minimal, and
+Void. It does not generate rootfs images, attempt substrate artifacts, select a
+substrate, rank candidates, or generate an artifact score. NixOS/Guix, Yocto,
+and OpenBSD reference remain preserved for later dedicated policy phases.

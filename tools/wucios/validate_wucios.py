@@ -39,9 +39,11 @@ REQUIRED_TOOLS = [
     "run_euclid_buildrooms_phase_3a.py",
     "run_euclid_buildrooms_phase_3b_readiness.py",
     "run_euclid_buildrooms_phase_3c_a.py",
+    "run_euclid_direct_rootfs_phase_3c_b.py",
     "buildroom_common.py",
     "backend_readiness_common.py",
     "synthetic_smoke_common.py",
+    "direct_rootfs_prep_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -128,6 +130,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_3A.md",
     "EUCLID_TRIAL_PHASE_3B_READINESS.md",
     "EUCLID_TRIAL_PHASE_3C_A.md",
+    "EUCLID_TRIAL_PHASE_3C_B.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -309,6 +312,55 @@ SYNTHETIC_SMOKE_BUILDROOM_KEYS = {
     "default_authorization",
     "evidence_outputs",
     "notes",
+}
+
+PHASE_3C_B_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "l1_authorized_by_default",
+    "l2_scaffold_authorized_by_default",
+    "l2_scaffold_authorization_env",
+    "l3_substrate_artifact_attempts_allowed",
+    "runtime_inspection_allowed",
+    "substrate_selection",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "numeric_score_allowed",
+    "network_default",
+    "image_pulls_allowed",
+    "container_runs_allowed",
+    "vm_runs_allowed",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "source_clone_allowed",
+    "os_image_download_allowed",
+    "in_scope_candidates",
+    "out_of_scope_preserved",
+    "objectives",
+    "explicit_non_goals",
+}
+
+DIRECT_ROOTFS_CANDIDATES = ["buildroot", "alpine", "debian-minimal", "void"]
+
+DIRECT_ROOTFS_CANDIDATE_POLICY_KEYS = {
+    "schema",
+    "phase_id",
+    "candidate",
+    "display_name",
+    "status",
+    "execution_class",
+    "l3_artifact_attempt_allowed",
+    "rootfs_generation_allowed",
+    "required_future_inputs",
+    "required_future_tools",
+    "future_artifact_candidates",
+    "phase_3c_b_allowed_outputs",
+    "phase_3c_b_forbidden_actions",
+    "future_evidence_requirements",
+    "blocked_until",
 }
 
 BUILDROOM_KEYS = {
@@ -917,6 +969,173 @@ def validate_euclid_buildrooms_phase_3c_a(failures: list[str], warnings: list[st
         failures.append("Makefile must contain Phase 3C-A guardrail target")
 
 
+def validate_euclid_direct_rootfs_phase_3c_b(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3C_B.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3C-B doc: docs/wucios/EUCLID_TRIAL_PHASE_3C_B.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms/direct-rootfs"
+    required_paths = [
+        buildrooms_dir / "euclid-direct-rootfs-phase-3c-b.json",
+        buildrooms_dir / "direct-rootfs-policy.json",
+        buildrooms_dir / "command-shapes.json",
+        buildrooms_dir / "pull-pinning-cache-output-policy.json",
+        buildrooms_dir / "evidence-requirements.json",
+        buildrooms_dir / "guardrail-policy.json",
+        buildrooms_dir / "README.md",
+        ROOT / "wucios/schemas/euclid-direct-rootfs-phase-3c-b.schema.json",
+        ROOT / "wucios/schemas/direct-rootfs-preparation-policy.schema.json",
+        ROOT / "wucios/schemas/direct-rootfs-command-shapes.schema.json",
+        ROOT / "wucios/schemas/direct-rootfs-evidence-requirements.schema.json",
+        ROOT / "tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py",
+        ROOT / "tools/wucios/direct_rootfs_prep_common.py",
+    ]
+    for candidate in DIRECT_ROOTFS_CANDIDATES:
+        required_paths.extend([
+            buildrooms_dir / candidate / "preparation-policy.json",
+            buildrooms_dir / candidate / "README.md",
+        ])
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3C-B file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-direct-rootfs-phase-3c-b.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3C_B_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3c-b":
+            failures.append("Phase 3C-B plan must use phase_id euclid-trial-phase-3c-b")
+        if plan.get("default_execution_mode") != "L1_POLICY_AND_PREPARATION_RULES":
+            failures.append("Phase 3C-B plan must default to L1_POLICY_AND_PREPARATION_RULES")
+        if plan.get("l2_scaffold_authorized_by_default") is not False:
+            failures.append("Phase 3C-B plan must disable L2 scaffold by default")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3C-B plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "l3_substrate_artifact_attempts_allowed",
+            "runtime_inspection_allowed",
+            "numeric_score_allowed",
+            "image_pulls_allowed",
+            "container_runs_allowed",
+            "vm_runs_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "source_clone_allowed",
+            "os_image_download_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3C-B plan must set {key} false")
+        if plan.get("network_default") != "DISABLED":
+            failures.append("Phase 3C-B plan must disable network by default")
+        if plan.get("in_scope_candidates") != DIRECT_ROOTFS_CANDIDATES:
+            failures.append("Phase 3C-B plan must scope Buildroot, Alpine, Debian minimal, and Void only")
+        out_of_scope = plan.get("out_of_scope_preserved", {})
+        if not isinstance(out_of_scope, dict) or "phase_3c_c_store_aware" not in out_of_scope or "phase_3c_d_heavy_source" not in out_of_scope or "phase_3c_e_reference_runtime" not in out_of_scope:
+            failures.append("Phase 3C-B plan must preserve later phases for NixOS/Guix, Yocto, and OpenBSD reference")
+
+    direct_policy_path = buildrooms_dir / "direct-rootfs-policy.json"
+    direct_policy = load_json(direct_policy_path, failures)
+    if isinstance(direct_policy, dict):
+        if direct_policy.get("phase_id") != "euclid-trial-phase-3c-b":
+            failures.append("direct-rootfs policy must use Phase 3C-B phase_id")
+        if direct_policy.get("applies_to") != DIRECT_ROOTFS_CANDIDATES:
+            failures.append("direct-rootfs policy must apply only to direct-rootfs candidates")
+        for key in [
+            "l3_artifact_attempts_allowed",
+            "rootfs_generation_allowed",
+            "network_allowed",
+            "container_runs_allowed",
+            "image_pulls_allowed",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "source_clone_allowed",
+        ]:
+            if direct_policy.get(key) is not False:
+                failures.append(f"direct-rootfs policy must set {key} false")
+
+    command_shapes_path = buildrooms_dir / "command-shapes.json"
+    command_shapes = load_json(command_shapes_path, failures)
+    if isinstance(command_shapes, dict):
+        if command_shapes.get("status") != "POLICY_ONLY_NOT_EXECUTABLE":
+            failures.append("command-shapes.json must be POLICY_ONLY_NOT_EXECUTABLE")
+        if command_shapes.get("commands_execute_in_phase_3c_b") is not False:
+            failures.append("command-shapes.json must not execute in Phase 3C-B")
+        candidates = command_shapes.get("candidates", {})
+        if not isinstance(candidates, dict):
+            failures.append("command-shapes.json candidates must be an object")
+        else:
+            for candidate in DIRECT_ROOTFS_CANDIDATES:
+                item = candidates.get(candidate, {})
+                if not isinstance(item, dict):
+                    failures.append(f"command-shapes.json missing {candidate}")
+                    continue
+                if item.get("future_level_required") != "L3":
+                    failures.append(f"{candidate} command shapes must require L3")
+                forbidden = "\n".join(str(entry) for entry in item.get("forbidden_in_phase_3c_b", []))
+                for phrase in [
+                    "execute command shape",
+                    "generate substrate artifact",
+                    "generate rootfs",
+                    "run container",
+                    "use network",
+                    "select substrate",
+                    "rank candidate",
+                    "generate numeric score",
+                ]:
+                    if phrase not in forbidden:
+                        failures.append(f"{candidate} command shapes must forbid {phrase}")
+
+    evidence_path = buildrooms_dir / "evidence-requirements.json"
+    evidence = load_json(evidence_path, failures)
+    if isinstance(evidence, dict):
+        if evidence.get("phase_3c_b_generates_substrate_evidence") is not False:
+            failures.append("Phase 3C-B evidence requirements must not generate substrate evidence")
+        required_outputs = evidence.get("future_l3_required_outputs", [])
+        for name in ["artifact-manifest.json", "artifact.sha256", "build-log.txt", "substrate-report.json", "missing-measurements.txt"]:
+            if name not in required_outputs:
+                failures.append(f"Phase 3C-B evidence requirements must include {name}")
+
+    guardrail_path = buildrooms_dir / "guardrail-policy.json"
+    guardrail_policy = load_json(guardrail_path, failures)
+    if isinstance(guardrail_policy, dict):
+        refusal_text = "\n".join(str(item) for item in guardrail_policy.get("required_refusal_checks", []))
+        for phrase in ["WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD", "WUCIOS_EUCLID_ALLOW_ATTEMPT", "WUCIOS_PHASE3CA_ALLOW_L2_SMOKE"]:
+            if phrase not in refusal_text:
+                failures.append(f"Phase 3C-B guardrail policy must include refusal check for {phrase}")
+        forbidden_text = "\n".join(str(item) for item in guardrail_policy.get("phase_3c_b_must_not_execute", []))
+        for phrase in ["podman build", "buildah bud", "podman run", "docker build", "docker run", "qemu-system", "sudo", "git clone"]:
+            if phrase not in forbidden_text:
+                failures.append(f"Phase 3C-B guardrail policy must forbid {phrase}")
+
+    for candidate in DIRECT_ROOTFS_CANDIDATES:
+        policy_path = buildrooms_dir / candidate / "preparation-policy.json"
+        policy = load_json(policy_path, failures)
+        if isinstance(policy, dict):
+            require_keys(policy_path, policy, DIRECT_ROOTFS_CANDIDATE_POLICY_KEYS, failures)
+            if policy.get("phase_id") != "euclid-trial-phase-3c-b":
+                failures.append(f"{candidate} policy must use Phase 3C-B phase_id")
+            if policy.get("candidate") != candidate:
+                failures.append(f"{candidate} policy candidate id mismatch")
+            if policy.get("l3_artifact_attempt_allowed") is not False:
+                failures.append(f"{candidate} policy must forbid L3 artifact attempts")
+            if policy.get("rootfs_generation_allowed") is not False:
+                failures.append(f"{candidate} policy must forbid rootfs generation")
+            forbidden = "\n".join(str(item) for item in policy.get("phase_3c_b_forbidden_actions", []))
+            for phrase in ["rootfs generation", "substrate artifact attempt", "runtime inspection", "score generation", "selection", "ranking"]:
+                if phrase not in forbidden:
+                    failures.append(f"{candidate} policy must forbid {phrase}")
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    if "wucios-euclid-direct-rootfs-phase-3c-b-scaffold:" not in makefile:
+        failures.append("Makefile must contain Phase 3C-B guarded scaffold target")
+    if "WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD" not in makefile:
+        failures.append("Makefile Phase 3C-B scaffold target must check WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD")
+    if "wucios-euclid-direct-rootfs-phase-3c-b-guardrails" not in makefile:
+        failures.append("Makefile must contain Phase 3C-B guardrail target")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -936,6 +1155,7 @@ def main() -> int:
     validate_euclid_buildrooms_phase_3a(failures, warnings)
     validate_euclid_buildrooms_phase_3b_readiness(failures, warnings)
     validate_euclid_buildrooms_phase_3c_a(failures, warnings)
+    validate_euclid_direct_rootfs_phase_3c_b(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -965,6 +1185,7 @@ def main() -> int:
     print(f"- Euclid Phase 3A build rooms: {len(FULL_TRIAL_COHORT)}")
     print(f"- Euclid Phase 3B readiness candidates: {len(FULL_TRIAL_COHORT)}")
     print("- Euclid Phase 3C-A synthetic smoke buildroom: present")
+    print(f"- Euclid Phase 3C-B direct rootfs preparation candidates: {len(DIRECT_ROOTFS_CANDIDATES)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

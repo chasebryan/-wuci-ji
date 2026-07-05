@@ -79,3 +79,10 @@ Phase 3C-A is the next controlled layer after Phase 3B readiness. It authorizes 
 [EUCLID_TRIAL_PHASE_3C_A.md](EUCLID_TRIAL_PHASE_3C_A.md).
 
 Phase 3C-A does not authorize L3 substrate artifact attempts, L4 runtime inspection, substrate selection, candidate ranking, or numeric WuciOS scoring.
+
+## Phase 3C-B Boundary
+
+Phase 3C-B defines direct-rootfs preparation policy for Buildroot, Alpine, Debian minimal, and Void:
+[EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
+
+Phase 3C-B does not generate rootfs images, execute candidate command shapes, select a substrate, rank candidates, or generate a numeric WuciOS score. NixOS/Guix, Yocto, and OpenBSD reference remain preserved for later dedicated policy phases.

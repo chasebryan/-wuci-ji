@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "title": "WuciOS direct-rootfs candidate preparation policy schema",
+  "type": "object",
+  "required": [
+    "schema",
+    "phase_id",
+    "candidate",
+    "display_name",
+    "status",
+    "execution_class",
+    "l3_artifact_attempt_allowed",
+    "rootfs_generation_allowed",
+    "required_future_inputs",
+    "required_future_tools",
+    "future_artifact_candidates",
+    "phase_3c_b_allowed_outputs",
+    "phase_3c_b_forbidden_actions",
+    "future_evidence_requirements",
+    "blocked_until"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.euclid.direct_rootfs_candidate_preparation.v1"
+    },
+    "phase_id": {
+      "const": "euclid-trial-phase-3c-b"
+    },
+    "l3_artifact_attempt_allowed": {
+      "const": false
+    },
+    "rootfs_generation_allowed": {
+      "const": false
+    }
+  }
+}

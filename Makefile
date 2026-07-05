@@ -150,6 +150,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2b wucios-euclid-trial-phase-2b-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal wucios-euclid-probe-void wucios-euclid-probe-nixos wucios-euclid-probe-guix wucios-euclid-probe-yocto wucios-euclid-probe-openbsd-reference wucios-euclid-buildrooms-phase-3a wucios-euclid-buildrooms-phase-3a-json wucios-buildroom-probe-buildroot wucios-buildroom-probe-alpine wucios-buildroom-probe-debian-minimal wucios-buildroom-probe-void wucios-buildroom-probe-nixos wucios-buildroom-probe-guix wucios-buildroom-probe-yocto wucios-buildroom-probe-openbsd-reference euclid-phase-2 euclid-phase-3a euclid-build-probes buildroom-readiness wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
 .PHONY: wucios-euclid-buildrooms-phase-3b-readiness wucios-euclid-buildrooms-phase-3b-readiness-json wucios-buildroom-readiness-buildroot wucios-buildroom-readiness-alpine wucios-buildroom-readiness-debian-minimal wucios-buildroom-readiness-void wucios-buildroom-readiness-nixos wucios-buildroom-readiness-guix wucios-buildroom-readiness-yocto wucios-buildroom-readiness-openbsd-reference euclid-phase-3b-readiness buildroom-remediation-plan test-authorization-matrix
 .PHONY: wucios-euclid-buildrooms-phase-3c-a wucios-euclid-buildrooms-phase-3c-a-json wucios-euclid-buildrooms-phase-3c-a-smoke wucios-euclid-buildrooms-phase-3c-a-smoke-json wucios-euclid-buildrooms-phase-3c-a-guardrails euclid-phase-3c-a buildroom-smoke-l1 buildroom-smoke-l2 buildroom-smoke-guardrails
+.PHONY: wucios-euclid-direct-rootfs-phase-3c-b wucios-euclid-direct-rootfs-phase-3c-b-json wucios-euclid-direct-rootfs-phase-3c-b-scaffold wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json wucios-euclid-direct-rootfs-phase-3c-b-guardrails wucios-direct-rootfs-prep-buildroot wucios-direct-rootfs-prep-alpine wucios-direct-rootfs-prep-debian-minimal wucios-direct-rootfs-prep-void euclid-phase-3c-b direct-rootfs-prep direct-rootfs-scaffold direct-rootfs-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
 
 all: check-native $(TARGET)
@@ -191,6 +192,16 @@ help:
 	@printf '%s\n' "                                Run authorized synthetic non-substrate L2 smoke"
 	@printf '%s\n' "  WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1 make wucios-euclid-buildrooms-phase-3c-a-smoke-json"
 	@printf '%s\n' "                                Run authorized synthetic non-substrate L2 smoke and print JSON"
+	@printf '%s\n' "  make wucios-euclid-direct-rootfs-phase-3c-b"
+	@printf '%s\n' "                                Run Phase 3C-B direct-rootfs L1 policy checks"
+	@printf '%s\n' "  make wucios-euclid-direct-rootfs-phase-3c-b-json"
+	@printf '%s\n' "                                Run Phase 3C-B L1 policy checks and print JSON"
+	@printf '%s\n' "  make wucios-euclid-direct-rootfs-phase-3c-b-guardrails"
+	@printf '%s\n' "                                Run Phase 3C-B negative guardrail checks"
+	@printf '%s\n' "  WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-direct-rootfs-phase-3c-b-scaffold"
+	@printf '%s\n' "                                Generate authorized non-artifact direct-rootfs scaffolding"
+	@printf '%s\n' "  WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 make wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json"
+	@printf '%s\n' "                                Generate authorized non-artifact scaffolding and print JSON"
 	@printf '%s\n' "  make buildroom-remediation-plan"
 	@printf '%s\n' "                                Alias for Phase 3B readiness diagnostics"
 	@printf '%s\n' "  make test-authorization-matrix"
@@ -744,6 +755,35 @@ wucios-euclid-buildrooms-phase-3c-a-smoke-json:
 wucios-euclid-buildrooms-phase-3c-a-guardrails:
 	$(PYTHON) tools/wucios/run_euclid_buildrooms_phase_3c_a.py --guardrails
 
+wucios-euclid-direct-rootfs-phase-3c-b:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py
+
+wucios-euclid-direct-rootfs-phase-3c-b-json:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --json
+
+wucios-euclid-direct-rootfs-phase-3c-b-scaffold:
+	@if [ "$${WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-B L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 to generate non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --l2-scaffold
+
+wucios-euclid-direct-rootfs-phase-3c-b-scaffold-json:
+	@if [ "$${WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD:-}" != "1" ]; then printf '%s\n' "Phase 3C-B L2 non-artifact scaffold is not authorized. Set WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1 to generate non-artifact preparation scaffolding."; exit 1; fi
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --l2-scaffold --json
+
+wucios-euclid-direct-rootfs-phase-3c-b-guardrails:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --guardrails
+
+wucios-direct-rootfs-prep-buildroot:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate buildroot
+
+wucios-direct-rootfs-prep-alpine:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate alpine
+
+wucios-direct-rootfs-prep-debian-minimal:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate debian-minimal
+
+wucios-direct-rootfs-prep-void:
+	$(PYTHON) tools/wucios/run_euclid_direct_rootfs_phase_3c_b.py --candidate void
+
 wucios-euclid-trial-phase-2-attempt:
 	@if [ "$${WUCIOS_EUCLID_ALLOW_ATTEMPT:-}" != "1" ]; then printf '%s\n' "Refusing Phase 2 build attempts: set WUCIOS_EUCLID_ALLOW_ATTEMPT=1 explicitly."; exit 1; fi
 	$(PYTHON) tools/wucios/run_euclid_trial_phase_2.py --attempt-builds --allow-network
@@ -839,6 +879,7 @@ wucios-idempotence-check:
 	@$(MAKE) wucios-euclid-buildrooms-phase-3a
 	@$(MAKE) wucios-euclid-buildrooms-phase-3b-readiness
 	@$(MAKE) wucios-euclid-buildrooms-phase-3c-a
+	@$(MAKE) wucios-euclid-direct-rootfs-phase-3c-b
 	@$(MAKE) wucios-review
 	@if ! git diff --exit-code; then printf '%s\n' "WuciOS idempotence check failed: safe validation modified tracked files."; exit 1; fi
 
@@ -858,6 +899,8 @@ euclid-phase-3b-readiness: wucios-euclid-buildrooms-phase-3b-readiness
 
 euclid-phase-3c-a: wucios-euclid-buildrooms-phase-3c-a
 
+euclid-phase-3c-b: wucios-euclid-direct-rootfs-phase-3c-b
+
 euclid-build-probes: wucios-euclid-trial-phase-2
 
 buildroom-readiness: wucios-euclid-buildrooms-phase-3a
@@ -871,6 +914,12 @@ buildroom-smoke-l1: wucios-euclid-buildrooms-phase-3c-a
 buildroom-smoke-l2: wucios-euclid-buildrooms-phase-3c-a-smoke
 
 buildroom-smoke-guardrails: wucios-euclid-buildrooms-phase-3c-a-guardrails
+
+direct-rootfs-prep: wucios-euclid-direct-rootfs-phase-3c-b
+
+direct-rootfs-scaffold: wucios-euclid-direct-rootfs-phase-3c-b-scaffold
+
+direct-rootfs-guardrails: wucios-euclid-direct-rootfs-phase-3c-b-guardrails
 
 tarski-review: wucios-review
 

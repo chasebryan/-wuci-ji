@@ -1,0 +1,31 @@
+{
+  "schema": "wucios.euclid.direct_rootfs_evidence_requirements.v1",
+  "phase_id": "euclid-trial-phase-3c-b",
+  "status": "REQUIREMENTS_ONLY_NOT_GENERATED_SUBSTRATE_EVIDENCE",
+  "future_l3_required_outputs": [
+    "artifact-manifest.json",
+    "artifact-manifest.md",
+    "artifact.sha256",
+    "build-log.txt",
+    "build-command.json",
+    "build-environment.json",
+    "source-policy.json",
+    "package-manifest.txt",
+    "package-count.txt",
+    "image-size.txt",
+    "enabled-services.txt",
+    "listening-ports.txt",
+    "suid-sgid.txt",
+    "kernel-modules.txt",
+    "dependency-tree.txt",
+    "noether-static-check.json",
+    "noether-static-check.md",
+    "godel-boundary.md",
+    "substrate-report.json",
+    "substrate-report.md",
+    "failure-report.md",
+    "missing-measurements.txt"
+  ],
+  "phase_3c_b_generates_substrate_evidence": false,
+  "runtime_only_measurements_status": "NOT_MEASURED_RUNTIME_REQUIRED"
+}

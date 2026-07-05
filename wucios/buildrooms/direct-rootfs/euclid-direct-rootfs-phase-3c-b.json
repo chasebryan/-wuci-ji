@@ -1,0 +1,63 @@
+{
+  "schema": "wucios.euclid.phase3c_b.plan.v1",
+  "phase_id": "euclid-trial-phase-3c-b",
+  "phase_name": "WuciOS v2.4 Euclid Trial Phase 3C-B — Direct Rootfs Buildroom Preparation",
+  "status": "CANDIDATE_TRIAL_PHASE",
+  "default_execution_mode": "L1_POLICY_AND_PREPARATION_RULES",
+  "l1_authorized_by_default": true,
+  "l2_scaffold_authorized_by_default": false,
+  "l2_scaffold_authorization_env": "WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1",
+  "l3_substrate_artifact_attempts_allowed": false,
+  "runtime_inspection_allowed": false,
+  "substrate_selection": "NO_SUBSTRATE_SELECTED",
+  "ranking_allowed": false,
+  "emotional_testing_allowed": false,
+  "numeric_score_allowed": false,
+  "network_default": "DISABLED",
+  "image_pulls_allowed": false,
+  "container_runs_allowed": false,
+  "vm_runs_allowed": false,
+  "sudo_allowed": false,
+  "host_package_install_allowed": false,
+  "source_clone_allowed": false,
+  "os_image_download_allowed": false,
+  "in_scope_candidates": [
+    "buildroot",
+    "alpine",
+    "debian-minimal",
+    "void"
+  ],
+  "out_of_scope_preserved": {
+    "phase_3c_c_store_aware": [
+      "nixos",
+      "guix"
+    ],
+    "phase_3c_d_heavy_source": [
+      "yocto"
+    ],
+    "phase_3c_e_reference_runtime": [
+      "openbsd-reference"
+    ]
+  },
+  "objectives": [
+    "Define controlled direct-rootfs preparation rules.",
+    "Define future command shapes without executing them.",
+    "Define pull, pinning, cache, and output path rules.",
+    "Define evidence requirements for future L3 artifact attempts.",
+    "Generate optional non-artifact scaffolding only when explicitly authorized.",
+    "Preserve NO_SUBSTRATE_SELECTED.",
+    "Preserve NO_ARTIFACT_SCORE.",
+    "Preserve validation idempotence."
+  ],
+  "explicit_non_goals": [
+    "No substrate artifact attempt.",
+    "No rootfs generation.",
+    "No runtime inspection.",
+    "No substrate selection.",
+    "No candidate ranking.",
+    "No numeric WuciOS score.",
+    "No Yocto execution.",
+    "No NixOS or Guix execution.",
+    "No OpenBSD runtime execution."
+  ]
+}

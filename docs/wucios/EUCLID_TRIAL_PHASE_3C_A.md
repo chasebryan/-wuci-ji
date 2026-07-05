@@ -53,3 +53,10 @@ Backend smoke success does not select or rank any substrate.
 ## Score Boundary
 
 Phase 3C-A cannot produce a numeric WuciOS score.
+
+## Phase 3C-B Boundary
+
+Phase 3C-B follows Phase 3C-A by defining direct-rootfs preparation rules for Buildroot, Alpine, Debian minimal, and Void:
+[EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
+
+Phase 3C-B remains a policy and non-artifact scaffold layer. It does not authorize L3 substrate artifact attempts, L4 runtime inspection, substrate selection, candidate ranking, or numeric WuciOS scoring.

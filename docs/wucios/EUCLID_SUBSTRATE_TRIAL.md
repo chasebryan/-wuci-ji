@@ -60,5 +60,12 @@ guardrails with a synthetic non-substrate smoke image:
 [EUCLID_TRIAL_PHASE_3C_A.md](EUCLID_TRIAL_PHASE_3C_A.md).
 The synthetic smoke image is not a substrate artifact and is not score eligible.
 
+Phase 3C-B defines direct-rootfs preparation rules for Buildroot, Alpine,
+Debian minimal, and Void without generating rootfs images or substrate
+artifacts:
+[EUCLID_TRIAL_PHASE_3C_B.md](EUCLID_TRIAL_PHASE_3C_B.md).
+NixOS/Guix, Yocto, and OpenBSD reference remain assigned to later dedicated
+policy phases.
+
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.

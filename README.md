@@ -17,6 +17,7 @@ WuciOS v2.4 is the current reduction-controlled design path. The larger v2.3 dir
 - [Euclid Trial Phase 3A](docs/wucios/EUCLID_TRIAL_PHASE_3A.md)
 - [Euclid Trial Phase 3B Readiness](docs/wucios/EUCLID_TRIAL_PHASE_3B_READINESS.md)
 - [Euclid Trial Phase 3C-A](docs/wucios/EUCLID_TRIAL_PHASE_3C_A.md)
+- [Euclid Trial Phase 3C-B](docs/wucios/EUCLID_TRIAL_PHASE_3C_B.md)
 - [Tarski Review Appliance](docs/wucios/TARSKI_REVIEW_APPLIANCE.md)
 - [Gödel Boundary](docs/wucios/GODEL_BOUNDARY.md)
 - [Mathematician Naming Scheme](docs/wucios/MATHEMATICIAN_NAMING_SCHEME.md)
@@ -35,6 +36,8 @@ make wucios-euclid-buildrooms-phase-3a
 make wucios-euclid-buildrooms-phase-3b-readiness
 make wucios-euclid-buildrooms-phase-3c-a
 make wucios-euclid-buildrooms-phase-3c-a-guardrails
+make wucios-euclid-direct-rootfs-phase-3c-b
+make wucios-euclid-direct-rootfs-phase-3c-b-guardrails
 ```
 
 Status: Local evidence only. Not externally certified. Not production authorized.
@@ -58,6 +61,8 @@ Euclid Trial Phase 3A defines controlled build rooms for the same full cohort. T
 Euclid Trial Phase 3B readiness inspects backend, input, policy, and resource blockers for those build rooms. It creates a future test authorization matrix and authorizes only L0 readiness checks by default. It does not execute build rooms, select a substrate, rank candidates, or generate a numeric WuciOS score.
 
 Euclid Trial Phase 3C-A verifies rootless backend mechanics and buildroom preparation guardrails with a synthetic non-substrate smoke image. L2 smoke requires explicit `WUCIOS_PHASE3CA_ALLOW_L2_SMOKE=1` authorization. The smoke image is not a WuciOS artifact, not a substrate artifact, and not score eligible.
+
+Euclid Trial Phase 3C-B defines direct-rootfs preparation rules for Buildroot, Alpine, Debian minimal, and Void. Optional L2 scaffolding requires explicit `WUCIOS_PHASE3CB_ALLOW_L2_SCAFFOLD=1` authorization and generates only non-artifact preparation scaffolding under `build/wucios/`. NixOS/Guix, Yocto, and OpenBSD reference remain preserved for later dedicated policy phases. Phase 3C-B does not generate rootfs images, attempt substrate artifacts, select a substrate, rank candidates, or generate a numeric WuciOS score.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 

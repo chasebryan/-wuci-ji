@@ -1,0 +1,55 @@
+{
+  "schema": "wucios.euclid.direct_rootfs_candidate_preparation.v1",
+  "phase_id": "euclid-trial-phase-3c-b",
+  "candidate": "debian-minimal",
+  "display_name": "Debian minimal",
+  "status": "PREP_RULES_DEFINED",
+  "execution_class": "direct-rootfs-image-build-room",
+  "l3_artifact_attempt_allowed": false,
+  "rootfs_generation_allowed": false,
+  "required_future_inputs": [
+    "controlled Debian mirror/source strategy",
+    "explicit package set"
+  ],
+  "required_future_tools": [
+    "debootstrap",
+    "fakeroot or future rootless/fakechroot strategy",
+    "tar",
+    "sha256sum-or-shasum"
+  ],
+  "future_artifact_candidates": [
+    "rootfs.tar.gz"
+  ],
+  "phase_3c_b_allowed_outputs": [
+    "policy reports",
+    "non-artifact scaffolding",
+    "command manifest templates",
+    "missing-input reports",
+    "guardrail logs"
+  ],
+  "phase_3c_b_forbidden_actions": [
+    "rootfs generation",
+    "substrate artifact attempt",
+    "runtime inspection",
+    "score generation",
+    "selection",
+    "ranking"
+  ],
+  "future_evidence_requirements": [
+    "artifact-manifest.json",
+    "artifact.sha256",
+    "build-log.txt",
+    "build-command.json",
+    "source-policy.json",
+    "package-manifest.txt",
+    "noether-static-check.json",
+    "substrate-report.json",
+    "failure-report.md",
+    "missing-measurements.txt"
+  ],
+  "blocked_until": [
+    "debootstrap/fakechroot/rootless policy exists",
+    "future L3 authorization exists",
+    "evidence hooks exist"
+  ]
+}

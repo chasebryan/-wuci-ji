@@ -51,6 +51,8 @@ REQUIRED_OUTPUTS = [
 OPTIONAL_OUTPUTS = [
     "euclid-trial-phase-3c-a.md",
     "euclid-trial-phase-3c-a.json",
+    "euclid-trial-phase-3c-b.md",
+    "euclid-trial-phase-3c-b.json",
 ]
 
 
@@ -162,6 +164,15 @@ def load_generated_summary() -> dict[str, str]:
     euclid_phase_3c_a_guardrails = "NOT_RUN"
     euclid_phase_3c_a_boundaries = "NOT_RUN"
     euclid_phase_3c_a_score_status = "NOT_RUN"
+    euclid_phase_3c_b_status = "NOT_RUN"
+    euclid_phase_3c_b_execution = "NOT_RUN"
+    euclid_phase_3c_b_in_scope = "NOT_RUN"
+    euclid_phase_3c_b_out_of_scope = "NOT_RUN"
+    euclid_phase_3c_b_candidate_statuses = "NOT_RUN"
+    euclid_phase_3c_b_l2_scaffold = "NOT_RUN"
+    euclid_phase_3c_b_guardrails = "NOT_RUN"
+    euclid_phase_3c_b_score_status = "NOT_RUN"
+    euclid_phase_3c_b_boundaries = "NOT_RUN"
     score_status = "NO_ARTIFACT_SCORE"
     score_artifact_sha256 = "NOT_MEASURED"
 
@@ -336,6 +347,56 @@ def load_generated_summary() -> dict[str, str]:
         except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
             euclid_phase_3c_a_status = "NOT_MEASURED"
 
+    euclid_phase_3c_b = REVIEW_DIR / "euclid-trial-phase-3c-b.json"
+    if euclid_phase_3c_b.is_file():
+        try:
+            data = load_json(euclid_phase_3c_b)
+            euclid_phase_3c_b_status = str(data.get("global_status", euclid_phase_3c_b_status))
+            euclid_phase_3c_b_execution = str(data.get("execution_mode", euclid_phase_3c_b_execution))
+            substrate_selection = str(data.get("substrate_selection", substrate_selection))
+            euclid_phase_3c_b_score_status = str(data.get("score_status", euclid_phase_3c_b_score_status))
+            euclid_phase_3c_b_in_scope = ", ".join(str(item) for item in data.get("in_scope_candidates", [])) or "NOT_MEASURED"
+            out_of_scope = data.get("out_of_scope_preserved", {})
+            if isinstance(out_of_scope, dict):
+                euclid_phase_3c_b_out_of_scope = ", ".join(
+                    f"{key}:{'/'.join(str(item) for item in value)}"
+                    for key, value in sorted(out_of_scope.items())
+                    if isinstance(value, list)
+                ) or "NOT_MEASURED"
+            euclid_phase_3c_b_candidate_statuses = ", ".join(
+                f"{candidate.get('id', 'unknown')}:{candidate.get('preparation_status', 'NOT_MEASURED')}"
+                for candidate in data.get("candidates", [])
+                if isinstance(candidate, dict)
+            ) or "NOT_MEASURED"
+            l2 = data.get("l2_scaffold", {})
+            if isinstance(l2, dict):
+                euclid_phase_3c_b_l2_scaffold = ", ".join([
+                    f"authorized:{str(l2.get('authorized', 'NOT_MEASURED')).lower()}",
+                    f"attempted:{str(l2.get('attempted', 'NOT_MEASURED')).lower()}",
+                ])
+            guardrails = data.get("guardrails", [])
+            if isinstance(guardrails, list):
+                euclid_phase_3c_b_guardrails = ", ".join(
+                    str(item.get("status", "UNKNOWN")) for item in guardrails if isinstance(item, dict)
+                ) or "NO_GUARDRAIL_FAILURE_RECORDED"
+            euclid_phase_3c_b_boundaries = ", ".join(
+                f"{name}:{str(data.get(name, 'NOT_MEASURED')).lower()}"
+                for name in [
+                    "wucios_artifact_generated",
+                    "substrate_artifact_attempt_made",
+                    "rootfs_generation_attempted",
+                    "runtime_inspection_attempted",
+                    "container_build_attempted",
+                    "container_run_attempted",
+                    "image_pull_attempted",
+                    "network_used",
+                    "vm_run_attempted",
+                ]
+            )
+            score_status = str(data.get("score_status", score_status))
+        except Exception:  # noqa: BLE001 - summary must degrade to explicit unknown.
+            euclid_phase_3c_b_status = "NOT_MEASURED"
+
     score_json = REVIEW_DIR / "daylight-wucios-score.json"
     if score_json.is_file():
         try:
@@ -383,6 +444,15 @@ def load_generated_summary() -> dict[str, str]:
         "euclid_phase_3c_a_guardrails": euclid_phase_3c_a_guardrails,
         "euclid_phase_3c_a_score_status": euclid_phase_3c_a_score_status,
         "euclid_phase_3c_a_boundaries": euclid_phase_3c_a_boundaries,
+        "euclid_phase_3c_b_status": euclid_phase_3c_b_status,
+        "euclid_phase_3c_b_execution": euclid_phase_3c_b_execution,
+        "euclid_phase_3c_b_in_scope": euclid_phase_3c_b_in_scope,
+        "euclid_phase_3c_b_out_of_scope": euclid_phase_3c_b_out_of_scope,
+        "euclid_phase_3c_b_candidate_statuses": euclid_phase_3c_b_candidate_statuses,
+        "euclid_phase_3c_b_l2_scaffold": euclid_phase_3c_b_l2_scaffold,
+        "euclid_phase_3c_b_guardrails": euclid_phase_3c_b_guardrails,
+        "euclid_phase_3c_b_score_status": euclid_phase_3c_b_score_status,
+        "euclid_phase_3c_b_boundaries": euclid_phase_3c_b_boundaries,
         "score_status": score_status,
         "score_artifact_sha256": score_artifact_sha256,
     }
@@ -482,9 +552,19 @@ def write_packet(prereq_notes: list[str]) -> dict[str, Any]:
         f"- Euclid Trial Phase 3C-A guardrails: `{generated_summary['euclid_phase_3c_a_guardrails']}`",
         f"- Euclid Trial Phase 3C-A score status: `{generated_summary['euclid_phase_3c_a_score_status']}`",
         f"- Euclid Trial Phase 3C-A boundary booleans: `{generated_summary['euclid_phase_3c_a_boundaries']}`",
+        f"- Euclid Trial Phase 3C-B: `{generated_summary['euclid_phase_3c_b_status']}`",
+        f"- Euclid Trial Phase 3C-B execution mode: `{generated_summary['euclid_phase_3c_b_execution']}`",
+        f"- Euclid Trial Phase 3C-B in-scope candidates: `{generated_summary['euclid_phase_3c_b_in_scope']}`",
+        f"- Euclid Trial Phase 3C-B out-of-scope preserved: `{generated_summary['euclid_phase_3c_b_out_of_scope']}`",
+        f"- Euclid Trial Phase 3C-B candidate preparation statuses: `{generated_summary['euclid_phase_3c_b_candidate_statuses']}`",
+        f"- Euclid Trial Phase 3C-B L2 scaffold: `{generated_summary['euclid_phase_3c_b_l2_scaffold']}`",
+        f"- Euclid Trial Phase 3C-B guardrails: `{generated_summary['euclid_phase_3c_b_guardrails']}`",
+        f"- Euclid Trial Phase 3C-B score status: `{generated_summary['euclid_phase_3c_b_score_status']}`",
+        f"- Euclid Trial Phase 3C-B boundary booleans: `{generated_summary['euclid_phase_3c_b_boundaries']}`",
         f"- Score status: `{generated_summary['score_status']}`",
         f"- Score artifact SHA-256: `{generated_summary['score_artifact_sha256']}`",
         "- Phase 3C-A note: No WuciOS artifact generated. No substrate artifact attempted. No numeric WuciOS score generated.",
+        "- Phase 3C-B note: No WuciOS artifact generated. No substrate artifact attempted. No rootfs generated. No numeric WuciOS score generated.",
         "",
         "## Profiles",
         "",

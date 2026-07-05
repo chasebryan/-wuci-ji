@@ -34,6 +34,13 @@ Safe validation targets must not modify tracked files. Timestamped evidence is w
 - `build/wucios/review/daylight-wucios-score.json`
 - `build/wucios/review/daylight-wucios-score.md`
 
+Optional phase reports are summarized when present:
+
+- `build/wucios/review/euclid-trial-phase-3c-a.md`
+- `build/wucios/review/euclid-trial-phase-3c-a.json`
+- `build/wucios/review/euclid-trial-phase-3c-b.md`
+- `build/wucios/review/euclid-trial-phase-3c-b.json`
+
 ## NOT_MEASURED
 
 `NOT_MEASURED` means the value was not collected from a current WuciOS artifact or trial output. Missing values must remain explicit. They must not be filled by estimates or narrative claims.
@@ -59,3 +66,9 @@ Phase 3B readiness does not make the review packet release-complete. It does not
 If `build/wucios/review/euclid-trial-phase-3c-a.json` exists, the review packet summarizes Phase 3C-A global status, execution mode, backend summary, L2 synthetic smoke status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-A: NOT_RUN`.
 
 Phase 3C-A does not make the review packet release-complete. The synthetic smoke image is not a WuciOS artifact, not a substrate artifact, and not score eligible.
+
+## Phase 3C-B Review Status
+
+If `build/wucios/review/euclid-trial-phase-3c-b.json` exists, the review packet summarizes Phase 3C-B global status, execution mode, in-scope direct-rootfs candidates, preserved out-of-scope candidates, preparation statuses, L2 scaffold status, guardrail results, score status, and boundary booleans. If the file does not exist, the review packet records `Euclid Trial Phase 3C-B: NOT_RUN`.
+
+Phase 3C-B does not make the review packet release-complete. It does not generate a WuciOS artifact, attempt a substrate artifact, generate a rootfs, or produce a numeric WuciOS score.
