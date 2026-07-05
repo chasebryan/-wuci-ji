@@ -14,7 +14,7 @@ This reviewer note preserves the status of local WuciOS v2.4 Alpine runtime-vali
 
 Runtime Gates 5, 5A, 6, 7, 8, and 9 have been completed as local/ignored evidence.
 
-Latest completed gate: `RUNTIME_GATE_9_RUNTIME_VALIDATION_CLOSEOUT_BOUNDARY_COMPLETE`.
+Latest completed runtime gate: `RUNTIME_GATE_10_RUNTIME_STATUS_PRESERVATION_DECISION_PUSHED`.
 
 Gate 9 closed the runtime evidence ledger as a boundary/index gate.
 
@@ -24,6 +24,7 @@ Gate 9 closed the runtime evidence ledger as a boundary/index gate.
 - Gate 7: process/daemon negative-control boundary completed for the tested bounded process probe.
 - Gate 8: selected prior probes were repeated twice and produced a consistent evidence pattern.
 - Gate 9: runtime-validation evidence ledger was closed as a boundary/index gate.
+- Gate 10: preservation/status commit recorded this reviewer note and did not introduce a new runtime test.
 
 Current score remains 96.0 / 100.0.
 

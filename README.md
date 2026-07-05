@@ -86,7 +86,7 @@ Input evidence records Alpine release minirootfs `3.24.1` x86_64.
 The trial artifact SHA-256 is `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`.
 Generated score evidence file `build/wucios/full-trial/alpine/wucios-alpine-substrate-trial-score.json` records `score_value: 96.0`.
 Selection decision: `SUBSTRATE_SELECTED: Alpine` for WuciOS v2.4 substrate trial scope only.
-External validation is not claimed. Production readiness is not claimed. Runtime validation did not occur.
+External validation is not claimed. Production readiness is not claimed. Full runtime validation is not claimed. Runtime Gates 5 through 9 are summarized by the Gate 10 preservation note at [docs/wucios/v2.4/runtime-validation-status.md](docs/wucios/v2.4/runtime-validation-status.md), with raw runtime evidence remaining local/ignored unless separately authorized.
 
 Developer Desktop is non-authoritative convenience material. Xfce belongs there only if retained at all.
 
