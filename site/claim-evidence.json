@@ -210,29 +210,6 @@
       ]
     },
     {
-      "id": "read-only-public-meridian-surface",
-      "public_claim": "The public website is a read-only review surface and does not ship browser file encryption, decryption, private-key handling, or file-opening controls.",
-      "status": "local-and-hosted-gated",
-      "evidence_paths": [
-        "site/index.html",
-        "site/app.js",
-        "site/validate.mjs",
-        "tools/site_live_check.py"
-      ],
-      "evidence_values": {
-        "required_marker": "No public browser encryptor, private-key handler, or file opener is shipped."
-      },
-      "validation_commands": [
-        "make site-validate",
-        "make site-live-check"
-      ],
-      "does_not_prove": [
-        "runtime sandboxing",
-        "host cleanliness",
-        "absence of private material outside the static site artifact"
-      ]
-    },
-    {
       "id": "hosted-tls-requirements",
       "public_claim": "The hosted site is expected to serve the canonical HTTPS apex, redirect HTTP to HTTPS, redirect www to apex, and send HSTS.",
       "status": "requirement-declared; hosted gate must pass after deployment",

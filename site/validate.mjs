@@ -141,14 +141,12 @@ async function assertIndexReferences() {
     'id="review"',
     'id="evidence"',
     'id="daylight"',
-    'id="meridian"',
     'id="wucios"',
     'id="catalog"',
     'id="boundary"',
     'Not production cryptography',
     'Not runtime sandboxing',
     'Not external certification',
-    'Browser cryptography is not shipped',
     'Evidence-bound public review',
     'NoEvidence(x) -&gt; NoClaim(x)',
     'NoProof(x) -&gt; NoRelease(x)',
@@ -1208,7 +1206,6 @@ async function assertClaimEvidenceMap() {
     "daylight-v20-aperture-singularity-score-surface",
     "daylight-v20-public-challenge",
     "ai-scoring-integrity-audit",
-    "read-only-public-meridian-surface",
     "hosted-tls-requirements",
     "research-discovery-metadata"
   ]) {

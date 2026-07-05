@@ -2284,9 +2284,10 @@ figure:hover figcaption {
   --nsm-steel-dark: #74726c;
   --nsm-line: rgba(247, 242, 232, 0.16);
   --nsm-line-strong: rgba(247, 242, 232, 0.28);
-  --nsm-crimson: #d51f29;
-  --nsm-crimson-dark: #7d161b;
-  --nsm-crimson-glow: rgba(213, 31, 41, 0.18);
+  --nsm-crimson: #9b1118;
+  --nsm-crimson-bright: #b51620;
+  --nsm-crimson-dark: #4d090d;
+  --nsm-crimson-glow: rgba(155, 17, 24, 0.2);
   --bg: var(--nsm-bg);
   --bg-elevated: var(--nsm-bg-elevated);
   --bg-glass: rgba(8, 8, 7, 0.84);
@@ -2314,11 +2315,11 @@ body {
 body::before {
   background:
     linear-gradient(180deg, rgba(247, 242, 232, 0.04), transparent 24%),
-    linear-gradient(90deg, transparent, rgba(213, 31, 41, 0.06), transparent);
+    linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.06), transparent);
 }
 
 ::selection {
-  background: rgba(213, 31, 41, 0.36);
+  background: rgba(155, 17, 24, 0.42);
   color: var(--nsm-ink);
 }
 
@@ -2334,7 +2335,7 @@ body::before {
 }
 
 .site-header::after {
-  background: linear-gradient(90deg, transparent, rgba(213, 31, 41, 0.48), rgba(216, 213, 206, 0.36), transparent);
+  background: linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.48), rgba(216, 213, 206, 0.36), transparent);
 }
 
 .site-header.is-scrolled {
@@ -2413,21 +2414,10 @@ body::before {
 
 .nsm-hero {
   position: relative;
-  min-height: 760px;
-  padding: 118px 0 72px;
+  min-height: auto;
+  padding: clamp(72px, 7vw, 112px) 0 clamp(40px, 5vw, 68px);
   overflow: hidden;
   isolation: isolate;
-}
-
-.nsm-hero-banner {
-  position: absolute;
-  inset: 0;
-  z-index: -3;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  filter: saturate(0.94) contrast(1.06);
 }
 
 .nsm-hero::before,
@@ -2440,23 +2430,24 @@ body::before {
 
 .nsm-hero::before {
   inset: 0;
+  z-index: -3;
   background:
-    linear-gradient(120deg, rgba(8, 8, 7, 0.98) 0%, rgba(8, 8, 7, 0.9) 44%, rgba(8, 8, 7, 0.52) 100%),
-    linear-gradient(0deg, rgba(8, 8, 7, 0.82) 0%, rgba(8, 8, 7, 0.08) 44%, rgba(8, 8, 7, 0.54) 100%),
-    repeating-linear-gradient(135deg, rgba(216, 213, 206, 0.055) 0 1px, transparent 1px 48px);
+    radial-gradient(ellipse 780px 360px at 50% 48%, rgba(247, 242, 232, 0.15), transparent 68%),
+    radial-gradient(ellipse 680px 260px at 22% 54%, rgba(155, 17, 24, 0.11), transparent 72%),
+    linear-gradient(180deg, rgba(247, 242, 232, 0.055) 0%, transparent 20%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(118deg, #080807 0%, #131210 46%, #080807 100%);
 }
 
 .nsm-hero::after {
-  right: clamp(-180px, -8vw, -64px);
-  top: 72px;
-  width: min(58vw, 720px);
-  aspect-ratio: 1;
-  border: 1px solid rgba(216, 213, 206, 0.18);
-  border-radius: 50%;
+  inset: clamp(18px, 3vw, 34px) clamp(18px, 6vw, 96px);
+  z-index: -2;
+  border-top: 1px solid rgba(216, 213, 206, 0.18);
+  border-bottom: 1px solid rgba(216, 213, 206, 0.14);
   background:
-    repeating-radial-gradient(circle, transparent 0 68px, rgba(216, 213, 206, 0.12) 69px 70px),
-    conic-gradient(from -45deg, rgba(213, 31, 41, 0.34) 0 2deg, transparent 2deg 88deg, rgba(213, 31, 41, 0.28) 88deg 91deg, transparent 91deg 178deg, rgba(213, 31, 41, 0.34) 178deg 181deg, transparent 181deg 268deg, rgba(213, 31, 41, 0.28) 268deg 271deg, transparent 271deg 360deg);
-  opacity: 0.44;
+    linear-gradient(90deg, transparent, rgba(247, 242, 232, 0.09), transparent) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.16), transparent) bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, transparent 0 24.85%, rgba(216, 213, 206, 0.052) 24.85% 25%, transparent 25% 50%);
+  opacity: 0.86;
 }
 
 .nsm-hero-grid {
@@ -2467,36 +2458,129 @@ body::before {
 }
 
 .nsm-hero-copy {
-  max-width: 1180px;
+  display: grid;
+  gap: clamp(18px, 2.8vw, 34px);
+  align-content: start;
+  max-width: 1240px;
   min-width: 0;
 }
 
+.nsm-hero-copy > .eyebrow {
+  margin-bottom: 0;
+  color: var(--nsm-steel);
+  text-shadow: none;
+}
+
 .nsm-hero-lockup {
+  position: relative;
   display: grid;
-  grid-template-columns: clamp(250px, 28vw, 430px) minmax(0, 1fr);
-  gap: clamp(26px, 5vw, 70px);
+  grid-template-columns: minmax(280px, 0.5fr) minmax(560px, 1fr);
+  gap: clamp(20px, 3vw, 38px);
   align-items: center;
+  padding: clamp(18px, 3.2vw, 38px) 0;
+  isolation: isolate;
+}
+
+.nsm-hero-lockup::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-top: 1px solid rgba(216, 213, 206, 0.2);
+  border-bottom: 1px solid rgba(216, 213, 206, 0.16);
+  background:
+    linear-gradient(90deg, rgba(8, 8, 7, 0.1), rgba(247, 242, 232, 0.045) 48%, rgba(8, 8, 7, 0.08)),
+    linear-gradient(180deg, rgba(247, 242, 232, 0.035), rgba(0, 0, 0, 0.08));
 }
 
 .nsm-hero-wordmark {
   min-width: 0;
+  padding-right: clamp(8px, 2vw, 22px);
+}
+
+.nsm-hero-wordmark::before {
+  content: "";
+  display: block;
+  width: clamp(72px, 9vw, 132px);
+  height: 2px;
+  margin-bottom: clamp(14px, 2vw, 22px);
+  background: linear-gradient(90deg, var(--nsm-crimson), rgba(216, 213, 206, 0.56), transparent);
 }
 
 .nsm-hero h1 {
   max-width: 8.6ch;
-  margin-bottom: 22px;
+  margin-bottom: 14px;
   color: var(--nsm-ink);
-  font-size: clamp(4rem, 9vw, 8.8rem);
-  line-height: 0.84;
-  background: linear-gradient(135deg, #fffaf0 0%, var(--nsm-steel) 48%, #f3eee4 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: clamp(3.3rem, 6.4vw, 6.8rem);
+  font-weight: 700;
+  line-height: 0.88;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  text-shadow: 0 18px 46px rgba(0, 0, 0, 0.42);
 }
 
 .nsm-hero .hero-copy {
-  max-width: 760px;
+  max-width: 610px;
+  margin-bottom: 24px;
   color: var(--nsm-muted);
-  font-size: clamp(1.05rem, 1.45vw, 1.28rem);
+  font-size: clamp(1rem, 1.05vw, 1.1rem);
+}
+
+.nsm-hero-visual {
+  position: relative;
+  align-self: center;
+  justify-self: end;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgba(216, 213, 206, 0.22);
+  background: #070707;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.44);
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+  contain: paint;
+  overflow: hidden;
+}
+
+.nsm-hero-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(8, 8, 7, 0.1), transparent 44%),
+    linear-gradient(180deg, rgba(8, 8, 7, 0.01), rgba(8, 8, 7, 0.2));
+  pointer-events: none;
+}
+
+.nsm-hero-visual::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.76), rgba(216, 213, 206, 0.42), transparent);
+  pointer-events: none;
+}
+
+.nsm-hero-visual:hover {
+  border-color: rgba(216, 213, 206, 0.32);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.44);
+}
+
+.nsm-hero-visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1672 / 941;
+  object-fit: contain;
+  object-position: center;
+  background: #070707;
+  filter: saturate(0.9) contrast(1.06) brightness(0.92);
 }
 
 .eyebrow {
@@ -2515,13 +2599,13 @@ body::before {
 
 .button.primary {
   border-color: var(--nsm-crimson);
-  background: linear-gradient(180deg, #e03039 0%, var(--nsm-crimson-dark) 100%);
+  background: linear-gradient(180deg, var(--nsm-crimson-bright) 0%, var(--nsm-crimson-dark) 100%);
   color: #fff9ef;
-  box-shadow: 0 12px 32px rgba(213, 31, 41, 0.18);
+  box-shadow: 0 12px 32px rgba(155, 17, 24, 0.22);
 }
 
 .button.primary:hover {
-  box-shadow: 0 16px 38px rgba(213, 31, 41, 0.28);
+  box-shadow: 0 16px 38px rgba(155, 17, 24, 0.32);
 }
 
 .button.secondary {
@@ -2531,9 +2615,10 @@ body::before {
 }
 
 .hero-metrics {
+  margin: 0;
   border-color: rgba(216, 213, 206, 0.2);
-  background: rgba(17, 16, 15, 0.78);
-  backdrop-filter: blur(12px);
+  background: rgba(17, 16, 15, 0.82);
+  box-shadow: inset 0 1px 0 rgba(247, 242, 232, 0.055);
 }
 
 .hero-metrics div {
@@ -2565,54 +2650,16 @@ body::before {
   border: 1px solid rgba(216, 213, 206, 0.24);
   background:
     repeating-radial-gradient(circle, transparent 0 54px, rgba(216, 213, 206, 0.15) 55px 56px),
-    conic-gradient(from 45deg, transparent 0 20deg, rgba(213, 31, 41, 0.22) 20deg 22deg, transparent 22deg 110deg, rgba(213, 31, 41, 0.18) 110deg 112deg, transparent 112deg 200deg, rgba(213, 31, 41, 0.22) 200deg 202deg, transparent 202deg 290deg, rgba(213, 31, 41, 0.18) 290deg 292deg, transparent 292deg 360deg);
+    conic-gradient(from 45deg, transparent 0 20deg, rgba(155, 17, 24, 0.22) 20deg 22deg, transparent 22deg 110deg, rgba(155, 17, 24, 0.18) 110deg 112deg, transparent 112deg 200deg, rgba(155, 17, 24, 0.22) 200deg 202deg, transparent 202deg 290deg, rgba(155, 17, 24, 0.18) 290deg 292deg, transparent 292deg 360deg);
 }
 
 .nsm-aperture::after {
   inset: clamp(-10px, -2vw, -6px);
-  border: 1px solid rgba(213, 31, 41, 0.24);
-}
-
-.nsm-emblem-stage {
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  align-self: center;
-  gap: 18px;
-  width: min(100%, 430px);
-  aspect-ratio: 1;
-  padding: clamp(10px, 2vw, 22px);
-}
-
-.nsm-emblem-stage.nsm-aperture::before,
-.nsm-emblem-stage.nsm-aperture::after {
-  display: none;
-}
-
-.hero-emblem {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 410px);
-  aspect-ratio: 1;
-  object-fit: contain;
-  filter: drop-shadow(0 34px 42px rgba(0, 0, 0, 0.46));
-}
-
-.nsm-seal-note {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  padding: 9px 12px;
-  border: 1px solid rgba(216, 213, 206, 0.24);
-  background: rgba(8, 8, 7, 0.68);
-  color: var(--nsm-muted);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.76rem;
-  text-align: center;
+  border: 1px solid rgba(155, 17, 24, 0.24);
 }
 
 .nsm-boundary-rail {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-color: rgba(216, 213, 206, 0.16);
   background: rgba(216, 213, 206, 0.16);
 }
@@ -2814,9 +2861,9 @@ body::before {
 }
 
 .nsm-status-pill.crimson {
-  border-color: rgba(213, 31, 41, 0.46);
-  color: #ffb9bd;
-  background: rgba(213, 31, 41, 0.1);
+  border-color: rgba(155, 17, 24, 0.5);
+  color: var(--nsm-steel);
+  background: rgba(155, 17, 24, 0.14);
 }
 
 .nsm-command {
@@ -2934,15 +2981,15 @@ body::before {
 }
 
 .copy-button {
-  border-color: rgba(213, 31, 41, 0.48);
-  background: rgba(213, 31, 41, 0.08);
-  color: #ffb9bd;
+  border-color: rgba(155, 17, 24, 0.5);
+  background: rgba(155, 17, 24, 0.1);
+  color: var(--nsm-steel);
 }
 
 .copy-button:hover {
   border-color: var(--nsm-crimson);
-  background: rgba(213, 31, 41, 0.16);
-  color: #fff2f2;
+  background: rgba(155, 17, 24, 0.18);
+  color: var(--nsm-ink);
 }
 
 pre {
@@ -2951,7 +2998,7 @@ pre {
 }
 
 pre::before {
-  background: linear-gradient(180deg, var(--nsm-crimson), rgba(213, 31, 41, 0.16));
+  background: linear-gradient(180deg, var(--nsm-crimson), rgba(155, 17, 24, 0.16));
 }
 
 .wucios-actions {
@@ -2968,7 +3015,7 @@ pre::before {
 }
 
 .nsm-gallery::before {
-  background: linear-gradient(90deg, transparent, rgba(213, 31, 41, 0.28), rgba(216, 213, 206, 0.24), transparent);
+  background: linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.28), rgba(216, 213, 206, 0.24), transparent);
 }
 
 .nsm-gallery figure,
@@ -2979,7 +3026,7 @@ pre::before {
 
 figure:hover {
   border-color: rgba(216, 213, 206, 0.46);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), 0 0 34px rgba(213, 31, 41, 0.12);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), 0 0 34px rgba(155, 17, 24, 0.14);
 }
 
 figure img {
@@ -2993,12 +3040,12 @@ figcaption {
 .nsm-final-boundary {
   grid-template-columns: minmax(220px, 0.58fr) minmax(0, 1fr) auto;
   background:
-    linear-gradient(90deg, rgba(125, 22, 27, 0.28), transparent 42%),
+    linear-gradient(90deg, rgba(77, 9, 13, 0.42), transparent 42%),
     linear-gradient(180deg, #171514, #0c0c0b);
 }
 
 .nsm-final-boundary h2 {
-  color: #ffb9bd;
+  color: var(--nsm-steel);
 }
 
 .boundary-copy {
@@ -3028,11 +3075,11 @@ figcaption {
 }
 
 .text-link {
-  color: #ffb9bd;
+  color: var(--nsm-steel);
 }
 
 .text-link:hover {
-  color: #fff2f2;
+  color: var(--nsm-ink);
 }
 
 .nsm-footer {
@@ -3056,7 +3103,7 @@ figcaption {
 }
 
 .site-footer a:hover {
-  color: #ffb9bd;
+  color: var(--nsm-ink);
 }
 
 .not-found {
@@ -3140,26 +3187,33 @@ figcaption {
 
   .nsm-hero {
     min-height: auto;
-    padding-top: 108px;
+    padding: 72px 0 38px;
   }
 
   .nsm-hero::after {
-    right: -34vw;
-    top: 18%;
-    width: 92vw;
+    inset: 18px clamp(18px, 5vw, 54px);
+    background:
+      linear-gradient(90deg, transparent, rgba(247, 242, 232, 0.08), transparent) top / 100% 1px no-repeat,
+      linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.14), transparent) bottom / 100% 1px no-repeat,
+      repeating-linear-gradient(90deg, transparent 0 49.7%, rgba(216, 213, 206, 0.052) 49.7% 50%, transparent 50% 100%);
   }
 
   .nsm-hero-lockup {
-    grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1fr);
-    gap: clamp(22px, 4vw, 42px);
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(18px, 3.6vw, 34px);
   }
 
-  .nsm-emblem-stage {
-    width: min(100%, 340px);
+  .nsm-hero-wordmark {
+    padding-right: 0;
   }
 
-  .hero-emblem {
-    width: min(100%, 330px);
+  .nsm-hero-visual {
+    max-width: 900px;
+  }
+
+  .nsm-hero-visual img {
+    min-height: 0;
+    object-position: center;
   }
 
   .nsm-boundary-rail {
@@ -3186,37 +3240,34 @@ figcaption {
   }
 
   .nsm-hero {
-    padding: 92px 0 46px;
+    padding: 58px 0 30px;
+  }
+
+  .nsm-hero::after {
+    inset: 14px 18px;
+    background:
+      linear-gradient(90deg, transparent, rgba(247, 242, 232, 0.08), transparent) top / 100% 1px no-repeat,
+      linear-gradient(90deg, transparent, rgba(155, 17, 24, 0.12), transparent) bottom / 100% 1px no-repeat;
   }
 
   .nsm-hero h1 {
-    font-size: clamp(2.75rem, 14vw, 3.9rem);
+    font-size: clamp(2.15rem, 10.5vw, 3rem);
   }
 
   .nsm-hero-lockup {
-    grid-template-columns: 108px minmax(0, 1fr);
-    gap: 16px;
-    align-items: center;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: start;
     text-align: left;
   }
 
   .nsm-hero-wordmark {
     width: 100%;
-  }
-
-  .nsm-emblem-stage {
-    width: 108px;
-    gap: 0;
     padding: 0;
   }
 
-  .hero-emblem {
-    width: 108px;
-    filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.48));
-  }
-
-  .nsm-seal-note {
-    display: none;
+  .nsm-hero-visual img {
+    min-height: 0;
   }
 
   .nsm-boundary-rail,

@@ -121,7 +121,7 @@ def check_text_asset(path: str, markers: list[str]) -> list[Check]:
     return checks
 
 
-def check_readonly_meridian_surface() -> list[Check]:
+def check_no_browser_crypto_surface() -> list[Check]:
     homepage = fetch(APEX)
     app = fetch(APEX + "app.js")
     homepage_forbidden = [
@@ -143,22 +143,11 @@ def check_readonly_meridian_surface() -> list[Check]:
         "AES-GCM",
         "privateKey",
     ]
-    checks = [
-        Check(
-            "readonly-meridian-marker",
-            contains(homepage.body, "Evidence is reviewable; browser cryptography is not shipped."),
-            "homepage declares read-only Meridian posture",
-        ),
-        Check(
-            "readonly-meridian-browser-posture",
-            contains(homepage.body, "No public browser encryptor, private-key handler, or file opener is shipped."),
-            "homepage declares no public browser opener",
-        ),
-    ]
+    checks: list[Check] = []
     for marker in homepage_forbidden:
         checks.append(
             Check(
-                "readonly-meridian-no-control",
+                "no-browser-crypto-control",
                 not contains(homepage.body, marker),
                 f"homepage absent: {marker}",
             )
@@ -166,7 +155,7 @@ def check_readonly_meridian_surface() -> list[Check]:
     for marker in app_forbidden:
         checks.append(
             Check(
-                "readonly-meridian-no-js-crypto",
+                "no-browser-crypto-js",
                 not contains(app.body, marker),
                 f"app.js absent: {marker}",
             )
@@ -257,7 +246,7 @@ def run_checks() -> list[Check]:
             ],
         )
     )
-    checks.extend(check_readonly_meridian_surface())
+    checks.extend(check_no_browser_crypto_surface())
     checks.extend(
         check_json_asset(
             "codemeta.json",
