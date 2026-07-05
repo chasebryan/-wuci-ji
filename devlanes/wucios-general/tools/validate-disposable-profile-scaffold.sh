@@ -10,6 +10,8 @@ CONTRACT="$SCAFFOLD/profile-contract.md"
 MANIFEST="$SCAFFOLD/contract-manifest.json"
 PROBE3_VALIDATOR="$SCRIPT_DIR/validate-disposable-developer-profile.sh"
 EVIDENCE_CONTRACT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-dry-run-evidence-contract.sh"
+MANIFEST_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-contract-manifest.sh"
+PLANNER_MANIFEST_BINDING_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-planner-manifest-binding.sh"
 failures=0
 
 pass() {
@@ -65,6 +67,8 @@ check_file "$CONTRACT" "profile-contract.md"
 check_file "$MANIFEST" "contract-manifest.json"
 check_file "$PROBE3_VALIDATOR" "Probe 3 validator"
 check_file "$EVIDENCE_CONTRACT_VALIDATOR" "dry-run evidence contract validator"
+check_file "$MANIFEST_VALIDATOR" "contract manifest validator"
+check_file "$PLANNER_MANIFEST_BINDING_VALIDATOR" "planner-manifest binding validator"
 
 check_text "$README" "README identifies Probe 4 scaffold-only scope" "Probe 4 is scaffold-only."
 check_text "$README" "README reserves later structure" "reserves structure for a later"
@@ -106,6 +110,14 @@ if [ -f "$PROBE3_VALIDATOR" ]; then
 	fi
 fi
 
+if [ -f "$MANIFEST_VALIDATOR" ]; then
+	if sh "$MANIFEST_VALIDATOR"; then
+		pass "contract manifest validator passes"
+	else
+		fail "contract manifest validator failed"
+	fi
+fi
+
 if [ -f "$EVIDENCE_CONTRACT_VALIDATOR" ]; then
 	if [ "${WUCIOS_SKIP_EVIDENCE_CONTRACT:-0}" = "1" ]; then
 		pass "dry-run evidence contract validator skipped for nested planner validation"
@@ -113,6 +125,16 @@ if [ -f "$EVIDENCE_CONTRACT_VALIDATOR" ]; then
 		pass "dry-run evidence contract validator passes"
 	else
 		fail "dry-run evidence contract validator failed"
+	fi
+fi
+
+if [ -f "$PLANNER_MANIFEST_BINDING_VALIDATOR" ]; then
+	if [ "${WUCIOS_SKIP_PLANNER_MANIFEST_BINDING:-0}" = "1" ]; then
+		pass "planner-manifest binding validator skipped for nested planner validation"
+	elif WUCIOS_SKIP_EVIDENCE_CONTRACT=1 WUCIOS_SKIP_PLANNER_MANIFEST_BINDING=1 sh "$PLANNER_MANIFEST_BINDING_VALIDATOR"; then
+		pass "planner-manifest binding validator passes"
+	else
+		fail "planner-manifest binding validator failed"
 	fi
 fi
 
