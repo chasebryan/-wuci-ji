@@ -9,6 +9,7 @@ README="$SCAFFOLD/README.md"
 CONTRACT="$SCAFFOLD/profile-contract.md"
 MANIFEST="$SCAFFOLD/contract-manifest.json"
 PROBE3_VALIDATOR="$SCRIPT_DIR/validate-disposable-developer-profile.sh"
+EVIDENCE_CONTRACT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-dry-run-evidence-contract.sh"
 failures=0
 
 pass() {
@@ -63,6 +64,7 @@ check_file "$README" "README.md"
 check_file "$CONTRACT" "profile-contract.md"
 check_file "$MANIFEST" "contract-manifest.json"
 check_file "$PROBE3_VALIDATOR" "Probe 3 validator"
+check_file "$EVIDENCE_CONTRACT_VALIDATOR" "dry-run evidence contract validator"
 
 check_text "$README" "README identifies Probe 4 scaffold-only scope" "Probe 4 is scaffold-only."
 check_text "$README" "README reserves later structure" "reserves structure for a later"
@@ -101,6 +103,16 @@ if [ -f "$PROBE3_VALIDATOR" ]; then
 		pass "Probe 3 validator passes"
 	else
 		fail "Probe 3 validator failed"
+	fi
+fi
+
+if [ -f "$EVIDENCE_CONTRACT_VALIDATOR" ]; then
+	if [ "${WUCIOS_SKIP_EVIDENCE_CONTRACT:-0}" = "1" ]; then
+		pass "dry-run evidence contract validator skipped for nested planner validation"
+	elif WUCIOS_SKIP_EVIDENCE_CONTRACT=1 sh "$EVIDENCE_CONTRACT_VALIDATOR"; then
+		pass "dry-run evidence contract validator passes"
+	else
+		fail "dry-run evidence contract validator failed"
 	fi
 fi
 

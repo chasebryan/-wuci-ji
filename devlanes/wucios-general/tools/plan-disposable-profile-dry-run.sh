@@ -260,7 +260,7 @@ if [ -n "$INPUT_FILE" ]; then
 fi
 printf '\n'
 
-if ! sh "$SCAFFOLD_VALIDATOR"; then
+if ! WUCIOS_SKIP_EVIDENCE_CONTRACT=1 sh "$SCAFFOLD_VALIDATOR"; then
 	fail "scaffold validator failed; dry-run plan not printed"
 fi
 
