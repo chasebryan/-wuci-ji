@@ -9,6 +9,7 @@ SCAFFOLD="$LANE_DIR/scaffolds/disposable-developer-profile"
 MANIFEST="$SCAFFOLD/contract-manifest.json"
 CONTRACT="$SCAFFOLD/profile-contract.md"
 README="$SCAFFOLD/README.md"
+PLAN_VOCABULARY_CONTRACT="$SCAFFOLD/plan-vocabulary-contract.json"
 SCAFFOLD_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-scaffold.sh"
 INPUT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-plan-input.sh"
 EVIDENCE_DIR=
@@ -24,12 +25,15 @@ INPUT_SCHEMA_ID=
 EVIDENCE_CONTRACT_ID=
 EVIDENCE_SUMMARY_SCHEMA=
 EVIDENCE_INDEX_SCHEMA=
+PLAN_VOCABULARY_CONTRACT_ID=
+PLAN_SUMMARY_SCHEMA=
 
 LANE_REL="devlanes/wucios-general"
 SCAFFOLD_REL="$LANE_REL/scaffolds/disposable-developer-profile"
 MANIFEST_REL="$SCAFFOLD_REL/contract-manifest.json"
 CONTRACT_REL="$SCAFFOLD_REL/profile-contract.md"
 README_REL="$SCAFFOLD_REL/README.md"
+PLAN_VOCABULARY_CONTRACT_REL="$SCAFFOLD_REL/plan-vocabulary-contract.json"
 PLANNER_REL="$LANE_REL/tools/plan-disposable-profile-dry-run.sh"
 INPUT_VALIDATOR_REL="$LANE_REL/tools/validate-disposable-profile-plan-input.sh"
 
@@ -128,6 +132,8 @@ Foundation only: $FOUNDATION_ONLY
 Dry-run only: $DRY_RUN_ONLY
 Input schema id: $INPUT_SCHEMA_ID
 Evidence contract id: $EVIDENCE_CONTRACT_ID
+Plan vocabulary contract path: $PLAN_VOCABULARY_CONTRACT_REL
+Plan vocabulary contract id: $PLAN_VOCABULARY_CONTRACT_ID
 Scaffold README path: $README_REL
 Plan input path: ${INPUT_FILE:-none}
 Plan input profile id: $INPUT_PROFILE_ID
@@ -180,6 +186,7 @@ EOF
   "dry_run_only": $DRY_RUN_ONLY,
   "input_schema_id": "$INPUT_SCHEMA_ID",
   "evidence_contract_id": "$EVIDENCE_CONTRACT_ID",
+  "plan_vocabulary_contract_id": "$PLAN_VOCABULARY_CONTRACT_ID",
   "source_lane": "$LANE_REL",
   "scaffold_path": "$SCAFFOLD_REL",
   "source_contract_path": "$CONTRACT_REL",
@@ -237,6 +244,7 @@ EOF
   "dry_run_only": $DRY_RUN_ONLY,
   "input_schema_id": "$INPUT_SCHEMA_ID",
   "evidence_contract_id": "$EVIDENCE_CONTRACT_ID",
+  "plan_vocabulary_contract_id": "$PLAN_VOCABULARY_CONTRACT_ID",
   "source_contract_path": "$CONTRACT_REL",
   "scaffold_path": "$SCAFFOLD_REL",
   "plan_input_path": "${INPUT_FILE:-none}",
@@ -253,11 +261,60 @@ EOF
     {
       "path": "evidence-index.json",
       "kind": "index_json"
+    },
+    {
+      "path": "plan-summary.json",
+      "kind": "plan_summary_json"
     }
   ],
   "stable_comparison": true,
   "current_status": "not_implemented",
   "claim_boundary": "local dry-run evidence only; no install, profile creation, runtime, package-manager, network, host-configuration, or isolation-enforcement behavior was performed"
+}
+EOF
+
+	cat > "$out_dir/plan-summary.json" <<EOF
+{
+  "schema": "$PLAN_SUMMARY_SCHEMA",
+  "contract_manifest_schema_version": "$CONTRACT_MANIFEST_SCHEMA_VERSION",
+  "profile_contract_id": "$PROFILE_CONTRACT_ID",
+  "planner_mode": "$PLANNER_MODE",
+  "plan_vocabulary_contract_id": "$PLAN_VOCABULARY_CONTRACT_ID",
+  "dry_run_only": $DRY_RUN_ONLY,
+  "foundation_only": $FOUNDATION_ONLY,
+  "execution_status": "not_executed",
+  "planned_actions": [
+    {
+      "phase": "document_boundary",
+      "action_kind": "document_boundary",
+      "result": "boundary_documented"
+    },
+    {
+      "phase": "input_boundary",
+      "action_kind": "validate_input",
+      "result": "input_contract_checked"
+    },
+    {
+      "phase": "profile_request_summary",
+      "action_kind": "summarize_requested_profile",
+      "result": "request_summary_recorded"
+    },
+    {
+      "phase": "evidence_metadata",
+      "action_kind": "emit_dry_run_evidence",
+      "result": "dry_run_metadata_written"
+    },
+    {
+      "phase": "manifest_binding",
+      "action_kind": "record_manifest_binding",
+      "result": "manifest_identifiers_recorded"
+    },
+    {
+      "phase": "execution_report",
+      "action_kind": "report_no_execution",
+      "result": "no_execution_reported"
+    }
+  ]
 }
 EOF
 }
@@ -290,6 +347,7 @@ require_file "$SCAFFOLD_VALIDATOR" "scaffold validator"
 require_file "$MANIFEST" "contract manifest"
 require_file "$CONTRACT" "profile contract"
 require_file "$README" "scaffold README"
+require_file "$PLAN_VOCABULARY_CONTRACT" "plan vocabulary contract"
 if [ -n "$INPUT_FILE" ]; then
 	require_file "$INPUT_VALIDATOR" "input validator"
 fi
@@ -304,6 +362,8 @@ INPUT_SCHEMA_ID=$(manifest_value input_contract.schema) || fail "could not read 
 EVIDENCE_CONTRACT_ID=$(manifest_value evidence_contract.id) || fail "could not read evidence contract id"
 EVIDENCE_SUMMARY_SCHEMA=$(manifest_value evidence_contract.summary_schema) || fail "could not read evidence summary schema"
 EVIDENCE_INDEX_SCHEMA=$(manifest_value evidence_contract.index_schema) || fail "could not read evidence index schema"
+PLAN_VOCABULARY_CONTRACT_ID=$(manifest_value plan_vocabulary_contract.id) || fail "could not read plan vocabulary contract id"
+PLAN_SUMMARY_SCHEMA=$(manifest_value plan_vocabulary_contract.plan_summary_schema) || fail "could not read plan summary schema"
 
 printf '%s\n' 'Disposable developer profile dry-run planner'
 printf '%s\n' 'Mode: dry-run only'
@@ -356,6 +416,7 @@ print_item "foundation only" "$FOUNDATION_ONLY"
 print_item "dry-run only" "$DRY_RUN_ONLY"
 print_item "input schema id" "$INPUT_SCHEMA_ID"
 print_item "evidence contract id" "$EVIDENCE_CONTRACT_ID"
+print_item "plan vocabulary contract id" "$PLAN_VOCABULARY_CONTRACT_ID"
 print_item "plan input" "${INPUT_FILE:-none}"
 print_item "plan input validator" "$INPUT_VALIDATOR_REL"
 print_item "plan input profile id" "$INPUT_PROFILE_ID"
