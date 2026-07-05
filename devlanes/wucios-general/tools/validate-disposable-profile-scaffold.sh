@@ -18,6 +18,7 @@ TRACEABILITY_MATRIX_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-traceabil
 FOUNDATION_REGISTRY_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-registry.sh"
 FOUNDATION_REPORT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-validation-report.sh"
 FOUNDATION_REVIEW_PACKET_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-review-packet.sh"
+FOUNDATION_CLOSEOUT_VALIDATOR="$SCRIPT_DIR/validate-disposable-profile-foundation-closeout.sh"
 failures=0
 
 pass() {
@@ -81,6 +82,7 @@ check_file "$TRACEABILITY_MATRIX_VALIDATOR" "traceability matrix validator"
 check_file "$FOUNDATION_REGISTRY_VALIDATOR" "foundation validation registry validator"
 check_file "$FOUNDATION_REPORT_VALIDATOR" "foundation validation report validator"
 check_file "$FOUNDATION_REVIEW_PACKET_VALIDATOR" "foundation review packet validator"
+check_file "$FOUNDATION_CLOSEOUT_VALIDATOR" "foundation closeout validator"
 
 check_text "$README" "README identifies Probe 4 scaffold-only scope" "Probe 4 is scaffold-only."
 check_text "$README" "README reserves later structure" "reserves structure for a later"
@@ -201,6 +203,16 @@ if [ -f "$FOUNDATION_REVIEW_PACKET_VALIDATOR" ]; then
 		pass "foundation review packet validator passes"
 	else
 		fail "foundation review packet validator failed"
+	fi
+fi
+
+if [ -f "$FOUNDATION_CLOSEOUT_VALIDATOR" ]; then
+	if [ "${WUCIOS_SKIP_FOUNDATION_CLOSEOUT:-0}" = "1" ]; then
+		pass "foundation closeout validator skipped for nested runner validation"
+	elif sh "$FOUNDATION_CLOSEOUT_VALIDATOR"; then
+		pass "foundation closeout validator passes"
+	else
+		fail "foundation closeout validator failed"
 	fi
 fi
 
