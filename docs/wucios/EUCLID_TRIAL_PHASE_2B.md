@@ -68,6 +68,10 @@ Listening ports and loaded kernel modules require runtime inspection. They remai
 
 Phase 2B does not generate a numeric WuciOS score unless artifact-bound score requirements are satisfied.
 
+## Next Definition Layer
+
+Phase 3A defines controlled build rooms for the full cohort. The build room is not the substrate; the build room is the measuring chamber. Phase 3A does not execute builds, run containers, launch VMs, select a substrate, rank candidates, or generate a numeric WuciOS score.
+
 ## Commands
 
 ```sh

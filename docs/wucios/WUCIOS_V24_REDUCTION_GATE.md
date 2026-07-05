@@ -29,6 +29,7 @@ The first trial readiness plan is [EUCLID_SUBSTRATE_TRIAL_PLAN.md](EUCLID_SUBSTR
 The first artifact cohort protocol is [EUCLID_TRIAL_PHASE_1.md](EUCLID_TRIAL_PHASE_1.md).
 The build feasibility probe phase is [EUCLID_TRIAL_PHASE_2.md](EUCLID_TRIAL_PHASE_2.md).
 The full-cohort probe expansion is [EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md).
+The controlled build-room definition layer is [EUCLID_TRIAL_PHASE_3A.md](EUCLID_TRIAL_PHASE_3A.md).
 
 ## Evidence Requirement
 
@@ -48,6 +49,7 @@ make wucios-substrate-matrix
 make wucios-euclid-trial-phase-1
 make wucios-euclid-trial-phase-2
 make wucios-euclid-trial-phase-2b
+make wucios-euclid-buildrooms-phase-3a
 ```
 
 ## Controlling Doctrine
@@ -67,3 +69,4 @@ make wucios-euclid-trial-phase-2b
 13. No hand-written score is authoritative.
 14. No document may claim external certification, military approval, government approval, perfect security, unbreakability, or production authority.
 15. Every current claim must point to evidence, a command, a generated report, or a documented non-claim boundary.
+16. The build room is not the substrate; the build room is the measuring chamber.

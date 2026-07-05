@@ -48,5 +48,8 @@ Phase 2B expands safe build feasibility probes to the full original substrate
 candidate set:
 [EUCLID_TRIAL_PHASE_2B.md](EUCLID_TRIAL_PHASE_2B.md).
 
+Phase 3A defines controlled build rooms for the full cohort:
+[EUCLID_TRIAL_PHASE_3A.md](EUCLID_TRIAL_PHASE_3A.md).
+
 These phases do not select a substrate, generate a score, rank candidates, or
 invent measurements.

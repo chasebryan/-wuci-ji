@@ -18,6 +18,7 @@ REQUIRED_DIRS = [
     "wucios/components",
     "wucios/schemas",
     "wucios/trials",
+    "wucios/buildrooms",
     "wucios/reports",
     "tools/wucios",
     "tools/wucios/trial_collectors",
@@ -35,6 +36,8 @@ REQUIRED_TOOLS = [
     "score_wucios.py",
     "run_euclid_trial.py",
     "run_euclid_trial_phase_2.py",
+    "run_euclid_buildrooms_phase_3a.py",
+    "buildroom_common.py",
 ]
 
 PROFILE_KEYS = {
@@ -118,6 +121,7 @@ REQUIRED_DOCS = [
     "EUCLID_TRIAL_PHASE_1.md",
     "EUCLID_TRIAL_PHASE_2.md",
     "EUCLID_TRIAL_PHASE_2B.md",
+    "EUCLID_TRIAL_PHASE_3A.md",
     "KOLMOGOROV_BUDGET.md",
     "SHANNON_LEDGER.md",
     "GODEL_BOUNDARY.md",
@@ -205,6 +209,56 @@ PHASE_2_PLAN_KEYS = {
 PHASE_2B_PLAN_KEYS = {
     *PHASE_2_PLAN_KEYS,
     "measurement_values",
+}
+
+PHASE_3A_PLAN_KEYS = {
+    "schema",
+    "phase_id",
+    "phase_name",
+    "status",
+    "default_execution_mode",
+    "substrate_selection",
+    "ranking_allowed",
+    "emotional_testing_allowed",
+    "build_attempts_allowed_by_default",
+    "container_builds_allowed_by_default",
+    "container_runs_allowed_by_default",
+    "container_pulls_allowed_by_default",
+    "vm_runs_allowed_by_default",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "host_mutation_allowed",
+    "cohort",
+    "execution_classes",
+    "objectives",
+}
+
+BUILDROOM_KEYS = {
+    "schema",
+    "candidate",
+    "display_name",
+    "phase_id",
+    "execution_class",
+    "linux_based",
+    "reference_path",
+    "definition_status",
+    "default_execution_mode",
+    "build_attempt_default",
+    "network_default",
+    "sudo_allowed",
+    "host_package_install_allowed",
+    "host_mutation_allowed",
+    "container_run_default",
+    "container_pull_default",
+    "vm_run_default",
+    "allowed_backends",
+    "blocked_backends",
+    "required_host_tools",
+    "required_local_inputs",
+    "artifact_candidates",
+    "evidence_outputs",
+    "blocked_until",
+    "notes",
 }
 
 
@@ -478,6 +532,121 @@ def validate_euclid_trial_phase_2(failures: list[str], warnings: list[str]) -> N
                     failures.append(f"{plan_path.relative_to(ROOT)} must deny default writes outside build/wucios")
 
 
+def validate_euclid_buildrooms_phase_3a(failures: list[str], warnings: list[str]) -> None:
+    doc_path = ROOT / "docs/wucios/EUCLID_TRIAL_PHASE_3A.md"
+    if not doc_path.is_file():
+        failures.append("missing Phase 3A doc: docs/wucios/EUCLID_TRIAL_PHASE_3A.md")
+
+    buildrooms_dir = ROOT / "wucios/buildrooms"
+    required_paths = [
+        buildrooms_dir / "euclid-buildrooms-phase-3a.json",
+        buildrooms_dir / "backend-policy.json",
+        buildrooms_dir / "README.md",
+        ROOT / "wucios/schemas/euclid-buildroom.schema.json",
+        ROOT / "wucios/schemas/euclid-buildrooms-phase-3a.schema.json",
+        ROOT / "tools/wucios/run_euclid_buildrooms_phase_3a.py",
+        ROOT / "tools/wucios/buildroom_common.py",
+    ]
+    for path in required_paths:
+        if not path.is_file():
+            failures.append(f"missing Phase 3A file: {path.relative_to(ROOT)}")
+
+    plan_path = buildrooms_dir / "euclid-buildrooms-phase-3a.json"
+    plan = load_json(plan_path, failures)
+    if isinstance(plan, dict):
+        require_keys(plan_path, plan, PHASE_3A_PLAN_KEYS, failures)
+        if plan.get("phase_id") != "euclid-trial-phase-3a":
+            failures.append("Phase 3A plan must use phase_id euclid-trial-phase-3a")
+        if plan.get("cohort") != FULL_TRIAL_COHORT:
+            failures.append("Phase 3A plan cohort must match full trial cohort")
+        if plan.get("substrate_selection") != "NO_SUBSTRATE_SELECTED":
+            failures.append("Phase 3A plan must keep substrate_selection NO_SUBSTRATE_SELECTED")
+        for key in [
+            "ranking_allowed",
+            "emotional_testing_allowed",
+            "build_attempts_allowed_by_default",
+            "container_builds_allowed_by_default",
+            "container_runs_allowed_by_default",
+            "container_pulls_allowed_by_default",
+            "vm_runs_allowed_by_default",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "host_mutation_allowed",
+        ]:
+            if plan.get(key) is not False:
+                failures.append(f"Phase 3A plan must set {key} false")
+
+    policy_path = buildrooms_dir / "backend-policy.json"
+    policy = load_json(policy_path, failures)
+    if isinstance(policy, dict):
+        if policy.get("safe_detect_only") is not True:
+            failures.append("Phase 3A backend policy must be safe_detect_only")
+        forbidden = "\n".join(str(item) for item in policy.get("forbidden_default_actions", []))
+        for phrase in ["docker pull", "docker build", "docker run", "podman run", "buildah bud", "nix build", "guix system", "VM launch", "sudo", "package installation"]:
+            if phrase not in forbidden:
+                failures.append(f"Phase 3A backend policy must forbid {phrase}")
+
+    for candidate in FULL_TRIAL_COHORT:
+        directory = buildrooms_dir / candidate
+        if not directory.is_dir():
+            failures.append(f"missing Phase 3A buildroom directory: {directory.relative_to(ROOT)}")
+            continue
+        buildroom_path = directory / "buildroom.json"
+        readme_path = directory / "README.md"
+        if not buildroom_path.is_file():
+            failures.append(f"missing Phase 3A buildroom file: {buildroom_path.relative_to(ROOT)}")
+            continue
+        if not readme_path.is_file():
+            failures.append(f"missing Phase 3A README: {readme_path.relative_to(ROOT)}")
+        if candidate == "openbsd-reference":
+            runtime_path = directory / "runtime-room.json"
+            if not runtime_path.is_file():
+                failures.append(f"missing OpenBSD runtime room: {runtime_path.relative_to(ROOT)}")
+        else:
+            template_path = directory / "Containerfile.template"
+            if not template_path.is_file():
+                failures.append(f"missing Phase 3A Containerfile template: {template_path.relative_to(ROOT)}")
+
+        buildroom = load_json(buildroom_path, failures)
+        if not isinstance(buildroom, dict):
+            continue
+        require_keys(buildroom_path, buildroom, BUILDROOM_KEYS, failures)
+        if buildroom.get("schema") != "wucios.euclid.buildroom.v1":
+            failures.append(f"{buildroom_path.relative_to(ROOT)} has wrong schema")
+        if buildroom.get("candidate") != candidate:
+            failures.append(f"{buildroom_path.relative_to(ROOT)} candidate mismatch")
+        if buildroom.get("phase_id") != "euclid-trial-phase-3a":
+            failures.append(f"{buildroom_path.relative_to(ROOT)} must use phase_id euclid-trial-phase-3a")
+        if buildroom.get("definition_status") != "BUILDROOM_DEFINITION_PRESENT":
+            failures.append(f"{buildroom_path.relative_to(ROOT)} must declare BUILDROOM_DEFINITION_PRESENT")
+        if buildroom.get("default_execution_mode") != "SAFE_DETECT_ONLY":
+            failures.append(f"{buildroom_path.relative_to(ROOT)} must default to SAFE_DETECT_ONLY")
+        if buildroom.get("network_default") != "DISABLED":
+            failures.append(f"{buildroom_path.relative_to(ROOT)} must disable network by default")
+        for key in [
+            "build_attempt_default",
+            "sudo_allowed",
+            "host_package_install_allowed",
+            "host_mutation_allowed",
+            "container_run_default",
+            "container_pull_default",
+            "vm_run_default",
+        ]:
+            if buildroom.get(key) is not False:
+                failures.append(f"{buildroom_path.relative_to(ROOT)} must set {key} false")
+        if buildroom.get("selected") is True or buildroom.get("substrate_selection") not in {None, "NO_SUBSTRATE_SELECTED"}:
+            failures.append(f"{buildroom_path.relative_to(ROOT)} must not declare a selected substrate")
+        if candidate in {"nixos", "guix"}:
+            blockers = "\n".join(str(item) for item in buildroom.get("blocked_until", []))
+            if "host-store" not in blockers and "isolated" not in blockers:
+                failures.append(f"{buildroom_path.relative_to(ROOT)} must include host-store or isolated-store blockers")
+        if candidate == "openbsd-reference":
+            if buildroom.get("linux_based") is not False or buildroom.get("reference_path") is not True:
+                failures.append(f"{buildroom_path.relative_to(ROOT)} must mark OpenBSD as non-Linux reference path")
+        if "sudo" in "\n".join(str(item) for item in buildroom.get("notes", [])):
+            warnings.append(f"{buildroom_path.relative_to(ROOT)} mentions sudo boundary")
+
+
 def main() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -494,6 +663,7 @@ def main() -> int:
     validate_noether_policy(profiles, components, failures)
     validate_euclid_trial_phase_1(failures)
     validate_euclid_trial_phase_2(failures, warnings)
+    validate_euclid_buildrooms_phase_3a(failures, warnings)
 
     for doc in REQUIRED_DOCS:
         if not (ROOT / "docs/wucios" / doc).is_file():
@@ -520,6 +690,7 @@ def main() -> int:
     print(f"- components: {len(components)}")
     print(f"- Euclid Phase 1 candidates: {len(FIRST_TRIAL_COHORT)}")
     print(f"- Euclid Phase 2 candidates: {len(FULL_TRIAL_COHORT)}")
+    print(f"- Euclid Phase 3A build rooms: {len(FULL_TRIAL_COHORT)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")

@@ -42,3 +42,8 @@ WuciOS Phase 2B:
 Safe build feasibility probes cover Buildroot, Alpine, Debian minimal, Void,
 NixOS, Guix, Yocto, and OpenBSD reference without selecting a substrate or
 generating an artifact score.
+
+WuciOS Phase 3A:
+Controlled build-room definitions cover the same full cohort. Phase 3A detects
+readiness only and does not build containers, run containers, launch VMs, select
+a substrate, rank candidates, or generate an artifact score.

@@ -1,0 +1,13 @@
+# WuciOS Phase 3A definition only.
+# Do not build by default.
+# Do not pull by default.
+# Do not use as evidence of substrate success.
+# This build room is a measuring chamber, not the substrate.
+
+ARG BASE_IMAGE=UNPINNED_PHASE_3A_PLACEHOLDER
+ARG BASE_IMAGE_DIGEST=NOT_PINNED
+
+# Phase 3B must pin base images or define an equivalent reproducible source
+# before any controlled attempt is authorized.
+# Future Phase 3B material must define local source and controlled output path
+# policies before any Yocto attempt is authorized.

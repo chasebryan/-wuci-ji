@@ -16,6 +16,8 @@ Safe validation targets must not modify tracked files. Timestamped evidence is w
 - `build/wucios/review/euclid-trial-phase-2.json`
 - `build/wucios/review/euclid-trial-phase-2b.md`
 - `build/wucios/review/euclid-trial-phase-2b.json`
+- `build/wucios/review/euclid-trial-phase-3a.md`
+- `build/wucios/review/euclid-trial-phase-3a.json`
 - `build/wucios/review/substrate-matrix.md`
 - `build/wucios/review/substrate-matrix.json`
 - `build/wucios/review/surface-report.md`
@@ -37,3 +39,9 @@ Safe validation targets must not modify tracked files. Timestamped evidence is w
 ## Diagnostic-Only Scoring
 
 If only the current host repo is scanned, the score status is `DIAGNOSTIC_ONLY` and `score_valid` remains `false`. A release-authoritative score requires a current artifact hash and complete required inputs.
+
+## Phase 3A Review Status
+
+If `build/wucios/review/euclid-trial-phase-3a.json` exists, the review packet summarizes Phase 3A global status, execution mode, backend summary, candidate definition statuses, attempt readiness, and missing inputs. If the file does not exist, the review packet records `Euclid Trial Phase 3A: NOT_RUN`.
+
+Phase 3A does not make the review packet release-complete. Without a current WuciOS artifact and artifact-bound evidence, review status remains partial and score status remains `NO_ARTIFACT_SCORE`.

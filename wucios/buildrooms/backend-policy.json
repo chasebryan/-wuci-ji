@@ -1,0 +1,39 @@
+{
+  "schema": "wucios.euclid.backend_policy.v1",
+  "phase_id": "euclid-trial-phase-3a",
+  "safe_detect_only": true,
+  "allowed_detection_commands": [
+    "command -v docker",
+    "command -v podman",
+    "command -v buildah",
+    "command -v nerdctl",
+    "command -v nix",
+    "command -v guix",
+    "command -v qemu-system-x86_64",
+    "command -v qemu-img",
+    "test -e /dev/kvm"
+  ],
+  "forbidden_default_actions": [
+    "docker pull",
+    "docker build",
+    "docker run",
+    "podman pull",
+    "podman build",
+    "podman run",
+    "buildah bud",
+    "buildah from",
+    "buildah run",
+    "nix build",
+    "guix system",
+    "qemu-system execution",
+    "VM launch",
+    "sudo",
+    "package installation",
+    "source tree cloning",
+    "artifact download"
+  ],
+  "notes": [
+    "Phase 3A defines build rooms and detects readiness only.",
+    "Phase 3A does not execute build rooms."
+  ]
+}
