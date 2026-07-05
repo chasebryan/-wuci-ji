@@ -146,6 +146,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-v20-external-evidence-test daylight-v20-external-evidence-demo daylight-v20-external-evidence-verify daylight-v20-score-ceiling-report daylight-v20-rebuild-receipts
 .PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
+.PHONY: readme-remaster-check readme-remaster-fix readme-remaster
 .PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
 .PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2b wucios-euclid-trial-phase-2b-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal wucios-euclid-probe-void wucios-euclid-probe-nixos wucios-euclid-probe-guix wucios-euclid-probe-yocto wucios-euclid-probe-openbsd-reference wucios-euclid-buildrooms-phase-3a wucios-euclid-buildrooms-phase-3a-json wucios-buildroom-probe-buildroot wucios-buildroom-probe-alpine wucios-buildroom-probe-debian-minimal wucios-buildroom-probe-void wucios-buildroom-probe-nixos wucios-buildroom-probe-guix wucios-buildroom-probe-yocto wucios-buildroom-probe-openbsd-reference euclid-phase-2 euclid-phase-3a euclid-build-probes buildroom-readiness wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
 .PHONY: wucios-euclid-buildrooms-phase-3b-readiness wucios-euclid-buildrooms-phase-3b-readiness-json wucios-buildroom-readiness-buildroot wucios-buildroom-readiness-alpine wucios-buildroom-readiness-debian-minimal wucios-buildroom-readiness-void wucios-buildroom-readiness-nixos wucios-buildroom-readiness-guix wucios-buildroom-readiness-yocto wucios-buildroom-readiness-openbsd-reference euclid-phase-3b-readiness buildroom-remediation-plan test-authorization-matrix
@@ -264,6 +265,9 @@ help:
 	@printf '%s\n' ""
 	@printf '%s\n' "Safe local checks:"
 	@printf '%s\n' "  make site-validate"
+	@printf '%s\n' "  make readme-remaster-check    Verify README WuciOS v2.4 status anchors"
+	@printf '%s\n' "  make readme-remaster-fix      Repair bounded README status anchors"
+	@printf '%s\n' "  make readme-remaster          Remaster README and re-run anchor checks"
 	@printf '%s\n' "  make daylight-npt-test"
 	@printf '%s\n' "  make daylight-standard-schema-test"
 
@@ -734,6 +738,16 @@ site-validate: site-daylight-status-check
 
 site-live-check:
 	$(PYTHON) tools/site_live_check.py
+
+readme-remaster-check:
+	tools/remaster-readme.sh --check
+
+readme-remaster-fix:
+	tools/remaster-readme.sh --fix
+
+readme-remaster:
+	tools/remaster-readme.sh --write
+	tools/remaster-readme.sh --check
 
 wucios-validate:
 	$(PYTHON) tools/wucios/validate_wucios.py

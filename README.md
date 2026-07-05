@@ -46,10 +46,11 @@ research system.
 
 ## WuciOS v2.4 Reviewer/Status Baseline
 
-`main` adopts the WuciOS v2.4 reviewer/status-documentation baseline from
-`wucios-v24-reduction-gate`. The merge is a public review and status
-integration boundary, not a production or deployment authorization.
+`main` adopts the WuciOS v2.4 reviewer/status-documentation baseline. The
+baseline is a public review and status integration boundary, not a production or
+deployment authorization.
 
+- Post-main adoption stabilization: [docs/wucios/v2.4/post-main-adoption-stabilization.md](docs/wucios/v2.4/post-main-adoption-stabilization.md)
 - PR/merge packet: [docs/wucios/v2.4/pr-merge-consideration-packet.md](docs/wucios/v2.4/pr-merge-consideration-packet.md)
 - Gate status ledger: [docs/wucios/v2.4/gate-status-ledger.md](docs/wucios/v2.4/gate-status-ledger.md)
 - WuciOS v2.4 Alpine Substrate Trial Score: `96.0 / 100.0`
