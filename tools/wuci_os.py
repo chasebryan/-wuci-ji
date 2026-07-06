@@ -3906,26 +3906,21 @@ def _git_source_paths() -> list[Path]:
             check=False,
             shell=False,
         )
-    except OSError:
-        result = None
-    if result is not None and result.returncode == 0:
-        paths: list[Path] = []
-        for raw in result.stdout.split(b"\0"):
-            if not raw:
-                continue
-            text = raw.decode("utf-8", "surrogateescape")
-            rel = Path(text)
-            if (root / rel).exists() or (root / rel).is_symlink():
-                paths.append(rel)
-        return sorted(paths, key=lambda path: path.as_posix())
-
-    paths = []
-    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
-        rel = path.relative_to(root)
-        if rel.parts and rel.parts[0] in {".git", "build", ".tools", "__pycache__"}:
+    except OSError as exc:
+        raise WuciOSError("source-kit requires git enumeration; git is unavailable") from exc
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        detail = f": {stderr}" if stderr else ""
+        raise WuciOSError(f"source-kit requires successful git enumeration{detail}")
+    paths: list[Path] = []
+    for raw in result.stdout.split(b"\0"):
+        if not raw:
             continue
-        paths.append(rel)
-    return paths
+        text = raw.decode("utf-8", "surrogateescape")
+        rel = Path(text)
+        if (root / rel).exists() or (root / rel).is_symlink():
+            paths.append(rel)
+    return sorted(paths, key=lambda path: path.as_posix())
 
 
 def git_missing_source_paths() -> list[dict[str, str]]:
@@ -3968,6 +3963,45 @@ def _reserved_source_kit_output_problem(rel: Path, output_rel: Path | None) -> s
         return f"source-kit output path must not be part of source evidence: {rel.as_posix()}"
     if rel.parent == output_rel.parent and rel.name.startswith(f".{output_rel.name}.") and rel.name.endswith(".tmp"):
         return f"source-kit temporary output artifact must not be part of source evidence: {rel.as_posix()}"
+    return ""
+
+
+SOURCE_KIT_FORBIDDEN_PARTS = {
+    ".aws",
+    ".azure",
+    ".claude",
+    ".codex",
+    ".config",
+    ".docker",
+    ".gnupg",
+    ".kube",
+    ".meridian-vault",
+    ".mozilla",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+    ".ssh",
+    ".wrangler",
+}
+SOURCE_KIT_FORBIDDEN_NAMES = {
+    "auth.json",
+    "credentials.json",
+    "hosts.yml",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
+    "id_rsa",
+    "signedInUser.json",
+    "wrangler-account.json",
+}
+
+
+def _source_kit_private_path_problem(rel: Path) -> str:
+    parts = set(rel.parts)
+    if parts & SOURCE_KIT_FORBIDDEN_PARTS:
+        return f"source-kit refuses private local state path: {rel.as_posix()}"
+    if rel.name in SOURCE_KIT_FORBIDDEN_NAMES:
+        return f"source-kit refuses credential-shaped path: {rel.as_posix()}"
     return ""
 
 
@@ -4021,6 +4055,9 @@ def source_kit_records(
         reserved_problem = _reserved_source_kit_output_problem(rel, reserved_output_rel)
         if reserved_problem:
             raise WuciOSError(reserved_problem)
+        private_problem = _source_kit_private_path_problem(rel)
+        if private_problem:
+            raise WuciOSError(private_problem)
         add_record(root / rel, display_path=rel_text, target_path=SOURCE_KIT_PREFIX / rel, source_kind="wuci-ji", strict=True)
 
     upstream_root = root / DEFAULT_UPSTREAM_ROOT
@@ -4033,6 +4070,9 @@ def source_kit_records(
                 continue
             if rel.is_absolute() or ".." in rel.parts or rel_text.startswith("/"):
                 raise WuciOSError(f"unsafe upstream source-kit path: {rel_text}")
+            private_problem = _source_kit_private_path_problem(rel)
+            if private_problem:
+                raise WuciOSError(private_problem)
             add_record(
                 path,
                 display_path=f"{DEFAULT_UPSTREAM_ROOT.as_posix()}/{rel_text}",
@@ -8476,6 +8516,11 @@ if command -v nmcli >/dev/null 2>&1; then
             nmcli_may_connect=0
         fi
 
+        if [ -n "${WUCI_WIFI_PASSWORD:-}" ]; then
+            printf 'wuci-network-connect: WUCI_WIFI_PASSWORD is set; using wpa_supplicant config file path to avoid password argv exposure.\\n' >&2
+            nmcli_may_connect=0
+        fi
+
         if [ "$nmcli_may_connect" -eq 1 ] && ! rescan_output=$(nmcli device wifi rescan 2>&1); then
             printf 'wuci-network-connect: Wi-Fi rescan failed: %s\\n' "$rescan_output" >&2
             case "$rescan_output" in
@@ -8508,18 +8553,10 @@ if command -v nmcli >/dev/null 2>&1; then
                 exit 1
             fi
 
-            if [ -n "${WUCI_WIFI_PASSWORD:-}" ]; then
-                if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
-                    nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD" hidden yes
-                else
-                    nmcli device wifi connect "$ssid" password "$WUCI_WIFI_PASSWORD"
-                fi
+            if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
+                nmcli --ask device wifi connect "$ssid" hidden yes
             else
-                if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
-                    nmcli --ask device wifi connect "$ssid" hidden yes
-                else
-                    nmcli --ask device wifi connect "$ssid"
-                fi
+                nmcli --ask device wifi connect "$ssid"
             fi
 
             if online; then
@@ -8588,22 +8625,21 @@ if command -v wpa_supplicant >/dev/null 2>&1; then
         chmod 0700 "$conf_dir"
         conf="$conf_dir/wpa_supplicant.conf"
         if [ -n "$pass" ]; then
-            if command -v wpa_passphrase >/dev/null 2>&1; then
-                wpa_passphrase "$ssid" "$pass" > "$conf"
-            else
-                {
-                    printf 'network={\\n'
-                    if ! write_wpa_quoted_field ssid "$ssid"; then
-                        printf 'wuci-network-connect: SSID contains unsupported newline characters\\n' >&2
-                        exit 1
-                    fi
-                    if ! write_wpa_quoted_field psk "$pass"; then
-                        printf 'wuci-network-connect: Wi-Fi password contains unsupported newline characters\\n' >&2
-                        exit 1
-                    fi
-                    printf '}\\n'
-                } > "$conf"
-            fi
+            {
+                printf 'network={\\n'
+                if [ "${WUCI_WIFI_HIDDEN:-0}" = "1" ]; then
+                    printf '    scan_ssid=1\\n'
+                fi
+                if ! write_wpa_quoted_field ssid "$ssid"; then
+                    printf 'wuci-network-connect: SSID contains unsupported newline characters\\n' >&2
+                    exit 1
+                fi
+                if ! write_wpa_quoted_field psk "$pass"; then
+                    printf 'wuci-network-connect: Wi-Fi password contains unsupported newline characters\\n' >&2
+                    exit 1
+                fi
+                printf '}\\n'
+            } > "$conf"
         else
             {
                 printf 'network={\\n'
@@ -9424,12 +9460,22 @@ wuci-ai-status || true
 set -eu
 
 MODEL="${GROK_BUILD_MODEL:-grok-build-0.1}"
-API="${XAI_API_BASE:-https://api.x.ai/v1/responses}"
+API="https://api.x.ai/v1/responses"
 
 if [ -z "${XAI_API_KEY:-}" ]; then
     printf 'wuci-grok-build: set XAI_API_KEY first\\n' >&2
     exit 2
 fi
+if [ -n "${XAI_API_BASE:-}" ] && [ "$XAI_API_BASE" != "$API" ]; then
+    printf 'wuci-grok-build: refusing non-pinned XAI_API_BASE\\n' >&2
+    exit 2
+fi
+case "$XAI_API_KEY" in
+    *[!A-Za-z0-9._-]*)
+        printf 'wuci-grok-build: XAI_API_KEY contains unsupported characters for curl config\\n' >&2
+        exit 2
+        ;;
+esac
 if ! command -v curl >/dev/null 2>&1; then
     printf 'wuci-grok-build: curl is required\\n' >&2
     exit 2
@@ -9440,9 +9486,18 @@ ESCAPED=$(printf '%s' "$PROMPT" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
 SYSTEM='You are Grok Build running in Wuci-OS. Stay defensive, concise, and implementation-focused.'
 SYSTEM_ESCAPED=$(printf '%s' "$SYSTEM" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
 
-curl -fsS "$API" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $XAI_API_KEY" \
+curl_config=$(mktemp "${TMPDIR:-/tmp}/wuci-grok-curl.XXXXXX")
+chmod 0600 "$curl_config"
+trap 'rm -f "$curl_config"' EXIT INT TERM
+xai_key=$XAI_API_KEY
+unset XAI_API_KEY
+{
+    printf 'header = "Content-Type: application/json"\\n'
+    printf 'header = "Authorization: Bearer %s"\\n' "$xai_key"
+} > "$curl_config"
+xai_key=
+
+curl -fsS --config "$curl_config" "$API" \
   -d "{
     \\"model\\": \\"$MODEL\\",
     \\"input\\": [
@@ -9450,6 +9505,8 @@ curl -fsS "$API" \
       {\\"role\\": \\"user\\", \\"content\\": \\"$ESCAPED\\"}
     ]
   }"
+rm -f "$curl_config"
+trap - EXIT INT TERM
 printf '\\n'
 """
     release_hardware_trace_script = """#!/bin/sh
@@ -11998,7 +12055,15 @@ def _write_rootfs_text(rootfs: Path, relative: str | Path, text: str, *, mode: i
 
 def _debugfs_remote_path(relative: str | Path) -> str:
     rel = _safe_rootfs_relative_path(relative)
-    return "/" + rel.as_posix()
+    return _debugfs_quote_token("/" + rel.as_posix())
+
+
+def _debugfs_quote_token(value: str | Path) -> str:
+    text = str(value)
+    if "\x00" in text or any(ch in text for ch in "\r\n"):
+        raise WuciOSError(f"debugfs token contains unsafe control character: {text!r}")
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 def _debugfs_inode_mode_text(file_type: int, mode: int) -> str:
@@ -12035,7 +12100,7 @@ def _debugfs_mkdir_commands(relative: str | Path) -> list[str]:
     parts: list[str] = []
     for part in rel.parts:
         parts.append(part)
-        remote = "/" + "/".join(parts)
+        remote = _debugfs_remote_path(Path(*parts))
         commands.append(f"mkdir {remote}")
         commands.append(f"set_inode_field {remote} mode 040755")
     return commands
@@ -12043,9 +12108,10 @@ def _debugfs_mkdir_commands(relative: str | Path) -> list[str]:
 
 def _debugfs_write_file_commands(local: Path, relative: str | Path, mode: int) -> list[str]:
     remote = _debugfs_remote_path(relative)
+    local_token = _debugfs_quote_token(local)
     return [
         f"rm {remote}",
-        f"write {local} {remote}",
+        f"write {local_token} {remote}",
         f"set_inode_field {remote} mode {_debugfs_inode_mode_text(0o100000, mode)}",
         "dirty",
     ]
@@ -12102,7 +12168,7 @@ def _debugfs_write_bytes_file(
 def _debugfs_dump_file(image: Path, relative: str | Path, dest: Path, *, work_root: Path, label: str) -> bool:
     rel = _safe_rootfs_relative_path(relative)
     _prepare_exclusive_output_path(dest, f"{label} dump", force=True)
-    result = _debugfs_run(image, [f"dump {_debugfs_remote_path(rel)} {dest}"], label, cwd=work_root)
+    result = _debugfs_run(image, [f"dump {_debugfs_remote_path(rel)} {_debugfs_quote_token(dest)}"], label, cwd=work_root)
     if dest.is_file():
         return True
     stderr = (result.stderr or "") + (result.stdout or "")
@@ -13896,13 +13962,8 @@ def _rootfs_owner_map_from_tarball(rootfs: Path, tarball: Path, tools: dict[str,
 
 def _debugfs_safe_path(relative: str) -> str:
     if relative in {"", "."}:
-        return "/"
-    if "\\" in relative or '"' in relative or any(ch in relative for ch in "\r\n\t"):
-        raise WuciOSError(f"rootfs path cannot be safely normalized with debugfs: {relative}")
-    path = "/" + relative.strip("/")
-    if any(ch.isspace() for ch in relative):
-        return f'"{path}"'
-    return path
+        return _debugfs_quote_token("/")
+    return _debugfs_remote_path(relative)
 
 
 def normalize_generated_rootfs_image_ownership(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import stat
 import sys
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,32 @@ CLI_ERRORS = (
 
 class CommandError(Exception):
     """A clean, expected CLI failure (printed to stderr, exit code 1)."""
+
+
+def _write_new_bytes(path: Path, data: bytes, label: str) -> None:
+    current = path.parent
+    while current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise CommandError(f"{label} parent must not be a symlink: {current}")
+        current = current.parent
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise CommandError(f"{label} output must not be a symlink: {path}")
+        raise CommandError(f"{label} output already exists: {path}")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _json_dump(obj: Any, path: Path | None) -> None:
@@ -424,8 +451,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
         obligations_path=DEFAULT_OBLIGATIONS,
     )
     if args.out:
-        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.out).write_bytes(sealed)
+        _write_new_bytes(Path(args.out), sealed, "Meridian sealed envelope")
         print(f"sealed -> {args.out} ({len(sealed)} bytes; min_score_M={args.min_score})")
     else:
         sys.stdout.buffer.write(sealed)
@@ -443,8 +469,7 @@ def cmd_open(args: argparse.Namespace) -> int:
         obligations_path=DEFAULT_OBLIGATIONS,
     )
     if args.out:
-        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.out).write_bytes(plaintext)
+        _write_new_bytes(Path(args.out), plaintext, "Meridian opened plaintext")
         print(f"opened -> {args.out} ({len(plaintext)} bytes)")
     else:
         sys.stdout.buffer.write(plaintext)

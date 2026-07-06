@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -44,14 +45,52 @@ class HorizonVaultRefused(Exception):
 
 
 def _safe_regular_file(path: Path) -> Path:
-    resolved = path.resolve()
-    if not resolved.exists():
+    if not path.exists():
         raise HorizonVaultError(f"input file does not exist: {path}")
-    if resolved.is_symlink():
+    if path.is_symlink():
         raise HorizonVaultError(f"refusing symlink: {path}")
-    if not resolved.is_file():
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode):
         raise HorizonVaultError(f"input is not a regular file: {path}")
-    return resolved
+    if info.st_nlink > 1:
+        raise HorizonVaultError(f"input must not be hardlinked: {path}")
+    return path.resolve()
+
+
+def _read_regular_bytes(path: Path, label: str) -> bytes:
+    safe = _safe_regular_file(path)
+    try:
+        before = safe.lstat()
+        with safe.open("rb") as handle:
+            after = os.fstat(handle.fileno())
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                raise HorizonVaultError(f"{label} changed while opening: {path}")
+            return handle.read()
+    except OSError as exc:
+        raise HorizonVaultError(f"could not read {label}: {path}") from exc
+
+
+def _write_new_file(path: Path, data: bytes, label: str) -> None:
+    current = path.parent
+    while current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise HorizonVaultError(f"{label} parent must not be a symlink: {current}")
+        current = current.parent
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        raise HorizonVaultError(f"refusing to overwrite {label}: {path}")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _load_policy(path: Path | str | None, *, mode: str = "research") -> dict[str, Any]:
@@ -82,7 +121,7 @@ def init_vault(root: Path | str = DEFAULT_ROOT, *, force: bool = False) -> dict[
         "suite": horizon_crypto.SUITE,
         "boundary": BOUNDARY,
     }
-    (root / "horizon.json").write_bytes(json_bytes(config))
+    _write_new_file(root / "horizon.json", json_bytes(config), "Horizon config")
     return {"root": str(root), **config}
 
 
@@ -108,7 +147,7 @@ def inspect_bytes(sealed: bytes) -> dict[str, Any]:
 
 def inspect_file(input_path: Path | str) -> dict[str, Any]:
     sealed_path = _safe_regular_file(Path(input_path))
-    return inspect_bytes(sealed_path.read_bytes())
+    return inspect_bytes(_read_regular_bytes(sealed_path, "Horizon sealed object"))
 
 
 class HorizonVault:
@@ -224,8 +263,14 @@ class HorizonVault:
         out = Path(output_path) if output_path is not None else src.with_suffix(src.suffix + ".dhv")
         policy = _load_policy(policy_path, mode=mode)
         nonce = bytes.fromhex(nonce_hex) if nonce_hex else None
-        sealed = self.seal_bytes(name=src.name, plaintext=src.read_bytes(), state_path=state_path, policy=policy, nonce=nonce)
-        out.write_bytes(sealed)
+        sealed = self.seal_bytes(
+            name=src.name,
+            plaintext=_read_regular_bytes(src, "Horizon plaintext"),
+            state_path=state_path,
+            policy=policy,
+            nonce=nonce,
+        )
+        _write_new_file(out, sealed, "Horizon sealed object")
         inspected = self.inspect_bytes(sealed)
         return {"sealed_path": str(out), **inspected}
 
@@ -237,9 +282,12 @@ class HorizonVault:
         state_path: Path | str = DEFAULT_STATE,
     ) -> dict[str, Any]:
         sealed_path = _safe_regular_file(Path(input_path))
-        plaintext = self.open_bytes(sealed=sealed_path.read_bytes(), state_path=state_path)
+        plaintext = self.open_bytes(
+            sealed=_read_regular_bytes(sealed_path, "Horizon sealed object"),
+            state_path=state_path,
+        )
         out = Path(output_path)
-        out.write_bytes(plaintext)
+        _write_new_file(out, plaintext, "Horizon opened plaintext")
         return {
             "opened_path": str(out),
             "plaintext_len": len(plaintext),

@@ -68,10 +68,17 @@ def main() -> None:
 
     assert_ok(run_tool(["check-runner", "--runner", ""]), "empty runner")
     assert_ok(run_tool(["check-runner", "--runner", "qemu-x86_64"]), "qemu runner")
+    assert_ok(run_tool(["check-runner", "--runner", "qemu-x86_64 -cpu Haswell-v4"]), "qemu cpu runner")
     assert_fails(
         run_tool(["check-runner", "--runner", "malicious-runner"]),
         "unknown runner rejected",
     )
+    try:
+        wuci_verifier_identity.validate_runner("malicious-runner", strict=False)
+    except wuci_verifier_identity.VerifierIdentityError:
+        pass
+    else:
+        raise AssertionError("non-strict proof mode must reject unknown runners")
 
     if not args.quiet:
         print("wuci verifier identity: PASS")

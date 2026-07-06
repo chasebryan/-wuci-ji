@@ -18,7 +18,7 @@ import wuci_verifier_identity
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
-RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+RUNNER = shlex.split(wuci_verifier_identity.validate_runner(os.environ.get("WUCI_JI_RUNNER", ""), strict=False))
 PRIVATE_MARKERS = (
     "group_secret",
     "share",

@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+import wuci_safeio
+
 
 SCHEMA_PREFIX = "wuci-os-release"
 DEFAULT_FINAL_MANIFEST = Path("build/wuci-os/final/manifest.json")
@@ -74,21 +76,16 @@ def sha256_bytes(data: bytes) -> str:
 
 def require_regular(path: Path, label: str) -> os.stat_result:
     try:
-        info = path.lstat()
-    except FileNotFoundError as exc:
-        raise ReleaseGateError(f"{label} is missing: {path}") from exc
-    if stat.S_ISLNK(info.st_mode):
-        raise ReleaseGateError(f"{label} must not be a symlink: {path}")
-    if not stat.S_ISREG(info.st_mode):
-        raise ReleaseGateError(f"{label} must be a regular file: {path}")
-    if info.st_nlink != 1:
-        raise ReleaseGateError(f"{label} must not be hardlinked: {path}")
-    return info
+        return wuci_safeio.require_regular_file(path, label, reject_hardlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseGateError(str(exc)) from exc
 
 
 def read_bytes(path: Path, label: str) -> bytes:
-    require_regular(path, label)
-    return path.read_bytes()
+    try:
+        return wuci_safeio.read_regular_bytes(path, label, reject_hardlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseGateError(str(exc)) from exc
 
 
 def read_text(path: Path, label: str) -> str:
@@ -109,14 +106,28 @@ def read_json(path: Path, label: str) -> dict[str, Any]:
 def file_digest(path: Path, label: str) -> tuple[str, int]:
     info = require_regular(path, label)
     digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+    try:
+        for chunk in wuci_safeio.iter_regular_chunks(path, label, reject_hardlink=True):
             digest.update(chunk)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseGateError(str(exc)) from exc
     return digest.hexdigest(), info.st_size
 
 
 def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        wuci_safeio.ensure_parent_directory(path, f"{path} parent")
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseGateError(str(exc)) from exc
+    if path.exists() or path.is_symlink():
+        try:
+            info = path.lstat()
+        except OSError as exc:
+            raise ReleaseGateError(f"could not inspect release gate output {path}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise ReleaseGateError(f"release gate output must not be a symlink: {path}")
+        if not stat.S_ISREG(info.st_mode):
+            raise ReleaseGateError(f"release gate output must be a regular file: {path}")
     fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     tmp_path = Path(tmp_name)
     try:

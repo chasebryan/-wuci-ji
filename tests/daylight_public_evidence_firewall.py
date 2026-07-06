@@ -80,6 +80,21 @@ def main() -> None:
         assert_rejects(root, "public_artifact_contains_private_directory")
 
     with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "codex-auth"
+        write_clean_public(root)
+        (root / ".codex").mkdir()
+        (root / ".codex" / "auth.json").write_text('{"refresh_token":"' + "A" * 32 + '"}\n', encoding="utf-8")
+        assert_rejects(root, "public_artifact_contains_private_directory")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "oversize"
+        write_clean_public(root)
+        (root / "large.txt").write_bytes(b"A" * 32)
+        result = firewall.scan_root(root, profile=None, max_file_bytes=8)
+        assert not result["ok"], result
+        assert any("file_exceeds_public_artifact_size_limit" in item["reason"] for item in result["violations"]), result
+
+    with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "oracle"
         write_clean_public(root)
         (root / "index.json").write_text('{"plaintext_bytes": 5, "sha256": "' + "a" * 64 + '"}\n', encoding="utf-8")

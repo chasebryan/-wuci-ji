@@ -15,7 +15,7 @@ from typing import Any
 
 from . import external_evidence
 from .canonical import dumps_canonical, load_json_no_floats, loads_json_no_floats, reject_floats_recursive
-from .pathsafe import require_regular_public_file
+from .pathsafe import PathSafetyError, read_public_bytes
 
 SCHEMA_VERSION = 1
 RECEIPT_KIND = "daylight-v20-independent-rebuild-receipt"
@@ -365,10 +365,10 @@ def evaluate_receipt(
 
 def _load_receipt_bytes(path: Path | str) -> dict[str, Any]:
     receipt_path = Path(path)
-    require_regular_public_file(receipt_path, str(receipt_path))
-    raw = receipt_path.read_bytes()
-    if len(raw) > MAX_RECEIPT_BYTES:
-        raise RebuildReceiptError(f"external rebuild receipt exceeds size limit: {receipt_path}")
+    try:
+        raw = read_public_bytes(receipt_path, str(receipt_path), max_bytes=MAX_RECEIPT_BYTES)
+    except PathSafetyError as exc:
+        raise RebuildReceiptError(f"external rebuild receipt path rejected: {exc}") from exc
     if b"\x00" in raw:
         raise RebuildReceiptError(f"external rebuild receipt contains NUL bytes: {receipt_path}")
     try:

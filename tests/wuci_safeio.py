@@ -54,6 +54,7 @@ def main() -> None:
             lambda: wuci_safeio.read_regular_bytes(tmp, "directory input"),
             "safe read must refuse directory",
         )
+        assert list(wuci_safeio.iter_regular_chunks(target, "chunked input", chunk_size=3)) == [b"tar", b"get", b"\n"]
 
         large = tmp / "large.txt"
         large.write_text("abcdef", encoding="ascii")
@@ -81,6 +82,15 @@ def main() -> None:
                 reject_hardlink=True,
             ),
             "strict safe read must reject hardlinks",
+        )
+
+        real_parent = tmp / "real-parent"
+        real_parent.mkdir()
+        parent_link = tmp / "parent-link"
+        parent_link.symlink_to(real_parent, target_is_directory=True)
+        assert_fails(
+            lambda: wuci_safeio.write_new_text(parent_link / "child.txt", "x\n", "symlink parent output"),
+            "safe write must refuse symlink parent directories",
         )
 
     if not args.quiet:

@@ -247,3 +247,43 @@ fn inspect_output_has_no_forbidden_overclaims() {
         );
     }
 }
+
+#[test]
+#[cfg(unix)]
+fn cli_refuses_symlink_output() {
+    let root = std::env::temp_dir().join(format!(
+        "penumbra-cli-symlink-output-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let policy_path = root.join("policy.json");
+    let witness_path = root.join("witness.bin");
+    let plaintext_path = root.join("plain.txt");
+    let target_path = root.join("target.wjseal");
+    let link_path = root.join("link.wjseal");
+    std::fs::write(&policy_path, policy()).unwrap();
+    std::fs::write(&witness_path, witness_for(&policy(), &base_transcript())).unwrap();
+    std::fs::write(&plaintext_path, b"no link writes").unwrap();
+    std::fs::write(&target_path, b"existing").unwrap();
+    std::os::unix::fs::symlink(&target_path, &link_path).unwrap();
+
+    let status = std::process::Command::new(env!("CARGO_BIN_EXE_penumbra"))
+        .arg("seal")
+        .arg("--policy")
+        .arg(&policy_path)
+        .arg("--mode")
+        .arg("public")
+        .arg("--witness")
+        .arg(&witness_path)
+        .arg("--in")
+        .arg(&plaintext_path)
+        .arg("--out")
+        .arg(&link_path)
+        .status()
+        .unwrap();
+
+    assert!(!status.success());
+    assert_eq!(std::fs::read(&target_path).unwrap(), b"existing");
+    let _ = std::fs::remove_dir_all(&root);
+}

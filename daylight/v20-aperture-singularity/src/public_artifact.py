@@ -17,7 +17,7 @@ from . import boundary_debt
 from . import evidence_audit
 from . import firewall_profile
 from .canonical import canonical_sha256, json_bytes, load_json_no_floats
-from .pathsafe import atomic_write_bytes, hash_file_dual
+from .pathsafe import atomic_write_bytes, hash_file_dual, read_public_bytes, sha256_file
 from .singularity_gate import (
     D_BOUNDARY_DEBT,
     D_EXTERNAL_ATTESTATION,
@@ -210,6 +210,8 @@ class PublicArtifactError(ValueError):
 
 
 def _guard_removable(out: Path, base: Path) -> None:
+    if out.is_symlink():
+        raise PublicArtifactError(f"refusing to clear symlinked public artifact output: {out}")
     resolved = out.resolve()
     if resolved == base or resolved in base.parents:
         raise PublicArtifactError("refusing to clear the repository root or one of its parents")
@@ -475,7 +477,7 @@ def _write_sums(root: Path) -> tuple[str, str]:
 
 def _parse_sums(path: Path, digest_len: int) -> dict[str, str]:
     entries: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in read_public_bytes(path, str(path), max_bytes=1_000_000).decode("utf-8").splitlines():
         if not line.strip():
             continue
         match = SUMS_LINE_RE.fullmatch(line)
@@ -491,14 +493,12 @@ def _parse_sums(path: Path, digest_len: int) -> dict[str, str]:
 
 
 def _deterministic_tar_gz(root: Path, tar_path: Path) -> str:
-    if tar_path.exists() or tar_path.is_symlink():
-        tar_path.unlink()
     buffer = BytesIO()
     with tarfile.open(fileobj=buffer, mode="w") as tar:
         for path in sorted(root.iterdir(), key=lambda item: item.name):
             if not path.is_file():
                 continue
-            data = path.read_bytes()
+            data = read_public_bytes(path, path.name, max_bytes=5_000_000)
             info = tarfile.TarInfo(name=path.name)
             info.size = len(data)
             info.mtime = 0
@@ -508,10 +508,12 @@ def _deterministic_tar_gz(root: Path, tar_path: Path) -> str:
             info.uname = ""
             info.gname = ""
             tar.addfile(info, BytesIO(data))
-    with tar_path.open("wb") as raw:
-        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as handle:
-            handle.write(buffer.getvalue())
-    return hashlib.sha256(tar_path.read_bytes()).hexdigest()
+    raw = BytesIO()
+    with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as handle:
+        handle.write(buffer.getvalue())
+    tar_bytes = raw.getvalue()
+    atomic_write_bytes(tar_path, tar_bytes, force=True)
+    return hashlib.sha256(tar_bytes).hexdigest()
 
 
 def _safe_tar_member_name(name: str) -> str:
@@ -528,7 +530,8 @@ def _safe_tar_member_name(name: str) -> str:
 
 
 def _extract_tar_gz_safely(tar_path: Path, out: Path) -> None:
-    with tarfile.open(tar_path, mode="r:gz") as archive:
+    data = read_public_bytes(tar_path, str(tar_path), max_bytes=25_000_000)
+    with tarfile.open(fileobj=BytesIO(data), mode="r:gz") as archive:
         seen: set[str] = set()
         for member in archive.getmembers():
             name = _safe_tar_member_name(member.name)
@@ -591,7 +594,7 @@ def build_public_artifact(
         for schema_name in EVIDENCE_SCHEMA_FILENAMES:
             _copy_json(PACKAGE_ROOT / "schema" / schema_name, out / schema_name)
         for doc_name in EXTERNAL_EVIDENCE_DOC_FILENAMES:
-            atomic_write_bytes(out / doc_name, (REPO_ROOT / "docs" / doc_name).read_bytes())
+            atomic_write_bytes(out / doc_name, read_public_bytes(REPO_ROOT / "docs" / doc_name, doc_name, max_bytes=1_000_000))
         _copy_json(Path(verifier_bundle_path) if verifier_bundle_path is not None else DEFAULT_VERIFIER_BUNDLE, out / VERIFIER_BUNDLE_FILENAME)
         _copy_json(Path(external_attestation_path) if external_attestation_path is not None else DEFAULT_EXTERNAL_ATTESTATION, out / EXTERNAL_ATTESTATION_FILENAME)
         _copy_json(Path(reproducible_build_path) if reproducible_build_path is not None else DEFAULT_REPRODUCIBLE_BUILDS, out / REPRODUCIBLE_BUILD_FILENAME)
@@ -772,7 +775,7 @@ def verify_public_artifact(
             root = Path(tmp) / "public"
             root.mkdir()
             _extract_tar_gz_safely(source, root)
-            tar_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+            tar_sha256 = sha256_file(source)
             artifact_type = "tar.gz"
         else:
             raise PublicArtifactError(f"unsupported public artifact path: {source}")
@@ -855,7 +858,9 @@ def scan_public_root(root: Path | str, *, max_file_bytes: int = 5_000_000) -> di
             add(relative, "forbidden_private_material_suffix")
         if FORBIDDEN_NAME_RE.search(path.name):
             add(relative, "forbidden_secret_path")
-        data = path.read_bytes()
+        if st.st_size > max_file_bytes:
+            continue
+        data = read_public_bytes(path, relative, max_bytes=max_file_bytes)
         for marker in SECRET_MARKERS:
             if marker in data:
                 add(relative, "known_secret_marker")

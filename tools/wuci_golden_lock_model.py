@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
+
+TOOLS_DIR = Path(__file__).resolve().parent
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+import wuci_safeio
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -119,8 +123,10 @@ class GoldenLockModelError(RuntimeError):
 
 def load_json(path: Path, context: str) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        value = json.loads(
+            wuci_safeio.read_regular_bytes(path, context, reject_hardlink=True).decode("utf-8")
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, wuci_safeio.SafeIOError) as exc:
         raise GoldenLockModelError(f"could not read {context}: {path}") from exc
     if not isinstance(value, dict):
         raise GoldenLockModelError(f"{context} must be a JSON object")
@@ -128,10 +134,15 @@ def load_json(path: Path, context: str) -> dict[str, Any]:
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    try:
+        wuci_safeio.atomic_replace_text(
+            path,
+            json.dumps(value, indent=2, sort_keys=True) + "\n",
+            "Golden Lock model output",
+            mode=0o644,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise GoldenLockModelError(str(exc)) from exc
 
 
 def _is_int(value: Any) -> bool:

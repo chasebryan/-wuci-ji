@@ -1209,6 +1209,9 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "wpa_quoted_value" in network_connect
     assert "write_wpa_quoted_field ssid" in network_connect
     assert "unsupported newline characters" in network_connect
+    assert "using wpa_supplicant config file path to avoid password argv exposure" in network_connect
+    assert 'password "$WUCI_WIFI_PASSWORD"' not in network_connect
+    assert 'wpa_passphrase "$ssid" "$pass"' not in network_connect
     assert "enable_service udevd" in files["usr/local/bin/wuci-network-apply"]
     assert "sudo wuci-network-connect" in files["usr/local/bin/wuci-network-apply"]
     assert 'wuci-wait-run "$label" doas "$@"' in files["usr/local/bin/wuci-network-apply"]
@@ -1300,7 +1303,13 @@ def assert_overlay_profile(tmp: Path) -> None:
     assert "exec startx" in files["etc/profile.d/wuci-xfce-autostart.sh"]
     assert not any(path.endswith("wuci-play") for path in files)
     assert "wuci-play" not in "\n".join(files.values())
-    assert "grok-build-0.1" in files["usr/local/bin/wuci-grok-build"]
+    grok_build = files["usr/local/bin/wuci-grok-build"]
+    assert "grok-build-0.1" in grok_build
+    assert 'API="https://api.x.ai/v1/responses"' in grok_build
+    assert "refusing non-pinned XAI_API_BASE" in grok_build
+    assert 'curl -fsS --config "$curl_config" "$API"' in grok_build
+    assert 'Authorization: Bearer $XAI_API_KEY' not in grok_build
+    assert '-H "Authorization:' not in grok_build
     ai_setup = files["usr/local/bin/wuci-ai-setup"]
     assert "This command is plan-only" in ai_setup
     assert "does not download installer scripts" in ai_setup
@@ -1799,6 +1808,13 @@ def assert_initrd_live_root_support_markers() -> None:
 def assert_debugfs_safe_path_quotes_firmware_names() -> None:
     path = "usr/lib/firmware/brcm/brcmfmac43241b4-sdio.Intel Corp.-VALLEYVIEW C0 PLATFORM.txt.zst"
     assert wuci_os._debugfs_safe_path(path) == f'"/{path}"'
+    assert wuci_os._debugfs_safe_path("usr/local/bin/INSTALL") == '"/usr/local/bin/INSTALL"'
+    try:
+        wuci_os._debugfs_safe_path("usr/local/bin/good\nrm /bad")
+    except wuci_os.WuciOSError:
+        pass
+    else:
+        raise AssertionError("debugfs path accepted a newline")
     assert wuci_os._debugfs_inode_mode_text(0o100000, 0o755) == "0100755"
 
 
@@ -2606,9 +2622,14 @@ def assert_source_kit(tmp: Path) -> None:
         assert output_target.read_text(encoding="utf-8") == "do not overwrite\n"
 
 
+def init_fake_git_repo(path: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
+
+
 def assert_source_kit_avoids_output_self_capture(tmp: Path) -> None:
     fake_repo = tmp / "source-kit-fake-repo"
     fake_repo.mkdir()
+    init_fake_git_repo(fake_repo)
     (fake_repo / "README.md").write_text("fake Wuci source\n", encoding="utf-8")
     out = fake_repo / "dist" / "wuci-os-source-kit.tar"
     original_repo_root = wuci_os.repo_root
@@ -2630,6 +2651,7 @@ def assert_source_kit_avoids_output_self_capture(tmp: Path) -> None:
 def assert_source_kit_rejects_stale_output_temp(tmp: Path) -> None:
     fake_repo = tmp / "source-kit-stale-temp-repo"
     fake_repo.mkdir()
+    init_fake_git_repo(fake_repo)
     (fake_repo / "README.md").write_text("fake Wuci source\n", encoding="utf-8")
     dist = fake_repo / "dist"
     dist.mkdir()
@@ -2652,9 +2674,50 @@ def assert_source_kit_rejects_stale_output_temp(tmp: Path) -> None:
     assert not out.exists()
 
 
+def assert_source_kit_fails_without_git_enumeration(tmp: Path) -> None:
+    fake_repo = tmp / "source-kit-not-git-repo"
+    fake_repo.mkdir()
+    (fake_repo / "README.md").write_text("fake Wuci source\n", encoding="utf-8")
+    out = fake_repo / "wuci-os-source-kit.tar"
+    original_repo_root = wuci_os.repo_root
+    try:
+        wuci_os.repo_root = lambda: fake_repo
+        try:
+            wuci_os.write_deterministic_source_kit_tar(out, ticker_mode="never")
+        except wuci_os.WuciOSError as exc:
+            assert "git enumeration" in str(exc)
+        else:
+            raise AssertionError("source-kit accepted a non-Git fallback enumeration")
+    finally:
+        wuci_os.repo_root = original_repo_root
+
+
+def assert_source_kit_rejects_private_local_state(tmp: Path) -> None:
+    fake_repo = tmp / "source-kit-private-state-repo"
+    fake_repo.mkdir()
+    init_fake_git_repo(fake_repo)
+    (fake_repo / "README.md").write_text("fake Wuci source\n", encoding="utf-8")
+    secret_dir = fake_repo / ".codex"
+    secret_dir.mkdir()
+    (secret_dir / "auth.json").write_text('{"access_token":"' + "A" * 32 + '"}\n', encoding="utf-8")
+    out = fake_repo / "wuci-os-source-kit.tar"
+    original_repo_root = wuci_os.repo_root
+    try:
+        wuci_os.repo_root = lambda: fake_repo
+        try:
+            wuci_os.write_deterministic_source_kit_tar(out, ticker_mode="never")
+        except wuci_os.WuciOSError as exc:
+            assert "private local state path" in str(exc) or "credential-shaped path" in str(exc)
+        else:
+            raise AssertionError("source-kit accepted private local state")
+    finally:
+        wuci_os.repo_root = original_repo_root
+
+
 def assert_source_kit_rejects_changed_member_after_record(tmp: Path) -> None:
     fake_repo = tmp / "source-kit-change-after-record-repo"
     fake_repo.mkdir()
+    init_fake_git_repo(fake_repo)
     readme = fake_repo / "README.md"
     readme.write_text("abcdef\n", encoding="utf-8")
     out = fake_repo / "wuci-os-source-kit.tar"
@@ -3228,6 +3291,8 @@ def main() -> int:
         assert_source_kit(tmp)
         assert_source_kit_avoids_output_self_capture(tmp)
         assert_source_kit_rejects_stale_output_temp(tmp)
+        assert_source_kit_fails_without_git_enumeration(tmp)
+        assert_source_kit_rejects_private_local_state(tmp)
         assert_source_kit_rejects_changed_member_after_record(tmp)
         assert_iso_plan(tmp)
         assert_final_iso_payload_builder(tmp)

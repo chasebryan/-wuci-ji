@@ -69,7 +69,7 @@ def _text_summary(card: dict[str, Any]) -> str:
 
 def _write_or_print(card: dict[str, Any], out: str | None, output_format: str) -> None:
     if out:
-        Path(out).write_bytes(json_bytes(card))
+        horizon_release._write_new_bytes(Path(out), json_bytes(card), "Event Horizon scorecard")
     if output_format == "json":
         _print_json(card)
     else:
@@ -118,7 +118,7 @@ def cmd_vector(args: argparse.Namespace) -> int:
     card, _state, _fields, _atoms = _load_current_card(args)
     vector = verifier_vector.generate_python_reference_vector(card)
     if args.out:
-        Path(args.out).write_bytes(json_bytes(vector))
+        horizon_release._write_new_bytes(Path(args.out), json_bytes(vector), "Event Horizon verifier vector")
     if args.format == "json":
         _print_json(vector)
     else:

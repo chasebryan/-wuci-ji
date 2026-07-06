@@ -83,6 +83,19 @@ class VaultTests(unittest.TestCase):
         with self.assertRaises(vault.VaultError):
             vault.Vault(self.root).caller_key()
 
+    def test_seal_hardlink_rejected(self) -> None:
+        self._init()
+        v = vault.Vault(self.root)
+        src = self.work / "source-secret"
+        src.write_bytes(b"secret")
+        hardlink = self.work / "hardlinked-secret"
+        try:
+            os.link(src, hardlink)
+        except (OSError, NotImplementedError):
+            self.skipTest("hardlinks unavailable")
+        with self.assertRaises(vault.VaultError):
+            v.seal_file(hardlink)
+
     def test_seal_remove_original_then_restore(self) -> None:
         self._init()
         v = vault.Vault(self.root)
@@ -90,9 +103,19 @@ class VaultTests(unittest.TestCase):
         src.write_bytes(b"API_KEY=hunter2")
         record = v.seal_file(src, keep_original=False)
         self.assertFalse(src.exists(), "original removed when keep_original=False")
-        out = v.open_file(record["name"], restore=True)
-        self.assertEqual(out["restored_to"], str(src.resolve()))
-        self.assertEqual(src.read_bytes(), b"API_KEY=hunter2")
+        with self.assertRaises(vault.VaultError):
+            v.open_file(record["name"], restore=True)
+        restored = self.work / "restored-creds"
+        out = v.open_file(record["name"], out_path=restored)
+        self.assertEqual(out["restored_to"], str(restored))
+        self.assertEqual(restored.read_bytes(), b"API_KEY=hunter2")
+        link = self.work / "restore-link"
+        try:
+            link.symlink_to(restored)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink unavailable")
+        with self.assertRaises(vault.VaultError):
+            v.open_file(record["name"], out_path=link)
 
     def test_passphrase_vault_requires_passphrase(self) -> None:
         self._init(passphrase="correct horse")

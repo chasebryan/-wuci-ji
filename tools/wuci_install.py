@@ -415,13 +415,13 @@ def ssh_keygen_path(value: str | None) -> str:
         path = Path(value)
         if not path.is_absolute():
             fail("--ssh-keygen must be an absolute path")
-        if not path.exists():
+        if not path.exists() or path.is_symlink():
             fail(f"ssh-keygen does not exist: {path}")
         return str(path)
-    found = shutil.which("ssh-keygen")
-    if not found:
-        fail("ssh-keygen not found on PATH")
-    return found
+    default = Path("/usr/bin/ssh-keygen")
+    if not default.exists() or default.is_symlink():
+        fail("ssh-keygen default is unavailable; pass --ssh-keygen with an absolute trusted path")
+    return str(default)
 
 
 def verify_manifest_signature(

@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
+import wuci_safeio
+
 
 SCHEMA = "wuci-virtualbox-appliance-v1"
 DEFAULT_OUT_ROOT = Path("build/wuci-os/virtualbox")
@@ -53,15 +55,9 @@ def safe_basename(name: str) -> str:
 
 def require_regular_file(path: Path, label: str) -> os.stat_result:
     try:
-        info = os.lstat(path)
-    except OSError as exc:
-        raise VirtualBoxApplianceError(f"missing {label}: {path}") from exc
-    if stat.S_ISLNK(info.st_mode):
-        raise VirtualBoxApplianceError(f"{label} must not be a symlink: {path}")
-    if not stat.S_ISREG(info.st_mode):
-        raise VirtualBoxApplianceError(f"{label} must be a regular file: {path}")
-    if info.st_nlink != 1:
-        raise VirtualBoxApplianceError(f"{label} must not be hardlinked: {path}")
+        info = wuci_safeio.require_regular_file(path, label, reject_hardlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
     if info.st_size <= 0:
         raise VirtualBoxApplianceError(f"{label} must not be empty: {path}")
     return info
@@ -74,24 +70,31 @@ def digest_file(path: Path) -> tuple[dict[str, str], int]:
         "sha512": hashlib.sha512(),
     }
     total = 0
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(READ_CHUNK), b""):
+    try:
+        for chunk in wuci_safeio.iter_regular_chunks(path, str(path), reject_hardlink=True, chunk_size=READ_CHUNK):
             total += len(chunk)
             for digest in digests.values():
                 digest.update(chunk)
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
     return ({name: digest.hexdigest() for name, digest in digests.items()}, total)
 
 
 def copy_iso(source: Path, dest: Path) -> dict[str, Any]:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_name(dest.name + ".tmp")
-    if tmp.exists():
-        tmp.unlink()
     try:
-        with source.open("rb") as src, tmp.open("wb") as out:
-            shutil.copyfileobj(src, out, READ_CHUNK)
+        wuci_safeio.ensure_parent_directory(dest, f"{dest} parent")
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{dest.name}.", suffix=".tmp", dir=str(dest.parent))
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as out:
+            for chunk in wuci_safeio.iter_regular_chunks(source, "source ISO", reject_hardlink=True, chunk_size=READ_CHUNK):
+                out.write(chunk)
             out.flush()
             os.fsync(out.fileno())
+        if dest.exists() or dest.is_symlink():
+            raise VirtualBoxApplianceError(f"refusing to overwrite existing VirtualBox artifact: {dest}")
         os.replace(tmp, dest)
     finally:
         if tmp.exists():
@@ -184,14 +187,22 @@ def build_ovf_text(*, name: str, iso_name: str, iso_size: int, iso_sha256: str, 
 
 
 def write_manifest(path: Path, ovf_name: str, iso_name: str, ovf_sha256: str, iso_sha256: str) -> None:
-    path.write_text(
-        f"SHA256({ovf_name})= {ovf_sha256}\nSHA256({iso_name})= {iso_sha256}\n",
-        encoding="ascii",
-    )
+    try:
+        wuci_safeio.write_new_text(
+            path,
+            f"SHA256({ovf_name})= {ovf_sha256}\nSHA256({iso_name})= {iso_sha256}\n",
+            "VirtualBox checksum manifest",
+            mode=0o644,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
 
 
 def add_tar_file(archive: tarfile.TarFile, path: Path, arcname: str) -> None:
-    info = path.stat()
+    try:
+        info = wuci_safeio.require_regular_file(path, f"OVA member {arcname}", reject_hardlink=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
     tar_info = tarfile.TarInfo(arcname)
     tar_info.size = info.st_size
     tar_info.mode = 0o644
@@ -205,19 +216,40 @@ def add_tar_file(archive: tarfile.TarFile, path: Path, arcname: str) -> None:
 
 
 def build_ova(ova_path: Path, members: list[tuple[Path, str]]) -> dict[str, Any]:
-    tmp = ova_path.with_name(ova_path.name + ".tmp")
-    if tmp.exists():
-        tmp.unlink()
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{ova_path.name}.", suffix=".tmp", dir=str(ova_path.parent))
+    os.close(fd)
+    tmp = Path(tmp_name)
     try:
         with tarfile.open(tmp, "w", format=tarfile.USTAR_FORMAT) as archive:
             for path, arcname in members:
                 add_tar_file(archive, path, arcname)
+        if ova_path.exists() or ova_path.is_symlink():
+            raise VirtualBoxApplianceError(f"refusing to overwrite existing VirtualBox artifact: {ova_path}")
         os.replace(tmp, ova_path)
     finally:
         if tmp.exists():
             tmp.unlink()
     digests, size = digest_file(ova_path)
     return {"path": str(ova_path), "bytes": size, "digest_vector": digests}
+
+
+def prepare_output_target(path: Path, *, force: bool) -> None:
+    try:
+        wuci_safeio.ensure_parent_directory(path, f"{path} parent")
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
+    if not path.exists() and not path.is_symlink():
+        return
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise VirtualBoxApplianceError(f"could not inspect VirtualBox artifact target: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise VirtualBoxApplianceError(f"refusing to write VirtualBox artifact through symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise VirtualBoxApplianceError(f"refusing to overwrite non-regular VirtualBox artifact: {path}")
+    if not force:
+        raise VirtualBoxApplianceError(f"refusing to overwrite existing VirtualBox artifact: {path}")
 
 
 def build_appliance(
@@ -236,17 +268,19 @@ def build_appliance(
     source_info = require_regular_file(iso, "Wuci-OS final ISO")
     source_digests, source_size = digest_file(iso)
     base = safe_basename(name)
-    out_root.mkdir(parents=True, exist_ok=True)
+    try:
+        wuci_safeio.ensure_parent_directory(out_root, "VirtualBox output root")
+        out_root.mkdir(parents=True, exist_ok=True)
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
     ovf_path = out_root / f"{base}.ovf"
     mf_path = out_root / f"{base}.mf"
     ova_path = out_root / f"{base}.ova"
     iso_path = out_root / f"{base}.iso"
     manifest_path = out_root / "virtualbox-manifest.json"
     outputs = (ovf_path, mf_path, ova_path, iso_path, manifest_path)
-    if not force:
-        existing = [str(path) for path in outputs if path.exists()]
-        if existing:
-            raise VirtualBoxApplianceError("refusing to overwrite existing VirtualBox artifact(s): " + ", ".join(existing))
+    for path in outputs:
+        prepare_output_target(path, force=force)
 
     with tempfile.TemporaryDirectory(prefix="wuci-virtualbox.", dir=str(out_root)) as tmp_name:
         staging = Path(tmp_name)
@@ -263,7 +297,10 @@ def build_appliance(
             memory_mib=memory_mib,
         )
         staged_ovf = staging / ovf_path.name
-        staged_ovf.write_text(ovf_text, encoding="utf-8")
+        try:
+            wuci_safeio.write_new_text(staged_ovf, ovf_text, "VirtualBox OVF", mode=0o644)
+        except wuci_safeio.SafeIOError as exc:
+            raise VirtualBoxApplianceError(str(exc)) from exc
         ovf_sha256 = hashlib.sha256(ovf_text.encode("utf-8")).hexdigest()
         staged_mf = staging / mf_path.name
         write_manifest(staged_mf, ovf_path.name, iso_path.name, ovf_sha256, source_digests["sha256"])
@@ -272,6 +309,8 @@ def build_appliance(
             staged_ova,
             [(staged_ovf, ovf_path.name), (staged_mf, mf_path.name), (staged_iso, iso_path.name)],
         )
+        for target in outputs:
+            prepare_output_target(target, force=force)
         os.replace(staged_iso, iso_path)
         os.replace(staged_ovf, ovf_path)
         os.replace(staged_mf, mf_path)
@@ -303,7 +342,10 @@ def build_appliance(
         },
         "non_claim_boundary": NON_CLAIM,
     }
-    manifest_path.write_text(stable_json(manifest), encoding="utf-8")
+    try:
+        wuci_safeio.atomic_replace_text(manifest_path, stable_json(manifest), "VirtualBox JSON manifest", mode=0o644)
+    except wuci_safeio.SafeIOError as exc:
+        raise VirtualBoxApplianceError(str(exc)) from exc
     return manifest
 
 

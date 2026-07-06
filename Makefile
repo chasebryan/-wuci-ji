@@ -2067,6 +2067,7 @@ install-test: check-native $(TARGET)
 	$(PYTHON) tests/wuci_install_audit.py --quiet
 	$(PYTHON) tests/wuci_install_atomic.py --quiet
 	$(PYTHON) tests/wuci_install_bootstrap.py --quiet
+	$(PYTHON) tests/meridian_install.py --quiet
 
 zp1-upstream-test:
 	@test -d "$(ZP1_DIR)" || { echo "missing $(ZP1_DIR); run git submodule update --init --recursive" >&2; exit 1; }

@@ -12,6 +12,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .pathsafe import read_public_bytes
+
 
 class CanonicalJsonError(ValueError):
     pass
@@ -44,7 +46,7 @@ def loads_json_no_floats(text: str) -> Any:
 
 
 def load_json_no_floats(path: Path | str) -> Any:
-    return loads_json_no_floats(Path(path).read_text(encoding="utf-8"))
+    return loads_json_no_floats(read_public_bytes(path, str(path), max_bytes=1_000_000).decode("utf-8"))
 
 
 def reject_floats_recursive(value: Any, path: str = "value") -> None:

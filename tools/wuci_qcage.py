@@ -68,35 +68,42 @@ def display_path(path: Path) -> str:
 
 def read_bytes(path: Path, context: str) -> bytes:
     try:
-        return path.read_bytes()
-    except OSError as exc:
-        raise QCageError(f"could not read {context}: {path}") from exc
+        return wuci_safeio.read_regular_bytes(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise QCageError(str(exc)) from exc
 
 
 def load_json(path: Path, context: str) -> Any:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except OSError as exc:
-        raise QCageError(f"could not read {context}: {path}") from exc
+        return json.loads(read_bytes(path, context).decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise QCageError(f"{context} is not UTF-8 JSON: {path}") from exc
     except json.JSONDecodeError as exc:
         raise QCageError(f"{context} is not valid JSON: {exc.msg}") from exc
 
 
 def write_json(path: Path, value: dict[str, Any], context: str) -> None:
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    except OSError as exc:
-        raise QCageError(f"could not write {context}: {path}") from exc
+        wuci_safeio.write_new_bytes(
+            path,
+            (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+            context,
+            mode=0o600,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise QCageError(str(exc)) from exc
 
 
 def write_text(path: Path, value: str, context: str) -> None:
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="ascii")
-    except OSError as exc:
-        raise QCageError(f"could not write {context}: {path}") from exc
+        wuci_safeio.write_new_text(path, value, context, mode=0o600)
+    except wuci_safeio.SafeIOError as exc:
+        raise QCageError(str(exc)) from exc
 
 
 def digest_bytes(value: bytes, algorithm: str) -> str:
@@ -119,6 +126,7 @@ def digest_file(
             ticker_mode=ticker_mode,
             label=label or f"QCAGE {algorithm} {path.name}",
             reject_symlink=True,
+            reject_hardlink=True,
         )
     except wuci_safeio.SafeIOError as exc:
         raise QCageError(f"could not hash file: {path}") from exc

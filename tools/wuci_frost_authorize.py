@@ -18,7 +18,7 @@ import wuci_verifier_identity
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
-RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+RUNNER = shlex.split(wuci_verifier_identity.validate_runner(os.environ.get("WUCI_JI_RUNNER", ""), strict=False))
 AUTH_MESSAGE_SCHEMA = "wuci-frost-authorization-message-v1"
 RECEIPT_SCHEMA = "wuci-frost-authorization-v1"
 ALLOWED_ACTIONS = ("open", "release", "trust", "publish")

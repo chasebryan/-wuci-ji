@@ -12,6 +12,13 @@ node_modules/
 .codex/
 .tools/
 .wrangler/
+external-ssd-export-*/
+*-ssd-export-*/
+.claude/
+.config/gh/
+.mozilla/
+.gnupg/
+.ssh/
 tools/wuci-pq-fips204-verify/target/
 daylight/v17-singularity/rust/event-horizon-verifier/target/
 penumbra/target/

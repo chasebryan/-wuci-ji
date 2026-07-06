@@ -174,6 +174,31 @@ def assert_secure_default_package_closure_retires_blocker(tmp: Path) -> None:
     assert "package-closure-fixed-point-missing" not in status["blockers"]
 
 
+def assert_release_gate_rejects_symlink_output(tmp: Path) -> None:
+    manifest, iso = write_manifest(tmp)
+    boot_log = tmp / "qemu.log"
+    boot_log.write_text("=> Loading sysctl(8) settings...\nWuci-OS live profile\nWJ>_ \n", encoding="utf-8")
+    target = tmp / "target.json"
+    target.write_text("existing\n", encoding="utf-8")
+    link = tmp / "evidence" / gate.QEMU_TRACE_NAME
+    link.parent.mkdir(parents=True)
+    link.symlink_to(target)
+    try:
+        gate.bind_boot_trace(
+            manifest_path=manifest,
+            iso_path=iso,
+            boot_log=boot_log,
+            out=link,
+            kind="qemu",
+            required_markers=gate.QEMU_REQUIRED_MARKERS,
+        )
+    except gate.ReleaseGateError as exc:
+        assert "symlink" in str(exc)
+    else:
+        raise AssertionError("release gate wrote through a symlink output")
+    assert target.read_text(encoding="utf-8") == "existing\n"
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="wuci-release-gate-test-") as raw:
         tmp = Path(raw)
@@ -181,6 +206,7 @@ def main() -> int:
         assert_stale_trace_does_not_clear_blocker(tmp / "stale")
         assert_signature_and_witness_evidence_clear_when_bound(tmp / "sig")
         assert_secure_default_package_closure_retires_blocker(tmp / "secure-default")
+        assert_release_gate_rejects_symlink_output(tmp / "symlink-output")
     print("wuci-release-gate tests: PASS")
     return 0
 

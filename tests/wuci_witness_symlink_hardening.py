@@ -63,13 +63,6 @@ def copy_case(base: Path, tmp: Path, name: str) -> Path:
     return case_dir
 
 
-def verifier_sha256() -> str:
-    sys.path.insert(0, str(REPO_ROOT / "tools"))
-    import wuci_verifier_identity
-
-    return wuci_verifier_identity.sha256_file(BIN)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check WUCI-WITNESS file hardening.")
     parser.add_argument("--quiet", action="store_true", help="suppress summary")
@@ -93,7 +86,7 @@ def main() -> None:
                 f"symlink {filename} rejected",
             )
 
-        hardlink_case = copy_case(base, tmp, "hardlink-strict")
+        hardlink_case = copy_case(base, tmp, "hardlink-public")
         original = hardlink_case / "manifest.txt"
         equivalent = tmp / "hardlink-equivalent-manifest.txt"
         equivalent.write_bytes(original.read_bytes())
@@ -107,12 +100,9 @@ def main() -> None:
                     str(BIN),
                     "--bundle",
                     str(hardlink_case),
-                    "--strict-proof",
-                    "--trusted-bin-sha256",
-                    verifier_sha256(),
                 ]
             ),
-            "strict hardlink rejected",
+            "public hardlink rejected",
         )
 
         unexpected = copy_case(base, tmp, "unexpected-file")

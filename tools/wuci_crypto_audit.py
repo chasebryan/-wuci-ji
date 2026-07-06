@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_safeio
+
 
 CRYPTO_SOURCES = (
     "src/sha256.s",
@@ -41,9 +43,7 @@ class CryptoAuditError(RuntimeError):
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
+    h.update(wuci_safeio.read_regular_bytes(path, "crypto audit source", reject_symlink=True, reject_hardlink=True))
     return h.hexdigest()
 
 
@@ -71,10 +71,12 @@ def build_audit(repo: Path) -> dict[str, Any]:
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    wuci_safeio.atomic_replace_text(
+        path,
+        json.dumps(value, indent=2, sort_keys=True) + "\n",
+        "crypto self-audit evidence",
+        mode=0o644,
+    )
 
 
 def run_emit(args: argparse.Namespace) -> int:
@@ -85,7 +87,14 @@ def run_emit(args: argparse.Namespace) -> int:
 
 
 def run_verify(args: argparse.Namespace) -> int:
-    observed = json.loads(Path(args.audit).read_text(encoding="utf-8"))
+    observed = json.loads(
+        wuci_safeio.read_regular_bytes(
+            Path(args.audit),
+            "crypto self-audit evidence",
+            reject_symlink=True,
+            reject_hardlink=True,
+        ).decode("utf-8")
+    )
     expected = build_audit(Path(args.repo))
     if observed != expected:
         raise CryptoAuditError("crypto self-audit evidence does not match repository state")

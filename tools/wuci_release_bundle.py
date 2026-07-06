@@ -241,7 +241,7 @@ def input_artifacts(
         ("release_gate", evidence_dir / "release-gate.json", "evidence/release-gate.json", True),
         ("qemu_boot_trace", evidence_dir / "qemu-boot-trace.json", "evidence/qemu-boot-trace.json", True),
         ("privacy_audit", privacy_audit, "evidence/privacy-audit.json", True),
-        ("rootfs_privacy_audit", rootfs_privacy_audit, "evidence/privacy-audit-final-rootfs.json", False),
+        ("rootfs_privacy_audit", rootfs_privacy_audit, "evidence/privacy-audit-final-rootfs.json", True),
         ("daylight_ssv", daylight_ssv, "evidence/daylight-ssv.report.json", False),
     ]
 
@@ -300,6 +300,7 @@ def build_bundle(
     force: bool,
 ) -> dict[str, Any]:
     privacy_report = require_privacy_pass(privacy_audit)
+    rootfs_privacy_report = require_privacy_pass(rootfs_privacy_audit)
     release_gate_path = evidence_dir / "release-gate.json"
     release_gate = read_json(release_gate_path, "Wuci-OS release gate")
     release_allowed = bool(release_gate.get("release_allowed") is True)
@@ -341,6 +342,11 @@ def build_bundle(
             "path": str(privacy_audit),
             "status": privacy_report.get("status"),
             "findings": privacy_report.get("summary", {}).get("findings") if isinstance(privacy_report.get("summary"), dict) else None,
+        },
+        "rootfs_privacy_audit": {
+            "path": str(rootfs_privacy_audit),
+            "status": rootfs_privacy_report.get("status"),
+            "findings": rootfs_privacy_report.get("summary", {}).get("findings") if isinstance(rootfs_privacy_report.get("summary"), dict) else None,
         },
         "copied_artifacts": copied,
         "missing_optional_artifacts": missing_optional,

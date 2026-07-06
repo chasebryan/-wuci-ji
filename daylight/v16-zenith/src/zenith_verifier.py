@@ -60,7 +60,7 @@ def hmac_signature(record: dict[str, Any], root_key: str, namespace: str) -> str
 def sign_record(record: dict[str, Any], root_key: str, namespace: str) -> dict[str, Any]:
     signed = dict(record)
     signed["root_key_digest"] = root_key_digest(root_key)
-    signed["root_key"] = root_key
+    signed["fixture_hmac_only"] = True
     signed["signature"] = hmac_signature(signed, root_key, namespace)
     return signed
 
@@ -119,12 +119,11 @@ def expected_implementation_output_digest(solstice: dict[str, Any]) -> str:
 
 
 def _valid_hmac(record: dict[str, Any], namespace: str) -> bool:
-    root_key = record.get("root_key")
-    signature = record.get("signature")
-    digest = record.get("root_key_digest")
-    if not isinstance(root_key, str) or not isinstance(signature, str) or digest != root_key_digest(root_key):
-        return False
-    return hmac.compare_digest(signature, hmac_signature(record, root_key, namespace))
+    # HMAC verification cannot establish public external authority because the
+    # verifier must know the same secret used by the signer. A record carrying
+    # that secret would be self-authorizing, so v16 treats HMAC-signed records
+    # as fixture material only and never closes external/public gates with them.
+    return False
 
 
 def review_digest(record: dict[str, Any]) -> str:
@@ -319,7 +318,9 @@ def boundary_claims(evidence: dict[str, Any], solstice: dict[str, Any]) -> dict[
 
 def production_authority_valid(evidence: dict[str, Any]) -> bool:
     record = evidence.get("production_authority_evidence", {})
-    return isinstance(record, dict) and record.get("valid") is True and record.get("fixture_material_used") is False
+    if not isinstance(record, dict):
+        return False
+    return False
 
 
 def runtime_containment_valid(evidence: dict[str, Any]) -> bool:

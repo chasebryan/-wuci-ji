@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
+import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
@@ -65,10 +68,32 @@ def build_live_report(repo_root: Path | None = None) -> dict[str, Any]:
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
     validate_report(report)
+    current = path.parent
+    while current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise OSError(f"report parent must not be a symlink: {current}")
+        current = current.parent
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(dumps_stable(report), encoding="utf-8")
-    tmp.replace(path)
+    if path.exists() or path.is_symlink():
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise OSError(f"report target must not be a symlink: {path}")
+        if not stat.S_ISREG(info.st_mode):
+            raise OSError(f"report target must be a regular file: {path}")
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(dumps_stable(report))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def pretty_summary(report: dict[str, Any]) -> str:
@@ -91,4 +116,3 @@ def pretty_summary(report: dict[str, Any]) -> str:
 
 def report_warning_exit_code(report: dict[str, Any]) -> int:
     return 1 if report["warning"]["level"] in {"Severe", "Critical"} else 0
-

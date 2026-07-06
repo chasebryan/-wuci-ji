@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_safeio
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = REPO_ROOT / "docs" / "wuci_golden_lock_policy.json"
@@ -33,7 +35,14 @@ class GoldenLockError(RuntimeError):
 
 def load_json(path: Path, context: str) -> dict[str, Any]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(
+            wuci_safeio.read_regular_bytes(
+                path,
+                context,
+                reject_symlink=True,
+                reject_hardlink=True,
+            ).decode("utf-8")
+        )
     except (OSError, json.JSONDecodeError) as exc:
         raise GoldenLockError(f"could not read {context}: {path}") from exc
     if not isinstance(value, dict):
@@ -42,10 +51,12 @@ def load_json(path: Path, context: str) -> dict[str, Any]:
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    wuci_safeio.atomic_replace_text(
+        path,
+        json.dumps(value, indent=2, sort_keys=True) + "\n",
+        "Golden Lock evidence",
+        mode=0o644,
+    )
 
 
 def hash_hex(name: str, data: bytes) -> str:

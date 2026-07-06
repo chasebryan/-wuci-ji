@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_safeio
+
 
 SCHEMA = "wuci-carrot-runtime-policy-v1"
 DEFAULT_POLICY = Path("docs/wuci_carrot_runtime_policy.json")
@@ -29,15 +31,20 @@ class CarrotError(RuntimeError):
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
+    h.update(wuci_safeio.read_regular_bytes(path, "CARROT input", reject_symlink=True, reject_hardlink=True))
     return h.hexdigest()
 
 
 def load_json(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(
+            wuci_safeio.read_regular_bytes(
+                path,
+                "CARROT policy",
+                reject_symlink=True,
+                reject_hardlink=True,
+            ).decode("utf-8")
+        )
     except OSError as exc:
         raise CarrotError(f"could not read policy: {path}") from exc
     except json.JSONDecodeError as exc:
@@ -144,10 +151,12 @@ def kernel_probe(probe_bin: Path) -> dict[str, Any]:
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    wuci_safeio.atomic_replace_text(
+        path,
+        json.dumps(value, indent=2, sort_keys=True) + "\n",
+        "CARROT attestation",
+        mode=0o644,
+    )
 
 
 def run_validate(args: argparse.Namespace) -> int:

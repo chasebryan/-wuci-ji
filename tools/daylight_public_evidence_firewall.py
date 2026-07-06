@@ -37,7 +37,12 @@ FORBIDDEN_SUFFIXES = {
     ".dhr",
 }
 FORBIDDEN_PATH_PARTS = {
+    ".claude",
+    ".codex",
+    ".config",
     ".meridian-vault",
+    ".mozilla",
+    ".wrangler",
     "private",
     "private-transcripts",
     "smoke-vault",
@@ -54,6 +59,12 @@ SECRET_MARKERS = (
     b"-----BEGIN PRIVATE KEY-----",
     b"PRIVATE KEY",
     b"API_KEY=",
+    b"CF_API_TOKEN",
+    b"CLOUDFLARE_API_TOKEN",
+    b"access_token",
+    b"auth_token",
+    b"oauth_token",
+    b"refresh_token",
     b"hunter2",
     b"DAYLIGHT_BASTION_PASSPHRASE",
     b"daylight-v18-fixture-passphrase",
@@ -104,7 +115,13 @@ def add(report: dict[str, Any], path: str, reason: str, severity: str = "critica
 def iter_paths(root: Path) -> list[Path]:
     if not root.exists():
         raise FirewallError(f"scan root does not exist: {root}")
-    if not root.is_dir():
+    try:
+        root_info = root.lstat()
+    except OSError as exc:
+        raise FirewallError(f"could not stat scan root: {root}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        raise FirewallError(f"scan root must not be a symlink: {root}")
+    if not stat.S_ISDIR(root_info.st_mode):
         raise FirewallError(f"scan root is not a directory: {root}")
     return sorted(root.rglob("*"))
 
@@ -164,6 +181,7 @@ def scan_root(root: Path, *, profile: str | None, max_file_bytes: int) -> dict[s
             add(report, relative, "private_mode_file_in_public_artifact")
         if st.st_size > max_file_bytes:
             add(report, relative, "file_exceeds_public_artifact_size_limit")
+            continue
         parts = set(path.relative_to(root).parts[:-1])
         if parts & FORBIDDEN_PATH_PARTS:
             add(report, relative, "public_artifact_contains_private_directory")

@@ -80,12 +80,31 @@ def assert_rejects_overwrite_without_force(tmp: Path) -> None:
         raise AssertionError("VirtualBox appliance overwrote outputs without --force")
 
 
+def assert_force_rejects_symlink_output(tmp: Path) -> None:
+    iso = tmp / "force-symlink.iso"
+    iso.write_bytes(b"force symlink\n")
+    out = tmp / "force-symlink-out"
+    out.mkdir()
+    target = out / "target.ova"
+    target.write_bytes(b"target\n")
+    link = out / "Wuci-Ji-v2.2-Aperture-Bastion.ova"
+    link.symlink_to(target)
+    try:
+        wuci_virtualbox.build_appliance(iso=iso, out_root=out, force=True)
+    except wuci_virtualbox.VirtualBoxApplianceError as exc:
+        assert "symlink" in str(exc)
+    else:
+        raise AssertionError("VirtualBox force wrote through a symlink output")
+    assert target.read_bytes() == b"target\n"
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="wuci-virtualbox-test-") as tmp_name:
         tmp = Path(tmp_name)
         assert_appliance_has_no_host_paths(tmp)
         assert_unsafe_iso_rejected(tmp)
         assert_rejects_overwrite_without_force(tmp)
+        assert_force_rejects_symlink_output(tmp)
     print("wuci-virtualbox tests: PASS")
     return 0
 

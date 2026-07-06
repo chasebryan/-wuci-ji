@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_safeio
+
 
 CONTRACT = Path("docs/wuci_pq_verifier_contract.json")
 PINS = Path("docs/wuci_pq_verifier_pins.json")
@@ -35,14 +37,14 @@ class PQVerifierError(RuntimeError):
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
+    h.update(wuci_safeio.read_regular_bytes(path, "PQ verifier input", reject_symlink=True, reject_hardlink=True))
     return h.hexdigest()
 
 
 def require_regular(path: Path, context: str) -> None:
-    if not path.is_file() or path.is_symlink():
+    try:
+        wuci_safeio.lstat_regular_file(path, context, reject_symlink=True, reject_hardlink=True)
+    except wuci_safeio.SafeIOError as exc:
         raise PQVerifierError(f"{context} must be a regular non-symlink file: {path}")
 
 
@@ -127,10 +129,12 @@ def detect() -> dict[str, Any]:
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    wuci_safeio.atomic_replace_text(
+        path,
+        json.dumps(value, indent=2, sort_keys=True) + "\n",
+        "PQ verifier evidence",
+        mode=0o644,
+    )
 
 
 def run_detect(args: argparse.Namespace) -> int:
@@ -144,7 +148,14 @@ def run_detect(args: argparse.Namespace) -> int:
 
 
 def run_verify(args: argparse.Namespace) -> int:
-    value = json.loads(Path(args.evidence).read_text(encoding="utf-8"))
+    value = json.loads(
+        wuci_safeio.read_regular_bytes(
+            Path(args.evidence),
+            "PQ verifier evidence",
+            reject_symlink=True,
+            reject_hardlink=True,
+        ).decode("utf-8")
+    )
     expected = detect()
     if value != expected:
         raise PQVerifierError("PQ verifier detection evidence does not match local state")
@@ -157,7 +168,14 @@ def run_verify(args: argparse.Namespace) -> int:
 
 def load_json(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(
+            wuci_safeio.read_regular_bytes(
+                path,
+                "PQ verifier JSON evidence",
+                reject_symlink=True,
+                reject_hardlink=True,
+            ).decode("utf-8")
+        )
     except OSError as exc:
         raise PQVerifierError(f"could not read JSON evidence: {path}") from exc
     except json.JSONDecodeError as exc:

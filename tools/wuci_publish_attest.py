@@ -14,12 +14,14 @@ from typing import Any
 import wuci_authority_root as authority_root
 import wuci_frost_authorize as warrant
 import wuci_receipt_contract as receipt_contract
+import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
 DEFAULT_BUNDLE_DIR = REPO_ROOT / "build" / "wuci-publish-bundle"
-RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+RUNNER = shlex.split(wuci_verifier_identity.validate_runner(os.environ.get("WUCI_JI_RUNNER", ""), strict=False))
 ATTESTATION_SCHEMA = "wuci-publish-bundle-attestation-v1"
 ACTION = "release"
 
@@ -62,52 +64,44 @@ class PublishAttestationError(RuntimeError):
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     try:
-        with path.open("rb") as handle:
-            while True:
-                chunk = handle.read(1024 * 1024)
-                if not chunk:
-                    break
-                digest.update(chunk)
-    except OSError as exc:
+        digest.update(wuci_safeio.read_regular_bytes(path, "publish bundle file", reject_symlink=True, reject_hardlink=True))
+    except wuci_safeio.SafeIOError as exc:
         raise PublishAttestationError(f"could not read {path}") from exc
     return digest.hexdigest()
 
 
 def read_bytes(path: Path, context: str) -> bytes:
     try:
-        return path.read_bytes()
-    except OSError as exc:
+        return wuci_safeio.read_regular_bytes(path, context, reject_symlink=True, reject_hardlink=True)
+    except wuci_safeio.SafeIOError as exc:
         raise PublishAttestationError(f"could not read {context} {path}") from exc
 
 
 def load_json_file(path: Path, context: str) -> Any:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except OSError as exc:
+        return json.loads(wuci_safeio.read_regular_bytes(path, context, reject_symlink=True, reject_hardlink=True).decode("utf-8"))
+    except wuci_safeio.SafeIOError as exc:
         raise PublishAttestationError(f"could not read {context} {path}") from exc
     except json.JSONDecodeError as exc:
         raise PublishAttestationError(f"{context} is not valid JSON: {exc.msg}") from exc
 
 
 def write_json_new(path: Path, value: dict[str, Any]) -> None:
-    if path.exists():
-        raise PublishAttestationError(f"refusing to overwrite existing attestation {path}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f".{path.name}.tmp")
     try:
-        tmp_path.write_text(
+        wuci_safeio.write_new_text(
+            path,
             json.dumps(value, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+            "publish attestation",
+            mode=0o644,
         )
-        os.replace(tmp_path, path)
-    finally:
-        if tmp_path.exists():
-            tmp_path.unlink()
+    except wuci_safeio.SafeIOError as exc:
+        raise PublishAttestationError(str(exc)) from exc
 
 
 def require_file(path: Path, context: str) -> None:
-    if not path.is_file():
+    try:
+        wuci_safeio.lstat_regular_file(path, context, reject_symlink=True, reject_hardlink=True)
+    except wuci_safeio.SafeIOError:
         raise PublishAttestationError(f"missing {context}: {path}")
 
 

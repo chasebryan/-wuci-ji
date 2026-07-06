@@ -37,7 +37,7 @@ from . import firewall_profile
 from . import public_artifact
 from . import singularity_gate
 from .canonical import canonical_sha256, dumps_canonical, load_json_no_floats, loads_json_no_floats, reject_floats_recursive
-from .pathsafe import PathSafetyError, normalize_repo_relative, require_regular_public_file
+from .pathsafe import PathSafetyError, normalize_repo_relative, read_public_bytes
 
 SCHEMA_ID = "daylight.v20.external-evidence.bundle"
 SCHEMA_VERSION = 1
@@ -1038,10 +1038,10 @@ def evaluate_bundle(
 
 def _load_bundle_bytes(path: Path | str) -> dict[str, Any]:
     bundle_path = Path(path)
-    require_regular_public_file(bundle_path, str(bundle_path))
-    raw = bundle_path.read_bytes()
-    if len(raw) > MAX_BUNDLE_BYTES:
-        raise ExternalEvidenceError(f"external evidence bundle exceeds size limit: {bundle_path}")
+    try:
+        raw = read_public_bytes(bundle_path, str(bundle_path), max_bytes=MAX_BUNDLE_BYTES)
+    except PathSafetyError as exc:
+        raise ExternalEvidenceError(f"external evidence bundle path rejected: {exc}") from exc
     if b"\x00" in raw:
         raise ExternalEvidenceError(f"external evidence bundle contains NUL bytes: {bundle_path}")
     try:

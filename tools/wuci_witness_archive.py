@@ -36,7 +36,7 @@ PUBLIC_FILES = tuple(wuci_witness.PUBLIC_FILES[name] for name in (
     "publish_index",
     "attestation",
 ))
-RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+RUNNER = shlex.split(wuci_verifier_identity.validate_runner(os.environ.get("WUCI_JI_RUNNER", ""), strict=False))
 
 
 class WitnessArchiveError(RuntimeError):

@@ -41,6 +41,75 @@ PASSPHRASE=
 
 die() { printf 'meridian-install: %s\n' "$*" >&2; exit 1; }
 say() { printf '\n==> %s\n' "$*"; }
+shell_quote() {
+    case "$1" in
+        *[!A-Za-z0-9_./:=,+@%-]*|'')
+            printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+            ;;
+        *)
+            printf '%s' "$1"
+            ;;
+    esac
+}
+reject_symlink_ancestors() {
+    _path=$1
+    _context=$2
+    _dir=$(dirname "$_path")
+    while [ "$_dir" != "." ] && [ "$_dir" != "/" ]; do
+        [ -L "$_dir" ] && die "$_context parent must not be a symlink: $_dir"
+        _next=$(dirname "$_dir")
+        [ "$_next" = "$_dir" ] && break
+        _dir=$_next
+    done
+    return 0
+}
+reject_symlink_target() {
+    _path=$1
+    _context=$2
+    [ -L "$_path" ] && die "$_context target must not be a symlink: $_path"
+    return 0
+}
+prepare_install_dir() {
+    _path=$1
+    _context=$2
+    reject_symlink_ancestors "$_path" "$_context"
+    reject_symlink_target "$_path" "$_context"
+    mkdir -p "$_path"
+}
+remove_install_file() {
+    _path=$1
+    _context=$2
+    reject_symlink_ancestors "$_path" "$_context"
+    reject_symlink_target "$_path" "$_context"
+    rm -f "$_path"
+}
+remove_install_tree() {
+    _path=$1
+    _context=$2
+    reject_symlink_ancestors "$_path" "$_context"
+    reject_symlink_target "$_path" "$_context"
+    if [ -e "$_path" ]; then
+        rm -rf "$_path"
+    fi
+    return 0
+}
+script_tmp_for() {
+    _script_tmp_path=$1
+    _script_tmp_context=$2
+    _script_tmp_dir=$(dirname "$_script_tmp_path")
+    prepare_install_dir "$_script_tmp_dir" "$_script_tmp_context"
+    reject_symlink_target "$_script_tmp_path" "$_script_tmp_context"
+    mktemp "$_script_tmp_dir/.$(basename "$_script_tmp_path").XXXXXX"
+}
+install_script_tmp() {
+    _install_script_tmp=$1
+    _install_script_path=$2
+    _install_script_context=$3
+    chmod 0755 "$_install_script_tmp"
+    reject_symlink_ancestors "$_install_script_path" "$_install_script_context"
+    reject_symlink_target "$_install_script_path" "$_install_script_context"
+    mv -f "$_install_script_tmp" "$_install_script_path"
+}
 
 usage() {
     cat <<'TEXT'
@@ -86,8 +155,10 @@ done
 LAUNCHER="$BIN/daylight-meridian"
 
 remove_install() {
-    rm -f "$LAUNCHER" "$BIN/uninstall-meridian" "$BIN/meridian-luks-unlock"
-    rm -rf "$SHARE"
+    remove_install_file "$LAUNCHER" "Meridian launcher"
+    remove_install_file "$BIN/uninstall-meridian" "Meridian uninstaller"
+    remove_install_file "$BIN/meridian-luks-unlock" "Meridian LUKS helper"
+    remove_install_tree "$SHARE" "Meridian share directory"
 }
 
 if [ "$mode_uninstall" = "1" ]; then
@@ -130,28 +201,44 @@ fi
 
 # 1. Install the package offline.
 say "Install the Daylight v15 Meridian package (offline) into $SHARE/pkg"
-mkdir -p "$SHARE" "$BIN"
-rm -rf "$SHARE/pkg"
+prepare_install_dir "$SHARE" "Meridian share directory"
+prepare_install_dir "$BIN" "Meridian bin directory"
+remove_install_tree "$SHARE/pkg" "Meridian package directory"
 cp -a "$PKG_SRC" "$SHARE/pkg"
 find "$SHARE/pkg" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 find "$SHARE/pkg" -name '*.pyc' -delete 2>/dev/null || true
 
 # 2. Install the CLI launcher and uninstaller.
 say "Install the daylight-meridian launcher"
-cat > "$LAUNCHER" <<LAUNCH
-#!/bin/sh
-# Daylight v15 Meridian CLI launcher (installed by meridian-install).
-PYTHONPATH="$SHARE/pkg" exec "$PY" -m src.cli "\$@"
-LAUNCH
-chmod 0755 "$LAUNCHER"
+pkg_q=$(shell_quote "$SHARE/pkg")
+py_q=$(shell_quote "$PY")
+launcher_tmp=$(script_tmp_for "$LAUNCHER" "Meridian launcher")
+{
+    printf '%s\n' '#!/bin/sh'
+    printf '%s\n' '# Daylight v15 Meridian CLI launcher (installed by meridian-install).'
+    printf 'PYTHONPATH=%s exec %s -m src.cli "$@"\n' "$pkg_q" "$py_q"
+} > "$launcher_tmp"
+install_script_tmp "$launcher_tmp" "$LAUNCHER" "Meridian launcher"
 
-cat > "$BIN/uninstall-meridian" <<UNINST
-#!/bin/sh
-rm -f "$LAUNCHER" "$BIN/uninstall-meridian" "$BIN/meridian-luks-unlock"
-rm -rf "$SHARE"
-printf 'Removed the Meridian CLI. Vault at %s left in place.\n' "$VAULT"
-UNINST
-chmod 0755 "$BIN/uninstall-meridian"
+launcher_q=$(shell_quote "$LAUNCHER")
+uninstall_q=$(shell_quote "$BIN/uninstall-meridian")
+luks_unlock_q=$(shell_quote "$BIN/meridian-luks-unlock")
+share_q=$(shell_quote "$SHARE")
+vault_q=$(shell_quote "$VAULT")
+uninstall_tmp=$(script_tmp_for "$BIN/uninstall-meridian" "Meridian uninstaller")
+{
+    printf '%s\n' '#!/bin/sh'
+    printf '%s\n' 'set -eu'
+    printf '%s\n' 'reject_link() { [ -L "$1" ] && { printf '"'"'refusing symlink target: %s\n'"'"' "$1" >&2; exit 1; }; return 0; }'
+    printf 'reject_link %s\n' "$launcher_q"
+    printf 'reject_link %s\n' "$uninstall_q"
+    printf 'reject_link %s\n' "$luks_unlock_q"
+    printf 'reject_link %s\n' "$share_q"
+    printf 'rm -f %s %s %s\n' "$launcher_q" "$uninstall_q" "$luks_unlock_q"
+    printf '[ -e %s ] && rm -rf %s\n' "$share_q" "$share_q"
+    printf "printf 'Removed the Meridian CLI. Vault at %%s left in place.\\n' %s\n" "$vault_q"
+} > "$uninstall_tmp"
+install_script_tmp "$uninstall_tmp" "$BIN/uninstall-meridian" "Meridian uninstaller"
 
 # 3. Prove the install: AEAD RFC-8439 KAT + scorecard verification.
 say "Self-check the installation (doctor)"
@@ -210,18 +297,24 @@ GENKEY
     rm -f "$keytmp"
     trap - EXIT INT TERM
     say "Install the meridian-luks-unlock helper"
-    cat > "$BIN/meridian-luks-unlock" <<UNLOCK
-#!/bin/sh
-# Open a Meridian-gated LUKS volume: the key only materializes when this host's
-# Daylight v15 evidence verifies and satisfies the sealed policy.
-set -eu
-device=\${1:-$luks_device}
-mapname=\${2:-meridian-$luks_name}
-MERIDIAN_VAULT="$VAULT" "$LAUNCHER" vault open "luks-$luks_name" \\
-    | cryptsetup open --type luks2 --key-file - "\$device" "\$mapname"
-printf 'opened %s -> /dev/mapper/%s\n' "\$device" "\$mapname"
-UNLOCK
-    chmod 0755 "$BIN/meridian-luks-unlock"
+    luks_device_q=$(shell_quote "$luks_device")
+    luks_map_q=$(shell_quote "meridian-$luks_name")
+    sealed_name_q=$(shell_quote "luks-$luks_name")
+    luks_tmp=$(script_tmp_for "$BIN/meridian-luks-unlock" "Meridian LUKS helper")
+    {
+        printf '%s\n' '#!/bin/sh'
+        printf '%s\n' "# Open a Meridian-gated LUKS volume: the key only materializes when this host's"
+        printf '%s\n' '# Daylight v15 evidence verifies and satisfies the sealed policy.'
+        printf '%s\n' 'set -eu'
+        printf 'default_device=%s\n' "$luks_device_q"
+        printf 'default_mapname=%s\n' "$luks_map_q"
+        printf '%s\n' 'device=${1:-$default_device}'
+        printf '%s\n' 'mapname=${2:-$default_mapname}'
+        printf 'MERIDIAN_VAULT=%s %s vault open %s \\\n' "$vault_q" "$launcher_q" "$sealed_name_q"
+        printf '%s\n' '    | cryptsetup open --type luks2 --key-file - "$device" "$mapname"'
+        printf '%s\n' 'printf '"'"'opened %s -> /dev/mapper/%s\n'"'"' "$device" "$mapname"'
+    } > "$luks_tmp"
+    install_script_tmp "$luks_tmp" "$BIN/meridian-luks-unlock" "Meridian LUKS helper"
     printf 'LUKS volume %s is now Meridian-gated. Unlock with: meridian-luks-unlock\n' "$luks_device"
 fi
 

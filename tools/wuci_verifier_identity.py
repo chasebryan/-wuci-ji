@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -52,9 +53,15 @@ def validate_runner(
         return ""
     if normalized in ALLOWED_RUNNERS or normalized in allowed_extra:
         return normalized
-    if strict:
-        raise VerifierIdentityError(f"runner is not approved in strict mode: {normalized}")
-    return normalized
+    if (
+        len(parts) == 3
+        and parts[0] == "qemu-x86_64"
+        and parts[1] == "-cpu"
+        and re.fullmatch(r"[A-Za-z0-9_.+-]{1,64}", parts[2])
+    ):
+        return normalized
+    mode = "strict mode" if strict else "proof mode"
+    raise VerifierIdentityError(f"runner is not approved in {mode}: {normalized}")
 
 
 def require_trusted_verifier(

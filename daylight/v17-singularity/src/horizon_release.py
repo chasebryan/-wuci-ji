@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -30,14 +32,52 @@ class HorizonReleaseError(ValueError):
 
 
 def _safe_artifact(path: Path) -> Path:
-    resolved = path.resolve()
-    if not resolved.exists():
+    if not path.exists():
         raise HorizonReleaseError(f"artifact does not exist: {path}")
-    if resolved.is_symlink():
+    if path.is_symlink():
         raise HorizonReleaseError(f"refusing symlink artifact: {path}")
-    if not resolved.is_file():
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode):
         raise HorizonReleaseError(f"artifact is not a regular file: {path}")
-    return resolved
+    if info.st_nlink > 1:
+        raise HorizonReleaseError(f"artifact must not be hardlinked: {path}")
+    return path.resolve()
+
+
+def _read_regular_bytes(path: Path, label: str) -> bytes:
+    safe = _safe_artifact(path)
+    try:
+        before = safe.lstat()
+        with safe.open("rb") as handle:
+            after = os.fstat(handle.fileno())
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                raise HorizonReleaseError(f"{label} changed while opening: {path}")
+            return handle.read()
+    except OSError as exc:
+        raise HorizonReleaseError(f"could not read {label}: {path}") from exc
+
+
+def _write_new_bytes(path: Path, data: bytes, label: str) -> None:
+    current = path.parent
+    while current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise HorizonReleaseError(f"{label} parent must not be a symlink: {current}")
+        current = current.parent
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        raise HorizonReleaseError(f"refusing to overwrite {label}: {path}")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _scorecard_for_state(state_path: Path | str) -> dict[str, Any]:
@@ -77,7 +117,7 @@ def prepare_release(
     mode: str = "research",
 ) -> dict[str, Any]:
     artifact = _safe_artifact(Path(artifact_path))
-    artifact_bytes = artifact.read_bytes()
+    artifact_bytes = _read_regular_bytes(artifact, "release artifact")
     artifact_digest = horizon_crypto.sha256_hex(artifact_bytes)
     policy = _load_policy(policy_path, mode=mode)
     card = _scorecard_for_state(state_path)
@@ -133,7 +173,7 @@ def prepare_release(
     }
     capsule["capsule_digest"] = horizon_crypto.sha256_hex(json_bytes({k: v for k, v in capsule.items() if k != "capsule_digest"}))
     out = Path(output_path) if output_path is not None else artifact.with_suffix(artifact.suffix + ".dhr")
-    out.write_bytes(json_bytes(capsule))
+    _write_new_bytes(out, json_bytes(capsule), "Horizon release capsule")
     return capsule
 
 
@@ -162,7 +202,7 @@ def verify_release(
     if artifact_path is None:
         artifact_path = release_path.parent / artifact_info.get("name", "")
     artifact = _safe_artifact(Path(artifact_path))
-    artifact_digest = horizon_crypto.sha256_hex(artifact.read_bytes())
+    artifact_digest = horizon_crypto.sha256_hex(_read_regular_bytes(artifact, "release artifact"))
     blockers: list[str] = []
     if artifact_digest != artifact_info.get("sha256"):
         blockers.append("artifact digest mismatch")

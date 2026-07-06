@@ -47,6 +47,27 @@ def assert_sensitive_paths_fail(tmp: Path) -> None:
     assert any(item["kind"] == "sensitive_path" and item["indicator"] == ".ssh" for item in report["findings"])
 
 
+def assert_local_credential_stores_fail_redacted(tmp: Path) -> None:
+    root = tmp / "local-state-release"
+    wrangler = root / ".wrangler" / "cache"
+    codex = root / ".codex"
+    claude = root / ".claude"
+    wrangler.mkdir(parents=True)
+    codex.mkdir(parents=True)
+    claude.mkdir(parents=True)
+    token = "refresh-" + ("A" * 32)
+    (wrangler / "wrangler-account.json").write_text('{"refresh_token":"' + token + '"}\n', encoding="utf-8")
+    (codex / "auth.json").write_text('{"access_token":"' + token + '"}\n', encoding="utf-8")
+    (claude / "credentials.json").write_text('{"oauth_token":"' + token + '"}\n', encoding="utf-8")
+    report = audit.audit_paths([root])
+    encoded = json.dumps(report, sort_keys=True)
+    assert report["status"] == "fail"
+    assert token not in encoded
+    assert any(item["kind"] == "sensitive_path" and item["indicator"] == ".wrangler" for item in report["findings"])
+    assert any(item["kind"] == "sensitive_path" and item["indicator"] == ".codex" for item in report["findings"])
+    assert any(item["kind"] == "oauth_refresh_token" for item in report["findings"])
+
+
 def assert_archive_members_are_scanned(tmp: Path) -> None:
     root = tmp / "archives"
     root.mkdir()
@@ -106,6 +127,7 @@ def main() -> int:
         assert_clean_release_tree_passes(tmp)
         assert_secret_values_are_redacted(tmp)
         assert_sensitive_paths_fail(tmp)
+        assert_local_credential_stores_fail_redacted(tmp)
         assert_archive_members_are_scanned(tmp)
         assert_marker_only_and_raw_iso_do_not_fail(tmp)
         assert_symlinks_are_rejected(tmp)

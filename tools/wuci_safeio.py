@@ -33,6 +33,37 @@ def _fsync_parent(path: Path) -> None:
         os.close(fd)
 
 
+def _reject_symlink_ancestor(path: Path, context: str) -> None:
+    parent = path.parent
+    if not parent:
+        return
+    current = Path(parent.anchor) if parent.is_absolute() else Path(".")
+    parts = parent.parts
+    if parent.is_absolute():
+        parts = parts[1:]
+    for part in parts:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise SafeIOError(f"could not stat {context} parent: {current}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise SafeIOError(f"{context} parent must not be a symlink: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise SafeIOError(f"{context} parent must be a directory: {current}")
+
+
+def ensure_parent_directory(path: Path, context: str, *, mode: int = 0o700) -> None:
+    _reject_symlink_ancestor(path, context)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True, mode=mode)
+    except OSError as exc:
+        raise SafeIOError(f"could not create {context} parent: {path.parent}") from exc
+    _reject_symlink_ancestor(path, context)
+
+
 def require_under_directory(path: Path, root: Path, context: str) -> Path:
     try:
         resolved = path.resolve(strict=False)
@@ -107,7 +138,7 @@ def read_regular_bytes(
     reject_hardlink: bool = False,
     max_bytes: int | None = None,
 ) -> bytes:
-    lstat_regular_file(
+    expected = lstat_regular_file(
         path,
         context,
         reject_symlink=reject_symlink,
@@ -125,6 +156,8 @@ def read_regular_bytes(
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             raise SafeIOError(f"{context} must be a regular file: {path}")
+        if (expected.st_dev, expected.st_ino) != (info.st_dev, info.st_ino):
+            raise SafeIOError(f"{context} changed while being opened: {path}")
         if reject_hardlink and info.st_nlink != 1:
             raise SafeIOError(f"{context} must not be hardlinked: {path}")
         if max_bytes is not None and info.st_size > max_bytes:
@@ -140,6 +173,52 @@ def read_regular_bytes(
                 raise SafeIOError(f"{context} exceeds maximum size: {path}")
             chunks.append(chunk)
         return b"".join(chunks)
+    finally:
+        os.close(fd)
+
+
+def iter_regular_chunks(
+    path: Path,
+    context: str,
+    *,
+    reject_symlink: bool = True,
+    reject_hardlink: bool = False,
+    max_bytes: int | None = None,
+    chunk_size: int = 1024 * 1024,
+) -> Iterable[bytes]:
+    expected = lstat_regular_file(
+        path,
+        context,
+        reject_symlink=reject_symlink,
+        reject_hardlink=reject_hardlink,
+        max_bytes=max_bytes,
+    )
+    flags = os.O_RDONLY | _cloexec()
+    if reject_symlink:
+        flags |= _nofollow()
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise SafeIOError(f"could not open {context}: {path}") from exc
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise SafeIOError(f"{context} must be a regular file: {path}")
+        if (expected.st_dev, expected.st_ino) != (info.st_dev, info.st_ino):
+            raise SafeIOError(f"{context} changed while being opened: {path}")
+        if reject_hardlink and info.st_nlink != 1:
+            raise SafeIOError(f"{context} must not be hardlinked: {path}")
+        if max_bytes is not None and info.st_size > max_bytes:
+            raise SafeIOError(f"{context} exceeds maximum size: {path}")
+        total = 0
+        while True:
+            chunk = os.read(fd, chunk_size)
+            if not chunk:
+                break
+            total += len(chunk)
+            if max_bytes is not None and total > max_bytes:
+                raise SafeIOError(f"{context} exceeds maximum size: {path}")
+            yield chunk
     finally:
         os.close(fd)
 
@@ -192,7 +271,7 @@ def write_new_bytes(
     mode: int = 0o600,
     fsync_parent: bool = True,
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_directory(path, context)
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | _cloexec() | _nofollow()
     try:
         fd = os.open(path, flags, mode)
@@ -253,7 +332,18 @@ def atomic_replace_text(
     mode: int = 0o600,
     fsync_parent: bool = True,
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_parent_directory(path, context)
+    try:
+        target_info = os.lstat(path)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise SafeIOError(f"could not stat {context}: {path}") from exc
+    else:
+        if stat.S_ISLNK(target_info.st_mode):
+            raise SafeIOError(f"{context} target must not be a symlink: {path}")
+        if not stat.S_ISREG(target_info.st_mode):
+            raise SafeIOError(f"{context} target must be a regular file: {path}")
     with tempfile.NamedTemporaryFile(
         "w",
         encoding="ascii",

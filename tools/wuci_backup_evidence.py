@@ -17,6 +17,8 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+import wuci_safeio
+
 
 SCHEMA = "wuci.backup_evidence.v1"
 DEFAULT_OUT = Path("build/wuci-backup/backup-evidence.json")
@@ -40,9 +42,7 @@ def dumps_stable(data: Any) -> str:
 
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
+    digest.update(wuci_safeio.read_regular_bytes(path, "backup evidence file", reject_symlink=True, reject_hardlink=True))
     return digest.hexdigest()
 
 
@@ -100,10 +100,23 @@ def _tracked_manifest(root: Path, tracked_files: list[str]) -> list[dict[str, An
 
 
 def _write_archive(root: Path, archive: Path, manifest: list[dict[str, Any]]) -> None:
-    archive.parent.mkdir(parents=True, exist_ok=True)
-    tmp = archive.with_name(archive.name + ".tmp")
-    if tmp.exists():
-        tmp.unlink()
+    try:
+        wuci_safeio.ensure_parent_directory(archive, "backup archive", mode=0o700)
+        existing = archive.lstat()
+    except FileNotFoundError:
+        pass
+    except wuci_safeio.SafeIOError as exc:
+        raise BackupEvidenceError(str(exc)) from exc
+    except OSError as exc:
+        raise BackupEvidenceError(f"could not inspect backup archive target: {archive}") from exc
+    else:
+        if not stat.S_ISREG(existing.st_mode):
+            raise BackupEvidenceError(f"backup archive target must be a regular file: {archive}")
+        if stat.S_ISLNK(existing.st_mode):
+            raise BackupEvidenceError(f"backup archive target must not be a symlink: {archive}")
+    tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{archive.name}.", suffix=".tmp", dir=str(archive.parent))
+    tmp = Path(tmp_name)
+    os.close(tmp_fd)
     try:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for entry in manifest:
@@ -111,10 +124,10 @@ def _write_archive(root: Path, archive: Path, manifest: list[dict[str, Any]]) ->
                 info = zipfile.ZipInfo(rel, FIXED_ZIP_TIME)
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = (stat.S_IFREG | 0o644) << 16
-                with (root / rel).open("rb") as source, zf.open(info, "w") as dest:
-                    for chunk in iter(lambda: source.read(65536), b""):
-                        dest.write(chunk)
-        tmp.replace(archive)
+                data = wuci_safeio.read_regular_bytes(root / rel, f"backup input {rel}", reject_symlink=True, reject_hardlink=True)
+                with zf.open(info, "w") as dest:
+                    dest.write(data)
+        os.replace(tmp, archive)
     finally:
         if tmp.exists():
             tmp.unlink()
@@ -134,10 +147,16 @@ def _extract_and_verify(archive: Path, manifest: list[dict[str, Any]]) -> dict[s
                 if mode_type and mode_type != stat.S_IFREG:
                     raise BackupEvidenceError(f"archive member must be a regular file: {member.filename}")
                 target = restore_root / member.filename
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with zf.open(member, "r") as source, target.open("wb") as dest:
-                    for chunk in iter(lambda: source.read(65536), b""):
-                        dest.write(chunk)
+                try:
+                    wuci_safeio.ensure_parent_directory(target, "backup restore member", mode=0o700)
+                except wuci_safeio.SafeIOError as exc:
+                    raise BackupEvidenceError(str(exc)) from exc
+                with zf.open(member, "r") as source:
+                    data = source.read()
+                try:
+                    wuci_safeio.write_new_bytes(target, data, "backup restore member", mode=0o600)
+                except wuci_safeio.SafeIOError as exc:
+                    raise BackupEvidenceError(str(exc)) from exc
             for rel, entry in expected.items():
                 restored = restore_root / rel
                 if _sha256_file(restored) != entry["sha256"]:
@@ -174,10 +193,10 @@ def emit_backup_evidence(
         "restore": restore,
         "non_claim_boundary": NON_CLAIM,
     }
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out_path.with_name(out_path.name + ".tmp")
-    tmp.write_text(dumps_stable(report), encoding="utf-8")
-    os.replace(tmp, out_path)
+    try:
+        wuci_safeio.atomic_replace_text(out_path, dumps_stable(report), "backup evidence report", mode=0o644)
+    except wuci_safeio.SafeIOError as exc:
+        raise BackupEvidenceError(str(exc)) from exc
     return report
 
 

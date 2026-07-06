@@ -34,6 +34,27 @@ class ZenithRejectionRuleTests(unittest.TestCase):
             with self.assertRaises(zenith_verifier.ZenithError):
                 zenith_verifier.build_report(artifact, evidence)
 
+    def test_self_supplied_hmac_external_review_credit_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = self._artifact(root)
+            review = zenith_verifier.sign_record({
+                "review_id": "r1",
+                "reviewer_identity": "reviewer-a",
+                "reviewed_commit": "0" * 40,
+                "review_scope": ["formal_methods"],
+                "report_digest": "a" * 64,
+                "evidence_digest": "b" * 64,
+                "fixture_material_used": False,
+                "independent_reviewer": True,
+                "offensive_tooling_included": False,
+                "signature_namespace": zenith_verifier.REVIEW_NAMESPACE,
+                "closes_zenith_obligations": ["z7.formal_methods_review"],
+            }, "attacker-key", zenith_verifier.REVIEW_NAMESPACE)
+            evidence = helpers.write_evidence(root, {"review_evidence": [review]})
+            with self.assertRaises(zenith_verifier.ZenithError):
+                zenith_verifier.build_report(artifact, evidence)
+
     def test_rebuild_mismatch_rejected_when_credit_claimed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -101,6 +122,20 @@ class ZenithRejectionRuleTests(unittest.TestCase):
             artifact = self._artifact(root)
             evidence = helpers.write_evidence(root, {
                 "boundary_claims": {"production_allowed": True}
+            })
+            with self.assertRaises(zenith_verifier.ZenithError):
+                zenith_verifier.build_report(artifact, evidence)
+
+    def test_unsigned_valid_true_production_authority_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = self._artifact(root)
+            evidence = helpers.write_evidence(root, {
+                "boundary_claims": {"production_allowed": True},
+                "production_authority_evidence": {
+                    "valid": True,
+                    "fixture_material_used": False,
+                },
             })
             with self.assertRaises(zenith_verifier.ZenithError):
                 zenith_verifier.build_report(artifact, evidence)

@@ -1,6 +1,8 @@
 use std::env;
-use std::fs;
-use std::path::PathBuf;
+use std::fs::{self, OpenOptions};
+use std::io::{Read, Write};
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+use std::path::{Path, PathBuf};
 use std::process;
 
 use wuci_penumbra::{
@@ -74,7 +76,7 @@ fn cmd_seal(args: &[String]) -> Result<(), String> {
         &FileTranscriptVerifier,
     )
     .map_err(|err| format!("seal refused: {err}"))?;
-    fs::write(out, envelope).map_err(|err| format!("write failed: {err}"))?;
+    write_new_file(&out, &envelope).map_err(|err| format!("write failed: {err}"))?;
     if let Some(secret) = secret.as_mut() {
         secret.zeroize();
     }
@@ -100,7 +102,7 @@ fn cmd_open(args: &[String]) -> Result<(), String> {
         &FileTranscriptVerifier,
     )
     .map_err(|_| "open refused".to_string())?;
-    fs::write(out, plaintext).map_err(|_| "open refused".to_string())?;
+    write_new_file(&out, &plaintext).map_err(|_| "open refused".to_string())?;
     if let Some(secret) = secret.as_mut() {
         secret.zeroize();
     }
@@ -172,5 +174,66 @@ fn read_required(opts: &Options, key: &str) -> Result<Vec<u8>, String> {
 
 fn read_file(path: impl Into<PathBuf>) -> Result<Vec<u8>, String> {
     let path = path.into();
-    fs::read(&path).map_err(|err| format!("read {} failed: {err}", path.display()))
+    reject_symlink_ancestors(&path)?;
+    let before = fs::symlink_metadata(&path)
+        .map_err(|err| format!("read {} failed: {err}", path.display()))?;
+    if before.file_type().is_symlink() {
+        return Err(format!("read {} failed: symlink rejected", path.display()));
+    }
+    if !before.is_file() {
+        return Err(format!("read {} failed: not a regular file", path.display()));
+    }
+    if before.nlink() > 1 {
+        return Err(format!("read {} failed: hardlink rejected", path.display()));
+    }
+    let mut file = fs::File::open(&path)
+        .map_err(|err| format!("read {} failed: {err}", path.display()))?;
+    let after = file
+        .metadata()
+        .map_err(|err| format!("read {} failed: {err}", path.display()))?;
+    if before.dev() != after.dev() || before.ino() != after.ino() {
+        return Err(format!("read {} failed: file changed while opening", path.display()));
+    }
+    let mut data = Vec::new();
+    file.read_to_end(&mut data)
+        .map_err(|err| format!("read {} failed: {err}", path.display()))?;
+    Ok(data)
+}
+
+fn reject_symlink_ancestors(path: &Path) -> Result<(), String> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    let mut current = parent;
+    while let Some(next) = current.parent() {
+        if current.exists() {
+            let metadata = fs::symlink_metadata(current)
+                .map_err(|err| format!("inspect {} failed: {err}", current.display()))?;
+            if metadata.file_type().is_symlink() {
+                return Err(format!("path parent symlink rejected: {}", current.display()));
+            }
+        }
+        if current == next {
+            break;
+        }
+        current = next;
+    }
+    Ok(())
+}
+
+fn write_new_file(path: &Path, data: &[u8]) -> Result<(), String> {
+    reject_symlink_ancestors(path)?;
+    if path.exists() || fs::symlink_metadata(path).is_ok() {
+        return Err(format!("refusing to overwrite output: {}", path.display()));
+    }
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|err| format!("{}: {err}", path.display()))?;
+    file.write_all(data)
+        .map_err(|err| format!("{}: {err}", path.display()))?;
+    file.sync_all()
+        .map_err(|err| format!("{}: {err}", path.display()))
 }

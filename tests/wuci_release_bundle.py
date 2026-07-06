@@ -127,6 +127,25 @@ def assert_privacy_failure_blocks_bundle(tmp: Path) -> None:
         raise AssertionError("privacy failure did not block bundle")
 
 
+def assert_missing_rootfs_privacy_blocks_bundle(tmp: Path) -> None:
+    paths = fixture_tree(tmp)
+    paths["rootfs_privacy"].unlink()
+    try:
+        bundle.build_bundle(
+            out=tmp / "bundle",
+            final_dir=paths["final"],
+            evidence_dir=paths["evidence"],
+            privacy_audit=paths["privacy"],
+            rootfs_privacy_audit=paths["rootfs_privacy"],
+            daylight_ssv=paths["daylight"],
+            force=True,
+        )
+    except bundle.ReleaseBundleError as exc:
+        assert "privacy audit" in str(exc) or "required public artifact is missing" in str(exc)
+    else:
+        raise AssertionError("missing final-rootfs privacy audit did not block bundle")
+
+
 def assert_symlink_input_is_rejected(tmp: Path) -> None:
     if not hasattr(os, "symlink"):
         return
@@ -262,6 +281,7 @@ def main() -> int:
         tmp = Path(tmp_name)
         assert_bundle_allowlist_and_checksums(tmp / "allowlist")
         assert_privacy_failure_blocks_bundle(tmp / "privacy")
+        assert_missing_rootfs_privacy_blocks_bundle(tmp / "rootfs-privacy")
         assert_symlink_input_is_rejected(tmp / "symlink")
         assert_parser_replay_requires_non_offensive_fail_closed_evidence(tmp / "parser")
         assert_verify_parser_accepts_makefile_shape()

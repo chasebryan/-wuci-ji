@@ -72,9 +72,18 @@ def _repo_relative(root: Path, path: Path) -> str:
 
 def _safe_read_text(path: Path) -> str | None:
     try:
-        if path.stat().st_size > MAX_SCAN_BYTES:
+        before = path.lstat()
+        if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
             return None
-        raw = path.read_bytes()
+        if before.st_size > MAX_SCAN_BYTES:
+            return None
+        with path.open("rb") as handle:
+            after = os.fstat(handle.fileno())
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                return None
+            raw = handle.read(MAX_SCAN_BYTES + 1)
+        if len(raw) > MAX_SCAN_BYTES:
+            return None
     except OSError:
         return None
     if b"\x00" in raw[:4096]:
@@ -87,8 +96,14 @@ def _safe_read_text(path: Path) -> str | None:
 
 def _sha256_file(path: Path) -> str | None:
     try:
+        before = path.lstat()
+        if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+            return None
         digest = hashlib.sha256()
         with path.open("rb") as handle:
+            after = os.fstat(handle.fileno())
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                return None
             for chunk in iter(lambda: handle.read(65536), b""):
                 digest.update(chunk)
         return digest.hexdigest()

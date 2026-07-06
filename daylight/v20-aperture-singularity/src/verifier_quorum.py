@@ -17,7 +17,7 @@ from . import boundary_debt
 from . import external_evidence
 from . import singularity_gate
 from .canonical import dumps_canonical, load_json_no_floats, loads_json_no_floats, reject_floats_recursive
-from .pathsafe import require_regular_public_file
+from .pathsafe import PathSafetyError, read_public_bytes
 
 CANONICAL_OUTPUT_SCHEMA_ID = "daylight.v20.canonical-verifier-output"
 CANONICAL_OUTPUT_SCHEMA_VERSION = 1
@@ -327,8 +327,10 @@ def canonical_output_digest(output: dict[str, Any]) -> str:
 
 def load_canonical_output(path: Path | str) -> dict[str, Any]:
     output_path = Path(path)
-    require_regular_public_file(output_path, str(output_path))
-    raw = output_path.read_bytes()
+    try:
+        raw = read_public_bytes(output_path, str(output_path), max_bytes=MAX_CANONICAL_OUTPUT_BYTES)
+    except PathSafetyError as exc:
+        raise VerifierQuorumError(f"canonical verifier output path rejected: {exc}") from exc
     if len(raw) > MAX_CANONICAL_OUTPUT_BYTES:
         raise VerifierQuorumError(f"canonical verifier output exceeds size limit: {output_path}")
     if b"\x00" in raw:

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
+import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -28,6 +31,65 @@ FIXED_TIMESTAMP = "2026-06-30T00:00:00Z"
 
 class LedgerError(ValueError):
     pass
+
+
+def _reject_symlink_ancestors(path: Path) -> None:
+    current = path.parent
+    while current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise LedgerError(f"ledger path parent must not be a symlink: {current}")
+        current = current.parent
+
+
+def _read_regular_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    _reject_symlink_ancestors(path)
+    try:
+        before = path.lstat()
+    except OSError as exc:
+        raise LedgerError(f"could not inspect ledger: {path}") from exc
+    if stat.S_ISLNK(before.st_mode):
+        raise LedgerError(f"ledger must not be a symlink: {path}")
+    if not stat.S_ISREG(before.st_mode):
+        raise LedgerError(f"ledger must be a regular file: {path}")
+    if before.st_nlink > 1:
+        raise LedgerError(f"ledger must not be hardlinked: {path}")
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            after = os.fstat(handle.fileno())
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                raise LedgerError(f"ledger changed while opening: {path}")
+            return handle.read()
+    except OSError as exc:
+        raise LedgerError(f"could not read ledger: {path}") from exc
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    _reject_symlink_ancestors(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode):
+            raise LedgerError(f"ledger output must not be a symlink: {path}")
+        if not stat.S_ISREG(info.st_mode):
+            raise LedgerError(f"ledger output must be a regular file: {path}")
+        if info.st_nlink > 1:
+            raise LedgerError(f"ledger output must not be hardlinked: {path}")
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _without_digest(entry: dict[str, Any]) -> dict[str, Any]:
@@ -91,9 +153,10 @@ def verify_entries(entries: Iterable[dict[str, Any]]) -> str:
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    if not path.exists():
+    text = _read_regular_text(path)
+    if not text:
         return entries
-    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_no, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if not stripped:
             continue
@@ -108,9 +171,8 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def write_jsonl(path: Path, entries: Iterable[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     text = "".join(json.dumps(entry, sort_keys=True, separators=(",", ":")) + "\n" for entry in entries)
-    path.write_text(text, encoding="utf-8")
+    _atomic_write_text(path, text)
 
 
 def entry_types(entries: Iterable[dict[str, Any]]) -> set[str]:
@@ -158,4 +220,3 @@ def append_entry(
 def frozen_head(path: Path) -> tuple[list[dict[str, Any]], str]:
     entries = load_jsonl(path)
     return entries, verify_entries(entries)
-

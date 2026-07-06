@@ -138,13 +138,15 @@ def load_json(path: Path, context: str) -> Any:
 
 
 def write_new_text(path: Path, value: str, context: str) -> None:
-    if path.exists():
-        raise CageError(f"refusing to overwrite existing {context}: {path}")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(value, encoding="utf-8")
-    except OSError as exc:
-        raise CageError(f"could not write {context}: {path}") from exc
+        wuci_safeio.write_new_bytes(
+            path,
+            value.encode("utf-8"),
+            context,
+            mode=0o600,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise CageError(str(exc)) from exc
 
 
 def write_new_json(path: Path, value: dict[str, Any], context: str) -> None:

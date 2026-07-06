@@ -114,20 +114,17 @@ def hmac_signature(record: dict[str, Any], root_key: str, namespace: str = EXTER
 def sign_external_review(record: dict[str, Any], root_key: str) -> dict[str, Any]:
     signed = dict(record)
     signed["root_key_digest"] = _root_key_digest(root_key)
-    signed["root_key"] = root_key
     signed["signature_namespace"] = EXTERNAL_REVIEW_NAMESPACE
+    signed["fixture_hmac_only"] = True
     signed["signature"] = hmac_signature(signed, root_key)
     return signed
 
 
 def _valid_hmac(record: dict[str, Any], namespace: str = EXTERNAL_REVIEW_NAMESPACE) -> bool:
-    root_key = record.get("root_key")
-    signature = record.get("signature")
-    if not isinstance(root_key, str) or not isinstance(signature, str):
-        return False
-    if record.get("root_key_digest") != _root_key_digest(root_key):
-        return False
-    return hmac.compare_digest(signature, hmac_signature(record, root_key, namespace))
+    # HMAC is symmetric: a record that supplies the key needed to verify itself
+    # is self-authorizing, not external authority. Keep the helper for fixtures,
+    # but never let HMAC evidence close public/external proof obligations.
+    return False
 
 
 def _list(evidence: dict[str, Any], key: str) -> list[dict[str, Any]]:
@@ -270,7 +267,9 @@ def verify_signed_external_review_set(ctx: dict[str, Any]) -> bool:
 
 def verify_production_authority(ctx: dict[str, Any]) -> bool:
     authority = ctx["evidence"].get("production_authority", {})
-    return isinstance(authority, dict) and authority.get("valid") is True and authority.get("fixture_material_used") is False
+    if not isinstance(authority, dict):
+        return False
+    return False
 
 
 VERIFIERS = {
@@ -353,7 +352,8 @@ def _claim_level(solstice: dict[str, Any], evidence: dict[str, Any], external_tr
         return "C1_replayable_public_artifact"
     if external_trust_M < M_SCALE:
         return "C2_partially_attested"
-    if not evidence.get("production_authority", {}).get("valid"):
+    ctx = {"solstice": solstice, "evidence": evidence}
+    if not verify_production_authority(ctx):
         return "C3_externally_reviewed"
     if not evidence.get("runtime_containment", {}).get("valid"):
         return "C4_production_authority_eligible"

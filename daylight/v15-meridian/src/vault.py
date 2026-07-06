@@ -36,6 +36,7 @@ import json
 import os
 import secrets
 import stat
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Iterable
@@ -72,26 +73,62 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
+def _reject_symlink_ancestors(path: Path) -> None:
+    parent = path.parent
+    current = Path(parent.anchor) if parent.is_absolute() else Path(".")
+    parts = parent.parts[1:] if parent.is_absolute() else parent.parts
+    for part in parts:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(info.st_mode):
+            raise VaultError(f"private path parent must not be a symlink: {current}")
+
+
 def _write_private(path: Path, data: bytes) -> None:
     """Write a 0600 file, replacing any existing one, without leaking via umask."""
-    tmp = path.with_name(path.name + ".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    _reject_symlink_ancestors(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlink_ancestors(path)
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        pass
+    else:
+        if stat.S_ISLNK(info.st_mode):
+            raise VaultError(f"refusing to overwrite symlink: {path}")
+        if not stat.S_ISREG(info.st_mode):
+            raise VaultError(f"refusing to overwrite non-regular file: {path}")
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    tmp = Path(tmp_name)
     try:
         view = memoryview(data)
         while view:
             written = os.write(fd, view)
             view = view[written:]
         os.fsync(fd)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
     finally:
         os.close(fd)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, path)
+        if tmp.exists():
+            tmp.unlink()
 
 
 def _read_private(path: Path) -> bytes:
     """Read a private file without following a symlink placed at its path."""
-    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    expected = os.lstat(path)
+    if stat.S_ISLNK(expected.st_mode) or not stat.S_ISREG(expected.st_mode):
+        raise VaultError(f"private file must be regular and non-symlink: {path}")
+    if expected.st_nlink != 1:
+        raise VaultError(f"private file must not be hardlinked: {path}")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
     try:
+        opened = os.fstat(fd)
+        if (opened.st_dev, opened.st_ino) != (expected.st_dev, expected.st_ino):
+            raise VaultError(f"private file changed while opening: {path}")
         chunks = []
         while True:
             chunk = os.read(fd, 65536)
@@ -125,8 +162,8 @@ class Vault:
         if not self.config_path.is_file():
             raise VaultError(f"no Meridian vault at {self.root} (run: vault init)")
         try:
-            self.config = json.loads(self.config_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            self.config = json.loads(_read_private(self.config_path).decode("utf-8"))
+        except (OSError, json.JSONDecodeError, VaultError) as exc:
             raise VaultError(f"vault config is unreadable: {exc}") from exc
         if self.config.get("vault_version") != VAULT_VERSION:
             raise VaultError("vault config version is not recognized")
@@ -170,7 +207,7 @@ class Vault:
     def _load_index(self) -> dict[str, Any]:
         if not self.index_path.is_file():
             return {"vault_version": VAULT_VERSION, "entries": {}}
-        return json.loads(self.index_path.read_text(encoding="utf-8"))
+        return json.loads(_read_private(self.index_path).decode("utf-8"))
 
     def _save_index(self, index: dict[str, Any]) -> None:
         # The index names every sealed entry; keep it private like the store.
@@ -219,7 +256,7 @@ class Vault:
         out = self.store_dir / f"{name}.mae"
         if not out.is_file():
             raise VaultError(f"no sealed entry named {name!r}")
-        envelope = out.read_bytes()
+        envelope = _read_private(out)
         try:
             return api.open_envelope(
                 envelope=envelope,
@@ -235,11 +272,17 @@ class Vault:
     def seal_file(self, src: Path | str, *, name: str | None = None, keep_original: bool = True,
                   passphrase: str | None = None) -> dict[str, Any]:
         src = Path(src)
-        if not src.is_file():
+        try:
+            src_info = os.lstat(src)
+        except OSError as exc:
+            raise VaultError(f"not a regular file: {src}") from exc
+        if not stat.S_ISREG(src_info.st_mode):
             raise VaultError(f"not a regular file: {src}")
-        if src.is_symlink():
+        if stat.S_ISLNK(src_info.st_mode):
             raise VaultError(f"refusing to seal a symlink: {src}")
-        plaintext = src.read_bytes()
+        if src_info.st_nlink != 1:
+            raise VaultError(f"refusing to seal a hardlinked file: {src}")
+        plaintext = _read_private(src)
         entry = name or _safe_name(str(src.resolve()))
         record = self.seal_bytes(
             entry, plaintext, passphrase=passphrase,
@@ -268,9 +311,8 @@ class Vault:
         if out_path is not None:
             target = Path(out_path)
         elif restore and record.get("original_path"):
-            target = Path(record["original_path"])
+            raise VaultError("implicit restore to stored original_path is refused; pass an explicit output path")
         if target is not None:
-            target.parent.mkdir(parents=True, exist_ok=True)
             _write_private(target, plaintext)
             return {"name": name, "restored_to": str(target), "bytes": len(plaintext)}
         os.write(1, plaintext)
@@ -322,8 +364,10 @@ def init_vault(
     ledger_src = Path(evidence_ledger) if evidence_ledger else pkg_examples / "ledger.seed.jsonl"
     corpus_src = Path(evidence_corpus) if evidence_corpus else pkg_examples / "corpus.seed.jsonl"
     for label, path in (("ledger", ledger_src), ("corpus", corpus_src)):
-        if not path.is_file():
-            raise VaultError(f"evidence {label} not found: {path}")
+        try:
+            _read_private(path)
+        except (OSError, VaultError) as exc:
+            raise VaultError(f"evidence {label} not found or unsafe: {path}") from exc
 
     registry = api.load_registry()
     required = sorted(set(required_closed_obligations or []))
@@ -348,8 +392,8 @@ def init_vault(
 
     (root / "evidence").mkdir(parents=True, exist_ok=True)
     (root / "store").mkdir(parents=True, exist_ok=True)
-    (root / "evidence" / "ledger.jsonl").write_bytes(ledger_src.read_bytes())
-    (root / "evidence" / "corpus.jsonl").write_bytes(corpus_src.read_bytes())
+    _write_private(root / "evidence" / "ledger.jsonl", _read_private(ledger_src))
+    _write_private(root / "evidence" / "corpus.jsonl", _read_private(corpus_src))
 
     config: dict[str, Any] = {
         "vault_version": VAULT_VERSION,

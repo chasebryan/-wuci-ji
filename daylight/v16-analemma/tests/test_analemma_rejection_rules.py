@@ -51,6 +51,43 @@ class AnalemmaRejectionRuleTests(unittest.TestCase):
             with self.assertRaises(analemma.AnalemmaError):
                 analemma.build_report(artifact, history_path=history)
 
+    def test_self_supplied_hmac_reviews_do_not_close_external_review_credit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = helpers.build_solstice_artifact(root)
+            artifact_digest = analemma.solstice_bridge.load_and_verify(artifact)["artifact_manifest_digest"]
+            evidence = helpers.write_json(root, "analemma-evidence.json", {
+                "external_reviews": [
+                    analemma.sign_external_review({
+                        "reviewer_identity": "reviewer-a",
+                        "reviewed_artifact_digest": artifact_digest,
+                        "report_digest": "b" * 64,
+                        "fixture_material_used": False,
+                    }, "attacker-key-a"),
+                    analemma.sign_external_review({
+                        "reviewer_identity": "reviewer-b",
+                        "reviewed_artifact_digest": artifact_digest,
+                        "report_digest": "c" * 64,
+                        "fixture_material_used": False,
+                    }, "attacker-key-b"),
+                ]
+            })
+            report, _ = analemma.build_report(artifact, evidence_path=evidence)
+        self.assertNotIn("a.external.review.signed", report["closed_units"])
+
+    def test_unsigned_valid_true_production_authority_does_not_close_credit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = helpers.build_solstice_artifact(root)
+            evidence = helpers.write_json(root, "analemma-evidence.json", {
+                "production_authority": {
+                    "valid": True,
+                    "fixture_material_used": False,
+                }
+            })
+            report, _ = analemma.build_report(artifact, evidence_path=evidence)
+        self.assertNotIn("a.production.authority", report["closed_units"])
+
 
 if __name__ == "__main__":
     unittest.main()

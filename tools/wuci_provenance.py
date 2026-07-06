@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import wuci_safeio
+
 
 DEFAULT_FILE_ROOTS = (
     "AGENTS.md",
@@ -68,21 +70,26 @@ def sha256_bytes(data: bytes) -> str:
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
+    h.update(wuci_safeio.read_regular_bytes(path, "provenance input", reject_symlink=True, reject_hardlink=True))
     return h.hexdigest()
 
 
 def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8")
+    return wuci_safeio.read_regular_bytes(
+        path,
+        "provenance text input",
+        reject_symlink=True,
+        reject_hardlink=True,
+    ).decode("utf-8")
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(tmp, path)
+    wuci_safeio.atomic_replace_text(
+        path,
+        json.dumps(data, indent=2, sort_keys=True) + "\n",
+        "provenance report",
+        mode=0o644,
+    )
 
 
 def run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:

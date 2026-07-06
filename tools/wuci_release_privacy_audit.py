@@ -19,6 +19,8 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
+import wuci_safeio
+
 
 SCHEMA = "wuci-release-privacy-audit-v1"
 DEFAULT_OUT = Path("build/wuci-os/privacy-audit.json")
@@ -76,6 +78,16 @@ SECRET_PATTERNS: tuple[tuple[str, re.Pattern[bytes], str], ...] = (
         "GitHub-style token",
     ),
     (
+        "cloudflare_token",
+        re.compile(rb"\b(?:CF_API_TOKEN|CLOUDFLARE_API_TOKEN|api_token|auth_token)\b[\s:=\"]{1,12}[A-Za-z0-9._-]{20,}"),
+        "Cloudflare-style token field",
+    ),
+    (
+        "oauth_refresh_token",
+        re.compile(rb"\b(?:refresh_token|access_token|oauth_token|session_token)\b[\s:=\"]{1,12}[A-Za-z0-9._~+/-]{20,}"),
+        "OAuth/session token field",
+    ),
+    (
         "slack_token",
         re.compile(rb"\bxox[baprs]-[A-Za-z0-9-]{20,}\b"),
         "Slack-style token",
@@ -95,19 +107,28 @@ SECRET_PATTERNS: tuple[tuple[str, re.Pattern[bytes], str], ...] = (
 SENSITIVE_PATH_PARTS = {
     ".aws": "AWS config/cache path",
     ".azure": "Azure config/cache path",
+    ".claude": "Claude credential/cache path",
+    ".claude.json": "Claude credential/config path",
+    ".codex": "Codex credential/cache path",
     ".config/gh": "GitHub CLI auth path",
     ".docker": "Docker auth path",
     ".gnupg": "GnuPG private config path",
     ".kube": "Kubernetes config path",
+    ".mozilla": "browser profile/session path",
     ".netrc": "netrc credential path",
     ".npmrc": "npm credential path",
     ".pypirc": "Python package credential path",
     ".ssh": "SSH private config path",
+    ".wrangler": "Cloudflare Wrangler credential/cache path",
+    "auth.json": "local auth/session filename",
+    "credentials.json": "local credential filename",
     "id_dsa": "SSH private key filename",
     "id_ecdsa": "SSH private key filename",
     "id_ed25519": "SSH private key filename",
     "id_rsa": "SSH private key filename",
     "known_hosts": "SSH known-hosts fingerprint path",
+    "signedInUser.json": "browser signed-in-user session metadata",
+    "wrangler-account.json": "Cloudflare Wrangler account metadata",
 }
 
 
@@ -125,9 +146,8 @@ def sha256_bytes(data: bytes) -> str:
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(READ_CHUNK), b""):
-            digest.update(chunk)
+    for chunk in wuci_safeio.iter_regular_chunks(path, "release privacy input", reject_symlink=True, reject_hardlink=True, chunk_size=READ_CHUNK):
+        digest.update(chunk)
     return digest.hexdigest()
 
 
@@ -221,15 +241,11 @@ def _scan_regular_file(path: Path, display_path: str) -> tuple[list[dict[str, st
         )
     digest = hashlib.sha256()
     overlap = b""
-    with path.open("rb") as handle:
-        while True:
-            chunk = handle.read(READ_CHUNK)
-            if not chunk:
-                break
-            digest.update(chunk)
-            window = overlap + chunk
-            findings.extend(_scan_bytes(window, display_path))
-            overlap = window[-256:]
+    for chunk in wuci_safeio.iter_regular_chunks(path, "release privacy input", reject_symlink=True, reject_hardlink=True, chunk_size=READ_CHUNK):
+        digest.update(chunk)
+        window = overlap + chunk
+        findings.extend(_scan_bytes(window, display_path))
+        overlap = window[-256:]
     return (
         _dedupe_findings(findings),
         {"path": display_path, "type": "file", "bytes": info.st_size, "sha256": digest.hexdigest()},
@@ -369,10 +385,7 @@ def audit_paths(paths: Iterable[Path]) -> dict[str, Any]:
 
 
 def write_report(path: Path, report: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(stable_json(report), encoding="utf-8")
-    os.replace(tmp, path)
+    wuci_safeio.atomic_replace_text(path, stable_json(report), "release privacy audit report", mode=0o644)
 
 
 def run_audit(args: argparse.Namespace) -> int:

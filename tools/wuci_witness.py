@@ -22,7 +22,7 @@ import wuci_verifier_identity
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BIN = REPO_ROOT / "build" / "wuci-ji"
 DEFAULT_BUNDLE_DIR = REPO_ROOT / "build" / "wuci-witness-bundle"
-RUNNER = shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+RUNNER = shlex.split(wuci_verifier_identity.validate_runner(os.environ.get("WUCI_JI_RUNNER", ""), strict=False))
 ACTION = "release"
 BUNDLE_SCHEMA = "wuci-publish-bundle-v1"
 INDEX_SCHEMA = "wuci-publish-index-v1"
@@ -187,7 +187,7 @@ def require_file(path: Path, context: str, *, strict_proof: bool = False) -> Non
             path,
             context,
             reject_symlink=True,
-            reject_hardlink=strict_proof,
+            reject_hardlink=True,
         )
     except wuci_safeio.SafeIOError as exc:
         raise WitnessError(str(exc)) from exc
@@ -199,7 +199,7 @@ def enforce_public_file_shape(path: Path, name: str, *, strict_proof: bool) -> N
             path,
             name.replace("_", " "),
             reject_symlink=True,
-            reject_hardlink=strict_proof,
+            reject_hardlink=True,
             max_bytes=FILE_SIZE_CAPS[name],
         )
         if name in TEXT_PUBLIC_FILES:
@@ -207,7 +207,7 @@ def enforce_public_file_shape(path: Path, name: str, *, strict_proof: bool) -> N
                 path,
                 name.replace("_", " "),
                 reject_symlink=True,
-                reject_hardlink=strict_proof,
+                reject_hardlink=True,
                 max_bytes=FILE_SIZE_CAPS[name],
             )
             wuci_safeio.reject_private_markers_bytes(
