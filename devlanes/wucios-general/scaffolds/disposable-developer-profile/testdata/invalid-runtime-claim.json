@@ -1,0 +1,29 @@
+{
+  "schema_version": "wucios.disposable_profile.plan_input.v1",
+  "profile_id": "runtime-claim-plan",
+  "profile_purpose": "local dry-run planning input with a disallowed runtime request",
+  "allowed_scope": [
+    "local_only",
+    "dry_run_only",
+    "repo_local",
+    "non_runtime",
+    "non_installing",
+    "non_profile_creating",
+    "non_host_mutating"
+  ],
+  "requested_outputs": [
+    "dry_run_plan"
+  ],
+  "non_claims_acknowledged": [
+    "no_profile_creation",
+    "no_package_install",
+    "no_runtime_execution",
+    "no_host_config_mutation",
+    "no_network_enablement",
+    "no_external_review_result",
+    "no_production_readiness",
+    "no_installation_readiness",
+    "no_developer_use_approval"
+  ],
+  "runtime_behavior_requested": true
+}

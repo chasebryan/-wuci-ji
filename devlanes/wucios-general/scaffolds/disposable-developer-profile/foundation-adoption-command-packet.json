@@ -1,0 +1,46 @@
+{
+  "schema": "wucios.disposable_profile.foundation_adoption_command_packet.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "foundation_adoption_command_kind": "frozen_foundation_future_adoption_command_packet",
+  "status": "FOUNDATION_ADOPTION_COMMAND_PACKET_READY",
+  "foundation_frozen_for_review": true,
+  "adoption_review_ready": true,
+  "adoption_command_packet_ready": true,
+  "mainline_adopted": false,
+  "mainline_modified": false,
+  "release_created": false,
+  "runtime_ready": false,
+  "production_ready": false,
+  "external_validation": false,
+  "host_mutation": false,
+  "actual_installation": false,
+  "credential_setup": false,
+  "dry_run_only": true,
+  "foundation_only": true,
+  "referenced_adoption_readiness_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-adoption-readiness-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-adoption-readiness.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-frozen-asset-ledger.json"
+  ],
+  "referenced_freeze_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-summary.md"
+  ],
+  "referenced_closeout_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-index.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-summary.md"
+  ],
+  "future_adoption_method": [
+    "fast_forward_only",
+    "explicitly_reviewed_merge"
+  ],
+  "generated_evidence_policy": {
+    "validation_report_root": "build/wucios/devlanes/disposable-profile-foundation-batch-8/foundation-validation-run",
+    "review_packet_root": "build/wucios/devlanes/disposable-profile-foundation-batch-9/foundation-review-packet",
+    "tracked": false,
+    "local_only": true
+  }
+}

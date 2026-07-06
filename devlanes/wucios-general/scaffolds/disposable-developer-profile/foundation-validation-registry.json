@@ -1,0 +1,107 @@
+{
+  "schema": "wucios.disposable_profile.foundation_validation_registry.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "plan_vocabulary_contract_id": "wucios.disposable_profile.no_execution_plan_vocabulary.v1",
+  "registry_id": "wucios.disposable_profile.foundation_validation_registry.batch7.v1",
+  "dry_run_only": true,
+  "foundation_only": true,
+  "validators": [
+    {
+      "validator_id": "probe_3_claim_boundary",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-developer-profile.sh",
+      "purpose": "Validate the design document claim boundary.",
+      "expected_scope": "profile design document only",
+      "generated_evidence_policy": "No generated evidence.",
+      "claim_boundary": "No runtime proof, package action, profile creation, external-review result, or production status."
+    },
+    {
+      "validator_id": "scaffold_umbrella",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-scaffold.sh",
+      "purpose": "Run scaffold structure checks and nested foundation validators.",
+      "expected_scope": "disposable developer profile scaffold",
+      "generated_evidence_policy": "Nested validators may write ignored local evidence under build/wucios/devlanes/.",
+      "claim_boundary": "Scaffold-only and dry-run-only boundaries remain in force."
+    },
+    {
+      "validator_id": "plan_input_valid_minimal",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-plan-input.sh devlanes/wucios-general/scaffolds/disposable-developer-profile/testdata/valid-minimal-plan-input.json",
+      "purpose": "Validate the minimal accepted planning input fixture.",
+      "expected_scope": "single repo-local JSON fixture",
+      "generated_evidence_policy": "No generated evidence.",
+      "claim_boundary": "Input validation does not create profiles or perform package actions."
+    },
+    {
+      "validator_id": "negative_inputs",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-negative-inputs.sh",
+      "purpose": "Confirm invalid planning fixtures are rejected and valid-input evidence remains stable.",
+      "expected_scope": "repo-local input fixtures and ignored Batch 3 evidence directory",
+      "generated_evidence_policy": "Generated evidence stays under build/wucios/devlanes/disposable-profile-foundation-batch-3/.",
+      "claim_boundary": "Rejected inputs do not emit successful dry-run evidence."
+    },
+    {
+      "validator_id": "dry_run_stability",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-stability.sh",
+      "purpose": "Compare repeated no-input dry-run evidence outputs.",
+      "expected_scope": "ignored Batch 2 evidence directory",
+      "generated_evidence_policy": "Generated evidence stays under build/wucios/devlanes/disposable-profile-foundation-batch-2/.",
+      "claim_boundary": "Stability is local evidence stability only."
+    },
+    {
+      "validator_id": "dry_run_evidence_contract",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-dry-run-evidence-contract.sh",
+      "purpose": "Validate dry-run evidence files, allowlist, JSON parseability, stable repeats, and invalid-input rejection.",
+      "expected_scope": "ignored Batch 4 evidence contract directory",
+      "generated_evidence_policy": "Generated evidence stays under build/wucios/devlanes/disposable-profile-foundation-batch-4/.",
+      "claim_boundary": "Evidence is local dry-run evidence only."
+    },
+    {
+      "validator_id": "contract_manifest",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-contract-manifest.sh",
+      "purpose": "Validate the canonical scaffold contract manifest.",
+      "expected_scope": "contract-manifest.json",
+      "generated_evidence_policy": "No generated evidence.",
+      "claim_boundary": "Manifest validation records structure and boundaries only."
+    },
+    {
+      "validator_id": "planner_manifest_binding",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-manifest-binding.sh",
+      "purpose": "Confirm planner output and evidence metadata bind to manifest identifiers.",
+      "expected_scope": "ignored Batch 5 manifest-binding evidence directory",
+      "generated_evidence_policy": "Generated evidence stays under build/wucios/devlanes/disposable-profile-foundation-batch-5/.",
+      "claim_boundary": "Manifest binding is a local dry-run metadata check."
+    },
+    {
+      "validator_id": "plan_vocabulary_contract",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-plan-vocabulary.sh",
+      "purpose": "Validate the no-execution plan vocabulary contract.",
+      "expected_scope": "plan-vocabulary-contract.json",
+      "generated_evidence_policy": "No generated evidence.",
+      "claim_boundary": "Allowed action names remain non-operational."
+    },
+    {
+      "validator_id": "planner_output_vocabulary",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-planner-output-vocabulary.sh",
+      "purpose": "Confirm planner evidence uses only allowlisted plan action kinds.",
+      "expected_scope": "ignored Batch 6 plan vocabulary evidence directory",
+      "generated_evidence_policy": "Generated evidence stays under build/wucios/devlanes/disposable-profile-foundation-batch-6/.",
+      "claim_boundary": "Planner output remains non-executing dry-run evidence."
+    },
+    {
+      "validator_id": "traceability_matrix",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-traceability-matrix.sh",
+      "purpose": "Validate the matrix that maps foundation claims to contracts, fixtures, validators, and evidence paths.",
+      "expected_scope": "contract-traceability-matrix.json",
+      "generated_evidence_policy": "No generated evidence.",
+      "claim_boundary": "Traceability validation is a structural reviewer aid."
+    },
+    {
+      "validator_id": "foundation_registry",
+      "command": "sh devlanes/wucios-general/tools/validate-disposable-profile-foundation-registry.sh",
+      "purpose": "Validate this registry and its agreement with the traceability matrix.",
+      "expected_scope": "foundation-validation-registry.json",
+      "generated_evidence_policy": "No generated evidence.",
+      "claim_boundary": "Registry validation records local validator ordering only."
+    }
+  ]
+}

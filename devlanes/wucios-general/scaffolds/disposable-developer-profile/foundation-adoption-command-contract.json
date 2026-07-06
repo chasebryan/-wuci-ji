@@ -1,0 +1,75 @@
+{
+  "schema": "wucios.disposable_profile.foundation_adoption_command_contract.v1",
+  "schema_version": "1",
+  "profile_contract_id": "wucios.disposable_developer_profile.scaffold_contract.v1",
+  "foundation_adoption_command_kind": "frozen_foundation_future_adoption_command_packet",
+  "allowed_command_packet_status_values": [
+    "FOUNDATION_ADOPTION_COMMAND_PACKET_READY",
+    "FOUNDATION_ADOPTION_COMMAND_PACKET_BLOCKED",
+    "FOUNDATION_ADOPTION_COMMAND_PACKET_INCOMPLETE"
+  ],
+  "required_referenced_adoption_readiness_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-adoption-readiness-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-adoption-readiness.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-frozen-asset-ledger.json"
+  ],
+  "required_referenced_freeze_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-decision.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-freeze-summary.md"
+  ],
+  "required_referenced_closeout_files": [
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-contract.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-index.json",
+    "devlanes/wucios-general/scaffolds/disposable-developer-profile/foundation-closeout-summary.md"
+  ],
+  "required_preflight_checks": [
+    "clean_worktree",
+    "personal_backup_mount_absent_from_git_status",
+    "origin_dev_lane_matches_frozen_adoption_ready_head",
+    "target_branch_has_not_moved_unexpectedly",
+    "fast_forward_only_or_reviewed_merge_selected",
+    "all_required_validators_pass",
+    "generated_evidence_untracked",
+    "adoption_wording_preserves_claim_boundaries"
+  ],
+  "required_stop_conditions": [
+    "worktree_not_clean",
+    "personal_backup_mount_visible_in_git_status",
+    "origin_dev_lane_mismatch",
+    "target_branch_unexpected_change",
+    "fast_forward_only_adoption_not_possible",
+    "required_validator_failure",
+    "generated_evidence_would_be_committed",
+    "claim_boundary_expansion_detected"
+  ],
+  "dry_run_only": true,
+  "foundation_only": true,
+  "mainline_adopted": false,
+  "forbidden_adoption_command_fields": [
+    "timestamp",
+    "hostname",
+    "username",
+    "absolute_path",
+    "mount_path",
+    "mnt-samsung-t7",
+    "environment_dump",
+    "secret",
+    "token",
+    "credential"
+  ],
+  "forbidden_claim_terms": [
+    "runtime_provisioning_claim",
+    "actual_install_claim",
+    "host_change_claim",
+    "credential_setup_claim",
+    "package_install_claim",
+    "service_setup_claim",
+    "production_status_claim",
+    "real_profile_creation_claim",
+    "external_review_claim",
+    "high_assurance_claim",
+    "mainline_adoption_complete_claim",
+    "release_status_claim"
+  ]
+}
