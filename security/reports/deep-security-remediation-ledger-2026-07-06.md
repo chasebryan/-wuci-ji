@@ -23,10 +23,10 @@
   - daylight/v16-analemma/rules/proof-units.v1.json:220-229
 - issue summary: The reviewed proof or cryptographic-evidence path accepts evidence in a way that can misrepresent external authority or verification strength. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-001.
 - required remediation: Bind verification to pinned trusted public keys or signed trust roots, reject self-supplied verification keys and unsigned valid=true authority objects, add negative tests for forged evidence, and update public claims to match only externally verified authority.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-001; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-003: Credential and session stores are present inside the resolved local scan scope
 
@@ -60,10 +60,10 @@
   - tools/daylight_public_evidence_firewall.py:39-61
 - issue summary: Credential-bearing and session-store paths were present under the resolved scan target. Values were not printed or tested, but the file types and fields are sensitive. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-003.
 - required remediation: Remove credential and session stores from the repository workspace, rotate any potentially exposed credentials, keep local app state outside the checkout, and extend release/public-evidence scanners to reject the observed credential-store formats without printing values.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-003; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-008: Generated grok build can send XAI_API_KEY to caller-controlled XAI_API_BASE
 
@@ -76,10 +76,10 @@
   - tools/wuci_os.py:10901-10904
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-008.
 - required remediation: Avoid passing secrets through command arguments or mutable endpoint environment variables; use stdin, protected config files, host pinning, and explicit allowlists for credential destinations.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-008; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-010: Wuci-OS source-kit fallback can package ignored credential files when git enumeration fails
 
@@ -97,10 +97,10 @@
   - external-ssd-export-20260705/10-Dotfiles-App-Config/.config/gh/hosts.yml:4
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-010.
 - required remediation: Make release packaging fail closed when git enumeration or privacy scanning is incomplete, audit final packaged payloads directly, and require digest-bound evidence before release publication.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-010; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-011: Wuci-OS release privacy audit misses source-kit credential formats and final ISO payload contents
 
@@ -125,10 +125,10 @@
   - docs/WUCI_OS_RELEASE_RUNBOOK.md:32-38
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-011.
 - required remediation: Make release packaging fail closed when git enumeration or privacy scanning is incomplete, audit final packaged payloads directly, and require digest-bound evidence before release publication.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-011; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-017: Wuci-OS debugfs overlay commands interpolate unquoted rootfs paths into command files
 
@@ -154,10 +154,10 @@
   - tools/wuci_os.py:14205-14208
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-017.
 - required remediation: Stop interpolating caller-controlled paths into shell or debugfs command text; pass arguments through structured APIs or quote with a reviewed escaping routine, and add malicious-path regression tests.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-017; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-034: meridian-install embeds unescaped installer-supplied paths into generated shell launchers and helpers
 
@@ -171,10 +171,10 @@
   - meridian-install:213-223
 - issue summary: The installer or supply-chain path trusts mutable local execution state or caller-controlled paths in a way that can compromise installation integrity. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-034.
 - required remediation: Stop interpolating caller-controlled paths into shell or debugfs command text; pass arguments through structured APIs or quote with a reviewed escaping routine, and add malicious-path regression tests.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-034; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R04-036: Daylight v16 Analemma production-authority proof accepts unsigned valid=true evidence
 
@@ -187,10 +187,10 @@
   - daylight/v16-analemma/rules/proof-units.v1.json:232-240
 - issue summary: The reviewed proof or cryptographic-evidence path accepts evidence in a way that can misrepresent external authority or verification strength. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R04-036.
 - required remediation: Bind verification to pinned trusted public keys or signed trust roots, reject self-supplied verification keys and unsigned valid=true authority objects, add negative tests for forged evidence, and update public claims to match only externally verified authority.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R04-036; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R04-037: Daylight v16 Zenith accepts self-supplied HMAC root keys for review, transparency, and falsification evidence
 
@@ -212,10 +212,10 @@
   - daylight/v16-zenith/src/cli.py:45-90
 - issue summary: The reviewed proof or cryptographic-evidence path accepts evidence in a way that can misrepresent external authority or verification strength. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R04-037.
 - required remediation: Bind verification to pinned trusted public keys or signed trust roots, reject self-supplied verification keys and unsigned valid=true authority objects, add negative tests for forged evidence, and update public claims to match only externally verified authority.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R04-037; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-002: Daylight v15 Meridian private writes use predictable temp paths without nofollow or exclusive creation
 
@@ -231,10 +231,10 @@
   - daylight/v15-meridian/src/cli.py:493-508
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-002.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-002; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-004: CAGE proof-output writers follow caller-controlled paths and symlinks for evidence outputs
 
@@ -256,10 +256,10 @@
   - tools/wuci_safeio.py:187-211
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-004.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-004; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-005: QCAGE proof and evidence paths bypass safe-I/O link and snapshot controls
 
@@ -293,10 +293,10 @@
   - tools/wuci_safeio.py:187-211
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-005.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-005; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-006: Standalone WITNESS verification only rejects hardlinked public bundle files in strict proof mode
 
@@ -310,10 +310,10 @@
   - tests/wuci_witness_symlink_hardening.py:96-116
 - issue summary: The validator/test proof lane does not enforce the claimed hardening invariant under all supported modes. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-006.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-006; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-007: Meridian vault restore trusts mutable original_path metadata for plaintext writes
 
@@ -329,10 +329,10 @@
   - daylight/v15-meridian/src/vault.py:372-379
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-007.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-007; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-009: Generated network-connect helper exposes Wi-Fi passwords through subprocess arguments
 
@@ -346,10 +346,10 @@
   - tools/wuci_os.py:10873-10877
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-009.
 - required remediation: Avoid passing secrets through command arguments or mutable endpoint environment variables; use stdin, protected config files, host pinning, and explicit allowlists for credential destinations.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-009; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R01-012: Wuci-OS release gate proof reads use lstat-then-reopen TOCTOU patterns
 
@@ -366,10 +366,10 @@
   - tools/wuci_safeio.py:102-145
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R01-012.
 - required remediation: Make release packaging fail closed when git enumeration or privacy scanning is incomplete, audit final packaged payloads directly, and require digest-bound evidence before release publication.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R01-012; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-013: Backup evidence archive can be written after preverification but before restore/open verification catches a raced source path
 
@@ -386,10 +386,10 @@
   - tools/wuci_backup_evidence.py:148-158
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-013.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-013; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-014: Non-strict WUCI_JI_RUNNER indirection can affect Witness, Ledger, Gate, and compatibility proof lanes
 
@@ -416,10 +416,10 @@
   - tools/wuci_gate_contract_compat.py:335-350
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-014.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-014; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-015: Public evidence firewall follows symlinked roots and reopens paths after lstat checks
 
@@ -440,10 +440,10 @@
   - daylight/v20-aperture-singularity/src/public_artifact.py:810-821
 - issue summary: The public website/evidence surface can consume local artifact state without fully preserving the intended public-evidence trust boundary. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-015.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-015; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-016: Public evidence scanners can record oversize violations only after reading full file contents
 
@@ -458,10 +458,10 @@
   - daylight/v20-aperture-singularity/src/public_artifact.py:852-859
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-016.
 - required remediation: Check file size and type through descriptor-relative, nofollow-safe opens before reading contents, and enforce hard byte caps before marker scanning.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-016; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-018: Horizon vault and release artifact symlink checks resolve paths before testing links
 
@@ -479,10 +479,10 @@
   - daylight/v17-singularity/src/horizon_release.py:71-80
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-018.
 - required remediation: Make release packaging fail closed when git enumeration or privacy scanning is incomplete, audit final packaged payloads directly, and require digest-bound evidence before release publication.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-018; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R02-019: Crypto self-audit proof reads follow linked audit and source files
 
@@ -495,10 +495,10 @@
   - tools/wuci_crypto_audit.py:87-95
 - issue summary: The reviewed proof or cryptographic-evidence path accepts evidence in a way that can misrepresent external authority or verification strength. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R02-019.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R02-019; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-020: Daylight v20 public and external evidence readers lstat then reopen public files
 
@@ -514,10 +514,10 @@
   - daylight/v20-aperture-singularity/src/public_artifact.py:817-858
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-020.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-020; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-021: PQ verifier evidence writers use predictable sibling temp files without nofollow or exclusive creation
 
@@ -533,10 +533,10 @@
   - tools/wuci_pq_verifier.py:136-142
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-021.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-021; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-022: CARROT runtime attestation uses predictable sibling temp files without nofollow or exclusive creation
 
@@ -548,10 +548,10 @@
   - tools/wuci_carrot.py:160-179
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-022.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-022; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-023: Golden Lock evidence emitters use predictable sibling temp files without nofollow or exclusive creation
 
@@ -566,10 +566,10 @@
   - tools/wuci_golden_lock_model.py:452-458
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-023.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-023; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-025: Backup evidence archive and report writers use predictable sibling temp files without nofollow or exclusive creation
 
@@ -582,10 +582,10 @@
   - tools/wuci_backup_evidence.py:184-204
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-025.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-025; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-026: Provenance and SBOM evidence writers use predictable sibling temp files without nofollow or exclusive creation
 
@@ -598,10 +598,10 @@
   - tools/wuci_provenance.py:336-348
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-026.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-026; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-027: Publish and self-release attestation writers use predictable hidden temp files without nofollow or exclusive creation
 
@@ -615,10 +615,10 @@
   - tools/wuci_self_release.py:300-319
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-027.
 - required remediation: Make release packaging fail closed when git enumeration or privacy scanning is incomplete, audit final packaged payloads directly, and require digest-bound evidence before release publication.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-027; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-028: Daylight Meridian seal/open output paths can follow caller-selected final symlinks
 
@@ -633,10 +633,10 @@
   - daylight/v15-meridian/src/cli.py:435-447
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-028.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-028; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-029: Daylight v14/v15 ledger writers overwrite symlinked ledger outputs directly
 
@@ -650,10 +650,10 @@
   - daylight/v15-meridian/src/cli.py:59-79
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-029.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-029; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-032: Penumbra CLI writes sealed envelopes and authenticated plaintext directly to caller-selected paths
 
@@ -665,10 +665,10 @@
   - penumbra/src/main.rs:84-103
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-032.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-032; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-033: meridian-install removes and copies through installer-controlled share/bin paths without symlink or hardlink quarantine
 
@@ -682,10 +682,10 @@
   - meridian-install:141-154
 - issue summary: The installer or supply-chain path trusts mutable local execution state or caller-controlled paths in a way that can compromise installation integrity. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-033.
 - required remediation: Quarantine installer-controlled paths, reject symlink and hardlink traversals, pin trusted verifier executables or require absolute configured paths, and generate launcher/helper scripts with safe escaping.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-033; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R04-035: Installer signature verification resolves ssh-keygen from ambient PATH by default
 
@@ -698,10 +698,10 @@
   - tests/wuci_install_no_shell.py:1-120
 - issue summary: The installer or supply-chain path trusts mutable local execution state or caller-controlled paths in a way that can compromise installation integrity. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R04-035.
 - required remediation: Quarantine installer-controlled paths, reject symlink and hardlink traversals, pin trusted verifier executables or require absolute configured paths, and generate launcher/helper scripts with safe escaping.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R04-035; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R04-038: Shared safe-I/O writers can follow symlinked output parent directories
 
@@ -718,10 +718,10 @@
   - tools/wuci_witness.py:159-168
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R04-038.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R04-038; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-024: Crypto self-audit report writer uses a predictable sibling temp file without nofollow or exclusive creation
 
@@ -733,10 +733,10 @@
   - tools/wuci_crypto_audit.py:80-83
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-024.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-024; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-030: Posture and privacy report emitters use predictable sibling temp files without nofollow or exclusive creation
 
@@ -750,10 +750,10 @@
   - tools/wuci_release_privacy_audit.py:391-398
 - issue summary: The release or packaging path can produce, validate, or publish evidence without a fail-closed integrity/privacy guarantee. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-030.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-030; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ### CAN-R03-031: VirtualBox appliance manifest and forced outputs can follow or overwrite unsafe output paths
 
@@ -767,20 +767,39 @@
   - tools/wuci_virtualbox.py:336-346
 - issue summary: A local proof, evidence, build, or helper path lacks a complete trust-boundary control before reaching a sensitive filesystem or command sink. The preserved canonical discovery evidence identifies the nearest affected source/control/sink locations for CAN-R03-031.
 - required remediation: Route all public, release, proof, and plaintext artifact reads/writes through the shared safe-I/O layer with descriptor-relative parent checks, O_NOFOLLOW/O_EXCL where applicable, hardlink rejection, and regression tests for symlink, hardlink, and race preconditions.
-- patch status: pending
+- patch status: remediated in commit 39ee760a98deb53d55e838dd3124f6623496f461
 - verification command: targeted tests for CAN-R03-031; `git diff --check`; `make ci-native`; `make ci-zig`; `make daylight-npt-ci`; post-remediation `$codex-security:deep-security-scan`
-- re-scan status: pending
-- final status: unresolved
+- re-scan status: pending post-remediation deep scan
+- final status: repository-controlled remediation committed; awaiting post-remediation deep scan
 
 ## Remaining TRUE Blockers
-- All original findings are unresolved at ledger creation time: 9 high, 26 medium, 3 low.
-- Credential/session stores under the resolved workspace still require repository-controlled cleanup and out-of-band rotation by the secret owner; rotation cannot be performed by Codex.
-- A new full deep security re-scan has not yet been run after remediation.
-- National-security defense readiness still requires evidence that no high or medium finding remains and that no public claim exceeds repository evidence.
+- A new full deep security re-scan has not yet been completed after remediation.
+- Credential/session liveness and rotation status require account-owner/provider-side verification; repository changes removed the local scan-scope exposure path and added scanner coverage, but cannot prove provider-side rotation.
+- National-security defense readiness requires evidence from the post-remediation scan that no high or medium finding remains.
+- Formal national-security, government, third-party, red-team, or production certification is not present in the repository and must not be claimed unless real external evidence is added.
 
 ## External Validation Blockers
 - Credential liveness and rotation status require account-owner/provider-side verification; repository changes can only remove exposure paths and add scanners.
 - Formal national-security, government, third-party, red-team, or production certification is not present in this repository and must not be claimed unless real external evidence is added.
 
+## Remediation Evidence
+- remediation commit: 39ee760a98deb53d55e838dd3124f6623496f461
+- original finding count reconciled: 38 total; 9 high, 26 medium, 3 low
+- repository-controlled patch status: all original findings have a repository patch in 39ee760a98deb53d55e838dd3124f6623496f461
+- credential exposure path: `.wrangler/` and `external-ssd-export-20260705/` were moved outside the repository workspace; `.gitignore` now excludes observed local credential/state export paths.
+- CI/CD and supply-chain controls: GitHub Actions and Wrangler dependencies were pinned/hardened; unsafe deploy configuration was removed; installer and local verifier paths were hardened.
+- code safety controls: shared safe-I/O now rejects symlinked ancestors, symlink targets, hardlinked public evidence where required, and non-exclusive writes for sensitive artifacts.
+- release safety controls: source-kit fallback packaging now fails closed; privacy audit and release-bundle checks were extended to cover observed credential formats and final payload evidence.
+- crypto/PQC controls: v16 Analemma and Zenith no longer accept self-supplied fixture HMAC keys or unsigned `valid=true` authority claims as production/external authority.
+- documentation boundary controls: public evidence and claim-boundary docs were updated to distinguish local validation, external validation, public review, and production/national-security readiness.
+
+## Validation Evidence
+- `git diff --check`: passed before remediation commit.
+- `make ci-native`: passed after remediation commit.
+- `make ci-zig`: passed after remediation commit.
+- `make daylight-npt-ci`: passed after remediation commit.
+- Targeted tests passed: `tests/wuci_release_gate.py`, `tests/wuci_virtualbox.py`, `tests/meridian_install.py --quiet`, `tests/wuci_safeio.py --quiet`, `tests/wuci_release_privacy_audit.py`, `tests/daylight_public_evidence_firewall.py`, `tests/wuci_verifier_identity.py --quiet`, `tests/wuci_witness_symlink_hardening.py --quiet`, `tests/wuci_release_bundle.py --quiet`, `tests/wuci_os.py --quiet`, Meridian v14/v15 ledger/vault/CLI suites, v16 Analemma/Zenith rejection suites, Penumbra cargo tests, v17 Horizon tests, v20 Aperture Singularity public-artifact/external-evidence/rebuild/quorum tests, SSV safe collector/report tests, and shell syntax validation for `meridian-install`.
+- Validator discovery commands completed: `find . -maxdepth 4 -type f \( -name '*validate*' -o -name '*check*' -o -name '*test*' \) | sort` and `grep -R "workflow firewall\|security\|secret\|release\|artifact\|evidence\|claim\|PQC\|crypto" -n Makefile .github docs tools scripts tests 2>/dev/null || true`.
+
 ## Final Remediation Classification
-WUCI_JI_SECURITY_REMEDIATION_LEDGER_CREATED_REMEDIATION_PENDING
+WUCI_JI_SECURITY_REMEDIATION_PATCHED_RESCAN_PENDING
