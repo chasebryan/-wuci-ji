@@ -151,12 +151,121 @@ def assert_symlink_input_is_rejected(tmp: Path) -> None:
         raise AssertionError("symlink input was accepted")
 
 
+def assert_verify_parser_accepts_makefile_shape() -> None:
+    args = bundle.build_parser().parse_args(
+        [
+            "verify",
+            "--repo",
+            ".",
+            "--bin",
+            "build/wuci-ji",
+            "--sbom",
+            "build/wuci-sbom.json",
+            "--provenance",
+            "build/wuci-provenance.json",
+            "--carrot",
+            "build/wuci-carrot-attestation.json",
+            "--pq",
+            "build/wuci-pq-verifier.json",
+            "--pq-pins",
+            "docs/wuci_pq_verifier_pins.json",
+            "--crypto-audit",
+            "build/wuci-crypto-self-audit.json",
+            "--parser-replay",
+            "build/wuci-parser-corpus-replay.json",
+            "--production-authority-policy",
+            "docs/wuci_production_authority_policy.json",
+            "--witness-bundle",
+            "build/wuci-witness-bundle",
+            "--ledger",
+            "build/wuci-ledger",
+            "--install-manifest",
+            "install/wuci-install-manifest.v1",
+            "--install-signature",
+            "install/wuci-install-manifest.v1.sig",
+            "--install-root-key",
+            "install/wuci-install-root.v1.pub",
+            "--rust-sandbox",
+            "build/wuci-sandbox",
+            "--zig-witness",
+            "build/wuci-witness",
+            "--zig-ledger",
+            "build/wuci-ledger-tool",
+            "--out",
+            "build/wuci-release-bundle-verification.json",
+            "--quiet",
+        ]
+    )
+    assert args.command == "verify"
+    assert args.real_pq_evidence is None
+    assert args.external_audit_evidence is None
+
+
+def assert_optional_evidence_groups_are_fail_closed() -> None:
+    supplied, blockers = bundle.verify_optional_group(
+        paths=[None, None],
+        names=["one", "two"],
+        blocker="missing-both",
+    )
+    assert supplied is False
+    assert blockers == ["missing-both"]
+
+    try:
+        bundle.verify_optional_group(
+            paths=[Path("one"), None],
+            names=["one", "two"],
+            blocker="missing-both",
+        )
+    except bundle.ReleaseBundleError as exc:
+        assert "partial optional evidence" in str(exc)
+    else:
+        raise AssertionError("partial optional evidence was accepted")
+
+
+def assert_parser_replay_requires_non_offensive_fail_closed_evidence(tmp: Path) -> None:
+    good = tmp / "parser-replay.json"
+    write_json(
+        good,
+        {
+            "fail_closed": True,
+            "network_required": False,
+            "offensive_fuzzing": False,
+            "cases": 1,
+            "accepted_cases": 1,
+            "rejected_cases": 0,
+            "required_surfaces": ["fixture"],
+            "results": [{"timeout": False, "signal": None}],
+        },
+    )
+    assert bundle.verify_parser_replay(good)["cases"] == 1
+
+    bad = tmp / "bad-parser-replay.json"
+    write_json(
+        bad,
+        {
+            "fail_closed": True,
+            "network_required": False,
+            "offensive_fuzzing": True,
+            "results": [{"timeout": False, "signal": None}],
+        },
+    )
+    try:
+        bundle.verify_parser_replay(bad)
+    except bundle.ReleaseBundleError as exc:
+        assert "offensive" in str(exc)
+    else:
+        raise AssertionError("offensive parser replay evidence was accepted")
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="wuci-release-bundle-test-") as tmp_name:
         tmp = Path(tmp_name)
         assert_bundle_allowlist_and_checksums(tmp / "allowlist")
         assert_privacy_failure_blocks_bundle(tmp / "privacy")
         assert_symlink_input_is_rejected(tmp / "symlink")
+        assert_parser_replay_requires_non_offensive_fail_closed_evidence(tmp / "parser")
+        assert_verify_parser_accepts_makefile_shape()
+        assert_optional_evidence_groups_are_fail_closed()
     print("wuci-release-bundle tests: PASS")
     return 0
 
