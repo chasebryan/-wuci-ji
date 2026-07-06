@@ -16,7 +16,8 @@ evidence or expand runtime claims.
 - Integrated source branch: `wucios-v24-reduction-gate`
 - Integrated source HEAD:
   `ab0a2d0576eb5bf01fa277f919696dcbe2f4d9e8`
-- WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0
+- Generated WuciOS v2.4 Alpine Substrate Trial score evidence records:
+  96.0 / 100.0
 - Canonical artifact SHA-256:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
 

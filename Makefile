@@ -391,7 +391,7 @@ daylight-security-ratchet-test:
 daylight-public-artifact-firewall: daylight-meridian-public-artifact
 	$(PYTHON) tools/daylight_public_evidence_firewall.py scan $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR) --profile daylight-v15-meridian-public
 	$(PYTHON) tools/daylight_public_evidence_firewall.py verify-manifest $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)/artifact-manifest.json --root $(DAYLIGHT_MERIDIAN_PUBLIC_ARTIFACT_DIR)
-	@for workflow in .github/workflows/*.yml; do $(PYTHON) tools/daylight_public_evidence_firewall.py check-workflow $$workflow; done
+	@status=0; for workflow in .github/workflows/*.yml; do $(PYTHON) tools/daylight_public_evidence_firewall.py check-workflow $$workflow || status=$$?; done; exit $$status
 
 daylight-private-material-regression-test: daylight-public-evidence-firewall-test daylight-security-ratchet-test
 

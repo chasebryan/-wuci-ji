@@ -17,12 +17,17 @@ jobs:
         uses: actions/checkout@v4
       - name: Run Daylight standard gate
         uses: ./.github/actions/daylight-standard
+      - name: Stage conformance artifacts
+        run: |
+          mkdir -p build/daylight/daylight-standard-public
+          cp build/daylight/product-standard-readiness.json build/daylight/daylight-standard-public/
+          cp build/daylight/daylight-standard-scorecard.json build/daylight/daylight-standard-public/
+          cp build/daylight/daylight-standard-control-map.json build/daylight/daylight-standard-public/
+      - name: Public evidence firewall
+        run: python3 tools/daylight_public_evidence_firewall.py scan build/daylight/daylight-standard-public --profile public-docs
       - name: Upload conformance artifacts
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: daylight-standard
-          path: |
-            build/daylight/product-standard-readiness.json
-            build/daylight/daylight-standard-scorecard.json
-            build/daylight/daylight-standard-control-map.json
+          path: build/daylight/daylight-standard-public/
+          if-no-files-found: error

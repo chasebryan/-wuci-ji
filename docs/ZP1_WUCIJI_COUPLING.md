@@ -18,7 +18,7 @@ RUNTIME_GATE_31_ZP1_WUCIJI_COUPLING_PROOF_LANE
 - ZP-1 does not replace Daylight.
 - ZP-1 does not replace WuciOS validation.
 - ZP-1 does not provide production release authority.
-- ZP-1 does not change any WuciOS score.
+- ZP-1 does not alter WuciOS generated score evidence.
 - ZP-1 does not create external validation.
 
 ## Provider Boundary

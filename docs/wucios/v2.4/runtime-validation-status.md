@@ -6,7 +6,7 @@ This reviewer note preserves the status of local WuciOS v2.4 Alpine runtime-vali
 
 - Branch: `wucios-v24-reduction-gate`
 - HEAD at Runtime Gate 10 preservation decision: `c7ec36f4d6ec611ea6a5e937fcebe8e10b8edb45`
-- WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0, unchanged
+- Generated WuciOS v2.4 Alpine Substrate Trial score evidence records: 96.0 / 100.0, unchanged
 - Canonical artifact: `build/wucios/full-trial/alpine/artifact/wucios-v2.4-alpine-trial-rootfs.tar.gz`
 - Canonical artifact SHA-256: `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
 
@@ -30,7 +30,7 @@ Gate 9 closed the runtime evidence ledger as a boundary/index gate.
 - Gate 13: public link and status surface audit completed with no tracked changes.
 - Gate 14: current public reviewer packet was frozen as the WuciOS v2.4 Alpine runtime-validation status surface.
 
-Current score remains 96.0 / 100.0.
+Current generated score evidence remains 96.0 / 100.0.
 
 Canonical artifact SHA-256 remains `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`.
 
@@ -56,4 +56,4 @@ This commit does not claim:
 
 This note also does not claim init/system service correctness, package-manager correctness, long-running stability, or runtime safety outside the tested method and commands.
 
-The WuciOS v2.4 Alpine Substrate Trial Score remains 96.0 / 100.0. Runtime Gates 10 through 14 do not alter score files or score semantics.
+The generated WuciOS v2.4 Alpine Substrate Trial score evidence remains 96.0 / 100.0. Runtime Gates ten through fourteen do not alter score files or score semantics.

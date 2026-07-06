@@ -30,7 +30,8 @@ deployment claims.
 
 ## Current WuciOS Status
 
-- WuciOS v2.4 Alpine Substrate Trial Score: `96.0 / 100.0`
+- Generated WuciOS v2.4 Alpine Substrate Trial score evidence records:
+  `96.0 / 100.0`
 - Canonical artifact SHA-256:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
 - Alpine selection scope: WuciOS v2.4 substrate trial only.
@@ -53,7 +54,7 @@ Reviewed public/status surfaces:
 
 Observed result:
 
-- Score references remain `96.0 / 100.0`.
+- Generated score evidence references remain `96.0 / 100.0`.
 - Canonical artifact SHA-256 references remain unchanged.
 - Public site validation passed with `make site-validate`.
 - The local ignored canonical artifact, if present in this workspace, hashes to
@@ -78,7 +79,7 @@ This stabilization pass does not claim:
 - operational deployment approval
 - certification or accreditation
 - government endorsement
-- score improvement beyond `96.0 / 100.0`
+- score improvement beyond the generated-evidence value `96.0 / 100.0`
 - committed raw runtime evidence
 
 ## Validation

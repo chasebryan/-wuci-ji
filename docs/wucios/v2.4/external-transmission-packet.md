@@ -14,7 +14,8 @@ validation claims.
 - Branch: `main`
 - Mainline status: WuciOS v2.4 reviewer/status documentation baseline adopted
   on `main`
-- WuciOS v2.4 Alpine Substrate Trial Score: `96.0 / 100.0`
+- Generated WuciOS v2.4 Alpine Substrate Trial score evidence records:
+  `96.0 / 100.0`
 - Canonical artifact path:
   `build/wucios/full-trial/alpine/artifact/wucios-v2.4-alpine-trial-rootfs.tar.gz`
 - Canonical artifact SHA-256:
@@ -61,7 +62,7 @@ WuciOS v2.4 does not claim:
 - operational deployment approval
 - certification or accreditation
 - government endorsement
-- score improvement beyond `96.0 / 100.0`
+- score improvement beyond the generated-evidence value `96.0 / 100.0`
 - committed raw runtime evidence
 
 ## Reviewer References

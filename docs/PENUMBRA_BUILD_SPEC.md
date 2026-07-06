@@ -2,7 +2,7 @@
 
 **Subsystem:** Wuci-Ji (无此机) · Daylight line
 **Primitive:** Evidence-derived key encapsulation (proof-gated AEAD envelope)
-**Status:** buildable spec. The *code* described here is completable. A *security-strength claim about any deployment* is **not** self-certifiable and is reserved to §12.
+**Status:** buildable spec. The *code* described here is completable. A *security-strength claim about any deployment* is **not** self-certifiable and is reserved to the External Residue section.
 **Audience:** an implementing agent. Follow this verbatim. Where a choice is dangerous, it has been made for you.
 
 ---
@@ -207,7 +207,7 @@ These are acceptance-blocking, not stylistic.
 2. **Asserted vs proven.** `asserted_entropy_bits` is always rendered as *asserted, not proven*. The tool never prints a bound it cannot back with a KAT or attestation.
 3. **No confidentiality-by-default.** `mode` has no default; `SEALED_PUBLIC` output is flagged as NONE-confidentiality by `inspect`.
 4. **Boundary text shipped.** `§0` and `§3` text ship verbatim in `docs/penumbra/`.
-5. **External residue file.** `docs/penumbra/EXTERNAL_RESIDUE.md` exists and enumerates what cannot be self-certified (§12). The repo never self-scores Penumbra as "complete security."
+5. **External residue file.** `docs/penumbra/EXTERNAL_RESIDUE.md` exists and enumerates what cannot be self-certified in the External Residue section. The repo never self-scores Penumbra as "complete security."
 
 ---
 

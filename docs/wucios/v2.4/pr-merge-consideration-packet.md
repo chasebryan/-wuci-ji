@@ -18,7 +18,8 @@ runtime-validation completion, or authorization to merge.
 - Remote sync status: `origin/wucios-v24-reduction-gate` synced at
   `6fe9b4aecc0f4a04bcf8d37ea9f18c64298ccb58`
 - Worktree expectation: clean
-- WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0
+- Generated WuciOS v2.4 Alpine Substrate Trial score evidence records:
+  96.0 / 100.0
 - Canonical artifact SHA-256:
   `95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f`
 
@@ -65,7 +66,7 @@ This PR/merge consideration packet does not claim:
 - complete system security assurance
 - Department of War or NSA endorsement
 - certification, accreditation, or operational deployment approval
-- score improvement beyond 96.0 / 100.0
+- score improvement beyond the generated-evidence value 96.0 / 100.0
 
 ## 6. Merge Consideration Rationale
 
@@ -86,7 +87,7 @@ authorize a merge, release, deployment, or broader runtime claim.
 - [ ] Confirm branch HEAD.
 - [ ] Confirm ledger update.
 - [ ] Confirm packet boundary language.
-- [ ] Confirm score remains `96.0 / 100.0`.
+- [ ] Confirm generated score evidence remains `96.0 / 100.0`.
 - [ ] Confirm canonical artifact SHA-256 remains unchanged.
 - [ ] Confirm no raw runtime evidence was newly committed.
 - [ ] Confirm no production or external-validation claim was introduced.
