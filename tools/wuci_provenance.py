@@ -27,6 +27,16 @@ DEFAULT_FILE_ROOTS = (
     "tests",
     "tools",
 )
+GENERATED_INVENTORY_DIR_NAMES = frozenset(
+    {
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "target",
+    }
+)
+GENERATED_INVENTORY_SUFFIXES = frozenset({".pyc", ".pyo"})
 TOOL_COMMANDS = {
     "as": ["as", "--version"],
     "ld": ["ld", "--version"],
@@ -100,6 +110,13 @@ def git_output(repo: Path, *args: str) -> str:
     return proc.stdout.strip()
 
 
+def is_generated_inventory_path(repo: Path, path: Path) -> bool:
+    rel = path.relative_to(repo)
+    if any(part in GENERATED_INVENTORY_DIR_NAMES for part in rel.parts):
+        return True
+    return path.suffix in GENERATED_INVENTORY_SUFFIXES
+
+
 def iter_paths(repo: Path) -> list[Path]:
     paths: list[Path] = []
     for root_name in DEFAULT_FILE_ROOTS:
@@ -107,10 +124,15 @@ def iter_paths(repo: Path) -> list[Path]:
         if not root.exists():
             continue
         if root.is_file():
-            paths.append(root)
+            if not is_generated_inventory_path(repo, root):
+                paths.append(root)
             continue
         for path in root.rglob("*"):
-            if path.is_file() and not path.is_symlink():
+            if (
+                path.is_file()
+                and not path.is_symlink()
+                and not is_generated_inventory_path(repo, path)
+            ):
                 paths.append(path)
     return sorted(paths, key=lambda path: path.relative_to(repo).as_posix())
 
