@@ -1,0 +1,35 @@
+{
+  "classification": "RUNTIME_GATE_31_ZP1_WUCIJI_COUPLING_PROOF_LANE",
+  "coupling_mode": "pinned_submodule_plus_test_utils_bridge",
+  "zp1_path": "third_party/zp1",
+  "zp1_repository": "chasebryan/ZP-1",
+  "zp1_pinned_commit": "ee1b853abe99ee8dadfa57bc356fdf5abce1d816",
+  "wuciji_bridge_path": "tools/wuciji-zp1-bridge",
+  "aad_contract": "WUCIJI-ZP1-AAD-v1",
+  "provider_mode": "test_utils_only",
+  "production_provider_enabled": false,
+  "replaces_wjseal": false,
+  "replaces_wuci_gate": false,
+  "replaces_daylight": false,
+  "changes_wucios_score": false,
+  "claims": [
+    "ZP-1 can bind deterministic Wuci-Ji metadata as AAD in a test-provider proof lane."
+  ],
+  "non_claims": [
+    "production_cryptography",
+    "post_quantum_security",
+    "production_readiness",
+    "external_validation",
+    "independent_audit",
+    "runtime_containment",
+    "production_authority",
+    "wjseal_replacement",
+    "gate_replacement",
+    "wucios_score_increase"
+  ],
+  "required_make_targets": [
+    "zp1-upstream-test",
+    "zp1-wuciji-bridge-test",
+    "zp1-wuciji-coupling-test"
+  ]
+}

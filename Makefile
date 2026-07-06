@@ -6,6 +6,8 @@ NM ?= nm
 OBJDUMP ?= objdump
 RUSTC ?= $(shell if command -v rustc >/dev/null 2>&1; then command -v rustc; elif [ -x "$(HOME)/.cargo/bin/rustc" ]; then printf '%s\n' "$(HOME)/.cargo/bin/rustc"; fi)
 CARGO ?= $(shell if command -v cargo >/dev/null 2>&1; then command -v cargo; elif [ -x "$(HOME)/.cargo/bin/cargo" ]; then printf '%s\n' "$(HOME)/.cargo/bin/cargo"; fi)
+ZP1_DIR ?= third_party/zp1
+WUCIJI_ZP1_BRIDGE_DIR ?= tools/wuciji-zp1-bridge
 ZIG ?= zig
 ZIG_VERSION := $(shell if command -v $(ZIG) >/dev/null 2>&1; then $(ZIG) version; fi)
 ZIG_TOOL_IMPL ?= $(if $(filter 0.13.%,$(ZIG_VERSION)),python-compat,zig)
@@ -158,6 +160,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-euclid-yocto-phase-3c-d wucios-euclid-yocto-phase-3c-d-json wucios-euclid-yocto-phase-3c-d-scaffold wucios-euclid-yocto-phase-3c-d-scaffold-json wucios-euclid-yocto-phase-3c-d-guardrails wucios-yocto-prep euclid-phase-3c-d yocto-prep yocto-scaffold yocto-guardrails
 .PHONY: wucios-euclid-openbsd-reference-phase-3c-e wucios-euclid-openbsd-reference-phase-3c-e-json wucios-euclid-openbsd-reference-phase-3c-e-scaffold wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json wucios-euclid-openbsd-reference-phase-3c-e-guardrails wucios-openbsd-reference-prep euclid-phase-3c-e openbsd-reference-prep openbsd-reference-scaffold openbsd-reference-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
+.PHONY: zp1-upstream-test zp1-wuciji-bridge-test zp1-wuciji-coupling-test
 
 all: check-native $(TARGET)
 
@@ -2064,6 +2067,21 @@ install-test: check-native $(TARGET)
 	$(PYTHON) tests/wuci_install_audit.py --quiet
 	$(PYTHON) tests/wuci_install_atomic.py --quiet
 	$(PYTHON) tests/wuci_install_bootstrap.py --quiet
+
+zp1-upstream-test:
+	@test -d "$(ZP1_DIR)" || { echo "missing $(ZP1_DIR); run git submodule update --init --recursive" >&2; exit 1; }
+	cd "$(ZP1_DIR)" && cargo fmt --check
+	cd "$(ZP1_DIR)" && cargo test
+	cd "$(ZP1_DIR)" && cargo test --features test-utils
+	cd "$(ZP1_DIR)" && cargo clippy --all-targets --features test-utils -- -D warnings
+	cd "$(ZP1_DIR)" && cargo doc --no-deps
+
+zp1-wuciji-bridge-test:
+	cd "$(WUCIJI_ZP1_BRIDGE_DIR)" && cargo generate-lockfile
+	cd "$(WUCIJI_ZP1_BRIDGE_DIR)" && cargo test --locked
+
+zp1-wuciji-coupling-test: zp1-upstream-test zp1-wuciji-bridge-test
+	$(PYTHON) tools/check_zp1_wuciji_coupling.py
 
 verify-self-release-bundle: $(RELEASE_BIN)
 	WUCI_JI_RUNNER="$(RELEASE_RUNNER)" $(PYTHON) tools/wuci_self_release.py --bin $(abspath $(RELEASE_BIN)) --bundle-dir $(SELF_RELEASE_DEMO_DIR) --attestation $(SELF_RELEASE_ATTESTATION) verify
