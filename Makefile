@@ -354,6 +354,7 @@ daylight-cplus-test: daylight-cplus-verify
 	PYTHONPATH=daylight/v14c-plus $(PYTHON) -m unittest discover -s daylight/v14c-plus/tests -t daylight/v14c-plus
 
 daylight-meridian-score:
+	rm -f daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json daylight/v15-meridian/examples/reproducibility-receipt.v15-meridian.json daylight/v15-meridian/examples/ledger.with-scorecard.jsonl
 	PYTHONPATH=daylight/v15-meridian $(PYTHON) -m src.cli score --ledger daylight/v15-meridian/examples/ledger.seed.jsonl --corpus daylight/v15-meridian/examples/corpus.seed.jsonl --out daylight/v15-meridian/examples/expected-scorecard.v15-meridian.json --receipt daylight/v15-meridian/examples/reproducibility-receipt.v15-meridian.json --output-ledger daylight/v15-meridian/examples/ledger.with-scorecard.jsonl
 
 daylight-meridian-verify: daylight-meridian-score
