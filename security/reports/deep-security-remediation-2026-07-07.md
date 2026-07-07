@@ -6,7 +6,7 @@
 - Branch: `security/deep-remediation-20260707-030717`
 - Starting commit: `9f7c3a3de401f04e72a32192cdeff31eab14c933`
 - Final commit: `RECORDED_IN_FINAL_RESPONSE_AFTER_COMMIT`
-- Report generated UTC: `2026-07-07T07:47:21Z`
+- Report generated UTC: `2026-07-07T07:47:21Z`; continuation validation updated UTC: `2026-07-07T08:14:36Z`
 - Scope: full repository working tree, excluding generated build output, dependency caches, and `.git` for manual grep review.
 
 Note: the final Git commit cannot embed its own hash without changing that hash. The exact final commit is recorded in the final response after this report is committed.
@@ -24,9 +24,10 @@ Note: the final Git commit cannot embed its own hash without changing that hash.
 | `npm audit --audit-level=moderate` | passed on final rerun with approved network access: `found 0 vulnerabilities`. |
 | `pnpm audit` | skipped: `pnpm` not installed and no `pnpm-lock.yaml`. |
 | `yarn audit` | skipped: `yarn` not installed and no `yarn.lock`. |
-| `cargo audit` | skipped: cargo subcommand not installed. |
-| `cargo clippy` | skipped: cargo subcommand not installed. |
-| `cargo test` | passed for available Rust crates listed below; ZP1 bridge blocked by missing `third_party/zp1`. |
+| `cargo audit` | skipped: cargo subcommand not installed; `PATH=.tools/bin:$PATH cargo audit --version` returned `error: no such command: audit`. |
+| `cargo fmt` | blocked for `cargo fmt --check` targets: `cargo-fmt` is present only as `/home/chasebryan/.cargo/bin/cargo-fmt` and rustup has no default toolchain configured. |
+| `cargo clippy` | blocked: `cargo-clippy` is present only as `/home/chasebryan/.cargo/bin/cargo-clippy` and rustup has no default toolchain configured. |
+| `cargo test` | passed for available Rust crates listed below; fresh ZP1 bridge test passed after restoring the declared pinned submodule. |
 | `go test`, `gosec`, `govulncheck` | skipped: no Go module/tooling detected; tools not installed. |
 | `mvn test`, `mvn dependency-check`, `gradle test` | skipped: Maven/Gradle not installed and no Java build root detected. |
 | `shellcheck` | skipped: not installed. Fallback: grep review of shell scripts, CI, and dangerous shell patterns. |
@@ -45,7 +46,9 @@ Tool availability command:
 for tool in gitleaks trufflehog semgrep bandit pip-audit safety npm pnpm yarn cargo gosec govulncheck mvn gradle shellcheck hadolint trivy ruff mypy pytest node python3 make; do if PATH=.tools/bin:$PATH command -v "$tool" >/dev/null 2>&1; then printf '%s: present (%s)\n' "$tool" "$(PATH=.tools/bin:$PATH command -v "$tool")"; else printf '%s: missing\n' "$tool"; fi; done
 ```
 
-Available tools: `npm`, `cargo`, `node`, `python3`, `make`.
+Available tools from the original matrix command: `npm`, `cargo`, `node`, `python3`, `make`.
+
+Fresh continuation availability recheck also found `cargo-clippy`, `rustdoc`, `rustfmt`, and local Rust tool wrappers, but `cargo fmt --version` and `cargo clippy --version` both fail through rustup because no default toolchain is configured.
 
 ## Findings Summary Before Remediation
 
@@ -106,6 +109,151 @@ New or updated regression coverage includes:
 
 ## Validation Commands And Results
 
+### Fresh Post-Remediation Continuation Validation
+
+The following pass was run from current HEAD `dd3605078178d683d053a9398039797a64ead33a`, not from the earlier round-10 scan state.
+
+Repository state printed before report update:
+
+```sh
+git branch --show-current
+# security/deep-remediation-20260707-030717
+
+git rev-parse HEAD
+# dd3605078178d683d053a9398039797a64ead33a
+
+git status --short
+# no output
+
+git submodule status --recursive
+#  ee1b853abe99ee8dadfa57bc356fdf5abce1d816 third_party/zp1 (ee1b853)
+
+ls -la third_party
+# third_party contains checked-out directory zp1
+
+ls -la third_party/zp1
+# contains .git, Cargo.lock, Cargo.toml, PROVIDERS.md, README.md, SECURITY.md, SPEC.md, src/, tests/, tools/, and related upstream files
+```
+
+ZP1 bridge blocker investigation:
+
+- `.gitmodules` declares `third_party/zp1` as a submodule with URL `https://github.com/chasebryan/ZP-1.git`.
+- `git ls-tree HEAD third_party/zp1` records gitlink `ee1b853abe99ee8dadfa57bc356fdf5abce1d816`.
+- `tools/wuciji-zp1-bridge/Cargo.toml` depends on `zp1 = { path = "../../third_party/zp1", features = ["test-utils"] }`.
+- `docs/ZP1_WUCIJI_COUPLING.md` and `docs/ZP1_WUCIJI_COUPLING.v1.json` describe ZP1 as a pinned research/test-utils dependency, not production authority or production cryptography.
+- Conclusion: `third_party/zp1` is a required declared pinned git submodule for the ZP1 research bridge lane. It is not a stale test expectation and not an optional undeclared dependency.
+
+ZP1 submodule restoration and bridge validation:
+
+```sh
+git submodule update --init --recursive
+# sandboxed attempt failed:
+# error: could not lock config file .git/config: Read-only file system
+# fatal: Failed to register url for submodule path 'third_party/zp1'
+
+git submodule update --init --recursive
+# approved escalated rerun succeeded:
+# Submodule path 'third_party/zp1': checked out 'ee1b853abe99ee8dadfa57bc356fdf5abce1d816'
+
+PATH=.tools/bin:$PATH make zp1-wuciji-bridge-test
+# sandboxed attempt failed before repo logic because crates.io could not be resolved.
+
+PATH=.tools/bin:$PATH make zp1-wuciji-bridge-test
+# approved network rerun passed, but `cargo generate-lockfile` updated Cargo.lock to newer compatible crates.
+# The lockfile was restored to the checked-in state before final proof.
+
+RUSTC=/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustc RUSTDOC=/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustdoc PATH=.tools/bin:$PATH cargo test --manifest-path tools/wuciji-zp1-bridge/Cargo.toml --locked
+# passed: 2 integration tests passed; doctests completed with 0 tests.
+
+PYTHONPATH=. python3 tools/check_zp1_wuciji_coupling.py
+# ZP1/WuciJi coupling check passed
+```
+
+Fresh required validation commands:
+
+```sh
+PATH=.tools/bin:$PATH npm audit --audit-level=moderate
+# sandboxed attempt failed with DNS EAI_AGAIN; approved network rerun passed: found 0 vulnerabilities.
+
+PYTHONPATH=. python3 tests/wuci_safeio.py
+# wuci safeio: PASS
+
+PYTHONPATH=. python3 tests/wuci_cage_bundle.py
+# wuci cage bundle: PASS
+
+git diff --check
+# passed, no output
+
+git diff --cached --check
+# passed, no output
+
+PATH=.tools/bin:$PATH make test
+# passed
+
+PATH=.tools/bin:$PATH make wucios-validate
+# passed; emitted the known human-approval-boundary warning from the validator
+
+PATH=.tools/bin:$PATH make site-validate
+# passed: site-daylight-status OK and site build OK
+
+PATH=.tools/bin:$PATH npm run build
+# passed: site build OK
+```
+
+Fresh ZP1 aggregate/upstream target status:
+
+```sh
+RUSTC=/home/chasebryan/-wuci-ji/.tools/bin/rustc RUSTDOC=/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustdoc PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH make zp1-upstream-test
+# failed at `cd "third_party/zp1" && cargo fmt --check`
+# error: rustup could not choose a version of cargo-fmt to run, because one wasn't specified explicitly, and no default is configured.
+
+RUSTC=/home/chasebryan/-wuci-ji/.tools/bin/rustc RUSTDOC=/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustdoc PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH make zp1-wuciji-coupling-test
+# same failure at the `zp1-upstream-test` prerequisite before repo coupling logic runs.
+```
+
+Fresh scanner/tool status:
+
+| Tool | Found | Command attempted | Result | Fallback |
+| --- | --- | --- | --- | --- |
+| `gitleaks` | not found | `command -v gitleaks` | missing | concrete secret regex sweep |
+| `trufflehog` | not found | `command -v trufflehog` | missing | concrete secret regex sweep |
+| `semgrep` | not found | `command -v semgrep` | missing | manual SAST grep plus targeted code review |
+| `bandit` | not found | `command -v bandit` | missing | Python security grep and targeted review |
+| `pip-audit` | not found | `command -v pip-audit` | missing | repo-native Python tests; no pip-audit DB result available |
+| `safety` | not found | `command -v safety` | missing | repo-native Python tests; no safety DB result available |
+| `npm` | found at `.tools/bin/npm` | `PATH=.tools/bin:$PATH npm audit --audit-level=moderate` | passed with approved network access: `found 0 vulnerabilities` | not needed |
+| `pnpm` | not found | `command -v pnpm` | missing | no `pnpm-lock.yaml` |
+| `yarn` | not found | `command -v yarn` | missing | no `yarn.lock` |
+| `cargo` | found at `.tools/bin/cargo` | `cargo test` for repo crates and ZP1 bridge | passed for run lanes listed above | not needed for tests run |
+| `cargo-audit` | not found as cargo subcommand | `PATH=.tools/bin:$PATH cargo audit --version` | failed: `error: no such command: audit` | no Rust advisory DB result available |
+| `cargo-fmt` | found at `/home/chasebryan/.cargo/bin/cargo-fmt` | `PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH cargo fmt --version` | failed: rustup has no default toolchain | direct `rustfmt --version` works, but Makefile upstream target invokes `cargo fmt` |
+| `cargo-clippy` | found at `/home/chasebryan/.cargo/bin/cargo-clippy` | `PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH cargo clippy --version` | failed: rustup has no default toolchain | no clippy result available |
+| `gosec` | not found | `command -v gosec` | missing | no Go module detected |
+| `govulncheck` | not found | `command -v govulncheck` | missing | no Go module detected |
+| `mvn` | not found | `command -v mvn` | missing | no Java build root detected |
+| `gradle` | not found | `command -v gradle` | missing | no Java build root detected |
+| `shellcheck` | not found | `command -v shellcheck` | missing | shell-danger grep review |
+| `hadolint` | not found | `command -v hadolint` | missing | no Dockerfile found |
+| `trivy` | not found | `command -v trivy` | missing | manual dependency/tool review only |
+| `ruff` | not found | `command -v ruff` | missing | repo-native Python tests |
+| `mypy` | not found | `command -v mypy` | missing | repo-native Python tests |
+| `pytest` | not found | `command -v pytest` | missing | unittest/direct Python test scripts |
+| `node` | found at `.tools/bin/node` | `PATH=.tools/bin:$PATH npm run build` | passed | not needed |
+| `python3` | found at `/usr/bin/python3` | direct Python tests listed above | passed for run lanes | not needed |
+| `make` | found at `.tools/bin/make` | `make test`, `make wucios-validate`, `make site-validate` | passed | not needed |
+| `rustc` | found at `.tools/bin/rustc` | `rustc -vV`; ZP1 bridge with pinned `RUSTC` | version available; bridge passed | used explicit compiler for Cargo child process |
+| `rustdoc` | found at `/home/chasebryan/.cargo/bin/rustdoc`; direct pkgroot binary `/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustdoc` used for bridge | `rustdoc --version`; ZP1 bridge with pinned `RUSTDOC` | version available; bridge doctests completed | used explicit rustdoc for Cargo child process |
+| `rustfmt` | found at `/home/chasebryan/.cargo/bin/rustfmt` | `PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH rustfmt --version` | passed: `rustfmt 1.9.0-stable (31fca3adb2 2026-06-26)` | does not unblock `cargo fmt` subcommand |
+
+Fresh fallback sweep results:
+
+- Secret regex sweep: hits were private-key detector constants and negative-test fixtures in `tools/daylight_public_evidence_firewall.py`, `daylight/v20-aperture-singularity/src/public_artifact.py`, `daylight/v19-aperture-bastion/tests/test_firewall.py`, `daylight/v19-aperture-bastion/tests/test_capsule.py`, and `daylight/v19-aperture-bastion/src/cli.py`; no live private key, cloud token, GitHub token, Slack token, AWS key, OpenAI key, or bearer token was found.
+- Dangerous execution sweep: `subprocess.Popen` callsites in `tools/wuci_progress.py` and `tools/wuci_black_ice.py` use argv lists and no shell; policy/documentation hits mention forbidden `shell=True`/`eval`; no runtime `shell=True`, `eval`, or `os.system` path was found.
+- Weak crypto/randomness sweep: hits are CSPRNG/provider interfaces (`getrandom`, `os.urandom`, ZP1 provider `fill_random`) and one SHA-1 stale-commit test fixture; no new weak production crypto finding was identified.
+- Archive extraction sweep: no `tarfile.extract(` or `extractall(` matches in scoped source search.
+- Network-default sweep: hits are URL detectors, XML/schema namespaces, localhost allowances, redirect tests, or reviewed repo-source command construction; the Debian trial mirror remains HTTPS after remediation.
+- World-writable file sweep: no output.
+
 Passed:
 
 ```sh
@@ -164,7 +312,8 @@ Skipped/unavailable validation:
 ```sh
 PATH=.tools/bin:$PATH make check      # no such target
 PATH=.tools/bin:$PATH make validate   # no such target
-PATH=.tools/bin:$PATH cargo test --tests --bins --lib  # tools/wuciji-zp1-bridge blocked: missing third_party/zp1/Cargo.toml
+RUSTC=/home/chasebryan/-wuci-ji/.tools/bin/rustc RUSTDOC=/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustdoc PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH make zp1-upstream-test  # blocked: cargo-fmt rustup shim has no default toolchain
+RUSTC=/home/chasebryan/-wuci-ji/.tools/bin/rustc RUSTDOC=/home/chasebryan/-wuci-ji/.tools/pkgroot/usr/bin/rustdoc PATH=/home/chasebryan/-wuci-ji/.tools/bin:$PATH make zp1-wuciji-coupling-test  # blocked at zp1-upstream-test cargo-fmt prerequisite
 PATH=.tools/bin:$PATH npm audit --audit-level=moderate # passed: found 0 vulnerabilities
 ```
 
@@ -198,8 +347,9 @@ Manual review result:
 
 ## Blocked External Items
 
-- `tools/wuciji-zp1-bridge` cargo test is blocked by missing local external dependency `third_party/zp1/Cargo.toml`. This dependency is not present in the repository.
-- Many requested scanners are not installed on this machine: `gitleaks`, `trufflehog`, `semgrep`, `bandit`, `pip-audit`, `safety`, `cargo-audit`, `gosec`, `govulncheck`, `shellcheck`, `hadolint`, `trivy`, `ruff`, `mypy`, and `pytest`.
+- The ZP1 bridge blocker caused by missing `third_party/zp1` is resolved: the declared submodule restored successfully at pinned commit `ee1b853abe99ee8dadfa57bc356fdf5abce1d816`, the bridge test passed with `--locked`, and `tools/check_zp1_wuciji_coupling.py` passed.
+- The broader ZP1 upstream/coupling aggregate make targets remain externally blocked before repo coupling logic runs because `cargo fmt --check` invokes `/home/chasebryan/.cargo/bin/cargo-fmt`, a rustup shim, and rustup has no default toolchain configured. `cargo clippy` has the same rustup default-toolchain blocker.
+- Many requested scanners are not installed or not usable on this machine: `gitleaks`, `trufflehog`, `semgrep`, `bandit`, `pip-audit`, `safety`, `cargo-audit`, `gosec`, `govulncheck`, `shellcheck`, `hadolint`, `trivy`, `ruff`, `mypy`, and `pytest`; `cargo-fmt` and `cargo-clippy` are present only as rustup shims without a configured default toolchain.
 
 ## Final Worktree Status
 
@@ -209,4 +359,4 @@ Final worktree status is recorded after report commit in the final response. At 
 
 `REPO_SECURITY_REMEDIATION_BLOCKED_BY_EXTERNAL_REQUIREMENTS`
 
-All repo-controlled CRITICAL, HIGH, and MEDIUM findings identified in this pass were remediated or documented with narrow false-positive/accepted-risk rationale. The repository cannot honestly be classified TRUE because one local external Rust dependency validation and multiple optional scanner lanes are blocked by environment/dependency availability outside repository control.
+All repo-controlled CRITICAL, HIGH, and MEDIUM findings identified in this pass were remediated or documented with narrow false-positive/accepted-risk rationale. The fresh current-HEAD pass proves the ZP1 bridge dependency is a declared pinned submodule and that the narrow WuciJi/ZP1 bridge lane passes. The repository is still not classified TRUE in this report because multiple scanner lanes and the broader ZP1 upstream aggregate target remain blocked by local environment/tool availability outside repository control.
