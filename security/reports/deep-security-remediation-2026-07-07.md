@@ -456,6 +456,23 @@ git submodule status third_party/zp1
 
 Closeout classification: `TRUE_REMEDIATION_COMPLETE_TOOLCHAIN_BLOCKERS_CLEARED`.
 
+## Post-Remediation Defense Audit Verdict
+
+Final audit classification: `TRUE_NATIONAL_SECURITY_DEFENSE_AUDIT_PASSED_POST_REMEDIATION`.
+
+This verdict is limited to the repository's project-defined national security defense audit standard as evidenced by the remediation report, tests, ZP1 coupling checks, project validation targets, and clean Git state. It is not external government certification, not government accreditation, and not a claim of NSA, DoD, CISA, or other formal external approval.
+
+Closeout verification recorded:
+
+- Expected branch verified: `security/deep-remediation-20260707-030717`.
+- Expected HEAD verified: `6cea152c12862f36fd31b08e676238f6d0e99a2c`.
+- Clean tracked worktree verified with `git status --short`.
+- ZP1 submodule pin verified: `ee1b853abe99ee8dadfa57bc356fdf5abce1d816 third_party/zp1`.
+- `origin/main..HEAD` was fetched and whitespace-checked with `git diff --check origin/main..HEAD`.
+- Prior high and medium findings were closed in the remediation report through code hardening, regression tests, mitigation, non-applicability, or accepted residual-risk rationale.
+- Residual risks are documented and accepted below.
+- Required validation passed: ZP1 upstream validation, Wuci-Ji/ZP1 coupling validation, ZP1 bridge validation, `npm audit --audit-level=moderate`, CAGE/safe I/O tests, core `make test`, `make wucios-validate`, `make site-validate`, `npm run build`, `git diff --check`, `git diff --cached --check`, and final clean `git status --short`.
+
 ## Remaining Accepted Risks
 
 - The repository still contains intentional fixture secrets, private-key marker strings, and negative-test material. These are test fixtures or detector constants, not production credentials.
@@ -475,6 +492,6 @@ Final worktree status is recorded after report commit in the final response. At 
 
 ## Final Classification
 
-`TRUE_REMEDIATION_COMPLETE_TOOLCHAIN_BLOCKERS_CLEARED`
+`TRUE_NATIONAL_SECURITY_DEFENSE_AUDIT_PASSED_POST_REMEDIATION`
 
-All repo-controlled CRITICAL, HIGH, and MEDIUM findings identified in this pass were remediated or documented with narrow false-positive/accepted-risk rationale. The fresh current-HEAD pass proves the ZP1 bridge dependency is a declared pinned submodule, the narrow WuciJi/ZP1 bridge lane passes, the upstream ZP1 make target passes, the aggregate ZP1 coupling target passes, and the prior core validation set passes after clearing the local Rust toolchain blocker.
+All repo-controlled CRITICAL, HIGH, and MEDIUM findings identified in this pass were remediated or documented with narrow false-positive/accepted-risk rationale. The fresh current-HEAD pass proves the ZP1 bridge dependency is a declared pinned submodule, the narrow WuciJi/ZP1 bridge lane passes, the upstream ZP1 make target passes, the aggregate ZP1 coupling target passes, and the prior core validation set passes after clearing the local Rust toolchain blocker. This supports the repository's project-defined national security defense audit standard only; it is not external government certification.
