@@ -75,6 +75,7 @@ DAYLIGHT_V20_APERTURE_SINGULARITY_PUBLIC_DIR ?= build/daylight/v20-aperture-sing
 DAYLIGHT_V20_APERTURE_SINGULARITY_TAR ?= build/daylight/v20-aperture-singularity-public-review-artifact.tar.gz
 DAYLIGHT_V20_APERTURE_SINGULARITY_FIREWALL_REPORT ?= build/daylight/firewall-report.v20.json
 DAYLIGHT_SSV_REPORT ?= build/daylight/ssv-v1/daylight-ssv.report.json
+DAYLIGHT_SSV_PYTHONPATH ?= daylight/ssv/v1:tools:.
 CARROT_POLICY ?= docs/wuci_carrot_runtime_policy.json
 CARROT_ATTESTATION ?= build/wuci-carrot-attestation.json
 PQ_VERIFIER_EVIDENCE ?= build/wuci-pq-verifier.json
@@ -289,22 +290,22 @@ daylight-npt-ci: daylight-npt-test daylight-npt-report
 	@printf '%s\n' "daylight-npt-ci: complete"
 
 daylight-ssv:
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv audit --out $(DAYLIGHT_SSV_REPORT)
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv audit --out $(DAYLIGHT_SSV_REPORT)
 
 daylight-ssv-report: daylight-ssv
 	@printf '%s\n' "daylight-ssv report: $(DAYLIGHT_SSV_REPORT)"
 
 daylight-ssv-test:
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m unittest discover -s tests/daylight_ssv -t .
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m unittest discover -s tests/daylight_ssv -t .
 
 daylight-ssv-ci: daylight-ssv-test
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv check-model
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/perfect.json
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/mixed-score.json
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/critical-override.json
-	PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/missing-evidence.json
-	! PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/invalid-score-too-precise.json
-	! PYTHONPATH=daylight/ssv/v1 $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/invalid-score-over-100.json
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv check-model
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/perfect.json
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/mixed-score.json
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/critical-override.json
+	PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/missing-evidence.json
+	! PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/invalid-score-too-precise.json
+	! PYTHONPATH=$(DAYLIGHT_SSV_PYTHONPATH) $(PYTHON) -m daylight_ssv validate-report daylight/ssv/v1/examples/invalid-score-over-100.json
 	@printf '%s\n' "daylight-ssv-ci: complete"
 
 daylight-score-integrity-audit: daylight-npt
