@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+import wuci_ledger
 import wuci_safeio
 
 
@@ -30,6 +31,7 @@ DEFAULT_FINAL_MANIFEST = Path("build/wuci-os/final/manifest.json")
 DEFAULT_FINAL_ISO = Path("build/wuci-os/final/Wuci-OS-x86_64-musl.iso")
 DEFAULT_EVIDENCE_ROOT = Path("build/wuci-os/release-evidence")
 DEFAULT_RELEASE_GATE = DEFAULT_EVIDENCE_ROOT / "release-gate.json"
+DEFAULT_LEDGER_BIN = Path("build/wuci-ji")
 
 QEMU_TRACE_NAME = "qemu-boot-trace.json"
 HARDWARE_TRACE_NAME = "hardware-boot-trace.json"
@@ -95,8 +97,8 @@ def read_text(path: Path, label: str) -> str:
 def read_json(path: Path, label: str) -> dict[str, Any]:
     data = read_bytes(path, label)
     try:
-        value = json.loads(data.decode("utf-8"))
-    except json.JSONDecodeError as exc:
+        value = wuci_safeio.loads_json_no_duplicates(data.decode("utf-8"), label)
+    except (UnicodeDecodeError, wuci_safeio.SafeIOError) as exc:
         raise ReleaseGateError(f"{label} is not valid JSON: {path}: {exc}") from exc
     if not isinstance(value, dict):
         raise ReleaseGateError(f"{label} must be a JSON object: {path}")
@@ -314,19 +316,78 @@ def bind_witness_entry(
     operated_ledger_id: str,
     operator: str,
     ledger_url: str | None,
+    ledger_bin: Path = DEFAULT_LEDGER_BIN,
 ) -> dict[str, Any]:
     context = manifest_context(manifest_path, iso_path)
     signature = read_json(signature_evidence, "Wuci-OS manifest signature evidence")
     signature_record = signature.get("signature")
     if not isinstance(signature_record, dict) or not isinstance(signature_record.get("sha256"), str):
         raise ReleaseGateError("signature evidence is missing signature.sha256")
+    signature_file_ok = False
+    if isinstance(signature_record.get("path"), str):
+        try:
+            signature_file_sha256, signature_file_bytes = file_digest(
+                Path(signature_record["path"]),
+                "Wuci-OS manifest signature",
+            )
+            signature_file_ok = (
+                signature_file_sha256 == signature_record["sha256"]
+                and signature_file_bytes == signature_record.get("bytes")
+            )
+        except ReleaseGateError:
+            signature_file_ok = False
+    sig_manifest = signature.get("final_manifest")
+    sig_iso = signature.get("final_iso")
+    signature_schema_ok = signature.get("schema") == f"{SCHEMA_PREFIX}-manifest-signature-v1"
+    signature_status_ok = signature.get("status") == "pass"
+    signature_manifest_ok = isinstance(sig_manifest, dict) and sig_manifest.get("sha256") == context["manifest_sha256"]
+    signature_iso_ok = isinstance(sig_iso, dict) and sig_iso.get("sha256") == context["iso_sha256"]
     entry_text = read_text(ledger_entry, "Wuci-OS witness ledger entry")
     head_text = read_text(ledger_head, "Wuci-OS witness ledger head")
     proof_text = read_text(inclusion_proof, "Wuci-OS witness ledger inclusion proof")
-    manifest_bound = context["manifest_sha256"] in entry_text or context["manifest_sha256"] in proof_text
-    signature_bound = signature_record["sha256"] in entry_text or signature_record["sha256"] in proof_text
-    head_present = bool(head_text.strip())
-    proof_present = bool(proof_text.strip())
+    try:
+        entry_fields = wuci_ledger.parse_entry(entry_text)
+        head_fields = wuci_ledger.parse_head(head_text)
+        proof_fields, proof_path = wuci_ledger.parse_proof(
+            proof_text,
+            wuci_ledger.INCLUSION_FIELDS,
+            wuci_ledger.INCLUSION_SCHEMA,
+            "Wuci-OS witness ledger inclusion proof",
+        )
+        size = wuci_ledger.parse_decimal(proof_fields["tree-size"], "tree-size")
+        index = wuci_ledger.parse_decimal(proof_fields["leaf-index"], "leaf-index")
+        if wuci_ledger.parse_decimal(entry_fields["sequence"], "sequence") != index:
+            raise wuci_ledger.LedgerError("ledger entry sequence does not match inclusion proof")
+        if head_fields["tree-size"] != proof_fields["tree-size"]:
+            raise wuci_ledger.LedgerError("inclusion proof tree-size does not match ledger head")
+        if head_fields["root-hash"] != proof_fields["root-hash"]:
+            raise wuci_ledger.LedgerError("inclusion proof root does not match ledger head")
+        leaf = wuci_ledger.leaf_file(ledger_bin, ledger_entry)
+        if leaf != proof_fields["leaf-hash"]:
+            raise wuci_ledger.LedgerError("inclusion proof leaf hash does not match entry")
+        root = wuci_ledger.root_from_inclusion(
+            ledger_bin,
+            leaf,
+            index,
+            size,
+            proof_path,
+        )
+        if root != proof_fields["root-hash"]:
+            raise wuci_ledger.LedgerError("inclusion proof does not reconstruct ledger root")
+    except wuci_ledger.LedgerError as exc:
+        raise ReleaseGateError(f"witness ledger inclusion verification failed: {exc}") from exc
+    manifest_bound = entry_fields["manifest-sha256"] == context["manifest_sha256"]
+    signature_bound = all(
+        (
+            signature_schema_ok,
+            signature_status_ok,
+            signature_manifest_ok,
+            signature_iso_ok,
+            signature_file_ok,
+        )
+    )
+    head_present = True
+    proof_present = True
     entry_sha256, entry_bytes = file_digest(ledger_entry, "Wuci-OS witness ledger entry")
     head_sha256, head_bytes = file_digest(ledger_head, "Wuci-OS witness ledger head")
     proof_sha256, proof_bytes = file_digest(inclusion_proof, "Wuci-OS witness ledger inclusion proof")
@@ -355,9 +416,15 @@ def bind_witness_entry(
         "inclusion_proof": {"path": str(inclusion_proof), "sha256": proof_sha256, "bytes": proof_bytes},
         "checks": {
             "manifest_digest_bound": manifest_bound,
-            "signature_digest_bound": signature_bound,
+            "signature_evidence_verified": signature_bound,
+            "signature_schema": signature_schema_ok,
+            "signature_status_pass": signature_status_ok,
+            "signature_manifest_sha256": signature_manifest_ok,
+            "signature_iso_sha256": signature_iso_ok,
+            "signature_file_sha256": signature_file_ok,
             "ledger_head_present": head_present,
             "inclusion_proof_present": proof_present,
+            "ledger_inclusion_verified": True,
             "operated_ledger_metadata_present": operated_metadata_present,
         },
         "non_claims": [
@@ -367,7 +434,7 @@ def bind_witness_entry(
     }
     write_json_atomic(out, evidence)
     if status != "pass":
-        raise ReleaseGateError("witness ledger evidence is not bound to manifest and signature digests")
+        raise ReleaseGateError("witness ledger evidence is not bound to verified manifest signature evidence")
     return evidence
 
 
@@ -597,6 +664,7 @@ def command_witness(args: argparse.Namespace) -> int:
         operated_ledger_id=args.operated_ledger_id,
         operator=args.operator,
         ledger_url=args.ledger_url,
+        ledger_bin=Path(args.ledger_bin),
     )
     print(f"wuci-release witness-ledger: {evidence['status']}")
     print(f"evidence: {out}")
@@ -665,6 +733,7 @@ def build_parser() -> argparse.ArgumentParser:
     witness.add_argument("--operated-ledger-id", required=True)
     witness.add_argument("--operator", required=True)
     witness.add_argument("--ledger-url")
+    witness.add_argument("--ledger-bin", default=str(DEFAULT_LEDGER_BIN), help="wuci-ji binary used for ledger proof verification")
     witness.add_argument("--out", help="output witness evidence path")
     witness.set_defaults(func=command_witness)
 

@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DENIED_PHRASES = ROOT / "wucios/sets/cantor-denied-claim-phrases.txt"
 ALLOWLIST = ROOT / "wucios/sets/cantor-claim-phrase-allowlist.json"
-SCAN_EXTENSIONS = {".md", ".html", ".txt", ".cff"}
+SCAN_EXTENSIONS = {".cff", ".html", ".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
 HISTORICAL_MARKER = "WuciOS-Fluff-Audit: historical-non-authoritative"
 SKIP_DIRS = {
     ".git",
@@ -103,13 +103,17 @@ def main() -> int:
             lowered = line.lower()
             for phrase in phrases:
                 phrase_lower = phrase.lower()
-                if phrase_lower not in lowered:
-                    continue
-                record = f"{rel}:{lineno}: {phrase}"
-                if (rel, phrase_lower) in allowlist:
-                    allowlisted.append(record)
-                else:
-                    violations.append(record)
+                start = 0
+                while True:
+                    column = lowered.find(phrase_lower, start)
+                    if column == -1:
+                        break
+                    record = f"{rel}:{lineno}:{column + 1}: {phrase}"
+                    if (rel, phrase_lower) in allowlist:
+                        allowlisted.append(record)
+                    else:
+                        violations.append(record)
+                    start = column + len(phrase_lower)
 
     if allowlisted:
         print("WuciOS fluff audit allowlisted non-claim phrases:")

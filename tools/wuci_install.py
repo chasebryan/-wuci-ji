@@ -215,9 +215,15 @@ def sha512_path(path: Path, context: str) -> str:
 def hash_tree_sha512(path: Path, context: str) -> str:
     if not path.exists():
         return ZERO_SHA512
-    if path.is_file():
+    try:
+        root_info = os.lstat(path)
+    except OSError as exc:
+        raise InstallError(f"could not stat {context}: {path}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        fail(f"{context} must not be a symlink: {path}")
+    if stat.S_ISREG(root_info.st_mode):
         return sha512_file(path, context, reject_hardlink=True)
-    if not path.is_dir():
+    if not stat.S_ISDIR(root_info.st_mode):
         fail(f"{context} must be a file or directory: {path}")
     digest = hashlib.sha512()
     for child in sorted(path.rglob("*")):
@@ -674,12 +680,10 @@ def prefix_path(value: str, *, allow_prefix: bool = False) -> Path:
 
 
 def ensure_safe_parent(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    current = path.parent
-    while current != current.parent:
-        if current.exists() and current.is_symlink():
-            fail(f"install path parent must not be a symlink: {current}")
-        current = current.parent
+    try:
+        wuci_safeio.ensure_parent_directory(path, "install path", mode=0o755)
+    except wuci_safeio.SafeIOError as exc:
+        raise InstallError(str(exc)) from exc
 
 
 def atomic_install_bytes(path: Path, data: bytes, *, mode: int, context: str) -> None:
@@ -695,11 +699,11 @@ def atomic_install_bytes(path: Path, data: bytes, *, mode: int, context: str) ->
         delete=False,
     ) as handle:
         tmp_path = Path(handle.name)
+        os.fchmod(handle.fileno(), mode)
         handle.write(data)
         handle.flush()
         os.fsync(handle.fileno())
     try:
-        os.chmod(tmp_path, mode)
         os.replace(tmp_path, path)
         parent_fd = os.open(path.parent, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0))
         try:
@@ -717,7 +721,32 @@ def atomic_install_bytes(path: Path, data: bytes, *, mode: int, context: str) ->
 def copy_regular(src: Path, dst: Path, *, mode: int, context: str) -> None:
     if not src.exists():
         fail(f"{context} is missing: {src}")
-    atomic_install_bytes(dst, read_bytes(src, context), mode=mode, context=context)
+    atomic_install_bytes(dst, read_bytes(src, context, reject_hardlink=True), mode=mode, context=context)
+
+
+def copy_tree_regular(src: Path, dst: Path, *, context: str) -> None:
+    if not src.exists():
+        fail(f"{context} is missing: {src}")
+    root_info = os.lstat(src)
+    if stat.S_ISLNK(root_info.st_mode):
+        fail(f"{context} root must not be a symlink: {src}")
+    if not stat.S_ISDIR(root_info.st_mode):
+        fail(f"{context} root must be a directory: {src}")
+    for child in sorted(src.rglob("*")):
+        rel = child.relative_to(src)
+        info = os.lstat(child)
+        target = dst / rel
+        if stat.S_ISLNK(info.st_mode):
+            fail(f"{context} must not contain symlink: {child}")
+        if stat.S_ISDIR(info.st_mode):
+            ensure_safe_parent(target / ".keep")
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        if not stat.S_ISREG(info.st_mode):
+            fail(f"{context} must contain only regular files: {child}")
+        if info.st_nlink != 1:
+            fail(f"{context} must not contain hardlinks: {child}")
+        copy_regular(child, target, mode=0o644, context=f"{context} file {rel.as_posix()}")
 
 
 def write_json_atomic(path: Path, value: dict[str, Any], *, mode: int = 0o600) -> None:
@@ -883,7 +912,14 @@ def install_files(
     proof_dir = share / "proofs"
 
     previous_hash = sha256_file(binary_dest, "previous installed binary") if binary_dest.exists() and not binary_dest.is_symlink() else None
-    atomic_install_bytes(binary_dest, read_bytes(bin_path, "candidate binary"), mode=0o755, context="wuci-ji binary")
+    candidate_binary = read_bytes(bin_path, "candidate binary", reject_hardlink=True)
+    if hashlib.sha256(candidate_binary).hexdigest() != binary_hashes[0]:
+        fail("candidate binary changed after manifest verification")
+    if hashlib.sha384(candidate_binary).hexdigest() != binary_hashes[1]:
+        fail("candidate binary changed after manifest verification")
+    if hashlib.sha512(candidate_binary).hexdigest() != binary_hashes[2]:
+        fail("candidate binary changed after manifest verification")
+    atomic_install_bytes(binary_dest, candidate_binary, mode=0o755, context="wuci-ji binary")
     atomic_install_bytes(audit_dest, install_audit_script(prefix), mode=0o755, context="wuci-ji audit command")
 
     copy_regular(TOOL_PATH, tools_dir / "wuci_install.py", mode=0o644, context="installer tool")
@@ -904,6 +940,8 @@ def install_files(
         (REPO_ROOT / "build" / "wuci-cage-ledger-leaf.txt", "wuci-cage-ledger-leaf.txt"),
     ):
         copy_regular(source, proof_dir / name, mode=0o644, context=name)
+    copy_tree_regular(REPO_ROOT / "build" / "wuci-witness-bundle", proof_dir / "wuci-witness-bundle", context="witness bundle")
+    copy_tree_regular(REPO_ROOT / "build" / "wuci-ledger", proof_dir / "wuci-ledger", context="ledger history")
 
     live_hashes = proof_hashes()
     receipt = {
@@ -965,7 +1003,38 @@ def load_receipt(prefix: Path) -> dict[str, Any]:
     return receipt
 
 
-def print_audit(receipt: dict[str, Any]) -> None:
+def installed_proof_hashes(prefix: Path) -> dict[str, str]:
+    proof_dir = prefix / "share" / "wuci-ji" / "proofs"
+    return {
+        "witness_bundle_sha512": hash_tree_sha512(proof_dir / "wuci-witness-bundle", "installed witness bundle"),
+        "ledger_history_sha512": hash_tree_sha512(proof_dir / "wuci-ledger", "installed ledger history"),
+        "cage_attestation_sha512": sha512_path(proof_dir / "wuci-cage-attestation.json", "installed CAGE attestation"),
+        "qcage_attestation_sha512": sha512_path(proof_dir / "wuci-qcage-attestation.json", "installed QCAGE attestation"),
+    }
+
+
+def verify_installed_proof_hashes(prefix: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+    expected = receipt.get("proof_hashes")
+    if not isinstance(expected, dict):
+        fail("install receipt does not include proof hashes")
+    observed = installed_proof_hashes(prefix)
+    status: dict[str, str] = {}
+    for key, observed_value in observed.items():
+        expected_value = expected.get(key)
+        if expected_value == observed_value and observed_value != ZERO_SHA512:
+            status[key] = "verified"
+        elif expected_value == ZERO_SHA512 and observed_value == ZERO_SHA512:
+            status[key] = "missing"
+        else:
+            fail(f"installed proof hash mismatch: {key}")
+    return {
+        "expected": expected,
+        "observed": observed,
+        "status": status,
+    }
+
+
+def print_audit(receipt: dict[str, Any], proof_verification: dict[str, Any]) -> None:
     print("无此机 / Wuci-ji systems nominal.")
     print(f"Version {receipt['version']} installed.")
     print(f"Install status: {receipt['install_status']}")
@@ -980,11 +1049,12 @@ def print_audit(receipt: dict[str, Any]) -> None:
     print(f"  installed-binary-sha512: {receipt['binary_sha512']}")
     print("  verifier-identity: PASS")
     print("  selftest: PASS")
-    print("  harden-proof: PASS")
-    print("  cage-proof: PASS")
-    print("  qcage-compat-proof: PASS")
-    print("  witness-bundle: PASS")
-    print("  ledger-history: PASS")
+    print("  harden-proof: RECEIPT_ONLY")
+    proof_status = proof_verification["status"]
+    print(f"  cage-proof: {proof_status['cage_attestation_sha512'].upper()}")
+    print(f"  qcage-compat-proof: {proof_status['qcage_attestation_sha512'].upper()}")
+    print(f"  witness-bundle: {proof_status['witness_bundle_sha512'].upper()}")
+    print(f"  ledger-history: {proof_status['ledger_history_sha512'].upper()}")
     print(f"  runtime-sandbox-claimed: {str(receipt['runtime_sandbox_claimed']).lower()}")
     print(f"  quantum-safe-claimed: {str(receipt['quantum_safe_claimed']).lower()}")
     print()
@@ -1320,16 +1390,20 @@ def run_audit(args: argparse.Namespace) -> int:
         ticker_label="installed selftest",
         ticker_mode=ticker_mode,
     )
+    proof_verification = verify_installed_proof_hashes(prefix, receipt)
     if getattr(args, "json", False):
         print_json(
             {
                 "schema": "wuci-install-audit-v1",
                 "audit_passed": True,
                 "receipt": receipt,
+                "proof_verification": proof_verification,
+                "proof_lanes_fully_verified": False,
+                "receipt_only_proof_lanes": ["harden-proof"],
             }
         )
     else:
-        print_audit(receipt)
+        print_audit(receipt, proof_verification)
     return 0
 
 

@@ -96,16 +96,41 @@ def assert_archive_members_are_scanned(tmp: Path) -> None:
     assert any(item["kind"] == "private_key_block" for item in report["findings"])
 
 
-def assert_marker_only_and_raw_iso_do_not_fail(tmp: Path) -> None:
+def assert_marker_only_passes_and_raw_iso_fails_closed(tmp: Path) -> None:
     root = tmp / "marker-release"
     root.mkdir()
     marker = "-----BEGIN " + "PRIVATE KEY-----"
     (root / "scanner.py").write_text(f'PATTERN = "{marker}"\n', encoding="utf-8")
-    (root / "artifact.iso").write_bytes(b"random iso bytes sk-ssh-ed25519@openssh.com " + marker.encode("ascii") + b"\n")
     report = audit.audit_paths([root])
     assert report["status"] == "pass", report
+
+    iso_root = tmp / "iso-release"
+    iso_root.mkdir()
+    (iso_root / "artifact.iso").write_bytes(b"random iso bytes sk-ssh-ed25519@openssh.com " + marker.encode("ascii") + b"\n")
+    report = audit.audit_paths([iso_root])
+    assert report["status"] == "fail", report
+    assert any(item["kind"] == "unscanned_container_payload" for item in report["findings"])
     iso_records = [item for item in report["scanned_files"] if item["path"].endswith("artifact.iso")]
     assert iso_records and iso_records[0]["content_scan"] == "skipped-raw-iso-container"
+
+
+def assert_archive_limits_fail_closed(tmp: Path) -> None:
+    root = tmp / "archive-limits"
+    root.mkdir()
+    tar_path = root / "oversized.tar"
+    old_member_limit = audit.MAX_ARCHIVE_MEMBER_BYTES
+    try:
+        audit.MAX_ARCHIVE_MEMBER_BYTES = 8
+        payload = b"A" * 9
+        with tarfile.open(tar_path, "w") as archive:
+            info = tarfile.TarInfo("large.txt")
+            info.size = len(payload)
+            archive.addfile(info, fileobj=__import__("io").BytesIO(payload))
+        report = audit.audit_paths([tar_path])
+        assert report["status"] == "fail", report
+        assert any(item["kind"] == "unsafe_archive_member" for item in report["findings"])
+    finally:
+        audit.MAX_ARCHIVE_MEMBER_BYTES = old_member_limit
 
 
 def assert_symlinks_are_rejected(tmp: Path) -> None:
@@ -129,7 +154,8 @@ def main() -> int:
         assert_sensitive_paths_fail(tmp)
         assert_local_credential_stores_fail_redacted(tmp)
         assert_archive_members_are_scanned(tmp)
-        assert_marker_only_and_raw_iso_do_not_fail(tmp)
+        assert_marker_only_passes_and_raw_iso_fails_closed(tmp)
+        assert_archive_limits_fail_closed(tmp)
         assert_symlinks_are_rejected(tmp)
     print("wuci-release-privacy-audit tests: PASS")
     return 0

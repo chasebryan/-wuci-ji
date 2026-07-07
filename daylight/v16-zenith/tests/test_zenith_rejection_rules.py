@@ -140,6 +140,34 @@ class ZenithRejectionRuleTests(unittest.TestCase):
             with self.assertRaises(zenith_verifier.ZenithError):
                 zenith_verifier.build_report(artifact, evidence)
 
+    def test_self_declared_runtime_containment_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = self._artifact(root)
+            evidence = helpers.write_evidence(root, {
+                "boundary_claims": {"runtime_containment_claim": True},
+                "runtime_containment_evidence": {
+                    "valid": True,
+                    "negative_tests_pass": True,
+                },
+            })
+            with self.assertRaises(zenith_verifier.ZenithError):
+                zenith_verifier.build_report(artifact, evidence)
+
+    def test_self_declared_pq_safety_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = self._artifact(root)
+            evidence = helpers.write_evidence(root, {
+                "boundary_claims": {"whole_system_post_quantum_safety_claim": True},
+                "pq_evidence": {
+                    "valid": True,
+                    "external_crypto_review_valid": True,
+                },
+            })
+            with self.assertRaises(zenith_verifier.ZenithError):
+                zenith_verifier.build_report(artifact, evidence)
+
     def test_float_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

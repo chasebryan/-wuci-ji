@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
+from .canonical_json import load_json_file_no_duplicates
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SOLSTICE_ROOT = REPO_ROOT / "daylight" / "v15-solstice"
@@ -44,8 +44,8 @@ def load_and_verify(artifact_dir: Path | str) -> dict[str, Any]:
     artifact_dir = Path(artifact_dir)
     artifact_verify = _module("artifact_verify")
     artifact_verify.verify_artifact_dir(artifact_dir)
-    scorecard = json.loads((artifact_dir / "scorecard.v15-solstice.json").read_text(encoding="utf-8"))
-    manifest = json.loads((artifact_dir / "artifact-manifest.solstice.json").read_text(encoding="utf-8"))
+    scorecard = load_json_file_no_duplicates(artifact_dir / "scorecard.v15-solstice.json", "Solstice scorecard")
+    manifest = load_json_file_no_duplicates(artifact_dir / "artifact-manifest.solstice.json", "Solstice manifest")
     body = scorecard["score_body"]
     return {
         "artifact_dir": artifact_dir,

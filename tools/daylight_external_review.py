@@ -7,7 +7,6 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +17,7 @@ import wuci_safeio
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PACKET = REPO_ROOT / "daylight-equation" / "evidence" / "daylight-v06-external-review-packet.v1.json"
+TRUSTED_SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
 EVIDENCE_SCHEMA = "daylight-v06-external-review-v1"
 SET_SCHEMA = "daylight-v06-external-review-set-v1"
 VERIFY_SCHEMA = "daylight-v06-external-review-verification-v1"
@@ -163,15 +163,33 @@ def validate_scope(value: Any) -> list[str]:
 
 
 def ssh_keygen_path(override: str | None) -> str:
+    trusted = TRUSTED_SSH_KEYGEN
+    try:
+        wuci_safeio.lstat_regular_file(
+            trusted,
+            "trusted ssh-keygen verifier",
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
+        trusted_resolved = trusted.resolve(strict=True)
+    except (OSError, wuci_safeio.SafeIOError):
+        fail(f"trusted ssh-keygen verifier is unavailable: {trusted}")
     if override:
         path = Path(override)
-        if "\0" in override or not path.is_absolute() or not path.exists():
-            fail("--ssh-keygen must be an existing absolute path")
-        return str(path)
-    found = shutil.which("ssh-keygen")
-    if not found:
-        fail("ssh-keygen not found on PATH")
-    return found
+        if "\0" in override or not path.is_absolute():
+            fail("--ssh-keygen must be an absolute path")
+        try:
+            wuci_safeio.lstat_regular_file(
+                path,
+                "ssh-keygen verifier",
+                reject_symlink=True,
+                reject_hardlink=True,
+            )
+            if path.resolve(strict=True) != trusted_resolved:
+                fail(f"--ssh-keygen must resolve to trusted verifier: {trusted}")
+        except (OSError, wuci_safeio.SafeIOError):
+            fail(f"ssh-keygen verifier is not a trusted regular file: {path}")
+    return str(trusted)
 
 
 def read_public_key_line(path: Path) -> str:

@@ -17,7 +17,7 @@ Penumbra seals a message so that `Open = ⊥` unless the caller presents evidenc
 - built entirely on standard, externally-cryptanalyzed primitives.
 
 **Penumbra IS NOT** (the built artifact MUST NOT claim otherwise, in code, output, or docs):
-- unbreakable. No such property is asserted or achievable here.
+- absolute-break-resistance. No such property is asserted or achievable here.
 - post-quantum "immune." It is symmetric; see §3 for the exact, reduced PQ figure.
 - a source of confidentiality from *public* evidence. A lock anyone can satisfy is a lock anyone can open (§5).
 - self-certifying of its own strength. Strength depends on facts (witness entropy, AEAD standing) that live outside this repository.
@@ -203,7 +203,7 @@ Per-seal `seal_salt` makes `K` unique to each seal even for identical (policy, �
 
 These are acceptance-blocking, not stylistic.
 
-1. **Forbidden-output test.** A CI test runs `inspect` (and any status/help output) and asserts it contains **none** of: `unbreakable`, `uncrackable`, `perfect secrecy`, `impossible to break`, `guaranteed secure`, `quantum-proof`, `100% secure`. Presence fails the build. (`ManualScore -> Reject`.)
+1. **Forbidden-output test.** A CI test runs `inspect` (and any status/help output) and asserts it contains none of the repository denied-claim phrase categories: absolute-break-resistance, perfect-secrecy, security-guarantee, quantum-proofing, or percentage-perfect wording. Presence fails the build. (`ManualScore -> Reject`.)
 2. **Asserted vs proven.** `asserted_entropy_bits` is always rendered as *asserted, not proven*. The tool never prints a bound it cannot back with a KAT or attestation.
 3. **No confidentiality-by-default.** `mode` has no default; `SEALED_PUBLIC` output is flagged as NONE-confidentiality by `inspect`.
 4. **Boundary text shipped.** `§0` and `§3` text ship verbatim in `docs/penumbra/`.

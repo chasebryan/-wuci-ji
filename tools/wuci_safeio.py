@@ -244,6 +244,49 @@ def read_regular_ascii(
         raise SafeIOError(f"{context} is not ASCII") from exc
 
 
+def _reject_duplicate_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise SafeIOError(f"duplicate JSON key rejected: {key}")
+        result[key] = value
+    return result
+
+
+def loads_json_no_duplicates(text: str, context: str) -> Any:
+    try:
+        return json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_json_pairs,
+        )
+    except SafeIOError:
+        raise
+    except json.JSONDecodeError as exc:
+        raise SafeIOError(f"{context} is not valid JSON: {exc.msg}") from exc
+
+
+def read_regular_json(
+    path: Path,
+    context: str,
+    *,
+    reject_symlink: bool = True,
+    reject_hardlink: bool = False,
+    max_bytes: int | None = None,
+) -> Any:
+    data = read_regular_bytes(
+        path,
+        context,
+        reject_symlink=reject_symlink,
+        reject_hardlink=reject_hardlink,
+        max_bytes=max_bytes,
+    )
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SafeIOError(f"{context} is not UTF-8") from exc
+    return loads_json_no_duplicates(text, context)
+
+
 def _hash_file(path: Path, algorithm: str, context: str) -> str:
     digest = hashlib.new(algorithm)
     data = read_regular_bytes(path, context, reject_symlink=True)
@@ -278,14 +321,11 @@ def write_new_bytes(
     except OSError as exc:
         raise SafeIOError(f"could not create new {context}: {path}") from exc
     try:
+        os.fchmod(fd, mode)
         os.write(fd, data)
         os.fsync(fd)
     finally:
         os.close(fd)
-    try:
-        os.chmod(path, mode)
-    except OSError as exc:
-        raise SafeIOError(f"could not set {context} mode: {path}") from exc
     if fsync_parent:
         _fsync_parent(path)
 

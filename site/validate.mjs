@@ -528,7 +528,7 @@ async function assertDaylightStatusBinding() {
   }
 
   const index = await readFile(new URL("index.html", siteRoot), "utf8");
-  const displayed = withCommas(status.score_AM_plus);
+  const displayed = String(status.score_AM_plus);
   if (!index.includes(displayed)) {
     fail(`index.html does not display the evidence AM+ number: ${displayed}`);
   }

@@ -84,6 +84,13 @@ def main() -> None:
             "strict safe read must reject hardlinks",
         )
 
+        json_file = tmp / "duplicate.json"
+        json_file.write_text('{"schema":"x","schema":"y"}\n', encoding="utf-8")
+        assert_fails(
+            lambda: wuci_safeio.read_regular_json(json_file, "duplicate JSON"),
+            "safe JSON read must reject duplicate object keys",
+        )
+
         real_parent = tmp / "real-parent"
         real_parent.mkdir()
         parent_link = tmp / "parent-link"

@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import sys
 from pathlib import Path
 from typing import Any
@@ -132,9 +133,9 @@ def read_text(path: Path, context: str) -> str:
 
 def load_json(path: Path, context: str) -> Any:
     try:
-        return json.loads(read_text(path, context))
-    except json.JSONDecodeError as exc:
-        raise CageError(f"{context} is not valid JSON: {exc.msg}") from exc
+        return wuci_safeio.loads_json_no_duplicates(read_text(path, context), context)
+    except wuci_safeio.SafeIOError as exc:
+        raise CageError(str(exc)) from exc
 
 
 def write_new_text(path: Path, value: str, context: str) -> None:
@@ -198,7 +199,13 @@ def bundle_file(bundle: Path, filename: str) -> Path:
 
 
 def assert_public_bundle_shape(bundle: Path) -> None:
-    if not bundle.is_dir():
+    try:
+        root_info = bundle.lstat()
+    except OSError as exc:
+        raise CageError(f"missing public witness bundle directory: {bundle}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        raise CageError(f"public witness bundle directory must not be a symlink: {bundle}")
+    if not stat.S_ISDIR(root_info.st_mode):
         raise CageError(f"missing public witness bundle directory: {bundle}")
     expected = set(PUBLIC_FILES)
     observed: set[str] = set()

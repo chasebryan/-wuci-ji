@@ -15,6 +15,7 @@ import wuci_frost_authorize as warrant
 import wuci_gate
 import wuci_receipt_contract as receipt_contract
 import wuci_safeio
+import wuci_verifier_identity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -49,9 +50,23 @@ def sha256_file(path: Path, context: str) -> str:
 
 
 def runner_from_args(args: argparse.Namespace) -> list[str]:
-    if getattr(args, "runner", None):
-        return shlex.split(args.runner)
-    return shlex.split(os.environ.get("WUCI_JI_RUNNER", ""))
+    runner = wuci_verifier_identity.validate_runner(
+        getattr(args, "runner", None),
+        strict=wuci_verifier_identity.is_strict(getattr(args, "strict_proof", False)),
+    )
+    return shlex.split(runner)
+
+
+def require_verifier_identity(args: argparse.Namespace, bin_path: Path) -> None:
+    try:
+        wuci_verifier_identity.require_trusted_verifier(
+            bin_path,
+            getattr(args, "trusted_bin_sha256", None),
+            getattr(args, "runner", None),
+            strict=wuci_verifier_identity.is_strict(getattr(args, "strict_proof", False)),
+        )
+    except wuci_verifier_identity.VerifierIdentityError as exc:
+        raise CompatError(str(exc)) from exc
 
 
 def run_wuci(
@@ -165,6 +180,7 @@ def build_contract_fields(args: argparse.Namespace) -> dict[str, str]:
     artifact_path = Path(args.artifact)
     receipt_path = Path(args.receipt)
     runner = runner_from_args(args)
+    require_verifier_identity(args, bin_path)
     receipt = load_receipt(receipt_path)
     action = str(receipt["action"])
 
@@ -254,6 +270,7 @@ def verify_fields(args: argparse.Namespace) -> dict[str, str]:
     artifact_path = Path(args.artifact)
     receipt_path = Path(args.receipt)
     runner = runner_from_args(args)
+    require_verifier_identity(args, bin_path)
 
     require_hash(
         sha256_file(artifact_path, "sealed artifact"),
@@ -363,6 +380,7 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--contract", required=True)
     parser.add_argument("--runner")
     parser.add_argument("--quiet", action="store_true")
+    wuci_verifier_identity.add_strict_args(parser)
 
 
 def main() -> int:

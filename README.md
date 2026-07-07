@@ -152,7 +152,7 @@ make daylight-meridian-vault-demo
 make daylight-meridian-ci
 ```
 
-Meridian's honest internal ceiling is `998,900M / 1,000,000M` (`+700M` over v14C+,
+Meridian's honest internal ceiling is `998900M / 1,000,000M` (`+700M` over v14C+,
 every point earned by added internal evidence). The residual `1,100M` is held by
 external obligations the harness cannot self-issue (external red-team, post-quantum
 and crypto audit, independent replication, external falsification, and independent
@@ -167,7 +167,7 @@ the hermetic frontier layer over Meridian. It pins the v13 weight vector by
 digest, hashes the evidence resolution, requires semantic/replay-bound closure,
 proves the output-ledger scorecard append, and treats external attestations as
 signed rootset-governed evidence rather than signer strings. The default repo
-evidence remains the honest internal ceiling: `998,900M / 1,000,000M`, with
+evidence remains the honest internal ceiling: `998900M / 1,000,000M`, with
 `1,100M` open external residue and no production/runtime/PQ/certification claim.
 
 ```sh
@@ -187,7 +187,7 @@ score: `ZenithAdjustedScore_M = SolsticeScore_M`. Instead it computes a separate
 `ZenithAssurance_M` and level over reproducibility, provenance,
 multi-implementation agreement, fuzzing, signed external reviews, transparency
 logging, falsification, and boundary discipline. The current repo-owned artifact
-is expected to remain `998,900M` and verify at `Z3_HERMETIC_SOLSTICE`; public
+is expected to remain `998900M` and verify at `Z3_HERMETIC_SOLSTICE`; public
 external evidence is required for `Z6_PUBLIC_EXTERNAL_STANDARD`.
 
 ```sh
@@ -211,7 +211,7 @@ E_trust = external trust / attestation index
 C_level = claim authority level
 ```
 
-The current Solstice artifact remains `D_claim_M = 998,900M / 1,000,000M`.
+The current Solstice artifact remains `D_claim_M = 998900M / 1,000,000M`.
 Analemma sets that artifact as the baseline `A_self_A = 1,000,000A`; future
 verified proof mass can raise `A_self_A` without changing the Daylight M-score.
 Manual credit, float values, registry credit tampering, and claim-score overrides
@@ -246,7 +246,7 @@ S_AM+(t) = min(999999999, floor(10^9 * (1 - exp(-Omega_eff))))
 ```
 
 The declaration threshold is `Omega_eff(t) >= ln(10^9)`. The maximum declaration is
-`999,999,999 AM+`; `1,000,000,000 AM+` is mathematically reserved. The committed
+`999999999 AM+`; `1,000,000,000 AM+` is mathematically reserved. The committed
 declaration fixture demonstrates the equation only and is marked
 `fixture: true`, `claim_usable: false`.
 
@@ -269,7 +269,7 @@ Singularity is not production certification, not runtime containment evidence,
 not FIPS validation, not external certification, and not a whole-system
 post-quantum safety claim. The current scorecard verifies but declaration-gate
 refuses by default because `omega_eff` is below threshold, the discrete score is
-below `999,999,999 AM+`, and real three-verifier agreement evidence is absent.
+below `999999999 AM+`, and real three-verifier agreement evidence is absent.
 
 ## Daylight Horizon Alpha
 

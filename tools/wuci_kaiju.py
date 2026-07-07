@@ -22,6 +22,7 @@ import wuci_progress
 
 ISO_SECTOR_SIZE = 2048
 READ_CHUNK = 1024 * 1024
+MAX_PUBLIC_JSON_BYTES = 4 * 1024 * 1024
 DISK_SECTOR_SIZE = 512
 EXT_SUPERBLOCK_OFFSET = 1024
 EXT_SUPER_MAGIC = 0xEF53
@@ -155,7 +156,21 @@ def _cloexec() -> int:
     return getattr(os, "O_CLOEXEC", 0)
 
 
-def read_public_json(path: Path, label: str = "WUCI-KAIJU manifest") -> dict[str, Any]:
+def reject_duplicate_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise KaijuError(f"duplicate JSON key rejected: {key}")
+        result[key] = value
+    return result
+
+
+def read_public_json(
+    path: Path,
+    label: str = "WUCI-KAIJU manifest",
+    *,
+    max_bytes: int = MAX_PUBLIC_JSON_BYTES,
+) -> dict[str, Any]:
     try:
         info = os.lstat(path)
     except OSError as exc:
@@ -181,16 +196,23 @@ def read_public_json(path: Path, label: str = "WUCI-KAIJU manifest") -> dict[str
         if opened.st_nlink != 1:
             raise KaijuError(f"{label} must not be hardlinked: {path}")
         chunks: list[bytes] = []
+        total = 0
         while True:
             chunk = os.read(fd, 1024 * 1024)
             if not chunk:
                 break
+            total += len(chunk)
+            if total > max_bytes:
+                raise KaijuError(f"{label} exceeds maximum size: {path}")
             chunks.append(chunk)
     finally:
         os.close(fd)
 
     try:
-        value = json.loads(b"".join(chunks).decode("utf-8"))
+        value = json.loads(
+            b"".join(chunks).decode("utf-8"),
+            object_pairs_hook=reject_duplicate_json_pairs,
+        )
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise KaijuError(f"{label} is not valid UTF-8 JSON: {path}") from exc
     if not isinstance(value, dict):
@@ -198,8 +220,42 @@ def read_public_json(path: Path, label: str = "WUCI-KAIJU manifest") -> dict[str
     return value
 
 
+def reject_symlink_ancestors(path: Path, label: str) -> None:
+    parent = path.parent
+    current = Path(parent.anchor) if parent.is_absolute() else Path(".")
+    parts = parent.parts[1:] if parent.is_absolute() else parent.parts
+    for part in parts:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise KaijuError(f"could not stat {label} parent: {current}") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise KaijuError(f"{label} parent must not be a symlink: {current}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise KaijuError(f"{label} parent must be a directory: {current}")
+
+
+def ensure_output_directory_root(path: Path, label: str) -> None:
+    reject_symlink_ancestors(path, label)
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise KaijuError(f"could not stat {label}: {path}") from exc
+    else:
+        if stat.S_ISLNK(info.st_mode):
+            raise KaijuError(f"{label} must not be a symlink: {path}")
+        if not stat.S_ISDIR(info.st_mode):
+            raise KaijuError(f"{label} must be a directory: {path}")
+    reject_symlink_ancestors(path, label)
+
+
 def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_output_directory_root(path.parent, f"{path.name} JSON parent")
     reject_unsafe_existing_path(path, f"{path.name} JSON")
     tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent), text=True)
     try:
@@ -1178,7 +1234,7 @@ def install_iso(
     source_info = require_regular_local_file(source, "Kali ISO source")
     iso_name = safe_iso_name(name or source.name)
     root = default_iso_root() if iso_root is None else iso_root
-    root.mkdir(parents=True, exist_ok=True)
+    ensure_output_directory_root(root, "Kali ISO workspace root")
     dest = root / iso_name
     try:
         if source.resolve(strict=True) == dest.resolve(strict=False):
@@ -1342,7 +1398,7 @@ def create_disk(
     if "/" in name or name in {"", ".", ".."}:
         raise KaijuError("disk name must be a plain filename")
     root = default_disk_root() if disk_root is None else disk_root
-    root.mkdir(parents=True, exist_ok=True)
+    ensure_output_directory_root(root, "disk workspace root")
     disk_path = root / name
     prepare_output_path(disk_path, "disk image", force=force)
     tmp_fd, tmp_name = tempfile.mkstemp(prefix=f".{name}.", dir=str(root))

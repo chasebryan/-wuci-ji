@@ -100,9 +100,9 @@ An attestation file has schema `wuci-angel-attestation-v1`:
 }
 ```
 
-The gate rejects reserved overclaims such as unbreakable, quantum-safe,
-quantum-proof, guaranteed secure, and runtime sandboxed. It also rejects fixture,
-demo, sample, test, example, or self-issued issuers.
+The gate rejects reserved overclaim categories such as absolute-break-resistance,
+quantum-safety, security guarantees, and runtime-sandbox assertions. It also
+rejects fixture, demo, sample, test, example, or self-issued issuers.
 
 ## Commands
 

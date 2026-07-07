@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
 import wuci_release_privacy_audit
+import wuci_safeio
 
 
 SCHEMA = "wuci-os-public-release-bundle-v1"
@@ -26,6 +27,7 @@ DEFAULT_ROOTFS_PRIVACY_AUDIT = Path("build/wuci-os/privacy-audit-final-rootfs.js
 DEFAULT_DAYLIGHT_SSV = Path("build/daylight/ssv-v1/daylight-ssv.report.json")
 
 ISO_NAME = "Wuci-OS-x86_64-musl.iso"
+OPAQUE_CONTAINER_SUFFIXES = {".iso", ".ova"}
 NON_CLAIMS = (
     "This bundle is an allowlisted public release-candidate directory, not a whole-workstation copy.",
     "This bundle is ISO-only by default; VirtualBox/OVA artifacts are intentionally not included.",
@@ -63,9 +65,16 @@ def sha256_file(path: Path) -> tuple[str, int]:
 def digest_file(path: Path, algorithm: str, label: str) -> tuple[str, int]:
     info = require_regular(path, label)
     digest = hashlib.new(algorithm)
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+    try:
+        for chunk in wuci_safeio.iter_regular_chunks(
+            path,
+            label,
+            reject_symlink=True,
+            reject_hardlink=True,
+        ):
             digest.update(chunk)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseBundleError(str(exc)) from exc
     return digest.hexdigest(), info.st_size
 
 
@@ -88,11 +97,15 @@ def require_regular(path: Path, label: str) -> os.stat_result:
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
-    require_regular(path, label)
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise ReleaseBundleError(f"{label} is not valid JSON: {path}: {exc}") from exc
+        value = wuci_safeio.read_regular_json(
+            path,
+            label,
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseBundleError(str(exc)) from exc
     if not isinstance(value, dict):
         raise ReleaseBundleError(f"{label} must be a JSON object: {path}")
     return value
@@ -127,16 +140,28 @@ def run_command(argv: list[str], *, cwd: Path, label: str, fatal: bool = True) -
 
 
 def write_text_atomic(path: Path, text: str, *, mode: int = 0o644) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        wuci_safeio.ensure_parent_directory(path, f"release bundle output {path}", mode=0o755)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseBundleError(str(exc)) from exc
+    try:
+        target_info = path.lstat()
+    except FileNotFoundError:
+        pass
+    else:
+        if stat.S_ISLNK(target_info.st_mode):
+            raise ReleaseBundleError(f"release bundle output must not be a symlink: {path}")
+        if not stat.S_ISREG(target_info.st_mode):
+            raise ReleaseBundleError(f"release bundle output must be a regular file: {path}")
     fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     tmp = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            os.fchmod(handle.fileno(), mode)
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp, path)
-        os.chmod(path, mode)
         fsync_parent(path.parent)
     except Exception:
         try:
@@ -162,6 +187,10 @@ def fsync_parent(path: Path) -> None:
 
 
 def reset_output_dir(path: Path, *, force: bool) -> None:
+    try:
+        wuci_safeio.ensure_parent_directory(path, "release bundle output root", mode=0o755)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseBundleError(str(exc)) from exc
     if path.exists() or path.is_symlink():
         if not force:
             raise ReleaseBundleError(f"output already exists; pass --force to replace: {path}")
@@ -192,24 +221,42 @@ def safe_relpath(value: str) -> PurePosixPath:
     return pure
 
 
+def is_opaque_container_path(path: Path) -> bool:
+    return path.suffix.lower() in OPAQUE_CONTAINER_SUFFIXES
+
+
 def copy_regular(src: Path, dst_root: Path, rel: str) -> dict[str, Any]:
     safe = safe_relpath(rel)
     dst = dst_root.joinpath(*safe.parts)
     info = require_regular(src, f"release artifact {src}")
-    dst.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        wuci_safeio.ensure_parent_directory(dst, f"release bundle artifact {rel}", mode=0o755)
+    except wuci_safeio.SafeIOError as exc:
+        raise ReleaseBundleError(str(exc)) from exc
     fd, tmp_name = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent))
     tmp = Path(tmp_name)
     digest = hashlib.sha256()
     try:
-        with os.fdopen(fd, "wb") as out, src.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+        with os.fdopen(fd, "wb") as out:
+            os.fchmod(out.fileno(), 0o644)
+            for chunk in wuci_safeio.iter_regular_chunks(
+                src,
+                f"release artifact {src}",
+                reject_symlink=True,
+                reject_hardlink=True,
+            ):
                 digest.update(chunk)
                 out.write(chunk)
             out.flush()
             os.fsync(out.fileno())
         os.replace(tmp, dst)
-        os.chmod(dst, 0o644)
         fsync_parent(dst.parent)
+    except wuci_safeio.SafeIOError as exc:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise ReleaseBundleError(str(exc)) from exc
     except Exception:
         try:
             tmp.unlink()
@@ -257,6 +304,64 @@ def require_privacy_pass(path: Path) -> dict[str, Any]:
     if isinstance(findings, list) and findings:
         raise ReleaseBundleError(f"privacy audit has findings: {path}")
     return report
+
+
+def _privacy_report_path_keys(path: Path) -> set[str]:
+    keys = {str(path), str(path.resolve(strict=False))}
+    try:
+        keys.add(path.resolve(strict=False).relative_to(Path.cwd().resolve(strict=False)).as_posix())
+    except ValueError:
+        pass
+    return keys
+
+
+def require_privacy_bindings(
+    report: dict[str, Any],
+    artifacts: Iterable[tuple[str, Path, str, bool]],
+) -> dict[str, dict[str, Any]]:
+    scanned = report.get("scanned_files")
+    if not isinstance(scanned, list):
+        raise ReleaseBundleError("privacy audit does not include scanned file digest records")
+    by_path = {str(item.get("path")): item for item in scanned if isinstance(item, dict)}
+    excluded_labels = {"privacy_audit", "rootfs_privacy_audit"}
+    bindings: dict[str, dict[str, Any]] = {}
+    for label, src, _rel, required in artifacts:
+        if label in excluded_labels:
+            continue
+        if not src.exists():
+            if required:
+                raise ReleaseBundleError(f"required public artifact is missing from privacy binding: {label}: {src}")
+            continue
+        match = None
+        for key in _privacy_report_path_keys(src):
+            if key in by_path:
+                match = by_path[key]
+                break
+        if match is None:
+            raise ReleaseBundleError(f"privacy audit did not scan copied artifact: {label}: {src}")
+        expected_sha256, _size = sha256_file(src)
+        if match.get("sha256") != expected_sha256:
+            raise ReleaseBundleError(f"privacy audit digest is stale for copied artifact: {label}: {src}")
+        content_scan = str(match.get("content_scan", ""))
+        if content_scan.startswith("skipped-raw-"):
+            raise ReleaseBundleError(f"privacy audit did not inspect copied container payload: {label}: {src}")
+        if is_opaque_container_path(src) and not content_scan:
+            raise ReleaseBundleError(f"privacy audit lacks container inspection evidence: {label}: {src}")
+        bindings[label] = dict(match)
+    return bindings
+
+
+def iter_bundle_self_audit_paths(root: Path) -> Iterable[Path]:
+    for path in sorted(root.rglob("*")):
+        try:
+            info = path.lstat()
+        except FileNotFoundError:
+            continue
+        if stat.S_ISDIR(info.st_mode):
+            continue
+        if stat.S_ISREG(info.st_mode) and is_opaque_container_path(path):
+            continue
+        yield path
 
 
 def checksum_lines(root: Path, records: Iterable[dict[str, Any]]) -> list[str]:
@@ -308,16 +413,19 @@ def build_bundle(
     if not isinstance(blockers, list):
         blockers = []
 
-    reset_output_dir(out, force=force)
-    copied: list[dict[str, Any]] = []
-    missing_optional: list[str] = []
-    for label, src, rel, required in input_artifacts(
+    artifacts = input_artifacts(
         final_dir=final_dir,
         evidence_dir=evidence_dir,
         privacy_audit=privacy_audit,
         rootfs_privacy_audit=rootfs_privacy_audit,
         daylight_ssv=daylight_ssv,
-    ):
+    )
+    privacy_bindings = require_privacy_bindings(privacy_report, artifacts)
+
+    reset_output_dir(out, force=force)
+    copied: list[dict[str, Any]] = []
+    missing_optional: list[str] = []
+    for label, src, rel, required in artifacts:
         if not src.exists():
             if required:
                 raise ReleaseBundleError(f"required public artifact is missing: {label}: {src}")
@@ -325,6 +433,15 @@ def build_bundle(
             continue
         record = copy_regular(src, out, rel)
         record["label"] = label
+        binding = privacy_bindings.get(label)
+        if binding is not None:
+            bound: dict[str, Any] = {
+                "source_path": binding.get("path"),
+                "sha256": binding.get("sha256"),
+            }
+            if "content_scan" in binding:
+                bound["content_scan"] = binding.get("content_scan")
+            record["privacy_binding"] = bound
         copied.append(record)
 
     notes_path = out / "RELEASE-NOTES.txt"
@@ -367,7 +484,7 @@ def build_bundle(
     checksums = checksum_lines(out, copied)
     write_text_atomic(out / "CHECKSUMS.sha256", "\n".join(checksums) + "\n")
 
-    bundle_audit = wuci_release_privacy_audit.audit_paths([out])
+    bundle_audit = wuci_release_privacy_audit.audit_paths(iter_bundle_self_audit_paths(out))
     if bundle_audit.get("status") != "pass":
         raise ReleaseBundleError("public bundle privacy audit failed: " + stable_json(bundle_audit))
 
@@ -436,6 +553,20 @@ def verify_optional_group(
     if all(present):
         return True, []
     return False, [blocker]
+
+
+def require_repo_build_tool(path: Path, repo: Path, expected_name: str, label: str) -> dict[str, Any]:
+    expected = repo / "build" / expected_name
+    require_regular(path, label)
+    try:
+        resolved = path.resolve(strict=True)
+        expected_resolved = expected.resolve(strict=True)
+    except OSError as exc:
+        raise ReleaseBundleError(f"{label} does not exist: {path}") from exc
+    if resolved != expected_resolved:
+        raise ReleaseBundleError(f"{label} must be the repository build output {expected}")
+    digest, size = digest_file(path, "sha256", label)
+    return {"path": str(path), "sha256": digest, "bytes": size}
 
 
 def verify_release_bundle(
@@ -549,6 +680,11 @@ def verify_release_bundle(
     bin_sha512, _ = digest_file(bin_path, "sha512", "release binary")
     require_regular(pq_pins, "PQ verifier pins")
     require_regular(production_authority_policy, "production authority policy")
+    verifier_tools = {
+        "rust_sandbox": require_repo_build_tool(rust_sandbox, repo, "wuci-sandbox", "Rust sandbox verifier"),
+        "zig_witness": require_repo_build_tool(zig_witness, repo, "wuci-witness", "Zig witness verifier"),
+        "zig_ledger": require_repo_build_tool(zig_ledger, repo, "wuci-ledger-tool", "Zig ledger verifier"),
+    }
 
     commands.append(
         run_command(
@@ -749,6 +885,7 @@ def verify_release_bundle(
                 "quantum_safe_claim_allowed": pq_detection.get("quantum_safe_claim_allowed"),
             },
             "parser_replay": parser_record,
+            "verifier_tools": verifier_tools,
         },
         "blockers": unique_blockers,
         "non_claims": list(VERIFY_NON_CLAIMS),

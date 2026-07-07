@@ -106,7 +106,12 @@ def sha256_file(path: Path) -> str:
 
 def read_ascii(path: Path, context: str) -> str:
     try:
-        return wuci_safeio.read_regular_ascii(path, context, reject_symlink=True)
+        return wuci_safeio.read_regular_ascii(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
     except wuci_safeio.SafeIOError as exc:
         raise LedgerError(str(exc)) from exc
 

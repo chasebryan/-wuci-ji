@@ -49,6 +49,7 @@ from .envelope import EnvelopeRefused
 from .ledger import LedgerError
 from .obligations import ObligationError
 from .scoring import ScoreError
+from .canonical_json import CanonicalJSONError, loads_json_no_duplicates
 
 # Any failure to derive a trustworthy scorecard from the vault's evidence is a
 # fail-closed refusal, not an opaque crash: NoEvidence -> NoScore -> NoSeal and
@@ -63,6 +64,7 @@ DEFAULT_VAULT_ROOT = Path(os.environ.get("MERIDIAN_VAULT", str(Path.home() / ".m
 DEFAULT_MIN_SCORE_M = 998_900
 KDF_ITERATIONS = 200_000
 KEY_LEN = 32
+MAX_ENTRY_NAME_BYTES = 160
 
 
 class VaultError(Exception):
@@ -104,12 +106,12 @@ def _write_private(path: Path, data: bytes) -> None:
     fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     tmp = Path(tmp_name)
     try:
+        os.fchmod(fd, 0o600)
         view = memoryview(data)
         while view:
             written = os.write(fd, view)
             view = view[written:]
         os.fsync(fd)
-        os.chmod(tmp, 0o600)
         os.replace(tmp, path)
     finally:
         os.close(fd)
@@ -144,8 +146,41 @@ def _safe_name(original: str) -> str:
     """Deterministic, collision-resistant vault entry name from a source path."""
     base = Path(original).name or "entry"
     base = "".join(ch if (ch.isalnum() or ch in "-._") else "_" for ch in base)
+    if not base or base.startswith("."):
+        base = "entry_" + base.lstrip(".")
     digest = hashlib.sha256(original.encode("utf-8")).hexdigest()[:12]
-    return f"{base}.{digest}"
+    return _validate_entry_name(f"{base}.{digest}")
+
+
+def _validate_entry_name(name: str) -> str:
+    if not isinstance(name, str):
+        raise VaultError("vault entry name must be a string")
+    encoded = name.encode("utf-8", "strict")
+    if not name or len(encoded) > MAX_ENTRY_NAME_BYTES:
+        raise VaultError("vault entry name is empty or too long")
+    if name in {".", ".."} or name.startswith("."):
+        raise VaultError("vault entry name must not be hidden or special")
+    if "/" in name or (os.altsep and os.altsep in name) or ".." in name:
+        raise VaultError("vault entry name must be a single safe path component")
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+    if any(ch not in allowed for ch in name):
+        raise VaultError("vault entry name contains unsupported characters")
+    return name
+
+
+def _prepare_vault_root(root: Path, *, force: bool) -> None:
+    try:
+        info = os.lstat(root)
+    except FileNotFoundError:
+        root.mkdir(parents=True, mode=0o700)
+        return
+    if stat.S_ISLNK(info.st_mode):
+        raise VaultError(f"vault root must not be a symlink: {root}")
+    if not stat.S_ISDIR(info.st_mode):
+        raise VaultError(f"vault root must be a directory: {root}")
+    if any(root.iterdir()) and not force:
+        raise VaultError(f"vault root already exists and is not empty: {root} (use force to rebuild)")
+    root.mkdir(parents=True, exist_ok=True)
 
 
 class Vault:
@@ -159,11 +194,17 @@ class Vault:
         self.index_path = self.root / "index.json"
         self.evidence_ledger = self.root / "evidence" / "ledger.jsonl"
         self.evidence_corpus = self.root / "evidence" / "corpus.jsonl"
+        try:
+            root_info = os.lstat(self.root)
+        except OSError as exc:
+            raise VaultError(f"vault root is unreadable: {self.root}") from exc
+        if stat.S_ISLNK(root_info.st_mode) or not stat.S_ISDIR(root_info.st_mode):
+            raise VaultError(f"vault root must be a non-symlink directory: {self.root}")
         if not self.config_path.is_file():
             raise VaultError(f"no Meridian vault at {self.root} (run: vault init)")
         try:
-            self.config = json.loads(_read_private(self.config_path).decode("utf-8"))
-        except (OSError, json.JSONDecodeError, VaultError) as exc:
+            self.config = loads_json_no_duplicates(_read_private(self.config_path), "Meridian vault config")
+        except (OSError, CanonicalJSONError, VaultError) as exc:
             raise VaultError(f"vault config is unreadable: {exc}") from exc
         if self.config.get("vault_version") != VAULT_VERSION:
             raise VaultError("vault config version is not recognized")
@@ -207,7 +248,13 @@ class Vault:
     def _load_index(self) -> dict[str, Any]:
         if not self.index_path.is_file():
             return {"vault_version": VAULT_VERSION, "entries": {}}
-        return json.loads(_read_private(self.index_path).decode("utf-8"))
+        try:
+            index = loads_json_no_duplicates(_read_private(self.index_path), "Meridian vault index")
+        except CanonicalJSONError as exc:
+            raise VaultError(f"vault index is unreadable: {exc}") from exc
+        if not isinstance(index, dict):
+            raise VaultError("vault index must be a JSON object")
+        return index
 
     def _save_index(self, index: dict[str, Any]) -> None:
         # The index names every sealed entry; keep it private like the store.
@@ -223,6 +270,7 @@ class Vault:
 
     def seal_bytes(self, name: str, plaintext: bytes, *, passphrase: str | None = None,
                    meta: dict[str, Any] | None = None) -> dict[str, Any]:
+        name = _validate_entry_name(name)
         try:
             envelope = api.seal_envelope(
                 plaintext=plaintext,
@@ -253,6 +301,7 @@ class Vault:
         return record
 
     def open_bytes(self, name: str, *, passphrase: str | None = None) -> bytes:
+        name = _validate_entry_name(name)
         out = self.store_dir / f"{name}.mae"
         if not out.is_file():
             raise VaultError(f"no sealed entry named {name!r}")
@@ -283,7 +332,7 @@ class Vault:
         if src_info.st_nlink != 1:
             raise VaultError(f"refusing to seal a hardlinked file: {src}")
         plaintext = _read_private(src)
-        entry = name or _safe_name(str(src.resolve()))
+        entry = _validate_entry_name(name) if name is not None else _safe_name(str(src.resolve()))
         record = self.seal_bytes(
             entry, plaintext, passphrase=passphrase,
             meta={"original_path": str(src.resolve()), "kept_original": keep_original},
@@ -304,6 +353,7 @@ class Vault:
 
     def open_file(self, name: str, *, out_path: Path | str | None = None,
                   passphrase: str | None = None, restore: bool = False) -> dict[str, Any]:
+        name = _validate_entry_name(name)
         plaintext = self.open_bytes(name, passphrase=passphrase)
         index = self._load_index()
         record = index.get("entries", {}).get(name, {})
@@ -357,8 +407,8 @@ def init_vault(
 ) -> dict[str, Any]:
     """Create a new vault. Refuses to create one the current evidence cannot open."""
     root = Path(root)
-    if root.exists() and any(root.iterdir()) and not force:
-        raise VaultError(f"vault root already exists and is not empty: {root} (use force to rebuild)")
+    _reject_symlink_ancestors(root)
+    _prepare_vault_root(root, force=force)
 
     pkg_examples = api.DEFAULT_OBLIGATIONS.parent.parent / "examples"
     ledger_src = Path(evidence_ledger) if evidence_ledger else pkg_examples / "ledger.seed.jsonl"
@@ -390,8 +440,10 @@ def init_vault(
     if missing:
         raise VaultError("refusing to init: evidence does not close required obligations: " + ", ".join(missing))
 
-    (root / "evidence").mkdir(parents=True, exist_ok=True)
-    (root / "store").mkdir(parents=True, exist_ok=True)
+    _reject_symlink_ancestors(root / "evidence" / "ledger.jsonl")
+    _reject_symlink_ancestors(root / "store" / ".keep")
+    (root / "evidence").mkdir(parents=True, mode=0o700, exist_ok=True)
+    (root / "store").mkdir(parents=True, mode=0o700, exist_ok=True)
     _write_private(root / "evidence" / "ledger.jsonl", _read_private(ledger_src))
     _write_private(root / "evidence" / "corpus.jsonl", _read_private(corpus_src))
 

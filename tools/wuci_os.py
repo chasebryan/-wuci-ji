@@ -3899,7 +3899,7 @@ def _git_source_paths() -> list[Path]:
     root = repo_root()
     try:
         result = subprocess.run(
-            ["git", "ls-files", "-co", "--exclude-standard", "-z"],
+            ["git", "ls-files", "-z"],
             cwd=root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -4095,19 +4095,24 @@ def write_deterministic_source_kit_tar(
         ticker_mode=ticker_mode,
         reserved_output_rel=_source_kit_output_relative(tar_path),
     )
+    public_records = [
+        {key: value for key, value in record.items() if key != "source_path"}
+        for record in records
+    ]
     tmp_path = _prepare_atomic_tar_path(tar_path, "Wuci-OS source-kit tar")
     manifest = {
         "schema": SOURCE_KIT_SCHEMA,
         "created_utc": SOURCE_KIT_DETERMINISTIC_CREATED_UTC,
         "product": PRODUCT_NAME,
         "image_id": IMAGE_ID,
-        "source_root": str(root),
-        "upstream_source_root": str(root / DEFAULT_UPSTREAM_ROOT),
+        "source_root": "host path intentionally omitted",
+        "upstream_source_root": "host path intentionally omitted",
         "guest_source_root": SOURCE_KIT_PREFIX.as_posix(),
         "guest_upstream_source_root": UPSTREAM_SOURCE_PREFIX.as_posix(),
         "guest_manifest": SOURCE_KIT_GUEST_MANIFEST.as_posix(),
+        "host_path_policy": "source-kit manifests expose repository-relative paths and guest paths only",
         "omitted_missing_tracked_paths": git_missing_source_paths(),
-        "files": records,
+        "files": public_records,
         "extraction_policy": tar_extraction_policy(),
         "timestamp_policy": {
             "created_utc": "fixed archive epoch for byte-reproducible source-kit payloads",

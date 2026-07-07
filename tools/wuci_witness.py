@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shlex
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -146,14 +147,14 @@ def read_ascii(path: Path, context: str) -> str:
 
 def load_json_file(path: Path, context: str) -> Any:
     try:
-        data = wuci_safeio.read_regular_bytes(path, context, reject_symlink=True)
-        return json.loads(data.decode("utf-8"))
+        return wuci_safeio.read_regular_json(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
     except wuci_safeio.SafeIOError as exc:
         raise WitnessError(str(exc)) from exc
-    except UnicodeDecodeError as exc:
-        raise WitnessError(f"{context} is not UTF-8") from exc
-    except json.JSONDecodeError as exc:
-        raise WitnessError(f"{context} is not valid JSON: {exc.msg}") from exc
 
 
 def write_new_ascii(path: Path, value: str, context: str) -> None:
@@ -227,7 +228,13 @@ def assert_public_profile(
     require_attestation: bool,
     strict_proof: bool = False,
 ) -> None:
-    if not bundle_dir.is_dir():
+    try:
+        root_info = bundle_dir.lstat()
+    except OSError as exc:
+        raise WitnessError(f"missing public witness bundle directory: {bundle_dir}") from exc
+    if stat.S_ISLNK(root_info.st_mode):
+        raise WitnessError(f"public witness bundle directory must not be a symlink: {bundle_dir}")
+    if not stat.S_ISDIR(root_info.st_mode):
         raise WitnessError(f"missing public witness bundle directory: {bundle_dir}")
 
     allowed_names = set(PUBLIC_FILES.values())

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import struct
 import unittest
 from pathlib import Path
 
@@ -75,6 +76,17 @@ class EnvelopeTests(unittest.TestCase):
     def test_malformed_envelope_raises(self) -> None:
         with self.assertRaises(envelope.EnvelopeError):
             envelope.inspect(b"not an envelope")
+
+    def test_header_size_bound_is_fail_closed(self) -> None:
+        framed = envelope.MAGIC + struct.pack("<I", envelope.MAX_HEADER_BYTES + 1) + b"{}" + (b"\x00" * envelope.TAG_LEN)
+        with self.assertRaises(envelope.EnvelopeError):
+            envelope.parse(framed)
+
+    def test_duplicate_header_keys_are_rejected(self) -> None:
+        header = b'{"magic":"WUCIMAE1","magic":"WUCIMAE1"}'
+        framed = envelope.MAGIC + struct.pack("<I", len(header)) + header + (b"\x00" * envelope.TAG_LEN)
+        with self.assertRaises(envelope.EnvelopeError):
+            envelope.parse(framed)
 
     def test_no_score_no_seal(self) -> None:
         perfect_policy = envelope.make_policy(self.registry, min_score_M=1000000)

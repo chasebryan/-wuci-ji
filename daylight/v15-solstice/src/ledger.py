@@ -47,6 +47,15 @@ class LedgerError(ValueError):
     pass
 
 
+def _reject_duplicate_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise LedgerError(f"duplicate JSON key rejected: {key}")
+        out[key] = value
+    return out
+
+
 def _without_digest(entry: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in entry.items() if key != "entry_digest"}
 
@@ -120,8 +129,8 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
         if not stripped:
             continue
         try:
-            entry = json.loads(stripped)
-        except json.JSONDecodeError as exc:
+            entry = json.loads(stripped, object_pairs_hook=_reject_duplicate_json_pairs)
+        except (json.JSONDecodeError, LedgerError) as exc:
             raise LedgerError(f"invalid ledger JSON at line {line_no}: {exc}") from exc
         if not isinstance(entry, dict):
             raise LedgerError(f"ledger line {line_no} is not an object")

@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .pathsafe import read_public_bytes
+
 
 def reject_float(value: str) -> None:
     raise ValueError(f"JSON floats are not allowed: {value}")
@@ -35,7 +37,8 @@ def loads_json_no_floats(text: str) -> Any:
 
 
 def load_json_no_floats(path: Path | str) -> Any:
-    return loads_json_no_floats(Path(path).read_text(encoding="utf-8"))
+    data = read_public_bytes(Path(path), str(path), reject_hardlink=False)
+    return loads_json_no_floats(data.decode("utf-8"))
 
 
 def reject_floats_recursive(value: Any, path: str = "value") -> None:

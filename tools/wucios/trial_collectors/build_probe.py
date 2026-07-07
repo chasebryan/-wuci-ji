@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -479,10 +480,75 @@ def static_suid_sgid_manifest(rootfs: Path, destination: Path) -> bool:
     return True
 
 
+def _tar_arcname(rootfs: Path, path: Path) -> str:
+    if path == rootfs:
+        return "."
+    rel = path.relative_to(rootfs)
+    if any(part in {"", ".", ".."} for part in rel.parts):
+        raise RuntimeError(f"unsafe rootfs archive path: {rel}")
+    return rel.as_posix()
+
+
+def _tarinfo(name: str, info: os.stat_result) -> tarfile.TarInfo:
+    member = tarfile.TarInfo(name)
+    member.mode = stat.S_IMODE(info.st_mode)
+    member.uid = 0
+    member.gid = 0
+    member.uname = ""
+    member.gname = ""
+    member.mtime = 0
+    if stat.S_ISDIR(info.st_mode):
+        member.type = tarfile.DIRTYPE
+        member.size = 0
+    elif stat.S_ISREG(info.st_mode):
+        member.type = tarfile.REGTYPE
+        member.size = info.st_size
+    else:
+        raise RuntimeError(f"unsupported rootfs archive member type: {name}")
+    return member
+
+
+def _add_regular_file(archive: tarfile.TarFile, path: Path, arcname: str, expected: os.stat_result) -> None:
+    if expected.st_nlink != 1:
+        raise RuntimeError(f"rootfs archive member must not be hardlinked: {arcname}")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        opened = os.fstat(fd)
+        if (opened.st_dev, opened.st_ino) != (expected.st_dev, expected.st_ino):
+            raise RuntimeError(f"rootfs archive member changed while opening: {arcname}")
+        if not stat.S_ISREG(opened.st_mode):
+            raise RuntimeError(f"rootfs archive member is not regular: {arcname}")
+        if opened.st_nlink != 1:
+            raise RuntimeError(f"rootfs archive member must not be hardlinked: {arcname}")
+        info = _tarinfo(arcname, opened)
+        with os.fdopen(fd, "rb") as handle:
+            fd = -1
+            archive.addfile(info, handle)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
 def tar_rootfs(rootfs: Path, artifact: Path) -> None:
     ensure_dir(artifact.parent)
-    with tarfile.open(artifact, "w:gz") as archive:
-        archive.add(rootfs, arcname=".")
+    root_info = rootfs.lstat()
+    if stat.S_ISLNK(root_info.st_mode) or not stat.S_ISDIR(root_info.st_mode):
+        raise RuntimeError(f"rootfs archive source must be a non-symlink directory: {rootfs}")
+    members = [rootfs, *sorted(rootfs.rglob("*"), key=lambda item: item.relative_to(rootfs).as_posix())]
+    with tarfile.open(artifact, "w:gz", dereference=False) as archive:
+        for path in members:
+            arcname = _tar_arcname(rootfs, path)
+            info = path.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                raise RuntimeError(f"rootfs archive member must not be a symlink: {arcname}")
+            if stat.S_ISDIR(info.st_mode):
+                archive.addfile(_tarinfo(arcname, info))
+                continue
+            if stat.S_ISREG(info.st_mode):
+                _add_regular_file(archive, path, arcname, info)
+                continue
+            raise RuntimeError(f"unsupported rootfs archive member type: {arcname}")
 
 
 def run_command(command: list[str], log_path: Path, cwd: Path | None = None) -> int:
@@ -681,7 +747,7 @@ def attempt_debian(output_dir: Path, work_dir: Path, tooling: list[dict[str, Any
         return "TRIAL_BLOCKED", blockers
     rootfs = work_dir / "rootfs"
     ensure_dir(rootfs)
-    base_command = ["debootstrap", "--variant=minbase", "stable", str(rootfs), "http://deb.debian.org/debian"]
+    base_command = ["debootstrap", "--variant=minbase", "stable", str(rootfs), "https://deb.debian.org/debian"]
     command = base_command if is_root else ["fakeroot", "fakechroot", *base_command]
     exit_code = run_command(command, log_path)
     if exit_code != 0:

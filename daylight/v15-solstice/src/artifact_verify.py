@@ -10,7 +10,7 @@ from typing import Any
 from . import __version__
 from . import ledger as ledger_model
 from . import solstice_harness
-from .canonical_json import canonical_sha256
+from .canonical_json import CanonicalJSONError, canonical_sha256, load_json_file_no_duplicates, read_regular_bytes
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -35,14 +35,46 @@ def _repo_relative(path: Path) -> str:
         return str(resolved)
 
 
+def _artifact_input_name(label: str, path: Path) -> str:
+    suffix = path.suffix or ".dat"
+    safe_label = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in label)
+    return f"inputs/{safe_label}{suffix}"
+
+
+def _manifest_input_record(label: str, path: Path, extra_files: dict[str, bytes]) -> dict[str, str]:
+    data = read_regular_bytes(path, f"Solstice input {label}")
+    resolved = Path(path).resolve(strict=True)
+    try:
+        repo_path = str(resolved.relative_to(REPO_ROOT))
+    except ValueError:
+        artifact_name = _artifact_input_name(label, path)
+        extra_files[artifact_name] = data
+        return {"path": artifact_name, "sha256": _sha256_bytes(data)}
+    return {"path": repo_path, "sha256": _sha256_bytes(data)}
+
+
 def _resolve_manifest_path(path_text: str, artifact_dir: Path) -> Path:
+    if not isinstance(path_text, str) or not path_text:
+        raise ArtifactError("manifest path must be a non-empty relative path")
     candidate = Path(path_text)
     if candidate.is_absolute():
-        return candidate
+        raise ArtifactError(f"absolute manifest path rejected: {path_text}")
+    if any(part in {"", ".", ".."} for part in candidate.parts):
+        raise ArtifactError(f"unsafe manifest path rejected: {path_text}")
     repo_candidate = REPO_ROOT / candidate
     if repo_candidate.exists():
-        return repo_candidate
-    return artifact_dir / candidate
+        resolved = repo_candidate.resolve(strict=True)
+        try:
+            resolved.relative_to(REPO_ROOT)
+        except ValueError as exc:
+            raise ArtifactError(f"manifest path escapes repository: {path_text}") from exc
+        return resolved
+    resolved_artifact = (artifact_dir / candidate).resolve(strict=True)
+    try:
+        resolved_artifact.relative_to(artifact_dir.resolve(strict=True))
+    except ValueError as exc:
+        raise ArtifactError(f"manifest path escapes artifact directory: {path_text}") from exc
+    return resolved_artifact
 
 
 def _json_bytes(obj: Any) -> bytes:
@@ -51,6 +83,13 @@ def _json_bytes(obj: Any) -> bytes:
 
 def _jsonl_bytes(entries: list[dict[str, Any]]) -> bytes:
     return "".join(json.dumps(entry, sort_keys=True, separators=(",", ":")) + "\n" for entry in entries).encode("utf-8")
+
+
+def _load_json(path: Path, context: str) -> Any:
+    try:
+        return load_json_file_no_duplicates(path, context)
+    except CanonicalJSONError as exc:
+        raise ArtifactError(str(exc)) from exc
 
 
 def manifest_digest(manifest: dict[str, Any]) -> str:
@@ -117,6 +156,7 @@ def build_artifact(
     if rootset is not None:
         input_paths["external_rootset"] = rootset
 
+    extra_files: dict[str, bytes] = {}
     manifest = {
         "manifest_version": MANIFEST_VERSION,
         "artifact": "Daylight v15+ Solstice",
@@ -124,7 +164,7 @@ def build_artifact(
         "generated_date": GENERATED_DATE,
         "command": command_label,
         "inputs": {
-            name: {"path": _repo_relative(path), "sha256": _sha256_bytes(Path(path).read_bytes())}
+            name: _manifest_input_record(name, Path(path), extra_files)
             for name, path in sorted(input_paths.items())
         },
         "outputs": {
@@ -150,13 +190,18 @@ def build_artifact(
     ]
     outputs["SHA256SUMS"] = "".join(sha_lines).encode("utf-8")
 
-    for name, data in outputs.items():
+    for name, data in {**extra_files, **outputs}.items():
+        (out_dir / name).parent.mkdir(parents=True, exist_ok=True)
         (out_dir / name).write_bytes(data)
     return manifest
 
 
 def _verify_hash(path: Path, expected: str) -> None:
-    actual = _sha256_bytes(path.read_bytes())
+    try:
+        data = read_regular_bytes(path, f"Solstice artifact file {path}")
+    except CanonicalJSONError as exc:
+        raise ArtifactError(str(exc)) from exc
+    actual = _sha256_bytes(data)
     if actual != expected:
         raise ArtifactError(f"sha256 mismatch for {path}: {actual} != {expected}")
 
@@ -168,7 +213,7 @@ def verify_artifact_dir(path: Path | str) -> None:
     receipt_path = artifact_dir / "reproducibility-receipt.v15-solstice.json"
     output_ledger_path = artifact_dir / "output-ledger.v15-solstice.jsonl"
     sums_path = artifact_dir / "SHA256SUMS"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = _load_json(manifest_path, "Solstice artifact manifest")
     if manifest.get("manifest_version") != MANIFEST_VERSION:
         raise ArtifactError("unsupported artifact manifest version")
     if manifest_digest(manifest) != manifest.get("artifact_manifest_digest"):
@@ -181,17 +226,25 @@ def verify_artifact_dir(path: Path | str) -> None:
         for _, info in entries.items():
             file_path = _resolve_manifest_path(info["path"], artifact_dir)
             _verify_hash(file_path, info["sha256"])
-    _verify_hash(manifest_path, _sha256_bytes(manifest_path.read_bytes()))
+    try:
+        manifest_bytes = read_regular_bytes(manifest_path, "Solstice artifact manifest")
+    except CanonicalJSONError as exc:
+        raise ArtifactError(str(exc)) from exc
+    _verify_hash(manifest_path, _sha256_bytes(manifest_bytes))
 
-    expected_sums = "".join(
-        f"{_sha256_bytes((artifact_dir / name).read_bytes())}  {name}\n"
-        for name in sorted(list(manifest["outputs"]) + ["artifact-manifest.solstice.json"])
-    )
-    if sums_path.read_text(encoding="utf-8") != expected_sums:
+    try:
+        expected_sums = "".join(
+            f"{_sha256_bytes(read_regular_bytes(artifact_dir / name, f'Solstice output {name}'))}  {name}\n"
+            for name in sorted(list(manifest["outputs"]) + ["artifact-manifest.solstice.json"])
+        )
+        actual_sums = read_regular_bytes(sums_path, "Solstice SHA256SUMS").decode("utf-8")
+    except (CanonicalJSONError, UnicodeDecodeError) as exc:
+        raise ArtifactError(str(exc)) from exc
+    if actual_sums != expected_sums:
         raise ArtifactError("SHA256SUMS does not match artifact files")
 
-    scorecard = json.loads(scorecard_path.read_text(encoding="utf-8"))
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    scorecard = _load_json(scorecard_path, "Solstice scorecard")
+    receipt = _load_json(receipt_path, "Solstice receipt")
     if scorecard.get("artifact_manifest_digest") not in (None, manifest["artifact_manifest_digest"]):
         raise ArtifactError("scorecard artifact_manifest_digest disagrees with manifest")
     inputs = manifest["inputs"]

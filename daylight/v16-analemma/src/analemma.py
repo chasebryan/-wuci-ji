@@ -8,7 +8,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .canonical_json import canonical_bytes, canonical_sha256, sha256_bytes
+from .canonical_json import (
+    CanonicalJSONError,
+    canonical_bytes,
+    canonical_sha256,
+    load_json_file_no_duplicates,
+    read_regular_bytes,
+    sha256_bytes,
+)
 from . import solstice_bridge
 
 
@@ -51,9 +58,27 @@ def is_hex_sha256(value: Any) -> bool:
 def load_json(path: Path | str | None) -> Any:
     if path is None:
         return {}
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        data = load_json_file_no_duplicates(Path(path), f"Analemma JSON {path}")
+    except CanonicalJSONError as exc:
+        raise AnalemmaError(str(exc)) from exc
     reject_float(data, str(path))
     return data
+
+
+def _resolve_relative_existing(path_text: str, base: Path, context: str) -> Path:
+    if not isinstance(path_text, str) or not path_text:
+        raise AnalemmaError(f"{context} path must be a non-empty relative path")
+    candidate = Path(path_text)
+    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+        raise AnalemmaError(f"{context} path is unsafe: {path_text}")
+    base_resolved = base.resolve(strict=True)
+    resolved = (base_resolved / candidate).resolve(strict=True)
+    try:
+        resolved.relative_to(base_resolved)
+    except ValueError as exc:
+        raise AnalemmaError(f"{context} path escapes base: {path_text}") from exc
+    return resolved
 
 
 def registry_digest(registry: dict[str, Any]) -> str:
@@ -196,12 +221,17 @@ def verify_zenith_report_valid(ctx: dict[str, Any]) -> bool:
     digest = report.get("sha256")
     if not isinstance(path, str) or not is_hex_sha256(digest):
         return False
-    file_path = Path(path)
-    if not file_path.is_absolute():
-        file_path = Path.cwd() / file_path
-    if not file_path.is_file() or sha256_bytes(file_path.read_bytes()) != digest:
+    try:
+        file_path = _resolve_relative_existing(path, Path.cwd(), "Zenith report evidence")
+        report_bytes = read_regular_bytes(file_path, "Zenith report evidence")
+    except (AnalemmaError, CanonicalJSONError):
         return False
-    data = json.loads(file_path.read_text(encoding="utf-8"))
+    if sha256_bytes(report_bytes) != digest:
+        return False
+    try:
+        data = load_json_file_no_duplicates(file_path, "Zenith report evidence")
+    except CanonicalJSONError:
+        return False
     return data.get("score_inflation_M") == 0 and data.get("solstice_score_M") == ctx["D_claim_M"]
 
 
@@ -516,7 +546,7 @@ def build_report_artifact(
     }
     artifact_dir = Path(artifact_dir)
     inputs = {
-        "registry": {"path": _repo_relative(Path(registry_path)), "sha256": sha256_bytes(Path(registry_path).read_bytes())},
+        "registry": {"path": _repo_relative(Path(registry_path)), "sha256": sha256_bytes(read_regular_bytes(Path(registry_path), "Analemma registry"))},
     }
     solstice_files = {
         "solstice_scorecard": "scorecard.v15-solstice.json",
@@ -529,11 +559,11 @@ def build_report_artifact(
     for key, name in solstice_files.items():
         file_path = artifact_dir / name
         if file_path.is_file():
-            inputs[key] = {"path": _repo_relative(file_path), "sha256": sha256_bytes(file_path.read_bytes())}
+            inputs[key] = {"path": _repo_relative(file_path), "sha256": sha256_bytes(read_regular_bytes(file_path, f"Analemma Solstice input {name}"))}
     if evidence_path is not None:
-        inputs["evidence"] = {"path": _repo_relative(Path(evidence_path)), "sha256": sha256_bytes(Path(evidence_path).read_bytes())}
+        inputs["evidence"] = {"path": _repo_relative(Path(evidence_path)), "sha256": sha256_bytes(read_regular_bytes(Path(evidence_path), "Analemma evidence"))}
     if history_path is not None:
-        inputs["history"] = {"path": _repo_relative(Path(history_path)), "sha256": sha256_bytes(Path(history_path).read_bytes())}
+        inputs["history"] = {"path": _repo_relative(Path(history_path)), "sha256": sha256_bytes(read_regular_bytes(Path(history_path), "Analemma history"))}
     manifest = {
         "manifest_version": MANIFEST_VERSION,
         "artifact": NAME,
@@ -559,22 +589,23 @@ def build_report_artifact(
 
 def verify_report_dir(path: Path | str) -> None:
     path = Path(path)
-    manifest = json.loads((path / "analemma-manifest.json").read_text(encoding="utf-8"))
+    manifest = load_json_file_no_duplicates(path / "analemma-manifest.json", "Analemma manifest")
     reject_float(manifest, "analemma_manifest")
     if manifest.get("manifest_version") != MANIFEST_VERSION:
         raise AnalemmaError("unsupported Analemma manifest version")
     if manifest_digest(manifest) != manifest.get("analemma_manifest_digest"):
         raise AnalemmaError("Analemma manifest digest mismatch")
     for name, info in manifest.get("inputs", {}).items():
-        actual = sha256_bytes(_resolve_manifest_input(info["path"], path).read_bytes())
+        actual = sha256_bytes(read_regular_bytes(_resolve_manifest_input(info["path"], path), f"Analemma input {name}"))
         if actual != info["sha256"]:
             raise AnalemmaError(f"Analemma input hash mismatch: {name}")
     for name, info in manifest["outputs"].items():
-        actual = sha256_bytes((path / info["path"]).read_bytes())
+        output_path = _resolve_relative_existing(info["path"], path, f"Analemma output {name}")
+        actual = sha256_bytes(read_regular_bytes(output_path, f"Analemma output {name}"))
         if actual != info["sha256"]:
             raise AnalemmaError(f"Analemma output hash mismatch: {name}")
-    report = json.loads((path / "analemma-report.json").read_text(encoding="utf-8"))
-    resolution = json.loads((path / "analemma-resolution.json").read_text(encoding="utf-8"))
+    report = load_json_file_no_duplicates(path / "analemma-report.json", "Analemma report")
+    resolution = load_json_file_no_duplicates(path / "analemma-resolution.json", "Analemma resolution")
     reject_float(report, "analemma_report")
     reject_float(resolution, "analemma_resolution")
     if report_digest(report) != manifest.get("analemma_report_digest"):
@@ -585,8 +616,8 @@ def verify_report_dir(path: Path | str) -> None:
         if report.get(key) != manifest.get(key):
             raise AnalemmaError(f"Analemma manifest/report mismatch: {key}")
     expected = "".join(
-        f"{sha256_bytes((path / name).read_bytes())}  {name}\n"
+        f"{sha256_bytes(read_regular_bytes(path / name, f'Analemma output {name}'))}  {name}\n"
         for name in sorted(list(manifest["outputs"]) + ["analemma-manifest.json"])
     )
-    if (path / "SHA256SUMS").read_text(encoding="utf-8") != expected:
+    if read_regular_bytes(path / "SHA256SUMS", "Analemma SHA256SUMS").decode("utf-8") != expected:
         raise AnalemmaError("Analemma SHA256SUMS mismatch")

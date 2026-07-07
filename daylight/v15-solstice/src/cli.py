@@ -17,7 +17,7 @@ from . import obligations as obligation_model
 from . import scoring
 from . import semantic_evidence
 from . import solstice_harness
-from .canonical_json import canonical_sha256
+from .canonical_json import CanonicalJSONError, canonical_sha256, load_json_file_no_duplicates
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -37,6 +37,7 @@ CLI_ERRORS = (
     scoring.ScoreError,
     semantic_evidence.SemanticEvidenceError,
     solstice_harness.SolsticeError,
+    CanonicalJSONError,
     FileNotFoundError,
 )
 
@@ -63,7 +64,7 @@ def cmd_init_ledger(args: argparse.Namespace) -> int:
 def cmd_append_entry(args: argparse.Namespace) -> int:
     path = Path(args.ledger)
     entries = ledger_model.load_jsonl(path)
-    witness = json.loads(Path(args.witness).read_text(encoding="utf-8"))
+    witness = load_json_file_no_duplicates(Path(args.witness), "Solstice witness")
     digest = canonical_sha256({"artifact": args.artifact}, "DAYLIGHT-v15-SOLSTICE-CLI-ARTIFACT:")
     entries, head = ledger_model.append_entry(
         entries,
@@ -132,9 +133,9 @@ def cmd_score(args: argparse.Namespace) -> int:
 def cmd_verify_scorecard(args: argparse.Namespace) -> int:
     if not (args.ledger and args.corpus and args.output_ledger):
         raise CommandError("Solstice verification requires --ledger, --corpus, and --output-ledger")
-    receipt = json.loads(Path(args.receipt).read_text(encoding="utf-8")) if args.receipt else None
+    receipt = load_json_file_no_duplicates(Path(args.receipt), "Solstice receipt") if args.receipt else None
     solstice_harness.verify_scorecard(
-        json.loads(Path(args.scorecard).read_text(encoding="utf-8")),
+        load_json_file_no_duplicates(Path(args.scorecard), "Solstice scorecard"),
         ledger_path=Path(args.ledger),
         corpus_path=Path(args.corpus),
         output_ledger_path=Path(args.output_ledger),

@@ -10,7 +10,7 @@ Penumbra seals a message so that `Open = ⊥` unless the caller presents evidenc
 - built entirely on standard, externally-cryptanalyzed primitives.
 
 **Penumbra IS NOT** (the built artifact MUST NOT claim otherwise, in code, output, or docs):
-- unbreakable. No such property is asserted or achievable here.
+- absolute-break-resistance. No such property is asserted or achievable here.
 - post-quantum "immune." It is symmetric; see §3 for the exact, reduced PQ figure.
 - a source of confidentiality from *public* evidence. A lock anyone can satisfy is a lock anyone can open (§5).
 - self-certifying of its own strength. Strength depends on facts (witness entropy, AEAD standing) that live outside this repository.

@@ -129,6 +129,18 @@ def main() -> None:
             "unexpected head file rejected",
         )
 
+        hardlinked_entry = copy_case(ledger, tmp, "hardlinked-entry")
+        entry_path = hardlinked_entry / "entries" / "00000000000000000000.txt"
+        original = entry_path.read_text(encoding="ascii")
+        entry_path.unlink()
+        outside = tmp / "outside-entry.txt"
+        outside.write_text(original, encoding="ascii")
+        os.link(outside, entry_path)
+        assert_ledger_fails(
+            run_ledger(["verify-history", "--ledger", str(hardlinked_entry)]),
+            "hardlinked ledger entry rejected",
+        )
+
         locked = copy_case(ledger, tmp, "locked-ledger")
         (locked / ".wuci-ledger.lock").write_text("locked\n", encoding="ascii")
         assert_ledger_fails(

@@ -106,9 +106,10 @@ def main() -> None:
         assert_ok(allowed, "verify unsigned external audit in explicit test mode")
         summary = json.loads(allowed.stdout.decode("utf-8"))
         assert summary["schema"] == "wuci-external-audit-verification-v1"
-        assert summary["external_audit_verified"] is True
-        assert summary["production_sufficient"] is True
+        assert summary["external_audit_verified"] is False
+        assert summary["production_sufficient"] is False
         assert summary["signature_verified"] is False
+        assert summary["unsigned_local_review_only"] is True
 
         tampered_report = tmp / "tampered-report.txt"
         tampered_report.write_text(report.read_text(encoding="ascii") + "tampered\n", encoding="ascii")

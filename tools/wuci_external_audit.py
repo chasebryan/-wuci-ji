@@ -7,7 +7,6 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +17,7 @@ import wuci_safeio
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 POLICY = REPO_ROOT / "docs" / "wuci_crypto_audit_policy.json"
+TRUSTED_SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
 SIGNATURE_IDENTITY = "wuci-external-audit"
 SIGNATURE_NAMESPACE = "wuci-external-audit-v1"
 EVIDENCE_SCHEMA = "wuci-external-audit-evidence-v1"
@@ -119,19 +119,35 @@ def current_git_commit(repo: Path) -> str:
 
 
 def ssh_keygen_path(override: str | None) -> str:
+    trusted = TRUSTED_SSH_KEYGEN
+    try:
+        wuci_safeio.lstat_regular_file(
+            trusted,
+            "trusted ssh-keygen verifier",
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
+        trusted_resolved = trusted.resolve(strict=True)
+    except (OSError, wuci_safeio.SafeIOError):
+        fail(f"trusted ssh-keygen verifier is unavailable: {trusted}")
     if override:
         if "\0" in override:
             fail("ssh-keygen path contains NUL")
         path = Path(override)
         if not path.is_absolute():
             fail("--ssh-keygen must be an absolute path")
-        if not path.exists():
-            fail(f"ssh-keygen does not exist: {path}")
-        return str(path)
-    found = shutil.which("ssh-keygen")
-    if not found:
-        fail("ssh-keygen not found on PATH")
-    return found
+        try:
+            wuci_safeio.lstat_regular_file(
+                path,
+                "ssh-keygen verifier",
+                reject_symlink=True,
+                reject_hardlink=True,
+            )
+            if path.resolve(strict=True) != trusted_resolved:
+                fail(f"--ssh-keygen must resolve to trusted verifier: {trusted}")
+        except (OSError, wuci_safeio.SafeIOError) as exc:
+            fail(f"ssh-keygen verifier is not a trusted regular file: {path}")  # noqa: B904
+    return str(trusted)
 
 
 def read_public_key_line(path: Path) -> str:
@@ -330,14 +346,15 @@ def verify_external_audit(
         "auditor_identity": evidence["auditor_identity"],
         "completed_utc": evidence["completed_utc"],
         "evidence_sha256": sha_file(evidence_path, "sha256", "external audit evidence"),
-        "external_audit_verified": True,
-        "production_sufficient": True,
+        "external_audit_verified": signature_verified,
+        "production_sufficient": signature_verified,
         "report_sha256": evidence["report_sha256"],
         "report_sha384": evidence["report_sha384"],
         "report_sha512": evidence["report_sha512"],
         "reviewed_commit": evidence["reviewed_commit"],
         "scope": evidence["scope"],
         "signature_verified": signature_verified,
+        "unsigned_local_review_only": not signature_verified,
         "non_claims": [
             "external audit evidence does not by itself create production authority",
             "external audit evidence does not by itself make WUCI-JI quantum-safe",

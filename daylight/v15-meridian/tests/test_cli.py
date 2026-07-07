@@ -90,6 +90,14 @@ class CliTests(unittest.TestCase):
             proc = run_cli("verify-scorecard", str(edited))
             self.assertEqual(proc.returncode, 1)
 
+    def test_verify_rejects_duplicate_json_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dup = Path(tmp) / "duplicate-scorecard.json"
+            dup.write_text('{"scorecard_version":"bad","scorecard_version":"ambiguous"}\n', encoding="utf-8")
+            proc = run_cli("verify-scorecard", str(dup), "--ledger", str(LEDGER), "--corpus", str(CORPUS))
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("duplicate JSON key", proc.stderr)
+
     def test_gate_pass_and_fail(self) -> None:
         ok = run_cli(
             "gate", "--scorecard", str(SCORECARD), "--ledger", str(LEDGER), "--corpus", str(CORPUS),
@@ -100,8 +108,12 @@ class CliTests(unittest.TestCase):
 
         residue = run_cli("gate", "--scorecard", str(SCORECARD))
         self.assertEqual(residue.returncode, 1)
+        self.assertIn("requires --ledger and --corpus", residue.stderr)
 
-        too_high = run_cli("gate", "--scorecard", str(SCORECARD), "--allow-external-residue", "--min-score", "1000000")
+        too_high = run_cli(
+            "gate", "--scorecard", str(SCORECARD), "--ledger", str(LEDGER), "--corpus", str(CORPUS),
+            "--allow-external-residue", "--min-score", "1000000",
+        )
         self.assertEqual(too_high.returncode, 1)
 
     def test_doctor_is_healthy(self) -> None:

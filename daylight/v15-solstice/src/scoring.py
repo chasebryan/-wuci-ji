@@ -8,10 +8,11 @@ obligations (see :mod:`src.obligations`) and re-derived at verification time.
 
 from __future__ import annotations
 
-import json
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+
+from .canonical_json import load_json_file_no_duplicates
 
 
 M_SCALE = 1_000_000
@@ -68,7 +69,7 @@ def decimal_text(value: Fraction, places: int = 4) -> str:
 
 
 def load_weights(path: Path) -> list[tuple[str, Fraction]]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = load_json_file_no_duplicates(path, "Solstice weight vector")
     reject_float(data, "weights")
     if data.get("version") != WEIGHT_VECTOR_VERSION:
         raise ScoreError("unsupported weight vector version")

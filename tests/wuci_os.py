@@ -2540,6 +2540,9 @@ def assert_source_kit(tmp: Path) -> None:
     assert result["tar_path"] == str(out)
     assert result["created_utc"] == wuci_os.SOURCE_KIT_DETERMINISTIC_CREATED_UTC
     assert result["timestamp_policy"]["wall_clock_time"].startswith("intentionally omitted")
+    assert result["source_root"] == "host path intentionally omitted"
+    assert result["upstream_source_root"] == "host path intentionally omitted"
+    assert result["host_path_policy"].startswith("source-kit manifests expose")
     assert result["guest_source_root"] == "opt/wuci-os/source/wuci-ji"
     assert result["guest_upstream_source_root"] == "opt/wuci-os/source/upstream"
     assert any(record["path"] == "tools/wuci_os.py" for record in result["files"])
@@ -2595,6 +2598,9 @@ def assert_source_kit(tmp: Path) -> None:
     assert "opt/wuci-os/source/wuci-ji/.wuci-os-source-kit.json" in names
     assert archived_manifest["created_utc"] == wuci_os.SOURCE_KIT_DETERMINISTIC_CREATED_UTC
     assert archived_manifest["timestamp_policy"] == result["timestamp_policy"]
+    assert archived_manifest["source_root"] == "host path intentionally omitted"
+    assert all("source_path" not in record for record in archived_manifest["files"])
+    assert all(not str(record["path"]).startswith("/") for record in archived_manifest["files"])
     assert result["source_kit_validation"]["manifest_digest_vector"] == wuci_os.digest_vector(
         wuci_os.canonical_json_bytes(archived_manifest) + b"\n"
     )
@@ -2626,11 +2632,16 @@ def init_fake_git_repo(path: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=path, check=True)
 
 
+def git_add(path: Path, *rel_paths: str) -> None:
+    subprocess.run(["git", "add", *rel_paths], cwd=path, check=True)
+
+
 def assert_source_kit_avoids_output_self_capture(tmp: Path) -> None:
     fake_repo = tmp / "source-kit-fake-repo"
     fake_repo.mkdir()
     init_fake_git_repo(fake_repo)
     (fake_repo / "README.md").write_text("fake Wuci source\n", encoding="utf-8")
+    git_add(fake_repo, "README.md")
     out = fake_repo / "dist" / "wuci-os-source-kit.tar"
     original_repo_root = wuci_os.repo_root
     try:
@@ -2648,6 +2659,26 @@ def assert_source_kit_avoids_output_self_capture(tmp: Path) -> None:
     assert not any(".wuci-os-source-kit.tar." in name for name in names)
 
 
+def assert_source_kit_omits_untracked_local_files(tmp: Path) -> None:
+    fake_repo = tmp / "source-kit-untracked-repo"
+    fake_repo.mkdir()
+    init_fake_git_repo(fake_repo)
+    (fake_repo / "README.md").write_text("tracked source\n", encoding="utf-8")
+    (fake_repo / "local-notes.txt").write_text("local scratch\n", encoding="utf-8")
+    git_add(fake_repo, "README.md")
+    out = fake_repo / "wuci-os-source-kit.tar"
+    original_repo_root = wuci_os.repo_root
+    try:
+        wuci_os.repo_root = lambda: fake_repo
+        result = wuci_os.write_deterministic_source_kit_tar(out, ticker_mode="never")
+    finally:
+        wuci_os.repo_root = original_repo_root
+    assert [record["path"] for record in result["files"]] == ["README.md"], result["files"]
+    with tarfile.open(out, "r") as archive:
+        names = archive.getnames()
+    assert "opt/wuci-os/source/wuci-ji/local-notes.txt" not in names
+
+
 def assert_source_kit_rejects_stale_output_temp(tmp: Path) -> None:
     fake_repo = tmp / "source-kit-stale-temp-repo"
     fake_repo.mkdir()
@@ -2657,6 +2688,7 @@ def assert_source_kit_rejects_stale_output_temp(tmp: Path) -> None:
     dist.mkdir()
     stale = dist / ".wuci-os-source-kit.tar.stale.tmp"
     stale.write_bytes(b"stale generated source-kit temp\n")
+    git_add(fake_repo, "README.md", "dist/.wuci-os-source-kit.tar.stale.tmp")
     out = dist / "wuci-os-source-kit.tar"
     original_repo_root = wuci_os.repo_root
     try:
@@ -2700,6 +2732,7 @@ def assert_source_kit_rejects_private_local_state(tmp: Path) -> None:
     secret_dir = fake_repo / ".codex"
     secret_dir.mkdir()
     (secret_dir / "auth.json").write_text('{"access_token":"' + "A" * 32 + '"}\n', encoding="utf-8")
+    git_add(fake_repo, "README.md", ".codex/auth.json")
     out = fake_repo / "wuci-os-source-kit.tar"
     original_repo_root = wuci_os.repo_root
     try:
@@ -2720,6 +2753,7 @@ def assert_source_kit_rejects_changed_member_after_record(tmp: Path) -> None:
     init_fake_git_repo(fake_repo)
     readme = fake_repo / "README.md"
     readme.write_text("abcdef\n", encoding="utf-8")
+    git_add(fake_repo, "README.md")
     out = fake_repo / "wuci-os-source-kit.tar"
     original_repo_root = wuci_os.repo_root
     original_source_kit_records = wuci_os.source_kit_records
@@ -3290,6 +3324,7 @@ def main() -> int:
         assert_failure_specimen_ingest(tmp)
         assert_source_kit(tmp)
         assert_source_kit_avoids_output_self_capture(tmp)
+        assert_source_kit_omits_untracked_local_files(tmp)
         assert_source_kit_rejects_stale_output_temp(tmp)
         assert_source_kit_fails_without_git_enumeration(tmp)
         assert_source_kit_rejects_private_local_state(tmp)

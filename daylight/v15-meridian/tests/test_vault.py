@@ -55,6 +55,16 @@ class VaultTests(unittest.TestCase):
         # force rebuilds
         self._init(force=True)
 
+    def test_init_refuses_symlinked_root(self) -> None:
+        target = self.work / "actual-vault-root"
+        target.mkdir()
+        try:
+            self.root.symlink_to(target, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("symlink unavailable")
+        with self.assertRaises(vault.VaultError):
+            self._init()
+
     # -- round trip ------------------------------------------------------------
 
     def test_seal_open_round_trip_keeps_original(self) -> None:
@@ -69,6 +79,14 @@ class VaultTests(unittest.TestCase):
         self.assertIn("envelope_sha256", record)
         self.assertEqual(os.stat(self.root / "index.json").st_mode & 0o777, 0o600)
         self.assertEqual(v.open_bytes(record["name"]), b"top secret payload")
+
+    def test_caller_supplied_entry_names_must_be_safe_basenames(self) -> None:
+        self._init()
+        v = vault.Vault(self.root)
+        for bad in ("../outside", "nested/name", ".hidden", "has space"):
+            with self.subTest(name=bad):
+                with self.assertRaises(vault.VaultError):
+                    v.seal_bytes(bad, b"secret")
 
     def test_vault_key_symlink_rejected(self) -> None:
         self._init()

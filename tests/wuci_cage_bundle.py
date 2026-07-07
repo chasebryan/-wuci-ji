@@ -175,6 +175,14 @@ def main() -> None:
             "hardlink manifest rejected",
         )
 
+        if hasattr(os, "symlink"):
+            symlink_root = tmp / "symlink-bundle-root"
+            symlink_root.symlink_to(base, target_is_directory=True)
+            assert_cage_fails(
+                cage_attest(symlink_root, tmp / "symlink-bundle-root.json"),
+                "symlink bundle root rejected",
+            )
+
         tampered_manifest = copy_case(base, tmp, "tampered-manifest")
         with (tampered_manifest / "manifest.txt").open("ab") as handle:
             handle.write(b"# tamper\n")

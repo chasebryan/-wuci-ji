@@ -36,13 +36,14 @@ from typing import Any
 
 from . import aead
 from . import api
-from .canonical_json import canonical_bytes, canonical_sha256
+from .canonical_json import CanonicalJSONError, canonical_bytes, canonical_sha256, loads_json_no_duplicates
 
 MAGIC = b"WUCIMAE1"
 ENVELOPE_VERSION = "daylight-v15-meridian-mae-v1"
 SUITE = "ChaCha20-Poly1305"
 NONCE_LEN = 12
 TAG_LEN = 16
+MAX_HEADER_BYTES = 64 * 1024
 AUTH_DOMAIN = "DAYLIGHT-v15-MERIDIAN-MAE-AUTH:"
 KDF_INFO_LABEL = b"DAYLIGHT-v15-MERIDIAN-MAE v1 aead-key"
 BOUNDARY = (
@@ -191,14 +192,16 @@ def parse(envelope: bytes) -> dict[str, Any]:
     if envelope[: len(MAGIC)] != MAGIC:
         raise EnvelopeError("bad magic")
     header_len = struct.unpack("<I", envelope[len(MAGIC):len(MAGIC) + 4])[0]
+    if header_len <= 0 or header_len > MAX_HEADER_BYTES:
+        raise EnvelopeError("envelope header length is outside the supported bound")
     header_start = len(MAGIC) + 4
     header_end = header_start + header_len
     if len(envelope) < header_end + TAG_LEN:
         raise EnvelopeError("truncated envelope")
     header_bytes = envelope[header_start:header_end]
     try:
-        header = json.loads(header_bytes.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        header = loads_json_no_duplicates(header_bytes, "Meridian envelope header")
+    except CanonicalJSONError as exc:
         raise EnvelopeError(f"malformed envelope header: {exc}") from exc
     if not isinstance(header, dict):
         raise EnvelopeError("envelope header is not an object")

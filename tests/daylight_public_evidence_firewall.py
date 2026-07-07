@@ -61,6 +61,17 @@ def main() -> None:
         assert manifest["ok"], manifest
 
     with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "manifest-traversal"
+        write_clean_public(root)
+        manifest_path = root / "artifact-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["outputs"]["../outside.txt"] = {"sha256": "0" * 64}
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+        result = firewall.verify_manifest(manifest_path, root)
+        assert not result["ok"], result
+        assert any("unsafe_manifest_output" in item["reason"] for item in result["violations"]), result
+
+    with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "vault-key"
         write_clean_public(root)
         (root / "vault.key").write_text("1" * 64 + "\n", encoding="ascii")

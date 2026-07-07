@@ -23,7 +23,13 @@ from .capsule import (
     sums_text_for_manifest,
     verify_capsule,
 )
-from .pathsafe import PathSafetyError, atomic_write_bytes, require_regular_file, resolve_under_base
+from .pathsafe import (
+    PathSafetyError,
+    atomic_write_bytes,
+    read_public_bytes,
+    require_regular_file,
+    resolve_under_base,
+)
 
 
 class PublicArtifactError(ValueError):
@@ -47,8 +53,7 @@ def build_public_artifact(
 ) -> dict[str, Any]:
     base = Path(base_dir).resolve() if base_dir is not None else Path.cwd().resolve()
     capsule_file = Path(capsule_path)
-    require_regular_file(capsule_file, str(capsule_file), reject_hardlink=False)
-    capsule_bytes = capsule_file.read_bytes()
+    capsule_bytes = read_public_bytes(capsule_file, str(capsule_file), reject_hardlink=False)
     capsule = loads_json_no_floats(capsule_bytes.decode("utf-8"))
     result = verify_capsule(capsule, base_dir=base, check_subject_files=True, check_public_files=True)
     if not result["verified"]:
@@ -75,8 +80,7 @@ def build_public_artifact(
         sums_entries: list[dict[str, Any]] = []
         for entry in capsule["public_manifest"]:
             source = resolve_under_base(entry["path"], base)
-            require_regular_file(source, entry["path"])
-            data = source.read_bytes()
+            data = read_public_bytes(source, entry["path"])
             if hashlib.sha256(data).hexdigest() != entry["sha256"]:
                 raise PublicArtifactError(f"public file changed since capsule creation: {entry['path']}")
             reasons = profile.check_path_name(entry["path"])

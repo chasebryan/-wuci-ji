@@ -36,6 +36,22 @@ PUBLIC_FILES = tuple(wuci_witness.PUBLIC_FILES[name] for name in (
     "publish_index",
     "attestation",
 ))
+ARCHIVE_FILE_SIZE_CAPS = {
+    wuci_witness.PUBLIC_FILES[name]: wuci_witness.FILE_SIZE_CAPS[name]
+    for name in (
+        "sealed_artifact",
+        "manifest",
+        "warrant_message",
+        "release_receipt",
+        "receipt_contract",
+        "authority_root",
+        "release_decision",
+        "publish_index",
+        "attestation",
+    )
+}
+MAX_ARCHIVE_BYTES = sum(ARCHIVE_FILE_SIZE_CAPS.values()) + 1024 * 1024
+MAX_SIDECAR_BYTES = 256
 RUNNER = shlex.split(wuci_verifier_identity.validate_runner(os.environ.get("WUCI_JI_RUNNER", ""), strict=False))
 
 
@@ -52,7 +68,16 @@ def display_path(path: Path) -> str:
 
 def sha256_file(path: Path) -> str:
     try:
-        return wuci_safeio.sha256_file(path)
+        digest = hashlib.sha256()
+        for chunk in wuci_safeio.iter_regular_chunks(
+            path,
+            "witness archive",
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=MAX_ARCHIVE_BYTES,
+        ):
+            digest.update(chunk)
+        return digest.hexdigest()
     except wuci_safeio.SafeIOError as exc:
         raise WitnessArchiveError(str(exc)) from exc
 
@@ -119,16 +144,20 @@ def build_archive_bytes(bundle_dir: Path) -> bytes:
 def assert_sha256_sidecar(archive_path: Path, sha256_path: Path) -> None:
     expected = f"{sha256_file(archive_path)}  {archive_path.name}\n"
     try:
-        actual = sha256_path.read_text(encoding="ascii")
-    except OSError as exc:
-        raise WitnessArchiveError(f"could not read archive SHA-256 sidecar {sha256_path}") from exc
-    except UnicodeDecodeError as exc:
-        raise WitnessArchiveError("archive SHA-256 sidecar is not ASCII") from exc
+        actual = wuci_safeio.read_regular_ascii(
+            sha256_path,
+            "archive SHA-256 sidecar",
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=MAX_SIDECAR_BYTES,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessArchiveError(str(exc)) from exc
     if actual != expected:
         raise WitnessArchiveError("archive SHA-256 sidecar does not match archive")
 
 
-def assert_member_shape(member: tarfile.TarInfo, expected_name: str) -> None:
+def assert_member_shape(member: tarfile.TarInfo, expected_name: str, filename: str) -> None:
     if member.name != expected_name:
         raise WitnessArchiveError(f"archive member order/name mismatch: {member.name}")
     if not member.isfile():
@@ -143,26 +172,51 @@ def assert_member_shape(member: tarfile.TarInfo, expected_name: str) -> None:
         raise WitnessArchiveError(f"archive member mtime must be zero: {member.name}")
     if member.mode != ARCHIVE_MODE:
         raise WitnessArchiveError(f"archive member mode must be 0644: {member.name}")
+    max_size = ARCHIVE_FILE_SIZE_CAPS[filename]
+    if member.size > max_size:
+        raise WitnessArchiveError(f"archive member exceeds size limit: {member.name}")
 
 
 def extract_archive(archive_path: Path, extract_dir: Path) -> Path:
-    if extract_dir.exists():
+    if extract_dir.exists() or extract_dir.is_symlink():
         raise WitnessArchiveError(f"refusing to overwrite extract directory: {extract_dir}")
     bundle_dir = extract_dir / ARCHIVE_ROOT
-    bundle_dir.mkdir(parents=True)
+    try:
+        wuci_safeio.ensure_parent_directory(bundle_dir, "witness archive extraction root", mode=0o700)
+        bundle_dir.mkdir(mode=0o700)
+    except OSError as exc:
+        raise WitnessArchiveError(f"could not create witness archive extraction root: {bundle_dir}") from exc
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessArchiveError(str(exc)) from exc
     try:
         with tarfile.open(archive_path, mode="r:") as archive:
             members = archive.getmembers()
             expected_names = [expected_member_name(filename) for filename in PUBLIC_FILES]
             if [member.name for member in members] != expected_names:
                 raise WitnessArchiveError("archive members are not the exact public profile")
+            total_size = 0
             for member, filename in zip(members, PUBLIC_FILES):
-                assert_member_shape(member, expected_member_name(filename))
+                assert_member_shape(member, expected_member_name(filename), filename)
+                total_size += member.size
+                if total_size > sum(ARCHIVE_FILE_SIZE_CAPS.values()):
+                    raise WitnessArchiveError("archive members exceed total size limit")
                 source = archive.extractfile(member)
                 if source is None:
                     raise WitnessArchiveError(f"could not read archive member: {member.name}")
+                max_size = ARCHIVE_FILE_SIZE_CAPS[filename]
+                data = source.read(max_size + 1)
+                if len(data) != member.size:
+                    raise WitnessArchiveError(f"archive member read length mismatch: {member.name}")
                 out_path = bundle_dir / filename
-                out_path.write_bytes(source.read())
+                try:
+                    wuci_safeio.write_new_bytes(
+                        out_path,
+                        data,
+                        f"extracted witness archive member {filename}",
+                        mode=ARCHIVE_MODE,
+                    )
+                except wuci_safeio.SafeIOError as exc:
+                    raise WitnessArchiveError(str(exc)) from exc
     except (tarfile.TarError, OSError) as exc:
         raise WitnessArchiveError(f"could not extract witness archive {archive_path}") from exc
     return bundle_dir
@@ -210,10 +264,23 @@ def run_verify(args: argparse.Namespace) -> int:
     archive_path = Path(args.archive)
     sha256_path = Path(args.sha256)
     extract_dir = Path(args.extract_dir)
-    if not archive_path.is_file():
-        raise WitnessArchiveError(f"missing witness archive: {archive_path}")
-    if not sha256_path.is_file():
-        raise WitnessArchiveError(f"missing witness archive SHA-256: {sha256_path}")
+    try:
+        wuci_safeio.require_regular_file(
+            archive_path,
+            "witness archive",
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=MAX_ARCHIVE_BYTES,
+        )
+        wuci_safeio.require_regular_file(
+            sha256_path,
+            "witness archive SHA-256 sidecar",
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=MAX_SIDECAR_BYTES,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise WitnessArchiveError(str(exc)) from exc
     assert_sha256_sidecar(archive_path, sha256_path)
     bundle_dir = extract_archive(archive_path, extract_dir)
     assert_bundle_verified(Path(args.bin), bundle_dir)

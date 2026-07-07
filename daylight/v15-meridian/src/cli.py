@@ -21,7 +21,7 @@ from . import ledger as ledger_model
 from . import obligations as obligation_model
 from . import scoring
 from . import vault as vault_model
-from .canonical_json import canonical_sha256
+from .canonical_json import CanonicalJSONError, canonical_sha256, loads_json_no_duplicates
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +43,44 @@ CLI_ERRORS = (
     FileNotFoundError,
 )
 
+MAX_CLI_INPUT_BYTES = 64 * 1024 * 1024
+
+
+def _read_regular_bytes(path: Path, label: str, *, max_bytes: int = MAX_CLI_INPUT_BYTES) -> bytes:
+    try:
+        expected = os.lstat(path)
+    except OSError as exc:
+        raise CommandError(f"{label} is unreadable: {path}") from exc
+    if stat.S_ISLNK(expected.st_mode) or not stat.S_ISREG(expected.st_mode):
+        raise CommandError(f"{label} must be a regular non-symlink file: {path}")
+    if expected.st_nlink != 1:
+        raise CommandError(f"{label} must not be hardlinked: {path}")
+    if expected.st_size > max_bytes:
+        raise CommandError(f"{label} exceeds {max_bytes} bytes: {path}")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        opened = os.fstat(fd)
+        if (opened.st_dev, opened.st_ino) != (expected.st_dev, expected.st_ino):
+            raise CommandError(f"{label} changed while opening: {path}")
+        data = b""
+        while True:
+            chunk = os.read(fd, 65536)
+            if not chunk:
+                break
+            data += chunk
+            if len(data) > max_bytes:
+                raise CommandError(f"{label} exceeds {max_bytes} bytes: {path}")
+        return data
+    finally:
+        os.close(fd)
+
+
+def _read_json(path: Path, label: str) -> Any:
+    try:
+        return loads_json_no_duplicates(_read_regular_bytes(path, label), label)
+    except CanonicalJSONError as exc:
+        raise CommandError(str(exc)) from exc
+
 
 class CommandError(Exception):
     """A clean, expected CLI failure (printed to stderr, exit code 1)."""
@@ -62,6 +100,7 @@ def _write_new_bytes(path: Path, data: bytes, label: str) -> None:
         raise CommandError(f"{label} output already exists: {path}")
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
+        os.fchmod(fd, 0o600)
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
             handle.flush()
@@ -79,8 +118,7 @@ def _json_dump(obj: Any, path: Path | None) -> None:
     if path is None:
         print(text, end="")
     else:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        _write_new_bytes(path, text.encode("utf-8"), "Meridian JSON output")
 
 
 def cmd_init_ledger(args: argparse.Namespace) -> int:
@@ -92,7 +130,7 @@ def cmd_init_ledger(args: argparse.Namespace) -> int:
 def cmd_append_entry(args: argparse.Namespace) -> int:
     path = Path(args.ledger)
     entries = ledger_model.load_jsonl(path)
-    witness = json.loads(Path(args.witness).read_text(encoding="utf-8"))
+    witness = _read_json(Path(args.witness), "Meridian witness")
     digest = canonical_sha256({"artifact": args.artifact}, "DAYLIGHT-v15-MERIDIAN-CLI-ARTIFACT:")
     entries, head = ledger_model.append_entry(
         entries,
@@ -151,7 +189,7 @@ def cmd_score(args: argparse.Namespace) -> int:
 
 
 def cmd_verify_scorecard(args: argparse.Namespace) -> int:
-    scorecard = json.loads(Path(args.scorecard).read_text(encoding="utf-8"))
+    scorecard = _read_json(Path(args.scorecard), "Meridian scorecard")
     if args.strict and not (args.ledger and args.corpus):
         raise CommandError("--strict requires --ledger and --corpus for an evidence-bound check")
     daylight_harness.verify_scorecard(
@@ -199,8 +237,8 @@ def cmd_frontier(args: argparse.Namespace) -> int:
         _json_dump(report, Path(args.out))
     if args.markdown_out:
         md = api.frontier_markdown(report)
-        Path(args.markdown_out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.markdown_out).write_text(md if md.endswith("\n") else md + "\n", encoding="utf-8")
+        body = md if md.endswith("\n") else md + "\n"
+        _write_new_bytes(Path(args.markdown_out), body.encode("utf-8"), "Meridian frontier Markdown output")
     if args.json:
         _json_dump(report, None)
     elif not args.out:
@@ -250,7 +288,7 @@ def cmd_attestation_template(args: argparse.Namespace) -> int:
 
 
 def cmd_explain(args: argparse.Namespace) -> int:
-    scorecard = json.loads(Path(args.scorecard).read_text(encoding="utf-8"))
+    scorecard = _read_json(Path(args.scorecard), "Meridian scorecard")
     registry = obligation_model.load_registry(DEFAULT_OBLIGATIONS)
     label_map = obligation_model.labels(registry)
     closed_by_q: dict[str, list[dict[str, Any]]] = {}
@@ -304,12 +342,14 @@ def cmd_explain(args: argparse.Namespace) -> int:
 
 
 def cmd_gate(args: argparse.Namespace) -> int:
-    scorecard = json.loads(Path(args.scorecard).read_text(encoding="utf-8"))
+    if not (args.ledger and args.corpus):
+        raise CommandError("gate requires --ledger and --corpus for an evidence-bound check")
+    scorecard = _read_json(Path(args.scorecard), "Meridian scorecard")
     result = api.verify_scorecard(
         scorecard,
         obligations_path=DEFAULT_OBLIGATIONS,
-        ledger_path=Path(args.ledger) if args.ledger else None,
-        corpus_path=Path(args.corpus) if args.corpus else None,
+        ledger_path=Path(args.ledger),
+        corpus_path=Path(args.corpus),
     )
     failures: list[str] = []
     if not result.ok:
@@ -412,9 +452,7 @@ def cmd_artifact(args: argparse.Namespace) -> int:
 def _load_caller_key(args: argparse.Namespace) -> bytes:
     if getattr(args, "keyfile", None):
         keyfile = Path(args.keyfile)
-        if keyfile.is_symlink():
-            raise CommandError(f"refusing symlinked keyfile: {keyfile}")
-        text = keyfile.read_text(encoding="utf-8").strip()
+        text = _read_regular_bytes(keyfile, "Meridian keyfile", max_bytes=4096).decode("utf-8").strip()
     elif getattr(args, "key", None):
         text = args.key.strip()
     else:
@@ -435,7 +473,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
         registry, min_score_M=args.min_score, required_closed_obligations=args.require_closed or []
     )
     if args.in_path:
-        plaintext = Path(args.in_path).read_bytes()
+        plaintext = _read_regular_bytes(Path(args.in_path), "Meridian plaintext input")
     elif args.message is not None:
         plaintext = args.message.encode("utf-8")
     else:
@@ -460,7 +498,7 @@ def cmd_seal(args: argparse.Namespace) -> int:
 
 def cmd_open(args: argparse.Namespace) -> int:
     key = _load_caller_key(args)
-    sealed = Path(args.in_path).read_bytes() if args.in_path else sys.stdin.buffer.read()
+    sealed = _read_regular_bytes(Path(args.in_path), "Meridian sealed envelope") if args.in_path else sys.stdin.buffer.read()
     plaintext = envelope_model.open_envelope(
         envelope=sealed,
         caller_key=key,
@@ -477,7 +515,7 @@ def cmd_open(args: argparse.Namespace) -> int:
 
 
 def cmd_envelope_inspect(args: argparse.Namespace) -> int:
-    sealed = Path(args.in_path).read_bytes() if args.in_path else sys.stdin.buffer.read()
+    sealed = _read_regular_bytes(Path(args.in_path), "Meridian sealed envelope") if args.in_path else sys.stdin.buffer.read()
     _json_dump(envelope_model.inspect(sealed), Path(args.out) if args.out else None)
     return 0
 
@@ -561,8 +599,8 @@ def cmd_vault_autoseal(args: argparse.Namespace) -> int:
 
 
 def cmd_check_downgrade(args: argparse.Namespace) -> int:
-    claimed = json.loads(Path(args.claimed).read_text(encoding="utf-8"))
-    current = json.loads(Path(args.current).read_text(encoding="utf-8"))
+    claimed = _read_json(Path(args.claimed), "claimed Meridian scorecard")
+    current = _read_json(Path(args.current), "current Meridian scorecard")
     result = downgrade.evaluate_downgrade(
         claimed_q=claimed["q_vector"],
         recomputed_q=current["q_vector"],

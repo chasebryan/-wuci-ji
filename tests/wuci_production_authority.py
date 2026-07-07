@@ -159,18 +159,20 @@ def main() -> None:
         assert unsigned.returncode != 0
         assert b"signed ceremony evidence" in unsigned.stderr
 
-        assert_ok(
-            run_tool(
-                "verify",
-                "--authority",
-                str(authority),
-                "--ceremony",
-                str(ceremony),
-                "--allow-unsigned-ceremony",
-                "--json",
-            ),
-            "verify unsigned production authority in explicit test mode",
+        allowed_unsigned = run_tool(
+            "verify",
+            "--authority",
+            str(authority),
+            "--ceremony",
+            str(ceremony),
+            "--allow-unsigned-ceremony",
+            "--json",
         )
+        assert_ok(allowed_unsigned, "verify unsigned production authority in explicit test mode")
+        unsigned_summary = json.loads(allowed_unsigned.stdout.decode("utf-8"))
+        assert unsigned_summary["ceremony_signature_verified"] is False
+        assert unsigned_summary["production_authority_verified"] is False
+        assert unsigned_summary["unsigned_local_review_only"] is True
 
         tampered = tmp / "tampered-ceremony.json"
         value = json.loads(ceremony.read_text(encoding="utf-8"))

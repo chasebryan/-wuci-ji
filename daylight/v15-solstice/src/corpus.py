@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
-from .canonical_json import canonical_sha256
+from .canonical_json import CanonicalJSONError, canonical_sha256, loads_json_no_duplicates
 
 
 SNAPSHOT_DOMAIN = "DAYLIGHT-v15-SOLSTICE-CORPUS:"
@@ -41,8 +41,8 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
         if not stripped:
             continue
         try:
-            entry = json.loads(stripped)
-        except json.JSONDecodeError as exc:
+            entry = loads_json_no_duplicates(stripped, f"Solstice corpus line {line_no}")
+        except (json.JSONDecodeError, CanonicalJSONError) as exc:
             raise CorpusError(f"invalid corpus JSON at line {line_no}: {exc}") from exc
         validate_entry(entry)
         entries.append(entry)

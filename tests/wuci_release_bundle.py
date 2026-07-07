@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
 import sys
 import tempfile
 from pathlib import Path
@@ -21,6 +22,18 @@ def write_json(path: Path, value: dict[str, object]) -> None:
 def write_file(path: Path, data: bytes = b"fixture\n") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
+
+
+def scanned_file(path: Path, *, content_scan: str | None = None) -> dict[str, object]:
+    record: dict[str, object] = {
+        "path": str(path),
+        "type": "file",
+        "bytes": path.stat().st_size,
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+    }
+    if content_scan is not None:
+        record["content_scan"] = content_scan
+    return record
 
 
 def fixture_tree(tmp: Path, *, privacy_status: str = "pass") -> dict[str, Path]:
@@ -53,6 +66,18 @@ def fixture_tree(tmp: Path, *, privacy_status: str = "pass") -> dict[str, Path]:
         },
     )
     write_json(evidence / "qemu-boot-trace.json", {"status": "pass"})
+    write_json(rootfs_privacy, {"status": "pass", "summary": {"findings": 0}, "findings": []})
+    write_json(daylight, {"score": 100.0})
+    scanned = [
+        scanned_file(final / "Wuci-OS-x86_64-musl.iso", content_scan="inspected-fixture-container"),
+        scanned_file(final / "Wuci-OS-x86_64-musl.iso.sha256"),
+        scanned_file(final / "manifest.json"),
+        scanned_file(final / "rootfs-manifest.json"),
+        scanned_file(final / "daylight-manifest.json"),
+        scanned_file(evidence / "release-gate.json"),
+        scanned_file(evidence / "qemu-boot-trace.json"),
+        scanned_file(daylight),
+    ]
     write_json(
         privacy,
         {
@@ -60,10 +85,9 @@ def fixture_tree(tmp: Path, *, privacy_status: str = "pass") -> dict[str, Path]:
             "status": privacy_status,
             "summary": {"findings": 0 if privacy_status == "pass" else 1},
             "findings": [] if privacy_status == "pass" else [{"kind": "openai_api_key"}],
+            "scanned_files": scanned,
         },
     )
-    write_json(rootfs_privacy, {"status": "pass", "summary": {"findings": 0}, "findings": []})
-    write_json(daylight, {"score": 100.0})
     return {
         "final": final,
         "vbox": vbox,
@@ -170,6 +194,84 @@ def assert_symlink_input_is_rejected(tmp: Path) -> None:
         raise AssertionError("symlink input was accepted")
 
 
+def assert_stale_privacy_report_blocks_bundle(tmp: Path) -> None:
+    paths = fixture_tree(tmp)
+    (paths["final"] / "manifest.json").write_text('{"tampered":true}\n', encoding="utf-8")
+    try:
+        bundle.build_bundle(
+            out=tmp / "bundle",
+            final_dir=paths["final"],
+            evidence_dir=paths["evidence"],
+            privacy_audit=paths["privacy"],
+            rootfs_privacy_audit=paths["rootfs_privacy"],
+            daylight_ssv=paths["daylight"],
+            force=True,
+        )
+    except bundle.ReleaseBundleError as exc:
+        assert "privacy audit digest is stale" in str(exc)
+    else:
+        raise AssertionError("stale privacy report was accepted")
+
+
+def assert_uninspected_container_privacy_blocks_bundle(tmp: Path) -> None:
+    paths = fixture_tree(tmp)
+    report = json.loads(paths["privacy"].read_text(encoding="utf-8"))
+    for item in report["scanned_files"]:
+        if str(item.get("path", "")).endswith("Wuci-OS-x86_64-musl.iso"):
+            item["content_scan"] = "skipped-raw-iso-container"
+    write_json(paths["privacy"], report)
+    try:
+        bundle.build_bundle(
+            out=tmp / "bundle",
+            final_dir=paths["final"],
+            evidence_dir=paths["evidence"],
+            privacy_audit=paths["privacy"],
+            rootfs_privacy_audit=paths["rootfs_privacy"],
+            daylight_ssv=paths["daylight"],
+            force=True,
+        )
+    except bundle.ReleaseBundleError as exc:
+        assert "did not inspect copied container payload" in str(exc)
+    else:
+        raise AssertionError("uninspected raw container privacy evidence was accepted")
+
+
+def assert_duplicate_json_privacy_report_is_rejected(tmp: Path) -> None:
+    report = tmp / "privacy.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text('{"status":"pass","status":"fail","summary":{"findings":0},"findings":[]}\n', encoding="utf-8")
+    try:
+        bundle.require_privacy_pass(report)
+    except bundle.ReleaseBundleError as exc:
+        assert "duplicate JSON key" in str(exc)
+    else:
+        raise AssertionError("duplicate-key privacy report was accepted")
+
+
+def assert_symlink_output_parent_is_rejected(tmp: Path) -> None:
+    if not hasattr(os, "symlink"):
+        return
+    paths = fixture_tree(tmp)
+    real_parent = tmp / "real-out"
+    real_parent.mkdir()
+    linked_parent = tmp / "linked-out"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+    try:
+        bundle.build_bundle(
+            out=linked_parent / "bundle",
+            final_dir=paths["final"],
+            evidence_dir=paths["evidence"],
+            privacy_audit=paths["privacy"],
+            rootfs_privacy_audit=paths["rootfs_privacy"],
+            daylight_ssv=paths["daylight"],
+            force=True,
+        )
+    except bundle.ReleaseBundleError as exc:
+        assert "parent must not be a symlink" in str(exc)
+    else:
+        raise AssertionError("symlinked output parent was accepted")
+
+
 def assert_verify_parser_accepts_makefile_shape() -> None:
     args = bundle.build_parser().parse_args(
         [
@@ -241,6 +343,25 @@ def assert_optional_evidence_groups_are_fail_closed() -> None:
         raise AssertionError("partial optional evidence was accepted")
 
 
+def assert_repo_build_tool_identity_is_restricted(tmp: Path) -> None:
+    repo = tmp / "repo"
+    build = repo / "build"
+    build.mkdir(parents=True)
+    expected = build / "wuci-witness"
+    expected.write_bytes(b"expected verifier\n")
+    observed = bundle.require_repo_build_tool(expected, repo, "wuci-witness", "witness verifier")
+    assert observed["path"] == str(expected)
+
+    other = build / "other-witness"
+    other.write_bytes(b"other verifier\n")
+    try:
+        bundle.require_repo_build_tool(other, repo, "wuci-witness", "witness verifier")
+    except bundle.ReleaseBundleError as exc:
+        assert "repository build output" in str(exc)
+    else:
+        raise AssertionError("arbitrary verifier binary path was accepted")
+
+
 def assert_parser_replay_requires_non_offensive_fail_closed_evidence(tmp: Path) -> None:
     good = tmp / "parser-replay.json"
     write_json(
@@ -283,9 +404,14 @@ def main() -> int:
         assert_privacy_failure_blocks_bundle(tmp / "privacy")
         assert_missing_rootfs_privacy_blocks_bundle(tmp / "rootfs-privacy")
         assert_symlink_input_is_rejected(tmp / "symlink")
+        assert_stale_privacy_report_blocks_bundle(tmp / "stale-privacy")
+        assert_uninspected_container_privacy_blocks_bundle(tmp / "uninspected-container")
+        assert_duplicate_json_privacy_report_is_rejected(tmp / "duplicate-json")
+        assert_symlink_output_parent_is_rejected(tmp / "symlink-out")
         assert_parser_replay_requires_non_offensive_fail_closed_evidence(tmp / "parser")
         assert_verify_parser_accepts_makefile_shape()
         assert_optional_evidence_groups_are_fail_closed()
+        assert_repo_build_tool_identity_is_restricted(tmp / "verifier-tool")
     print("wuci-release-bundle tests: PASS")
     return 0
 

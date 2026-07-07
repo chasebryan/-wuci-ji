@@ -127,6 +127,14 @@ def main() -> None:
             "private marker rejected",
         )
 
+        if hasattr(os, "symlink"):
+            root_link = tmp / "bundle-root-link"
+            root_link.symlink_to(base, target_is_directory=True)
+            assert_witness_fails(
+                run_witness(["verify", "--bin", str(BIN), "--bundle", str(root_link)]),
+                "symlink bundle root rejected",
+            )
+
     if not args.quiet:
         print("wuci witness symlink hardening: PASS")
 

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
+from .canonical_json import load_json_file_no_duplicates
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SOLSTICE_ROOT = REPO_ROOT / "daylight" / "v15-solstice"
@@ -50,9 +50,9 @@ def load_artifact(artifact_dir: Path | str) -> dict[str, Any]:
         raise SolsticeBridgeError(f"missing Solstice manifest: {manifest_path}")
     return {
         "artifact_dir": artifact_dir,
-        "manifest": json.loads(manifest_path.read_text(encoding="utf-8")),
-        "scorecard": json.loads(scorecard_path.read_text(encoding="utf-8")),
-        "receipt": json.loads(receipt_path.read_text(encoding="utf-8")),
+        "manifest": load_json_file_no_duplicates(manifest_path, "Solstice manifest"),
+        "scorecard": load_json_file_no_duplicates(scorecard_path, "Solstice scorecard"),
+        "receipt": load_json_file_no_duplicates(receipt_path, "Solstice receipt"),
         "output_ledger_path": output_ledger_path,
     }
 

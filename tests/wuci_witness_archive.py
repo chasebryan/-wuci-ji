@@ -215,6 +215,24 @@ def main() -> None:
             sha256=bad_sidecar,
             extract_dir=tmp / "bad-sidecar-extract",
         )
+        if hasattr(os, "symlink"):
+            linked_sidecar = tmp / "linked-sidecar.sha256"
+            linked_sidecar.symlink_to(sha_a)
+            assert_archive_verify_fails(
+                bin_path=bin_path,
+                archive=archive_a,
+                sha256=linked_sidecar,
+                extract_dir=tmp / "linked-sidecar-extract",
+            )
+        if hasattr(os, "link"):
+            hardlinked_sidecar = tmp / "hardlinked-sidecar.sha256"
+            os.link(sha_a, hardlinked_sidecar)
+            assert_archive_verify_fails(
+                bin_path=bin_path,
+                archive=archive_a,
+                sha256=hardlinked_sidecar,
+                extract_dir=tmp / "hardlinked-sidecar-extract",
+            )
 
         missing_index = tmp / "missing-index.tar"
         write_custom_archive(
@@ -244,6 +262,27 @@ def main() -> None:
             archive=forbidden,
             sha256=forbidden_sha,
             extract_dir=tmp / "forbidden-extract",
+        )
+
+        oversized_member = tmp / "oversized-member.tar"
+
+        def oversize_attestation(filename: str, data: bytes) -> bytes:
+            if filename != "attestation.json":
+                return data
+            return b"{" + b'"pad":"' + (b"A" * (256 * 1024)) + b'"}\n'
+
+        write_custom_archive(
+            bundle=bundle,
+            archive=oversized_member,
+            mutate_data=oversize_attestation,
+        )
+        oversized_member_sha = tmp / "oversized-member.tar.sha256"
+        write_sidecar(oversized_member, oversized_member_sha)
+        assert_archive_verify_fails(
+            bin_path=bin_path,
+            archive=oversized_member,
+            sha256=oversized_member_sha,
+            extract_dir=tmp / "oversized-member-extract",
         )
 
         bad_mtime = tmp / "bad-mtime.tar"

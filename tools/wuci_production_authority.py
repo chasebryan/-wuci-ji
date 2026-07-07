@@ -7,7 +7,6 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +17,7 @@ import wuci_safeio
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 POLICY = REPO_ROOT / "docs" / "wuci_production_authority_policy.json"
+TRUSTED_SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
 SIGNATURE_IDENTITY = "wuci-production-authority"
 SIGNATURE_NAMESPACE = "wuci-production-authority-v1"
 FIELDS = (
@@ -294,19 +294,35 @@ def validate_ceremony(
 
 
 def ssh_keygen_path(override: str | None) -> str:
+    trusted = TRUSTED_SSH_KEYGEN
+    try:
+        wuci_safeio.lstat_regular_file(
+            trusted,
+            "trusted ssh-keygen verifier",
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
+        trusted_resolved = trusted.resolve(strict=True)
+    except (OSError, wuci_safeio.SafeIOError):
+        fail(f"trusted ssh-keygen verifier is unavailable: {trusted}")
     if override:
         if "\0" in override:
             fail("ssh-keygen path contains NUL")
         path = Path(override)
         if not path.is_absolute():
             fail("--ssh-keygen must be an absolute path")
-        if not path.exists():
-            fail(f"ssh-keygen does not exist: {path}")
-        return str(path)
-    found = shutil.which("ssh-keygen")
-    if not found:
-        fail("ssh-keygen not found on PATH")
-    return found
+        try:
+            wuci_safeio.lstat_regular_file(
+                path,
+                "ssh-keygen verifier",
+                reject_symlink=True,
+                reject_hardlink=True,
+            )
+            if path.resolve(strict=True) != trusted_resolved:
+                fail(f"--ssh-keygen must resolve to trusted verifier: {trusted}")
+        except (OSError, wuci_safeio.SafeIOError):
+            fail(f"ssh-keygen verifier is not a trusted regular file: {path}")
+    return str(trusted)
 
 
 def read_public_key_line(path: Path) -> str:
@@ -457,7 +473,8 @@ def verify_authority(
         "ceremony_sha256": sha256_file(ceremony_path, "production authority ceremony"),
         "ceremony_id": ceremony["ceremony_id"],
         "ceremony_signature_verified": signature_verified,
-        "production_authority_verified": True,
+        "production_authority_verified": signature_verified,
+        "unsigned_local_review_only": not signature_verified,
         "non_claims": [
             "production authority does not imply runtime sandboxing",
             "production authority does not imply quantum safety",

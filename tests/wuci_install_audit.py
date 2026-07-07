@@ -35,6 +35,19 @@ def make_prefix(prefix: Path) -> dict:
     shutil.copy2(REPO / "install" / "wuci-install-root.v1.pub", share / "install-root.pub")
     shutil.copy2(REPO / "install" / "wuci-install-manifest.v1", share / "wuci-install-manifest.v1")
     shutil.copy2(REPO / "install" / "wuci-install-manifest.v1.sig", share / "wuci-install-manifest.v1.sig")
+    proofs = share / "proofs"
+    (proofs / "wuci-witness-bundle").mkdir(parents=True)
+    (proofs / "wuci-witness-bundle" / "manifest.txt").write_text("fixture witness proof\n", encoding="ascii")
+    (proofs / "wuci-ledger" / "entries").mkdir(parents=True)
+    (proofs / "wuci-ledger" / "entries" / "00000000000000000000.txt").write_text("fixture ledger proof\n", encoding="ascii")
+    (proofs / "wuci-cage-attestation.json").write_text('{"schema":"fixture-cage"}\n', encoding="ascii")
+    (proofs / "wuci-qcage-attestation.json").write_text('{"schema":"fixture-qcage"}\n', encoding="ascii")
+    proof_hashes = {
+        "witness_bundle_sha512": wuci_install.hash_tree_sha512(proofs / "wuci-witness-bundle", "fixture witness bundle"),
+        "ledger_history_sha512": wuci_install.hash_tree_sha512(proofs / "wuci-ledger", "fixture ledger history"),
+        "cage_attestation_sha512": wuci_install.sha512_file(proofs / "wuci-cage-attestation.json"),
+        "qcage_attestation_sha512": wuci_install.sha512_file(proofs / "wuci-qcage-attestation.json"),
+    }
     receipt = {
         "schema": "wuci-install-receipt-v1",
         "product": "无此机 / Wuci-ji",
@@ -56,6 +69,7 @@ def make_prefix(prefix: Path) -> dict:
         "qcage_compat_proof": True,
         "witness_bundle": True,
         "ledger_history": True,
+        "proof_hashes": proof_hashes,
         "runtime_sandbox_claimed": False,
         "quantum_safe_claimed": False,
     }
@@ -81,11 +95,11 @@ def main() -> None:
             "install-root-key-copied: PASS",
             "install-manifest-signature: PASS",
             "selftest: PASS",
-            "harden-proof: PASS",
-            "cage-proof: PASS",
-            "qcage-compat-proof: PASS",
-            "witness-bundle: PASS",
-            "ledger-history: PASS",
+            "harden-proof: RECEIPT_ONLY",
+            "cage-proof: VERIFIED",
+            "qcage-compat-proof: VERIFIED",
+            "witness-bundle: VERIFIED",
+            "ledger-history: VERIFIED",
             "runtime-sandbox-claimed: false",
             "quantum-safe-claimed: false",
         ):
@@ -101,6 +115,8 @@ def main() -> None:
         data = json.loads(json_capture.getvalue())
         assert data["schema"] == "wuci-install-audit-v1"
         assert data["audit_passed"] is True
+        assert data["proof_lanes_fully_verified"] is False
+        assert data["receipt_only_proof_lanes"] == ["harden-proof"]
         assert data["receipt"]["binary_sha256"] == wuci_install.sha256_file(prefix / "bin" / "wuci-ji")
         share = prefix / "share" / "wuci-ji"
         receipt = share / "install-receipt.json"

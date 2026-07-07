@@ -15,6 +15,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    import wuci_safeio
+    if not hasattr(wuci_safeio, "read_regular_bytes"):
+        raise ImportError("wrong wuci_safeio module")
+except ImportError:  # pragma: no cover - package import path used by tests
+    from tools import wuci_safeio  # type: ignore[no-redef]
 
 SCHEMA = "daylight-public-evidence-firewall-v1"
 DAYLIGHT_V15_PUBLIC_FILES = {
@@ -112,6 +118,55 @@ def add(report: dict[str, Any], path: str, reason: str, severity: str = "critica
     report["violations"].append(violation(path, reason, severity))
 
 
+def read_public_bytes(path: Path, context: str, *, max_bytes: int | None = None) -> bytes:
+    try:
+        return wuci_safeio.read_regular_bytes(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=max_bytes,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise FirewallError(str(exc)) from exc
+
+
+def read_public_text(path: Path, context: str, *, max_bytes: int | None = None) -> str:
+    data = read_public_bytes(path, context, max_bytes=max_bytes)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise FirewallError(f"{context} is not UTF-8: {path}") from exc
+
+
+def read_public_json(path: Path, context: str) -> Any:
+    try:
+        return wuci_safeio.read_regular_json(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=5_000_000,
+        )
+    except wuci_safeio.SafeIOError as exc:
+        raise FirewallError(str(exc)) from exc
+
+
+def public_member_path(root: Path, name: str) -> Path:
+    if not isinstance(name, str) or not name:
+        raise FirewallError("manifest member path must be a non-empty relative path")
+    candidate = Path(name)
+    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+        raise FirewallError(f"unsafe manifest member path: {name}")
+    root_resolved = root.resolve(strict=True)
+    resolved = (root_resolved / candidate).resolve(strict=False)
+    try:
+        resolved.relative_to(root_resolved)
+    except ValueError as exc:
+        raise FirewallError(f"manifest member escapes public root: {name}") from exc
+    return resolved
+
+
 def iter_paths(root: Path) -> list[Path]:
     if not root.exists():
         raise FirewallError(f"scan root does not exist: {root}")
@@ -189,7 +244,11 @@ def scan_root(root: Path, *, profile: str | None, max_file_bytes: int) -> dict[s
             add(report, relative, "forbidden_private_material_suffix")
         if FORBIDDEN_NAME_RE.search(path.name):
             add(report, relative, "forbidden_secret_path")
-        data = path.read_bytes()
+        try:
+            data = read_public_bytes(path, f"public artifact member {relative}", max_bytes=max_file_bytes)
+        except FirewallError as exc:
+            add(report, relative, f"unreadable_public_artifact_member:{exc}")
+            continue
         if HEX_KEY_RE.match(data):
             add(report, relative, "raw_key_shaped_material")
         for marker in SECRET_MARKERS:
@@ -204,7 +263,7 @@ def scan_root(root: Path, *, profile: str | None, max_file_bytes: int) -> dict[s
 
 def parse_sha256sums(path: Path) -> dict[str, str]:
     entries: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in read_public_text(path, "SHA256SUMS", max_bytes=1_000_000).splitlines():
         if not line.strip():
             continue
         digest, sep, name = line.partition("  ")
@@ -215,20 +274,28 @@ def parse_sha256sums(path: Path) -> dict[str, str]:
 
 
 def sha256_file(path: Path) -> str:
-    import hashlib
-
-    h = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    try:
+        return wuci_safeio.sha256_file(path, "public artifact member")
+    except wuci_safeio.SafeIOError as exc:
+        raise FirewallError(str(exc)) from exc
 
 
 def verify_manifest(manifest_path: Path, root: Path | None) -> dict[str, Any]:
     root = root or manifest_path.parent
     report = base_report(str(root), "verify-manifest")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    outputs = set(manifest.get("outputs", {}))
+    try:
+        manifest = read_public_json(manifest_path, "Daylight public artifact manifest")
+    except FirewallError as exc:
+        add(report, rel(manifest_path, root), f"manifest_unreadable:{exc}")
+        return report
+    outputs: set[str] = set()
+    for name in manifest.get("outputs", {}):
+        try:
+            public_member_path(root, name)
+        except FirewallError as exc:
+            add(report, str(name), f"unsafe_manifest_output:{exc}")
+            continue
+        outputs.add(str(name))
     expected = set(outputs) | {"artifact-manifest.json", "SHA256SUMS"}
     actual = {rel(path, root) for path in root.rglob("*") if path.is_file() and not path.is_symlink()}
     for name in sorted(actual - expected):
@@ -242,7 +309,11 @@ def verify_manifest(manifest_path: Path, root: Path | None) -> dict[str, Any]:
             if set(sums) != expected - {"SHA256SUMS"}:
                 add(report, "SHA256SUMS", "sha256sums_public_file_set_mismatch")
             for name, digest in sorted(sums.items()):
-                file_path = root / name
+                try:
+                    file_path = public_member_path(root, name)
+                except FirewallError as exc:
+                    add(report, name, f"unsafe_sha256sum_path:{exc}")
+                    continue
                 if file_path.is_file() and sha256_file(file_path) != digest:
                     add(report, name, "sha256sum_mismatch")
         except (OSError, FirewallError) as exc:
@@ -277,7 +348,7 @@ def extract_upload_blocks(lines: list[str]) -> list[tuple[int, list[str]]]:
 
 
 def check_workflow(path: Path) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
+    text = read_public_text(path, "GitHub Actions workflow", max_bytes=2_000_000)
     lines = text.splitlines()
     report = base_report(str(path), "check-workflow")
     upload_blocks = extract_upload_blocks(lines)

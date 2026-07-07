@@ -18,7 +18,7 @@ from typing import Any
 from . import profile
 from .canonical_json import json_bytes, load_json_no_floats
 from .capsule import CAPSULE_FILENAME, SUMS_FILENAME, verify_capsule
-from .pathsafe import atomic_write_bytes, sha256_file
+from .pathsafe import PathSafetyError, atomic_write_bytes, read_public_bytes, sha256_file
 
 REPORT_SCHEMA = "daylight-v19-aperture-firewall-report"
 SUMS_LINE_RE = re.compile(r"^([0-9a-f]{64})  (.+)$")
@@ -87,12 +87,17 @@ def scan_public_root(
         files.append(relative)
         if st.st_nlink > 1:
             add(relative, "hardlink_in_public_artifact")
+            continue
         for reason in profile.check_path_name(relative):
             add(relative, reason)
         if st.st_size > max_file_bytes:
             add(relative, "file_exceeds_public_artifact_size_limit")
             continue
-        data = path.read_bytes()
+        try:
+            data = read_public_bytes(path, relative, max_bytes=max_file_bytes)
+        except PathSafetyError as exc:
+            add(relative, f"path_safety_error:{exc}")
+            continue
         for reason in profile.check_content(data, rel_path=relative):
             add(relative, reason)
 
@@ -123,9 +128,12 @@ def scan_public_root(
                     add(SUMS_FILENAME, "sha256sums_missing")
                 else:
                     try:
-                        sums = _parse_sha256sums(
-                            (root_path / SUMS_FILENAME).read_text(encoding="utf-8")
-                        )
+                        sums_text = read_public_bytes(
+                            root_path / SUMS_FILENAME,
+                            SUMS_FILENAME,
+                            max_bytes=max_file_bytes,
+                        ).decode("utf-8")
+                        sums = _parse_sha256sums(sums_text)
                         hashable = set(files) - {SUMS_FILENAME}
                         if set(sums) != hashable:
                             add(SUMS_FILENAME, "sha256sums_file_set_mismatch")

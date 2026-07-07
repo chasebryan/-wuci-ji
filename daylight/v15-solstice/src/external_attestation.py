@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 from pathlib import Path
 from typing import Any
 
-from .canonical_json import canonical_bytes, canonical_sha256
+from .canonical_json import CanonicalJSONError, canonical_bytes, canonical_sha256, load_json_file_no_duplicates
 from .semantic_evidence import is_hex_sha256
 
 
@@ -46,7 +45,10 @@ def rootset_digest(rootset: dict[str, Any] | None) -> str | None:
 def load_rootset(path: Path | str | None) -> dict[str, Any] | None:
     if path is None:
         return None
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        data = load_json_file_no_duplicates(Path(path), "Solstice external rootset")
+    except CanonicalJSONError as exc:
+        raise ExternalAttestationError(str(exc)) from exc
     if data.get("rootset_version") != ROOTSET_VERSION:
         raise ExternalAttestationError("unsupported external rootset version")
     expected = data.get("rootset_digest")

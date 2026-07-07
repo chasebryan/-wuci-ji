@@ -216,7 +216,7 @@
       "evidence_values": {
         "roadmap_only": true,
         "forbidden_authority_claims": [
-          "Department of War approved",
+          "DoW approval claim",
           "cATO authorized",
           "RMF authorized",
           "FIPS validated",

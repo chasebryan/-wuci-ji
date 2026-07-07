@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .canonical_json import canonical_bytes, canonical_sha256, sha256_bytes
+from .canonical_json import CanonicalJSONError, canonical_bytes, canonical_sha256, load_json_file_no_duplicates, read_regular_bytes, sha256_bytes
 from . import solstice_bridge
 from . import zenith_contract as contract
 
@@ -68,7 +68,10 @@ def sign_record(record: dict[str, Any], root_key: str, namespace: str) -> dict[s
 def load_evidence(path: Path | str | None) -> dict[str, Any]:
     if path is None:
         return {}
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        data = load_json_file_no_duplicates(Path(path), "Zenith evidence")
+    except CanonicalJSONError as exc:
+        raise ZenithError(str(exc)) from exc
     reject_float(data, "zenith_evidence")
     if not isinstance(data, dict):
         raise ZenithError("Zenith evidence must be a JSON object")
@@ -324,13 +327,16 @@ def production_authority_valid(evidence: dict[str, Any]) -> bool:
 
 
 def runtime_containment_valid(evidence: dict[str, Any]) -> bool:
-    record = evidence.get("runtime_containment_evidence", {})
-    return isinstance(record, dict) and record.get("valid") is True and record.get("negative_tests_pass") is True
+    # A JSON flag is not OS containment. Keep the gate closed until a real,
+    # pinned runtime containment verifier is implemented and tested.
+    return False
 
 
 def post_quantum_safety_valid(evidence: dict[str, Any]) -> bool:
-    record = evidence.get("pq_evidence", {})
-    return isinstance(record, dict) and record.get("valid") is True and record.get("external_crypto_review_valid") is True
+    # Classical signatures or self-declared PQ flags do not establish
+    # whole-system post-quantum safety. Keep the gate closed until a real,
+    # pinned PQ verifier lane exists.
+    return False
 
 
 def fixture_quarantine_valid(evidence: dict[str, Any]) -> bool:
@@ -636,6 +642,21 @@ def _repo_relative(path: Path) -> str:
         return str(Path(path).resolve())
 
 
+def _resolve_report_output(path_text: str, report_dir: Path, context: str) -> Path:
+    if not isinstance(path_text, str) or not path_text:
+        raise ZenithError(f"{context} path must be a non-empty relative path")
+    candidate = Path(path_text)
+    if candidate.is_absolute() or any(part in {"", ".", ".."} for part in candidate.parts):
+        raise ZenithError(f"{context} path is unsafe: {path_text}")
+    report_root = report_dir.resolve(strict=True)
+    resolved = (report_root / candidate).resolve(strict=True)
+    try:
+        resolved.relative_to(report_root)
+    except ValueError as exc:
+        raise ZenithError(f"{context} path escapes report directory: {path_text}") from exc
+    return resolved
+
+
 def build_report_artifact(
     *,
     solstice_artifact_dir: Path | str,
@@ -658,7 +679,7 @@ def build_report_artifact(
     if evidence_path is not None:
         inputs["zenith_evidence"] = {
             "path": _repo_relative(Path(evidence_path)),
-            "sha256": sha256_bytes(Path(evidence_path).read_bytes()),
+            "sha256": sha256_bytes(read_regular_bytes(Path(evidence_path), "Zenith evidence")),
         }
     manifest = {
         "manifest_version": MANIFEST_VERSION,
@@ -687,14 +708,15 @@ def build_report_artifact(
 
 def verify_report_dir(path: Path | str) -> None:
     path = Path(path)
-    manifest = json.loads((path / "zenith-manifest.json").read_text(encoding="utf-8"))
+    manifest = load_json_file_no_duplicates(path / "zenith-manifest.json", "Zenith manifest")
     for name, info in manifest["outputs"].items():
-        actual = sha256_bytes((path / info["path"]).read_bytes())
+        output_path = _resolve_report_output(info["path"], path, f"Zenith output {name}")
+        actual = sha256_bytes(read_regular_bytes(output_path, f"Zenith output {name}"))
         if actual != info["sha256"]:
             raise ZenithError(f"Zenith output hash mismatch: {name}")
     expected = "".join(
-        f"{sha256_bytes((path / name).read_bytes())}  {name}\n"
+        f"{sha256_bytes(read_regular_bytes(path / name, f'Zenith output {name}'))}  {name}\n"
         for name in sorted(list(manifest["outputs"]) + ["zenith-manifest.json"])
     )
-    if (path / "SHA256SUMS").read_text(encoding="utf-8") != expected:
+    if read_regular_bytes(path / "SHA256SUMS", "Zenith SHA256SUMS").decode("utf-8") != expected:
         raise ZenithError("Zenith SHA256SUMS mismatch")

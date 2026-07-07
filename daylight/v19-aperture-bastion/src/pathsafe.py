@@ -58,9 +58,42 @@ def require_regular_file(path: Path, label: str, *, reject_hardlink: bool = True
     return st
 
 
+def read_public_bytes(
+    path: Path | str,
+    label: str,
+    *,
+    max_bytes: int | None = None,
+    reject_hardlink: bool = True,
+) -> bytes:
+    target = Path(path)
+    before = require_regular_file(target, label, reject_hardlink=reject_hardlink)
+    if max_bytes is not None and before.st_size > max_bytes:
+        raise PathSafetyError(f"{label} exceeds size limit: {target}")
+    try:
+        with target.open("rb") as handle:
+            after = os.fstat(handle.fileno())
+            if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+                raise PathSafetyError(f"{label} changed while opening: {target}")
+            chunks: list[bytes] = []
+            total = 0
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                total += len(chunk)
+                if max_bytes is not None and total > max_bytes:
+                    raise PathSafetyError(f"{label} exceeds size limit: {target}")
+                chunks.append(chunk)
+            return b"".join(chunks)
+    except OSError as exc:
+        raise PathSafetyError(f"could not read {label}: {target}: {exc}") from exc
+
+
 def sha256_file(path: Path | str) -> str:
     digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
+    target = Path(path)
+    before = require_regular_file(target, str(target))
+    with target.open("rb") as handle:
+        after = os.fstat(handle.fileno())
+        if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+            raise PathSafetyError(f"file changed while opening: {target}")
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
@@ -70,7 +103,12 @@ def hash_file_dual(path: Path | str) -> tuple[str, str, int]:
     sha256 = hashlib.sha256()
     sha3_512 = hashlib.sha3_512()
     size = 0
-    with Path(path).open("rb") as handle:
+    target = Path(path)
+    before = require_regular_file(target, str(target))
+    with target.open("rb") as handle:
+        after = os.fstat(handle.fileno())
+        if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+            raise PathSafetyError(f"file changed while opening: {target}")
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             sha256.update(chunk)
             sha3_512.update(chunk)
@@ -80,10 +118,19 @@ def hash_file_dual(path: Path | str) -> tuple[str, str, int]:
 
 def atomic_write_bytes(path: Path | str, data: bytes, *, force: bool = False, mode: int = 0o644) -> None:
     path = Path(path)
-    if path.is_symlink():
-        raise PathSafetyError(f"refusing to write through symlink: {path}")
-    if path.exists() and not force:
-        raise PathSafetyError(f"refusing to overwrite existing output without --force: {path}")
+    current = path.parent
+    while current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise PathSafetyError(f"output parent must not be a symlink: {current}")
+        current = current.parent
+    if path.exists() or path.is_symlink():
+        st = path.lstat()
+        if stat.S_ISLNK(st.st_mode):
+            raise PathSafetyError(f"refusing to write through symlink: {path}")
+        if not stat.S_ISREG(st.st_mode):
+            raise PathSafetyError(f"refusing to overwrite non-regular output: {path}")
+        if not force:
+            raise PathSafetyError(f"refusing to overwrite existing output without --force: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
     try:

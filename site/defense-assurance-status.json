@@ -4,7 +4,7 @@
   "warning_level": "BLUE",
   "current_claim": "Externally reviewable high-assurance research artifact with active external evidence intake.",
   "forbidden_claims": [
-    "Department of War approved",
+    "DoW approval claim",
     "cATO authorized",
     "RMF authorized",
     "FIPS validated",

@@ -25,6 +25,7 @@ from .pathsafe import (
     PathSafetyError,
     hash_file_dual,
     normalize_rel_path,
+    read_public_bytes,
     require_regular_file,
     resolve_under_base,
     sha256_file,
@@ -136,10 +137,7 @@ def capsule_digest(capsule: dict[str, Any]) -> str:
 
 def _manifest_entry(rel_path: str, base_dir: Path, *, max_file_bytes: int) -> tuple[dict[str, Any], list[str]]:
     source = resolve_under_base(rel_path, base_dir)
-    require_regular_file(source, rel_path)
-    data = source.read_bytes()
-    if len(data) > max_file_bytes:
-        raise CapsuleError(f"public file exceeds size limit: {rel_path}")
+    data = read_public_bytes(source, rel_path, max_bytes=max_file_bytes)
     reasons = profile.check_path_name(rel_path)
     reasons.extend(profile.check_content(data, rel_path=rel_path))
     entry = {

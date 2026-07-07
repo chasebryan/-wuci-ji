@@ -113,14 +113,14 @@ def build_authorization(
 
 def load_json_file(path: Path, context: str) -> Any:
     try:
-        data = wuci_safeio.read_regular_bytes(path, context, reject_symlink=True)
-        return json.loads(data.decode("utf-8"))
+        return wuci_safeio.read_regular_json(
+            path,
+            context,
+            reject_symlink=True,
+            reject_hardlink=True,
+        )
     except wuci_safeio.SafeIOError as exc:
         raise AuthorizationError(str(exc)) from exc
-    except UnicodeDecodeError as exc:
-        raise AuthorizationError(f"{context} is not UTF-8") from exc
-    except json.JSONDecodeError as exc:
-        raise AuthorizationError(f"{context} is not valid JSON: {exc.msg}") from exc
 
 
 def write_new_json(path: Path, value: dict[str, Any]) -> None:

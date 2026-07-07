@@ -40,6 +40,8 @@ DEFAULT_PATHS = (
 )
 READ_CHUNK = 1024 * 1024
 MAX_ARCHIVE_MEMBER_BYTES = 64 * 1024 * 1024
+MAX_ARCHIVE_TOTAL_BYTES = 256 * 1024 * 1024
+MAX_ARCHIVE_MEMBERS = 4096
 
 NON_CLAIM = (
     "This audit scans selected candidate public artifact paths for high "
@@ -229,6 +231,13 @@ def _scan_regular_file(path: Path, display_path: str) -> tuple[list[dict[str, st
     findings = [{"path": display_path, **item} for item in _path_indicators(display_path)]
     if path.suffix.lower() in {".iso", ".ova"}:
         digest = sha256_file(path)
+        findings.append(
+            {
+                "kind": "unscanned_container_payload",
+                "path": display_path,
+                "message": "raw release container payload was not inspected by the privacy audit",
+            }
+        )
         return (
             _dedupe_findings(findings),
             {
@@ -256,7 +265,12 @@ def _scan_tar(path: Path, display_path: str) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     try:
         with tarfile.open(path, "r:*") as archive:
-            for member in archive.getmembers():
+            members = archive.getmembers()
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                findings.append({"kind": "unsafe_archive", "path": display_path, "message": "archive has too many members"})
+                return findings
+            total_size = 0
+            for member in members:
                 member_path = f"{display_path}!/{member.name}"
                 if not _validate_archive_name(member.name):
                     findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "unsafe archive member path"})
@@ -267,15 +281,24 @@ def _scan_tar(path: Path, display_path: str) -> list[dict[str, str]]:
                     continue
                 if not member.isfile():
                     continue
+                total_size += member.size
+                if total_size > MAX_ARCHIVE_TOTAL_BYTES:
+                    findings.append({"kind": "unsafe_archive", "path": display_path, "message": "archive members exceed total size limit"})
+                    return findings
                 if member.size > MAX_ARCHIVE_MEMBER_BYTES:
+                    findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "archive member exceeds size limit"})
                     continue
                 handle = archive.extractfile(member)
                 if handle is None:
+                    findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "archive member could not be read"})
                     continue
                 data = handle.read(MAX_ARCHIVE_MEMBER_BYTES + 1)
+                if len(data) != member.size:
+                    findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "archive member read length mismatch"})
+                    continue
                 findings.extend(_scan_bytes(data, member_path))
     except (tarfile.TarError, OSError):
-        return []
+        return [{"kind": "unsafe_archive", "path": display_path, "message": "archive could not be parsed"}]
     return findings
 
 
@@ -283,7 +306,12 @@ def _scan_zip(path: Path, display_path: str) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     try:
         with zipfile.ZipFile(path, "r") as archive:
-            for member in archive.infolist():
+            members = archive.infolist()
+            if len(members) > MAX_ARCHIVE_MEMBERS:
+                findings.append({"kind": "unsafe_archive", "path": display_path, "message": "archive has too many members"})
+                return findings
+            total_size = 0
+            for member in members:
                 member_path = f"{display_path}!/{member.filename}"
                 if not _validate_archive_name(member.filename):
                     findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "unsafe archive member path"})
@@ -293,12 +321,20 @@ def _scan_zip(path: Path, display_path: str) -> list[dict[str, str]]:
                 if mode_type and mode_type != stat.S_IFREG:
                     findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "archive member must be a regular file"})
                     continue
+                total_size += member.file_size
+                if total_size > MAX_ARCHIVE_TOTAL_BYTES:
+                    findings.append({"kind": "unsafe_archive", "path": display_path, "message": "archive members exceed total size limit"})
+                    return findings
                 if member.file_size > MAX_ARCHIVE_MEMBER_BYTES:
+                    findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "archive member exceeds size limit"})
                     continue
                 data = archive.read(member, pwd=None)
+                if len(data) != member.file_size:
+                    findings.append({"kind": "unsafe_archive_member", "path": member_path, "message": "archive member read length mismatch"})
+                    continue
                 findings.extend(_scan_bytes(data, member_path))
     except (zipfile.BadZipFile, OSError):
-        return []
+        return [{"kind": "unsafe_archive", "path": display_path, "message": "archive could not be parsed"}]
     return findings
 
 

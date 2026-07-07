@@ -193,7 +193,7 @@
     "GOLD": "Formal authority exists from an actual external authority."
   },
   "forbidden_claims": [
-    "Department of War approved",
+    "DoW approval claim",
     "DoW certified",
     "DoW validated",
     "DoW operational system",

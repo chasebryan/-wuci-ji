@@ -79,8 +79,17 @@ def assert_public_manifest_rejections(tmp: Path) -> None:
         try:
             os.link(source, hardlink)
         except OSError:
-            return
-        assert_rejects("hardlinked manifest", lambda: wuci_kaiju.load_manifest(hardlink))
+            pass
+        else:
+            assert_rejects("hardlinked manifest", lambda: wuci_kaiju.load_manifest(hardlink))
+
+    duplicate = tmp / "manifest-duplicate.json"
+    duplicate.write_text('{"schema":"one","schema":"two"}\n', encoding="utf-8")
+    assert_rejects("duplicate JSON manifest", lambda: wuci_kaiju.load_manifest(duplicate))
+
+    oversized = tmp / "manifest-oversized.json"
+    oversized.write_bytes(b'{"schema":"' + (b"A" * (wuci_kaiju.MAX_PUBLIC_JSON_BYTES + 1)) + b'"}\n')
+    assert_rejects("oversized JSON manifest", lambda: wuci_kaiju.load_manifest(oversized))
 
 
 def _dirent(ino: int, name: str, rec_len: int, file_type: int) -> bytes:
@@ -297,6 +306,14 @@ def assert_iso_disk_boot(tmp: Path) -> None:
         symlink = tmp / "kali-link.iso"
         symlink.symlink_to(source)
         assert_rejects("symlink ISO source", lambda: wuci_kaiju.install_iso(symlink, iso_root=tmp / "link-iso"))
+        iso_root_target = tmp / "iso-root-target"
+        iso_root_target.mkdir()
+        iso_root_link = tmp / "iso-root-link"
+        iso_root_link.symlink_to(iso_root_target, target_is_directory=True)
+        assert_rejects(
+            "symlink ISO workspace root",
+            lambda: wuci_kaiju.install_iso(source, iso_root=iso_root_link, name="kali-test.iso"),
+        )
         bad_iso_root = tmp / "bad-iso-root"
         bad_iso_root.mkdir()
         (bad_iso_root / "kali-test.iso").symlink_to(tmp / "missing.iso")
@@ -324,6 +341,14 @@ def assert_iso_disk_boot(tmp: Path) -> None:
     disk_result = wuci_kaiju.verify_disk(disk_root)
     assert disk_result["status"] == "pass", disk_result
     if hasattr(os, "symlink"):
+        disk_root_target = tmp / "disk-root-target"
+        disk_root_target.mkdir()
+        disk_root_link = tmp / "disk-root-link"
+        disk_root_link.symlink_to(disk_root_target, target_is_directory=True)
+        assert_rejects(
+            "symlink disk workspace root",
+            lambda: wuci_kaiju.create_disk(disk_root=disk_root_link, size_mib=1),
+        )
         bad_disk_root = tmp / "bad-disk-root"
         bad_disk_root.mkdir()
         (bad_disk_root / "kali.raw").symlink_to(tmp / "missing.raw")

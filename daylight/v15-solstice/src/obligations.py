@@ -18,12 +18,11 @@ identity, so the harness cannot self-certify the external frontier.
 
 from __future__ import annotations
 
-import json
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Iterable
 
-from .canonical_json import canonical_sha256
+from .canonical_json import canonical_sha256, load_json_file_no_duplicates
 
 
 REGISTRY_VERSION = "daylight-v15-solstice-obligations-v0.1"
@@ -60,7 +59,7 @@ def _require_int(value: Any, where: str) -> int:
 
 
 def load_registry(path: Path) -> dict[str, Any]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = load_json_file_no_duplicates(path, "Solstice obligation registry")
     if data.get("version") != REGISTRY_VERSION:
         raise ObligationError("unsupported obligation registry version")
     if not data.get("harness_identity"):

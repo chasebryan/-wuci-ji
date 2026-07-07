@@ -80,11 +80,14 @@ def read_bytes(path: Path, context: str) -> bytes:
 
 def load_json(path: Path, context: str) -> Any:
     try:
-        return json.loads(read_bytes(path, context).decode("utf-8"))
+        return wuci_safeio.loads_json_no_duplicates(
+            read_bytes(path, context).decode("utf-8"),
+            context,
+        )
     except UnicodeDecodeError as exc:
         raise QCageError(f"{context} is not UTF-8 JSON: {path}") from exc
-    except json.JSONDecodeError as exc:
-        raise QCageError(f"{context} is not valid JSON: {exc.msg}") from exc
+    except wuci_safeio.SafeIOError as exc:
+        raise QCageError(str(exc)) from exc
 
 
 def write_json(path: Path, value: dict[str, Any], context: str) -> None:
