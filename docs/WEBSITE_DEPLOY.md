@@ -71,22 +71,23 @@ Node version: 22
 ```
 
 `npm run build` validates the static site and exits nonzero if required assets,
-custom domain binding, headers, redirects, or local references are missing.
+canonical metadata, headers, redirects, or local references are missing.
 
 The repository includes `.nvmrc`, `.node-version`, `package.json`, and
 `package-lock.json` so the root build has a concrete Node/npm setup.
 
-## Secondary: GitHub Pages
+## Retired secondary publisher
 
-The repository also includes `.github/workflows/pages.yml`. On pushes to
-`main` that touch the site, the workflow runs `make site-validate`, uploads
-`site/`, and deploys through GitHub Pages. This is a secondary deployment path;
-it does not update the Cloudflare-served canonical origin.
+The repository GitHub Pages workflow and both Pages `CNAME` files were removed
+on 2026-07-10. Cloudflare Pages project `wuci-ji` is the only repository-defined
+publisher for the canonical origin. A push to `main` does not deploy the site;
+publishing remains a deliberate account-bound Wrangler action.
 
-GitHub Pages can retain the same validated artifact as a fallback deployment,
-but failover requires an explicit DNS/origin decision and another live check.
-A green GitHub Pages workflow is not proof that `nosuchmachine.net` received
-the Cloudflare production upload.
+Repository files cannot disable an already configured GitHub Pages setting.
+Disable Pages in the repository settings. Until that account-level follow-up is
+complete, `make live-integrity-check` requires the former secondary URL to
+return `404`/`410` or redirect directly to `https://nosuchmachine.net/`; an HTTP
+downgrade or a separately served copy fails the check.
 
 ## Daylight evidence binding
 
@@ -127,8 +128,8 @@ site/daylight-status.json
 
 `site/index.html` carries canonical HTTPS metadata, Open Graph/Twitter image
 metadata, local microdata for the Wuci-Ji v2.2 Aperture Bastion source surface,
-a CodeMeta JSON-LD pointer at `site/codemeta.json`, and in-document
-CSP/referrer policy because GitHub Pages does not serve `_headers`.
+a CodeMeta JSON-LD pointer at `site/codemeta.json`, and an in-document
+CSP/referrer policy as defense in depth alongside Cloudflare `_headers`.
 
 `site/codemeta.json` is the machine-readable research software identity for
 crawlers, archival tools, and research agents. The site validator checks that
@@ -138,8 +139,23 @@ explicit non-claims.
 
 `site/hosting-requirements.json` is the machine-readable deployment contract for
 the public host. It states the canonical origin, required HTTP-to-HTTPS and
-`www` redirects, required HSTS header, required public metadata paths, and the
-host controls that must be enabled before `make site-live-check` can pass.
+`www` redirects, required HSTS header, retired secondary-publisher state,
+forbidden NEL/`Report-To` headers and analytics markers, required public paths,
+and the host controls that must be enabled before the live gates can pass.
+
+Run the deterministic fixture lane without network access, then explicitly run
+the bounded public readback after an authorized deployment:
+
+```sh
+make live-integrity-test
+make live-integrity-check
+```
+
+The live command sends no credentials or user content. It uses a fixed all-zero
+recipient fingerprint that cannot be registered through the application, caps
+every response body, expects an empty list, and never prints response bodies.
+It binds the Bottle manifest to the checked-out commit and compares the live
+keyring byte-for-byte with the public site observation and status metadata.
 
 `site/claim-evidence.json` maps each public website claim to the exact local
 evidence files, evidence values, validation commands, and non-claims that bound
@@ -208,7 +224,6 @@ http://127.0.0.1:8788
 
 ```text
 site/index.html
-site/CNAME
 site/404.html
 site/styles.css
 site/app.js

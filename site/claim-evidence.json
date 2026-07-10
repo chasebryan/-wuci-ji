@@ -10,7 +10,8 @@
     "make site-validate",
     "make daylight-v19-aperture-bastion-ci",
     "make daylight-public-artifact-firewall",
-    "make site-live-check"
+    "make site-live-check",
+    "make live-integrity-check"
   ],
   "claims": [
     {
@@ -88,6 +89,8 @@
         "site/daylight-bottle-status.json",
         "site/daylight-bottle-keyring-observation.json",
         "apps/bottle/public/keyring.json",
+        "tools/live_integrity_check.py",
+        "tests/live_integrity_check.py",
         "apps/bottle/src/tests/product-surface.test.ts",
         "apps/bottle/src/tests/lifecycle.test.ts",
         "apps/bottle/worker/index.test.ts"
@@ -101,6 +104,8 @@
       },
       "validation_commands": [
         "make site-validate",
+        "make live-integrity-test",
+        "make live-integrity-check",
         "cd apps/bottle && npm run check"
       ],
       "does_not_prove": [
@@ -441,6 +446,7 @@
       "evidence_paths": [
         "site/hosting-requirements.json",
         "tools/site_live_check.py",
+        "tools/live_integrity_check.py",
         "docs/WEBSITE_DEPLOY.md"
       ],
       "evidence_values": {
@@ -451,7 +457,8 @@
         "required_redirect_target_prefix": "https://nosuchmachine.net/"
       },
       "validation_commands": [
-        "make site-live-check"
+        "make site-live-check",
+        "make live-integrity-check"
       ],
       "does_not_prove": [
         "current hosted compliance until the live gate passes",

@@ -52,6 +52,9 @@ for (const required of [
     throw new Error(`Built _headers is missing required policy: ${required}`);
   }
 }
+if (!/(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store(?:\n|$)/.test(headers)) {
+  throw new Error("Built _headers must serve release-manifest.json with Cache-Control: no-store.");
+}
 
 await verifyKeyring();
 const budget = await verifyReleaseManifest();

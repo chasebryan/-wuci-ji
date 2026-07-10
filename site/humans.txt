@@ -58,8 +58,11 @@ Production deployment:
 Cloudflare Pages project wuci-ji from a validated clean repository commit.
 
 Secondary deployment:
-GitHub Pages workflow from the main branch.
+None. The repository GitHub Pages publisher is retired; disable any remaining
+Pages setting at the account boundary.
 
 Validation:
 make site-validate
 make site-live-check
+make live-integrity-test
+make live-integrity-check

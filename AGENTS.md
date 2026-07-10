@@ -546,11 +546,11 @@ overwritten; and the diff is bounded to the authorized scope.
 - Every public claim must remain bound through `site/claim-evidence.json` and
   the appropriate generated status/capsule. Repository metadata and
   `site/_headers` do not prove live HTTPS, HSTS, redirects, or served headers.
-- A push to `main` touching `site/**`, root `CNAME`, root
-  `wrangler.toml`, or `.github/workflows/pages.yml` can deploy the public
-  site; `workflow_dispatch` can also deploy it. A pull request alone does not.
-  Treat publication as an external action and live-check only after an
-  authorized deployment.
+- The repository GitHub Pages publisher and CNAME artifacts are retired.
+  Publishing the canonical Cloudflare Pages site requires a deliberate,
+  authorized Wrangler deployment from a clean validated commit; a push or pull
+  request alone does not deploy it. Treat publication as an external action and
+  run both site and live-integrity checks only after an authorized deployment.
 - Keep the ZP1 submodule pinned. The current coupling Make target regenerates
   `tools/wuciji-zp1-bridge/Cargo.lock`; inspect any resulting diff and treat it
   as a dependency change requiring explicit review. Never commit incidental

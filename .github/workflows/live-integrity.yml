@@ -1,0 +1,28 @@
+name: live-integrity
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-integrity
+  cancel-in-progress: false
+
+jobs:
+  public-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Validate deterministic response policy
+        run: make live-integrity-test repository-maintenance-test
+
+      - name: Check canonical public deployment drift
+        run: make live-integrity-check

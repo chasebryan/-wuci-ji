@@ -192,6 +192,20 @@ commit approved for deployment, and its subject digest matches the locally
 verified manifest. This is a deployment parity check, not independent proof of
 an uncompromised origin.
 
+From the repository root, run the deterministic policy tests and then the
+explicit no-secret public readback. The live command binds the manifest to the
+checked-out commit, requires the zero-fingerprint API probe to return an empty
+versioned response, checks the static/API security headers, and verifies that
+the live keyring, public observation, and status metadata agree byte-for-byte:
+
+```sh
+make live-integrity-test
+make live-integrity-check
+```
+
+The command never sends credentials, identity material, plaintext, or a real
+recipient fingerprint, caps every response body, and never prints bodies.
+
 For a commit validated by GitHub Actions, the `daylight-bottle` workflow also
 retains `daylight-bottle-validated-release-<commit>` for 30 days. Compare its
 manifest, static bundle, and Wrangler dry-run Worker bundle with the live

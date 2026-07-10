@@ -1,0 +1,70 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:10"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(root)"
+
+  - package-ecosystem: npm
+    directory: /apps/bottle
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:20"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(bottle)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:30"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(actions)"
+
+  # Reviewed first-party crates with registry dependencies and committed locks.
+  # Path-only bridge crates and third_party/frozen fixtures are intentionally
+  # excluded from automated dependency changes.
+  - package-ecosystem: cargo
+    directory: /daylight-equation/rust/daylight-crypto
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "05:10"
+      timezone: America/Chicago
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(daylight-crypto)"
+
+  - package-ecosystem: cargo
+    directory: /penumbra
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "05:20"
+      timezone: America/Chicago
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(penumbra)"
+
+  - package-ecosystem: cargo
+    directory: /tools/wuci-pq-fips204-verify
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "05:30"
+      timezone: America/Chicago
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(pq-verifier)"

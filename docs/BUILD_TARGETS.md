@@ -38,6 +38,8 @@ make secret-path-isolation-test
 make site-daylight-status
 make site-validate
 make site-live-check
+make live-integrity-test
+make live-integrity-check
 ```
 
 `site-daylight-status` regenerates the committed website Daylight status JSON
@@ -50,6 +52,14 @@ apex, server-side HTTP to HTTPS redirect, `www` redirect, HSTS header,
 discovery files, CodeMeta JSON-LD, hosted TLS requirements, claim/evidence
 mapping, status JSON, and official image assets are live. It is a hosted
 deployment gate, not a proof of host cleanliness or runtime containment.
+
+`live-integrity-test` exercises the focused deployment-drift policy entirely
+offline with deterministic response mocks. `live-integrity-check` is the
+explicit network lane: it verifies the canonical and retired-secondary HTTPS
+state, rejects NEL/`Report-To` and analytics injection, and checks the live
+Bottle manifest commit, API schema, security headers, keyring, and public status
+parity. It sends no credentials or user content and never prints response
+bodies.
 
 ## ZP-1 / Wuci-Ji Coupling
 

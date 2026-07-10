@@ -94,8 +94,9 @@ CI workflow integration:
 
 - `.github/workflows/ci.yml` runs `make daylight-npt-ci` after proof/unit
   checks and before later release/publication lanes.
-- `.github/workflows/pages.yml` runs `make daylight-npt-ci` before
-  `make site-validate` and before Pages publication.
+- At closeout, `.github/workflows/pages.yml` ran `make daylight-npt-ci` before
+  `make site-validate` and before Pages publication. That redundant publisher
+  was retired on 2026-07-10; Cloudflare Pages is now the sole publisher.
 
 ## Known Limitations
 

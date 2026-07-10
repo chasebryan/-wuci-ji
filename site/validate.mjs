@@ -17,7 +17,6 @@ const requiredFiles = [
   "ai-scoring-integrity.html",
   "daylight-grok-audit.html",
   "audits/daylight/score-integrity/index.html",
-  "CNAME",
   "404.html",
   "styles.css",
   "app.js",
@@ -98,13 +97,6 @@ async function assertRequiredFiles() {
     if (!(await exists(file))) {
       fail(`missing required file: site/${file}`);
     }
-  }
-}
-
-async function assertCustomDomain() {
-  const cname = (await readFile(new URL("CNAME", siteRoot), "utf8")).trim();
-  if (cname !== "nosuchmachine.net") {
-    fail("site/CNAME must contain exactly nosuchmachine.net");
   }
 }
 
@@ -200,8 +192,8 @@ async function assertIndexReferences() {
       fail(`index.html is missing SEO or site marker: ${required}`);
     }
   }
-  // The GitHub Pages deploy path does not serve _headers, so the document
-  // itself must carry the CSP and referrer policy.
+  // Keep an in-document policy as defense in depth even though the canonical
+  // Cloudflare Pages deployment also serves site/_headers.
   for (const required of [
     'http-equiv="Content-Security-Policy"',
     'upgrade-insecure-requests',
@@ -605,7 +597,7 @@ async function assertSourceOnlyDeployArtifactFirewall() {
     ".webp",
     ".xml"
   ]);
-  const allowedExtensionlessPaths = new Set(["CNAME", "_headers", "_redirects"]);
+  const allowedExtensionlessPaths = new Set(["_headers", "_redirects"]);
   const textExtensions = new Set([".cff", ".css", ".html", ".js", ".json", ".mjs", ".txt", ".webmanifest", ".xml"]);
   const forbiddenPayloadName = /(?:^|\/)(?:bzimage|initramfs|initrd|kernel|modloop|vmlinuz|bootx64|grub|isolinux|syslinux)(?:[-._].*)?$/i;
   const forbiddenPublicReference = /(?:\/releases\/download\/|[A-Za-z0-9_./:%?&=+#-]+\.(?:apk|bin|efi|img|iso|ko)(?:[?#][A-Za-z0-9_./:%?&=+#-]*)?)/i;
@@ -1545,20 +1537,34 @@ async function assertHostingRequirements() {
     return;
   }
   const expected = {
-    schema: "wuci-site-hosting-requirements-v1",
+    schema: "wuci-site-hosting-requirements-v2",
     project: "wuci-ji",
     surface: "Wuci-Ji v2.2 — Aperture Bastion website",
     canonical_origin: "https://nosuchmachine.net",
     canonical_url: "https://nosuchmachine.net/",
-    checked_by: "make site-live-check",
+    checked_by: "make live-integrity-check",
     production_host: "Cloudflare Pages",
-    production_project: "wuci-ji",
-    secondary_host: "GitHub Pages"
+    production_project: "wuci-ji"
   };
   for (const [key, value] of Object.entries(expected)) {
     if (requirements[key] !== value) {
       fail(`hosting-requirements.json ${key} does not match expected value`);
     }
+  }
+
+  if (!Array.isArray(requirements.secondary_publishers) || requirements.secondary_publishers.length !== 0) {
+    fail("hosting-requirements.json must not declare an active secondary publisher");
+  }
+  if (
+    !Array.isArray(requirements.retired_publishers)
+    || !requirements.retired_publishers.some(
+      (entry) =>
+        entry.host === "GitHub Pages"
+        && entry.repository_status === "retired"
+        && entry.account_follow_up === "disable-pages-publishing"
+    )
+  ) {
+    fail("hosting-requirements.json must record the GitHub Pages retirement and account follow-up");
   }
 
   if (!Array.isArray(requirements.required_redirects)) {
@@ -1637,14 +1643,28 @@ async function assertHostingRequirements() {
 
   const controls = JSON.stringify(requirements.deployment_controls || []);
   for (const required of [
-    "Enforce HTTPS enabled",
     "Always Use HTTPS enabled",
     "HTTP Strict Transport Security enabled",
-    "HTML no-transform prevents automatic Web Analytics injection"
+    "HTML no-transform prevents automatic Web Analytics injection",
+    "Network Error Logging disabled"
   ]) {
     if (!controls.includes(required)) {
       fail(`hosting-requirements.json is missing deploy control: ${required}`);
     }
+  }
+  if (
+    !Array.isArray(requirements.forbidden_response_headers)
+    || JSON.stringify([...requirements.forbidden_response_headers].sort()) !== JSON.stringify(["nel", "report-to"])
+  ) {
+    fail("hosting-requirements.json must forbid NEL and Report-To response headers");
+  }
+  if (
+    !Array.isArray(requirements.forbidden_html_markers)
+    || !requirements.forbidden_html_markers.includes("static.cloudflareinsights.com")
+    || !requirements.forbidden_html_markers.includes("data-cf-beacon")
+    || !requirements.forbidden_html_markers.includes("/cdn-cgi/rum")
+  ) {
+    fail("hosting-requirements.json must forbid Cloudflare analytics injection markers");
   }
   for (const required of [
     "not host-cleanliness proof",
@@ -1680,7 +1700,8 @@ async function assertClaimEvidenceMap() {
     "make site-validate",
     "make daylight-v19-aperture-bastion-ci",
     "make daylight-public-artifact-firewall",
-    "make site-live-check"
+    "make site-live-check",
+    "make live-integrity-check"
   ]) {
     if (!Array.isArray(claimMap.primary_validation) || !claimMap.primary_validation.includes(required)) {
       fail(`claim-evidence.json primary_validation is missing ${required}`);
@@ -2086,7 +2107,6 @@ async function assertSecondaryPageShells() {
 }
 
 await assertRequiredFiles();
-await assertCustomDomain();
 await assertIndexReferences();
 await assertBottlePreviewBinding();
 await assertNoetherForgeStatusBinding();
