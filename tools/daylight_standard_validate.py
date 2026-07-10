@@ -10,6 +10,21 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from daylight_claim_scan import (
+        FORBIDDEN_AUTHORITY_PATTERNS,
+        phrase_is_negated,
+        scan_paths as scan_claim_paths,
+        unsupported_claims_in_text,
+    )
+except ImportError:  # pragma: no cover - package import path used by tests
+    from tools.daylight_claim_scan import (  # type: ignore[no-redef]
+        FORBIDDEN_AUTHORITY_PATTERNS,
+        phrase_is_negated,
+        scan_paths as scan_claim_paths,
+        unsupported_claims_in_text,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = ROOT / "specs" / "daylight-equation" / "v1"
@@ -25,26 +40,8 @@ SCHEMA_BY_TAG = {
     "daylight-control-map-v1": "daylight-control-map.v1.schema.json",
     "daylight-monitor-signal-v1": "daylight-monitor-signal.v1.schema.json",
     "daylight-conformance-report-v1": "daylight-conformance-report.v1.schema.json",
+    "daylight-claim-scan-report-v1": "daylight-claim-scan-report.v1.schema.json",
 }
-
-FORBIDDEN_AUTHORITY_PATTERNS = [
-    "production cryptography",
-    "general runtime sandbox",
-    "post-quantum secure",
-    "independently audited",
-    "department of war approved",
-    "government endorsed",
-    "government approved",
-    "cato authorized",
-    "rmf authorized",
-    "fips validated",
-    "fedramp authorized",
-    "common criteria certified",
-    "niap certified",
-    "replacement for edr",
-    "replacement for siem",
-    "replacement for iam",
-]
 
 
 class ValidationError(Exception):
@@ -150,8 +147,49 @@ def validate_against_schema(value: Any, schema: dict[str, Any], path: str = "$")
                 validate_against_schema(value[key], child_schema, f"{path}.{key}")
 
 
+def validate_claim_scan_report_contract(obj: dict[str, Any]) -> None:
+    summary = obj["summary"]
+    files = obj["files"]
+    findings = obj["findings"]
+    errors = obj["errors"]
+    inputs = obj["inputs"]
+
+    if inputs != sorted(set(inputs)):
+        raise ValidationError("$.inputs: paths must be sorted and unique")
+    file_paths = [item["path"] for item in files]
+    if file_paths != sorted(set(file_paths)):
+        raise ValidationError("$.files: paths must be sorted and unique")
+    if findings != sorted(
+        findings,
+        key=lambda item: (item["path"], item["line"], item["column"], item["phrase"]),
+    ):
+        raise ValidationError("$.findings: entries must use deterministic source order")
+    if errors != sorted(errors, key=lambda item: (item["path"], item["code"], item["message"])):
+        raise ValidationError("$.errors: entries must use deterministic order")
+    if summary["files_scanned"] != len(files):
+        raise ValidationError("$.summary.files_scanned: must equal files length")
+    if summary["bytes_scanned"] != sum(item["bytes"] for item in files):
+        raise ValidationError("$.summary.bytes_scanned: must equal scanned file bytes")
+    if summary["phrase_occurrences"] != (
+        summary["negated_occurrences"] + summary["unsupported_occurrences"]
+    ):
+        raise ValidationError("$.summary.phrase_occurrences: must equal negated plus unsupported")
+    if summary["unsupported_occurrences"] != len(findings):
+        raise ValidationError("$.summary.unsupported_occurrences: must equal findings length")
+
+    status = obj["status"]
+    if status == "pass" and (findings or errors):
+        raise ValidationError("$.status: pass report must not contain findings or errors")
+    if status == "fail" and (not findings or errors):
+        raise ValidationError("$.status: fail report requires findings and no input errors")
+    if status == "invalid-input" and not errors:
+        raise ValidationError("$.status: invalid-input report requires at least one input error")
+
+
 def validate_object(obj: dict[str, Any]) -> None:
     validate_against_schema(obj, load_schema_for_object(obj))
+    if obj.get("schema") == "daylight-claim-scan-report-v1":
+        validate_claim_scan_report_contract(obj)
 
 
 def iter_schema_files() -> list[Path]:
@@ -188,24 +226,6 @@ def validate_schema_documents() -> list[str]:
         for required_key in schema.get("required", []):
             if required_key not in properties:
                 findings.append(f"{path.relative_to(ROOT)}: required key {required_key} missing property")
-    return findings
-
-
-def phrase_is_negated(text: str, start: int) -> bool:
-    prefix = text[max(0, start - 48):start]
-    return bool(re.search(r"\b(not|no|without|forbidden|must not|does not)\b[^.:\n]{0,48}$", prefix))
-
-
-def unsupported_claims_in_text(text: str) -> list[str]:
-    lowered = text.lower()
-    findings: list[str] = []
-    for phrase in FORBIDDEN_AUTHORITY_PATTERNS:
-        start = lowered.find(phrase)
-        if start == -1:
-            continue
-        if phrase_is_negated(lowered, start):
-            continue
-        findings.append(phrase)
     return findings
 
 
@@ -260,6 +280,17 @@ def validate_examples() -> list[str]:
     no_evidence_gate = load_json(EXAMPLE_DIR / "release-gate-fail-no-evidence.json")
     if no_evidence_gate.get("decision") != "fail" or "publish" not in no_evidence_gate.get("blocked_actions", []):
         findings.append("no-evidence release gate is not a failing closed example")
+
+    claim_scan_example = load_json(EXAMPLE_DIR / "claim-scan-report-example.json")
+    regenerated_claim_scan = scan_claim_paths(
+        claim_scan_example["inputs"],
+        root=ROOT,
+        max_file_bytes=claim_scan_example["limits"]["max_file_bytes"],
+        max_files=claim_scan_example["limits"]["max_files"],
+        max_total_bytes=claim_scan_example["limits"]["max_total_bytes"],
+    )
+    if regenerated_claim_scan != claim_scan_example:
+        findings.append("claim scan report example is not reproducible from its declared input")
 
     return findings
 

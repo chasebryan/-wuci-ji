@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/daylight-claim-scan-report.v1.schema.json",
+  "title": "Daylight Claim Scan Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "policy",
+    "boundary",
+    "inputs",
+    "limits",
+    "summary",
+    "files",
+    "findings",
+    "errors",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "daylight-claim-scan-report-v1"
+    },
+    "policy": {
+      "const": "daylight-authority-phrase-firewall-v1"
+    },
+    "boundary": {
+      "const": "This local phrase firewall detects configured authority phrases. It does not prove security, certification, production readiness, runtime containment, quantum safety, or the absence of other unsupported claims."
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/).+"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_file_bytes",
+        "max_files",
+        "max_total_bytes"
+      ],
+      "properties": {
+        "max_file_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_files": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_total_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files_scanned",
+        "bytes_scanned",
+        "phrase_occurrences",
+        "negated_occurrences",
+        "unsupported_occurrences"
+      ],
+      "properties": {
+        "files_scanned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bytes_scanned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "phrase_occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "negated_occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unsupported_occurrences": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "bytes",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/).+"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "line",
+          "column",
+          "phrase"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/).+"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "phrase": {
+            "type": "string",
+            "enum": [
+              "production cryptography",
+              "general runtime sandbox",
+              "runtime sandboxing",
+              "runtime containment",
+              "post-quantum secure",
+              "quantum-safe",
+              "independently audited",
+              "department of war approved",
+              "government endorsed",
+              "government approved",
+              "cato authorized",
+              "rmf authorized",
+              "fips validated",
+              "fedramp authorized",
+              "common criteria certified",
+              "niap certified",
+              "production authority",
+              "publish authority",
+              "trust authority",
+              "replacement for edr",
+              "replacement for siem",
+              "replacement for iam"
+            ]
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/).+"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "invalid-input"
+      ]
+    }
+  }
+}

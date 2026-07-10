@@ -13,12 +13,20 @@ Commands:
 
 ```sh
 python3 tools/daylight_conformance.py reject-overclaims --path README.md
+python3 tools/daylight_claim_scan.py \
+  --path README.md \
+  --path docs/WUCI_ENTERPRISE_ADOPTION.md \
+  --out build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
+make daylight-claim-firewall-ci
 make daylight-npt-ci
 ```
 
 Required inputs: claim surfaces and DaylightNPT registry.
 
-Output artifact: overclaim report or DaylightNPT report.
+Output artifacts: a deterministic `daylight-claim-scan-report-v1` JSON report
+and the separate DaylightNPT numeric-precision report. The phrase scan exits 0
+when clean, 1 when configured authority phrases are found outside an explicit
+non-claim, and 2 when input cannot be scanned safely or completely.
 
 Failure conditions: unsupported certification, production, runtime, PQ,
 government, or numeric-score claim.
@@ -27,6 +35,11 @@ Allowed claims: bounded evidence and research status.
 
 Forbidden claims: certification, approval, production authority, general runtime
 containment, or security replacement claims without evidence.
+
+The claim firewall is a bounded phrase-policy gate, not semantic proof that all
+prose is safe or complete. It rejects symlinks, hardlinks, non-regular files,
+invalid UTF-8, and configured file/count/byte limits before treating a scan as
+complete.
 
 ## Mode B: Release Evidence Gate
 

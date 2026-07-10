@@ -1,0 +1,30 @@
+{
+  "schema": "daylight-claim-scan-report-v1",
+  "policy": "daylight-authority-phrase-firewall-v1",
+  "boundary": "This local phrase firewall detects configured authority phrases. It does not prove security, certification, production readiness, runtime containment, quantum safety, or the absence of other unsupported claims.",
+  "inputs": [
+    "examples/daylight-standard/claim-surfaces/bounded-claims.md"
+  ],
+  "limits": {
+    "max_file_bytes": 1048576,
+    "max_files": 256,
+    "max_total_bytes": 8388608
+  },
+  "summary": {
+    "files_scanned": 1,
+    "bytes_scanned": 54,
+    "phrase_occurrences": 1,
+    "negated_occurrences": 1,
+    "unsupported_occurrences": 0
+  },
+  "files": [
+    {
+      "path": "examples/daylight-standard/claim-surfaces/bounded-claims.md",
+      "bytes": 54,
+      "sha256": "dff3b95aa0624d46cd7d014b086edb839d8ac8741572b8858d9c976ddd42a55b"
+    }
+  ],
+  "findings": [],
+  "errors": [],
+  "status": "pass"
+}

@@ -15,6 +15,7 @@ a deterministic stdlib-only subset for local CI.
 - `daylight-control-map.v1.schema.json`: evidence-to-control mapping.
 - `daylight-monitor-signal.v1.schema.json`: monitoring and downgrade signal.
 - `daylight-conformance-report.v1.schema.json`: project conformance report.
+- `daylight-claim-scan-report.v1.schema.json`: deterministic phrase-firewall report with safe-input errors and source locations.
 
 ## Non-Claims
 
@@ -31,4 +32,5 @@ Run:
 make daylight-standard-schema-test
 make daylight-standard-examples-test
 make daylight-conformance-test
+make daylight-claim-firewall-ci
 ```
