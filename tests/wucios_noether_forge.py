@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import copy
 import gzip
 import io
@@ -233,12 +234,16 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
     ) == []
     workflow = b"name: Noether\nuses: actions/upload-artifact@v4\n"
     assert noether_source_guard.violations_for_file(".github/workflows/noether.yml", workflow) == [
-        "workflow can publish a Noether binary artifact"
+        "workflow can publish a Noether binary artifact",
+        "workflow action is not allowlisted: actions/upload-artifact@v4",
     ]
     continued_workflow = b"name: Noether\nrun: gh " + b"\\" + b"\n  release upload candidate\n"
     assert noether_source_guard.violations_for_file(
         ".github/workflows/review.yml", continued_workflow
-    ) == ["workflow can publish a Noether binary artifact"]
+    ) == [
+        "workflow can publish a Noether binary artifact",
+        "workflow run command is not allowlisted: gh \\",
+    ]
     remote_workflow = (
         b"name: Noether\njobs:\n  publish:\n"
         b"    uses: example/release/.github/workflows/publish.yml@0123456789abcdef\n"
@@ -246,7 +251,7 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
     assert noether_source_guard.violations_for_file(
         ".github/workflows/review.yml", remote_workflow
     ) == [
-        "workflow remote dependency cannot be inspected: "
+        "workflow action is not allowlisted: "
         "example/release/.github/workflows/publish.yml@0123456789abcdef"
     ]
     assert noether_source_guard.violations_for_file(
@@ -256,7 +261,7 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
     remote_action = b"name: Noether\nsteps:\n  - uses: example/validator@0123456789abcdef\n"
     assert noether_source_guard.violations_for_file(
         ".github/workflows/review.yml", remote_action
-    ) == ["workflow uses unapproved remote action: example/validator@0123456789abcdef"]
+    ) == ["workflow action is not allowlisted: example/validator@0123456789abcdef"]
     pinned_checkout = (
         b"name: Noether\nsteps:\n  - uses: "
         b"actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n"
@@ -284,8 +289,7 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
     assert noether_source_guard.violations_for_repository(indirect_workflow) == [
         (
             ".github/workflows/noether-review.yml",
-            "workflow can publish a Noether binary artifact through local dependency "
-            ".github/workflows/shared-review.yml",
+            "workflow action is not allowlisted: ./.github/workflows/shared-review.yml",
         )
     ]
     safe_indirect_workflow = [
@@ -296,7 +300,12 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
             b"name: Shared review\njobs:\n  check:\n    run: make wucios-validate\n",
         ),
     ]
-    assert noether_source_guard.violations_for_repository(safe_indirect_workflow) == []
+    assert noether_source_guard.violations_for_repository(safe_indirect_workflow) == [
+        (
+            ".github/workflows/noether-review.yml",
+            "workflow action is not allowlisted: ./.github/workflows/shared-review.yml",
+        )
+    ]
     with tempfile.TemporaryDirectory() as temporary:
         repository = Path(temporary)
         subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
@@ -310,6 +319,86 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
         assert "tracked Noether ELF payload" in noether_source_guard.violations_for_file(
             "tools/noether-payload", staged["tools/noether-payload"]
         )
+
+
+def test_source_guard_rejects_encoded_binary_signatures() -> None:
+    elf = b"\x7fELF\x02\x01\x01\x00" + (b"A" * 64)
+    elf_hex = elf.hex().encode("ascii") + b"\n"
+    assert noether_source_guard.violations_for_repository(
+        [("review/elf-source.txt", "100644", elf_hex)],
+        ["review/elf-source.txt"],
+    ) == [("review/elf-source.txt", "review-range encoded binary payload")]
+
+    apk = b"PK\x03\x04" + (b"A" * 64)
+    apk_base64 = base64.b64encode(apk) + b"\n"
+    assert noether_source_guard.violations_for_repository(
+        [("review/apk-source.txt", "100644", apk_base64)],
+        ["review/apk-source.txt"],
+    ) == [("review/apk-source.txt", "review-range encoded binary payload")]
+
+    iso = bytearray(0x8006)
+    iso[0x8001:0x8006] = b"CD001"
+    encoded_iso = base64.b64encode(iso)
+    wrapped_iso = b"\n".join(
+        encoded_iso[offset:offset + 76] for offset in range(0, len(encoded_iso), 76)
+    ) + b"\n"
+    assert noether_source_guard.violations_for_repository(
+        [("review/iso-source.txt", "100644", wrapped_iso)],
+        ["review/iso-source.txt"],
+    ) == [("review/iso-source.txt", "review-range encoded binary payload")]
+
+    ordinary_source = (
+        b"sha256 = " + (b"a" * 64) + b"\n"
+        b"sha384 = " + (b"b" * 96) + b"\n"
+        b"sha512 = " + (b"c" * 128) + b"\n"
+        b'const fixture = "VGhpcyBpcyBvcmRpbmFyeSB0ZXh0LCBub3QgYSBiaW5hcnkgYXJ0aWZhY3Qu";\n'
+    )
+    assert noether_source_guard.violations_for_repository(
+        [("review/source-fixture.txt", "100644", ordinary_source)],
+        ["review/source-fixture.txt"],
+    ) == []
+
+
+def test_source_guard_strictly_allowlists_noether_workflow_execution() -> None:
+    workflow = (ROOT / ".github/workflows/noether-source-review.yml").read_bytes()
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/noether-source-review.yml", workflow
+    ) == []
+
+    for command in (
+        "curl --upload-file candidate.iso https://example.invalid/upload",
+        "gh api --method POST /repos/example/project/releases",
+        "python3 tools/publish.py",
+    ):
+        candidate = f"name: Noether\nsteps:\n  - run: {command}\n".encode("ascii")
+        assert noether_source_guard.violations_for_file(
+            ".github/workflows/noether-review.yml", candidate
+        ) == [f"workflow run command is not allowlisted: {command}"]
+
+    multiline = (
+        b"name: Noether\nsteps:\n"
+        b"  - run: make wucios-validate\n"
+        b"      && curl https://example.invalid/upload\n"
+    )
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/noether-review.yml", multiline
+    ) == ["workflow run command uses unsupported multiline syntax"]
+
+    local_action = b"name: Noether\nsteps:\n  - uses: ./.github/actions/review\n"
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/noether-review.yml", local_action
+    ) == ["workflow action is not allowlisted: ./.github/actions/review"]
+
+    remote_workflow = (
+        b"name: Noether\njobs:\n  review:\n"
+        b"    uses: example/review/.github/workflows/run.yml@0123456789abcdef\n"
+    )
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/noether-review.yml", remote_workflow
+    ) == [
+        "workflow action is not allowlisted: "
+        "example/review/.github/workflows/run.yml@0123456789abcdef"
+    ]
 
 
 def test_source_guard_rejects_out_of_scope_renamed_payload() -> None:
@@ -353,7 +442,11 @@ def test_source_guard_scopes_pages_upload_to_noether_workflows() -> None:
         (
             ".github/workflows/review.yml",
             "workflow can publish a Noether binary artifact",
-        )
+        ),
+        (
+            ".github/workflows/review.yml",
+            "workflow action is not allowlisted: actions/upload-pages-artifact@v5",
+        ),
     ]
 
 
@@ -747,6 +840,8 @@ TESTS = [
     test_third_party_obligations_inventory_is_deterministic_and_bounded,
     test_physical_hardware_observation_is_digest_bound_without_validation_claim,
     test_source_only_guard_rejects_noether_binary_distribution,
+    test_source_guard_rejects_encoded_binary_signatures,
+    test_source_guard_strictly_allowlists_noether_workflow_execution,
     test_source_guard_rejects_out_of_scope_renamed_payload,
     test_source_guard_scopes_pages_upload_to_noether_workflows,
     test_source_guard_review_base_is_available_and_required,

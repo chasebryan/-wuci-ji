@@ -7,6 +7,8 @@ not escape by moving outside a path containing ``noether``.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 import re
 import subprocess
@@ -105,20 +107,33 @@ BINARY_PREFIXES = (
 )
 WORKFLOW_PREFIX = ".github/workflows/"
 ACTION_PREFIX = ".github/actions/"
-LOCAL_USES = re.compile(
-    rb"(?im)^[ \t]*(?:-[ \t]*)?uses[ \t]*:[ \t]*['\"]?(\./\.github/(?:workflows|actions)/[^'\"#\s]+)"
+ALLOWED_WORKFLOW_ACTIONS = frozenset({
+    "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5",
+    "actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f",
+})
+ALLOWED_WORKFLOW_RUN_COMMANDS = frozenset({
+    "make wucios-noether-forge-source-guard",
+    "make wucios-noether-forge-test",
+    "make wucios-validate",
+})
+WORKFLOW_EXECUTION_KEY = re.compile(
+    rb"(?i)^(?P<indent>[ \t]*)(?:-[ \t]*)?"
+    rb"(?P<quote>['\"]?)(?P<key>uses|run)(?P=quote)[ \t]*:[ \t]*(?P<value>.*)$"
 )
-REMOTE_WORKFLOW_USES = re.compile(
-    rb"(?im)^[ \t]*(?:-[ \t]*)?uses[ \t]*:[ \t]*['\"]?"
-    rb"([^/'\"#\s]+/[^/'\"#\s]+/\.github/workflows/[^@'\"#\s]+@[^'\"#\s]+)"
+FLOW_EXECUTION_KEY = re.compile(
+    rb"(?i)(?:^|[,{])[ \t]*['\"]?(?:uses|run)['\"]?[ \t]*:"
 )
-ALL_USES = re.compile(
-    rb"(?im)^[ \t]*(?:-[ \t]*)?uses[ \t]*:[ \t]*['\"]?([^'\"#\s]+)"
+BASE64_TOKEN = re.compile(
+    rb"(?<![A-Za-z0-9+/=])([A-Za-z0-9+/]{32,}={0,2})(?![A-Za-z0-9+/=])"
 )
-ALLOWED_REMOTE_ACTIONS = {
-    "actions/checkout": "34e114876b0b11c390a56381ad16ebd13914f8d5",
-    "actions/setup-python": "39cd14951b08e74b54015e9e001cdefcf80e669f",
-}
+HEX_TOKEN = re.compile(rb"(?i)(?<![0-9a-f])([0-9a-f]{64,})(?![0-9a-f])")
+BASE64_LINE_BLOCK = re.compile(
+    rb"(?m)(?:^[ \t]*[A-Za-z0-9+/]{16,}={0,2}[ \t]*(?:\r?\n|$)){2,}"
+)
+HEX_LINE_BLOCK = re.compile(
+    rb"(?im)(?:^[ \t]*[0-9a-f]{32,}[ \t]*(?:\r?\n|$)){2,}"
+)
+ENCODED_SIGNATURE_SAMPLE_BYTES = 0x8006
 
 
 class SourceGuardError(RuntimeError):
@@ -141,7 +156,7 @@ def is_noether_workflow(path: str, data: bytes) -> bool:
     )
 
 
-def is_binary_payload(data: bytes) -> bool:
+def has_binary_signature(data: bytes) -> bool:
     if not data:
         return False
     if any(data.startswith(prefix) for prefix in BINARY_PREFIXES):
@@ -152,6 +167,14 @@ def is_binary_payload(data: bytes) -> bool:
             return True
     if len(data) >= 0x8006 and data[0x8001:0x8006] == b"CD001":
         return True
+    return False
+
+
+def is_binary_payload(data: bytes) -> bool:
+    if not data:
+        return False
+    if has_binary_signature(data):
+        return True
     if b"\x00" in data:
         return True
     try:
@@ -161,47 +184,94 @@ def is_binary_payload(data: bytes) -> bool:
     return False
 
 
+def _base64_decodes_to_binary_signature(candidate: bytes) -> bool:
+    compact = b"".join(candidate.split())
+    if len(compact) < 32 or len(compact) % 4 == 1:
+        return False
+    sample_chars = ((ENCODED_SIGNATURE_SAMPLE_BYTES + 2) // 3) * 4
+    sample = compact[:sample_chars]
+    sample += b"=" * (-len(sample) % 4)
+    try:
+        decoded = base64.b64decode(sample, validate=True)
+    except (binascii.Error, ValueError):
+        return False
+    return has_binary_signature(decoded)
+
+
+def _hex_decodes_to_binary_signature(candidate: bytes) -> bool:
+    compact = b"".join(candidate.split())
+    if len(compact) < 64 or len(compact) % 2:
+        return False
+    sample = compact[: ENCODED_SIGNATURE_SAMPLE_BYTES * 2]
+    try:
+        decoded = bytes.fromhex(sample.decode("ascii"))
+    except (UnicodeDecodeError, ValueError):
+        return False
+    return has_binary_signature(decoded)
+
+
+def contains_encoded_binary_payload(data: bytes) -> bool:
+    """Recognize common textual encodings only when decoded magic is binary."""
+
+    base64_candidates = [match.group(1) for match in BASE64_TOKEN.finditer(data)]
+    base64_candidates.extend(BASE64_LINE_BLOCK.findall(data))
+    if any(_base64_decodes_to_binary_signature(candidate) for candidate in base64_candidates):
+        return True
+    hex_candidates = [match.group(1) for match in HEX_TOKEN.finditer(data)]
+    hex_candidates.extend(HEX_LINE_BLOCK.findall(data))
+    return any(_hex_decodes_to_binary_signature(candidate) for candidate in hex_candidates)
+
+
 def contains_publication_primitive(data: bytes) -> bool:
     lower = data.lower().replace(b"\\\r\n", b" ").replace(b"\\\n", b" ")
     collapsed = b" ".join(lower.split())
     return any(marker in lower or marker in collapsed for marker in ARTIFACT_UPLOAD_MARKERS)
 
 
-def local_uses(data: bytes) -> tuple[str, ...]:
-    return tuple(os.fsdecode(match).replace("\\", "/") for match in LOCAL_USES.findall(data))
+def _workflow_scalar(raw_value: bytes, *, allow_comment: bool) -> str | None:
+    value = raw_value.strip()
+    if allow_comment:
+        value = re.split(rb"[ \t]+#", value, maxsplit=1)[0].rstrip()
+    if len(value) >= 2 and value[:1] == value[-1:] and value[:1] in (b"'", b'"'):
+        value = value[1:-1]
+    try:
+        return value.decode("ascii")
+    except UnicodeDecodeError:
+        return None
 
 
-def remote_workflow_uses(data: bytes) -> tuple[str, ...]:
-    return tuple(os.fsdecode(match) for match in REMOTE_WORKFLOW_USES.findall(data))
+def workflow_execution_violations(data: bytes) -> tuple[str, ...]:
+    """Allow only the exact reviewed action pins and Make targets."""
 
-
-def unapproved_remote_actions(data: bytes) -> tuple[str, ...]:
     failures: list[str] = []
-    for raw_reference in ALL_USES.findall(data):
-        reference = os.fsdecode(raw_reference)
-        lower = reference.lower()
-        if lower.startswith("./") or "/.github/workflows/" in lower:
+    lines = data.splitlines()
+    for index, line in enumerate(lines):
+        stripped = line.lstrip()
+        if not stripped or stripped.startswith(b"#"):
             continue
-        action, separator, revision = lower.partition("@")
-        if (
-            separator
-            and action in ALLOWED_REMOTE_ACTIONS
-            and revision == ALLOWED_REMOTE_ACTIONS[action]
-        ):
+        match = WORKFLOW_EXECUTION_KEY.match(line)
+        if match is None:
+            if FLOW_EXECUTION_KEY.search(line):
+                failures.append("workflow uses unsupported execution-key syntax")
             continue
-        failures.append(reference)
-    return tuple(failures)
-
-
-def resolve_local_use(reference: str, files: dict[str, bytes]) -> tuple[str, ...]:
-    candidate = reference.removeprefix("./").lower()
-    if candidate in files:
-        return (candidate,)
-    return tuple(
-        path
-        for path in (f"{candidate.rstrip('/')}/action.yml", f"{candidate.rstrip('/')}/action.yaml")
-        if path in files
-    )
+        key = match.group("key").lower()
+        value = _workflow_scalar(match.group("value"), allow_comment=key == b"uses")
+        if key == b"uses":
+            if value not in ALLOWED_WORKFLOW_ACTIONS:
+                failures.append(f"workflow action is not allowlisted: {value or '<invalid>'}")
+            continue
+        if value not in ALLOWED_WORKFLOW_RUN_COMMANDS:
+            failures.append(f"workflow run command is not allowlisted: {value or '<invalid>'}")
+            continue
+        indentation = len(match.group("indent").expandtabs(8))
+        for continuation in lines[index + 1:]:
+            if not continuation.strip() or continuation.lstrip().startswith(b"#"):
+                continue
+            continuation_indent = len(continuation) - len(continuation.lstrip(b" \t"))
+            if continuation_indent > indentation:
+                failures.append("workflow run command uses unsupported multiline syntax")
+            break
+    return tuple(dict.fromkeys(failures))
 
 
 def violations_for_file(path: str, data: bytes, mode: str = "100644") -> list[str]:
@@ -216,6 +286,8 @@ def violations_for_file(path: str, data: bytes, mode: str = "100644") -> list[st
         violations.append("tracked Noether ELF payload")
     elif noether_scoped and is_binary_payload(data):
         violations.append("tracked Noether non-source binary payload")
+    elif noether_scoped and contains_encoded_binary_payload(data):
+        violations.append("tracked Noether encoded binary payload")
     if noether_scoped and data.startswith(GIT_LFS_POINTER_PREFIX):
         violations.append("tracked Noether Git LFS indirection")
     if noether_scoped and mode == "120000":
@@ -223,14 +295,9 @@ def violations_for_file(path: str, data: bytes, mode: str = "100644") -> list[st
     if noether_scoped and mode == "160000":
         violations.append("tracked Noether gitlink indirection")
     if is_noether_workflow(path, data):
-        publication_primitive = contains_publication_primitive(data)
-        if publication_primitive:
+        if contains_publication_primitive(data):
             violations.append("workflow can publish a Noether binary artifact")
-        for reference in remote_workflow_uses(data):
-            violations.append(f"workflow remote dependency cannot be inspected: {reference}")
-        if not publication_primitive:
-            for reference in unapproved_remote_actions(data):
-                violations.append(f"workflow uses unapproved remote action: {reference}")
+        violations.extend(workflow_execution_violations(data))
     return violations
 
 
@@ -264,53 +331,8 @@ def violations_for_repository(
             failures.append((path, "review-range binary or archive extension"))
         if mode.startswith("100") and is_binary_payload(data):
             failures.append((path, "review-range non-source binary payload"))
-    workflow_files = {
-        normalized_path(path): data
-        for path, _mode, data in records
-        if normalized_path(path).startswith((WORKFLOW_PREFIX, ACTION_PREFIX))
-    }
-    roots = sorted(
-        normalized_path(path)
-        for path, _mode, data in records
-        if is_noether_workflow(path, data)
-    )
-    for root in roots:
-        pending = list(local_uses(workflow_files.get(root, b"")))
-        visited = {root}
-        while pending:
-            reference = pending.pop()
-            targets = resolve_local_use(reference, workflow_files)
-            if not targets:
-                failures.append((root, f"workflow local dependency cannot be inspected: {reference}"))
-                continue
-            for target in targets:
-                if target in visited:
-                    continue
-                visited.add(target)
-                data = workflow_files[target]
-                if contains_publication_primitive(data):
-                    failures.append(
-                        (
-                            root,
-                            f"workflow can publish a Noether binary artifact through local dependency {target}",
-                        )
-                    )
-                for remote in remote_workflow_uses(data):
-                    failures.append(
-                        (
-                            root,
-                            f"workflow remote dependency cannot be inspected through {target}: {remote}",
-                        )
-                    )
-                if not contains_publication_primitive(data):
-                    for remote in unapproved_remote_actions(data):
-                        failures.append(
-                            (
-                                root,
-                                f"workflow uses unapproved remote action through {target}: {remote}",
-                            )
-                        )
-                pending.extend(local_uses(data))
+        if mode.startswith("100") and contains_encoded_binary_payload(data):
+            failures.append((path, "review-range encoded binary payload"))
     return list(dict.fromkeys(failures))
 
 
