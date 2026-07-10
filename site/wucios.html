@@ -250,12 +250,20 @@
             <h2 id="commands-title">Build privately from a clean checkout.</h2>
           </div>
           <p>
-            Begin at the immutable review commit and use network access only for
-            the explicit fetch step. Generated files remain under
-            <code>build/</code> and must not be published from this review lane.
+            The Noether Forge make targets are defined at immutable source-review
+            commit <code>00171c4cbd377f7c3c200c8a2493ad42c90a1207</code>. They are
+            not available on <code>main</code> while PR #30 remains open. Check
+            out that commit first, then use network access only for the explicit
+            fetch step. Generated files remain under <code>build/</code> and must
+            not be published from this review lane.
           </p>
         </div>
         <div class="command-grid">
+          <article class="command-card">
+            <div class="command-card-head"><h3>Review checkout</h3></div>
+            <pre><code>git fetch origin agent/noether-forge-source-review
+git switch --detach 00171c4cbd377f7c3c200c8a2493ad42c90a1207</code></pre>
+          </article>
           <article class="command-card">
             <div class="command-card-head"><h3>Source-only guard</h3></div>
             <pre><code>make wucios-noether-forge-source-guard</code></pre>

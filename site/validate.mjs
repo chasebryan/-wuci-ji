@@ -410,6 +410,8 @@ async function assertNoetherForgeStatusBinding() {
     "This is a conservative publication hold, not a claim",
     "not a general runtime sandbox or OS-containment claim",
     "A sanitized video may supplement review.",
+    "not available on <code>main</code> while PR #30 remains open.",
+    "git switch --detach 00171c4cbd377f7c3c200c8a2493ad42c90a1207",
     'href="noether-forge-status.json"'
   ]) {
     if (!wucios.includes(required)) {
