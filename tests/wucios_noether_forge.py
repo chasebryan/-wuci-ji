@@ -262,6 +262,22 @@ def test_physical_hardware_observation_is_digest_bound_without_validation_claim(
         "ready for production",
         "OS workloads are isolated",
         "isolation of OS workloads",
+        "validat\u0301ion",
+        "auth\u0301ority",
+        "quant\u0301um-safe",
+        "certif\u0301ied",
+        "Outside assessor approved this image for field deployment",
+        "canonical production release",
+        "kernel separates every workload with enforced boundaries",
+        "production-grade assurance",
+        "hardware passed acceptance testing",
+        "conforms to every release requirement",
+        "third-party assessor attested the image",
+        "external reviewer endorsed the build",
+        "qualified for production use",
+        "compliant with all release requirements",
+        "release boundary enforcement is complete",
+        "validatión completed",
     )
     for claim in reserved_claims:
         changed = copy.deepcopy(record)

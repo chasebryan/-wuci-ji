@@ -59,6 +59,29 @@ FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS = (
         re.compile(r"\bcertif(?:y|ies|ied|icate|icates|ication|ications|ying)\b"),
     ),
     ("accreditation", re.compile(r"\baccredit(?:ed|ing|s|ation|ations)?\b")),
+    ("assurance", re.compile(r"\bassur(?:e|ed|es|ing|ance|ances)\b")),
+    ("attestation", re.compile(r"\battest(?:s|ed|ing|ation|ations)?\b")),
+    ("approval", re.compile(r"\bapprov(?:e|es|ed|ing|al|als)\b")),
+    (
+        "endorsement",
+        re.compile(r"\bendors(?:e|es|ed|ing|ement|ements)\b"),
+    ),
+    (
+        "conformance",
+        re.compile(r"\bconform(?:s|ed|ing|ance|ant|ity)?\b"),
+    ),
+    (
+        "compliance",
+        re.compile(r"\bcompl(?:y|ies|ied|ying|iance|iant)\b"),
+    ),
+    (
+        "qualification",
+        re.compile(r"\bqualif(?:y|ies|ied|ying|ication|ications)\b"),
+    ),
+    (
+        "acceptance",
+        re.compile(r"\baccept(?:ed|ance|ances|able|ability)\b"),
+    ),
     ("authority", re.compile(r"authorit(?:y|ies|ative|atively)\b")),
     (
         "official-release",
@@ -70,12 +93,12 @@ FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS = (
     (
         "independent-assurance",
         re.compile(
-            r"(?:\b(?:independent(?:ly)?|external(?:ly)?|third\s+party)\s*"
+            r"(?:\b(?:independent(?:ly)?|external(?:ly)?|outside|third\s+party)\s*"
             r"(?:laborator(?:y|ies)|labs?|audits?|reviews?|reviewers?|"
             r"assess(?:ed|ing|ment|ments|or|ors)|tests?|verification)\b"
             r"|\b(?:laborator(?:y|ies)|labs?|audits?|reviews?|reviewers?|"
             r"assess(?:ed|ing|ment|ments|or|ors)|tests?|verification)"
-            r"(?:\s+\w+){0,3}\s+(?:independent(?:ly)?|external(?:ly)?|third\s+party)\b)"
+            r"(?:\s+\w+){0,3}\s+(?:independent(?:ly)?|external(?:ly)?|outside|third\s+party)\b)"
         ),
     ),
     (
@@ -104,6 +127,10 @@ FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS = (
             r"(?:for\s+)?production\b)"
         ),
     ),
+    (
+        "production-release",
+        re.compile(r"\b(?:canonical\s+)?production\s+(?:grade|release)\b"),
+    ),
     ("containment", re.compile(r"\bcontainment\b")),
     (
         "os-containment",
@@ -122,6 +149,22 @@ FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS = (
             r"(?:os|operating\s+system|kernel|runtime|workloads?)\b"
             r"|\b(?:os|operating\s+system|kernel|runtime|workloads?)"
             r"(?:\s+\w+){0,2}\s+isolat(?:e|es|ed|ing|ion)\b)"
+        ),
+    ),
+    (
+        "os-separation",
+        re.compile(
+            r"(?:\b(?:os|operating\s+system|kernel|runtime|workloads?)"
+            r"(?:\s+\w+){0,4}\s+separat(?:e|es|ed|ing|ion)\b"
+            r"|\bseparat(?:e|es|ed|ing|ion)(?:\s+\w+){0,4}\s+"
+            r"(?:os|operating\s+system|kernel|runtime|workloads?)\b)"
+        ),
+    ),
+    (
+        "enforced-boundary",
+        re.compile(
+            r"(?:\benforc(?:e|es|ed|ing|ement)(?:\s+\w+){0,2}\s+boundar(?:y|ies)\b"
+            r"|\bboundar(?:y|ies)(?:\s+\w+){0,2}\s+enforc(?:e|es|ed|ing|ement)\b)"
         ),
     ),
     ("quantum-resistance", re.compile(r"(?:quantum|\bpqc\b)")),
@@ -166,10 +209,15 @@ def normalize_free_text_for_claim_scan(value: str) -> str:
     """Canonicalize claim text without changing the evidence value itself."""
 
     characters: list[str] = []
-    for character in unicodedata.normalize("NFKC", value).casefold():
+    nfkc_text = unicodedata.normalize("NFKC", value).casefold()
+    # Decompose after NFKC so precomposed accents and attacker-supplied
+    # combining marks receive the same mark-stripping treatment.
+    for character in unicodedata.normalize("NFKD", nfkc_text):
         if is_default_ignorable(character):
             continue
         category = unicodedata.category(character)
+        if category[0] == "M":
+            continue
         if character.isspace() or category[0] in {"P", "S", "Z"}:
             characters.append(" ")
         else:
