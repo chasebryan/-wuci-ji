@@ -1,10 +1,6 @@
 # Wuci-Ji / 无此机
 
 <p align="center">
-  <img src="site/assets/no-such-machine-official-banner.jpg" width="860" alt="No Such Machine emblem">
-</p>
-
-<p align="center">
   <strong>Sealed artifacts. Receipt-bound release. Public evidence.</strong><br>
   A defensive x86_64 assembly research system for turning security claims into
   deterministic, inspectable proof lanes.
