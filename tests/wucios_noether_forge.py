@@ -11,6 +11,7 @@ import sys
 import tarfile
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -254,10 +255,21 @@ def test_xorriso_report_normalization_removes_host_state() -> None:
 
 def test_qemu_contract_has_no_network_device() -> None:
     iso = Path("candidate.iso")
-    bios = noether_forge.qemu_argv(iso, "bios", None)
+    with mock.patch.object(noether_forge.shutil, "which", return_value=None):
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.qemu_argv, iso, "bios", None)
+    with tempfile.TemporaryDirectory() as temporary:
+        firmware = Path(temporary) / "OVMF.fd"
+        firmware.write_bytes(b"test firmware fixture")
+        with mock.patch.object(
+            noether_forge.shutil,
+            "which",
+            return_value="/usr/bin/qemu-system-x86_64",
+        ):
+            bios = noether_forge.qemu_argv(iso, "bios", None)
+            uefi = noether_forge.qemu_argv(iso, "uefi", firmware)
+    assert bios[0] == "/usr/bin/qemu-system-x86_64"
     assert bios[bios.index("-nic") + 1] == "none"
     assert "pc,accel=tcg" in bios
-    uefi = noether_forge.qemu_argv(iso, "uefi", Path("/usr/share/edk2/ovmf/OVMF.stateless.fd"))
     assert "q35,accel=tcg" in uefi
     assert any("if=pflash" in item for item in uefi)
     assert all("-kernel" != item for item in bios + uefi)
