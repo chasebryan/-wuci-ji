@@ -166,7 +166,10 @@ JSON parser's duplicate-key rejection also closes semantic duplicates. For
 this x86_64 ISO, both hardware and capture architecture must be `x86_64`.
 Firmware mode constrains the secure-boot state, and at least one boot-chain
 observation must have result `observed`. The verifier is authoritative for
-calendar-valid UTC timestamps. With `--iso`, it enforces the recorded size,
+calendar-valid UTC timestamps and rejects a record more than five minutes
+ahead of verifier UTC. It reads the record through one descriptor and rejects
+device, inode, size, modification-time, or change-time movement during the
+read. With `--iso`, it enforces the recorded size,
 recomputes the digest vector, and rejects a file whose device, inode, size,
 modification time, or change time moves while streaming. The verifier establishes
 structured consistency only. It parses closed values instead of scanning free

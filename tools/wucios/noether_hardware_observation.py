@@ -18,7 +18,7 @@ import os
 import re
 import stat
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +26,6 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-from tools import wuci_safeio  # noqa: E402
-
 
 DEFAULT_FIXTURE = ROOT / "wucios/releases/noether-forge-v2.4.0/fixtures/physical-hardware-observation.json"
 SCHEMA = "wucios.noether_forge.physical_hardware_observation.v1"
@@ -38,6 +35,7 @@ BOUNDARY_STATEMENT = (
 )
 MAX_RECORD_BYTES = 128 * 1024
 MAX_ISO_BYTES = 4 * 1024 * 1024 * 1024
+MAX_FUTURE_SKEW_SECONDS = 5 * 60
 FIXTURE_SUBJECT_DESCRIPTION = "synthetic-fixture-marker-only"
 OPERATOR_SUBJECT_DESCRIPTION = "private-reviewer-built-iso"
 FIXTURE_ISO_FILENAME = "NOT-A-RELEASE-noether-hardware-observation-fixture.iso"
@@ -202,7 +200,7 @@ def require_hex(value: Any, length: int, label: str) -> str:
     return text
 
 
-def verify_timestamp(value: Any) -> None:
+def verify_timestamp(value: Any, *, now_utc: datetime | None = None) -> None:
     text = require_string(value, "observation.observed_at_utc", max_length=20)
     if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", text) is None:
         raise HardwareObservationError(
@@ -214,6 +212,13 @@ def verify_timestamp(value: Any) -> None:
         raise HardwareObservationError("observation.observed_at_utc must be valid RFC 3339") from exc
     if observed.tzinfo != timezone.utc:
         raise HardwareObservationError("observation.observed_at_utc must use UTC")
+    reference = now_utc if now_utc is not None else datetime.now(timezone.utc)
+    if reference.tzinfo != timezone.utc:
+        raise HardwareObservationError("timestamp reference must use UTC")
+    if observed > reference + timedelta(seconds=MAX_FUTURE_SKEW_SECONDS):
+        raise HardwareObservationError(
+            "observation.observed_at_utc exceeds the five-minute future-skew allowance"
+        )
 
 
 def verify_record(value: Any) -> dict[str, Any]:
@@ -446,17 +451,79 @@ def verify_record(value: Any) -> dict[str, Any]:
     return record
 
 
-def read_record(path: Path) -> dict[str, Any]:
+def stable_stat_identity(info: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def read_stable_record_bytes(path: Path) -> bytes:
     try:
-        raw = wuci_safeio.read_regular_bytes(
-            path,
-            "Noether physical-hardware observation record",
-            reject_symlink=True,
-            reject_hardlink=True,
-            max_bytes=MAX_RECORD_BYTES,
+        expected = path.lstat()
+    except OSError as exc:
+        raise HardwareObservationError(f"observation record is missing: {path}") from exc
+    if not stat.S_ISREG(expected.st_mode) or expected.st_nlink != 1:
+        raise HardwareObservationError(
+            f"observation record must be a single-link regular file: {path}"
         )
-    except wuci_safeio.SafeIOError as exc:
-        raise HardwareObservationError(str(exc)) from exc
+    if expected.st_size > MAX_RECORD_BYTES:
+        raise HardwareObservationError(
+            f"observation record exceeds {MAX_RECORD_BYTES} bytes: {path}"
+        )
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise HardwareObservationError(f"cannot open observation record safely: {path}") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            raise HardwareObservationError(
+                f"observation record must remain a single-link regular file: {path}"
+            )
+        if (expected.st_dev, expected.st_ino) != (before.st_dev, before.st_ino):
+            raise HardwareObservationError(f"observation record changed while opening: {path}")
+        if before.st_size > MAX_RECORD_BYTES:
+            raise HardwareObservationError(
+                f"observation record exceeds {MAX_RECORD_BYTES} bytes: {path}"
+            )
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            block = os.read(descriptor, min(64 * 1024, MAX_RECORD_BYTES + 1 - total))
+            if not block:
+                break
+            chunks.append(block)
+            total += len(block)
+            if total > MAX_RECORD_BYTES:
+                raise HardwareObservationError(
+                    f"observation record exceeds {MAX_RECORD_BYTES} bytes: {path}"
+                )
+        after = os.fstat(descriptor)
+        try:
+            current = path.lstat()
+        except OSError as exc:
+            raise HardwareObservationError(
+                f"observation record changed while reading: {path}"
+            ) from exc
+        if (
+            not stat.S_ISREG(after.st_mode)
+            or not stat.S_ISREG(current.st_mode)
+            or after.st_nlink != 1
+            or current.st_nlink != 1
+            or total != before.st_size
+            or stable_stat_identity(before) != stable_stat_identity(after)
+            or stable_stat_identity(after) != stable_stat_identity(current)
+        ):
+            raise HardwareObservationError(f"observation record changed while reading: {path}")
+        return b"".join(chunks)
+    except OSError as exc:
+        raise HardwareObservationError(f"cannot read observation record safely: {path}") from exc
+    finally:
+        os.close(descriptor)
+
+
+def read_record(path: Path) -> dict[str, Any]:
+    raw = read_stable_record_bytes(path)
     try:
         text = raw.decode("utf-8")
         value = json.loads(
@@ -469,10 +536,6 @@ def read_record(path: Path) -> dict[str, Any]:
     except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise HardwareObservationError(f"cannot read observation JSON: {path}") from exc
     return verify_record(value)
-
-
-def stable_stat_identity(info: os.stat_result) -> tuple[int, int, int, int, int]:
-    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
 def iso_binding(path: Path) -> dict[str, Any]:

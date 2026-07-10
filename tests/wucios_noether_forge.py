@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -509,6 +510,30 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
         invalid_date,
     )
 
+    future_date = copy.deepcopy(operator)
+    future_date["observation"]["observed_at_utc"] = "9999-12-31T23:59:59Z"
+    assert_raises(
+        noether_hardware_observation.HardwareObservationError,
+        noether_hardware_observation.verify_record,
+        future_date,
+    )
+
+    reference = datetime(2026, 7, 10, 12, 0, 0, tzinfo=timezone.utc)
+    accepted_skew = reference + timedelta(
+        seconds=noether_hardware_observation.MAX_FUTURE_SKEW_SECONDS
+    )
+    noether_hardware_observation.verify_timestamp(
+        accepted_skew.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        now_utc=reference,
+    )
+    rejected_skew = accepted_skew + timedelta(seconds=1)
+    assert_raises(
+        noether_hardware_observation.HardwareObservationError,
+        noether_hardware_observation.verify_timestamp,
+        rejected_skew.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        now_utc=reference,
+    )
+
     schema = noether_forge.load_json(
         ROOT / "wucios/schemas/noether-forge-physical-hardware-observation.schema.json"
     )
@@ -631,6 +656,34 @@ def test_physical_hardware_observation_resource_and_json_boundaries() -> None:
             noether_hardware_observation.read_record,
             deeply_nested,
         )
+
+        mutating_record = root / "mutating-record.json"
+        mutating_record.write_bytes(fixture.read_bytes())
+        original_read = os.read
+        mutated = False
+
+        def read_then_mutate_record(descriptor: int, size: int) -> bytes:
+            nonlocal mutated
+            block = original_read(descriptor, size)
+            if block and not mutated:
+                with mutating_record.open("r+b") as stream:
+                    stream.write(b"[")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                mutated = True
+            return block
+
+        with mock.patch.object(
+            noether_hardware_observation.os,
+            "read",
+            read_then_mutate_record,
+        ):
+            error = assert_raises(
+                noether_hardware_observation.HardwareObservationError,
+                noether_hardware_observation.read_record,
+                mutating_record,
+            )
+        assert "changed while reading" in str(error)
 
 
 def test_physical_hardware_iso_binding_rejects_growth_and_mutation() -> None:
