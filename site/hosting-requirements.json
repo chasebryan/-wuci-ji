@@ -36,6 +36,11 @@
       "path": "/",
       "header": "strict-transport-security",
       "value_must_contain": "max-age="
+    },
+    {
+      "path": "/",
+      "header": "cache-control",
+      "value_must_contain": "no-transform"
     }
   ],
   "required_public_paths": [
@@ -85,6 +90,10 @@
     {
       "host": "Cloudflare",
       "required_setting": "HTTP Strict Transport Security enabled after HTTPS is stable"
+    },
+    {
+      "host": "Cloudflare Pages",
+      "required_setting": "HTML no-transform prevents automatic Web Analytics injection"
     }
   ],
   "references": [

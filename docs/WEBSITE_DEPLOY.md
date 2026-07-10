@@ -9,6 +9,12 @@ Pages project `wuci-ji`. The production deployment is a direct upload of the
 validated `site/` directory with production branch metadata set to `main`.
 Cloudflare honors `site/_headers` and `site/_redirects`.
 
+The global HTML response policy includes `Cache-Control: no-transform` so the
+edge cannot inject Cloudflare Web Analytics or other transformed markup. More
+specific static-asset and evidence rules detach that cache header before
+applying their own cache policy. Do not enable browser analytics or remove
+`no-transform` without an explicit privacy/CSP review.
+
 Authenticate and verify the target before publishing:
 
 ```sh
@@ -42,7 +48,8 @@ host state by themselves.
 
 `make site-live-check` is intentionally stricter than `make site-validate`: it
 checks the deployed public host and fails if HTTP still serves `200 OK`, HSTS is
-missing, discovery files, `codemeta.json`, `hosting-requirements.json`, or
+missing, browser-like HTML differs from the committed page, an analytics beacon
+is injected, discovery files, `codemeta.json`, `hosting-requirements.json`, or
 `claim-evidence.json` are unavailable, or the official Wuci-Ji assets are not
 live.
 
