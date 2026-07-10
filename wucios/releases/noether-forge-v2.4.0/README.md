@@ -31,3 +31,11 @@ not publish or mirror the generated ISO or upstream binary payloads. This is
 not an Alpine Linux project endorsement. See
 [`docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md`](../../../docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md)
 and [`external-review.json`](external-review.json).
+
+The tracked [`third-party-obligations.json`](third-party-obligations.json) is a
+deterministic inventory generated only from the locked Alpine artifact records.
+Unknown source, license, notice, firmware, redistribution, and export-review
+facts remain `NOASSERTION` or explicitly unreviewed. It is a review aid, not
+legal clearance. A schema and synthetic fixture also define a digest-bound
+physical-hardware observation format without claiming that hardware validation
+has occurred.

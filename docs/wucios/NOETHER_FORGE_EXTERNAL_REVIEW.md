@@ -29,6 +29,7 @@ from an unrelated checkout when recording independent review results.
 
 ```sh
 make wucios-noether-forge-source-guard
+make wucios-noether-forge-review-evidence
 make wucios-noether-forge-test
 make wucios-validate
 make wucios-noether-forge-fetch
@@ -75,6 +76,55 @@ detached HEAD, or a different host toolchain is therefore not promised to
 produce the same ISO digest. Cross-host reproducibility has not been
 established.
 
+### Third-party obligations inventory
+
+`wucios/releases/noether-forge-v2.4.0/third-party-obligations.json` is generated
+deterministically from `alpine-input-lock.json` and `package-lock.json`. Check
+that the committed matrix still matches those locks with:
+
+```sh
+python3 tools/wucios/noether_obligations.py check
+```
+
+Every row records its locked artifact origin and digest plus explicit package,
+version, source-metadata, license-metadata, notice, firmware, redistribution,
+and export-review fields. Facts absent from the locked records intentionally
+remain `NOASSERTION`, `not-reviewed`, or `not-determined`. The inventory does
+not inspect downloaded APK contents, perform network access, decide which
+notices are required, classify cryptography, or provide redistribution or
+export clearance. Regenerate it after an intentional lock change with
+`python3 tools/wucios/noether_obligations.py write`, review the diff, and rerun
+the source-review gates.
+
+### Physical-hardware observation records
+
+The schema at
+`wucios/schemas/noether-forge-physical-hardware-observation.schema.json` binds
+an operator record to the reviewed Git commit and the privately built ISO's
+SHA-256, SHA-384, and SHA-512. It also records redacted hardware, firmware,
+capture-host, tool, and observed-result fields. The tracked record under
+`fixtures/` is synthetic and exercises the verifier only; its subject is not an
+ISO and it records no boot result.
+
+For a real observation, copy the fixture outside the repository, change
+`record_status` to `operator-observation`, change `subject_kind` to
+`private-reviewer-built-iso`, and replace every fixture value with the actual
+sanitized observation. Verify the record and its private local artifact with:
+
+```sh
+python3 tools/wucios/noether_hardware_observation.py \
+  /path/to/sanitized-hardware-observation.json \
+  --iso /path/to/WuciOS-v2.4.0-Noether-Forge-x86_64.iso \
+  --expected-commit 0123456789abcdef0123456789abcdef01234567
+```
+
+Replace the example commit with the exact reviewed commit. The verifier uses
+only the Python standard library, rejects symlink and hardlink inputs, rejects
+extra fields and positive validation/authority claims, and optionally
+recomputes the ISO digest vector. A passing result establishes record
+consistency only; it is not independent hardware validation, certification,
+official release authority, or proof of OS containment.
+
 ## What to review
 
 - Confirm every fetched object matches its pinned digest and signature.
@@ -88,6 +138,8 @@ established.
   scope, provenance, and bounded claim language.
 - Report licensing, corresponding-source, firmware-notice, export-control, or
   hardware-evidence gaps separately from runtime defects.
+- Review every `NOASSERTION` and unreviewed row in the obligations inventory;
+  do not interpret a locked digest as legal clearance.
 
 ## Reporting results
 

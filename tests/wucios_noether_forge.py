@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import gzip
 import io
 import json
@@ -18,6 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from tools.wucios import noether_forge  # noqa: E402
+from tools.wucios import noether_hardware_observation  # noqa: E402
+from tools.wucios import noether_obligations  # noqa: E402
 from tools.wucios import noether_runtime  # noqa: E402
 from tools.wucios import noether_source_guard  # noqa: E402
 
@@ -60,6 +63,8 @@ def test_external_review_policy_is_source_only() -> None:
     assert policy["export_classification"] == "not-determined"
     assert policy["reviewer_build"]["reviewer_fetches_upstream_inputs"] is True
     assert policy["reviewer_build"]["repository_mirrors_alpine_binaries"] is False
+    assert policy["review_aids"]["third_party_obligations"]["legal_clearance_provided"] is False
+    assert policy["review_aids"]["physical_hardware_observation"]["hardware_validation_claimed"] is False
     excluded = "\n".join(policy["excluded_material"]).lower()
     for required in ("iso", "apk", "compiled", "generated build", "private keys"):
         assert required in excluded
@@ -80,6 +85,119 @@ def test_external_review_policy_is_source_only() -> None:
         "export_classification",
     ):
         assert schema["properties"][field]["const"] == policy[field]
+
+
+def test_third_party_obligations_inventory_is_deterministic_and_bounded() -> None:
+    inventory = noether_obligations.build_inventory()
+    tracked = noether_obligations.DEFAULT_INVENTORY.read_bytes()
+    assert tracked == noether_obligations.canonical_json(inventory)
+    assert inventory["schema"] == "wucios.noether_forge.third_party_obligations.v1"
+    assert inventory["inventory_status"] == "review-input-only"
+    assert inventory["summary"] == {
+        "input_records": 7,
+        "package_records": 52,
+        "records_with_export_classification": 0,
+        "records_with_license_conclusions": 0,
+        "records_with_redistribution_clearance": 0,
+        "total_records": 59,
+    }
+    assert inventory["policy"] == {
+        "binary_distribution_authorized": False,
+        "legal_clearance": "not-provided-by-this-inventory",
+        "network_performed": False,
+        "official_release_authority": False,
+    }
+    assert len(inventory["items"]) == 59
+    assert [item["item_id"] for item in inventory["items"]] == sorted(
+        item["item_id"] for item in inventory["items"]
+    )
+    for item in inventory["items"]:
+        assert item["origin"]["record_state"] == "locked"
+        assert item["origin"]["artifact_url"].startswith("https://")
+        assert item["source_metadata"] == {
+            "origin_package": "NOASSERTION",
+            "review_state": "not-reviewed",
+            "source_archive_digest": "NOASSERTION",
+            "upstream_source_url": "NOASSERTION",
+        }
+        assert item["license_metadata"]["declared_expression"] == "NOASSERTION"
+        assert item["notices"]["required"] == "NOASSERTION"
+        assert item["firmware"]["content_state"] == "not-determined"
+        assert item["export_review"] == {
+            "classification": "NOASSERTION",
+            "review_state": "not-determined",
+        }
+        assert item["redistribution_review"] == "not-cleared"
+    packages = [item for item in inventory["items"] if item["kind"] == "alpine-apk-package"]
+    assert all(item["package"] != "NOASSERTION" and item["version"] != "NOASSERTION" for item in packages)
+    schema = noether_forge.load_json(
+        ROOT / "wucios/schemas/noether-forge-third-party-obligations.schema.json"
+    )
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(inventory)
+    assert set(schema["$defs"]["item"]["required"]) == set(inventory["items"][0])
+    assert_raises(
+        noether_obligations.ObligationsError,
+        noether_obligations.parse_package_filename,
+        "ambiguous-package.apk",
+    )
+
+
+def test_physical_hardware_observation_is_digest_bound_without_validation_claim() -> None:
+    fixture = noether_hardware_observation.DEFAULT_FIXTURE
+    record = noether_hardware_observation.verify_path(
+        fixture,
+        expected_commit="0000000000000000000000000000000000000000",
+    )
+    assert record["record_status"] == "fixture-only"
+    assert record["subject"]["subject_kind"] == "synthetic-fixture"
+    assert set(record["subject"]["iso_digests"]) == {"sha256", "sha384", "sha512"}
+    assert all(value is False for key, value in record["claim_boundary"].items() if key.endswith("_claimed"))
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        synthetic = root / record["subject"]["iso_filename"]
+        synthetic.write_bytes(b"NOETHER_FORGE_HARDWARE_OBSERVATION_FIXTURE\n")
+        assert noether_hardware_observation.verify_path(fixture, iso=synthetic) == record
+        synthetic.write_bytes(b"different fixture bytes\n")
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_path,
+            fixture,
+            iso=synthetic,
+        )
+
+        record_copy = root / "observation.json"
+        record_copy.write_bytes(fixture.read_bytes())
+        hardlink = root / "observation-hardlink.json"
+        os.link(record_copy, hardlink)
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.read_record,
+            hardlink,
+        )
+
+    for mutation in ("claim", "extra-key", "digest", "subject-kind"):
+        changed = copy.deepcopy(record)
+        if mutation == "claim":
+            changed["claim_boundary"]["hardware_validation_claimed"] = True
+        elif mutation == "extra-key":
+            changed["observation"]["hardware"]["serial"] = "must-not-appear"
+        elif mutation == "digest":
+            changed["subject"]["iso_digests"]["sha384"] = "0" * 95
+        else:
+            changed["record_status"] = "operator-observation"
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_record,
+            changed,
+        )
+
+    schema = noether_forge.load_json(
+        ROOT / "wucios/schemas/noether-forge-physical-hardware-observation.schema.json"
+    )
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == set(record)
 
 
 def test_source_only_guard_rejects_noether_binary_distribution() -> None:
@@ -626,6 +744,8 @@ def test_runtime_package_contract_parser() -> None:
 TESTS = [
     test_release_configuration,
     test_external_review_policy_is_source_only,
+    test_third_party_obligations_inventory_is_deterministic_and_bounded,
+    test_physical_hardware_observation_is_digest_bound_without_validation_claim,
     test_source_only_guard_rejects_noether_binary_distribution,
     test_source_guard_rejects_out_of_scope_renamed_payload,
     test_source_guard_scopes_pages_upload_to_noether_workflows,

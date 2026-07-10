@@ -161,7 +161,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-euclid-yocto-phase-3c-d wucios-euclid-yocto-phase-3c-d-json wucios-euclid-yocto-phase-3c-d-scaffold wucios-euclid-yocto-phase-3c-d-scaffold-json wucios-euclid-yocto-phase-3c-d-guardrails wucios-yocto-prep euclid-phase-3c-d yocto-prep yocto-scaffold yocto-guardrails
 .PHONY: wucios-euclid-openbsd-reference-phase-3c-e wucios-euclid-openbsd-reference-phase-3c-e-json wucios-euclid-openbsd-reference-phase-3c-e-scaffold wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json wucios-euclid-openbsd-reference-phase-3c-e-guardrails wucios-openbsd-reference-prep euclid-phase-3c-e openbsd-reference-prep openbsd-reference-scaffold openbsd-reference-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
-.PHONY: wucios-noether-forge-source-guard wucios-noether-forge-test wucios-noether-forge-fetch wucios-noether-forge-inputs wucios-noether-forge-build wucios-noether-forge-inspect wucios-noether-forge-boot wucios-noether-forge-launch wucios-noether-forge-internal wucios-noether-forge-verify
+.PHONY: wucios-noether-forge-source-guard wucios-noether-forge-review-evidence wucios-noether-forge-test wucios-noether-forge-fetch wucios-noether-forge-inputs wucios-noether-forge-build wucios-noether-forge-inspect wucios-noether-forge-boot wucios-noether-forge-launch wucios-noether-forge-internal wucios-noether-forge-verify
 .PHONY: zp1-upstream-test zp1-wuciji-bridge-test zp1-wuciji-coupling-test
 
 all: check-native $(TARGET)
@@ -176,6 +176,8 @@ help:
 	@printf '%s\n' "                                Test the Alpine Noether Forge pipeline"
 	@printf '%s\n' "  make wucios-noether-forge-source-guard"
 	@printf '%s\n' "                                Reject tracked Noether binary artifacts"
+	@printf '%s\n' "  make wucios-noether-forge-review-evidence"
+	@printf '%s\n' "                                Check bounded source-review evidence aids"
 	@printf '%s\n' "  make wucios-noether-forge-fetch"
 	@printf '%s\n' "                                Explicitly fetch and authenticate locked Alpine inputs"
 	@printf '%s\n' "  make wucios-noether-forge-build"
@@ -778,7 +780,11 @@ wucios-fluff-audit:
 wucios-noether-forge-source-guard:
 	$(PYTHON) tools/wucios/noether_source_guard.py
 
-wucios-noether-forge-test: wucios-noether-forge-source-guard
+wucios-noether-forge-review-evidence:
+	$(PYTHON) tools/wucios/noether_obligations.py check
+	$(PYTHON) tools/wucios/noether_hardware_observation.py
+
+wucios-noether-forge-test: wucios-noether-forge-source-guard wucios-noether-forge-review-evidence
 	$(PYTHON) tests/wucios_noether_forge.py --quiet
 
 wucios-noether-forge-fetch: wucios-noether-forge-test

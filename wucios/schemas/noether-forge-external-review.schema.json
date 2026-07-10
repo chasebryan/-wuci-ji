@@ -17,6 +17,7 @@
     "third_party_binary_redistribution_review",
     "export_classification",
     "reviewer_build",
+    "review_aids",
     "public_material",
     "excluded_material",
     "non_claims"
@@ -49,6 +50,34 @@
           "minItems": 4,
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "review_aids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["third_party_obligations", "physical_hardware_observation"],
+      "properties": {
+        "third_party_obligations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "status", "legal_clearance_provided"],
+          "properties": {
+            "path": {"const": "wucios/releases/noether-forge-v2.4.0/third-party-obligations.json"},
+            "status": {"const": "unreviewed-inventory-only"},
+            "legal_clearance_provided": {"const": false}
+          }
+        },
+        "physical_hardware_observation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_path", "fixture_path", "status", "hardware_validation_claimed"],
+          "properties": {
+            "schema_path": {"const": "wucios/schemas/noether-forge-physical-hardware-observation.schema.json"},
+            "fixture_path": {"const": "wucios/releases/noether-forge-v2.4.0/fixtures/physical-hardware-observation.json"},
+            "status": {"const": "fixture-only"},
+            "hardware_validation_claimed": {"const": false}
+          }
         }
       }
     },

@@ -20,12 +20,26 @@
       "make wucios-noether-forge-verify"
     ]
   },
+  "review_aids": {
+    "third_party_obligations": {
+      "path": "wucios/releases/noether-forge-v2.4.0/third-party-obligations.json",
+      "status": "unreviewed-inventory-only",
+      "legal_clearance_provided": false
+    },
+    "physical_hardware_observation": {
+      "schema_path": "wucios/schemas/noether-forge-physical-hardware-observation.schema.json",
+      "fixture_path": "wucios/releases/noether-forge-v2.4.0/fixtures/physical-hardware-observation.json",
+      "status": "fixture-only",
+      "hardware_validation_claimed": false
+    }
+  },
   "public_material": [
     "source code",
     "build scripts and configuration",
     "schemas and deterministic tests",
     "pinned upstream URLs, identities, and digests",
-    "bounded source-review instructions"
+    "bounded source-review instructions",
+    "an unreviewed third-party obligations inventory and a physical-hardware observation schema"
   ],
   "excluded_material": [
     "ISO images",

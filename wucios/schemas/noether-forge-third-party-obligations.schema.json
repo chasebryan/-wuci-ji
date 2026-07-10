@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-third-party-obligations.v1.json",
+  "title": "WuciOS Noether Forge third-party review inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "release_id",
+    "inventory_status",
+    "generated_from",
+    "summary",
+    "policy",
+    "items",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.third_party_obligations.v1"},
+    "release_id": {"const": "noether-forge-v2.4.0"},
+    "inventory_status": {"const": "review-input-only"},
+    "generated_from": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "schema", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "schema": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_records",
+        "package_records",
+        "total_records",
+        "records_with_license_conclusions",
+        "records_with_redistribution_clearance",
+        "records_with_export_classification"
+      ],
+      "properties": {
+        "input_records": {"type": "integer", "minimum": 1},
+        "package_records": {"type": "integer", "minimum": 1},
+        "total_records": {"type": "integer", "minimum": 2},
+        "records_with_license_conclusions": {"const": 0},
+        "records_with_redistribution_clearance": {"const": 0},
+        "records_with_export_classification": {"const": 0}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binary_distribution_authorized",
+        "legal_clearance",
+        "network_performed",
+        "official_release_authority"
+      ],
+      "properties": {
+        "binary_distribution_authorized": {"const": false},
+        "legal_clearance": {"const": "not-provided-by-this-inventory"},
+        "network_performed": {"const": false},
+        "official_release_authority": {"const": false}
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/item"}
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_filename",
+        "digests",
+        "export_review",
+        "firmware",
+        "item_id",
+        "kind",
+        "license_metadata",
+        "notices",
+        "origin",
+        "package",
+        "redistribution_review",
+        "size_bytes",
+        "source_metadata",
+        "version"
+      ],
+      "properties": {
+        "artifact_filename": {"type": "string", "minLength": 1},
+        "digests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "sha512"],
+          "properties": {
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "sha512": {
+              "oneOf": [
+                {"const": "NOASSERTION"},
+                {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+              ]
+            }
+          }
+        },
+        "export_review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["classification", "review_state"],
+          "properties": {
+            "classification": {"const": "NOASSERTION"},
+            "review_state": {"const": "not-determined"}
+          }
+        },
+        "firmware": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["content_state", "redistribution_review"],
+          "properties": {
+            "content_state": {"const": "not-determined"},
+            "redistribution_review": {"const": "not-reviewed"}
+          }
+        },
+        "item_id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "license_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["declared_expression", "evidence", "review_state"],
+          "properties": {
+            "declared_expression": {"const": "NOASSERTION"},
+            "evidence": {"const": "NOASSERTION"},
+            "review_state": {"const": "not-reviewed"}
+          }
+        },
+        "notices": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provided", "required", "review_state"],
+          "properties": {
+            "provided": {"const": "NOASSERTION"},
+            "required": {"const": "NOASSERTION"},
+            "review_state": {"const": "not-reviewed"}
+          }
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifact_url", "record_state", "repository_url"],
+          "properties": {
+            "artifact_url": {"type": "string", "pattern": "^https://"},
+            "record_state": {"const": "locked"},
+            "repository_url": {"type": "string", "pattern": "^https://"}
+          }
+        },
+        "package": {"type": "string", "minLength": 1},
+        "redistribution_review": {"const": "not-cleared"},
+        "size_bytes": {
+          "oneOf": [
+            {"const": "NOASSERTION"},
+            {"type": "integer", "minimum": 1}
+          ]
+        },
+        "source_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin_package", "source_archive_digest", "upstream_source_url", "review_state"],
+          "properties": {
+            "origin_package": {"const": "NOASSERTION"},
+            "source_archive_digest": {"const": "NOASSERTION"},
+            "upstream_source_url": {"const": "NOASSERTION"},
+            "review_state": {"const": "not-reviewed"}
+          }
+        },
+        "version": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
