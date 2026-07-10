@@ -71,6 +71,22 @@ def assert_policy_matching() -> None:
     assert scanner.unsupported_claims_in_text("Not a prototype but it is FIPS validated.") == ["fips validated"]
     assert scanner.unsupported_claims_in_text("Forbidden: FIPS validated.") == []
     assert scanner.unsupported_claims_in_text("Positive trust authority is not implemented.") == []
+    assert scanner.unsupported_claims_in_text(
+        "The previous draft does not claim certification and this release is FIPS validated."
+    ) == ["fips validated"]
+    assert scanner.unsupported_claims_in_text(
+        "This document does not claim production cryptography and the product has trust authority."
+    ) == ["trust authority"]
+    assert scanner.unsupported_claims_in_text(
+        "The old build does not claim FIPS validation, while this build is FIPS validated."
+    ) == ["fips validated"]
+    for safe_non_claim in (
+        "This artifact does not claim production cryptography or trust authority.",
+        "This artifact does not claim production cryptography and trust authority.",
+        "Forbidden: FIPS validated, FedRAMP authorized, or trust authority.",
+        "This release is not FIPS validated and is not FedRAMP authorized.",
+    ):
+        assert scanner.unsupported_claims_in_text(safe_non_claim) == [], safe_non_claim
     unicode_occurrence = scanner.claim_phrase_occurrences("αβ FIPS validated")[0]
     assert (unicode_occurrence["line"], unicode_occurrence["column"]) == (1, 4)
 
@@ -83,6 +99,9 @@ def assert_report_contract() -> None:
     )
     schema_phrases = schema["properties"]["findings"]["items"]["properties"]["phrase"]["enum"]
     assert schema_phrases == list(scanner.FORBIDDEN_AUTHORITY_PATTERNS)
+    pass_requirements = schema["allOf"][0]["then"]["properties"]
+    assert pass_requirements["inputs"]["minItems"] == 1
+    assert pass_requirements["files"]["minItems"] == 1
 
     with tempfile.TemporaryDirectory(prefix="daylight-claim-report-") as tmp_name:
         root = Path(tmp_name)
@@ -123,8 +142,47 @@ def assert_report_contract() -> None:
         else:
             raise AssertionError("claim report contract accepted pass with findings")
 
+        vacuous = {
+            "schema": scanner.SCHEMA,
+            "policy": scanner.POLICY,
+            "boundary": scanner.BOUNDARY,
+            "inputs": [],
+            "limits": {
+                "max_file_bytes": scanner.DEFAULT_MAX_FILE_BYTES,
+                "max_files": scanner.DEFAULT_MAX_FILES,
+                "max_total_bytes": scanner.DEFAULT_MAX_TOTAL_BYTES,
+            },
+            "summary": {
+                "files_scanned": 0,
+                "bytes_scanned": 0,
+                "phrase_occurrences": 0,
+                "negated_occurrences": 0,
+                "unsupported_occurrences": 0,
+            },
+            "files": [],
+            "findings": [],
+            "errors": [],
+            "status": "pass",
+        }
+        for inputs in ([], ["empty-surface"]):
+            mutated = json.loads(scanner.dump_report(vacuous))
+            mutated["inputs"] = inputs
+            try:
+                validate_object(mutated)
+            except ValidationError:
+                pass
+            else:
+                raise AssertionError("claim report contract accepted a vacuous pass")
+
 
 def assert_invalid_inputs_and_limits() -> None:
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-empty-") as tmp_name:
+        root = Path(tmp_name)
+        report = scan(root, ".")
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["no-files"]
+        validate_object(report)
+
     with tempfile.TemporaryDirectory(prefix="daylight-claim-missing-") as tmp_name:
         root = Path(tmp_name)
         report = scan(root, "missing.md")

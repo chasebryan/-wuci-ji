@@ -178,6 +178,8 @@ def validate_claim_scan_report_contract(obj: dict[str, Any]) -> None:
         raise ValidationError("$.summary.unsupported_occurrences: must equal findings length")
 
     status = obj["status"]
+    if status == "pass" and (not inputs or not files):
+        raise ValidationError("$.status: pass report requires at least one input and one scanned file")
     if status == "pass" and (findings or errors):
         raise ValidationError("$.status: pass report must not contain findings or errors")
     if status == "fail" and (not findings or errors):

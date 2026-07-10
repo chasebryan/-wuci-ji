@@ -207,5 +207,21 @@
         "invalid-input"
       ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["status"],
+        "properties": {
+          "status": {"const": "pass"}
+        }
+      },
+      "then": {
+        "properties": {
+          "inputs": {"minItems": 1},
+          "files": {"minItems": 1}
+        }
+      }
+    }
+  ]
 }

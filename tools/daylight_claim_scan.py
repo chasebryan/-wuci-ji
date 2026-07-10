@@ -63,6 +63,16 @@ FORBIDDEN_AUTHORITY_PATTERNS = (
 )
 
 _CONTRAST_RE = re.compile(r"\b(?:but|however|yet|except)\b", re.IGNORECASE)
+_CLAIM_SCOPE_BREAK_RE = re.compile(
+    r"(?:"
+    r"\b(?:but|however|yet|except|while)\b"
+    r"|\band\s+"
+    r"(?:(?:this|that|the|our|your|its|their|a|an)\s+)?"
+    r"(?:[\w-]+\s+){0,3}"
+    r"(?:is|are|was|were|has|have|claims?|asserts?|proves?|establishes?|confers?|implies?|creates?)\b"
+    r")",
+    re.IGNORECASE,
+)
 _NEGATED_LIST_RE = re.compile(
     r"(?:"
     r"\b(?:do|does|did|must|should|shall|can|could|would)\s+not\s+"
@@ -147,8 +157,11 @@ def phrase_is_negated(text: str, start: int, end: int | None = None) -> bool:
     clause = _normalized_clause_prefix(text, start)
     if _DIRECT_NEGATION_RE.search(clause):
         return True
-    if _NEGATED_LIST_RE.search(clause):
-        return True
+    list_markers = list(_NEGATED_LIST_RE.finditer(clause))
+    if list_markers:
+        matched_scope = clause[list_markers[-1].end():]
+        if _CLAIM_SCOPE_BREAK_RE.search(matched_scope) is None:
+            return True
     suffix = text[end if end is not None else start:start + 160]
     return bool(_FOLLOWING_NEGATION_RE.search(suffix))
 
@@ -390,6 +403,8 @@ def scan_paths(
             limit_reached,
         )
     discovered.sort(key=lambda path: _display_path(path, scan_root))
+    if not discovered and not errors:
+        errors.append(_error("<inputs>", "no-files", "scan inputs contain no regular files"))
 
     total_bytes = 0
     phrase_occurrences = 0
