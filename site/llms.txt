@@ -2,7 +2,8 @@
 
 Site: https://nosuchmachine.net/
 Repository: https://github.com/chasebryan/-wuci-ji
-WuciOS v2.4: https://nosuchmachine.net/wucios.html
+WuciOS 2.4.0 Noether Forge: https://nosuchmachine.net/wucios.html
+Noether Forge status: https://nosuchmachine.net/noether-forge-status.json
 
 Public brand:
 No Such Machine
@@ -17,7 +18,7 @@ Official assets:
 - https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg
 
 Current public focus:
-WuciOS v2.4 Reduction Gate.
+WuciOS 2.4.0 Noether Forge source-only external review candidate.
 
 Public evidence surface:
 Wuci-Ji v2 / Aperture Bastion.
@@ -28,47 +29,56 @@ https://nosuchmachine.net/assets/daylight-v20-public-challenge-780thc.jpg
 Daylight declaration state:
 declaration_allowed = false
 
-WuciOS v2.4 is a reduction-controlled, evidence-bound operating environment
-organized around Noether Core, Birkhoff Bastion, Tarski Review Appliance, and
-Euclid Substrate Trial.
+Noether Forge is an Alpine-based, TTY-first realization of the Noether Core
+profile. Review is anchored to commit
+00171c4cbd377f7c3c200c8a2493ad42c90a1207 and PR #30.
 
 Current status:
 
-- local evidence only
-- Alpine selected for WuciOS v2.4 substrate trial scope only
-- WuciOS v2.4 Alpine Substrate Trial Score: 96.0 / 100.0
-- Alpine trial artifact SHA-256: 95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f
-- Raw runtime evidence remains local/ignored unless separately authorized
-- Gate 16 prepared the PR/merge consideration packet for reviewer/status documentation only
-- Void remains one preserved historical candidate, not the selected substrate
-- Noether Core is GUI-free
-- Birkhoff Bastion is optional
-- Tarski Review Appliance generates the review packet
-- Phase 2B expands safe build feasibility probes to Buildroot, Alpine, Debian minimal, Void, NixOS, Guix, Yocto, and OpenBSD reference
-- Phase 3A defines controlled build rooms and backend readiness without executing builds
-- WuciOS v2.4 docs: docs/wucios/v2.4/external-transmission-packet.md, docs/wucios/v2.4/pr-merge-consideration-packet.md, and docs/wucios/v2.4/gate-status-ledger.md
-- missing measurements are NOT_MEASURED
+- distribution mode: source only
+- official release: false
+- public binary release authorized: false
+- binary assets published: false
+- substrate: authenticated Alpine Linux 3.24.1 x86_64 inputs
+- package closure: 52 locked signed APK payloads fetched directly from upstream
+- private repeat builds were byte-identical within one clean checkout and host toolchain
+- the exact private image passed QEMU SeaBIOS and OVMF/UEFI gates
+- cross-host reproducibility is not established
+- reference physical-hardware validation is not established
+- external validation received: false
+- no Noether Forge ISO, APK payload, package cache, compiled Wuci-Ji binary, kernel, initramfs, modloop, EFI image, firmware, or bootloader binary is published through this review lane
 
-Validation handles:
+Source-review handles:
 
+- https://github.com/chasebryan/-wuci-ji/pull/30
+- https://github.com/chasebryan/-wuci-ji/blob/00171c4cbd377f7c3c200c8a2493ad42c90a1207/docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md
+- make wucios-noether-forge-source-guard
+- make wucios-noether-forge-test
 - make wucios-validate
-- make wucios-fluff-audit
-- make wucios-substrate-matrix
-- make wucios-euclid-buildrooms-phase-3a
-- make wucios-review
+- make wucios-noether-forge-fetch
+- make wucios-noether-forge-build
+- make wucios-noether-forge-verify
 - make site-validate
+
+Design history:
+
+- WuciOS v2.4 Reduction Gate separated Noether Core, Birkhoff Bastion, Tarski Review Appliance, and Euclid Substrate Trial
+- make wucios-review remains a Reduction Gate history/review command
+- the earlier 96.0 / 100.0 Alpine substrate trial score is historical and is not a Noether Forge release score
 
 Non-claims:
 
+- not an official or production WuciOS release
+- not binary redistribution authorization
 - not production cryptography
-- not runtime sandboxing
+- not runtime sandboxing or general OS containment
 - not host-cleanliness proof
 - not whole-system post-quantum safety
 - not FIPS validation
 - not government validation
 - not external certification
-- not full runtime validation
-- not bootability validation
-- not operational deployment approval
 - not independent audit completion
-- not production authority
+- not cross-host reproducibility
+- not reference physical-hardware validation
+- not Alpine Linux project endorsement
+- not legal advice or an export classification

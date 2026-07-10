@@ -24,6 +24,10 @@
   Content-Type: application/json; charset=utf-8
   Cache-Control: no-store
 
+/noether-forge-status.json
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: no-store
+
 /defense-assurance-status.json
   Content-Type: application/json; charset=utf-8
   Cache-Control: no-store
