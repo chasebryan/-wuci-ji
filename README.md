@@ -1,5 +1,7 @@
 # Wuci-Ji / 无此机
 
+<img width="1983" height="793" alt="noether-forge-banner" src="https://github.com/user-attachments/assets/20f8c936-ae32-4230-863e-d00c6f7098cb" />
+
 <p align="center">
   <strong>Sealed artifacts. Receipt-bound release. Public evidence.</strong><br>
   A defensive x86_64 assembly research system for turning security claims into
