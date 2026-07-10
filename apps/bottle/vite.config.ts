@@ -1,9 +1,18 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { execFileSync } from "node:child_process";
 import { defineConfig, type Plugin } from "vite";
 import { MAX_DROP_BODY_BYTES } from "./src/domain/validation";
 import { SECURITY_HEADERS, createMemoryBottleStorage, handleRequest } from "./worker/index";
 
+const sourceCommit = gitOutput(["rev-parse", "HEAD"]) ?? "unknown";
+const treeStatus = gitOutput(["status", "--porcelain=v1", "--untracked-files=all"]);
+const treeState = treeStatus === undefined ? "unknown" : treeStatus === "" ? "clean" : "dirty";
+
 export default defineConfig({
+  define: {
+    __DAYLIGHT_SOURCE_COMMIT__: JSON.stringify(sourceCommit),
+    __DAYLIGHT_TREE_STATE__: JSON.stringify(treeState)
+  },
   plugins: [daylightBottleApiDevPlugin()],
   publicDir: "public",
   build: {
@@ -23,6 +32,18 @@ export default defineConfig({
     strictPort: false
   }
 });
+
+function gitOutput(args: string[]): string | undefined {
+  try {
+    return execFileSync("git", args, {
+      cwd: new URL("../../", import.meta.url),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
 
 function daylightBottleApiDevPlugin(): Plugin {
   const store = createMemoryBottleStorage();

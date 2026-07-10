@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sha256Hex } from "../crypto/fingerprint";
 import { SCHEMAS, type DaylightBottleEvidence, type DropBottleRequest } from "../domain/types";
-import { dropBottle, listBottles, loadKeyring } from "./client";
+import { dropBottle, listBottlePage, listBottles, loadKeyring } from "./client";
 
 const fingerprint = `sha256:${"a".repeat(64)}`;
 const storedAt = "2026-07-07T12:00:00.000Z";
@@ -97,6 +97,37 @@ describe("API client trust boundary", () => {
       )
     ).rejects.toThrow(/fingerprint mismatch/);
   });
+
+  it("requests a validated continuation cursor and rejects a repeated cursor", async () => {
+    let requestedUrl = "";
+    const fetcher: typeof fetch = async (input) => {
+      requestedUrl = String(input);
+      return jsonResponse(
+        { schema: SCHEMAS.listResponse, bottles: [] },
+        200,
+        { "X-Daylight-Next-Cursor": "page_3" }
+      );
+    };
+
+    const page = await listBottlePage(fingerprint, fetcher, "page_2");
+    expect(requestedUrl).toContain(`recipientFingerprint=${encodeURIComponent(fingerprint)}`);
+    expect(requestedUrl).toContain("cursor=page_2");
+    expect(page.response).toEqual({ schema: SCHEMAS.listResponse, bottles: [] });
+    expect(page.nextCursor).toBe("page_3");
+
+    await expect(
+      listBottlePage(
+        fingerprint,
+        async () =>
+          jsonResponse(
+            { schema: SCHEMAS.listResponse, bottles: [] },
+            200,
+            { "X-Daylight-Next-Cursor": "page_2" }
+          ),
+        "page_2"
+      )
+    ).rejects.toThrow(/repeated its pagination cursor/);
+  });
 });
 
 function validRequest(): DropBottleRequest {
@@ -125,9 +156,13 @@ function validEvidence(ciphertextSha256: string): DaylightBottleEvidence {
   };
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {}
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json", ...headers }
   });
 }

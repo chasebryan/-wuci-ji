@@ -4,6 +4,8 @@ import { SCHEMAS, type DropBottleRequest, type KeyRecord, type PlainBottlePayloa
 import { MAX_DROP_BODY_BYTES, normalizeKeyname } from "../domain/validation";
 import {
   copyButton,
+  downloadTextFile,
+  formatFingerprint,
   h,
   labeledField,
   renderJsonBlock,
@@ -15,6 +17,27 @@ import {
 } from "./dom";
 
 const textEncoder = new TextEncoder();
+const LARGE_MESSAGE_WARNING_BYTES = 160 * 1024;
+export const MAX_SERIALIZED_PAYLOAD_BYTES = 180 * 1024;
+
+export type MessageMeterPresentation = {
+  text: string;
+  warning: boolean;
+};
+
+export function messageMeterPresentation(bytes: number): MessageMeterPresentation {
+  const warning = bytes >= LARGE_MESSAGE_WARNING_BYTES;
+  return {
+    text: warning
+      ? `${formatByteCount(bytes)} of plaintext · large message: encryption overhead may exceed the ${formatBytes(MAX_DROP_BODY_BYTES)} request limit`
+      : `${formatByteCount(bytes)} of plaintext · encryption adds overhead; final request limit ${formatBytes(MAX_DROP_BODY_BYTES)}`,
+    warning
+  };
+}
+
+export function serializedPayloadByteLength(payload: PlainBottlePayload): number {
+  return textEncoder.encode(JSON.stringify(payload)).byteLength;
+}
 
 export async function renderDropBottle(container: HTMLElement): Promise<void> {
   const keySelect = h("select", {
@@ -34,6 +57,39 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
       placeholder: "Write the bottle message here. It will be encrypted locally before upload."
     }
   });
+  const initialMessageMeter = messageMeterPresentation(0);
+  const messageMeter = h("p", {
+    className: "message-meter",
+    text: initialMessageMeter.text,
+    attrs: { id: "drop-message-meter" }
+  });
+  const messageField = labeledField(
+    "Message",
+    messageInput,
+    "The message is encrypted in this browser before any request is sent. Encryption adds size, so the API limit is checked against the final ciphertext request."
+  );
+  messageInput.setAttribute(
+    "aria-describedby",
+    [messageInput.getAttribute("aria-describedby"), messageMeter.id].filter(Boolean).join(" ")
+  );
+  messageField.append(messageMeter);
+  const fingerprintConfirmation = h("input", {
+    attrs: {
+      id: "confirm-recipient-fingerprint",
+      name: "confirmRecipientFingerprint",
+      type: "checkbox",
+      disabled: ""
+    }
+  });
+  const fingerprintConfirmationRow = h("label", {
+    className: "check-row",
+    attrs: { for: "confirm-recipient-fingerprint" }
+  }, [
+    fingerprintConfirmation,
+    h("span", {
+      text: "I compared the complete fingerprint through a separate trusted channel."
+    })
+  ]);
   const status = statusRegion();
   const recipientDetails = h("div", {
     className: "recipient-details",
@@ -47,7 +103,8 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
   const form = h("form", { className: "panel-form", attrs: { "aria-busy": "true" } }, [
     labeledField("Recipient keyname", keySelect, "Choose explicitly, then verify the displayed fingerprint through a trusted channel."),
     recipientDetails,
-    labeledField("Message", messageInput, "The message is encrypted in this browser before any request is sent."),
+    fingerprintConfirmationRow,
+    messageField,
     submit
   ]);
 
@@ -60,7 +117,8 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
   const syncControls = (): void => {
     keySelect.disabled = busy || activeKeys.length === 0;
     messageInput.readOnly = busy;
-    submit.disabled = busy || selectedKey() === undefined;
+    fingerprintConfirmation.disabled = busy || selectedKey() === undefined;
+    submit.disabled = busy || selectedKey() === undefined || !fingerprintConfirmation.checked;
     setBusy(form, busy);
   };
 
@@ -84,7 +142,7 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
         h("dt", { text: "Fingerprint" }),
         h("dd", {}, [
           h("div", { className: "inline-copy" }, [
-            h("code", { className: "code-value fingerprint", text: selected.fingerprint }),
+            h("code", { className: "code-value fingerprint", text: formatFingerprint(selected.fingerprint) }),
             copyButton(selected.fingerprint, "Copy Fingerprint")
           ])
         ])
@@ -110,6 +168,10 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
         keySelect.focus();
         throw new Error("Choose an active recipient from the keyring.");
       }
+      if (!fingerprintConfirmation.checked) {
+        fingerprintConfirmation.focus();
+        throw new Error("Confirm that you independently verified the complete recipient fingerprint.");
+      }
 
       const message = messageInput.value;
       if (message.length === 0) {
@@ -133,6 +195,14 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
         message,
         createdAt: new Date().toISOString()
       };
+      const payloadBytes = serializedPayloadByteLength(payload);
+      if (payloadBytes > MAX_SERIALIZED_PAYLOAD_BYTES) {
+        messageInput.setAttribute("aria-invalid", "true");
+        messageInput.focus();
+        throw new Error(
+          `The message produces a ${formatBytes(payloadBytes)} serialized payload, above the ${formatBytes(MAX_SERIALIZED_PAYLOAD_BYTES)} conservative client limit before encryption. Shorten it and try again.`
+        );
+      }
       const ciphertext = await encryptBottlePayload({
         payload,
         publicRecipient: selected.publicRecipient
@@ -156,11 +226,29 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
       setStatus(status, "Uploading ciphertext and public metadata...");
       const response = await dropBottle(request);
       const serializedEvidence = JSON.stringify(response.evidence, null, 2);
+      const evidencePath = `/api/bottles/${encodeURIComponent(response.bottleId)}/evidence`;
+      const evidenceUrl = new URL(evidencePath, window.location.origin).toString();
+      const downloadEvidence = h("button", {
+        className: "button-secondary button-compact",
+        text: "Download Evidence JSON",
+        attrs: { type: "button" }
+      });
+      downloadEvidence.addEventListener("click", () => {
+        downloadTextFile(`${serializedEvidence}\n`, `daylight-bottle-${response.bottleId}-evidence.json`);
+      });
       output.replaceChildren(
         h("section", { className: "result-section" }, [
           h("div", { className: "result-heading" }, [
             h("h3", { text: "Bottle Accepted" }),
-            copyButton(serializedEvidence, "Copy Evidence")
+            h("div", { className: "action-group" }, [
+              h("a", {
+                className: "button-link button-secondary button-compact",
+                text: "Open Evidence",
+                attrs: { href: evidencePath, target: "_blank", rel: "noopener" }
+              }),
+              copyButton(evidenceUrl, "Copy Evidence URL"),
+              downloadEvidence
+            ])
           ]),
           h("dl", { className: "metadata-list" }, [
             h("dt", { text: "Bottle id" }),
@@ -170,11 +258,21 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
             h("dt", { text: "Expires at" }),
             h("dd", {}, [timeElement(response.expiresAt)])
           ]),
+          h("p", {
+            className: "muted",
+            text: "Storage is eventually consistent. A recipient in another location may need to wait briefly and retry before this accepted bottle appears."
+          }),
+          h("p", {
+            className: "muted",
+            text: "Before displaying this receipt, the client verified its schema, request metadata, timestamps, and ciphertext digest. That does not prove server honesty."
+          }),
           h("h3", { text: "Daylight Evidence" }),
           renderJsonBlock(response.evidence, "Daylight bottle evidence JSON")
         ])
       );
       messageInput.value = "";
+      fingerprintConfirmation.checked = false;
+      updateMessageMeter();
       setStatus(status, "Bottle dropped. This app sent ciphertext and public metadata, not the message text.", "success");
     } catch (error) {
       setStatus(status, error instanceof Error ? error.message : "Bottle drop failed.", "error");
@@ -187,11 +285,28 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
 
   keySelect.addEventListener("change", () => {
     keySelect.removeAttribute("aria-invalid");
+    fingerprintConfirmation.checked = false;
     updateRecipientDetails();
     if (selectedKey()) {
       setStatus(status, "Recipient selected. Verify its fingerprint before encrypting.");
     }
   });
+
+  fingerprintConfirmation.addEventListener("change", () => {
+    syncControls();
+    if (fingerprintConfirmation.checked) {
+      setStatus(status, "Fingerprint verification confirmed locally. The confirmation is not uploaded.");
+    }
+  });
+
+  const updateMessageMeter = (): void => {
+    const bytes = textEncoder.encode(messageInput.value).byteLength;
+    const presentation = messageMeterPresentation(bytes);
+    messageMeter.textContent = presentation.text;
+    messageMeter.classList.toggle("message-meter-warning", presentation.warning);
+    messageInput.removeAttribute("aria-invalid");
+  };
+  messageInput.addEventListener("input", updateMessageMeter);
 
   container.replaceChildren(
     h("section", { className: "view" }, [
@@ -205,33 +320,96 @@ export async function renderDropBottle(container: HTMLElement): Promise<void> {
       output
     ])
   );
+  form.hidden = true;
 
-  try {
-    setStatus(status, "Loading /keyring.json...");
-    const keyring = await loadKeyring();
-    activeKeys = keyring.keys.filter((key) => key.status === "active");
-    keySelect.replaceChildren(
-      h("option", { text: "Choose a recipient…", attrs: { value: "" } }),
-      ...activeKeys.map((key) =>
-        h("option", { text: key.keyname, attrs: { value: key.fingerprint } })
-      )
-    );
-
-    busy = false;
-    updateRecipientDetails();
-    if (activeKeys.length === 0) {
-      setStatus(status, "The static keyring has no active recipients yet.", "error");
-      return;
-    }
-
-    setStatus(status, `Loaded ${activeKeys.length} active recipient key(s). Choose one to continue.`, "success");
-  } catch (error) {
-    busy = false;
+  const loadRecipients = async (focusAfterLoad = false): Promise<void> => {
+    busy = true;
+    activeKeys = [];
+    form.hidden = true;
+    output.replaceChildren();
     syncControls();
-    setStatus(status, error instanceof Error ? error.message : "Could not load keyring.", "error");
-  }
+    setStatus(status, "Loading /keyring.json...");
+    try {
+      const keyring = await loadKeyring();
+      activeKeys = keyring.keys.filter((key) => key.status === "active");
+      keySelect.replaceChildren(
+        h("option", { text: "Choose a recipient…", attrs: { value: "" } }),
+        ...activeKeys.map((key) =>
+          h("option", { text: key.keyname, attrs: { value: key.fingerprint } })
+        )
+      );
+
+      busy = false;
+      updateRecipientDetails();
+      if (activeKeys.length === 0) {
+        const createIdentityAction = h("a", {
+          className: "button-link",
+          text: "Create an Identity",
+          attrs: { href: "#create" }
+        });
+        form.hidden = true;
+        output.replaceChildren(
+          h("section", { className: "empty-state" }, [
+            h("h3", { text: "No approved recipients yet" }),
+            h("p", {
+              text: "The static keyring has no active public records. Create an identity, verify its private backup, and request manual owner approval before anyone can drop a bottle to it."
+            }),
+            h("div", { className: "action-group" }, [
+              createIdentityAction,
+              h("a", {
+                className: "button-link button-secondary",
+                text: "Read the Manual Keyring Procedure",
+                attrs: { href: "#threat" }
+              })
+            ])
+          ])
+        );
+        setStatus(status, "Waiting for the first manually approved public recipient record.");
+        if (focusAfterLoad) {
+          createIdentityAction.focus();
+        }
+        return;
+      }
+
+      form.hidden = false;
+      setStatus(status, `Loaded ${activeKeys.length} active recipient key(s). Choose one to continue.`, "success");
+      if (focusAfterLoad) {
+        keySelect.focus();
+      }
+    } catch (error) {
+      busy = false;
+      syncControls();
+      const message = error instanceof Error ? error.message : "Could not load keyring.";
+      const retry = h("button", { text: "Retry Keyring Load", attrs: { type: "button" } });
+      retry.addEventListener("click", () => {
+        void loadRecipients(true);
+      });
+      output.replaceChildren(
+        h("section", {
+          className: "empty-state empty-state-error",
+          attrs: { role: "group", "aria-labelledby": "drop-keyring-error-title" }
+        }, [
+          h("h3", { text: "Recipient directory unavailable", attrs: { id: "drop-keyring-error-title" } }),
+          h("p", {
+            text: "No message was encrypted or uploaded. Retry the same-origin public keyring when you are ready."
+          }),
+          retry
+        ])
+      );
+      setStatus(status, message, "error");
+      if (focusAfterLoad) {
+        retry.focus();
+      }
+    }
+  };
+
+  await loadRecipients();
 }
 
 function formatBytes(bytes: number): string {
   return `${Math.ceil(bytes / 1024)} KiB`;
+}
+
+function formatByteCount(bytes: number): string {
+  return bytes < 1024 ? `${bytes} byte${bytes === 1 ? "" : "s"}` : formatBytes(bytes);
 }

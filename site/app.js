@@ -18,6 +18,56 @@
   }
   enforceCanonicalHttps();
 
+  function setupPageShell() {
+    var main = document.querySelector("main");
+    if (main && !main.id) {
+      main.id = "main-content";
+    }
+
+    if (main && !document.querySelector(".skip-link")) {
+      var skipLink = document.createElement("a");
+      skipLink.className = "skip-link";
+      skipLink.href = "#main-content";
+      skipLink.textContent = "Skip to content";
+      document.body.insertBefore(skipLink, document.body.firstChild);
+    }
+
+    var header = document.querySelector(".site-header");
+    var nav = header ? header.querySelector(".site-nav") : null;
+    if (header && nav) {
+      header.setAttribute("data-header", "");
+      if (!nav.id) {
+        nav.id = "site-nav";
+      }
+      if (!header.querySelector(".nav-toggle")) {
+        var toggle = document.createElement("button");
+        toggle.className = "nav-toggle";
+        toggle.type = "button";
+        toggle.setAttribute("aria-controls", nav.id);
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.setAttribute("aria-label", "Toggle navigation menu");
+        var bars = document.createElement("span");
+        bars.className = "nav-toggle-bars";
+        bars.setAttribute("aria-hidden", "true");
+        toggle.appendChild(bars);
+        header.appendChild(toggle);
+      }
+    }
+
+    if (main && !document.querySelector(".site-footer")) {
+      var footer = document.createElement("footer");
+      footer.className = "site-footer nsm-footer";
+      footer.innerHTML =
+        '<span>No Such Machine</span>' +
+        '<a href="/">Home</a>' +
+        '<a href="https://bottle.nosuchmachine.net/">Daylight Bottle</a>' +
+        '<a href="product-boundary.html">Product boundary</a>' +
+        '<a href="https://github.com/chasebryan/-wuci-ji">Repository</a>';
+      document.body.appendChild(footer);
+    }
+  }
+  setupPageShell();
+
   // Gallery lightbox
   function setupLightbox() {
     var figures = document.querySelectorAll("main figure");
@@ -199,32 +249,72 @@
       return;
     }
 
-    function setOpen(open) {
+    function navItems() {
+      return Array.prototype.slice.call(nav.querySelectorAll("a[href], button:not([disabled])"));
+    }
+
+    function setOpen(open, restoreToggleFocus) {
       header.classList.toggle("nav-open", open);
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) {
+        window.requestAnimationFrame(function () {
+          var first = navItems()[0];
+          if (first && header.classList.contains("nav-open")) {
+            first.focus();
+          }
+        });
+      } else if (restoreToggleFocus) {
+        toggle.focus();
+      }
     }
 
     toggle.addEventListener("click", function () {
-      setOpen(!header.classList.contains("nav-open"));
+      var wasOpen = header.classList.contains("nav-open");
+      setOpen(!wasOpen, wasOpen);
     });
 
     nav.addEventListener("click", function (event) {
-      if (event.target.closest("a")) {
-        setOpen(false);
+      var target = event.target;
+      if (target instanceof Element && target.closest("a")) {
+        setOpen(false, true);
       }
     });
 
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && header.classList.contains("nav-open")) {
-        setOpen(false);
-        toggle.focus();
+      if (!header.classList.contains("nav-open")) {
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false, true);
+        return;
+      }
+      if (event.key === "Tab") {
+        var items = navItems();
+        var first = items[0];
+        var active = document.activeElement;
+        if (!first) {
+          event.preventDefault();
+          toggle.focus();
+          return;
+        }
+        if (event.shiftKey && active === first) {
+          event.preventDefault();
+          toggle.focus();
+        } else if (!event.shiftKey && active === toggle) {
+          event.preventDefault();
+          first.focus();
+        } else if (active !== toggle && items.indexOf(active) === -1) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     });
 
     var desktopQuery = window.matchMedia("(min-width: 981px)");
     function handleChange(event) {
       if (event.matches) {
-        setOpen(false);
+        setOpen(false, false);
       }
     }
     if (desktopQuery.addEventListener) {

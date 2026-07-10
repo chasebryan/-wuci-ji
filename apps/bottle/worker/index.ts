@@ -1,8 +1,11 @@
-import { sha256Hex } from "../src/crypto/fingerprint";
+import { fingerprintKeyRecordInput, sha256Hex } from "../src/crypto/fingerprint";
+import publishedKeyringJson from "../public/keyring.json";
 import {
   SCHEMAS,
   type DaylightBottleEvidence,
   type DropBottleResponse,
+  type DropBottleRequest,
+  type Keyring,
   type ListBottlesResponse,
   type StoredBottle,
   type StoredBottlePublic
@@ -11,13 +14,22 @@ import {
   MAX_DROP_BODY_BYTES,
   assertBottleId,
   assertFingerprint,
+  assertListCursor,
   assertStoredBottle,
+  parseKeyring,
   parseDropBottleRequest,
-  toStoredBottlePublic
+  toStoredBottlePublic,
+  utf8ByteLength
 } from "../src/domain/validation";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+export const BOTTLE_LIST_PAGE_SIZE = 8;
+export const BOTTLE_RECIPIENT_CAPACITY = 500;
+export const BOTTLE_LIST_RESPONSE_MAX_BYTES =
+  BOTTLE_LIST_PAGE_SIZE * MAX_DROP_BODY_BYTES + 64 * 1024;
+export const BOTTLE_LIST_CURSOR_HEADER = "X-Daylight-Next-Cursor";
 const SERVER_ORIGIN = "bottle.nosuchmachine.net" as const;
+const PUBLISHED_KEYRING = parseKeyring(publishedKeyringJson);
 
 export const SECURITY_HEADERS: Record<string, string> = {
   "Content-Security-Policy":
@@ -32,14 +44,22 @@ export const SECURITY_HEADERS: Record<string, string> = {
 
 export type BottleWorkerEnv = {
   BOTTLES_KV?: BottleKVNamespace;
+  DROP_RATE_LIMITER?: BottleRateLimiter;
+  READ_RATE_LIMITER?: BottleRateLimiter;
   __TEST_STORE__?: BottleStorage;
+  __TEST_KEYRING__?: Keyring;
+};
+
+export type BottleRateLimiter = {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 };
 
 export type BottleKVNamespace = {
   get(key: string): Promise<string | null>;
+  get(keys: string[]): Promise<Map<string, string | null>>;
   put(key: string, value: string, options?: { expiration?: number }): Promise<void>;
   delete(key: string): Promise<void>;
-  list(options: { prefix?: string; cursor?: string }): Promise<{
+  list(options: { prefix?: string; cursor?: string; limit?: number }): Promise<{
     keys: Array<{ name: string }>;
     list_complete: boolean;
     cursor?: string;
@@ -49,7 +69,11 @@ export type BottleKVNamespace = {
 export type BottleStorage = {
   put(stored: StoredBottle, storedAtEpochMs: number): Promise<void>;
   getByBottleId(bottleId: string): Promise<StoredBottle | null>;
-  listByRecipientFingerprint(recipientFingerprint: string): Promise<StoredBottle[]>;
+  hasRecipientCapacity(recipientFingerprint: string): Promise<boolean>;
+  listByRecipientFingerprint(
+    recipientFingerprint: string,
+    cursor?: string
+  ): Promise<{ bottles: StoredBottle[]; nextCursor?: string }>;
 };
 
 type WorkerModule = {
@@ -75,7 +99,7 @@ export async function handleRequest(
         return withSecurityHeaders(await handleDropBottle(request, env, now));
       }
       if (request.method === "GET") {
-        return withSecurityHeaders(await handleListBottles(url, env, now));
+        return withSecurityHeaders(await handleListBottles(request, url, env, now));
       }
       return withSecurityHeaders(methodNotAllowed(["GET", "POST"]));
     }
@@ -93,28 +117,52 @@ export async function handleRequest(
     return withSecurityHeaders(json({ error: "Not found." }, 404));
   } catch (error) {
     if (error instanceof HttpError) {
-      return withSecurityHeaders(json({ error: error.message }, error.status));
+      const response = json({ error: error.message }, error.status);
+      for (const [name, value] of Object.entries(error.headers)) {
+        response.headers.set(name, value);
+      }
+      return withSecurityHeaders(response);
     }
     return withSecurityHeaders(json({ error: "Internal server error." }, 500));
   }
 }
 
-export function createMemoryBottleStorage(): BottleStorage & { entries(): StoredBottle[] } {
+export function createMemoryBottleStorage(
+  pageSize = BOTTLE_LIST_PAGE_SIZE
+): BottleStorage & { entries(): StoredBottle[] } {
   const byId = new Map<string, StoredBottle>();
   const byRecipient = new Map<string, StoredBottle[]>();
 
   return {
     async put(stored: StoredBottle): Promise<void> {
-      byId.set(stored.bottleId, stored);
       const existing = byRecipient.get(stored.recipientFingerprint) ?? [];
+      if (existing.length >= BOTTLE_RECIPIENT_CAPACITY) {
+        throw new Error("Recipient bottle capacity was reached before storage.");
+      }
+      byId.set(stored.bottleId, stored);
       existing.push(stored);
       byRecipient.set(stored.recipientFingerprint, existing);
     },
     async getByBottleId(bottleId: string): Promise<StoredBottle | null> {
       return byId.get(bottleId) ?? null;
     },
-    async listByRecipientFingerprint(recipientFingerprint: string): Promise<StoredBottle[]> {
-      return [...(byRecipient.get(recipientFingerprint) ?? [])];
+    async hasRecipientCapacity(recipientFingerprint: string): Promise<boolean> {
+      return (byRecipient.get(recipientFingerprint)?.length ?? 0) < BOTTLE_RECIPIENT_CAPACITY;
+    },
+    async listByRecipientFingerprint(
+      recipientFingerprint: string,
+      cursor?: string
+    ): Promise<{ bottles: StoredBottle[]; nextCursor?: string }> {
+      const offset = cursor === undefined ? 0 : Number(cursor);
+      if (!Number.isSafeInteger(offset) || offset < 0) {
+        throw new Error("Memory bottle list cursor is invalid.");
+      }
+      const matching = byRecipient.get(recipientFingerprint) ?? [];
+      const end = Math.min(offset + pageSize, matching.length);
+      return {
+        bottles: matching.slice(offset, end),
+        ...(end < matching.length ? { nextCursor: String(end) } : {})
+      };
     },
     entries(): StoredBottle[] {
       return [...byId.values()];
@@ -131,11 +179,11 @@ export function createKvBottleStorage(kv: BottleKVNamespace): BottleStorage {
       const expiration = Math.ceil(Date.parse(stored.expiresAt) / 1000);
       const options = { expiration };
 
-      await kv.put(recipientKey, value, options);
+      await kv.put(idKey, value, options);
       try {
-        await kv.put(idKey, value, options);
+        await kv.put(recipientKey, value, options);
       } catch (error) {
-        await bestEffortDelete(kv, [recipientKey, idKey]);
+        await bestEffortDelete(kv, [idKey, recipientKey]);
         throw error;
       }
     },
@@ -151,36 +199,55 @@ export function createKvBottleStorage(kv: BottleKVNamespace): BottleStorage {
       }
       return stored;
     },
-    async listByRecipientFingerprint(recipientFingerprint: string): Promise<StoredBottle[]> {
+    async hasRecipientCapacity(recipientFingerprint: string): Promise<boolean> {
+      const result = await kv.list({
+        prefix: `bottle:${recipientFingerprint}:`,
+        limit: BOTTLE_RECIPIENT_CAPACITY
+      });
+      return result.list_complete && result.keys.length < BOTTLE_RECIPIENT_CAPACITY;
+    },
+    async listByRecipientFingerprint(
+      recipientFingerprint: string,
+      cursor?: string
+    ): Promise<{ bottles: StoredBottle[]; nextCursor?: string }> {
       const prefix = `bottle:${recipientFingerprint}:`;
       const bottles: StoredBottle[] = [];
-      let cursor: string | undefined;
-
-      do {
-        const listResult = await kv.list(cursor ? { prefix, cursor } : { prefix });
-        for (const key of listResult.keys) {
-          const value = await kv.get(key.name);
-          if (value) {
-            const stored = await parseAndVerifyStoredBottle(value);
-            const storedAtEpochMs = Date.parse(stored.storedAt);
-            const expectedKey = bottleKey(
-              stored.recipientFingerprint,
-              storedAtEpochMs,
-              stored.bottleId
-            );
-            if (stored.recipientFingerprint !== recipientFingerprint || key.name !== expectedKey) {
-              throw new Error("Stored bottle metadata does not match its recipient index key.");
-            }
-            bottles.push(stored);
+      const listResult = await kv.list({
+        prefix,
+        limit: BOTTLE_LIST_PAGE_SIZE,
+        ...(cursor === undefined ? {} : { cursor })
+      });
+      const keyNames = listResult.keys.map((key) => key.name);
+      const values =
+        keyNames.length === 0
+          ? new Map<string, string | null>()
+          : await kv.get(keyNames);
+      for (const key of listResult.keys) {
+        const value = values.get(key.name) ?? null;
+        if (value) {
+          const stored = await parseAndVerifyStoredBottle(value);
+          const storedAtEpochMs = Date.parse(stored.storedAt);
+          const expectedKey = bottleKey(
+            stored.recipientFingerprint,
+            storedAtEpochMs,
+            stored.bottleId
+          );
+          if (stored.recipientFingerprint !== recipientFingerprint || key.name !== expectedKey) {
+            throw new Error("Stored bottle metadata does not match its recipient index key.");
           }
+          bottles.push(stored);
         }
-        cursor = listResult.cursor;
-        if (listResult.list_complete) {
-          break;
-        }
-      } while (cursor);
+      }
+      if (!listResult.list_complete && !listResult.cursor) {
+        throw new Error("KV bottle list page omitted its continuation cursor.");
+      }
 
-      return bottles;
+      return {
+        bottles,
+        ...(!listResult.list_complete && listResult.cursor
+          ? { nextCursor: assertListCursor(listResult.cursor) }
+          : {})
+      };
     }
   };
 }
@@ -188,6 +255,15 @@ export function createKvBottleStorage(kv: BottleKVNamespace): BottleStorage {
 async function handleDropBottle(request: Request, env: BottleWorkerEnv, now: Date): Promise<Response> {
   const body = await readJsonRequest(request);
   const drop = parseClientInput(() => parseDropBottleRequest(body));
+  await assertActiveKeyringRecipient(drop, env);
+  await enforceDropRateLimit(request, drop, env);
+  const storage = getStorage(env);
+  if (!(await storage.hasRecipientCapacity(drop.recipientFingerprint))) {
+    throw new HttpError(
+      409,
+      "This recipient inbox has reached its 30-day bottle capacity. Try again after older bottles expire."
+    );
+  }
   const storedAt = now.toISOString();
   const storedAtEpochMs = now.getTime();
   const expiresAt = new Date(storedAtEpochMs + THIRTY_DAYS_MS).toISOString();
@@ -218,7 +294,7 @@ async function handleDropBottle(request: Request, env: BottleWorkerEnv, now: Dat
     evidence
   };
 
-  await getStorage(env).put(stored, storedAtEpochMs);
+  await storage.put(stored, storedAtEpochMs);
 
   const response: DropBottleResponse = {
     schema: SCHEMAS.dropResponse,
@@ -230,12 +306,66 @@ async function handleDropBottle(request: Request, env: BottleWorkerEnv, now: Dat
   return json(response, 201);
 }
 
-async function handleListBottles(url: URL, env: BottleWorkerEnv, now: Date): Promise<Response> {
-  const recipientFingerprint = parseClientInput(() =>
-    assertFingerprint(url.searchParams.get("recipientFingerprint") ?? "")
+async function enforceDropRateLimit(
+  request: Request,
+  drop: DropBottleRequest,
+  env: BottleWorkerEnv
+): Promise<void> {
+  const limiter = env.DROP_RATE_LIMITER;
+  if (!limiter) {
+    if (env.BOTTLES_KV) {
+      throw new HttpError(503, "Bottle drop protection is unavailable.");
+    }
+    return;
+  }
+
+  const clientAddress = request.headers.get("CF-Connecting-IP")?.trim() || "unavailable";
+  const key = await sha256Hex(
+    `nsm.daylight-bottle.drop-rate.v1\n${clientAddress}\n${drop.recipientFingerprint}`
   );
-  const bottles = await getStorage(env).listByRecipientFingerprint(recipientFingerprint);
-  const publicBottles: StoredBottlePublic[] = bottles
+  const result = await limiter.limit({ key });
+  if (!result.success) {
+    throw new HttpError(
+      429,
+      "Too many bottle drops for this network and recipient. Try again in one minute.",
+      { "Retry-After": "60" }
+    );
+  }
+}
+
+async function assertActiveKeyringRecipient(
+  drop: DropBottleRequest,
+  env: BottleWorkerEnv
+): Promise<void> {
+  const keyring = env.__TEST_KEYRING__ ?? PUBLISHED_KEYRING;
+  const registered = keyring.keys.find(
+    (key) =>
+      key.status === "active" &&
+      key.keyname === drop.keyname &&
+      key.fingerprint === drop.recipientFingerprint
+  );
+  if (!registered) {
+    throw new HttpError(403, "Recipient is not registered as an active public key.");
+  }
+  const derivedFingerprint = await fingerprintKeyRecordInput({
+    keyname: registered.keyname,
+    publicRecipient: registered.publicRecipient
+  });
+  if (derivedFingerprint !== registered.fingerprint) {
+    throw new HttpError(503, "The published recipient key record is invalid.");
+  }
+}
+
+async function handleListBottles(
+  request: Request,
+  url: URL,
+  env: BottleWorkerEnv,
+  now: Date
+): Promise<Response> {
+  const { recipientFingerprint, cursor } = parseClientInput(() => parseListQuery(url));
+  await enforceReadRateLimit(request, recipientFingerprint, env);
+  const page = await getStorage(env).listByRecipientFingerprint(recipientFingerprint, cursor);
+  const publicBottles: StoredBottlePublic[] = page.bottles
     .filter((bottle) => Date.parse(bottle.expiresAt) > now.getTime())
     .sort((left, right) => Date.parse(left.storedAt) - Date.parse(right.storedAt))
     .map(toStoredBottlePublic);
@@ -243,7 +373,60 @@ async function handleListBottles(url: URL, env: BottleWorkerEnv, now: Date): Pro
     schema: SCHEMAS.listResponse,
     bottles: publicBottles
   };
-  return json(response);
+  if (utf8ByteLength(JSON.stringify(response, null, 2)) > BOTTLE_LIST_RESPONSE_MAX_BYTES) {
+    throw new Error("Bottle list response exceeds its byte budget.");
+  }
+  const result = json(response);
+  if (page.nextCursor !== undefined) {
+    result.headers.set(BOTTLE_LIST_CURSOR_HEADER, page.nextCursor);
+  }
+  return result;
+}
+
+function parseListQuery(url: URL): { recipientFingerprint: string; cursor?: string } {
+  const allowed = new Set(["recipientFingerprint", "cursor"]);
+  url.searchParams.forEach((_value, key) => {
+    if (!allowed.has(key)) {
+      throw new Error(`Unexpected bottle list query parameter: ${key}`);
+    }
+  });
+  const fingerprintValues = url.searchParams.getAll("recipientFingerprint");
+  const cursorValues = url.searchParams.getAll("cursor");
+  if (fingerprintValues.length !== 1 || cursorValues.length > 1) {
+    throw new Error("Bottle list query parameters must occur exactly once.");
+  }
+  const recipientFingerprint = assertFingerprint(fingerprintValues[0] ?? "");
+  return {
+    recipientFingerprint,
+    ...(cursorValues.length === 0 ? {} : { cursor: assertListCursor(cursorValues[0] ?? "") })
+  };
+}
+
+async function enforceReadRateLimit(
+  request: Request,
+  recipientFingerprint: string,
+  env: BottleWorkerEnv
+): Promise<void> {
+  const limiter = env.READ_RATE_LIMITER;
+  if (!limiter) {
+    if (env.BOTTLES_KV) {
+      throw new HttpError(503, "Bottle read protection is unavailable.");
+    }
+    return;
+  }
+
+  const clientAddress = request.headers.get("CF-Connecting-IP")?.trim() || "unavailable";
+  const key = await sha256Hex(
+    `nsm.daylight-bottle.read-rate.v1\n${clientAddress}\n${recipientFingerprint}`
+  );
+  const result = await limiter.limit({ key });
+  if (!result.success) {
+    throw new HttpError(
+      429,
+      "Too many bottle lookups for this network and recipient. Try again in one minute.",
+      { "Retry-After": "60" }
+    );
+  }
 }
 
 async function handleEvidence(bottleId: string, env: BottleWorkerEnv, now: Date): Promise<Response> {
@@ -419,7 +602,8 @@ function parseClientInput<T>(parser: () => T): T {
 class HttpError extends Error {
   constructor(
     readonly status: number,
-    message: string
+    message: string,
+    readonly headers: Readonly<Record<string, string>> = {}
   ) {
     super(message);
   }

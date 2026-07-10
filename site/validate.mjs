@@ -135,12 +135,14 @@ async function assertIndexReferences() {
     'Official No Such Machine emblem: circular aperture compass with central bastion mark',
     'href="#evidence"',
     'href="#daylight"',
+    'href="#bottle"',
     'href="#wucios"',
     'href="#catalog"',
     'href="product-boundary.html"',
     'id="review"',
     'id="evidence"',
     'id="daylight"',
+    'id="bottle"',
     'id="wucios"',
     'id="catalog"',
     'id="boundary"',
@@ -148,6 +150,11 @@ async function assertIndexReferences() {
     'Not runtime sandboxing',
     'Not external certification',
     'Evidence-bound public review',
+    'https://bottle.nosuchmachine.net/',
+    'Public preview · recipient activation pending',
+    'Daylight Bottle uses a browser-local encryption path before its API request.',
+    'No public key registration',
+    'Does not prove: uncompromised JavaScript delivery',
     'NoEvidence(x) -&gt; NoClaim(x)',
     'NoProof(x) -&gt; NoRelease(x)',
     'ManualScore(x) -&gt; Reject(x)',
@@ -410,6 +417,29 @@ async function assertAssetSizes() {
     if (info.size <= 0) {
       fail(`asset is empty: site/assets/${entry}`);
     }
+  }
+}
+
+async function assertHomepageTransferBudget() {
+  const criticalFiles = [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "favicon.png",
+    "assets/wuci-ji-systems-hero.jpg"
+  ];
+  let totalBytes = 0;
+  for (const file of criticalFiles) {
+    totalBytes += (await stat(new URL(file, siteRoot))).size;
+  }
+  const maximumBytes = 400 * 1024;
+  if (totalBytes > maximumBytes) {
+    fail(`homepage critical assets exceed ${maximumBytes} raw bytes: ${totalBytes}`);
+  }
+
+  const headerMarkBytes = (await stat(new URL("favicon.png", siteRoot))).size;
+  if (headerMarkBytes > 64 * 1024) {
+    fail(`header mark exceeds 64 KiB: ${headerMarkBytes}`);
   }
 }
 
@@ -1493,6 +1523,48 @@ async function assertNoRootDeployArtifacts() {
   }
 }
 
+async function assertSecondaryPageShells() {
+  const pages = [
+    "conformance.html",
+    "daylight-standard.html",
+    "default-standard.html",
+    "enterprise-adoption.html",
+    "external-validation-uplift.html",
+    "no-external-validation-value.html",
+    "product-boundary.html",
+    "security-product-roadmap.html"
+  ];
+  for (const page of pages) {
+    const content = await readFile(new URL(page, siteRoot), "utf8");
+    for (const required of [
+      'name="description"',
+      'class="site-header"',
+      'class="site-nav"',
+      'src="app.js?'
+    ]) {
+      if (!content.includes(required)) {
+        fail(`${page} is missing responsive shell marker: ${required}`);
+      }
+    }
+  }
+
+  const app = await readFile(new URL("app.js", siteRoot), "utf8");
+  for (const required of [
+    "setupPageShell",
+    "Skip to content",
+    "Toggle navigation menu",
+    "Daylight Bottle",
+    "function navItems()",
+    'event.key === "Tab"',
+    "setOpen(false, true)",
+    "first.focus()"
+  ]) {
+    if (!app.includes(required)) {
+      fail(`app.js is missing secondary-page shell behavior: ${required}`);
+    }
+  }
+}
+
 await assertRequiredFiles();
 await assertCustomDomain();
 await assertIndexReferences();
@@ -1502,6 +1574,7 @@ await assertNoPublicBrowserCrypto();
 await assertInteractiveAccessibility();
 await assertNoBroadCssTransitions();
 await assertAssetSizes();
+await assertHomepageTransferBudget();
 await assertCloudflareFiles();
 await assertSearchDiscoveryFiles();
 await assertPublicTextDiscovery();
@@ -1516,6 +1589,7 @@ await assertDaylightStatusBinding();
 await assertDaylightV20ApertureSingularityStatusBinding();
 await assertApertureStatusBinding();
 await assertClaimBoundaryLanguage();
+await assertSecondaryPageShells();
 await assertNoRootDeployArtifacts();
 
 if (process.exitCode) {

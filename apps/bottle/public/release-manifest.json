@@ -1,0 +1,5 @@
+{
+  "schema": "nsm.daylight-bottle.release-manifest.development.v1",
+  "status": "generated-by-production-build",
+  "message": "Run npm run build, then inspect dist/release-manifest.json for verified release metadata."
+}

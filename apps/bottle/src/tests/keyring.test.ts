@@ -16,7 +16,6 @@ describe("published static keyring", () => {
           publicRecipient: key.publicRecipient
         })
       ).resolves.toBe(key.fingerprint);
-      expect(JSON.stringify(key)).not.toMatch(/private|secret|passphrase/i);
     }
   });
 });

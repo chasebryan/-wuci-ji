@@ -23,17 +23,36 @@ approval.
   is also recorded in `package.json`.
 - No private identity, message plaintext, passphrase, or private key is present
   in the checkout, environment, Wrangler variables, or KV seed data.
+- `public/keyring.json` contains only manually reviewed public records whose
+  private identities are held outside the repository. An empty keyring is a
+  valid fail-closed deployment state: identity creation and the threat model
+  remain available, while the Worker rejects every bottle drop.
+- `wrangler.toml` includes the `DROP_RATE_LIMITER` and `READ_RATE_LIMITER`
+  bindings. They permit 12 drops and 60 inbox lookups per 60 seconds for each
+  hashed network-and-recipient pair in a Cloudflare location. This is burst
+  protection, not accurate accounting or a global daily quota; see Cloudflare's
+  [Rate Limiting API limits](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/#accuracy).
+  Its numeric namespace id must remain unique within the Cloudflare account
+  unless counter sharing with another Worker is explicitly intended.
 
 From the repository root, install exactly the locked dependencies and run the
 complete local gate:
 
 ```sh
+git fetch origin main
+git rev-parse HEAD
+git rev-parse refs/remotes/origin/main
+git status --short
 cd apps/bottle
 node --version
 npm --version
 npm ci
 npm run check
 ```
+
+The two commit ids must match exactly and `git status --short` must be empty.
+The live-deploy validator rejects a fork origin, an unfetched/unmerged commit,
+or any dirty tree even if a local build succeeds.
 
 `npm run check` runs real ESLint, all TypeScript environment checks, unit tests,
 the production build, the same-origin bundle verifier, and a Wrangler dry-run.
@@ -54,18 +73,20 @@ For noninteractive CI deployment, use a narrowly scoped
 `CLOUDFLARE_API_TOKEN`; never commit it. The validation workflow in this
 repository performs only a dry-run and needs no Cloudflare credentials.
 
-## 3. Create and bind production KV
+## 3. Verify the pinned production KV binding
 
-Create one production namespace:
+The production namespace is already pinned in `wrangler.toml`. After deliberate
+authentication, list the account namespaces:
 
 ```sh
-npx wrangler kv namespace create daylight-bottle-production
+npx wrangler kv namespace list
 ```
 
-Copy the returned namespace id into `wrangler.toml` in place of
-`replace-with-production-kv-namespace-id`. A KV namespace id is configuration,
-not a secret, but verify that it belongs to the account shown by
-`wrangler whoami` before deploying.
+Confirm that `20625e8d95504df28ba0e1bc94d97fc0` is the intended production
+namespace in the account shown by `wrangler whoami`. A KV namespace id is
+configuration, not a secret. Creating or rotating the namespace is a separate
+approved migration: update `wrangler.toml`, the section-aware production config
+validator, the rollback record, and the deployment review together.
 
 Do not seed KV with plaintext or private identity material. The application
 creates bottle keys itself using these forms:
@@ -105,7 +126,11 @@ npm run deploy:dry-run
 ```
 
 Review the dry-run output. It must list the `BOTTLES_KV` binding and static
-assets from `dist`. Then, with explicit approval for the live Cloudflare write:
+assets from `dist`, plus both rate-limit bindings. Inspect
+`dist/release-manifest.json`; it must identify a
+clean 40-character Git commit, verify through `npm run verify:bundle`, and stay
+inside the recorded raw/gzip budgets. Then, with explicit approval for the live
+Cloudflare write:
 
 ```sh
 npm run deploy
@@ -113,8 +138,11 @@ npx wrangler deployments status
 npx wrangler deployments list
 ```
 
-`npm run deploy` refuses to contact Cloudflare while the KV id is missing,
-still a placeholder, or not a 32-character namespace id.
+`npm run deploy` refuses to contact Cloudflare unless the custom domain, assets,
+KV, and rate-limit bindings match the pinned production sections. It also
+refuses a release manifest that does not verify against the canonical upstream,
+the exact fetched `origin/main` commit, the current clean Git tree, recorded
+source closure, built assets, or byte-identical source and built keyring.
 
 Record the new deployment id and the immediately previous deployment id in the
 change record. Do not claim the deployment succeeded until the live checks
@@ -129,6 +157,7 @@ dig bottle.nosuchmachine.net A +short
 dig bottle.nosuchmachine.net AAAA +short
 curl --fail --silent --show-error https://bottle.nosuchmachine.net/ | grep -F "Daylight Bottle"
 curl --fail --silent --show-error https://bottle.nosuchmachine.net/keyring.json
+curl --fail --silent --show-error https://bottle.nosuchmachine.net/release-manifest.json
 ```
 
 Confirm required headers on both a static response and an API response:
@@ -144,13 +173,35 @@ Both responses must include the CSP, `Referrer-Policy`, `Permissions-Policy`,
 `public/_headers` and the Worker. Neither response may include `NEL` or
 `Report-To`; if either is present, turn off Cloudflare Network Error Logging for
 the zone and repeat the checks. The API response should be `200` with schema
-`nsm.daylight-bottle.list.response.v1`.
+`nsm.daylight-bottle.list.response.v1`. Each request lists at most 8 candidate
+KV keys and fetches them in one bounded bulk read; a page with additional
+candidates includes an opaque
+`X-Daylight-Next-Cursor` response header for the browser to submit on the next
+locally authorized fetch. The Worker refuses new drops when its KV listing sees
+500 unexpired indexed bottles for a recipient; eventual consistency means this
+is an admission ceiling rather than a transactional hard bound. Pagination and
+the response-byte budget remain authoritative even if concurrent writes briefly
+overshoot that ceiling.
+
+Confirm the live release manifest has schema
+`nsm.daylight-bottle.release-manifest.v1`, its source commit matches the exact
+commit approved for deployment, and its subject digest matches the locally
+verified manifest. This is a deployment parity check, not independent proof of
+an uncompromised origin.
+
+For a commit validated by GitHub Actions, the `daylight-bottle` workflow also
+retains `daylight-bottle-validated-release-<commit>` for 30 days. Compare its
+manifest, static bundle, and Wrangler dry-run Worker bundle with the live
+deployment when available. The Worker bundle is not yet bound into the manifest
+subject. This CI-retained artifact is unsigned and does not independently prove
+which bytes the production origin delivered.
 
 Finally, complete the browser acceptance path with a manually approved keyring
 record:
 
-1. Create an identity and download the private identity file.
-2. Add only the displayed public `KeyRecord` to `public/keyring.json`.
+1. Create an identity, download the private identity file, and verify the saved
+   file locally in the Create Identity view.
+2. Export and add only the displayed public `KeyRecord` to `public/keyring.json`.
 3. Re-run `npm run check`, deploy, and verify the displayed fingerprint through
    an independent trusted channel.
 4. Drop a bottle while inspecting the POST body. It may contain only `schema`,

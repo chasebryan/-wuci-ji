@@ -124,6 +124,26 @@ export function copyButton(value: string, label: string): HTMLButtonElement {
   return button;
 }
 
+export function downloadTextFile(value: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([value], { type: "text/plain;charset=utf-8" }));
+  const link = h("a", {
+    attrs: { href: url, download: filename, "aria-hidden": "true", tabindex: "-1" }
+  });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export function formatFingerprint(fingerprint: string): string {
+  const prefix = "sha256:";
+  if (!fingerprint.startsWith(prefix)) {
+    return fingerprint;
+  }
+  const digest = fingerprint.slice(prefix.length);
+  return `${prefix}${digest.match(/.{1,8}/g)?.join(" ") ?? digest}`;
+}
+
 async function writeClipboard(value: string): Promise<void> {
   if (navigator.clipboard && window.isSecureContext) {
     try {

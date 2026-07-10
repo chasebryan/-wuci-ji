@@ -6,6 +6,7 @@ import type {
 } from "../domain/types";
 import {
   assertFingerprint,
+  assertListCursor,
   parseDropBottleRequest,
   parseDropBottleResponse,
   parseKeyring,
@@ -14,6 +15,11 @@ import {
 import { fingerprintKeyRecordInput, sha256Hex } from "../crypto/fingerprint";
 
 type Fetcher = typeof fetch;
+
+export type ListBottlePage = {
+  response: ListBottlesResponse;
+  nextCursor?: string;
+};
 
 export async function loadKeyring(fetcher: Fetcher = fetch): Promise<Keyring> {
   const response = await fetcher("/keyring.json", { cache: "no-store" });
@@ -59,9 +65,22 @@ export async function listBottles(
   recipientFingerprint: string,
   fetcher: Fetcher = fetch
 ): Promise<ListBottlesResponse> {
+  return (await listBottlePage(recipientFingerprint, fetcher)).response;
+}
+
+export async function listBottlePage(
+  recipientFingerprint: string,
+  fetcher: Fetcher = fetch,
+  cursor?: string
+): Promise<ListBottlePage> {
   const fingerprint = assertFingerprint(recipientFingerprint);
+  const nextPage = cursor === undefined ? undefined : assertListCursor(cursor);
+  const query = new URLSearchParams({ recipientFingerprint: fingerprint });
+  if (nextPage !== undefined) {
+    query.set("cursor", nextPage);
+  }
   const response = await fetcher(
-    `/api/bottles?recipientFingerprint=${encodeURIComponent(fingerprint)}`,
+    `/api/bottles?${query.toString()}`,
     { cache: "no-store" }
   );
 
@@ -79,7 +98,15 @@ export async function listBottles(
       throw new Error(`Ciphertext integrity check failed for bottle ${bottle.bottleId}.`);
     }
   }
-  return listResponse;
+  const cursorHeader = response.headers.get("X-Daylight-Next-Cursor");
+  const nextCursor = cursorHeader === null ? undefined : assertListCursor(cursorHeader);
+  if (nextPage !== undefined && nextCursor === nextPage) {
+    throw new Error("Bottle response repeated its pagination cursor.");
+  }
+  return {
+    response: listResponse,
+    ...(nextCursor === undefined ? {} : { nextCursor })
+  };
 }
 
 function getApiError(parsed: unknown, fallback: string): string {
