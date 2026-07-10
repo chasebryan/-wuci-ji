@@ -74,7 +74,8 @@
         "cross-host reproducibility",
         "reference physical-hardware validation",
         "external certification or independent audit",
-        "general runtime sandboxing or OS containment",
+        "general runtime sandboxing",
+        "OS containment",
         "legal advice or an export classification"
       ]
     },
