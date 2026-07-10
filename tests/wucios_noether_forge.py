@@ -152,6 +152,7 @@ def make_operator_hardware_observation(record: dict[str, object]) -> dict[str, o
         "subject_description": "private-reviewer-built-iso",
         "commit": "1" * 40,
         "iso_filename": "WuciOS-v2.4.0-Noether-Forge-x86_64.iso",
+        "iso_size_bytes": 43,
     })
     operator["observation"].update({
         "operator_id": "reviewer-7",
@@ -172,30 +173,26 @@ def make_operator_hardware_observation(record: dict[str, object]) -> dict[str, o
             "kernel": "version:6.18.35",
             "architecture": "x86_64",
         },
-        "tools": [
-            {
-                "name": "serial-capture",
-                "version": "2.0",
+        "tools": {
+            "serial-capture": {
+                "version": "version:2.0",
                 "purpose": "boot-observation-capture",
             },
-            {
-                "name": "sha512sum",
-                "version": "9.7",
+            "sha512sum": {
+                "version": "version:9.7",
                 "purpose": "iso-digest-comparison",
             },
-        ],
-        "observations": [
-            {
-                "name": "local-tty-login-prompt-visible",
+        },
+        "observations": {
+            "local-tty-login-prompt-visible": {
                 "result": "observed",
                 "notes": "observed-in-private-capture",
             },
-            {
-                "name": "release-notes-visible",
+            "release-notes-visible": {
                 "result": "not-observed",
                 "notes": "not-observed-during-session",
             },
-        ],
+        },
     })
     return operator
 
@@ -226,7 +223,8 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
         root = Path(temporary)
         operator_iso = root / operator["subject"]["iso_filename"]
         operator_iso.write_bytes(b"private reviewer-built ISO fixture bytes\n")
-        operator["subject"]["iso_digests"] = noether_hardware_observation.digest_vector(operator_iso)
+        binding = noether_hardware_observation.iso_binding(operator_iso)
+        operator["subject"].update(binding)
         operator_path = root / "operator-observation.json"
         operator_path.write_text(json.dumps(operator, sort_keys=True) + "\n", encoding="utf-8")
         assert noether_hardware_observation.verify_path(
@@ -234,11 +232,21 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
             iso=operator_iso,
             expected_commit="1" * 40,
         ) == operator
+        wrong_size = copy.deepcopy(operator)
+        wrong_size["subject"]["iso_size_bytes"] += 1
+        operator_path.write_text(json.dumps(wrong_size, sort_keys=True) + "\n", encoding="utf-8")
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_path,
+            operator_path,
+            iso=operator_iso,
+        )
+        operator_path.write_text(json.dumps(operator, sort_keys=True) + "\n", encoding="utf-8")
 
         synthetic = root / record["subject"]["iso_filename"]
         synthetic.write_bytes(b"NOETHER_FORGE_HARDWARE_OBSERVATION_FIXTURE\n")
         assert noether_hardware_observation.verify_path(fixture, iso=synthetic) == record
-        synthetic.write_bytes(b"different fixture bytes\n")
+        synthetic.write_bytes(b"X" * 43)
         assert_raises(
             noether_hardware_observation.HardwareObservationError,
             noether_hardware_observation.verify_path,
@@ -290,7 +298,8 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
         (("observation", "hardware", "serial"), "must-not-appear"),
         (("subject", "iso_digests", "sha384"), "0" * 95),
         (("subject", "subject_kind"), "synthetic-fixture"),
-        (("observation", "observations", 0, "notes"), "not-tested"),
+        (("observation", "observations", "local-tty-login-prompt-visible", "notes"), "not-tested"),
+        (("observation", "tools", "serial-capture", "version"), "fixture-not-observed"),
     )
     for path, replacement in invalid_mutations:
         changed = copy.deepcopy(operator)
@@ -314,11 +323,9 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
         ("observation", "capture_host", "operating_system"),
         ("observation", "capture_host", "kernel"),
         ("observation", "capture_host", "architecture"),
-        ("observation", "tools", 0, "name"),
-        ("observation", "tools", 0, "version"),
-        ("observation", "tools", 0, "purpose"),
-        ("observation", "observations", 0, "name"),
-        ("observation", "observations", 0, "notes"),
+        ("observation", "tools", "serial-capture", "version"),
+        ("observation", "tools", "serial-capture", "purpose"),
+        ("observation", "observations", "local-tty-login-prompt-visible", "notes"),
     )
     for path in formerly_claim_bearing_paths:
         changed = copy.deepcopy(operator)
@@ -332,11 +339,11 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
     exact_prior_path_claims = (
         (("subject", "subject_description"), "This ISO has production authority."),
         (
-            ("observation", "observations", 0, "notes"),
+            ("observation", "observations", "local-tty-login-prompt-visible", "notes"),
             "Independent hardware validation proves official release authority.",
         ),
         (
-            ("observation", "tools", 0, "purpose"),
+            ("observation", "tools", "serial-capture", "purpose"),
             "Certifies the image for production authority.",
         ),
     )
@@ -405,24 +412,118 @@ def test_physical_hardware_observation_is_digest_bound_and_structured() -> None:
     )
     for claim in prior_claim_bypass_inputs:
         changed = copy.deepcopy(operator)
-        changed["observation"]["observations"][0]["notes"] = claim
+        changed["observation"]["observations"]["local-tty-login-prompt-visible"]["notes"] = claim
         assert_raises(
             noether_hardware_observation.HardwareObservationError,
             noether_hardware_observation.verify_record,
             changed,
         )
 
+    for claim_token in ("production-authority", "official-release", "certified"):
+        for path in (
+            ("observation", "operator_id"),
+            ("observation", "hardware", "model"),
+            ("observation", "firmware", "version"),
+            ("observation", "capture_host", "kernel"),
+            ("observation", "tools", "serial-capture", "version"),
+        ):
+            changed = copy.deepcopy(operator)
+            replace_nested(changed, path, claim_token)
+            assert_raises(
+                noether_hardware_observation.HardwareObservationError,
+                noether_hardware_observation.verify_record,
+                changed,
+            )
+        changed = copy.deepcopy(operator)
+        changed["observation"]["tools"][claim_token] = changed["observation"]["tools"].pop(
+            "serial-capture"
+        )
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_record,
+            changed,
+        )
+        changed = copy.deepcopy(operator)
+        changed["observation"]["observations"][claim_token] = changed["observation"][
+            "observations"
+        ].pop("release-notes-visible")
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_record,
+            changed,
+        )
+
+    firmware_cases = (
+        ("bios", "enabled", False),
+        ("bios", "not-applicable", True),
+        ("uefi", "not-applicable", False),
+        ("uefi", "not-observed", True),
+        ("not-observed", "disabled", False),
+        ("not-observed", "not-observed", True),
+    )
+    for boot_mode, secure_boot, accepted in firmware_cases:
+        changed = copy.deepcopy(operator)
+        changed["observation"]["firmware"].update({
+            "boot_mode": boot_mode,
+            "secure_boot": secure_boot,
+        })
+        if accepted:
+            assert noether_hardware_observation.verify_record(changed) == changed
+        else:
+            assert_raises(
+                noether_hardware_observation.HardwareObservationError,
+                noether_hardware_observation.verify_record,
+                changed,
+            )
+
+    for architecture_path in (
+        ("observation", "hardware", "architecture"),
+        ("observation", "capture_host", "architecture"),
+    ):
+        changed = copy.deepcopy(operator)
+        replace_nested(changed, architecture_path, "aarch64")
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_record,
+            changed,
+        )
+
+    release_notes_only = copy.deepcopy(operator)
+    release_notes_only["observation"]["observations"] = {
+        "release-notes-visible": {
+            "result": "observed",
+            "notes": "observed-on-attached-display",
+        }
+    }
+    assert_raises(
+        noether_hardware_observation.HardwareObservationError,
+        noether_hardware_observation.verify_record,
+        release_notes_only,
+    )
+
+    invalid_date = copy.deepcopy(operator)
+    invalid_date["observation"]["observed_at_utc"] = "2026-02-29T00:00:00Z"
+    assert_raises(
+        noether_hardware_observation.HardwareObservationError,
+        noether_hardware_observation.verify_record,
+        invalid_date,
+    )
+
     schema = noether_forge.load_json(
         ROOT / "wucios/schemas/noether-forge-physical-hardware-observation.schema.json"
     )
     assert schema["additionalProperties"] is False
     assert schema["x-maxUtf8Bytes"] == noether_hardware_observation.MAX_RECORD_BYTES
+    assert schema["x-maxIsoBytes"] == noether_hardware_observation.MAX_ISO_BYTES
     assert set(schema["required"]) == set(record)
-    assert schema["$defs"]["lowercaseIdentifier"]["maxLength"] == 64
     assert set(schema["$defs"]["toolPurpose"]["enum"]) == noether_hardware_observation.TOOL_PURPOSES
-    assert set(schema["$defs"]["observationName"]["enum"]) == noether_hardware_observation.OBSERVATION_NAMES
-    assert schema["properties"]["observation"]["properties"]["tools"]["maxItems"] == 16
-    assert schema["properties"]["observation"]["properties"]["observations"]["maxItems"] == 32
+    tools_schema = schema["properties"]["observation"]["properties"]["tools"]
+    observations_schema = schema["properties"]["observation"]["properties"]["observations"]
+    assert set(tools_schema["properties"]) == noether_hardware_observation.TOOL_NAMES
+    assert set(observations_schema["properties"]) == noether_hardware_observation.OBSERVATION_NAMES
+    assert tools_schema["additionalProperties"] is False
+    assert observations_schema["additionalProperties"] is False
+    assert schema["properties"]["observation"]["properties"]["observed_at_utc"]["format"] == "date-time"
     assert schema["properties"]["subject"]["properties"]["subject_description"] == {
         "enum": ["synthetic-fixture-marker-only", "private-reviewer-built-iso"]
     }
@@ -441,30 +542,32 @@ def test_physical_hardware_observation_resource_and_json_boundaries() -> None:
         too_long,
     )
 
-    too_many_tools = copy.deepcopy(operator)
-    too_many_tools["observation"]["tools"] = [
-        {"name": f"tool-{index}", "version": "1", "purpose": "boot-observation-capture"}
-        for index in range(noether_hardware_observation.MAX_TOOLS + 1)
-    ]
+    oversized_iso_claim = copy.deepcopy(operator)
+    oversized_iso_claim["subject"]["iso_size_bytes"] = noether_hardware_observation.MAX_ISO_BYTES + 1
     assert_raises(
         noether_hardware_observation.HardwareObservationError,
         noether_hardware_observation.verify_record,
-        too_many_tools,
+        oversized_iso_claim,
     )
 
-    too_many_observations = copy.deepcopy(operator)
-    too_many_observations["observation"]["observations"] = [
-        {
-            "name": "boot-menu-visible",
-            "result": "observed",
-            "notes": "observed-on-attached-display",
-        }
-        for _ in range(noether_hardware_observation.MAX_OBSERVATIONS + 1)
-    ]
+    unsupported_tool = copy.deepcopy(operator)
+    unsupported_tool["observation"]["tools"]["production-authority"] = {
+        "version": "version:1", "purpose": "boot-observation-capture"
+    }
     assert_raises(
         noether_hardware_observation.HardwareObservationError,
         noether_hardware_observation.verify_record,
-        too_many_observations,
+        unsupported_tool,
+    )
+
+    unsupported_observation = copy.deepcopy(operator)
+    unsupported_observation["observation"]["observations"]["official-release"] = {
+        "result": "observed", "notes": "observed-on-attached-display"
+    }
+    assert_raises(
+        noether_hardware_observation.HardwareObservationError,
+        noether_hardware_observation.verify_record,
+        unsupported_observation,
     )
 
     too_large_runtime = copy.deepcopy(operator)
@@ -495,6 +598,23 @@ def test_physical_hardware_observation_resource_and_json_boundaries() -> None:
         )
         assert "duplicate JSON key rejected: schema" in str(error)
 
+        duplicate_tool = root / "duplicate-tool.json"
+        duplicate_tool.write_text(
+            fixture.read_text(encoding="utf-8").replace(
+                '"noether-hardware-observation": {',
+                '"noether-hardware-observation": {"version":"version:1",'
+                '"purpose":"record-shape-check"}, "noether-hardware-observation": {',
+                1,
+            ),
+            encoding="utf-8",
+        )
+        error = assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.read_record,
+            duplicate_tool,
+        )
+        assert "duplicate JSON key rejected: noether-hardware-observation" in str(error)
+
         non_finite = root / "non-finite.json"
         non_finite.write_text('{"value":NaN}', encoding="utf-8")
         error = assert_raises(
@@ -510,6 +630,64 @@ def test_physical_hardware_observation_resource_and_json_boundaries() -> None:
             noether_hardware_observation.HardwareObservationError,
             noether_hardware_observation.read_record,
             deeply_nested,
+        )
+
+
+def test_physical_hardware_iso_binding_rejects_growth_and_mutation() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+
+        growing = root / "growing.iso"
+        growing.write_bytes(b"stable-before-growth")
+        original_read = os.read
+        grew = False
+
+        def read_then_grow(descriptor: int, size: int) -> bytes:
+            nonlocal grew
+            block = original_read(descriptor, size)
+            if block and not grew:
+                with growing.open("ab") as stream:
+                    stream.write(b"x")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                grew = True
+            return block
+
+        with mock.patch.object(noether_hardware_observation.os, "read", read_then_grow):
+            assert_raises(
+                noether_hardware_observation.HardwareObservationError,
+                noether_hardware_observation.iso_binding,
+                growing,
+            )
+
+        mutating = root / "mutating.iso"
+        mutating.write_bytes(b"stable-before-mutation")
+        mutated = False
+
+        def read_then_mutate(descriptor: int, size: int) -> bytes:
+            nonlocal mutated
+            block = original_read(descriptor, size)
+            if block and not mutated:
+                with mutating.open("r+b") as stream:
+                    stream.write(b"X")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                mutated = True
+            return block
+
+        with mock.patch.object(noether_hardware_observation.os, "read", read_then_mutate):
+            assert_raises(
+                noether_hardware_observation.HardwareObservationError,
+                noether_hardware_observation.iso_binding,
+                mutating,
+            )
+
+        empty = root / "empty.iso"
+        empty.write_bytes(b"")
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.iso_binding,
+            empty,
         )
 
 
@@ -1152,6 +1330,7 @@ TESTS = [
     test_third_party_obligations_inventory_is_deterministic_and_bounded,
     test_physical_hardware_observation_is_digest_bound_and_structured,
     test_physical_hardware_observation_resource_and_json_boundaries,
+    test_physical_hardware_iso_binding_rejects_growth_and_mutation,
     test_source_only_guard_rejects_noether_binary_distribution,
     test_source_guard_rejects_encoded_binary_signatures,
     test_source_guard_strictly_allowlists_noether_workflow_execution,

@@ -14,7 +14,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import stat
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,23 +37,29 @@ BOUNDARY_STATEMENT = (
     "validation, certification, official release authority, or proof of OS containment."
 )
 MAX_RECORD_BYTES = 128 * 1024
-MAX_TOOLS = 16
-MAX_OBSERVATIONS = 32
+MAX_ISO_BYTES = 4 * 1024 * 1024 * 1024
 FIXTURE_SUBJECT_DESCRIPTION = "synthetic-fixture-marker-only"
 OPERATOR_SUBJECT_DESCRIPTION = "private-reviewer-built-iso"
 FIXTURE_ISO_FILENAME = "NOT-A-RELEASE-noether-hardware-observation-fixture.iso"
 OPERATOR_ISO_FILENAME = "WuciOS-v2.4.0-Noether-Forge-x86_64.iso"
-IDENTIFIER_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?")
-VERSION_PATTERN = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9._+-]{0,62}[A-Za-z0-9])?")
-VERSION_TOKEN_PATTERN = re.compile(
-    r"version:[A-Za-z0-9](?:[A-Za-z0-9._+-]{0,62}[A-Za-z0-9])?"
-)
+OPERATOR_ID_PATTERN = re.compile(r"reviewer-[1-9][0-9]{0,5}")
+VERSION_TOKEN_PATTERN = re.compile(r"version:[0-9]+(?:[._+-][0-9]+)*")
 DIGEST_TOKEN_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
 REDACTED_TOKENS = {"redacted", "not-observed", "fixture-not-observed"}
-ARCHITECTURES = {"x86_64", "aarch64", "riscv64", "not-observed", "fixture-not-observed"}
 CAPTURE_OPERATING_SYSTEMS = {
     "linux", "windows", "macos", "freebsd", "openbsd", "netbsd",
     "redacted", "not-observed", "fixture-not-observed",
+}
+TOOL_NAMES = {
+    "noether-hardware-observation",
+    "sha256sum",
+    "sha384sum",
+    "sha512sum",
+    "serial-capture",
+    "console-capture",
+    "camera-capture",
+    "firmware-setup",
+    "boot-media-writer",
 }
 TOOL_PURPOSES = {
     "record-shape-check",
@@ -69,6 +77,12 @@ OBSERVATION_NAMES = {
     "release-notes-visible",
     "local-runtime-status-visible",
     "shutdown-completed",
+}
+BOOT_CHAIN_OBSERVATIONS = {
+    "boot-menu-visible",
+    "kernel-start-visible",
+    "local-tty-login-prompt-visible",
+    "local-runtime-status-visible",
 }
 NOTES_BY_RESULT = {
     "observed": {
@@ -115,17 +129,15 @@ def require_string(
     return value
 
 
-def require_identifier(value: Any, label: str, *, version: bool = False) -> str:
-    text = require_string(value, label, max_length=64)
-    pattern = VERSION_PATTERN if version else IDENTIFIER_PATTERN
-    if pattern.fullmatch(text) is None:
-        kind = "version identifier" if version else "lowercase identifier"
-        raise HardwareObservationError(f"{label} must be a bounded {kind}")
+def require_operator_id(value: Any, label: str) -> str:
+    text = require_string(value, label, max_length=71)
+    if OPERATOR_ID_PATTERN.fullmatch(text) is None and DIGEST_TOKEN_PATTERN.fullmatch(text) is None:
+        raise HardwareObservationError(f"{label} must be reviewer-N or a SHA-256 token")
     return text
 
 
 def require_metadata_token(value: Any, label: str, *, allow_version: bool = False) -> str:
-    text = require_string(value, label, max_length=72)
+    text = require_string(value, label, max_length=71)
     if text in REDACTED_TOKENS or DIGEST_TOKEN_PATTERN.fullmatch(text) is not None:
         return text
     if allow_version and VERSION_TOKEN_PATTERN.fullmatch(text) is not None:
@@ -133,11 +145,18 @@ def require_metadata_token(value: Any, label: str, *, allow_version: bool = Fals
     raise HardwareObservationError(f"{label} must be a structured redaction, digest, or version token")
 
 
-def require_array(value: Any, label: str, *, maximum: int) -> list[Any]:
-    if not isinstance(value, list) or not value:
-        raise HardwareObservationError(f"{label} must be a non-empty array")
-    if len(value) > maximum:
-        raise HardwareObservationError(f"{label} exceeds {maximum} entries")
+def require_closed_map(value: Any, choices: set[str], label: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or not value:
+        raise HardwareObservationError(f"{label} must be a non-empty object")
+    unexpected = sorted(set(value) - choices)
+    if unexpected:
+        raise HardwareObservationError(f"{label} contains unsupported keys: {unexpected}")
+    return value
+
+
+def require_integer(value: Any, label: str, *, minimum: int, maximum: int) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not minimum <= value <= maximum:
+        raise HardwareObservationError(f"{label} must be an integer from {minimum} through {maximum}")
     return value
 
 
@@ -214,7 +233,8 @@ def verify_record(value: Any) -> dict[str, Any]:
     )
 
     subject = require_exact_keys(record["subject"], {
-        "subject_kind", "subject_description", "commit", "iso_filename", "iso_digests"
+        "subject_kind", "subject_description", "commit", "iso_filename", "iso_size_bytes",
+        "iso_digests"
     }, "subject")
     subject_kind = require_string(
         subject["subject_kind"], "subject.subject_kind",
@@ -234,6 +254,9 @@ def verify_record(value: Any) -> dict[str, Any]:
         choices={FIXTURE_ISO_FILENAME, OPERATOR_ISO_FILENAME},
         max_length=54,
     )
+    iso_size_bytes = require_integer(
+        subject["iso_size_bytes"], "subject.iso_size_bytes", minimum=1, maximum=MAX_ISO_BYTES
+    )
     digests = require_exact_keys(subject["iso_digests"], {"sha256", "sha384", "sha512"}, "subject.iso_digests")
     require_hex(digests["sha256"], 64, "subject.iso_digests.sha256")
     require_hex(digests["sha384"], 96, "subject.iso_digests.sha384")
@@ -252,12 +275,22 @@ def verify_record(value: Any) -> dict[str, Any]:
         raise HardwareObservationError("subject.iso_filename does not match record_status")
     if status == "operator-observation" and subject["commit"] == "0" * 40:
         raise HardwareObservationError("operator-observation records must bind a non-placeholder Git commit")
+    if status == "fixture-only" and iso_size_bytes != 43:
+        raise HardwareObservationError("fixture-only subject.iso_size_bytes must be 43")
 
     observation = require_exact_keys(record["observation"], {
         "observed_at_utc", "operator_id", "hardware", "firmware", "capture_host", "tools", "observations"
     }, "observation")
     verify_timestamp(observation["observed_at_utc"])
-    operator_id = require_identifier(observation["operator_id"], "observation.operator_id")
+    if status == "fixture-only":
+        operator_id = require_string(
+            observation["operator_id"],
+            "observation.operator_id",
+            choices={"fixture-only"},
+            max_length=12,
+        )
+    else:
+        operator_id = require_operator_id(observation["operator_id"], "observation.operator_id")
 
     hardware = require_exact_keys(
         observation["hardware"], {"manufacturer", "model", "architecture", "identifiers_redacted"},
@@ -265,10 +298,10 @@ def verify_record(value: Any) -> dict[str, Any]:
     )
     for key in ("manufacturer", "model"):
         require_metadata_token(hardware[key], f"observation.hardware.{key}")
-    require_string(
+    hardware_architecture = require_string(
         hardware["architecture"],
         "observation.hardware.architecture",
-        choices=ARCHITECTURES,
+        choices={"x86_64", "fixture-not-observed"},
         max_length=20,
     )
     if hardware["identifiers_redacted"] is not True:
@@ -278,7 +311,7 @@ def verify_record(value: Any) -> dict[str, Any]:
         observation["firmware"], {"boot_mode", "vendor", "version", "secure_boot"},
         "observation.firmware",
     )
-    require_string(
+    boot_mode = require_string(
         firmware["boot_mode"],
         "observation.firmware.boot_mode",
         choices={"bios", "uefi", "not-observed", "fixture-not-observed"},
@@ -286,7 +319,7 @@ def verify_record(value: Any) -> dict[str, Any]:
     )
     require_metadata_token(firmware["vendor"], "observation.firmware.vendor")
     require_metadata_token(firmware["version"], "observation.firmware.version", allow_version=True)
-    require_string(
+    secure_boot = require_string(
         firmware["secure_boot"], "observation.firmware.secure_boot",
         choices={"enabled", "disabled", "not-observed", "not-applicable", "fixture-not-observed"},
         max_length=20,
@@ -305,101 +338,99 @@ def verify_record(value: Any) -> dict[str, Any]:
     require_metadata_token(
         capture_host["kernel"], "observation.capture_host.kernel", allow_version=True
     )
-    require_string(
+    capture_architecture = require_string(
         capture_host["architecture"],
         "observation.capture_host.architecture",
-        choices=ARCHITECTURES,
+        choices={"x86_64", "fixture-not-observed"},
         max_length=20,
     )
 
-    tools = require_array(observation["tools"], "observation.tools", maximum=MAX_TOOLS)
-    tool_names: set[str] = set()
-    for index, item in enumerate(tools):
-        tool = require_exact_keys(item, {"name", "version", "purpose"}, f"observation.tools[{index}]")
-        require_identifier(tool["name"], f"observation.tools[{index}].name")
-        require_identifier(tool["version"], f"observation.tools[{index}].version", version=True)
+    tools = require_closed_map(observation["tools"], TOOL_NAMES, "observation.tools")
+    for name, item in tools.items():
+        tool = require_exact_keys(item, {"version", "purpose"}, f"observation.tools.{name}")
+        tool_version = require_metadata_token(
+            tool["version"], f"observation.tools.{name}.version", allow_version=True
+        )
+        if tool_version == "fixture-not-observed":
+            raise HardwareObservationError(
+                f"observation.tools.{name}.version cannot use a fixture token"
+            )
         require_string(
             tool["purpose"],
-            f"observation.tools[{index}].purpose",
+            f"observation.tools.{name}.purpose",
             choices=TOOL_PURPOSES,
             max_length=40,
         )
-        if tool["name"] in tool_names:
-            raise HardwareObservationError("observation.tools contains a duplicate name")
-        tool_names.add(tool["name"])
 
-    observations = require_array(
-        observation["observations"], "observation.observations", maximum=MAX_OBSERVATIONS
+    observations = require_closed_map(
+        observation["observations"], OBSERVATION_NAMES, "observation.observations"
     )
-    observation_names: set[str] = set()
-    observed_count = 0
-    for index, item in enumerate(observations):
-        entry = require_exact_keys(item, {"name", "result", "notes"}, f"observation.observations[{index}]")
-        name = require_string(
-            entry["name"],
-            f"observation.observations[{index}].name",
-            choices=OBSERVATION_NAMES,
-            max_length=36,
-        )
+    for name, item in observations.items():
+        entry = require_exact_keys(item, {"result", "notes"}, f"observation.observations.{name}")
         result = require_string(
-            entry["result"], f"observation.observations[{index}].result",
+            entry["result"], f"observation.observations.{name}.result",
             choices={"observed", "not-observed", "not-tested"},
             max_length=12,
         )
         notes = require_string(
             entry["notes"],
-            f"observation.observations[{index}].notes",
+            f"observation.observations.{name}.notes",
             choices=set().union(*NOTES_BY_RESULT.values()),
             max_length=36,
         )
         if notes not in NOTES_BY_RESULT[result]:
             raise HardwareObservationError(
-                f"observation.observations[{index}].notes does not match result"
+                f"observation.observations.{name}.notes does not match result"
             )
-        if name in observation_names:
-            raise HardwareObservationError("observation.observations contains a duplicate name")
-        observation_names.add(name)
-        if result == "observed":
-            observed_count += 1
 
     fixture_tokens = {
         hardware["manufacturer"],
         hardware["model"],
-        hardware["architecture"],
         firmware["boot_mode"],
         firmware["vendor"],
         firmware["version"],
         firmware["secure_boot"],
         capture_host["operating_system"],
         capture_host["kernel"],
-        capture_host["architecture"],
     }
     if status == "fixture-only":
-        if operator_id != "fixture-only" or fixture_tokens != {"fixture-not-observed"}:
+        if (
+            operator_id != "fixture-only"
+            or fixture_tokens != {"fixture-not-observed"}
+            or hardware_architecture != "fixture-not-observed"
+            or capture_architecture != "fixture-not-observed"
+        ):
             raise HardwareObservationError("fixture-only observation metadata must use fixture tokens")
-        if tools != [{
-            "name": "noether_hardware_observation.py",
-            "version": "v1",
-            "purpose": "record-shape-check",
-        }]:
+        if tools != {"noether-hardware-observation": {
+            "version": "version:1", "purpose": "record-shape-check"
+        }}:
             raise HardwareObservationError("fixture-only record must use the fixed verifier tool entry")
-        if observations != [{
-            "name": "fixture-record-shape",
-            "result": "not-tested",
-            "notes": "fixture-shape-only",
-        }]:
+        if observations != {"fixture-record-shape": {
+            "result": "not-tested", "notes": "fixture-shape-only"
+        }}:
             raise HardwareObservationError("fixture-only record must use the fixed shape observation")
     else:
-        if operator_id == "fixture-only":
-            raise HardwareObservationError("operator-observation records cannot use fixture operator_id")
         if "fixture-not-observed" in fixture_tokens:
             raise HardwareObservationError("operator-observation records cannot use fixture tokens")
-        if "fixture-record-shape" in observation_names or any(
-            entry["notes"] == "fixture-shape-only" for entry in observations
+        if hardware_architecture != "x86_64" or capture_architecture != "x86_64":
+            raise HardwareObservationError("operator-observation architectures must be x86_64")
+        if boot_mode == "bios" and secure_boot != "not-applicable":
+            raise HardwareObservationError("BIOS observations require secure_boot=not-applicable")
+        if boot_mode == "uefi" and secure_boot not in {"enabled", "disabled", "not-observed"}:
+            raise HardwareObservationError("UEFI observations require a UEFI secure-boot state")
+        if boot_mode == "not-observed" and secure_boot != "not-observed":
+            raise HardwareObservationError("unobserved firmware mode requires secure_boot=not-observed")
+        if "fixture-record-shape" in observations or any(
+            entry["notes"] == "fixture-shape-only" for entry in observations.values()
         ):
             raise HardwareObservationError("operator-observation records cannot use fixture observations")
-        if observed_count == 0:
-            raise HardwareObservationError("operator-observation records require an observed result")
+        if not any(
+            name in BOOT_CHAIN_OBSERVATIONS and entry["result"] == "observed"
+            for name, entry in observations.items()
+        ):
+            raise HardwareObservationError(
+                "operator-observation records require an observed boot-chain result"
+            )
 
     boundary = require_exact_keys(record["claim_boundary"], {
         "hardware_validation_claimed", "external_validation_claimed", "official_release_claimed",
@@ -440,20 +471,61 @@ def read_record(path: Path) -> dict[str, Any]:
     return verify_record(value)
 
 
-def digest_vector(path: Path) -> dict[str, str]:
+def stable_stat_identity(info: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def iso_binding(path: Path) -> dict[str, Any]:
     digests = {name: hashlib.new(name) for name in ("sha256", "sha384", "sha512")}
     try:
-        for block in wuci_safeio.iter_regular_chunks(
-            path,
-            "Noether physical-hardware observation subject artifact",
-            reject_symlink=True,
-            reject_hardlink=True,
-        ):
+        expected = path.lstat()
+    except OSError as exc:
+        raise HardwareObservationError(f"subject artifact is missing: {path}") from exc
+    if not stat.S_ISREG(expected.st_mode):
+        raise HardwareObservationError(f"subject artifact must be a regular file: {path}")
+    if expected.st_nlink != 1:
+        raise HardwareObservationError(f"subject artifact hardlink rejected: {path}")
+    if not 1 <= expected.st_size <= MAX_ISO_BYTES:
+        raise HardwareObservationError(f"subject artifact size must be from 1 through {MAX_ISO_BYTES}")
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise HardwareObservationError(f"cannot open subject artifact safely: {path}") from exc
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            raise HardwareObservationError(f"subject artifact must remain a single-link regular file: {path}")
+        if (expected.st_dev, expected.st_ino) != (before.st_dev, before.st_ino):
+            raise HardwareObservationError(f"subject artifact changed while opening: {path}")
+        if not 1 <= before.st_size <= MAX_ISO_BYTES:
+            raise HardwareObservationError(f"subject artifact size must be from 1 through {MAX_ISO_BYTES}")
+        total = 0
+        while True:
+            block = os.read(descriptor, min(1024 * 1024, before.st_size + 1 - total))
+            if not block:
+                break
+            total += len(block)
+            if total > before.st_size:
+                raise HardwareObservationError(f"subject artifact grew while hashing: {path}")
             for digest in digests.values():
                 digest.update(block)
-    except wuci_safeio.SafeIOError as exc:
-        raise HardwareObservationError(str(exc)) from exc
-    return {name: digest.hexdigest() for name, digest in digests.items()}
+        after = os.fstat(descriptor)
+        if total != before.st_size or stable_stat_identity(before) != stable_stat_identity(after):
+            raise HardwareObservationError(f"subject artifact changed while hashing: {path}")
+    except OSError as exc:
+        raise HardwareObservationError(f"cannot read subject artifact safely: {path}") from exc
+    finally:
+        os.close(descriptor)
+    return {
+        "iso_size_bytes": total,
+        "iso_digests": {name: digest.hexdigest() for name, digest in digests.items()},
+    }
+
+
+def digest_vector(path: Path) -> dict[str, str]:
+    return iso_binding(path)["iso_digests"]
 
 
 def verify_path(path: Path, *, iso: Path | None = None, expected_commit: str | None = None) -> dict[str, Any]:
@@ -465,8 +537,10 @@ def verify_path(path: Path, *, iso: Path | None = None, expected_commit: str | N
     if iso is not None:
         if iso.name != record["subject"]["iso_filename"]:
             raise HardwareObservationError("subject artifact basename does not match record iso_filename")
-        observed = digest_vector(iso)
-        if observed != record["subject"]["iso_digests"]:
+        observed = iso_binding(iso)
+        if observed["iso_size_bytes"] != record["subject"]["iso_size_bytes"]:
+            raise HardwareObservationError("subject artifact size does not match record")
+        if observed["iso_digests"] != record["subject"]["iso_digests"]:
             raise HardwareObservationError("subject artifact digest vector does not match record")
     return record
 

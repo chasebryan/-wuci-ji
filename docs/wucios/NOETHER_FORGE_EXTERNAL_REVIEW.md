@@ -101,9 +101,9 @@ the source-review gates.
 The schema at
 `wucios/schemas/noether-forge-physical-hardware-observation.schema.json` binds
 an operator record to the reviewed Git commit and the privately built ISO's
-SHA-256, SHA-384, and SHA-512. It also records redacted hardware, firmware,
+byte size, SHA-256, SHA-384, and SHA-512. It also records redacted hardware, firmware,
 capture-host, tool, and observed-result fields. Mutable record values use a
-closed vocabulary: enums, bounded identifiers and versions, `redacted` /
+closed vocabulary: enums, reviewer-number or hash identifiers, numeric versions, `redacted` /
 `not-observed` tokens, or `sha256:<hex>` tokens. There is no operator prose
 field. The tracked record under `fixtures/` is the format example; it is
 synthetic, its subject is not an ISO, and it records no boot result.
@@ -130,21 +130,23 @@ a schema-listed value. A structured operator record can, for example, use:
     "version": "version:1.2.3",
     "secure_boot": "disabled"
   },
-  "tools": [{
-    "name": "serial-capture",
-    "version": "2.0",
-    "purpose": "boot-observation-capture"
-  }],
-  "observations": [{
-    "name": "local-tty-login-prompt-visible",
-    "result": "observed",
-    "notes": "observed-in-private-capture"
-  }]
+  "tools": {
+    "serial-capture": {
+      "version": "version:2.0",
+      "purpose": "boot-observation-capture"
+    }
+  },
+  "observations": {
+    "local-tty-login-prompt-visible": {
+      "result": "observed",
+      "notes": "observed-in-private-capture"
+    }
+  }
 }
 ```
 
 This is a field fragment, not a complete record. Use the schema and fixture for
-the complete key set, capture-host values, timestamp, commit, digest vector,
+the complete key set, capture-host values, timestamp, commit, ISO byte size, digest vector,
 and fixed claim boundary. Verify the complete record and its private local
 artifact with:
 
@@ -159,10 +161,16 @@ Replace the example commit with the exact reviewed commit. The verifier uses
 only the Python standard library. It rejects records over 128 KiB before JSON
 parsing, duplicate JSON keys, symlink and hardlink inputs, extra fields,
 out-of-vocabulary values, inconsistent result/note pairs, and fixture tokens in
-operator records. It bounds tools to 16 entries and observations to 32, and it
-optionally recomputes the ISO digest vector. The verifier establishes
-structured consistency only; it does not infer semantic absence from a lexical
-denylist. A passing result is not independent hardware validation,
+operator records. Tool and observation names are closed object keys, so the
+JSON parser's duplicate-key rejection also closes semantic duplicates. For
+this x86_64 ISO, both hardware and capture architecture must be `x86_64`.
+Firmware mode constrains the secure-boot state, and at least one boot-chain
+observation must have result `observed`. The verifier is authoritative for
+calendar-valid UTC timestamps. With `--iso`, it enforces the recorded size,
+recomputes the digest vector, and rejects a file whose device, inode, size,
+modification time, or change time moves while streaming. The verifier establishes
+structured consistency only. It parses closed values instead of scanning free
+prose. A passing result is not independent hardware validation,
 certification, official release authority, or proof of OS containment.
 
 ## What to review
