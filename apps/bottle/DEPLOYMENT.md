@@ -14,6 +14,11 @@ approval.
 - `nosuchmachine.net` is an active zone in the target Cloudflare account.
 - The operator can edit Workers, Workers KV, Custom Domains, and DNS for that
   zone.
+- Cloudflare Network Error Logging is **Off** for `nosuchmachine.net`. When it
+  is enabled, Cloudflare adds `NEL` and `Report-To` response headers that direct
+  browsers to an external reporting endpoint, which conflicts with Daylight
+  Bottle's no-third-party-runtime-calls boundary. See Cloudflare's
+  [Network Error Logging documentation](https://developers.cloudflare.com/network-error-logging/).
 - Node.js `22.23.1` and npm `11.8.0` are installed. The supported runtime range
   is also recorded in `package.json`.
 - No private identity, message plaintext, passphrase, or private key is present
@@ -136,7 +141,9 @@ curl --silent --show-error --dump-header - --output /dev/null \
 
 Both responses must include the CSP, `Referrer-Policy`, `Permissions-Policy`,
 `Cross-Origin-Opener-Policy`, and `X-Content-Type-Options` values maintained in
-`public/_headers` and the Worker. The API response should be `200` with schema
+`public/_headers` and the Worker. Neither response may include `NEL` or
+`Report-To`; if either is present, turn off Cloudflare Network Error Logging for
+the zone and repeat the checks. The API response should be `200` with schema
 `nsm.daylight-bottle.list.response.v1`.
 
 Finally, complete the browser acceptance path with a manually approved keyring
