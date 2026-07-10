@@ -26,6 +26,7 @@ import stat
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,11 +48,16 @@ ZERO_FINGERPRINT = f"sha256:{'0' * 64}"
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_MANIFEST_ARTIFACTS = 32
 MAX_MANIFEST_ARTIFACT_BYTES = 2_097_152
+MAX_REPOSITORY_INPUT_BYTES = 8 * 1024 * 1024
 MAX_ARTIFACT_CAPTURE_SECONDS = 20.0
 MAX_ARTIFACT_REQUEST_SECONDS = 5.0
 MAX_SITE_CAPTURE_SECONDS = 120.0
 MAX_SITE_REQUEST_SECONDS = 15.0
 MAX_SITE_WORKERS = 8
+MAX_SITE_REDIRECTS = 32
+MAX_REDIRECT_CAPTURE_SECONDS = 30.0
+MAX_REDIRECT_REQUEST_SECONDS = 5.0
+MAX_TOTAL_RESPONSE_PLAN = 160
 SNAPSHOT_MAX_FILE_BYTES = 64 * 1024 * 1024
 SNAPSHOT_MAX_DECODED_BYTES = 48 * 1024 * 1024
 SNAPSHOT_MAX_RESPONSES = 192
@@ -222,6 +228,7 @@ CANONICAL_ABSOLUTE_REDIRECT_SOURCES = {
     "http://www.nosuchmachine.net/*": "site_http_www_root",
     "https://www.nosuchmachine.net/*": "site_www_root",
 }
+CANONICAL_ABSOLUTE_REDIRECT_TARGET = "https://nosuchmachine.net/:splat"
 SAFE_REDIRECT_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9._/-]+$")
 
 
@@ -248,10 +255,10 @@ def sha256(content: bytes) -> str:
 
 def read_regular_repo_file(relative_path: str) -> bytes:
     path = REPOSITORY_ROOT / relative_path
-    metadata = path.lstat()
-    if path.is_symlink() or not path.is_file() or metadata.st_nlink != 1:
-        raise ValueError(f"repository input must be a single-link regular file: {relative_path}")
-    return path.read_bytes()
+    return site_dist.stable_read_regular_file(
+        path,
+        max_bytes=MAX_REPOSITORY_INPUT_BYTES,
+    )
 
 
 def bottle_file(relative_path: str) -> bytes:
@@ -281,6 +288,7 @@ def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
         raise ValueError("staged _redirects must be UTF-8") from error
     redirects: list[RedirectExpectation] = []
     used_names: set[str] = set()
+    absolute_sources: set[str] = set()
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
         if not line or line.startswith("#"):
@@ -294,8 +302,12 @@ def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
                 raise ValueError(
                     f"staged _redirects absolute source line {line_number} is not canonical"
                 )
-            if not source.endswith("/*") or target.count(":splat") != 1:
+            if (
+                not source.endswith("/*")
+                or target != CANONICAL_ABSOLUTE_REDIRECT_TARGET
+            ):
                 raise ValueError(f"staged _redirects wildcard line {line_number} is invalid")
+            absolute_sources.add(source)
             url = source.removesuffix("*")
             location = target.replace(":splat", "")
         else:
@@ -329,8 +341,15 @@ def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
                 location=location,
             )
         )
-    if not redirects:
-        raise ValueError("staged _redirects contains no redirect rules")
+        if len(redirects) > MAX_SITE_REDIRECTS:
+            raise ValueError("staged _redirects exceeds the fixed redirect-count budget")
+    required_absolute_sources = set(CANONICAL_ABSOLUTE_REDIRECT_SOURCES)
+    if absolute_sources != required_absolute_sources:
+        missing = sorted(required_absolute_sources - absolute_sources)
+        extra = sorted(absolute_sources - required_absolute_sources)
+        raise ValueError(
+            f"staged _redirects canonical wildcard set is not exact: missing={missing} extra={extra}"
+        )
     return tuple(redirects)
 
 
@@ -371,6 +390,74 @@ def site_global_headers(content: bytes) -> dict[str, str]:
     if set(headers) != required:
         raise ValueError("staged _headers global rule fields are not exact")
     return headers
+
+
+def site_cache_control_rules(content: bytes) -> tuple[tuple[str, str | None], ...]:
+    try:
+        lines = content.decode("utf-8").splitlines()
+    except UnicodeDecodeError as error:
+        raise ValueError("staged _headers must be UTF-8") from error
+    rules: list[tuple[str, str | None]] = []
+    current_pattern: str | None = None
+    current_cache: object | str | None = _CACHE_UNSET
+
+    def finish_rule() -> None:
+        nonlocal current_pattern, current_cache
+        if current_pattern is not None and current_cache is not _CACHE_UNSET:
+            rules.append((current_pattern, current_cache))
+        current_pattern = None
+        current_cache = _CACHE_UNSET
+
+    for raw_line in [*lines, "<end>"]:
+        if raw_line and not raw_line[0].isspace():
+            finish_rule()
+            pattern = raw_line.strip()
+            if pattern == "<end>":
+                break
+            if (
+                not pattern.startswith("/")
+                or ".." in pattern
+                or "//" in pattern
+                or ("*" in pattern and not pattern.endswith("*"))
+            ):
+                raise ValueError(f"staged _headers has an unsafe route pattern: {pattern}")
+            current_pattern = pattern
+            continue
+        stripped = raw_line.strip()
+        if not stripped or current_pattern is None:
+            continue
+        if stripped.lower() == "! cache-control":
+            current_cache = None
+            continue
+        if ":" in stripped:
+            name, value = stripped.split(":", 1)
+            if name.strip().lower() == "cache-control":
+                current_cache = value.strip()
+    if not rules or rules[0] != ("/*", site_global_headers(content)["cache-control"]):
+        raise ValueError("staged _headers cache policy is missing its exact global rule")
+    return tuple(rules)
+
+
+_CACHE_UNSET = object()
+
+
+def expected_site_cache_control(
+    rules: tuple[tuple[str, str | None], ...],
+    url: str,
+) -> str | None:
+    path = urllib.parse.urlsplit(url).path
+    expected: str | None | object = _CACHE_UNSET
+    for pattern, value in rules:
+        matches = (
+            pattern == "/*"
+            or (pattern.endswith("*") and path.startswith(pattern[:-1]))
+            or path == pattern
+        )
+        if matches:
+            expected = value
+    if expected is _CACHE_UNSET:
+        raise ValueError(f"staged _headers has no cache policy for {path}")
+    return expected
 
 
 def load_local_site_build() -> LocalSiteBuild:
@@ -424,28 +511,12 @@ def load_local_site_build() -> LocalSiteBuild:
 
 
 def collect_regular_tree(root: Path) -> dict[str, bytes]:
-    if root.is_symlink() or not root.is_dir():
-        raise ValueError(f"artifact root must be a real directory: {root}")
-
-    files: dict[str, bytes] = {}
-
-    def visit(directory: Path) -> None:
-        for path in sorted(directory.iterdir(), key=lambda candidate: candidate.name):
-            metadata = path.lstat()
-            relative = path.relative_to(root).as_posix()
-            if path.is_symlink():
-                raise ValueError(f"artifact entry must not be a symlink: {relative}")
-            if path.is_dir():
-                visit(path)
-                continue
-            if not path.is_file() or metadata.st_nlink != 1:
-                raise ValueError(
-                    f"artifact entry must be a single-link regular file: {relative}"
-                )
-            files[relative] = path.read_bytes()
-
-    visit(root)
-    return files
+    return site_dist.collect_regular_tree(
+        root,
+        max_files=MAX_MANIFEST_ARTIFACTS + 1,
+        max_file_bytes=MAX_RESPONSE_BYTES,
+        max_total_bytes=MAX_MANIFEST_ARTIFACT_BYTES + MAX_RESPONSE_BYTES,
+    )
 
 
 def load_local_bottle_build() -> LocalBottleBuild:
@@ -656,10 +727,37 @@ def capture_site_artifacts(local_site: LocalSiteBuild) -> dict[str, Response]:
     return responses
 
 
+def capture_redirects(local_site: LocalSiteBuild) -> dict[str, Response]:
+    deadline = time.monotonic() + MAX_REDIRECT_CAPTURE_SECONDS
+    responses: dict[str, Response] = {}
+    for redirect in local_site.redirects:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            responses[redirect.response_name] = Response(
+                status=0,
+                headers={},
+                body=b"",
+                url=redirect.url,
+            )
+            continue
+        responses[redirect.response_name] = fetch(
+            RequestSpec(
+                redirect.response_name,
+                redirect.url,
+                method="HEAD",
+                follow_redirects=False,
+            ),
+            timeout=min(MAX_REDIRECT_REQUEST_SECONDS, remaining),
+            max_body_bytes=4096,
+        )
+    return responses
+
+
 def capture_live(
     local_build: LocalBottleBuild,
     local_site: LocalSiteBuild,
 ) -> dict[str, Response]:
+    expected_snapshot_response_limits(local_build, local_site)
     base_limits = {
         "site_secondary": 4096,
         "bottle_root": len(local_build.artifacts.get("index.html", b"")),
@@ -671,16 +769,7 @@ def capture_live(
         spec.name: fetch(spec, max_body_bytes=base_limits[spec.name])
         for spec in REQUEST_PLAN
     }
-    for redirect in local_site.redirects:
-        responses[redirect.response_name] = fetch(
-            RequestSpec(
-                redirect.response_name,
-                redirect.url,
-                method="HEAD",
-                follow_redirects=False,
-            ),
-            max_body_bytes=4096,
-        )
+    responses.update(capture_redirects(local_site))
     responses.update(capture_site_artifacts(local_site))
 
     expected_total = sum(
@@ -743,6 +832,8 @@ def expected_snapshot_response_limits(
         raise ValueError("snapshot response plan is missing a fixed request")
     if len(limits) > SNAPSHOT_MAX_RESPONSES:
         raise ValueError("snapshot response plan exceeds the fixed count budget")
+    if len(limits) > MAX_TOTAL_RESPONSE_PLAN:
+        raise ValueError("response plan exceeds the fixed total-count budget")
     if sum(limits.values()) > SNAPSHOT_MAX_DECODED_BYTES:
         raise ValueError("snapshot response plan exceeds the fixed aggregate body budget")
     return limits
@@ -906,6 +997,7 @@ def json_body(response: Response) -> Any | None:
     try:
         return json.loads(
             response.body.decode("utf-8"),
+            object_pairs_hook=reject_duplicate_object,
             parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
         )
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
@@ -1320,6 +1412,7 @@ def evaluate(
     if local_site is None:
         local_site = load_local_site_build()
     global_site_headers = site_global_headers(local_site.configs["_headers"])
+    cache_rules = site_cache_control_rules(local_site.configs["_headers"])
     checks.append(
         Check(
             "expected-commit-format",
@@ -1397,6 +1490,15 @@ def evaluate(
             label,
             observed,
             global_site_headers,
+        )
+        expected_cache = expected_site_cache_control(cache_rules, artifact.url)
+        observed_cache = observed.headers.get("cache-control")
+        checks.append(
+            Check(
+                f"{label}-cache-control-policy",
+                observed_cache == expected_cache,
+                f"expected={expected_cache!r} observed={observed_cache!r}",
+            )
         )
 
     observed_site_bytes = sum(len(response.body) for response in site_responses)

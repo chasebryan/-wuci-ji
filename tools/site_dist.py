@@ -7,8 +7,10 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping
@@ -30,6 +32,14 @@ NOT_FOUND_PROBE_PATH = "/.well-known/wuci-site-integrity-not-found-7f36c09e"
 MAX_SITE_FILES = 96
 MAX_SITE_FILE_BYTES = 4 * 1024 * 1024
 MAX_SITE_TOTAL_BYTES = 40 * 1024 * 1024
+MAX_SITE_REDIRECTS = 32
+
+CANONICAL_ABSOLUTE_REDIRECT_SOURCES = {
+    "http://nosuchmachine.net/*",
+    "http://www.nosuchmachine.net/*",
+    "https://www.nosuchmachine.net/*",
+}
+CANONICAL_ABSOLUTE_REDIRECT_TARGET = "https://nosuchmachine.net/:splat"
 
 SAFE_PATH_PATTERN = re.compile(r"^[A-Za-z0-9._/-]+$")
 MEDIA_TYPES = {
@@ -66,40 +76,140 @@ def valid_relative_path(path: str) -> bool:
     )
 
 
-def collect_regular_tree(root: Path) -> dict[str, bytes]:
-    if root.is_symlink() or not root.is_dir():
+STABLE_METADATA_FIELDS = (
+    "st_dev",
+    "st_ino",
+    "st_mode",
+    "st_nlink",
+    "st_size",
+    "st_mtime_ns",
+    "st_ctime_ns",
+)
+
+
+def metadata_signature(metadata: os.stat_result) -> tuple[int, ...]:
+    return tuple(getattr(metadata, field) for field in STABLE_METADATA_FIELDS)
+
+
+def ensure_no_symlink_ancestors(path: Path) -> None:
+    absolute = path.absolute()
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            break
+        if stat.S_ISLNK(metadata.st_mode):
+            raise ValueError(f"path ancestor must not be a symlink: {current}")
+
+
+def stable_read_regular_file(path: Path, *, max_bytes: int) -> bytes:
+    if max_bytes < 0:
+        raise ValueError("regular-file read budget must be nonnegative")
+    try:
+        ensure_no_symlink_ancestors(path.parent)
+        before_path = path.lstat()
+        if (
+            stat.S_ISLNK(before_path.st_mode)
+            or not stat.S_ISREG(before_path.st_mode)
+            or before_path.st_nlink != 1
+        ):
+            raise ValueError(f"entry must be a single-link regular file: {path}")
+        if before_path.st_size > max_bytes:
+            raise ValueError(f"entry exceeds {max_bytes} bytes: {path}")
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise ValueError(f"entry could not be opened safely: {path}") from error
+    try:
+        before_fd = os.fstat(descriptor)
+        if metadata_signature(before_path) != metadata_signature(before_fd):
+            raise ValueError(f"entry changed before the bounded read: {path}")
+        with os.fdopen(descriptor, "rb", closefd=False) as handle:
+            content = handle.read(max_bytes + 1)
+        after_fd = os.fstat(descriptor)
+        after_path = path.lstat()
+        ensure_no_symlink_ancestors(path.parent)
+        signatures = {
+            metadata_signature(before_path),
+            metadata_signature(before_fd),
+            metadata_signature(after_fd),
+            metadata_signature(after_path),
+        }
+        if len(signatures) != 1 or len(content) != after_fd.st_size:
+            raise ValueError(f"entry changed during the bounded read: {path}")
+        if len(content) > max_bytes:
+            raise ValueError(f"entry exceeds {max_bytes} bytes: {path}")
+        return content
+    except OSError as error:
+        raise ValueError(f"entry changed during the bounded read: {path}") from error
+    finally:
+        os.close(descriptor)
+
+
+def collect_regular_tree(
+    root: Path,
+    *,
+    max_files: int = MAX_SITE_FILES,
+    max_file_bytes: int = MAX_SITE_FILE_BYTES,
+    max_total_bytes: int = MAX_SITE_TOTAL_BYTES,
+) -> dict[str, bytes]:
+    ensure_no_symlink_ancestors(root.parent)
+    try:
+        root_metadata = root.lstat()
+    except OSError as error:
+        raise ValueError(f"site tree root must be a real directory: {root}") from error
+    if stat.S_ISLNK(root_metadata.st_mode) or not stat.S_ISDIR(root_metadata.st_mode):
         raise ValueError(f"site tree root must be a real directory: {root}")
 
     files: dict[str, bytes] = {}
+    total_bytes = 0
 
     def visit(directory: Path) -> None:
-        for path in sorted(directory.iterdir(), key=lambda candidate: candidate.name):
-            metadata = path.lstat()
+        nonlocal total_bytes
+        before_directory = directory.lstat()
+        if stat.S_ISLNK(before_directory.st_mode) or not stat.S_ISDIR(before_directory.st_mode):
+            raise ValueError(f"site tree directory changed: {directory}")
+        try:
+            entries = sorted(directory.iterdir(), key=lambda candidate: candidate.name)
+        except OSError as error:
+            raise ValueError(f"site tree directory could not be read: {directory}") from error
+        for path in entries:
+            try:
+                metadata = path.lstat()
+            except OSError as error:
+                raise ValueError(f"site tree entry changed: {path}") from error
             relative = path.relative_to(root).as_posix()
-            if path.is_symlink():
+            if stat.S_ISLNK(metadata.st_mode):
                 raise ValueError(f"site tree entry must not be a symlink: {relative}")
-            if path.is_dir():
+            if stat.S_ISDIR(metadata.st_mode):
                 visit(path)
                 continue
-            if not path.is_file() or metadata.st_nlink != 1:
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
                 raise ValueError(
                     f"site tree entry must be a single-link regular file: {relative}"
                 )
             if not valid_relative_path(relative):
                 raise ValueError(f"site tree entry has an unsafe path: {relative}")
-            if metadata.st_size > MAX_SITE_FILE_BYTES:
+            if len(files) >= max_files:
+                raise ValueError(f"site tree exceeds the {max_files}-file budget")
+            content = stable_read_regular_file(path, max_bytes=max_file_bytes)
+            total_bytes += len(content)
+            if total_bytes > max_total_bytes:
                 raise ValueError(
-                    f"site tree entry exceeds {MAX_SITE_FILE_BYTES} bytes: {relative}"
+                    f"site tree exceeds the {max_total_bytes}-byte aggregate budget"
                 )
-            files[relative] = path.read_bytes()
+            files[relative] = content
+        after_directory = directory.lstat()
+        if metadata_signature(before_directory) != metadata_signature(after_directory):
+            raise ValueError(f"site tree directory changed during traversal: {directory}")
 
     visit(root)
-    if len(files) > MAX_SITE_FILES:
-        raise ValueError(f"site tree exceeds the {MAX_SITE_FILES}-file budget")
-    if sum(len(content) for content in files.values()) > MAX_SITE_TOTAL_BYTES:
-        raise ValueError(
-            f"site tree exceeds the {MAX_SITE_TOTAL_BYTES}-byte aggregate budget"
-        )
+    after_root = root.lstat()
+    if metadata_signature(root_metadata) != metadata_signature(after_root):
+        raise ValueError(f"site tree root changed during traversal: {root}")
+    ensure_no_symlink_ancestors(root.parent)
     return files
 
 
@@ -131,15 +241,28 @@ def redirect_shadowed_files(
     except UnicodeDecodeError as error:
         raise ValueError("site/_redirects must be UTF-8") from error
     shadowed: set[str] = set()
+    absolute_sources: set[str] = set()
+    rule_count = 0
     for line_number, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
         parts = line.split()
-        if len(parts) != 3 or not parts[2].isdigit():
+        if len(parts) != 3 or parts[2] not in {"301", "302", "307", "308"}:
             raise ValueError(f"invalid site/_redirects line {line_number}")
-        source = parts[0]
+        rule_count += 1
+        if rule_count > MAX_SITE_REDIRECTS:
+            raise ValueError("site/_redirects exceeds the fixed redirect-count budget")
+        source, target, _status = parts
         if not source.startswith("/"):
+            if (
+                source not in CANONICAL_ABSOLUTE_REDIRECT_SOURCES
+                or target != CANONICAL_ABSOLUTE_REDIRECT_TARGET
+            ):
+                raise ValueError(
+                    f"site/_redirects absolute wildcard line {line_number} is invalid"
+                )
+            absolute_sources.add(source)
             continue
         wildcard = "*" in source or ":" in source
         pattern = re.sub(r":[A-Za-z][A-Za-z0-9_]*", "*", source)
@@ -152,7 +275,35 @@ def redirect_shadowed_files(
                 and any(fnmatch.fnmatchcase(alias, pattern) for alias in aliases)
             ) or (not wildcard and source in aliases):
                 shadowed.add(path)
+    if absolute_sources != CANONICAL_ABSOLUTE_REDIRECT_SOURCES:
+        missing = sorted(CANONICAL_ABSOLUTE_REDIRECT_SOURCES - absolute_sources)
+        raise ValueError(
+            f"site/_redirects canonical wildcard set is not exact: missing={missing}"
+        )
     return shadowed
+
+
+def validate_relative_redirect_sources(redirects: bytes) -> None:
+    text = redirects.decode("utf-8")
+    safe = re.compile(r"^/[A-Za-z0-9._/-]+$")
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        source = line.split()[0]
+        if source.startswith(("http://", "https://")):
+            continue
+        if (
+            not safe.fullmatch(source)
+            or source.startswith("//")
+            or source.endswith("/")
+            or ".." in source
+            or "*" in source
+            or ":" in source
+        ):
+            raise ValueError(
+                f"site/_redirects relative source line {line_number} is invalid"
+            )
 
 
 def public_route_aliases(path: str) -> set[str]:
@@ -197,6 +348,7 @@ def build_inventory(source_files: Mapping[str, bytes]) -> dict[str, Any]:
             "redirect-shadowed site sources do not match the explicit exclusion set: "
             f"observed={sorted(shadowed)} expected={sorted(expected_shadowed)}"
         )
+    validate_relative_redirect_sources(source_files["_redirects"])
 
     public_paths = sorted(source_paths - set(CONFIG_FILES) - set(EXCLUDED_SOURCE_FILES))
     public_files = [public_file_record(path, source_files[path]) for path in public_paths]
@@ -303,13 +455,28 @@ def validate_inventory(
 
 
 def build_site_dist(source: Path = SOURCE_ROOT, output: Path = OUTPUT_ROOT) -> dict[str, Any]:
+    source_absolute = source.absolute()
+    output_absolute = output.absolute()
+    if (
+        source_absolute == output_absolute
+        or source_absolute in output_absolute.parents
+        or output_absolute in source_absolute.parents
+    ):
+        raise ValueError("site source and output trees must not overlap")
+    ensure_no_symlink_ancestors(source_absolute)
+    ensure_no_symlink_ancestors(output_absolute.parent)
     source_files = collect_regular_tree(source)
     inventory = build_inventory(source_files)
     inventory_content = inventory_bytes(inventory)
 
     output_parent = output.parent
     output_parent.mkdir(parents=True, exist_ok=True)
+    ensure_no_symlink_ancestors(output_parent)
+    output_parent_metadata = output_parent.lstat()
+    if not stat.S_ISDIR(output_parent_metadata.st_mode):
+        raise ValueError(f"site output parent must be a real directory: {output_parent}")
     temporary = Path(tempfile.mkdtemp(prefix=".site-dist-", dir=output_parent))
+    output_parent_before = output_parent.lstat()
     try:
         staged_paths = (
             set(source_files) - set(EXCLUDED_SOURCE_FILES)
@@ -324,11 +491,19 @@ def build_site_dist(source: Path = SOURCE_ROOT, output: Path = OUTPUT_ROOT) -> d
 
         staged_files = collect_regular_tree(temporary)
         validate_inventory(inventory, staged_files)
+        ensure_no_symlink_ancestors(output_parent)
+        output_parent_after = output_parent.lstat()
+        if metadata_signature(output_parent_before) != metadata_signature(output_parent_after):
+            raise ValueError("site output parent changed during staging")
         if output.exists() or output.is_symlink():
-            if output.is_symlink() or not output.is_dir():
+            output_metadata = output.lstat()
+            if stat.S_ISLNK(output_metadata.st_mode) or not stat.S_ISDIR(output_metadata.st_mode):
                 raise ValueError(f"site output must be a real directory: {output}")
             shutil.rmtree(output)
         temporary.replace(output)
+        ensure_no_symlink_ancestors(output)
+        if not stat.S_ISDIR(output.lstat().st_mode):
+            raise ValueError(f"site output must be a real directory: {output}")
     except BaseException:
         if temporary.exists():
             shutil.rmtree(temporary)

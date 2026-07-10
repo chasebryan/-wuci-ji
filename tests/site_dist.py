@@ -5,6 +5,7 @@ import copy
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +34,28 @@ def main() -> None:
         "/docs/index.html",
     }
     source_files = site_dist.collect_regular_tree(site_dist.SOURCE_ROOT)
+    bad_target = dict(source_files)
+    bad_target["_redirects"] = bad_target["_redirects"].replace(
+        b"http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301",
+        b"http://nosuchmachine.net/* http://127.0.0.1/:splat 301",
+        1,
+    )
+    must_fail(
+        lambda: site_dist.build_inventory(bad_target),
+        "absolute wildcard",
+    )
+
+    comment_decoy = dict(source_files)
+    comment_lines = comment_decoy["_redirects"].splitlines()
+    comment_decoy["_redirects"] = b"\n".join(
+        b"# " + line if line.startswith((b"http://", b"https://www")) else line
+        for line in comment_lines
+    ) + b"\n"
+    must_fail(
+        lambda: site_dist.build_inventory(comment_decoy),
+        "wildcard set is not exact",
+    )
+
     clean_url_collision = dict(source_files)
     clean_url_collision["public-page.html"] = b"<!doctype html><title>public</title>"
     clean_url_collision["_redirects"] += (
@@ -129,14 +152,89 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
-        original_total = site_dist.MAX_SITE_TOTAL_BYTES
+        (root / "a.txt").write_bytes(b"a" * 6)
+        (root / "b.txt").write_bytes(b"b" * 6)
+        must_fail(
+            lambda: site_dist.collect_regular_tree(root, max_total_bytes=10),
+            "aggregate budget",
+        )
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        target = root / "stable.txt"
+        target.write_bytes(b"stable")
+        original_fstat = site_dist.os.fstat
+        fstat_calls = 0
+
+        def mutating_fstat(descriptor: int):
+            nonlocal fstat_calls
+            metadata = original_fstat(descriptor)
+            fstat_calls += 1
+            if fstat_calls != 2:
+                return metadata
+            return SimpleNamespace(
+                **{
+                    field: (
+                        getattr(metadata, field) + 1
+                        if field == "st_ctime_ns"
+                        else getattr(metadata, field)
+                    )
+                    for field in site_dist.STABLE_METADATA_FIELDS
+                }
+            )
+
+        site_dist.os.fstat = mutating_fstat
         try:
-            site_dist.MAX_SITE_TOTAL_BYTES = 10
-            (root / "a.txt").write_bytes(b"a" * 6)
-            (root / "b.txt").write_bytes(b"b" * 6)
-            must_fail(lambda: site_dist.collect_regular_tree(root), "aggregate budget")
+            must_fail(
+                lambda: site_dist.stable_read_regular_file(target, max_bytes=32),
+                "changed during",
+            )
         finally:
-            site_dist.MAX_SITE_TOTAL_BYTES = original_total
+            site_dist.os.fstat = original_fstat
+
+        original_lstat = Path.lstat
+        path_lstat_calls = 0
+
+        def swapped_lstat(path: Path):
+            nonlocal path_lstat_calls
+            metadata = original_lstat(path)
+            if path == target:
+                path_lstat_calls += 1
+                if path_lstat_calls == 2:
+                    return SimpleNamespace(
+                        **{
+                            field: (
+                                getattr(metadata, field) + 1
+                                if field == "st_ino"
+                                else getattr(metadata, field)
+                            )
+                            for field in site_dist.STABLE_METADATA_FIELDS
+                        }
+                    )
+            return metadata
+
+        Path.lstat = swapped_lstat
+        try:
+            must_fail(
+                lambda: site_dist.stable_read_regular_file(target, max_bytes=32),
+                "changed during",
+            )
+        finally:
+            Path.lstat = original_lstat
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        real_parent = root / "real-parent"
+        real_parent.mkdir()
+        linked_parent = root / "linked-parent"
+        linked_parent.symlink_to(real_parent, target_is_directory=True)
+        must_fail(
+            lambda: site_dist.build_site_dist(
+                site_dist.SOURCE_ROOT,
+                linked_parent / "site-dist",
+            ),
+            "ancestor must not be a symlink",
+        )
 
     print("site dist: PASS")
 

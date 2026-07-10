@@ -180,6 +180,13 @@ literal same-origin paths; targets are checked only as response `Location`
 values and are never followed or fetched. Clean HTML routes, raw `.html`
 routes, directory indexes, and local wildcard collisions are considered when
 the staged builder excludes redirect-shadowed source files.
+The three canonical wildcard sources must all be present with the exact HTTPS
+apex target; comments do not satisfy that contract. Redirect probes share a
+30-second deadline and the complete live request plan is count-bounded.
+Every staged public response must also match the effective `Cache-Control`
+value produced by the global and route-specific `_headers` rules: HTML keeps
+`no-transform`, mutable code/evidence uses `no-store`, and versioned media uses
+the declared immutable policy.
 
 `site/claim-evidence.json` maps each public website claim to the exact local
 evidence files, evidence values, validation commands, and non-claims that bound

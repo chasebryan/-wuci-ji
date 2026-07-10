@@ -81,7 +81,9 @@ and non-finite JSON, requires the exact locally derived response-name set, and
 enforces fixed response-count, header, decoded per-body, and aggregate caps.
 Redirect probes are limited to the three canonical apex/`www` wildcard sources
 plus literal same-origin paths; redirect targets are compared as `Location`
-values and are never fetched.
+values and are never fetched. Redirect and total response counts are capped,
+and sequential redirect probes share one deadline. Live site responses must
+match the exact effective cache policy derived from staged `_headers` rules.
 
 ## ZP-1 / Wuci-Ji Coupling
 

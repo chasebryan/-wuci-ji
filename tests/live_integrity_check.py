@@ -172,11 +172,17 @@ def passing_responses() -> dict[str, live.Response]:
         ),
     }
     global_headers = live.site_global_headers(local_site.configs["_headers"])
+    cache_rules = live.site_cache_control_rules(local_site.configs["_headers"])
     for artifact in local_site.artifacts:
         headers = {
             **global_headers,
             "content-type": f"{artifact.media_type}; charset=utf-8",
         }
+        expected_cache = live.expected_site_cache_control(cache_rules, artifact.url)
+        if expected_cache is None:
+            headers.pop("cache-control", None)
+        else:
+            headers["cache-control"] = expected_cache
         responses[artifact.response_name] = response(
             artifact.status,
             artifact.url,
@@ -275,6 +281,16 @@ def main() -> None:
     assert len(gzip.compress(INDEX_BYTES, compresslevel=9, mtime=0)) == 59
     assert len(gzip.compress(APP_BYTES, compresslevel=9, mtime=0)) == 56
     local_site = canonical_local_site_build()
+    cache_rules = live.site_cache_control_rules(local_site.configs["_headers"])
+    assert live.expected_site_cache_control(
+        cache_rules, f"{live.SITE_ORIGIN}/app.js"
+    ) == "no-store"
+    assert live.expected_site_cache_control(
+        cache_rules, f"{live.SITE_ORIGIN}/assets/wuci-ji-systems-hero.jpg"
+    ) == "public, max-age=31536000, immutable"
+    assert "no-transform" in (
+        live.expected_site_cache_control(cache_rules, live.SITE_APEX) or ""
+    )
     assert all(
         redirect.url.startswith(
             (
@@ -303,11 +319,36 @@ def main() -> None:
             b"//127.0.0.1/internal / 302\n",
             "safe canonical path",
         ),
+        (
+            b"http://nosuchmachine.net/* http://127.0.0.1/:splat 301\n"
+            b"http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+            b"https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n",
+            "wildcard line",
+        ),
+        (
+            b"# http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+            b"# http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+            b"# https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+            b"/repo https://github.com/chasebryan/-wuci-ji 302\n",
+            "wildcard set is not exact",
+        ),
     ]:
         assert_value_error(
             lambda content=invalid_redirect: live.parse_site_redirects(content),
             expected_error,
         )
+    redirect_overflow = (
+        b"http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+        b"http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+        b"https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+        + b"".join(
+            f"/overflow-{index} / 302\n".encode("ascii") for index in range(30)
+        )
+    )
+    assert_value_error(
+        lambda: live.parse_site_redirects(redirect_overflow),
+        "redirect-count budget",
+    )
     assert_passes(passing_responses())
     assert all(not spec.follow_redirects for spec in live.REQUEST_PLAN)
     assert all(
@@ -382,6 +423,60 @@ def main() -> None:
     assert sum(limit for _, limit in site_calls.values()) == sum(
         len(artifact.content) for artifact in local_site.artifacts
     )
+    redirect_names = {redirect.response_name for redirect in local_site.redirects}
+    redirect_calls = [
+        (timeout, limit)
+        for spec, timeout, limit in capture_calls
+        if spec.name in redirect_names
+    ]
+    assert len(redirect_calls) == len(local_site.redirects)
+    assert all(
+        timeout <= live.MAX_REDIRECT_REQUEST_SECONDS and limit == 4096
+        for timeout, limit in redirect_calls
+    )
+
+    deadline_fetches: list[str] = []
+    original_fetch = live.fetch
+    original_monotonic = live.time.monotonic
+    clock = iter(
+        [0.0, 0.0]
+        + [live.MAX_REDIRECT_CAPTURE_SECONDS + 1.0] * len(local_site.redirects)
+    )
+
+    def deadline_fetch(
+        spec: live.RequestSpec,
+        *,
+        timeout: float = 12.0,
+        max_body_bytes: int = live.MAX_RESPONSE_BYTES,
+    ) -> live.Response:
+        deadline_fetches.append(spec.name)
+        return response(200, spec.url)
+
+    live.fetch = deadline_fetch
+    live.time.monotonic = lambda: next(clock)
+    try:
+        deadline_responses = live.capture_redirects(local_site)
+    finally:
+        live.fetch = original_fetch
+        live.time.monotonic = original_monotonic
+    assert deadline_fetches == [local_site.redirects[0].response_name]
+    assert all(
+        deadline_responses[redirect.response_name].status == 0
+        for redirect in local_site.redirects[1:]
+    )
+
+    original_total_plan = live.MAX_TOTAL_RESPONSE_PLAN
+    try:
+        live.MAX_TOTAL_RESPONSE_PLAN = 1
+        assert_value_error(
+            lambda: live.expected_snapshot_response_limits(
+                canonical_local_build(),
+                local_site,
+            ),
+            "total-count budget",
+        )
+    finally:
+        live.MAX_TOTAL_RESPONSE_PLAN = original_total_plan
 
     case = passing_responses()
     case["bottle_api"] = replace(
@@ -428,6 +523,39 @@ def main() -> None:
         "site-artifact-assets/wuci-ji-systems-hero.jpg-exact-bytes",
     )
 
+    case = passing_responses()
+    case[media_name] = replace(
+        case[media_name],
+        headers={
+            **case[media_name].headers,
+            "cache-control": "public, max-age=0, must-revalidate, no-transform",
+        },
+    )
+    assert_rejects(
+        case,
+        "site-artifact-assets/wuci-ji-systems-hero.jpg-cache-control-policy",
+    )
+
+    case = passing_responses()
+    case["site_app_js"] = replace(
+        case["site_app_js"],
+        headers={
+            **case["site_app_js"].headers,
+            "cache-control": "public, max-age=0, must-revalidate, no-transform",
+        },
+    )
+    assert_rejects(case, "site-app-js-cache-control-policy")
+
+    case = passing_responses()
+    case["site_bottle_status"] = replace(
+        case["site_bottle_status"],
+        headers={
+            **case["site_bottle_status"].headers,
+            "cache-control": "public, max-age=86400",
+        },
+    )
+    assert_rejects(case, "site-bottle-status-cache-control-policy")
+
     inventory_name = live.site_response_name(site_dist.INVENTORY_NAME)
     case = passing_responses()
     inventory = json.loads(case[inventory_name].body)
@@ -471,6 +599,42 @@ def main() -> None:
     manifest["unexpected"] = True
     replace_manifest(case, manifest)
     assert_rejects(case, "bottle-manifest-exact-fields")
+
+    for response_name, invalid_body, expected_check in [
+        (
+            "bottle_manifest",
+            b'{"schema":"nsm.daylight-bottle.release-manifest.v1","schema":"duplicate"}',
+            "bottle-manifest-json",
+        ),
+        (
+            "bottle_manifest",
+            b'{"schema":NaN}',
+            "bottle-manifest-json",
+        ),
+        (
+            "bottle_api",
+            b'{"schema":"nsm.daylight-bottle.list.response.v1","schema":"duplicate","bottles":[]}',
+            "bottle-api-exact-fields",
+        ),
+        (
+            "bottle_api",
+            b'{"schema":"nsm.daylight-bottle.list.response.v1","bottles":NaN}',
+            "bottle-api-exact-fields",
+        ),
+        (
+            "bottle_keyring",
+            b'{"schema":"nsm.daylight-bottle.keyring.v1","schema":"duplicate","updatedAt":"2026-07-07T00:00:00.000Z","keys":[]}',
+            "bottle-keyring-schema-and-records",
+        ),
+        (
+            "bottle_keyring",
+            b'{"schema":"nsm.daylight-bottle.keyring.v1","updatedAt":"2026-07-07T00:00:00.000Z","keys":NaN}',
+            "bottle-keyring-schema-and-records",
+        ),
+    ]:
+        case = passing_responses()
+        case[response_name] = replace(case[response_name], body=invalid_body)
+        assert_rejects(case, expected_check)
 
     case = passing_responses()
     manifest = json.loads(case["bottle_manifest"].body)
