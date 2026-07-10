@@ -2,28 +2,39 @@
 
 The website is a static site in `site/`. Deploy from the repository root.
 
-## GitHub Pages Deploy
+## Production: Cloudflare Pages
 
-The repository includes `.github/workflows/pages.yml`. On pushes to `main`
-that touch the site, the workflow runs `make site-validate`, uploads `site/`,
-and deploys it through GitHub Pages.
+The canonical site at `https://nosuchmachine.net/` is served by Cloudflare
+Pages project `wuci-ji`. The production deployment is a direct upload of the
+validated `site/` directory with production branch metadata set to `main`.
+Cloudflare honors `site/_headers` and `site/_redirects`.
 
-Required repository settings:
+The global HTML response policy includes `Cache-Control: no-transform` so the
+edge cannot inject Cloudflare Web Analytics or other transformed markup. More
+specific static-asset and evidence rules detach that cache header before
+applying their own cache policy. Do not enable browser analytics or remove
+`no-transform` without an explicit privacy/CSP review.
 
-```text
-Pages source: GitHub Actions
-Custom domain: nosuchmachine.net
-Enforce HTTPS: enabled
+Authenticate and verify the target before publishing:
+
+```sh
+npm run cloudflare:whoami
+WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false \
+  npx --no-install wrangler pages deployment list --project-name wuci-ji
 ```
 
-Required DNS:
+Publish only from a clean, committed checkout:
 
-```text
-nosuchmachine.net      A/AAAA or ALIAS/ANAME for GitHub Pages
-www.nosuchmachine.net  CNAME to chasebryan.github.io
+```sh
+make site-validate
+git status --short
+npm run deploy
 ```
 
-After each DNS or Pages settings change, verify:
+The deploy command does not run validation itself. A dirty checkout or a
+failed `make site-validate` is a release stop condition.
+
+After every production deployment, verify:
 
 ```sh
 make site-live-check
@@ -31,13 +42,14 @@ make site-live-check
 
 The expected hosted state is a valid HTTPS certificate, canonical
 `https://nosuchmachine.net/`, HTTP redirected to HTTPS, `www` redirected to the
-apex domain, and `/.well-known/security.txt` served as public text. GitHub
-Pages controls certificate issuance and the Enforce HTTPS toggle; repository
-files cannot prove that hosted setting by themselves.
+apex domain, `/.well-known/security.txt` served as public text, and all
+release-specific live markers present. Repository files cannot prove the live
+host state by themselves.
 
 `make site-live-check` is intentionally stricter than `make site-validate`: it
 checks the deployed public host and fails if HTTP still serves `200 OK`, HSTS is
-missing, discovery files, `codemeta.json`, `hosting-requirements.json`, or
+missing, browser-like HTML differs from the committed page, an analytics beacon
+is injected, discovery files, `codemeta.json`, `hosting-requirements.json`, or
 `claim-evidence.json` are unavailable, or the official Wuci-Ji assets are not
 live.
 
@@ -46,12 +58,6 @@ live.
 canonical HTTPS apex URL. This improves browser behavior if a host setting
 regresses, but it is not a replacement for a server-side 301/308 redirect,
 HSTS, or Cloudflare Always Use HTTPS.
-
-## Cloudflare Pages Git Deploy
-
-Cloudflare Pages is an alternate deploy path. Unlike GitHub Pages, it honors
-`site/_headers` and `site/_redirects`, so those files are kept as checked
-deployment metadata even when the active hosted path is GitHub Pages.
 
 Use these settings:
 
@@ -69,6 +75,18 @@ custom domain binding, headers, redirects, or local references are missing.
 
 The repository includes `.nvmrc`, `.node-version`, `package.json`, and
 `package-lock.json` so the root build has a concrete Node/npm setup.
+
+## Secondary: GitHub Pages
+
+The repository also includes `.github/workflows/pages.yml`. On pushes to
+`main` that touch the site, the workflow runs `make site-validate`, uploads
+`site/`, and deploys through GitHub Pages. This is a secondary deployment path;
+it does not update the Cloudflare-served canonical origin.
+
+GitHub Pages can retain the same validated artifact as a fallback deployment,
+but failover requires an explicit DNS/origin decision and another live check.
+A green GitHub Pages workflow is not proof that `nosuchmachine.net` received
+the Cloudflare production upload.
 
 ## Daylight evidence binding
 
@@ -102,6 +120,7 @@ site/llms.txt
 site/humans.txt
 site/security.txt
 site/.well-known/security.txt
+site/noether-forge-status.json
 site/aperture-status.json
 site/daylight-status.json
 ```
@@ -136,7 +155,7 @@ Cloudflare Pages also supports static HTML sites without a framework. For no
 framework, Cloudflare documents a custom build command and a custom build output
 directory; the build output directory is where the site content lives.
 
-## Direct Wrangler Deploy
+## Direct Wrangler Deploy Details
 
 Authenticate once:
 
@@ -145,15 +164,25 @@ npm run cloudflare:login
 npm run cloudflare:whoami
 ```
 
-For Cloudflare Pages direct upload:
+For the standard Cloudflare Pages direct upload:
 
 ```sh
 npm run build
 npm run deploy
 ```
 
-The root `wrangler.toml` points Pages at `site/`. The deploy script pins the
-deployment branch to `main`.
+The deploy script pins project `wuci-ji`, directory `site/`, and deployment
+branch `main`. For an evidence-bound manual deployment, Wrangler also accepts
+explicit `--commit-hash`, `--commit-message`, and `--commit-dirty=false`
+metadata. Record the resulting deployment ID and run `make site-live-check`.
+
+```sh
+COMMIT_SHA=$(git rev-parse HEAD)
+WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false \
+  npx --no-install wrangler pages deploy site \
+  --project-name wuci-ji --branch main \
+  --commit-hash "$COMMIT_SHA" --commit-dirty=false
+```
 
 For token-based deploys, keep the token outside git:
 
@@ -195,6 +224,7 @@ site/llms.txt
 site/humans.txt
 site/security.txt
 site/.well-known/security.txt
+site/noether-forge-status.json
 site/aperture-status.json
 site/daylight-status.json
 site/assets/

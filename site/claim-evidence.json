@@ -3,7 +3,7 @@
   "project": "wuci-ji",
   "surface": "Wuci-Ji v2.2 — Aperture Bastion website",
   "canonical_url": "https://nosuchmachine.net/",
-  "last_updated": "2026-07-09",
+  "last_updated": "2026-07-10",
   "purpose": "Map public website claims to the local evidence files and commands that can check them.",
   "claim_boundary": "Every listed claim is repository-local or hosted-site evidence only; no listed claim is external certification, production cryptography, runtime containment, host-cleanliness proof, or independent audit completion.",
   "primary_validation": [
@@ -36,6 +36,46 @@
       "does_not_prove": [
         "brand trademark registration",
         "external certification"
+      ]
+    },
+    {
+      "id": "noether-forge-source-only-review",
+      "public_claim": "The website publishes WuciOS 2.4.0 Noether Forge as a source-only external review candidate and does not offer its ISO or upstream binary payloads.",
+      "status": "review-requested; distribution-mode-source-only; binary-publication-not-authorized",
+      "evidence_paths": [
+        "site/index.html",
+        "site/wucios.html",
+        "site/noether-forge-status.json",
+        "site/llms.txt",
+        "site/humans.txt",
+        "tools/site_live_check.py"
+      ],
+      "evidence_values": {
+        "release_id": "noether-forge-v2.4.0",
+        "reviewed_commit": "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+        "distribution_mode": "source-only",
+        "official_release": false,
+        "public_release_authorized": false,
+        "binary_assets_published": false,
+        "substrate": "Alpine Linux 3.24.1 x86_64",
+        "locked_apk_payload_count": 52,
+        "repeat_build_scope": "one clean checkout and host toolchain",
+        "virtual_boot_lanes": [
+          "QEMU SeaBIOS",
+          "QEMU OVMF/UEFI"
+        ]
+      },
+      "validation_commands": [
+        "make site-validate",
+        "make site-live-check"
+      ],
+      "does_not_prove": [
+        "binary redistribution clearance or authorization",
+        "cross-host reproducibility",
+        "reference physical-hardware validation",
+        "external certification or independent audit",
+        "general runtime sandboxing or OS containment",
+        "legal advice or an export classification"
       ]
     },
     {

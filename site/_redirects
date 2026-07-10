@@ -11,6 +11,6 @@ https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301
 /docs/defense-assurance-roadmap https://github.com/chasebryan/-wuci-ji/blob/main/docs/DEFENSE_ASSURANCE_ROADMAP.md 302
 /docs/defense-assurance-contingencies https://github.com/chasebryan/-wuci-ji/blob/main/docs/DEFENSE_ASSURANCE_CONTINGENCIES.md 302
 /docs/defense-assurance-control-map https://github.com/chasebryan/-wuci-ji/blob/main/docs/DEFENSE_ASSURANCE_CONTROL_MAP.md 302
-/docs/wuci-os https://github.com/chasebryan/-wuci-ji/blob/main/docs/WUCI_OS.md 302
+/docs/wuci-os /wucios.html 302
 /docs/production-readiness https://github.com/chasebryan/-wuci-ji/blob/main/docs/PRODUCTION_READINESS.md 302
 /security.txt /.well-known/security.txt 301

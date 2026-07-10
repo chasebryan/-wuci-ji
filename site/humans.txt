@@ -4,8 +4,19 @@ https://nosuchmachine.net/
 Repository:
 https://github.com/chasebryan/-wuci-ji
 
-Current public surface:
-Wuci-Ji v2.2 — Aperture Bastion
+Current WuciOS public surface:
+WuciOS 2.4.0 Noether Forge — source-only external review candidate
+https://nosuchmachine.net/wucios.html
+https://nosuchmachine.net/noether-forge-status.json
+
+Review subject:
+https://github.com/chasebryan/-wuci-ji/pull/30
+Commit: 00171c4cbd377f7c3c200c8a2493ad42c90a1207
+
+Publication boundary:
+No Noether Forge ISO or upstream binary payload is published. The candidate is
+not an official or production release, binary redistribution authorization,
+external certification, or independent audit.
 
 Official No Such Machine / Wuci-Ji emblem:
 https://nosuchmachine.net/assets/wuci-ji-official-emblem.jpg
@@ -36,15 +47,6 @@ https://nosuchmachine.net/hosting-requirements.json
 Claim/evidence map:
 https://nosuchmachine.net/claim-evidence.json
 
-WuciOS v2.4 reviewer/status baseline:
-https://nosuchmachine.net/wucios.html
-Score: 96.0 / 100.0
-Canonical artifact SHA-256:
-95f3cb750357eeb2cd840ddfc7b62c6addf08b2d66079871a4d8e8efdd9ae45f
-Boundary:
-No production readiness, external validation, full runtime validation,
-bootability validation, or operational deployment approval is claimed.
-
 Purpose:
 Defensive, evidence-bound, public-review research artifacts with explicit
 claim boundaries.
@@ -52,8 +54,12 @@ claim boundaries.
 Build:
 Static HTML, CSS, and JavaScript from the repository site/ directory.
 
-Deployment:
-GitHub Pages from the main branch.
+Production deployment:
+Cloudflare Pages project wuci-ji from a validated clean repository commit.
+
+Secondary deployment:
+GitHub Pages workflow from the main branch.
 
 Validation:
 make site-validate
+make site-live-check
