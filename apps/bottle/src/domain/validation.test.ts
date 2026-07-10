@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_DROP_BODY_BYTES,
+  assertListCursor,
   isValidKeyname,
   normalizeKeyname,
   parseDaylightBottleEvidence,
   parseDropBottleRequest,
   parseKeyring,
+  parseListBottlesResponse,
   parsePlainBottlePayload
 } from "./validation";
 import { SCHEMAS, type DaylightBottleEvidence, type KeyRecord } from "./types";
@@ -65,6 +68,27 @@ describe("drop request validation", () => {
     expect(() => parseDropBottleRequest({ ...base, createdAtClient: "2026-02-31T00:00:00.000Z" })).toThrow(
       /valid canonical/
     );
+  });
+
+  it("rejects pathologically deep request structures with a controlled validation error", () => {
+    let nested: unknown = "ciphertext";
+    for (let depth = 0; depth < 40; depth += 1) {
+      nested = { wrapper: nested };
+    }
+
+    expect(() => parseDropBottleRequest(nested)).toThrow(/validation complexity limit/);
+  });
+
+  it("rejects ciphertext that exceeds the server request boundary", () => {
+    expect(() =>
+      parseDropBottleRequest({
+        schema: SCHEMAS.drop,
+        keyname: "daylight/chase",
+        recipientFingerprint: `sha256:${"a".repeat(64)}`,
+        ciphertext: "x".repeat(MAX_DROP_BODY_BYTES + 1),
+        createdAtClient: "2026-07-07T00:00:00.000Z"
+      })
+    ).toThrow(/maximum bottle request size/);
   });
 });
 
@@ -137,6 +161,18 @@ describe("versioned record validation", () => {
         expiresAt: "2026-07-07T12:00:00.000Z"
       })
     ).toThrow(/expiry/);
+  });
+
+  it("validates opaque request cursors without changing the v1 list response schema", () => {
+    expect(assertListCursor("opaque_page-2")).toBe("opaque_page-2");
+    expect(() => assertListCursor("bad\ncursor")).toThrow(/cursor/);
+    expect(() =>
+      parseListBottlesResponse({
+        schema: SCHEMAS.listResponse,
+        bottles: [],
+        nextCursor: "schema-change-not-allowed"
+      })
+    ).toThrow(/Unexpected field/);
   });
 });
 

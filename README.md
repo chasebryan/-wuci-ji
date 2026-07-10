@@ -253,7 +253,8 @@ The TypeScript client uses the installed `age-encryption` package through a
 small adapter. The same-origin Worker API accepts ciphertext and public metadata;
 private identities, passphrases, plaintext messages, and decrypted bodies stay
 in the browser. The MVP keyring is manually curated and has no public
-self-registration endpoint.
+self-registration endpoint. New drops are accepted only when the keyname and
+fingerprint match an active record bundled from that keyring.
 
 ```sh
 cd apps/bottle
@@ -267,6 +268,13 @@ bundle/header verification, and a Wrangler dry run. Read
 [apps/bottle/README.md](apps/bottle/README.md) for the architecture and
 [apps/bottle/DEPLOYMENT.md](apps/bottle/DEPLOYMENT.md) for deployment and
 rollback.
+
+Each production build also emits a versioned same-origin release manifest that
+binds the source commit, build inputs, keyring, security headers, Worker source,
+artifact hashes, and explicit raw/gzip budgets. It is self-published provenance,
+not independent attestation. The checked-in keyring remains empty until an
+operator approves a public record whose private identity is held elsewhere, and
+the Worker rejects every drop until an active record is approved.
 
 > [!WARNING]
 > Daylight evidence records what the service accepted; it is not encryption and

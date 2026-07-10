@@ -68,5 +68,19 @@ jobs:
       - name: Verify same-origin production bundle
         run: npm run verify:bundle
 
+      - name: Verify clean release source binding
+        run: npm run validate:release-source
+
       - name: Dry-run Worker and static-assets deployment
         run: npm run wrangler:dry-run
+
+      - name: Retain validated static and Worker dry-run bundles
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        with:
+          name: daylight-bottle-validated-release-${{ github.sha }}
+          path: |
+            apps/bottle/dist/
+            apps/bottle/.wrangler/dry-run/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30

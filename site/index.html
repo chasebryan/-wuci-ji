@@ -9,19 +9,19 @@
     <meta name="author" content="No Such Machine">
     <meta name="creator" content="No Such Machine">
     <meta name="publisher" content="No Such Machine">
-    <meta name="description" content="Public evidence, review capsules, and claim-boundary documentation for Wuci-Ji defensive machine-code research.">
+    <meta name="description" content="Wuci-Ji public evidence, review capsules, claim boundaries, and a Daylight Bottle public preview with recipient activation pending.">
     <meta name="robots" content="index, follow">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#080807">
     <meta property="og:title" content="No Such Machine — Wuci-Ji Public Evidence Surface">
-    <meta property="og:description" content="Evidence-bound public review surface for Wuci-Ji defensive machine-code research.">
+    <meta property="og:description" content="Evidence-bound Wuci-Ji review surfaces and a Daylight Bottle public preview with recipient activation pending.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://nosuchmachine.net/">
     <meta property="og:image" content="https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg">
     <meta property="og:site_name" content="No Such Machine">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="No Such Machine — Wuci-Ji Public Evidence Surface">
-    <meta name="twitter:description" content="Public evidence, review capsules, and claim-boundary documentation for Wuci-Ji defensive machine-code research.">
+    <meta name="twitter:description" content="Wuci-Ji public evidence, claim boundaries, and a Daylight Bottle public preview with recipient activation pending.">
     <meta name="twitter:image" content="https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg">
     <link rel="canonical" href="https://nosuchmachine.net/">
     <link rel="manifest" href="site.webmanifest">
@@ -38,7 +38,7 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header" data-header>
       <a class="brand" href="#main-content" aria-label="No Such Machine home">
-        <img class="brand-mark" src="assets/no-such-machine-official-emblem.svg" alt="" aria-hidden="true" width="1254" height="1254" decoding="async">
+        <img class="brand-mark" src="favicon.png" alt="" aria-hidden="true" width="256" height="256" decoding="async">
         <span class="brand-copy">
           <strong>No Such Machine</strong>
           <small>Wuci-Ji / 无此机</small>
@@ -47,6 +47,7 @@
       <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
         <a href="#evidence">Evidence</a>
         <a href="#daylight">Daylight</a>
+        <a href="#bottle">Bottle</a>
         <a href="#wucios">WuciOS</a>
         <a href="#catalog">Catalog</a>
         <a href="product-boundary.html">Boundary</a>
@@ -72,6 +73,7 @@
                 </p>
                 <div class="hero-actions" aria-label="Primary actions">
                   <a class="button primary" href="#evidence">Inspect evidence</a>
+                  <a class="button secondary" href="https://bottle.nosuchmachine.net/">Preview Daylight Bottle</a>
                   <a class="button secondary" href="product-boundary.html">Read claim boundary</a>
                 </div>
               </div>
@@ -113,6 +115,47 @@
         <div>
           <strong>Evidence-bound public review</strong>
           <span>NoEvidence(x) -&gt; NoClaim(x). NoProof(x) -&gt; NoRelease(x).</span>
+        </div>
+      </section>
+
+      <section class="nsm-section nsm-review-surface" id="bottle" aria-labelledby="bottle-title">
+        <div class="nsm-shell">
+          <div class="section-heading nsm-heading">
+            <div>
+              <p class="eyebrow">Public preview · recipient activation pending</p>
+              <h2 id="bottle-title">Daylight Bottle uses a browser-local encryption path before its API request.</h2>
+            </div>
+            <p>
+              With a manually approved recipient record, the implemented browser
+              client encrypts before upload and decrypts after ciphertext retrieval.
+              The same-origin service accepts ciphertext and public metadata.
+            </p>
+          </div>
+          <div class="nsm-card-grid">
+            <article class="nsm-bastion-card">
+              <span>local content boundary</span>
+              <h3>Browser-local encryption path</h3>
+              <p>In the reviewed client flow, messages are encrypted before upload. Private identities, passphrases, and decrypted bodies are not API fields.</p>
+              <p class="does-not">Does not prove: uncompromised JavaScript delivery, browser integrity, or device integrity.</p>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>curated recipient directory</span>
+              <h3>No public key registration</h3>
+              <p>Recipients create identities locally, verify their saved private file, and submit only a public record for manual owner review.</p>
+              <p class="does-not">Does not prove: a keyname holder's real-world identity.</p>
+            </article>
+            <article class="nsm-bastion-card">
+              <span>inspectable receipt</span>
+              <h3>Evidence is visible</h3>
+              <p>Accepted bottles receive public metadata, a ciphertext digest, retention timestamps, and a same-origin evidence URL.</p>
+              <p class="does-not">Does not prove: the server was honest or never observed plaintext outside the implemented request path.</p>
+            </article>
+          </div>
+          <div class="hero-actions" aria-label="Daylight Bottle actions">
+            <a class="button primary" href="https://bottle.nosuchmachine.net/">Preview Daylight Bottle</a>
+            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/tree/main/apps/bottle">Inspect the source</a>
+            <a class="text-link" href="https://bottle.nosuchmachine.net/#threat">Read the threat model</a>
+          </div>
         </div>
       </section>
 
@@ -482,10 +525,11 @@
 
     <footer class="site-footer nsm-footer">
       <div class="footer-brand">
-        <img src="assets/no-such-machine-official-emblem.svg" alt="" aria-hidden="true" width="1254" height="1254" loading="lazy" decoding="async">
+        <img src="favicon.png" alt="" aria-hidden="true" width="256" height="256" loading="lazy" decoding="async">
         <span>No Such Machine</span>
       </div>
       <a href="https://github.com/chasebryan/-wuci-ji/blob/main/README.md">README</a>
+      <a href="https://bottle.nosuchmachine.net/">Daylight Bottle</a>
       <a href="wucios.html">WuciOS v2.4</a>
       <a href="product-boundary.html">Product boundary</a>
       <a href="https://github.com/chasebryan/-wuci-ji">Repository</a>

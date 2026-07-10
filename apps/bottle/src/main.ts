@@ -3,6 +3,7 @@ import { renderDropBottle } from "./ui/DropBottle";
 import { renderOpenBottles } from "./ui/OpenBottles";
 import { renderThreatModel } from "./ui/ThreatModel";
 import { h, type ViewRenderer } from "./ui/dom";
+import { clearNavigationGuard, confirmNavigationAway } from "./ui/navigationGuard";
 
 type ViewId = "create" | "drop" | "open" | "threat";
 
@@ -24,11 +25,21 @@ const viewRoot = h("main", {
 });
 const nav = h("nav", { className: "tabs", attrs: { "aria-label": "Daylight Bottle views" } });
 const links = new Map<ViewId, HTMLAnchorElement>();
+const initialView = readViewFromHash();
+let currentViewId: ViewId = initialView;
+const shortCommit = /^[0-9a-f]{40}$/.test(__DAYLIGHT_SOURCE_COMMIT__)
+  ? __DAYLIGHT_SOURCE_COMMIT__.slice(0, 12)
+  : "unavailable";
 
 for (const view of views) {
   const link = h("a", {
     text: view.label,
     attrs: { href: `#${view.id}` }
+  });
+  link.addEventListener("click", (event) => {
+    if (view.id !== currentViewId && !confirmNavigationAway()) {
+      event.preventDefault();
+    }
   });
   links.set(view.id, link);
   nav.append(link);
@@ -66,12 +77,24 @@ root.replaceChildren(
       ]),
       nav
     ]),
-    viewRoot
+    viewRoot,
+    h("footer", { className: "app-footer" }, [
+      h("div", {}, [
+        h("p", { className: "app-footer-title", text: `Build ${shortCommit} · ${__DAYLIGHT_TREE_STATE__} source tree` }),
+        h("p", {
+          text: "The same-origin release manifest binds source metadata, asset hashes, the keyring, security headers, and size budgets. It is self-published provenance—not independent attestation or proof of uncompromised delivery."
+        })
+      ]),
+      h("a", {
+        className: "button-link button-secondary button-compact",
+        text: "Inspect Release Manifest",
+        attrs: { href: "/release-manifest.json", target: "_blank", rel: "noopener" }
+      })
+    ])
   ])
 );
 
 let activationId = 0;
-const initialView = readViewFromHash();
 if (window.location.hash !== `#${initialView}`) {
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${initialView}`);
 }
@@ -79,6 +102,24 @@ void activateView(initialView, false);
 
 window.addEventListener("hashchange", () => {
   const viewId = readViewFromHash();
+  if (viewId === currentViewId) {
+    if (window.location.hash !== `#${viewId}`) {
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}#${viewId}`
+      );
+    }
+    return;
+  }
+  if (viewId !== currentViewId && !confirmNavigationAway()) {
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}#${currentViewId}`
+    );
+    return;
+  }
   if (window.location.hash !== `#${viewId}`) {
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${viewId}`);
   }
@@ -90,6 +131,9 @@ async function activateView(viewId: ViewId, focusHeading: boolean): Promise<void
   if (!view) {
     return;
   }
+
+  clearNavigationGuard();
+  currentViewId = viewId;
 
   const currentActivation = ++activationId;
   for (const [id, link] of links.entries()) {

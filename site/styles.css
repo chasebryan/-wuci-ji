@@ -2026,6 +2026,30 @@ figure:hover figcaption {
     display: flex;
   }
 
+  .site-header:not([data-header]) {
+    align-items: start;
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  .site-header:not([data-header]) .site-nav {
+    display: flex;
+    flex: 1 0 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    height: auto;
+    overflow: visible;
+    padding: 8px 0 0;
+    position: static;
+    width: auto;
+  }
+
+  .site-header:not([data-header]) .site-nav a {
+    border-bottom: 0;
+    padding: 8px 0;
+  }
+
   .site-nav a {
     padding: 16px 2px;
     border-bottom: 1px solid rgba(244, 241, 232, 0.08);

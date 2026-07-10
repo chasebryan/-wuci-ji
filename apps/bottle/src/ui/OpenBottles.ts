@@ -1,4 +1,4 @@
-import { listBottles, loadKeyring } from "../api/client";
+import { listBottlePage, loadKeyring } from "../api/client";
 import {
   decryptBottlePayloadForRecipient,
   verifyPrivateIdentityMatchesKeyRecord
@@ -7,6 +7,7 @@ import type { KeyRecord, PlainBottlePayload, StoredBottlePublic } from "../domai
 import { MAX_PRIVATE_IDENTITY_BYTES } from "../domain/validation";
 import {
   copyButton,
+  formatFingerprint,
   h,
   labeledField,
   setBusy,
@@ -17,6 +18,12 @@ import {
 } from "./dom";
 
 const textEncoder = new TextEncoder();
+
+export type OpenFailureStage = "selection" | "identity" | "lookup";
+
+export function shouldMarkIdentityInvalid(stage: OpenFailureStage): boolean {
+  return stage === "identity";
+}
 
 export async function renderOpenBottles(container: HTMLElement): Promise<void> {
   const keySelect = h("select", {
@@ -31,12 +38,12 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
     className: "recipient-details",
     attrs: { "aria-live": "polite", "aria-atomic": "true" }
   });
-  const identityInput = h("textarea", {
+  const identityInput = h("input", {
     className: "private-identity-input",
     attrs: {
       id: "private-identity",
       name: "privateIdentity",
-      rows: "5",
+      type: "password",
       autocomplete: "off",
       autocapitalize: "none",
       spellcheck: "false",
@@ -44,6 +51,27 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
       placeholder: "Paste AGE-SECRET-KEY-1... here, or import the private identity file."
     }
   });
+  const revealIdentity = h("button", {
+    className: "button-secondary button-compact",
+    text: "Show Identity",
+    attrs: {
+      type: "button",
+      "aria-controls": "private-identity",
+      "aria-pressed": "false"
+    }
+  });
+  revealIdentity.addEventListener("click", () => {
+    const reveal = identityInput.type === "password";
+    identityInput.type = reveal ? "text" : "password";
+    revealIdentity.textContent = reveal ? "Hide Identity" : "Show Identity";
+    revealIdentity.setAttribute("aria-pressed", reveal ? "true" : "false");
+  });
+  const identityField = labeledField(
+    "Private identity",
+    identityInput,
+    "Prefer file import. Pasted values are masked, but clipboard history may retain secrets. The identity stays in this browser, is cleared before lookup, and is never uploaded."
+  );
+  identityField.append(revealIdentity);
   const fileInput = h("input", {
     attrs: {
       id: "identity-file",
@@ -68,11 +96,7 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
       "Revoked records remain available here so their historical bottles can still be opened."
     ),
     recipientDetails,
-    labeledField(
-      "Private identity",
-      identityInput,
-      "This value stays in this browser, is cleared from the form before lookup, and is never uploaded."
-    ),
+    identityField,
     labeledField(
       "Import identity file",
       fileInput,
@@ -83,15 +107,22 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
 
   let availableKeys: KeyRecord[] = [];
   let busy = true;
+  let nextCursor: string | undefined;
+  let cursorFingerprint: string | undefined;
 
   const selectedKey = (): KeyRecord | undefined =>
     availableKeys.find((key) => key.fingerprint === keySelect.value);
 
   const syncControls = (): void => {
+    const selected = selectedKey();
     keySelect.disabled = busy || availableKeys.length === 0;
     identityInput.readOnly = busy;
     fileInput.disabled = busy;
-    submit.disabled = busy || selectedKey() === undefined;
+    submit.disabled = busy || selected === undefined;
+    submit.textContent =
+      selected && cursorFingerprint === selected.fingerprint && nextCursor
+        ? "Fetch Next Candidate Page"
+        : "Fetch and Open Bottles";
     setBusy(form, busy);
   };
 
@@ -118,7 +149,7 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
         h("dt", { text: "Fingerprint" }),
         h("dd", {}, [
           h("div", { className: "inline-copy" }, [
-            h("code", { className: "code-value fingerprint", text: selected.fingerprint }),
+            h("code", { className: "code-value fingerprint", text: formatFingerprint(selected.fingerprint) }),
             copyButton(selected.fingerprint, "Copy Fingerprint")
           ])
         ])
@@ -131,6 +162,7 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     identityInput.removeAttribute("aria-invalid");
+    fileInput.removeAttribute("aria-invalid");
     if (!file) {
       return;
     }
@@ -138,7 +170,7 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
     identityInput.value = "";
     if (file.size > MAX_PRIVATE_IDENTITY_BYTES) {
       fileInput.value = "";
-      identityInput.setAttribute("aria-invalid", "true");
+      fileInput.setAttribute("aria-invalid", "true");
       setStatus(
         status,
         `The identity file is ${formatBytes(file.size)}, above the ${formatBytes(MAX_PRIVATE_IDENTITY_BYTES)} limit.`,
@@ -155,11 +187,14 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
         throw new Error(`The decoded identity exceeds the ${formatBytes(MAX_PRIVATE_IDENTITY_BYTES)} limit.`);
       }
       identityInput.value = privateIdentity;
+      identityInput.type = "password";
+      revealIdentity.textContent = "Show Identity";
+      revealIdentity.setAttribute("aria-pressed", "false");
       setStatus(status, "Private identity imported locally. It has not been uploaded.", "success");
     } catch (error) {
       identityInput.value = "";
       fileInput.value = "";
-      identityInput.setAttribute("aria-invalid", "true");
+      fileInput.setAttribute("aria-invalid", "true");
       setStatus(status, error instanceof Error ? error.message : "Could not read the identity file.", "error");
     }
   });
@@ -169,6 +204,9 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
     const selected = selectedKey();
     const privateIdentity = identityInput.value;
     identityInput.value = "";
+    identityInput.type = "password";
+    revealIdentity.textContent = "Show Identity";
+    revealIdentity.setAttribute("aria-pressed", "false");
     fileInput.value = "";
     keySelect.removeAttribute("aria-invalid");
     identityInput.removeAttribute("aria-invalid");
@@ -177,6 +215,7 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
     syncControls();
     setBusy(output, true);
     setStatus(status, "Checking the private identity locally...");
+    let failureStage: OpenFailureStage = "selection";
 
     try {
       if (!selected) {
@@ -184,6 +223,7 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
         keySelect.focus();
         throw new Error("Choose a recipient key record.");
       }
+      failureStage = "identity";
       if (privateIdentity.trim().length === 0) {
         identityInput.setAttribute("aria-invalid", "true");
         identityInput.focus();
@@ -202,10 +242,21 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
         expectedFingerprint: selected.fingerprint
       });
 
+      failureStage = "lookup";
       setStatus(status, "Identity matched locally. Fetching candidate ciphertext bottles...");
-      const response = await listBottles(selected.fingerprint);
+      const requestCursor =
+        cursorFingerprint === selected.fingerprint ? nextCursor : undefined;
+      const page = await listBottlePage(selected.fingerprint, fetch, requestCursor);
+      const response = page.response;
+      nextCursor = page.nextCursor;
+      cursorFingerprint = selected.fingerprint;
       if (response.bottles.length === 0) {
-        setStatus(status, "No candidate ciphertext bottles were returned for this fingerprint.");
+        setStatus(
+          status,
+          nextCursor
+            ? "This candidate page contained no unexpired bottles. More pages remain; re-import the identity to fetch the next page."
+            : "No candidate ciphertext bottles were returned. A recently accepted bottle may take a short time to become visible; re-import the identity and retry."
+        );
         return;
       }
 
@@ -235,7 +286,9 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
       if (opened.length === 0) {
         setStatus(
           status,
-          `None of the ${response.bottles.length} candidate bottle(s) opened locally. The server was not told the result.`,
+          nextCursor
+            ? `None of the ${response.bottles.length} candidate bottle(s) on this page opened locally. More pages remain; re-import the identity to continue. The server was not told the result.`
+            : `None of the ${response.bottles.length} candidate bottle(s) opened locally. The server was not told the result.`,
           "error"
         );
         return;
@@ -264,6 +317,13 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
           )
         );
       }
+      if (nextCursor) {
+        resultNodes.push(
+          warning(
+            "More candidate pages remain. Re-import the private identity and use Fetch Next Candidate Page to continue; pagination does not reveal local decrypt results to the server."
+          )
+        );
+      }
       resultNodes.push(
         ...opened.map(({ bottle, payload }) =>
           h("article", { className: "message-item" }, [
@@ -289,13 +349,20 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
       output.replaceChildren(...resultNodes);
       setStatus(
         status,
-        failed > 0
-          ? `Opened ${opened.length} bottle(s) locally; ${failed} candidate(s) did not open.`
-          : `Opened ${opened.length} bottle(s) locally.`,
+        nextCursor
+          ? `Opened ${opened.length} bottle(s) locally on this page; more candidate pages remain.`
+          : failed > 0
+            ? `Opened ${opened.length} bottle(s) locally; ${failed} candidate(s) did not open.`
+            : `Opened ${opened.length} bottle(s) locally.`,
         "success"
       );
     } catch (error) {
-      identityInput.setAttribute("aria-invalid", "true");
+      if (shouldMarkIdentityInvalid(failureStage)) {
+        identityInput.setAttribute("aria-invalid", "true");
+        identityInput.focus();
+      } else {
+        identityInput.removeAttribute("aria-invalid");
+      }
       setStatus(
         status,
         `${error instanceof Error ? error.message : "Could not open bottles."} The private identity was cleared from the form.`,
@@ -309,6 +376,8 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
   });
 
   keySelect.addEventListener("change", () => {
+    nextCursor = undefined;
+    cursorFingerprint = undefined;
     keySelect.removeAttribute("aria-invalid");
     updateRecipientDetails();
     if (selectedKey()) {
@@ -329,34 +398,95 @@ export async function renderOpenBottles(container: HTMLElement): Promise<void> {
       output
     ])
   );
+  form.hidden = true;
 
-  try {
-    setStatus(status, "Loading /keyring.json...");
-    const keyring = await loadKeyring();
-    availableKeys = keyring.keys;
-    keySelect.replaceChildren(
-      h("option", { text: "Choose a key record…", attrs: { value: "" } }),
-      ...availableKeys.map((key) =>
-        h("option", {
-          text: `${key.keyname} — ${key.status} — ${shortFingerprint(key.fingerprint)}`,
-          attrs: { value: key.fingerprint }
-        })
-      )
-    );
-
-    busy = false;
-    updateRecipientDetails();
-    if (availableKeys.length === 0) {
-      setStatus(status, "The static keyring has no recipient records yet.", "error");
-      return;
-    }
-
-    setStatus(status, `Loaded ${availableKeys.length} recipient key record(s). Choose one to continue.`, "success");
-  } catch (error) {
-    busy = false;
+  const loadKeyRecords = async (focusAfterLoad = false): Promise<void> => {
+    busy = true;
+    availableKeys = [];
+    form.hidden = true;
+    output.replaceChildren();
     syncControls();
-    setStatus(status, error instanceof Error ? error.message : "Could not load keyring.", "error");
-  }
+    setStatus(status, "Loading /keyring.json...");
+    try {
+      const keyring = await loadKeyring();
+      availableKeys = keyring.keys;
+      nextCursor = undefined;
+      cursorFingerprint = undefined;
+      keySelect.replaceChildren(
+        h("option", { text: "Choose a key record…", attrs: { value: "" } }),
+        ...availableKeys.map((key) =>
+          h("option", {
+            text: `${key.keyname} — ${key.status} — ${shortFingerprint(key.fingerprint)}`,
+            attrs: { value: key.fingerprint }
+          })
+        )
+      );
+
+      busy = false;
+      updateRecipientDetails();
+      if (availableKeys.length === 0) {
+        const createIdentityAction = h("a", {
+          className: "button-link",
+          text: "Create an Identity",
+          attrs: { href: "#create" }
+        });
+        form.hidden = true;
+        output.replaceChildren(
+          h("section", { className: "empty-state" }, [
+            h("h3", { text: "No approved recipient records yet" }),
+            h("p", {
+              text: "Opening requires a public keyring record that can be matched to your private identity. Create and verify an identity, then request manual owner approval of its public record."
+            }),
+            h("div", { className: "action-group" }, [
+              createIdentityAction,
+              h("a", {
+                className: "button-link button-secondary",
+                text: "Read the Manual Keyring Procedure",
+                attrs: { href: "#threat" }
+              })
+            ])
+          ])
+        );
+        setStatus(status, "Waiting for the first manually approved public recipient record.");
+        if (focusAfterLoad) {
+          createIdentityAction.focus();
+        }
+        return;
+      }
+
+      form.hidden = false;
+      setStatus(status, `Loaded ${availableKeys.length} recipient key record(s). Choose one to continue.`, "success");
+      if (focusAfterLoad) {
+        keySelect.focus();
+      }
+    } catch (error) {
+      busy = false;
+      syncControls();
+      const message = error instanceof Error ? error.message : "Could not load keyring.";
+      const retry = h("button", { text: "Retry Keyring Load", attrs: { type: "button" } });
+      retry.addEventListener("click", () => {
+        void loadKeyRecords(true);
+      });
+      output.replaceChildren(
+        h("section", {
+          className: "empty-state empty-state-error",
+          attrs: { role: "group", "aria-labelledby": "open-keyring-error-title" }
+        }, [
+          h("h3", { text: "Recipient directory unavailable", attrs: { id: "open-keyring-error-title" } }),
+          h("p", {
+            text: "No private identity was read. Retry the same-origin public keyring before selecting or importing an identity."
+          }),
+          retry
+        ])
+      );
+      setStatus(status, message, "error");
+      if (focusAfterLoad) {
+        retry.focus();
+      }
+    }
+  };
+
+  await loadKeyRecords();
 }
 
 function shortFingerprint(fingerprint: string): string {

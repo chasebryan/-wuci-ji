@@ -14,3 +14,19 @@ run_worker_first = ["/api/*"]
 [[kv_namespaces]]
 binding = "BOTTLES_KV"
 id = "20625e8d95504df28ba0e1bc94d97fc0"
+
+[[ratelimits]]
+name = "DROP_RATE_LIMITER"
+namespace_id = "263356768422848"
+
+  [ratelimits.simple]
+  limit = 12
+  period = 60
+
+[[ratelimits]]
+name = "READ_RATE_LIMITER"
+namespace_id = "173331705833598"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

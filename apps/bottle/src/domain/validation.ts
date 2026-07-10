@@ -28,6 +28,8 @@ const FORBIDDEN_PLAINTEXT_FIELDS = new Set([
   "privateIdentity",
   "passphrase"
 ]);
+const MAX_FIELD_SCAN_DEPTH = 32;
+const MAX_FIELD_SCAN_NODES = 2048;
 const DROP_REQUEST_FIELDS = new Set([
   "schema",
   "keyname",
@@ -93,6 +95,7 @@ const PUBLIC_BOTTLE_FIELDS = new Set([
   "expiresAt"
 ]);
 const LIST_RESPONSE_FIELDS = new Set(["schema", "bottles"]);
+const MAX_LIST_CURSOR_CHARACTERS = 2048;
 
 export function normalizeKeyname(input: string): string {
   if (typeof input !== "string") {
@@ -137,6 +140,18 @@ export function assertSha256Hex(input: string): string {
 export function assertBottleId(input: string): string {
   if (typeof input !== "string" || !BOTTLE_ID_PATTERN.test(input)) {
     throw new Error("Bottle id has an invalid format.");
+  }
+  return input;
+}
+
+export function assertListCursor(input: string): string {
+  if (
+    typeof input !== "string" ||
+    input.length === 0 ||
+    input.length > MAX_LIST_CURSOR_CHARACTERS ||
+    CONTROL_CHARACTER_PATTERN.test(input)
+  ) {
+    throw new Error("Bottle list cursor has an invalid format.");
   }
   return input;
 }
@@ -241,7 +256,7 @@ export function parseDropBottleRequest(input: unknown): DropBottleRequest {
     schema: SCHEMAS.drop,
     keyname: normalizeKeyname(expectString(record["keyname"], "keyname")),
     recipientFingerprint: assertFingerprint(expectString(record["recipientFingerprint"], "recipientFingerprint")),
-    ciphertext: expectNonEmptyString(record["ciphertext"], "ciphertext"),
+    ciphertext: expectBoundedCiphertext(record["ciphertext"]),
     createdAtClient: expectIsoTimestamp(record["createdAtClient"], "createdAtClient")
   };
 }
@@ -313,7 +328,7 @@ export function assertStoredBottle(input: unknown): StoredBottle {
     bottleId: assertBottleId(expectString(record["bottleId"], "bottleId")),
     keyname: normalizeKeyname(expectString(record["keyname"], "keyname")),
     recipientFingerprint: assertFingerprint(expectString(record["recipientFingerprint"], "recipientFingerprint")),
-    ciphertext: expectNonEmptyString(record["ciphertext"], "ciphertext"),
+    ciphertext: expectBoundedCiphertext(record["ciphertext"]),
     ciphertextSha256: assertSha256Hex(expectString(record["ciphertextSha256"], "ciphertextSha256")),
     storedAt: expectIsoTimestamp(record["storedAt"], "storedAt"),
     expiresAt: expectIsoTimestamp(record["expiresAt"], "expiresAt"),
@@ -336,7 +351,7 @@ export function parseStoredBottlePublic(input: unknown): StoredBottlePublic {
     bottleId: assertBottleId(expectString(record["bottleId"], "bottleId")),
     keyname: normalizeKeyname(expectString(record["keyname"], "keyname")),
     recipientFingerprint: assertFingerprint(expectString(record["recipientFingerprint"], "recipientFingerprint")),
-    ciphertext: expectNonEmptyString(record["ciphertext"], "ciphertext"),
+    ciphertext: expectBoundedCiphertext(record["ciphertext"]),
     ciphertextSha256: assertSha256Hex(expectString(record["ciphertextSha256"], "ciphertextSha256")),
     storedAt: expectIsoTimestamp(record["storedAt"], "storedAt"),
     expiresAt: expectIsoTimestamp(record["expiresAt"], "expiresAt")
@@ -424,20 +439,30 @@ function isNormalizedKeyname(input: string): boolean {
 }
 
 function visitFieldNames(input: unknown, visitor: (fieldName: string) => void): void {
-  if (Array.isArray(input)) {
-    for (const item of input) {
-      visitFieldNames(item, visitor);
+  const pending: Array<{ value: unknown; depth: number }> = [{ value: input, depth: 0 }];
+  let visitedNodes = 0;
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current) {
+      break;
     }
-    return;
-  }
-
-  if (!isRecord(input)) {
-    return;
-  }
-
-  for (const [fieldName, value] of Object.entries(input)) {
-    visitor(fieldName);
-    visitFieldNames(value, visitor);
+    visitedNodes += 1;
+    if (visitedNodes > MAX_FIELD_SCAN_NODES || current.depth > MAX_FIELD_SCAN_DEPTH) {
+      throw new Error("Drop request structure exceeds the validation complexity limit.");
+    }
+    if (Array.isArray(current.value)) {
+      for (const item of current.value) {
+        pending.push({ value: item, depth: current.depth + 1 });
+      }
+      continue;
+    }
+    if (!isRecord(current.value)) {
+      continue;
+    }
+    for (const [fieldName, value] of Object.entries(current.value)) {
+      visitor(fieldName);
+      pending.push({ value, depth: current.depth + 1 });
+    }
   }
 }
 
@@ -463,6 +488,14 @@ function expectNonEmptyString(input: unknown, label: string): string {
   const value = expectString(input, label);
   if (value.trim().length === 0) {
     throw new Error(`${label} must not be empty.`);
+  }
+  return value;
+}
+
+function expectBoundedCiphertext(input: unknown): string {
+  const value = expectNonEmptyString(input, "ciphertext");
+  if (utf8ByteLength(value) > MAX_DROP_BODY_BYTES) {
+    throw new Error("ciphertext exceeds the maximum bottle request size.");
   }
   return value;
 }
