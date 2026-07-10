@@ -17,6 +17,7 @@ APEX = "https://nosuchmachine.net/"
 HTTP_APEX = "http://nosuchmachine.net/"
 WWW = "https://www.nosuchmachine.net/"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+BROWSER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -42,8 +43,15 @@ class Check:
     detail: str
 
 
-def fetch(url: str, *, method: str = "GET", follow_redirects: bool = True, timeout: float = 12.0) -> Response:
-    request = urllib.request.Request(url, method=method, headers={"User-Agent": "wuci-site-live-check/1"})
+def fetch(
+    url: str,
+    *,
+    method: str = "GET",
+    follow_redirects: bool = True,
+    timeout: float = 12.0,
+    user_agent: str = "wuci-site-live-check/1",
+) -> Response:
+    request = urllib.request.Request(url, method=method, headers={"User-Agent": user_agent})
     opener = urllib.request.urlopen if follow_redirects else NO_REDIRECT_OPENER.open
     try:
         with opener(request, timeout=timeout) as handle:
@@ -99,6 +107,14 @@ def check_https_root() -> list[Check]:
     ]
     hsts = response.headers.get("strict-transport-security", "")
     checks.append(Check("hsts", bool(hsts and "max-age=" in hsts.lower()), hsts or "<missing>"))
+    cache_control = response.headers.get("cache-control", "")
+    checks.append(
+        Check(
+            "html-no-transform",
+            "no-transform" in cache_control.lower(),
+            cache_control or "<missing>",
+        )
+    )
     return checks
 
 
@@ -178,6 +194,27 @@ def check_no_browser_crypto_surface() -> list[Check]:
             )
         )
     return checks
+
+
+def check_no_browser_analytics_injection() -> list[Check]:
+    response = fetch(APEX + "wucios", user_agent=BROWSER_USER_AGENT)
+    expected = (REPOSITORY_ROOT / "site" / "wucios.html").read_bytes()
+    expected_digest = hashlib.sha256(expected).hexdigest()
+    observed_digest = hashlib.sha256(response.body).hexdigest()
+    forbidden = [b"static.cloudflareinsights.com", b"data-cf-beacon", b"/cdn-cgi/rum"]
+    return [
+        Check("browser-wucios-status", response.status == 200, f"{APEX}wucios -> {response.status}"),
+        Check(
+            "browser-wucios-exact-bytes",
+            response.body == expected,
+            f"expected-sha256={expected_digest} observed-sha256={observed_digest}",
+        ),
+        Check(
+            "browser-wucios-no-analytics-injection",
+            not any(marker in response.body for marker in forbidden),
+            "Cloudflare Web Analytics beacon markers absent",
+        ),
+    ]
 
 
 def check_json_asset(path: str, required_keys: set[str]) -> list[Check]:
@@ -311,6 +348,7 @@ def run_checks() -> list[Check]:
         )
     )
     checks.extend(check_no_browser_crypto_surface())
+    checks.extend(check_no_browser_analytics_injection())
     checks.extend(
         check_json_asset(
             "codemeta.json",

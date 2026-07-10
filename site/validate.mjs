@@ -902,6 +902,8 @@ async function assertCloudflareFiles() {
     "/llms.txt",
     "/humans.txt",
     "Content-Type: text/plain; charset=utf-8",
+    "Cache-Control: public, max-age=0, must-revalidate, no-transform",
+    "! Cache-Control",
     "/assets/*",
     "Cache-Control: public, max-age=31536000, immutable"
   ]) {
@@ -1580,15 +1582,23 @@ async function assertHostingRequirements() {
 
   if (!Array.isArray(requirements.required_https_headers)) {
     fail("hosting-requirements.json required_https_headers must be a list");
-  } else if (
-    !requirements.required_https_headers.some(
+  } else {
+    if (!requirements.required_https_headers.some(
       (entry) =>
         entry.path === "/" &&
         entry.header === "strict-transport-security" &&
         entry.value_must_contain === "max-age="
-    )
-  ) {
-    fail("hosting-requirements.json must require Strict-Transport-Security max-age on /");
+    )) {
+      fail("hosting-requirements.json must require Strict-Transport-Security max-age on /");
+    }
+    if (!requirements.required_https_headers.some(
+      (entry) =>
+        entry.path === "/" &&
+        entry.header === "cache-control" &&
+        entry.value_must_contain === "no-transform"
+    )) {
+      fail("hosting-requirements.json must require Cache-Control no-transform on /");
+    }
   }
 
   for (const required of [
@@ -1626,7 +1636,12 @@ async function assertHostingRequirements() {
   }
 
   const controls = JSON.stringify(requirements.deployment_controls || []);
-  for (const required of ["Enforce HTTPS enabled", "Always Use HTTPS enabled", "HTTP Strict Transport Security enabled"]) {
+  for (const required of [
+    "Enforce HTTPS enabled",
+    "Always Use HTTPS enabled",
+    "HTTP Strict Transport Security enabled",
+    "HTML no-transform prevents automatic Web Analytics injection"
+  ]) {
     if (!controls.includes(required)) {
       fail(`hosting-requirements.json is missing deploy control: ${required}`);
     }
