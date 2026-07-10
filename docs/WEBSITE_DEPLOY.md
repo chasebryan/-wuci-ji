@@ -1,13 +1,15 @@
 # Wuci-Ji Website Deploy
 
-The website is a static site in `site/`. Deploy from the repository root.
+The website source is in `site/`. Deploy only the generated
+`build/site-dist/` tree from the repository root.
 
 ## Production: Cloudflare Pages
 
 The canonical site at `https://nosuchmachine.net/` is served by Cloudflare
-Pages project `wuci-ji`. The production deployment is a direct upload of the
-validated `site/` directory with production branch metadata set to `main`.
-Cloudflare honors `site/_headers` and `site/_redirects`.
+Pages project `wuci-ji`. `npm run build` validates the source and creates a
+deterministic upload tree with `site-inventory.json`. It excludes the build-only
+validator and source files shadowed by `_redirects`, while preserving
+`_headers` and `_redirects` as consumed Pages configuration.
 
 The global HTML response policy includes `Cache-Control: no-transform` so the
 edge cannot inject Cloudflare Web Analytics or other transformed markup. More
@@ -31,8 +33,9 @@ git status --short
 npm run deploy
 ```
 
-The deploy command does not run validation itself. A dirty checkout or a
-failed `make site-validate` is a release stop condition.
+The deploy command rebuilds and validates `build/site-dist/` before upload. A
+dirty checkout or a failed `make site-validate` remains a release stop
+condition.
 
 After every production deployment, verify:
 
@@ -65,13 +68,16 @@ Use these settings:
 Framework preset: None / Static HTML
 Root directory: /
 Build command: npm run build
-Build output directory: site
+Build output directory: build/site-dist
 Production branch: main
 Node version: 22
 ```
 
-`npm run build` validates the static site and exits nonzero if required assets,
-canonical metadata, headers, redirects, or local references are missing.
+`npm run build` validates the static site, fails closed on symlinks, hardlinks,
+unknown public MIME types, redirect-shadow drift, and fixed file/byte budgets,
+then stages the exact Pages upload tree. `site/validate.mjs`,
+`site/daylight-grok-audit.html`, and the duplicate `site/security.txt` are not
+uploaded: the latter two routes are served by explicit redirects.
 
 The repository includes `.nvmrc`, `.node-version`, `package.json`, and
 `package-lock.json` so the root build has a concrete Node/npm setup.
@@ -119,7 +125,6 @@ site/hosting-requirements.json
 site/claim-evidence.json
 site/llms.txt
 site/humans.txt
-site/security.txt
 site/.well-known/security.txt
 site/noether-forge-status.json
 site/aperture-status.json
@@ -161,10 +166,14 @@ artifact-fetch deadline. Remote manifest declarations do not expand that set.
 JavaScript and CSS require browser-safe extension-specific MIME types, and an
 octet-stream script fails.
 
-The checker also binds the exact deployed `index.html`, `/wucios`, `app.js`,
-`styles.css`, and fixed top-level public JSON status/evidence surfaces to the
-checkout. It compares the live keyring byte-for-byte with the public site
-observation and status metadata.
+The checker loads the generated `build/site-dist/site-inventory.json` and binds
+every staged public file—including HTML, JavaScript, CSS, JSON, discovery text,
+the generated inventory, and all media—by exact URL, status, MIME type, size,
+and bytes. `_headers` and `_redirects` are bound through the exact inventory and
+their resulting headers and redirect routes are checked instead of requesting
+those consumed config files. The local tree is capped at 96 files, 4 MiB per
+file, and 40 MiB total. Eight bounded workers share a 120-second site-artifact
+deadline; remote content cannot add requests or raise a local byte cap.
 
 `site/claim-evidence.json` maps each public website claim to the exact local
 evidence files, evidence values, validation commands, and non-claims that bound
@@ -196,7 +205,7 @@ npm run build
 npm run deploy
 ```
 
-The deploy script pins project `wuci-ji`, directory `site/`, and deployment
+The deploy script pins project `wuci-ji`, directory `build/site-dist/`, and deployment
 branch `main`. For an evidence-bound manual deployment, Wrangler also accepts
 explicit `--commit-hash`, `--commit-message`, and `--commit-dirty=false`
 metadata. Record the resulting deployment ID and run `make site-live-check`.
@@ -204,7 +213,7 @@ metadata. Record the resulting deployment ID and run `make site-live-check`.
 ```sh
 COMMIT_SHA=$(git rev-parse HEAD)
 WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false \
-  npx --no-install wrangler pages deploy site \
+  npx --no-install wrangler pages deploy build/site-dist \
   --project-name wuci-ji --branch main \
   --commit-hash "$COMMIT_SHA" --commit-dirty=false
 ```

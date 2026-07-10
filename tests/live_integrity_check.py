@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import base64
 import gzip
 import json
 import sys
@@ -13,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from tools import live_integrity_check as live
+from tools import site_dist
 
 
 EXPECTED_COMMIT = "0123456789abcdef0123456789abcdef01234567"
@@ -25,6 +27,7 @@ KEYRING_BYTES = (
 )
 INDEX_BYTES = b"<!doctype html><title>Daylight Bottle</title>"
 APP_BYTES = b"export const daylightBottle = true;\n"
+_LOCAL_SITE: live.LocalSiteBuild | None = None
 
 
 def build_manifest(artifacts_by_path: dict[str, bytes]) -> dict[str, object]:
@@ -107,6 +110,14 @@ def canonical_local_build() -> live.LocalBottleBuild:
     )
 
 
+def canonical_local_site_build() -> live.LocalSiteBuild:
+    global _LOCAL_SITE
+    if _LOCAL_SITE is None:
+        site_dist.build_site_dist()
+        _LOCAL_SITE = live.load_local_site_build()
+    return _LOCAL_SITE
+
+
 def bottle_headers(content_type: str) -> dict[str, str]:
     return {
         **live.REQUIRED_BOTTLE_HEADERS,
@@ -127,20 +138,11 @@ def response(
 
 def passing_responses() -> dict[str, live.Response]:
     local_build = canonical_local_build()
+    local_site = canonical_local_site_build()
     artifacts = dict(local_build.artifacts)
     manifest = dict(local_build.manifest)
     api = {"schema": "nsm.daylight-bottle.list.response.v1", "bottles": []}
     responses = {
-        "site_http_root": response(
-            308,
-            live.SITE_HTTP_APEX,
-            headers={"location": live.SITE_APEX},
-        ),
-        "site_www_root": response(
-            301,
-            live.SITE_WWW,
-            headers={"location": live.SITE_APEX},
-        ),
         "site_secondary": response(410, live.SITE_SECONDARY),
         "bottle_root": response(
             200,
@@ -167,23 +169,23 @@ def passing_responses() -> dict[str, live.Response]:
             body=KEYRING_BYTES,
         ),
     }
-    for surface in live.SITE_SURFACES:
+    global_headers = live.site_global_headers(local_site.configs["_headers"])
+    for artifact in local_site.artifacts:
         headers = {
-            "content-type": f"{sorted(surface.media_types)[0]}; charset=utf-8",
-            "cache-control": "no-store",
+            **global_headers,
+            "content-type": f"{artifact.media_type}; charset=utf-8",
         }
-        if surface.name == "site_https_root":
-            headers.update(
-                {
-                    "strict-transport-security": "max-age=31536000; includeSubDomains",
-                    "cache-control": "public, max-age=0, must-revalidate, no-transform",
-                }
-            )
-        responses[surface.name] = response(
-            200,
-            surface.url,
+        responses[artifact.response_name] = response(
+            artifact.status,
+            artifact.url,
             headers=headers,
-            body=(REPO_ROOT / surface.repository_path).read_bytes(),
+            body=artifact.content,
+        )
+    for redirect in local_site.redirects:
+        responses[redirect.response_name] = response(
+            redirect.status,
+            redirect.url,
+            headers={**global_headers, "location": redirect.location},
         )
     for path, content in artifacts.items():
         if path == "_headers":
@@ -206,7 +208,12 @@ def passing_responses() -> dict[str, live.Response]:
 
 
 def assert_passes(responses: dict[str, live.Response]) -> None:
-    checks = live.evaluate(responses, EXPECTED_COMMIT, canonical_local_build())
+    checks = live.evaluate(
+        responses,
+        EXPECTED_COMMIT,
+        canonical_local_build(),
+        canonical_local_site_build(),
+    )
     failures = [check for check in checks if not check.ok]
     assert not failures, failures
     assert len({check.name for check in checks}) == len(checks), "check names must be unique"
@@ -218,7 +225,12 @@ def assert_rejects(
     *,
     expected_commit: str = EXPECTED_COMMIT,
 ) -> None:
-    checks = live.evaluate(responses, expected_commit, canonical_local_build())
+    checks = live.evaluate(
+        responses,
+        expected_commit,
+        canonical_local_build(),
+        canonical_local_site_build(),
+    )
     failures = {check.name for check in checks if not check.ok}
     assert expected_name in failures, failures
 
@@ -251,8 +263,17 @@ def main() -> None:
     )
     assert len(gzip.compress(INDEX_BYTES, compresslevel=9, mtime=0)) == 59
     assert len(gzip.compress(APP_BYTES, compresslevel=9, mtime=0)) == 56
+    local_site = canonical_local_site_build()
     assert_passes(passing_responses())
     assert all(not spec.follow_redirects for spec in live.REQUEST_PLAN)
+    assert all(
+        not live.RequestSpec(
+            redirect.response_name,
+            redirect.url,
+            method="HEAD",
+        ).follow_redirects
+        for redirect in local_site.redirects
+    )
     assert not live.RequestSpec("artifact", live.artifact_url("index.html")).follow_redirects
     assert not live.valid_artifact_path("api/bottles")
     assert not live.valid_artifact_path("https://example.invalid/payload.js")
@@ -278,7 +299,7 @@ def main() -> None:
 
     live.fetch = fake_fetch
     try:
-        live.capture_live(canonical_local_build())
+        live.capture_live(canonical_local_build(), local_site)
     finally:
         live.fetch = original_fetch
     artifact_calls = {
@@ -299,6 +320,23 @@ def main() -> None:
     )
     assert sum(limit for _, limit in artifact_calls.values()) == sum(
         len(content) for content in expected_capture.values()
+    )
+    site_calls = {
+        call_spec.name: (call_timeout, call_limit)
+        for call_spec, call_timeout, call_limit in capture_calls
+        if call_spec.name in {artifact.response_name for artifact in local_site.artifacts}
+    }
+    assert set(site_calls) == {
+        artifact.response_name for artifact in local_site.artifacts
+    }
+    assert all(
+        timeout <= live.MAX_SITE_REQUEST_SECONDS
+        and limit == len(artifact.content)
+        for artifact in local_site.artifacts
+        for timeout, limit in [site_calls[artifact.response_name]]
+    )
+    assert sum(limit for _, limit in site_calls.values()) == sum(
+        len(artifact.content) for artifact in local_site.artifacts
     )
 
     case = passing_responses()
@@ -331,6 +369,50 @@ def main() -> None:
         case["site_browser_wucios"], body=b"unrelated deployment"
     )
     assert_rejects(case, "site-browser-wucios-exact-bytes")
+
+    case = passing_responses()
+    ai_name = live.site_response_name("ai-scoring-integrity.html")
+    case[ai_name] = replace(case[ai_name], body=b"substituted audit page")
+    assert_rejects(case, "site-artifact-ai-scoring-integrity.html-exact-bytes")
+
+    case = passing_responses()
+    media_path = "assets/wuci-ji-systems-hero.jpg"
+    media_name = live.site_response_name(media_path)
+    case[media_name] = replace(case[media_name], body=b"substituted media")
+    assert_rejects(
+        case,
+        "site-artifact-assets/wuci-ji-systems-hero.jpg-exact-bytes",
+    )
+
+    inventory_name = live.site_response_name(site_dist.INVENTORY_NAME)
+    case = passing_responses()
+    inventory = json.loads(case[inventory_name].body)
+    inventory["publicFiles"] = inventory["publicFiles"][:-1]
+    inventory["publicFileCount"] -= 1
+    case[inventory_name] = replace(
+        case[inventory_name],
+        body=(json.dumps(inventory, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+    )
+    assert_rejects(case, "site-artifact-site-inventory.json-exact-bytes")
+
+    case = passing_responses()
+    inventory = json.loads(case[inventory_name].body)
+    inventory["publicFiles"].append(
+        {
+            "path": "extra.txt",
+            "urlPath": "/extra.txt",
+            "status": 200,
+            "mediaType": "text/plain",
+            "bytes": 1,
+            "sha256": "0" * 64,
+        }
+    )
+    inventory["publicFileCount"] += 1
+    case[inventory_name] = replace(
+        case[inventory_name],
+        body=(json.dumps(inventory, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+    )
+    assert_rejects(case, "site-artifact-site-inventory.json-exact-bytes")
 
     assert_rejects(passing_responses(), "bottle-manifest-source-commit", expected_commit="f" * 40)
 
@@ -384,16 +466,13 @@ def main() -> None:
     assert_rejects(case, "bottle-manifest-matches-local-build")
     assert_rejects(case, "bottle-artifact-assets/app.js-local-byte-binding")
 
-    # Both standardized browser-safe JavaScript media types are accepted.
+    # The Bottle artifact accepts its browser-safe text/javascript response;
+    # the staged site keeps its exact application/javascript header contract.
     case = passing_responses()
     artifact_name = live.artifact_response_name("assets/app.js")
     case[artifact_name] = replace(
         case[artifact_name],
         headers={**case[artifact_name].headers, "content-type": "text/javascript"},
-    )
-    case["site_app_js"] = replace(
-        case["site_app_js"],
-        headers={**case["site_app_js"].headers, "content-type": "text/javascript"},
     )
     assert_passes(case)
 
@@ -500,7 +579,7 @@ def main() -> None:
                 name: {
                     "status": item.status,
                     "headers": dict(item.headers),
-                    "body": item.body.decode("utf-8"),
+                    "bodyBase64": base64.b64encode(item.body).decode("ascii"),
                     "url": item.url,
                     "truncated": item.truncated,
                 }

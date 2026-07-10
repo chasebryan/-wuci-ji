@@ -27,8 +27,10 @@ The checked-in workflow runs on Ubuntu Linux x86_64 and currently verifies:
   11.8.0, rebuilds and verifies `apps/bottle/dist`, then performs only bounded
   public GET/HEAD requests. The local build defines the Bottle request set and
   byte caps; the remote manifest cannot add paths or legitimize substituted
-  bytes. Fixed website HTML, JavaScript, CSS, and public JSON surfaces are also
-  compared directly with `main`. The workflow sends no secrets or user content.
+  bytes. The workflow also builds the deterministic Pages upload tree and
+  compares every staged public file—code, claim/evidence data, discovery text,
+  and media—directly with `main` under fixed local count, byte, MIME, and shared
+  deadline budgets. The workflow sends no secrets or user content.
 - Defensive CodeQL analysis for repository-owned JavaScript/TypeScript and
   Python. Third-party, frozen-fixture, dependency, build, and deployment-output
   paths are excluded by the checked-in CodeQL configuration.

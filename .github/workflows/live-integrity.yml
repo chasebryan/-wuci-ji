@@ -49,6 +49,9 @@ jobs:
           npm run verify:bundle
           npm run validate:release-source
 
+      - name: Build the exact Cloudflare Pages upload tree
+        run: npm run build
+
       - name: Validate deterministic response policy
         run: make live-integrity-test repository-maintenance-test
 

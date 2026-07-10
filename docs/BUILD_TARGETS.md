@@ -37,13 +37,17 @@ make secret-path-isolation-test
 ```sh
 make site-daylight-status
 make site-validate
+make site-dist-test
 make site-live-check
 make live-integrity-test
 make live-integrity-check
 ```
 
 `site-daylight-status` regenerates the committed website Daylight status JSON
-from the v17 scorecard. `site-validate` checks the local static artifact for
+from the v17 scorecard. `site-validate` checks the website source and stages the
+exact Cloudflare Pages artifact at `build/site-dist/`. `site-dist-test` checks
+the deterministic inventory, exclusions, safe MIME map, and file/byte budgets.
+The source validator checks the local static artifact for
 fresh evidence, required discovery metadata, CodeMeta JSON-LD research software
 metadata, hosted TLS requirements, public claim/evidence mapping, canonical
 HTTPS metadata, official Wuci-Ji imagery, and claim-boundary text.
@@ -62,12 +66,14 @@ MIME types, enforces a 20-second aggregate artifact-fetch deadline, and checks
 each response directly against the local build. A forged but internally
 consistent remote manifest and script therefore fail.
 
-The same lane verifies exact bytes and MIME types for the canonical website's
-HTML, `app.js`, `styles.css`, and fixed public JSON status/evidence surfaces;
-checks the canonical and retired-secondary HTTPS state; rejects NEL,
-`Report-To`, and executable analytics injection; and validates the Bottle API,
-security headers, keyring, and public status parity. It sends no credentials or
-user content and never prints response bodies.
+The same lane verifies every public file in the deterministic Pages inventory,
+including all HTML, JavaScript, CSS, JSON, discovery text, and media. It checks
+exact canonical URLs, statuses, MIME types, and bytes with trusted local
+file-count, per-file, aggregate-byte, and shared-deadline caps. Pages config
+files are bound locally while all configured redirects and global headers are
+checked live. The lane also checks the retired-secondary HTTPS state, rejects
+NEL, `Report-To`, and executable analytics injection, and validates the Bottle
+API, security headers, keyring, and public status parity.
 
 ## ZP-1 / Wuci-Ji Coupling
 

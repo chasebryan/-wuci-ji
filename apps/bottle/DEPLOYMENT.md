@@ -215,8 +215,9 @@ make live-integrity-check
 The command never sends credentials, identity material, plaintext, or a real
 recipient fingerprint, caps every response body, limits the locally defined
 artifact capture to 20 aggregate seconds, and never prints bodies. It also
-compares the canonical site's HTML, `app.js`, `styles.css`, and fixed public
-JSON status/evidence responses directly with the checkout.
+loads the deterministic Pages inventory and compares every staged canonical
+site response—including media—against the exact local bytes, URL, status, and
+MIME contract under separate fixed site count, byte, and deadline budgets.
 
 For a commit validated by GitHub Actions, the `daylight-bottle` workflow also
 retains `daylight-bottle-validated-release-<commit>` for 30 days. Compare its

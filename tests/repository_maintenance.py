@@ -12,6 +12,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from tools import daylight_public_evidence_firewall as firewall
 from tools import live_integrity_check as live_integrity
+from tools import site_dist
 
 
 def read(relative_path: str) -> str:
@@ -39,18 +40,18 @@ def main() -> None:
         "/cdn-cgi/rum",
     }.issubset(hosting["forbidden_html_markers"])
 
-    bound_site_paths = {
-        item.repository_path for item in live_integrity.SITE_SURFACES
-    }
-    assert {"site/index.html", "site/wucios.html", "site/app.js", "site/styles.css"}.issubset(
-        bound_site_paths
-    )
-    assert {
-        path.relative_to(REPO_ROOT).as_posix()
-        for path in (REPO_ROOT / "site").glob("*.json")
-    } == {
-        path for path in bound_site_paths if path.endswith(".json")
-    }, "every top-level public site JSON surface must be byte-bound by the live checker"
+    inventory = site_dist.build_site_dist()
+    staged_site = site_dist.collect_regular_tree(site_dist.OUTPUT_ROOT)
+    site_dist.validate_inventory(inventory, staged_site)
+    assert set(site_dist.EXCLUDED_SOURCE_FILES).isdisjoint(staged_site)
+    local_site = live_integrity.load_local_site_build()
+    assert {artifact.path for artifact in local_site.artifacts} == (
+        set(staged_site) - set(site_dist.CONFIG_FILES)
+    ), "every staged public site file must be byte-bound by the live checker"
+    root_package = json.loads(read("package.json"))
+    assert "python3 tools/site_dist.py" in root_package["scripts"]["build"]
+    assert "pages deploy build/site-dist" in root_package["scripts"]["deploy:pages"]
+    assert "pages deploy site " not in root_package["scripts"]["deploy:pages"]
 
     dependabot = read(".github/dependabot.yml")
     for marker in [
@@ -101,6 +102,7 @@ def main() -> None:
         "npm run validate:release-source",
     ]:
         assert command in live_integrity_workflow
+    assert "Build the exact Cloudflare Pages upload tree" in live_integrity_workflow
     assert live_integrity_workflow.index("npm run build") < live_integrity_workflow.index(
         "make live-integrity-check"
     )

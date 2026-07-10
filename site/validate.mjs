@@ -885,6 +885,7 @@ async function assertCloudflareFiles() {
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
+    "/site-inventory.json",
     "/claim-evidence.json",
     "Content-Type: application/json; charset=utf-8",
     "Content-Type: application/ld+json; charset=utf-8",
@@ -1551,6 +1552,17 @@ async function assertHostingRequirements() {
       fail(`hosting-requirements.json ${key} does not match expected value`);
     }
   }
+  if (
+    requirements.production_upload_directory !== "build/site-dist"
+    || requirements.public_inventory_path !== "/site-inventory.json"
+    || JSON.stringify(requirements.source_only_exclusions) !== JSON.stringify([
+      "validate.mjs",
+      "daylight-grok-audit.html",
+      "security.txt"
+    ])
+  ) {
+    fail("hosting-requirements.json staged upload contract is invalid");
+  }
 
   if (!Array.isArray(requirements.secondary_publishers) || requirements.secondary_publishers.length !== 0) {
     fail("hosting-requirements.json must not declare an active secondary publisher");
@@ -2141,4 +2153,4 @@ if (process.exitCode) {
 }
 
 console.log("site build: OK");
-console.log("site output: site");
+console.log("site source: site");

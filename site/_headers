@@ -54,6 +54,11 @@
   ! Cache-Control
   Cache-Control: no-store
 
+/site-inventory.json
+  Content-Type: application/json; charset=utf-8
+  ! Cache-Control
+  Cache-Control: no-store
+
 /claim-evidence.json
   Content-Type: application/json; charset=utf-8
   ! Cache-Control

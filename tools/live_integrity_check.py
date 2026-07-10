@@ -12,6 +12,8 @@ printed.
 from __future__ import annotations
 
 import argparse
+import base64
+import concurrent.futures
 import gzip
 import hashlib
 import json
@@ -24,8 +26,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from tools import site_dist
 
-SCHEMA = "wuci-live-integrity-snapshot-v1"
+
+SCHEMA = "wuci-live-integrity-snapshot-v2"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://nosuchmachine.net"
 SITE_APEX = f"{SITE_ORIGIN}/"
@@ -40,6 +44,9 @@ MAX_MANIFEST_ARTIFACTS = 32
 MAX_MANIFEST_ARTIFACT_BYTES = 2_097_152
 MAX_ARTIFACT_CAPTURE_SECONDS = 20.0
 MAX_ARTIFACT_REQUEST_SECONDS = 5.0
+MAX_SITE_CAPTURE_SECONDS = 120.0
+MAX_SITE_REQUEST_SECONDS = 15.0
+MAX_SITE_WORKERS = 8
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
 )
@@ -158,155 +165,51 @@ class Check:
 
 
 @dataclass(frozen=True)
-class SiteSurface:
-    name: str
-    label: str
-    url: str
-    repository_path: str
-    media_types: frozenset[str]
-    user_agent: str = "wuci-live-integrity-check/1"
-
-
-@dataclass(frozen=True)
 class LocalBottleBuild:
     manifest: Mapping[str, Any]
     manifest_bytes: bytes
     artifacts: Mapping[str, bytes]
 
 
-def site_surface(
-    name: str,
-    label: str,
-    public_path: str,
-    repository_path: str,
-    *media_types: str,
-    user_agent: str = "wuci-live-integrity-check/1",
-) -> SiteSurface:
-    return SiteSurface(
-        name=name,
-        label=label,
-        url=f"{SITE_ORIGIN}{public_path}",
-        repository_path=repository_path,
-        media_types=frozenset(media_types),
-        user_agent=user_agent,
-    )
+@dataclass(frozen=True)
+class SiteArtifact:
+    path: str
+    response_name: str
+    url: str
+    status: int
+    media_type: str
+    content: bytes
+    user_agent: str = "wuci-live-integrity-check/1"
 
 
-SITE_SURFACES = (
-    site_surface("site_https_root", "site-root", "/", "site/index.html", "text/html"),
-    site_surface(
-        "site_browser_wucios",
-        "site-browser-wucios",
-        "/wucios",
-        "site/wucios.html",
-        "text/html",
-        user_agent=BROWSER_USER_AGENT,
-    ),
-    site_surface(
-        "site_app_js",
-        "site-app-js",
-        "/app.js",
-        "site/app.js",
-        "application/javascript",
-        "text/javascript",
-    ),
-    site_surface(
-        "site_styles_css", "site-styles-css", "/styles.css", "site/styles.css", "text/css"
-    ),
-    site_surface(
-        "site_aperture_status",
-        "site-aperture-status",
-        "/aperture-status.json",
-        "site/aperture-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_claim_evidence",
-        "site-claim-evidence",
-        "/claim-evidence.json",
-        "site/claim-evidence.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_codemeta",
-        "site-codemeta",
-        "/codemeta.json",
-        "site/codemeta.json",
-        "application/json",
-        "application/ld+json",
-    ),
-    site_surface(
-        "site_bottle_observation",
-        "site-bottle-observation",
-        "/daylight-bottle-keyring-observation.json",
-        "site/daylight-bottle-keyring-observation.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_bottle_status",
-        "site-bottle-status",
-        "/daylight-bottle-status.json",
-        "site/daylight-bottle-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_daylight_standard_status",
-        "site-daylight-standard-status",
-        "/daylight-standard-status.json",
-        "site/daylight-standard-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_daylight_status",
-        "site-daylight-status",
-        "/daylight-status.json",
-        "site/daylight-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_daylight_v20_status",
-        "site-daylight-v20-status",
-        "/daylight-v20-aperture-singularity-status.json",
-        "site/daylight-v20-aperture-singularity-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_defense_assurance_status",
-        "site-defense-assurance-status",
-        "/defense-assurance-status.json",
-        "site/defense-assurance-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_hosting_requirements",
-        "site-hosting-requirements",
-        "/hosting-requirements.json",
-        "site/hosting-requirements.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_noether_status",
-        "site-noether-status",
-        "/noether-forge-status.json",
-        "site/noether-forge-status.json",
-        "application/json",
-    ),
-    site_surface(
-        "site_product_standard_status",
-        "site-product-standard-status",
-        "/wuci-product-standard-status.json",
-        "site/wuci-product-standard-status.json",
-        "application/json",
-    ),
-)
+@dataclass(frozen=True)
+class RedirectExpectation:
+    response_name: str
+    url: str
+    status: int
+    location: str
 
 
-REQUEST_PLAN = tuple(
-    RequestSpec(surface.name, surface.url, user_agent=surface.user_agent)
-    for surface in SITE_SURFACES
-) + (
-    RequestSpec("site_http_root", SITE_HTTP_APEX, method="HEAD", follow_redirects=False),
-    RequestSpec("site_www_root", SITE_WWW, method="HEAD", follow_redirects=False),
+@dataclass(frozen=True)
+class LocalSiteBuild:
+    inventory: Mapping[str, Any]
+    inventory_bytes: bytes
+    configs: Mapping[str, bytes]
+    artifacts: tuple[SiteArtifact, ...]
+    redirects: tuple[RedirectExpectation, ...]
+
+
+SITE_RESPONSE_NAMES = {
+    "index.html": "site_https_root",
+    "wucios.html": "site_browser_wucios",
+    "app.js": "site_app_js",
+    "styles.css": "site_styles_css",
+    "daylight-bottle-status.json": "site_bottle_status",
+    "daylight-bottle-keyring-observation.json": "site_bottle_observation",
+}
+
+
+REQUEST_PLAN = (
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
     RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
     RequestSpec("bottle_manifest", f"{BOTTLE_ORIGIN}/release-manifest.json"),
@@ -339,11 +242,156 @@ def bottle_file(relative_path: str) -> bytes:
     return read_regular_repo_file(f"apps/bottle/{relative_path}")
 
 
-def expected_site_surfaces() -> dict[str, bytes]:
-    return {
-        surface.name: read_regular_repo_file(surface.repository_path)
-        for surface in SITE_SURFACES
+def site_response_name(path: str) -> str:
+    return SITE_RESPONSE_NAMES.get(path, f"site_artifact:{path}")
+
+
+def site_check_label(path: str) -> str:
+    labels = {
+        "index.html": "site-root",
+        "wucios.html": "site-browser-wucios",
+        "app.js": "site-app-js",
+        "styles.css": "site-styles-css",
+        "daylight-bottle-status.json": "site-bottle-status",
+        "daylight-bottle-keyring-observation.json": "site-bottle-observation",
     }
+    return labels.get(path, f"site-artifact-{path}")
+
+
+def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError("staged _redirects must be UTF-8") from error
+    redirects: list[RedirectExpectation] = []
+    used_names: set[str] = set()
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) != 3 or parts[2] not in {"301", "302", "307", "308"}:
+            raise ValueError(f"staged _redirects line {line_number} is invalid")
+        source, target, raw_status = parts
+        if "*" in source:
+            if not source.endswith("/*") or target.count(":splat") != 1:
+                raise ValueError(f"staged _redirects wildcard line {line_number} is invalid")
+            url = source.removesuffix("*")
+            location = target.replace(":splat", "")
+        else:
+            if ":" in source and not source.startswith(("http://", "https://")):
+                raise ValueError(f"staged _redirects source line {line_number} is invalid")
+            url = source if source.startswith(("http://", "https://")) else f"{SITE_ORIGIN}{source}"
+            location = target
+        names = {
+            "http://nosuchmachine.net/*": "site_http_root",
+            "http://www.nosuchmachine.net/*": "site_http_www_root",
+            "https://www.nosuchmachine.net/*": "site_www_root",
+        }
+        name = names.get(source, f"site_redirect:{source}")
+        if name in used_names:
+            raise ValueError(f"staged _redirects contains a duplicate source: {source}")
+        used_names.add(name)
+        redirects.append(
+            RedirectExpectation(
+                response_name=name,
+                url=url,
+                status=int(raw_status),
+                location=location,
+            )
+        )
+    if not redirects:
+        raise ValueError("staged _redirects contains no redirect rules")
+    return tuple(redirects)
+
+
+def site_global_headers(content: bytes) -> dict[str, str]:
+    try:
+        lines = content.decode("utf-8").splitlines()
+    except UnicodeDecodeError as error:
+        raise ValueError("staged _headers must be UTF-8") from error
+    try:
+        start = next(index for index, line in enumerate(lines) if line.strip() == "/*")
+    except StopIteration as error:
+        raise ValueError("staged _headers is missing the global rule") from error
+    headers: dict[str, str] = {}
+    for line in lines[start + 1 :]:
+        if line and not line[0].isspace():
+            break
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("!") or ":" not in stripped:
+            raise ValueError("staged _headers global rule is invalid")
+        name, value = stripped.split(":", 1)
+        normalized = name.strip().lower()
+        if not normalized or normalized in headers:
+            raise ValueError("staged _headers global rule contains a duplicate header")
+        headers[normalized] = value.strip()
+    required = {
+        "content-security-policy",
+        "strict-transport-security",
+        "referrer-policy",
+        "x-content-type-options",
+        "x-frame-options",
+        "cross-origin-opener-policy",
+        "cross-origin-resource-policy",
+        "permissions-policy",
+        "cache-control",
+    }
+    if set(headers) != required:
+        raise ValueError("staged _headers global rule fields are not exact")
+    return headers
+
+
+def load_local_site_build() -> LocalSiteBuild:
+    staged = site_dist.collect_regular_tree(site_dist.OUTPUT_ROOT)
+    inventory_content = staged.get(site_dist.INVENTORY_NAME)
+    if inventory_content is None:
+        raise ValueError("staged site tree is missing site-inventory.json")
+    try:
+        inventory = json.loads(
+            inventory_content.decode("utf-8"),
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError("staged site inventory is invalid JSON") from error
+    site_dist.validate_inventory(inventory, staged)
+
+    configs = {path: staged[path] for path in site_dist.CONFIG_FILES}
+    site_global_headers(configs["_headers"])
+    redirects = parse_site_redirects(configs["_redirects"])
+    records = list(inventory["publicFiles"])
+    records.append(site_dist.public_file_record(site_dist.INVENTORY_NAME, inventory_content))
+    artifacts = tuple(
+        SiteArtifact(
+            path=record["path"],
+            response_name=site_response_name(record["path"]),
+            url=f"{SITE_ORIGIN}{record['urlPath']}",
+            status=record["status"],
+            media_type=record["mediaType"],
+            content=staged[record["path"]],
+            user_agent=(
+                BROWSER_USER_AGENT
+                if record["mediaType"] in {"text/html", "application/javascript"}
+                else "wuci-live-integrity-check/1"
+            ),
+        )
+        for record in sorted(records, key=lambda item: item["path"])
+    )
+    if len(artifacts) + len(configs) > site_dist.MAX_SITE_FILES:
+        raise ValueError("staged site capture exceeds the fixed file-count budget")
+    if sum(len(artifact.content) for artifact in artifacts) > site_dist.MAX_SITE_TOTAL_BYTES:
+        raise ValueError("staged site capture exceeds the fixed aggregate byte budget")
+    if len({artifact.response_name for artifact in artifacts}) != len(artifacts):
+        raise ValueError("staged site capture response names are not unique")
+    return LocalSiteBuild(
+        inventory=inventory,
+        inventory_bytes=inventory_content,
+        configs=configs,
+        artifacts=artifacts,
+        redirects=redirects,
+    )
 
 
 def collect_regular_tree(root: Path) -> dict[str, bytes]:
@@ -515,7 +563,8 @@ def fetch(
     timeout: float = 12.0,
     max_body_bytes: int = MAX_RESPONSE_BYTES,
 ) -> Response:
-    if max_body_bytes < 0 or max_body_bytes > MAX_RESPONSE_BYTES:
+    absolute_limit = max(MAX_RESPONSE_BYTES, site_dist.MAX_SITE_FILE_BYTES)
+    if max_body_bytes < 0 or max_body_bytes > absolute_limit:
         raise ValueError("response body limit is outside the fixed checker budget")
     request = urllib.request.Request(
         spec.url,
@@ -546,24 +595,64 @@ def fetch(
         return Response(status=0, headers={}, body=b"", url=spec.url)
 
 
-def capture_live(local_build: LocalBottleBuild) -> dict[str, Response]:
-    site_bytes = expected_site_surfaces()
-    base_limits = {name: len(content) for name, content in site_bytes.items()}
-    base_limits.update(
-        {
-            "site_http_root": 4096,
-            "site_www_root": 4096,
-            "site_secondary": 4096,
-            "bottle_root": len(local_build.artifacts.get("index.html", b"")),
-            "bottle_manifest": len(local_build.manifest_bytes),
-            "bottle_api": 64 * 1024,
-            "bottle_keyring": len(local_build.artifacts.get("keyring.json", b"")),
-        }
-    )
+def capture_site_artifacts(local_site: LocalSiteBuild) -> dict[str, Response]:
+    deadline = time.monotonic() + MAX_SITE_CAPTURE_SECONDS
+
+    def capture(artifact: SiteArtifact) -> tuple[str, Response]:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return artifact.response_name, Response(
+                status=0,
+                headers={},
+                body=b"",
+                url=artifact.url,
+            )
+        response = fetch(
+            RequestSpec(
+                artifact.response_name,
+                artifact.url,
+                user_agent=artifact.user_agent,
+            ),
+            timeout=min(MAX_SITE_REQUEST_SECONDS, remaining),
+            max_body_bytes=len(artifact.content),
+        )
+        return artifact.response_name, response
+
+    responses: dict[str, Response] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_SITE_WORKERS) as executor:
+        futures = [executor.submit(capture, artifact) for artifact in local_site.artifacts]
+        for future in concurrent.futures.as_completed(futures):
+            name, response = future.result()
+            responses[name] = response
+    return responses
+
+
+def capture_live(
+    local_build: LocalBottleBuild,
+    local_site: LocalSiteBuild,
+) -> dict[str, Response]:
+    base_limits = {
+        "site_secondary": 4096,
+        "bottle_root": len(local_build.artifacts.get("index.html", b"")),
+        "bottle_manifest": len(local_build.manifest_bytes),
+        "bottle_api": 64 * 1024,
+        "bottle_keyring": len(local_build.artifacts.get("keyring.json", b"")),
+    }
     responses = {
         spec.name: fetch(spec, max_body_bytes=base_limits[spec.name])
         for spec in REQUEST_PLAN
     }
+    for redirect in local_site.redirects:
+        responses[redirect.response_name] = fetch(
+            RequestSpec(
+                redirect.response_name,
+                redirect.url,
+                method="HEAD",
+                follow_redirects=False,
+            ),
+            max_body_bytes=4096,
+        )
+    responses.update(capture_site_artifacts(local_site))
 
     expected_total = sum(
         len(content)
@@ -609,22 +698,28 @@ def load_snapshot(path: Path) -> tuple[str, dict[str, Response]]:
             raise ValueError("snapshot response entries must be objects")
         status = value.get("status")
         headers = value.get("headers")
-        body = value.get("body", "")
+        body_base64 = value.get("bodyBase64", "")
         url = value.get("url")
         truncated = value.get("truncated", False)
         if (
             not isinstance(status, int)
             or not isinstance(headers, dict)
             or not all(isinstance(key, str) and isinstance(item, str) for key, item in headers.items())
-            or not isinstance(body, str)
+            or not isinstance(body_base64, str)
             or not isinstance(url, str)
             or not isinstance(truncated, bool)
         ):
             raise ValueError(f"snapshot response {name} has an invalid shape")
+        try:
+            body = base64.b64decode(body_base64, validate=True)
+        except (ValueError, base64.binascii.Error) as error:
+            raise ValueError(f"snapshot response {name} bodyBase64 is invalid") from error
+        if len(body) > max(MAX_RESPONSE_BYTES, site_dist.MAX_SITE_FILE_BYTES):
+            raise ValueError(f"snapshot response {name} exceeds the fixed body budget")
         responses[name] = Response(
             status=status,
             headers={key.lower(): item for key, item in headers.items()},
-            body=body.encode("utf-8"),
+            body=body,
             url=url,
             truncated=truncated,
         )
@@ -689,7 +784,7 @@ def add_common_response_checks(checks: list[Check], label: str, response: Respon
         Check(
             f"{label}-bounded-body",
             not response.truncated,
-            f"body-bytes={len(response.body)} limit={MAX_RESPONSE_BYTES}",
+            f"body-bytes={len(response.body)} truncated={response.truncated}",
         )
     )
     for header in FORBIDDEN_RESPONSE_HEADERS:
@@ -698,6 +793,27 @@ def add_common_response_checks(checks: list[Check], label: str, response: Respon
                 f"{label}-no-{header}",
                 header not in response.headers,
                 "absent" if header not in response.headers else "present",
+            )
+        )
+
+
+def add_site_global_header_checks(
+    checks: list[Check],
+    label: str,
+    response: Response,
+    expected_headers: Mapping[str, str],
+) -> None:
+    for header, expected in expected_headers.items():
+        if header == "cache-control":
+            continue
+        observed = response.headers.get(header, "")
+        checks.append(
+            Check(
+                f"{label}-{header}",
+                observed == expected,
+                "exact"
+                if observed == expected
+                else f"expected={expected!r} observed={observed!r}",
             )
         )
 
@@ -1024,11 +1140,14 @@ def evaluate(
     responses: Mapping[str, Response],
     expected_commit: str,
     local_build: LocalBottleBuild | None = None,
+    local_site: LocalSiteBuild | None = None,
 ) -> list[Check]:
     checks: list[Check] = []
     if local_build is None:
         local_build = load_local_bottle_build()
-    site_bytes = expected_site_surfaces()
+    if local_site is None:
+        local_site = load_local_site_build()
+    global_site_headers = site_global_headers(local_site.configs["_headers"])
     checks.append(
         Check(
             "expected-commit-format",
@@ -1037,38 +1156,56 @@ def evaluate(
         )
     )
 
-    for surface in SITE_SURFACES:
-        observed = response_or_missing(responses, surface.name)
-        expected = site_bytes[surface.name]
+    config_records = {
+        record["path"]: record for record in local_site.inventory["configFiles"]
+    }
+    for path, content in local_site.configs.items():
+        record = config_records.get(path)
+        expected_record = site_dist.file_record(path, content)
+        checks.append(
+            Check(
+                f"site-config-{path}-inventory-binding",
+                record == expected_record,
+                f"sha256={sha256(content)}",
+            )
+        )
+
+    site_responses: list[Response] = []
+    for artifact in local_site.artifacts:
+        observed = response_or_missing(responses, artifact.response_name)
+        site_responses.append(observed)
+        label = site_check_label(artifact.path)
         status_name = (
-            "site-https-status"
-            if surface.name == "site_https_root"
-            else f"{surface.label}-status"
+            "site-https-status" if artifact.path == "index.html" else f"{label}-status"
         )
         url_name = (
             "site-https-final-url"
-            if surface.name == "site_https_root"
+            if artifact.path == "index.html"
             else "site-browser-wucios-https"
-            if surface.name == "site_browser_wucios"
-            else f"{surface.label}-final-url"
+            if artifact.path == "wucios.html"
+            else f"{label}-final-url"
         )
         analytics_name = (
             "site-browser-no-analytics-injection"
-            if surface.name == "site_browser_wucios"
-            else f"{surface.label}-no-analytics-injection"
+            if artifact.path == "wucios.html"
+            else f"{label}-no-analytics-injection"
         )
         checks.extend(
             [
-                Check(status_name, observed.status == 200, f"status={observed.status}"),
-                Check(url_name, observed.url == surface.url, observed.url),
                 Check(
-                    f"{surface.label}-exact-bytes",
-                    observed.body == expected,
-                    byte_match_detail(expected, observed.body),
+                    status_name,
+                    observed.status == artifact.status,
+                    f"expected={artifact.status} observed={observed.status}",
+                ),
+                Check(url_name, observed.url == artifact.url, observed.url),
+                Check(
+                    f"{label}-exact-bytes",
+                    observed.body == artifact.content,
+                    byte_match_detail(artifact.content, observed.body),
                 ),
             ]
         )
-        if Path(surface.repository_path).suffix in {".html", ".js", ".mjs"}:
+        if artifact.media_type in {"text/html", "application/javascript", "text/javascript"}:
             checks.append(
                 Check(
                     analytics_name,
@@ -1078,11 +1215,36 @@ def evaluate(
             )
         add_media_type_check(
             checks,
-            surface.label,
+            label,
             observed,
-            surface.media_types,
+            {artifact.media_type},
         )
-        add_common_response_checks(checks, surface.label, observed)
+        add_common_response_checks(checks, label, observed)
+        add_site_global_header_checks(
+            checks,
+            label,
+            observed,
+            global_site_headers,
+        )
+
+    observed_site_bytes = sum(len(response.body) for response in site_responses)
+    expected_site_bytes = sum(len(artifact.content) for artifact in local_site.artifacts)
+    checks.extend(
+        [
+            Check(
+                "site-artifact-count-budget",
+                len(local_site.artifacts) + len(local_site.configs)
+                <= site_dist.MAX_SITE_FILES,
+                f"artifacts={len(local_site.artifacts)} configs={len(local_site.configs)}",
+            ),
+            Check(
+                "site-artifact-aggregate-body-budget",
+                observed_site_bytes <= expected_site_bytes
+                and expected_site_bytes <= site_dist.MAX_SITE_TOTAL_BYTES,
+                f"observed={observed_site_bytes} expected-cap={expected_site_bytes}",
+            ),
+        ]
+    )
 
     site_root = response_or_missing(responses, "site_https_root")
     checks.extend(
@@ -1100,26 +1262,35 @@ def evaluate(
         ]
     )
 
-    http_root = response_or_missing(responses, "site_http_root")
-    http_location = http_root.headers.get("location", "")
-    checks.append(
-        Check(
-            "site-http-upgrades-to-canonical-https",
-            http_root.status in {301, 308} and http_location == SITE_APEX,
-            f"status={http_root.status} location={http_location or '<missing>'}",
+    for redirect in local_site.redirects:
+        observed = response_or_missing(responses, redirect.response_name)
+        label = redirect.response_name.replace(":", "-").replace("/", "-")
+        checks.extend(
+            [
+                Check(
+                    f"{label}-status-location",
+                    observed.status == redirect.status
+                    and observed.headers.get("location") == redirect.location,
+                    (
+                        f"expected={redirect.status} location={redirect.location!r} "
+                        f"observed={observed.status} "
+                        f"location={observed.headers.get('location', '<missing>')!r}"
+                    ),
+                ),
+                Check(
+                    f"{label}-final-url",
+                    observed.url == redirect.url,
+                    observed.url,
+                ),
+            ]
         )
-    )
-    add_common_response_checks(checks, "site-http", http_root)
-    www_root = response_or_missing(responses, "site_www_root")
-    www_location = www_root.headers.get("location", "")
-    checks.append(
-        Check(
-            "site-www-redirects-to-canonical-https",
-            www_root.status in {301, 308} and www_location == SITE_APEX,
-            f"status={www_root.status} location={www_location or '<missing>'}",
+        add_common_response_checks(checks, label, observed)
+        add_site_global_header_checks(
+            checks,
+            label,
+            observed,
+            global_site_headers,
         )
-    )
-    add_common_response_checks(checks, "site-www", www_root)
 
     secondary = response_or_missing(responses, "site_secondary")
     secondary_location = secondary.headers.get("location", "")
@@ -1368,6 +1539,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         local_build = load_local_bottle_build()
+        local_site = load_local_site_build()
         if args.snapshot:
             snapshot_commit, responses = load_snapshot(args.snapshot)
             expected_commit = args.expected_commit or snapshot_commit
@@ -1375,8 +1547,8 @@ def main(argv: list[str] | None = None) -> int:
             if not args.expected_commit:
                 parser.error("--live requires --expected-commit")
             expected_commit = args.expected_commit
-            responses = capture_live(local_build)
-        checks = evaluate(responses, expected_commit, local_build)
+            responses = capture_live(local_build, local_site)
+        checks = evaluate(responses, expected_commit, local_build, local_site)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"live-integrity-check: {error}", file=sys.stderr)
         return 2

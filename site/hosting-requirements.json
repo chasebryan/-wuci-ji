@@ -8,6 +8,13 @@
   "last_updated": "2026-07-10",
   "production_host": "Cloudflare Pages",
   "production_project": "wuci-ji",
+  "production_upload_directory": "build/site-dist",
+  "public_inventory_path": "/site-inventory.json",
+  "source_only_exclusions": [
+    "validate.mjs",
+    "daylight-grok-audit.html",
+    "security.txt"
+  ],
   "secondary_publishers": [],
   "retired_publishers": [
     {
@@ -72,6 +79,7 @@
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
+    "/site-inventory.json",
     "/claim-evidence.json",
     "/assets/no-such-machine-official-banner.jpg",
     "/assets/no-such-machine-official-emblem.svg",
