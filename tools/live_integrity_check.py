@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Evaluate public deployment drift without sending credentials or user data.
 
-The default mode reads an explicit JSON snapshot and performs no network I/O.
+The default mode reads an explicit bounded JSON snapshot and performs no
+network I/O. Snapshot files are treated as untrusted input and must exactly
+match the locally derived response plan.
 Pass ``--live`` to issue the bounded, same-origin, read-only request plan after
 rebuilding Daylight Bottle locally. The local ``dist/`` tree defines every
 Bottle artifact request, expected byte string, and response cap; the remote
@@ -13,11 +15,14 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import concurrent.futures
 import gzip
 import hashlib
 import json
+import os
 import re
+import stat
 import sys
 import time
 import urllib.error
@@ -47,6 +52,10 @@ MAX_ARTIFACT_REQUEST_SECONDS = 5.0
 MAX_SITE_CAPTURE_SECONDS = 120.0
 MAX_SITE_REQUEST_SECONDS = 15.0
 MAX_SITE_WORKERS = 8
+SNAPSHOT_MAX_FILE_BYTES = 64 * 1024 * 1024
+SNAPSHOT_MAX_DECODED_BYTES = 48 * 1024 * 1024
+SNAPSHOT_MAX_RESPONSES = 192
+SNAPSHOT_MAX_HEADERS = 64
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
 )
@@ -208,6 +217,13 @@ SITE_RESPONSE_NAMES = {
     "daylight-bottle-keyring-observation.json": "site_bottle_observation",
 }
 
+CANONICAL_ABSOLUTE_REDIRECT_SOURCES = {
+    "http://nosuchmachine.net/*": "site_http_root",
+    "http://www.nosuchmachine.net/*": "site_http_www_root",
+    "https://www.nosuchmachine.net/*": "site_www_root",
+}
+SAFE_REDIRECT_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9._/-]+$")
+
 
 REQUEST_PLAN = (
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
@@ -273,22 +289,35 @@ def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
         if len(parts) != 3 or parts[2] not in {"301", "302", "307", "308"}:
             raise ValueError(f"staged _redirects line {line_number} is invalid")
         source, target, raw_status = parts
-        if "*" in source:
+        if source.startswith(("http://", "https://")):
+            if source not in CANONICAL_ABSOLUTE_REDIRECT_SOURCES:
+                raise ValueError(
+                    f"staged _redirects absolute source line {line_number} is not canonical"
+                )
             if not source.endswith("/*") or target.count(":splat") != 1:
                 raise ValueError(f"staged _redirects wildcard line {line_number} is invalid")
             url = source.removesuffix("*")
             location = target.replace(":splat", "")
         else:
-            if ":" in source and not source.startswith(("http://", "https://")):
-                raise ValueError(f"staged _redirects source line {line_number} is invalid")
-            url = source if source.startswith(("http://", "https://")) else f"{SITE_ORIGIN}{source}"
+            if (
+                not SAFE_REDIRECT_PATH_PATTERN.fullmatch(source)
+                or source.startswith("//")
+                or source.endswith("/")
+                or ".." in source
+                or "*" in source
+                or ":" in source
+            ):
+                raise ValueError(
+                    f"staged _redirects relative source line {line_number} is not a safe canonical path"
+                )
+            url = f"{SITE_ORIGIN}{source}"
             location = target
-        names = {
-            "http://nosuchmachine.net/*": "site_http_root",
-            "http://www.nosuchmachine.net/*": "site_http_www_root",
-            "https://www.nosuchmachine.net/*": "site_www_root",
-        }
-        name = names.get(source, f"site_redirect:{source}")
+        if not target or any(ord(character) < 0x20 for character in target):
+            raise ValueError(f"staged _redirects target line {line_number} is invalid")
+        name = CANONICAL_ABSOLUTE_REDIRECT_SOURCES.get(
+            source,
+            f"site_redirect:{source}",
+        )
         if name in used_names:
             raise ValueError(f"staged _redirects contains a duplicate source: {source}")
         used_names.add(name)
@@ -682,19 +711,125 @@ def capture_live(
     return responses
 
 
-def load_snapshot(path: Path) -> tuple[str, dict[str, Response]]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema") != SCHEMA:
+def expected_snapshot_response_limits(
+    local_build: LocalBottleBuild,
+    local_site: LocalSiteBuild,
+) -> dict[str, int]:
+    limits = {
+        "site_secondary": 4096,
+        "bottle_root": len(local_build.artifacts.get("index.html", b"")),
+        "bottle_manifest": len(local_build.manifest_bytes),
+        "bottle_api": 64 * 1024,
+        "bottle_keyring": len(local_build.artifacts.get("keyring.json", b"")),
+    }
+    limits.update(
+        {redirect.response_name: 4096 for redirect in local_site.redirects}
+    )
+    limits.update(
+        {
+            artifact.response_name: len(artifact.content)
+            for artifact in local_site.artifacts
+        }
+    )
+    limits.update(
+        {
+            artifact_response_name(path): len(content)
+            for path, content in local_build.artifacts.items()
+            if path != "_headers"
+        }
+    )
+    expected_request_names = {spec.name for spec in REQUEST_PLAN}
+    if not expected_request_names.issubset(limits):
+        raise ValueError("snapshot response plan is missing a fixed request")
+    if len(limits) > SNAPSHOT_MAX_RESPONSES:
+        raise ValueError("snapshot response plan exceeds the fixed count budget")
+    if sum(limits.values()) > SNAPSHOT_MAX_DECODED_BYTES:
+        raise ValueError("snapshot response plan exceeds the fixed aggregate body budget")
+    return limits
+
+
+def reject_duplicate_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    output: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in output:
+            raise ValueError(f"duplicate JSON key: {key}")
+        output[key] = value
+    return output
+
+
+def read_snapshot_bytes(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise ValueError("snapshot must be a single-link regular file") from error
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise ValueError("snapshot must be a single-link regular file")
+        if metadata.st_size > SNAPSHOT_MAX_FILE_BYTES:
+            raise ValueError("snapshot exceeds the fixed file-size budget")
+        with os.fdopen(descriptor, "rb", closefd=False) as handle:
+            content = handle.read(SNAPSHOT_MAX_FILE_BYTES + 1)
+        if len(content) > SNAPSHOT_MAX_FILE_BYTES:
+            raise ValueError("snapshot exceeds the fixed file-size budget")
+        return content
+    finally:
+        os.close(descriptor)
+
+
+def load_snapshot(
+    path: Path,
+    local_build: LocalBottleBuild | None = None,
+    local_site: LocalSiteBuild | None = None,
+) -> tuple[str, dict[str, Response]]:
+    if local_build is None:
+        local_build = load_local_bottle_build()
+    if local_site is None:
+        local_site = load_local_site_build()
+    expected_limits = expected_snapshot_response_limits(local_build, local_site)
+
+    raw_snapshot = read_snapshot_bytes(path)
+    try:
+        payload = json.loads(
+            raw_snapshot.decode("utf-8"),
+            object_pairs_hook=reject_duplicate_object,
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError("snapshot is not canonical finite JSON") from error
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != {"schema", "expectedCommit", "responses"}
+        or payload.get("schema") != SCHEMA
+    ):
         raise ValueError(f"snapshot schema must be {SCHEMA}")
     expected_commit = payload.get("expectedCommit")
-    if not isinstance(expected_commit, str):
-        raise ValueError("snapshot expectedCommit must be a string")
+    if not isinstance(expected_commit, str) or not COMMIT_PATTERN.fullmatch(expected_commit):
+        raise ValueError("snapshot expectedCommit must be a 40-character lowercase commit")
     raw_responses = payload.get("responses")
     if not isinstance(raw_responses, dict):
         raise ValueError("snapshot responses must be an object")
+    if len(raw_responses) > SNAPSHOT_MAX_RESPONSES:
+        raise ValueError("snapshot response count exceeds the fixed budget")
+    if set(raw_responses) != set(expected_limits):
+        missing = sorted(set(expected_limits) - set(raw_responses))
+        extra = sorted(set(raw_responses) - set(expected_limits))
+        raise ValueError(
+            f"snapshot response names are not exact: missing={missing} extra={extra}"
+        )
     responses: dict[str, Response] = {}
+    aggregate_body_bytes = 0
+    aggregate_body_limit = min(
+        sum(expected_limits.values()),
+        SNAPSHOT_MAX_DECODED_BYTES,
+    )
     for name, value in raw_responses.items():
-        if not isinstance(name, str) or not isinstance(value, dict):
+        if (
+            not isinstance(name, str)
+            or not isinstance(value, dict)
+            or set(value) != {"status", "headers", "bodyBase64", "url", "truncated"}
+        ):
             raise ValueError("snapshot response entries must be objects")
         status = value.get("status")
         headers = value.get("headers")
@@ -703,6 +838,9 @@ def load_snapshot(path: Path) -> tuple[str, dict[str, Response]]:
         truncated = value.get("truncated", False)
         if (
             not isinstance(status, int)
+            or isinstance(status, bool)
+            or status < 0
+            or status > 599
             or not isinstance(headers, dict)
             or not all(isinstance(key, str) and isinstance(item, str) for key, item in headers.items())
             or not isinstance(body_base64, str)
@@ -710,15 +848,34 @@ def load_snapshot(path: Path) -> tuple[str, dict[str, Response]]:
             or not isinstance(truncated, bool)
         ):
             raise ValueError(f"snapshot response {name} has an invalid shape")
+        if len(headers) > SNAPSHOT_MAX_HEADERS:
+            raise ValueError(f"snapshot response {name} has too many headers")
+        normalized_headers: dict[str, str] = {}
+        for key, item in headers.items():
+            normalized = key.lower()
+            if (
+                not normalized
+                or len(normalized) > 128
+                or len(item) > 8192
+                or any(ord(character) < 0x20 and character != "\t" for character in item)
+                or normalized in normalized_headers
+            ):
+                raise ValueError(f"snapshot response {name} has invalid headers")
+            normalized_headers[normalized] = item
+        if len(url) > 4096 or any(ord(character) < 0x20 for character in url):
+            raise ValueError(f"snapshot response {name} has an invalid URL")
         try:
             body = base64.b64decode(body_base64, validate=True)
-        except (ValueError, base64.binascii.Error) as error:
+        except (ValueError, binascii.Error) as error:
             raise ValueError(f"snapshot response {name} bodyBase64 is invalid") from error
-        if len(body) > max(MAX_RESPONSE_BYTES, site_dist.MAX_SITE_FILE_BYTES):
-            raise ValueError(f"snapshot response {name} exceeds the fixed body budget")
+        if len(body) > expected_limits[name]:
+            raise ValueError(f"snapshot response {name} exceeds its local body cap")
+        aggregate_body_bytes += len(body)
+        if aggregate_body_bytes > aggregate_body_limit:
+            raise ValueError("snapshot response bodies exceed the aggregate budget")
         responses[name] = Response(
             status=status,
-            headers={key.lower(): item for key, item in headers.items()},
+            headers=normalized_headers,
             body=body,
             url=url,
             truncated=truncated,
@@ -1541,7 +1698,11 @@ def main(argv: list[str] | None = None) -> int:
         local_build = load_local_bottle_build()
         local_site = load_local_site_build()
         if args.snapshot:
-            snapshot_commit, responses = load_snapshot(args.snapshot)
+            snapshot_commit, responses = load_snapshot(
+                args.snapshot,
+                local_build,
+                local_site,
+            )
             expected_commit = args.expected_commit or snapshot_commit
         else:
             if not args.expected_commit:

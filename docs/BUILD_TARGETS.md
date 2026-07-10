@@ -75,6 +75,14 @@ checked live. The lane also checks the retired-secondary HTTPS state, rejects
 NEL, `Report-To`, and executable analytics injection, and validates the Bottle
 API, security headers, keyring, and public status parity.
 
+Offline snapshots use `wuci-live-integrity-snapshot-v2`. The reader accepts
+only a single-link regular file no larger than 64 MiB, rejects duplicate keys
+and non-finite JSON, requires the exact locally derived response-name set, and
+enforces fixed response-count, header, decoded per-body, and aggregate caps.
+Redirect probes are limited to the three canonical apex/`www` wildcard sources
+plus literal same-origin paths; redirect targets are compared as `Location`
+values and are never fetched.
+
 ## ZP-1 / Wuci-Ji Coupling
 
 ```sh

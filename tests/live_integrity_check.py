@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import gzip
 import json
+import os
 import sys
 import tempfile
 from dataclasses import replace
@@ -235,6 +236,15 @@ def assert_rejects(
     assert expected_name in failures, failures
 
 
+def assert_value_error(function, expected: str) -> None:
+    try:
+        function()
+    except ValueError as error:
+        assert expected in str(error), error
+        return
+    raise AssertionError(f"expected ValueError containing {expected!r}")
+
+
 def main() -> None:
     js_subject_vector = {
         "source": {
@@ -264,6 +274,32 @@ def main() -> None:
     assert len(gzip.compress(INDEX_BYTES, compresslevel=9, mtime=0)) == 59
     assert len(gzip.compress(APP_BYTES, compresslevel=9, mtime=0)) == 56
     local_site = canonical_local_site_build()
+    assert all(
+        redirect.url.startswith((live.SITE_ORIGIN, "http://nosuchmachine.net/", "http://www.nosuchmachine.net/", "https://www.nosuchmachine.net/"))
+        for redirect in local_site.redirects
+    )
+    for invalid_redirect, expected_error in [
+        (
+            b"http://127.0.0.1:8788/* https://nosuchmachine.net/:splat 301\n",
+            "absolute source",
+        ),
+        (
+            b"http://169.254.169.254/latest https://nosuchmachine.net/ 302\n",
+            "absolute source",
+        ),
+        (
+            b"/assets/* / 302\n",
+            "safe canonical path",
+        ),
+        (
+            b"//127.0.0.1/internal / 302\n",
+            "safe canonical path",
+        ),
+    ]:
+        assert_value_error(
+            lambda content=invalid_redirect: live.parse_site_redirects(content),
+            expected_error,
+        )
     assert_passes(passing_responses())
     assert all(not spec.follow_redirects for spec in live.REQUEST_PLAN)
     assert all(
@@ -587,9 +623,108 @@ def main() -> None:
             },
         }
         snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
-        snapshot_commit, snapshot_responses = live.load_snapshot(snapshot_path)
+        snapshot_commit, snapshot_responses = live.load_snapshot(
+            snapshot_path,
+            canonical_local_build(),
+            local_site,
+        )
         assert snapshot_commit == EXPECTED_COMMIT
         assert_passes(snapshot_responses)
+
+        missing = {**snapshot, "responses": dict(snapshot["responses"])}
+        missing["responses"].pop(next(iter(missing["responses"])))
+        snapshot_path.write_text(json.dumps(missing), encoding="utf-8")
+        assert_value_error(
+            lambda: live.load_snapshot(snapshot_path, canonical_local_build(), local_site),
+            "response names are not exact",
+        )
+
+        example = next(iter(snapshot["responses"].values()))
+        too_many = {
+            "schema": live.SCHEMA,
+            "expectedCommit": EXPECTED_COMMIT,
+            "responses": {
+                f"unexpected-{index}": example for index in range(10_000)
+            },
+        }
+        snapshot_path.write_text(json.dumps(too_many), encoding="utf-8")
+        assert_value_error(
+            lambda: live.load_snapshot(snapshot_path, canonical_local_build(), local_site),
+            "response count",
+        )
+
+        oversized_body = {**snapshot, "responses": dict(snapshot["responses"])}
+        oversized_body["responses"]["site_secondary"] = {
+            **snapshot["responses"]["site_secondary"],
+            "bodyBase64": base64.b64encode(b"x" * 4097).decode("ascii"),
+        }
+        snapshot_path.write_text(json.dumps(oversized_body), encoding="utf-8")
+        assert_value_error(
+            lambda: live.load_snapshot(snapshot_path, canonical_local_build(), local_site),
+            "local body cap",
+        )
+
+        duplicate_path = Path(tmp) / "duplicate.json"
+        duplicate_path.write_text(
+            '{"schema":"wuci-live-integrity-snapshot-v2",'
+            '"schema":"duplicate","expectedCommit":"'
+            + EXPECTED_COMMIT
+            + '","responses":{}}',
+            encoding="utf-8",
+        )
+        assert_value_error(
+            lambda: live.load_snapshot(duplicate_path, canonical_local_build(), local_site),
+            "canonical finite JSON",
+        )
+
+        nonfinite_path = Path(tmp) / "nonfinite.json"
+        nonfinite_path.write_text(
+            '{"schema":NaN,"expectedCommit":"'
+            + EXPECTED_COMMIT
+            + '","responses":{}}',
+            encoding="utf-8",
+        )
+        assert_value_error(
+            lambda: live.load_snapshot(nonfinite_path, canonical_local_build(), local_site),
+            "canonical finite JSON",
+        )
+
+        snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+        symlink_path = Path(tmp) / "snapshot-link.json"
+        symlink_path.symlink_to(snapshot_path)
+        assert_value_error(
+            lambda: live.load_snapshot(symlink_path, canonical_local_build(), local_site),
+            "single-link regular file",
+        )
+        hardlink_path = Path(tmp) / "snapshot-hardlink.json"
+        os.link(snapshot_path, hardlink_path)
+        assert_value_error(
+            lambda: live.load_snapshot(hardlink_path, canonical_local_build(), local_site),
+            "single-link regular file",
+        )
+        hardlink_path.unlink()
+
+        small_path = Path(tmp) / "oversized.json"
+        small_path.write_bytes(b"x" * 65)
+        original_file_budget = live.SNAPSHOT_MAX_FILE_BYTES
+        try:
+            live.SNAPSHOT_MAX_FILE_BYTES = 64
+            assert_value_error(
+                lambda: live.load_snapshot(small_path, canonical_local_build(), local_site),
+                "file-size budget",
+            )
+        finally:
+            live.SNAPSHOT_MAX_FILE_BYTES = original_file_budget
+
+        original_decoded_budget = live.SNAPSHOT_MAX_DECODED_BYTES
+        try:
+            live.SNAPSHOT_MAX_DECODED_BYTES = 1
+            assert_value_error(
+                lambda: live.load_snapshot(snapshot_path, canonical_local_build(), local_site),
+                "aggregate body budget",
+            )
+        finally:
+            live.SNAPSHOT_MAX_DECODED_BYTES = original_decoded_budget
 
     print("live integrity check: PASS")
 

@@ -23,6 +23,32 @@ def must_fail(function, expected: str) -> None:
 
 
 def main() -> None:
+    assert site_dist.public_route_aliases("public-page.html") == {
+        "/public-page",
+        "/public-page.html",
+    }
+    assert site_dist.public_route_aliases("docs/index.html") == {
+        "/docs/",
+        "/docs/index.html",
+    }
+    source_files = site_dist.collect_regular_tree(site_dist.SOURCE_ROOT)
+    clean_url_collision = dict(source_files)
+    clean_url_collision["public-page.html"] = b"<!doctype html><title>public</title>"
+    clean_url_collision["_redirects"] += (
+        b"\n/public-page https://github.com/chasebryan/-wuci-ji 302\n"
+    )
+    must_fail(
+        lambda: site_dist.build_inventory(clean_url_collision),
+        "redirect-shadowed site sources",
+    )
+
+    wildcard_collision = dict(source_files)
+    wildcard_collision["_redirects"] += b"\n/assets/* / 302\n"
+    must_fail(
+        lambda: site_dist.build_inventory(wildcard_collision),
+        "redirect-shadowed site sources",
+    )
+
     with tempfile.TemporaryDirectory() as temporary:
         output = Path(temporary) / "site-dist"
         inventory = site_dist.build_site_dist(site_dist.SOURCE_ROOT, output)

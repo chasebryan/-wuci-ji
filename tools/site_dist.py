@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import re
@@ -138,12 +139,30 @@ def redirect_shadowed_files(
         if len(parts) != 3 or not parts[2].isdigit():
             raise ValueError(f"invalid site/_redirects line {line_number}")
         source = parts[0]
-        if not source.startswith("/") or any(marker in source for marker in ("*", ":")):
+        if not source.startswith("/"):
             continue
-        relative = source.removeprefix("/")
-        if relative in source_paths:
-            shadowed.add(relative)
+        wildcard = "*" in source or ":" in source
+        pattern = re.sub(r":[A-Za-z][A-Za-z0-9_]*", "*", source)
+        for path in source_paths:
+            if path in CONFIG_FILES or path == "validate.mjs":
+                continue
+            aliases = public_route_aliases(path)
+            if (
+                wildcard
+                and any(fnmatch.fnmatchcase(alias, pattern) for alias in aliases)
+            ) or (not wildcard and source in aliases):
+                shadowed.add(path)
     return shadowed
+
+
+def public_route_aliases(path: str) -> set[str]:
+    """Return clean and raw Pages routes that can be shadowed by _redirects."""
+    raw = f"/{path}"
+    aliases = {raw}
+    if path.endswith(".html"):
+        clean, _status = public_url_and_status(path)
+        aliases.add(clean)
+    return aliases
 
 
 def file_record(path: str, content: bytes) -> dict[str, Any]:

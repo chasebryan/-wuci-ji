@@ -174,6 +174,12 @@ their resulting headers and redirect routes are checked instead of requesting
 those consumed config files. The local tree is capped at 96 files, 4 MiB per
 file, and 40 MiB total. Eight bounded workers share a 120-second site-artifact
 deadline; remote content cannot add requests or raise a local byte cap.
+The redirect parser refuses any absolute probe other than the exact HTTP apex,
+HTTP `www`, and HTTPS `www` wildcard rules. Other redirect sources must be
+literal same-origin paths; targets are checked only as response `Location`
+values and are never followed or fetched. Clean HTML routes, raw `.html`
+routes, directory indexes, and local wildcard collisions are considered when
+the staged builder excludes redirect-shadowed source files.
 
 `site/claim-evidence.json` maps each public website claim to the exact local
 evidence files, evidence values, validation commands, and non-claims that bound
