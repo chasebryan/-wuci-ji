@@ -153,9 +153,11 @@ make live-integrity-check
 
 The live command sends no credentials or user content. It uses a fixed all-zero
 recipient fingerprint that cannot be registered through the application, caps
-every response body, expects an empty list, and never prints response bodies.
-It binds the Bottle manifest to the checked-out commit and compares the live
-keyring byte-for-byte with the public site observation and status metadata.
+every response body and the manifest-declared artifact set, rejects redirects,
+expects an empty list, and never prints response bodies. It binds the canonical
+Bottle manifest and exact artifact bytes to the checked-out commit inputs and
+compares the live keyring byte-for-byte with the public site observation and
+status metadata.
 
 `site/claim-evidence.json` maps each public website claim to the exact local
 evidence files, evidence values, validation commands, and non-claims that bound

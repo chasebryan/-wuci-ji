@@ -2,13 +2,16 @@
 """Evaluate public deployment drift without sending credentials or user data.
 
 The default mode reads an explicit JSON snapshot and performs no network I/O.
-Pass ``--live`` to issue the fixed, read-only request plan documented below.
-Response bodies are bounded and never printed.
+Pass ``--live`` to issue the bounded, same-origin, read-only request plan.
+Manifest-declared Bottle artifacts are fetched only after their paths and
+declared aggregate size pass strict validation. Response bodies are bounded
+and never printed.
 """
 
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import re
@@ -21,6 +24,7 @@ from typing import Any, Mapping
 
 
 SCHEMA = "wuci-live-integrity-snapshot-v1"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SITE_ORIGIN = "https://nosuchmachine.net"
 SITE_APEX = f"{SITE_ORIGIN}/"
 SITE_HTTP_APEX = "http://nosuchmachine.net/"
@@ -30,6 +34,8 @@ BOTTLE_ORIGIN = "https://bottle.nosuchmachine.net"
 CANONICAL_REPOSITORY = "https://github.com/chasebryan/-wuci-ji"
 ZERO_FINGERPRINT = f"sha256:{'0' * 64}"
 MAX_RESPONSE_BYTES = 1_048_576
+MAX_MANIFEST_ARTIFACTS = 32
+MAX_MANIFEST_ARTIFACT_BYTES = 2_097_152
 BROWSER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
 
 REQUIRED_BOTTLE_HEADERS = {
@@ -55,6 +61,44 @@ KEYNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._/-]{2,63}$")
 FINGERPRINT_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 AGE_RECIPIENT_PATTERN = re.compile(r"^age1[a-z0-9]{20,511}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+ISO_TIMESTAMP_PATTERN = re.compile(
+    r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$"
+)
+ARTIFACT_PATH_PATTERN = re.compile(r"^[A-Za-z0-9._/-]+$")
+NODE_VERSION_PATTERN = re.compile(r"^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+RUNTIME_EXTENSIONS = {".html", ".js", ".mjs", ".css"}
+PUBLIC_ROOT_ARTIFACTS = {"_headers", "favicon.svg", "index.html", "keyring.json"}
+PUBLIC_ASSET_EXTENSIONS = {
+    ".css",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".mjs",
+    ".png",
+    ".svg",
+    ".webp",
+    ".woff",
+    ".woff2",
+}
+MAX_RUNTIME_BYTES = 220 * 1024
+MAX_RUNTIME_GZIP_BYTES = 80 * 1024
+WORKER_SOURCE_PATHS = (
+    "public/keyring.json",
+    "src/crypto/fingerprint.ts",
+    "src/domain/types.ts",
+    "src/domain/validation.ts",
+    "worker/index.ts",
+)
+MANIFEST_INPUT_PATHS = {
+    "packageJsonSha256": "package.json",
+    "packageLockSha256": "package-lock.json",
+    "keyringSha256": "public/keyring.json",
+    "securityHeadersSha256": "public/_headers",
+    "wranglerConfigSha256": "wrangler.toml",
+}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -70,7 +114,7 @@ class RequestSpec:
     name: str
     url: str
     method: str = "GET"
-    follow_redirects: bool = True
+    follow_redirects: bool = False
     user_agent: str = "wuci-live-integrity-check/1"
 
 
@@ -111,6 +155,128 @@ REQUEST_PLAN = (
 )
 
 
+def canonical_json_bytes(value: Any) -> bytes:
+    """Match JSON.stringify for the ASCII/integer release-manifest contract."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def read_regular_repo_file(relative_path: str) -> bytes:
+    path = REPOSITORY_ROOT / relative_path
+    metadata = path.lstat()
+    if path.is_symlink() or not path.is_file() or metadata.st_nlink != 1:
+        raise ValueError(f"repository input must be a single-link regular file: {relative_path}")
+    return path.read_bytes()
+
+
+def bottle_file(relative_path: str) -> bytes:
+    return read_regular_repo_file(f"apps/bottle/{relative_path}")
+
+
+def build_worker_source_closure() -> dict[str, Any]:
+    files = []
+    for path in sorted(WORKER_SOURCE_PATHS):
+        content = bottle_file(path)
+        files.append({"path": path, "bytes": len(content), "sha256": sha256(content)})
+    return {
+        "schema": "nsm.daylight-bottle.worker-source-closure.v1",
+        "sha256": sha256(canonical_json_bytes(files)),
+        "files": files,
+    }
+
+
+def expected_manifest_inputs() -> dict[str, Any]:
+    inputs: dict[str, Any] = {
+        field: sha256(bottle_file(path)) for field, path in MANIFEST_INPUT_PATHS.items()
+    }
+    inputs["workerSourceClosure"] = build_worker_source_closure()
+    # Preserve the exact key order emitted by generate-release-manifest.mjs.
+    return {
+        "packageJsonSha256": inputs["packageJsonSha256"],
+        "packageLockSha256": inputs["packageLockSha256"],
+        "keyringSha256": inputs["keyringSha256"],
+        "securityHeadersSha256": inputs["securityHeadersSha256"],
+        "workerSourceClosure": inputs["workerSourceClosure"],
+        "wranglerConfigSha256": inputs["wranglerConfigSha256"],
+    }
+
+
+def valid_canonical_timestamp(value: Any) -> bool:
+    """Faithfully implement the JS regex/Date/toISOString timestamp contract."""
+    if not isinstance(value, str):
+        return False
+    match = ISO_TIMESTAMP_PATTERN.fullmatch(value)
+    if match is None:
+        return False
+    year, month, day, hour, minute, second, _millisecond = map(int, match.groups())
+    if month < 1 or month > 12 or hour > 23 or minute > 59 or second > 59:
+        return False
+    month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0):
+        month_days[1] = 29
+    return 1 <= day <= month_days[month - 1]
+
+
+def valid_artifact_path(path: Any) -> bool:
+    structurally_safe = (
+        isinstance(path, str)
+        and bool(ARTIFACT_PATH_PATTERN.fullmatch(path))
+        and not path.startswith("/")
+        and not path.endswith("/")
+        and ".." not in path
+        and "//" not in path
+    )
+    if not structurally_safe:
+        return False
+    return path in PUBLIC_ROOT_ARTIFACTS or (
+        path.startswith("assets/")
+        and path.count("/") == 1
+        and Path(path).suffix in PUBLIC_ASSET_EXTENSIONS
+    )
+
+
+def artifact_response_name(path: str) -> str:
+    return f"bottle_artifact:{path}"
+
+
+def artifact_url(path: str) -> str:
+    return f"{BOTTLE_ORIGIN}/{path}"
+
+
+def manifest_artifact_paths(payload: Any) -> list[str]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("artifacts"), list):
+        return []
+    artifacts = payload["artifacts"]
+    if not 0 < len(artifacts) <= MAX_MANIFEST_ARTIFACTS:
+        return []
+    paths: list[str] = []
+    total_bytes = 0
+    for artifact in artifacts:
+        if not isinstance(artifact, dict) or set(artifact) != {"path", "bytes", "sha256"}:
+            return []
+        path = artifact.get("path")
+        size = artifact.get("bytes")
+        digest = artifact.get("sha256")
+        if (
+            not valid_artifact_path(path)
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or size < 0
+            or size > MAX_RESPONSE_BYTES
+            or not isinstance(digest, str)
+            or not SHA256_PATTERN.fullmatch(digest)
+        ):
+            return []
+        total_bytes += size
+        paths.append(path)
+    if total_bytes > MAX_MANIFEST_ARTIFACT_BYTES or paths != sorted(set(paths)):
+        return []
+    return paths
+
+
 def fetch(spec: RequestSpec, *, timeout: float = 12.0) -> Response:
     request = urllib.request.Request(
         spec.url,
@@ -142,7 +308,17 @@ def fetch(spec: RequestSpec, *, timeout: float = 12.0) -> Response:
 
 
 def capture_live() -> dict[str, Response]:
-    return {spec.name: fetch(spec) for spec in REQUEST_PLAN}
+    responses = {spec.name: fetch(spec) for spec in REQUEST_PLAN}
+    manifest = json_body(response_or_missing(responses, "bottle_manifest"))
+    for path in manifest_artifact_paths(manifest):
+        # Cloudflare consumes _headers as deployment configuration. Bind it to
+        # the checkout and verify its resulting headers instead of requesting
+        # a path that is intentionally not public.
+        if path == "_headers":
+            continue
+        name = artifact_response_name(path)
+        responses[name] = fetch(RequestSpec(name, artifact_url(path)))
+    return responses
 
 
 def load_snapshot(path: Path) -> tuple[str, dict[str, Response]]:
@@ -189,14 +365,27 @@ def response_or_missing(responses: Mapping[str, Response], name: str) -> Respons
 
 def json_body(response: Response) -> Any | None:
     try:
-        return json.loads(response.body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
+        return json.loads(
+            response.body.decode("utf-8"),
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
         return None
 
 
 def has_forbidden_analytics(body: bytes) -> bool:
     lowered = body.lower()
     return any(marker.lower() in lowered for marker in ANALYTICS_MARKERS)
+
+
+def add_exact_url_check(
+    checks: list[Check], label: str, response: Response, expected_url: str
+) -> None:
+    checks.append(Check(f"{label}-final-url", response.url == expected_url, response.url))
+
+
+def byte_match_detail(expected: bytes, observed: bytes) -> str:
+    return f"expected-sha256={sha256(expected)} observed-sha256={sha256(observed)}"
 
 
 def add_common_response_checks(checks: list[Check], label: str, response: Response) -> None:
@@ -243,7 +432,7 @@ def valid_keyring(payload: Any) -> tuple[bool, str, int]:
         return False, "keyring fields are not exact", 0
     if payload.get("schema") != "nsm.daylight-bottle.keyring.v1":
         return False, "unsupported keyring schema", 0
-    if not isinstance(payload.get("updatedAt"), str) or not isinstance(payload.get("keys"), list):
+    if not valid_canonical_timestamp(payload.get("updatedAt")) or not isinstance(payload.get("keys"), list):
         return False, "invalid keyring updatedAt or keys", 0
     active_keynames: set[str] = set()
     fingerprints: set[str] = set()
@@ -255,6 +444,7 @@ def valid_keyring(payload: Any) -> tuple[bool, str, int]:
         keyname = candidate.get("keyname")
         recipient = candidate.get("publicRecipient")
         fingerprint = candidate.get("fingerprint")
+        created_at = candidate.get("createdAt")
         status = candidate.get("status")
         if (
             candidate.get("schema") != "nsm.daylight-bottle.key.v1"
@@ -268,6 +458,7 @@ def valid_keyring(payload: Any) -> tuple[bool, str, int]:
             or not AGE_RECIPIENT_PATTERN.fullmatch(recipient)
             or not isinstance(fingerprint, str)
             or not FINGERPRINT_PATTERN.fullmatch(fingerprint)
+            or not valid_canonical_timestamp(created_at)
             or status not in {"active", "revoked"}
         ):
             return False, "invalid key record", 0
@@ -284,8 +475,205 @@ def valid_keyring(payload: Any) -> tuple[bool, str, int]:
     return True, "canonical keyring", active_count
 
 
+def exact_fields(value: Any, expected: set[str]) -> bool:
+    return isinstance(value, dict) and set(value) == expected
+
+
+def valid_nonnegative_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def release_manifest_checks(
+    manifest: Any,
+    responses: Mapping[str, Response],
+    expected_commit: str,
+    bottle_root: Response,
+    keyring_response: Response,
+) -> list[Check]:
+    checks: list[Check] = []
+    top_fields = {"schema", "subjectSha256", "source", "build", "inputs", "bundleBudget", "artifacts"}
+    top_exact = exact_fields(manifest, top_fields)
+    checks.append(Check("bottle-manifest-exact-fields", top_exact, ",".join(sorted(top_fields))))
+
+    source = manifest.get("source") if isinstance(manifest, dict) else None
+    source_exact = exact_fields(source, {"repository", "commit", "treeState"})
+    checks.extend(
+        [
+            Check("bottle-manifest-source-exact-fields", source_exact, "repository,commit,treeState"),
+            Check(
+                "bottle-manifest-source-repository",
+                source_exact and source.get("repository") == CANONICAL_REPOSITORY,
+                str(source.get("repository")) if isinstance(source, dict) else "<invalid>",
+            ),
+            Check(
+                "bottle-manifest-source-commit",
+                source_exact and source.get("commit") == expected_commit,
+                str(source.get("commit")) if isinstance(source, dict) else "<invalid>",
+            ),
+            Check(
+                "bottle-manifest-clean-tree",
+                source_exact and source.get("treeState") == "clean",
+                str(source.get("treeState")) if isinstance(source, dict) else "<invalid>",
+            ),
+        ]
+    )
+
+    build = manifest.get("build") if isinstance(manifest, dict) else None
+    build_fields = {"appVersion", "nodeVersion", "packageManager", "command"}
+    build_exact = exact_fields(build, build_fields)
+    package = json.loads(bottle_file("package.json"))
+    build_matches = (
+        build_exact
+        and build.get("appVersion") == package.get("version")
+        and build.get("packageManager") == package.get("packageManager")
+        and build.get("command") == "npm run build"
+        and isinstance(build.get("nodeVersion"), str)
+        and bool(NODE_VERSION_PATTERN.fullmatch(build["nodeVersion"]))
+    )
+    checks.extend(
+        [
+            Check("bottle-manifest-build-exact-fields", build_exact, ",".join(sorted(build_fields))),
+            Check("bottle-manifest-build-contract", build_matches, "checked-out package metadata and npm run build"),
+        ]
+    )
+
+    inputs = manifest.get("inputs") if isinstance(manifest, dict) else None
+    local_inputs = expected_manifest_inputs()
+    checks.append(
+        Check(
+            "bottle-manifest-inputs-match-checkout",
+            inputs == local_inputs,
+            "canonical package, keyring, headers, Worker closure, and Wrangler input digests",
+        )
+    )
+
+    artifact_paths = manifest_artifact_paths(manifest)
+    artifacts = manifest.get("artifacts") if isinstance(manifest, dict) else None
+    required_artifacts = {"_headers", "index.html", "keyring.json"}
+    artifacts_contract = bool(artifact_paths) and required_artifacts.issubset(artifact_paths)
+    checks.append(
+        Check(
+            "bottle-manifest-artifact-contract",
+            artifacts_contract,
+            f"bounded sorted artifact list containing {','.join(sorted(required_artifacts))}",
+        )
+    )
+
+    artifact_contents: dict[str, bytes] = {}
+    artifact_records = artifacts if isinstance(artifacts, list) else []
+    for record in artifact_records if artifact_paths else []:
+        path = record["path"]
+        if path == "_headers":
+            content = bottle_file("public/_headers")
+            artifact_contents[path] = content
+            matches = record["bytes"] == len(content) and record["sha256"] == sha256(content)
+            checks.append(
+                Check(
+                    "bottle-artifact-_headers-checkout-binding",
+                    matches,
+                    byte_match_detail(content, content) if matches else "manifest _headers differs from checkout",
+                )
+            )
+            continue
+
+        response = response_or_missing(responses, artifact_response_name(path))
+        if path in {"index.html", "keyring.json"}:
+            add_bottle_header_checks(checks, f"bottle-artifact-{path}", response)
+        else:
+            add_common_response_checks(checks, f"bottle-artifact-{path}", response)
+        checks.extend(
+            [
+                Check(
+                    f"bottle-artifact-{path}-status",
+                    response.status == 200,
+                    f"status={response.status}",
+                ),
+                Check(
+                    f"bottle-artifact-{path}-final-url",
+                    response.url == artifact_url(path),
+                    response.url,
+                ),
+                Check(
+                    f"bottle-artifact-{path}-bytes-and-sha256",
+                    record["bytes"] == len(response.body) and record["sha256"] == sha256(response.body),
+                    (
+                        f"declared-bytes={record['bytes']} observed-bytes={len(response.body)} "
+                        f"observed-sha256={sha256(response.body)}"
+                    ),
+                ),
+            ]
+        )
+        artifact_contents[path] = response.body
+
+    checks.extend(
+        [
+            Check(
+                "bottle-root-matches-manifest-index",
+                artifact_contents.get("index.html") == bottle_root.body,
+                byte_match_detail(artifact_contents.get("index.html", b""), bottle_root.body),
+            ),
+            Check(
+                "bottle-keyring-matches-manifest-artifact",
+                artifact_contents.get("keyring.json") == keyring_response.body,
+                byte_match_detail(artifact_contents.get("keyring.json", b""), keyring_response.body),
+            ),
+        ]
+    )
+
+    budget = manifest.get("bundleBudget") if isinstance(manifest, dict) else None
+    budget_fields = {"schema", "runtimeBytes", "runtimeGzipBytes", "maxRuntimeBytes", "maxRuntimeGzipBytes"}
+    budget_exact = exact_fields(budget, budget_fields)
+    runtime_contents = [
+        content
+        for path, content in artifact_contents.items()
+        if Path(path).suffix in RUNTIME_EXTENSIONS
+    ]
+    runtime_bytes = sum(len(content) for content in runtime_contents)
+    runtime_gzip_bytes = sum(len(gzip.compress(content, compresslevel=9, mtime=0)) for content in runtime_contents)
+    budget_matches = (
+        budget_exact
+        and budget.get("schema") == "nsm.daylight-bottle.bundle-budget.v1"
+        and all(valid_nonnegative_integer(budget.get(field)) for field in budget_fields - {"schema"})
+        and budget.get("runtimeBytes") == runtime_bytes
+        and budget.get("runtimeGzipBytes") == runtime_gzip_bytes
+        and budget.get("maxRuntimeBytes") == MAX_RUNTIME_BYTES
+        and budget.get("maxRuntimeGzipBytes") == MAX_RUNTIME_GZIP_BYTES
+        and runtime_bytes <= MAX_RUNTIME_BYTES
+        and runtime_gzip_bytes <= MAX_RUNTIME_GZIP_BYTES
+    )
+    checks.append(
+        Check(
+            "bottle-manifest-bundle-budget",
+            budget_matches,
+            f"runtime={runtime_bytes}/{MAX_RUNTIME_BYTES} gzip={runtime_gzip_bytes}/{MAX_RUNTIME_GZIP_BYTES}",
+        )
+    )
+
+    subject = None
+    if isinstance(manifest, dict):
+        subject = {
+            "source": manifest.get("source"),
+            "build": manifest.get("build"),
+            "inputs": manifest.get("inputs"),
+            "bundleBudget": manifest.get("bundleBudget"),
+            "artifacts": manifest.get("artifacts"),
+        }
+    expected_subject = f"sha256:{sha256(canonical_json_bytes(subject))}" if subject is not None else "<invalid>"
+    observed_subject = manifest.get("subjectSha256") if isinstance(manifest, dict) else None
+    checks.append(
+        Check(
+            "bottle-manifest-subject-digest",
+            top_exact and observed_subject == expected_subject,
+            f"expected={expected_subject} observed={observed_subject}",
+        )
+    )
+    return checks
+
+
 def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Check]:
     checks: list[Check] = []
+    expected_site_root = read_regular_repo_file("site/index.html")
+    expected_site_wucios = read_regular_repo_file("site/wucios.html")
     checks.append(
         Check(
             "expected-commit-format",
@@ -314,6 +702,11 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
                 not has_forbidden_analytics(site_root.body),
                 "analytics markers absent",
             ),
+            Check(
+                "site-root-exact-bytes",
+                site_root.body == expected_site_root,
+                byte_match_detail(expected_site_root, site_root.body),
+            ),
         ]
     )
     add_common_response_checks(checks, "site-root", site_root)
@@ -323,7 +716,7 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
     checks.append(
         Check(
             "site-http-upgrades-to-canonical-https",
-            http_root.status in {301, 308} and http_location.startswith(SITE_APEX),
+            http_root.status in {301, 308} and http_location == SITE_APEX,
             f"status={http_root.status} location={http_location or '<missing>'}",
         )
     )
@@ -333,7 +726,7 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
     checks.append(
         Check(
             "site-www-redirects-to-canonical-https",
-            www_root.status in {301, 308} and www_location.startswith(SITE_APEX),
+            www_root.status in {301, 308} and www_location == SITE_APEX,
             f"status={www_root.status} location={www_location or '<missing>'}",
         )
     )
@@ -344,7 +737,7 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
     secondary_retired = secondary.status in {404, 410}
     secondary_safe_redirect = (
         secondary.status in {301, 302, 307, 308}
-        and secondary_location.startswith(SITE_APEX)
+        and secondary_location == SITE_APEX
     )
     checks.append(
         Check(
@@ -361,8 +754,13 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
             Check("site-browser-wucios-status", browser_page.status == 200, f"status={browser_page.status}"),
             Check(
                 "site-browser-wucios-https",
-                browser_page.url.startswith(f"{SITE_ORIGIN}/"),
+                browser_page.url == f"{SITE_ORIGIN}/wucios",
                 browser_page.url,
+            ),
+            Check(
+                "site-browser-wucios-exact-bytes",
+                browser_page.body == expected_site_wucios,
+                byte_match_detail(expected_site_wucios, browser_page.body),
             ),
             Check(
                 "site-browser-no-analytics-injection",
@@ -394,48 +792,40 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
 
     manifest_response = response_or_missing(responses, "bottle_manifest")
     add_bottle_header_checks(checks, "bottle-manifest", manifest_response)
+    add_exact_url_check(
+        checks,
+        "bottle-manifest",
+        manifest_response,
+        f"{BOTTLE_ORIGIN}/release-manifest.json",
+    )
     manifest = json_body(manifest_response)
     checks.extend(
         [
             Check("bottle-manifest-status", manifest_response.status == 200, f"status={manifest_response.status}"),
-            Check("bottle-manifest-json", isinstance(manifest, dict), "valid object" if isinstance(manifest, dict) else "invalid JSON"),
+            Check(
+                "bottle-manifest-json",
+                isinstance(manifest, dict),
+                "valid object" if isinstance(manifest, dict) else "invalid JSON",
+            ),
         ]
     )
-    manifest_source = manifest.get("source") if isinstance(manifest, dict) else None
     manifest_inputs = manifest.get("inputs") if isinstance(manifest, dict) else None
-    manifest_subject = manifest.get("subjectSha256") if isinstance(manifest, dict) else None
-    checks.extend(
-        [
-            Check(
-                "bottle-manifest-schema",
-                isinstance(manifest, dict) and manifest.get("schema") == "nsm.daylight-bottle.release-manifest.v1",
-                str(manifest.get("schema")) if isinstance(manifest, dict) else "<invalid>",
-            ),
-            Check(
-                "bottle-manifest-source-repository",
-                isinstance(manifest_source, dict) and manifest_source.get("repository") == CANONICAL_REPOSITORY,
-                str(manifest_source.get("repository")) if isinstance(manifest_source, dict) else "<invalid>",
-            ),
-            Check(
-                "bottle-manifest-source-commit",
-                isinstance(manifest_source, dict) and manifest_source.get("commit") == expected_commit,
-                str(manifest_source.get("commit")) if isinstance(manifest_source, dict) else "<invalid>",
-            ),
-            Check(
-                "bottle-manifest-clean-tree",
-                isinstance(manifest_source, dict) and manifest_source.get("treeState") == "clean",
-                str(manifest_source.get("treeState")) if isinstance(manifest_source, dict) else "<invalid>",
-            ),
-            Check(
-                "bottle-manifest-subject-digest",
-                isinstance(manifest_subject, str) and bool(FINGERPRINT_PATTERN.fullmatch(manifest_subject)),
-                str(manifest_subject),
-            ),
-        ]
+    checks.append(
+        Check(
+            "bottle-manifest-schema",
+            isinstance(manifest, dict) and manifest.get("schema") == "nsm.daylight-bottle.release-manifest.v1",
+            str(manifest.get("schema")) if isinstance(manifest, dict) else "<invalid>",
+        )
     )
 
     api_response = response_or_missing(responses, "bottle_api")
     add_bottle_header_checks(checks, "bottle-api", api_response)
+    add_exact_url_check(
+        checks,
+        "bottle-api",
+        api_response,
+        f"{BOTTLE_ORIGIN}/api/bottles?recipientFingerprint={ZERO_FINGERPRINT}",
+    )
     api_payload = json_body(api_response)
     api_exact = isinstance(api_payload, dict) and set(api_payload) == {"schema", "bottles"}
     api_bottles = api_payload.get("bottles") if isinstance(api_payload, dict) else None
@@ -458,6 +848,12 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
 
     keyring_response = response_or_missing(responses, "bottle_keyring")
     add_bottle_header_checks(checks, "bottle-keyring", keyring_response)
+    add_exact_url_check(
+        checks,
+        "bottle-keyring",
+        keyring_response,
+        f"{BOTTLE_ORIGIN}/keyring.json",
+    )
     keyring = json_body(keyring_response)
     keyring_ok, keyring_detail, active_count = valid_keyring(keyring)
     keyring_sha256 = f"sha256:{hashlib.sha256(keyring_response.body).hexdigest()}"
@@ -473,9 +869,24 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
             ),
         ]
     )
+    checks.extend(
+        release_manifest_checks(
+            manifest,
+            responses,
+            expected_commit,
+            bottle_root,
+            keyring_response,
+        )
+    )
 
     status_response = response_or_missing(responses, "site_bottle_status")
     add_common_response_checks(checks, "site-bottle-status", status_response)
+    add_exact_url_check(
+        checks,
+        "site-bottle-status",
+        status_response,
+        f"{SITE_ORIGIN}/daylight-bottle-status.json",
+    )
     status = json_body(status_response)
     expected_activation = "pending" if active_count == 0 else "active"
     checks.extend(
@@ -527,6 +938,12 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
 
     observation_response = response_or_missing(responses, "site_bottle_observation")
     add_common_response_checks(checks, "site-bottle-observation", observation_response)
+    add_exact_url_check(
+        checks,
+        "site-bottle-observation",
+        observation_response,
+        f"{SITE_ORIGIN}/daylight-bottle-keyring-observation.json",
+    )
     observation = json_body(observation_response)
     checks.extend(
         [
@@ -573,7 +990,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--snapshot", type=Path, help="evaluate a local JSON snapshot without network I/O")
-    mode.add_argument("--live", action="store_true", help="perform the fixed public, read-only network request plan")
+    mode.add_argument(
+        "--live",
+        action="store_true",
+        help="perform the bounded canonical-origin, read-only network request plan",
+    )
     parser.add_argument("--expected-commit", help="40-character commit expected in the Bottle manifest")
     parser.add_argument("--json", action="store_true", help="emit machine-readable results")
     args = parser.parse_args(argv)

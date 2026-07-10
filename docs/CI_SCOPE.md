@@ -22,10 +22,11 @@ The checked-in workflow runs on Ubuntu Linux x86_64 and currently verifies:
   (`daylight-v19-aperture-bastion.yml`).
 - Offline live-integrity response-policy tests and repository-maintenance
   policy checks. These deterministic CI lanes perform no public network reads.
-- The separate scheduled/manual `live-integrity` workflow performs only the
-  fixed public GET/HEAD request plan, sends no secrets or user content, and
-  fails when production no longer matches the checked-out `main` commit and
-  declared hosting policy.
+- The separate scheduled/manual `live-integrity` workflow explicitly checks
+  out `main`, performs only bounded public GET/HEAD requests to the canonical
+  origins and validated same-origin Bottle artifact paths, sends no secrets or
+  user content, and fails when production bytes no longer match checked-out
+  `main` and the declared hosting policy.
 - Defensive CodeQL analysis for repository-owned JavaScript/TypeScript and
   Python. Third-party, frozen-fixture, dependency, build, and deployment-output
   paths are excluded by the checked-in CodeQL configuration.

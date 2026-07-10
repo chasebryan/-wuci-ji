@@ -68,6 +68,12 @@ def main() -> None:
     for ignored_path in ["third_party/**", "daylight-equation/fixtures/**", '"**/node_modules/**"']:
         assert ignored_path in codeql_config, f"CodeQL config must ignore {ignored_path}"
 
+    live_integrity_workflow = read(".github/workflows/live-integrity.yml")
+    assert "workflow_dispatch:" in live_integrity_workflow
+    assert "if: github.ref == 'refs/heads/main'" in live_integrity_workflow
+    assert re.search(r"(?m)^\s+ref: main$", live_integrity_workflow)
+    assert 'test "$(git branch --show-current)" = main' in live_integrity_workflow
+
     for workflow in sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml")):
         report = firewall.check_workflow(workflow)
         assert report["ok"], report

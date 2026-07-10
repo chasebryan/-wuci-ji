@@ -188,15 +188,19 @@ overshoot that ceiling.
 
 Confirm the live release manifest has schema
 `nsm.daylight-bottle.release-manifest.v1`, its source commit matches the exact
-commit approved for deployment, and its subject digest matches the locally
-verified manifest. This is a deployment parity check, not independent proof of
-an uncompromised origin.
+commit approved for deployment, its canonical subject digest recomputes, its
+source-input digests match the checkout, and every bounded public artifact
+matches its declared size and hash. The consumed `_headers` artifact is bound
+to the checkout and its resulting policy is checked on live responses. This is
+a deployment parity check, not independent proof of an uncompromised origin.
 
 From the repository root, run the deterministic policy tests and then the
-explicit no-secret public readback. The live command binds the manifest to the
-checked-out commit, requires the zero-fingerprint API probe to return an empty
-versioned response, checks the static/API security headers, and verifies that
-the live keyring, public observation, and status metadata agree byte-for-byte:
+explicit no-secret public readback. The live command binds the manifest,
+checked-out source inputs, and exact bounded same-origin artifact bytes to the
+checked-out commit; rejects redirects; requires the zero-fingerprint API probe
+to return an empty versioned response; checks the static/API security headers;
+and verifies that the live keyring, public observation, and status metadata
+agree byte-for-byte:
 
 ```sh
 make live-integrity-test
