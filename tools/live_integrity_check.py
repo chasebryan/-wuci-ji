@@ -305,6 +305,7 @@ def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
             if (
                 not source.endswith("/*")
                 or target != CANONICAL_ABSOLUTE_REDIRECT_TARGET
+                or raw_status != "301"
             ):
                 raise ValueError(f"staged _redirects wildcard line {line_number} is invalid")
             absolute_sources.add(source)

@@ -253,11 +253,12 @@ def redirect_shadowed_files(
         rule_count += 1
         if rule_count > MAX_SITE_REDIRECTS:
             raise ValueError("site/_redirects exceeds the fixed redirect-count budget")
-        source, target, _status = parts
+        source, target, raw_status = parts
         if not source.startswith("/"):
             if (
                 source not in CANONICAL_ABSOLUTE_REDIRECT_SOURCES
                 or target != CANONICAL_ABSOLUTE_REDIRECT_TARGET
+                or raw_status != "301"
             ):
                 raise ValueError(
                     f"site/_redirects absolute wildcard line {line_number} is invalid"

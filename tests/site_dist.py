@@ -45,6 +45,17 @@ def main() -> None:
         "absolute wildcard",
     )
 
+    bad_absolute_status = dict(source_files)
+    bad_absolute_status["_redirects"] = bad_absolute_status["_redirects"].replace(
+        b"http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301",
+        b"http://nosuchmachine.net/* https://nosuchmachine.net/:splat 302",
+        1,
+    )
+    must_fail(
+        lambda: site_dist.build_inventory(bad_absolute_status),
+        "absolute wildcard",
+    )
+
     comment_decoy = dict(source_files)
     comment_lines = comment_decoy["_redirects"].splitlines()
     comment_decoy["_redirects"] = b"\n".join(

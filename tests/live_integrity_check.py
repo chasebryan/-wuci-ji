@@ -326,6 +326,12 @@ def main() -> None:
             "wildcard line",
         ),
         (
+            b"http://nosuchmachine.net/* https://nosuchmachine.net/:splat 302\n"
+            b"http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
+            b"https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n",
+            "wildcard line",
+        ),
+        (
             b"# http://nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
             b"# http://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
             b"# https://www.nosuchmachine.net/* https://nosuchmachine.net/:splat 301\n"
