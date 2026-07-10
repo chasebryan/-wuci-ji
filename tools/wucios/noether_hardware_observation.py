@@ -27,6 +27,23 @@ BOUNDARY_STATEMENT = (
     "This record is a digest-bound operator observation only; it is not independent hardware "
     "validation, certification, official release authority, or proof of OS containment."
 )
+FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS = (
+    ("hardware-validation", re.compile(r"\bhardware[\s-]+validation\b", re.IGNORECASE)),
+    ("external-validation", re.compile(r"\bexternal[\s-]+validation\b", re.IGNORECASE)),
+    ("independent-validation", re.compile(r"\bindependent(?:ly)?[\s-]+validat(?:e|ed|es|ing|ion)\b", re.IGNORECASE)),
+    ("validation", re.compile(r"\bvalidat(?:e|ed|es|ing|ion)\b", re.IGNORECASE)),
+    ("certification", re.compile(r"\bcertif(?:y|ies|ied|ication|ications)\b", re.IGNORECASE)),
+    ("official-release", re.compile(r"\bofficial[\s-]+release\b", re.IGNORECASE)),
+    ("release-authority", re.compile(r"\brelease[\s-]+authority\b", re.IGNORECASE)),
+    ("production-authority", re.compile(r"\bproduction[\s-]+authority\b", re.IGNORECASE)),
+    ("runtime-containment", re.compile(r"\bruntime[\s-]+containment\b", re.IGNORECASE)),
+    ("os-containment", re.compile(r"\bos[\s-]+containment\b", re.IGNORECASE)),
+    ("containment", re.compile(r"\bcontainment\b", re.IGNORECASE)),
+    ("runtime-sandbox", re.compile(r"\bruntime[\s-]+sandbox(?:ing)?\b", re.IGNORECASE)),
+    ("post-quantum-secure", re.compile(r"\bpost[\s-]+quantum[\s-]+secure\b", re.IGNORECASE)),
+    ("quantum-safety", re.compile(r"\bquantum[\s-]+(?:safe|safety|secure|security)\b", re.IGNORECASE)),
+    ("independently-audited", re.compile(r"\bindependently[\s-]+audited\b", re.IGNORECASE)),
+)
 
 
 class HardwareObservationError(RuntimeError):
@@ -52,6 +69,18 @@ def require_string(value: Any, label: str, *, choices: set[str] | None = None) -
     if choices is not None and value not in choices:
         raise HardwareObservationError(f"{label} must be one of {sorted(choices)}")
     return value
+
+
+def require_bounded_free_text(value: Any, label: str) -> str:
+    """Reject authority language from operator-controlled record strings."""
+
+    text = require_string(value, label)
+    for claim_id, pattern in FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS:
+        if pattern.search(text):
+            raise HardwareObservationError(
+                f"{label} contains reserved authority language: {claim_id}"
+            )
+    return text
 
 
 def require_false(value: Any, label: str) -> None:
@@ -97,9 +126,9 @@ def verify_record(value: Any) -> dict[str, Any]:
         subject["subject_kind"], "subject.subject_kind",
         choices={"synthetic-fixture", "private-reviewer-built-iso"},
     )
-    require_string(subject["subject_description"], "subject.subject_description")
+    require_bounded_free_text(subject["subject_description"], "subject.subject_description")
     require_hex(subject["commit"], 40, "subject.commit")
-    filename = require_string(subject["iso_filename"], "subject.iso_filename")
+    filename = require_bounded_free_text(subject["iso_filename"], "subject.iso_filename")
     if filename in {".", ".."} or "/" in filename or "\\" in filename:
         raise HardwareObservationError("subject.iso_filename must be a basename")
     digests = require_exact_keys(subject["iso_digests"], {"sha256", "sha384", "sha512"}, "subject.iso_digests")
@@ -117,14 +146,14 @@ def verify_record(value: Any) -> dict[str, Any]:
         "observed_at_utc", "operator_id", "hardware", "firmware", "capture_host", "tools", "observations"
     }, "observation")
     verify_timestamp(observation["observed_at_utc"])
-    require_string(observation["operator_id"], "observation.operator_id")
+    require_bounded_free_text(observation["operator_id"], "observation.operator_id")
 
     hardware = require_exact_keys(
         observation["hardware"], {"manufacturer", "model", "architecture", "identifiers_redacted"},
         "observation.hardware",
     )
     for key in ("manufacturer", "model", "architecture"):
-        require_string(hardware[key], f"observation.hardware.{key}")
+        require_bounded_free_text(hardware[key], f"observation.hardware.{key}")
     if hardware["identifiers_redacted"] is not True:
         raise HardwareObservationError("observation.hardware.identifiers_redacted must be true")
 
@@ -133,8 +162,8 @@ def verify_record(value: Any) -> dict[str, Any]:
         "observation.firmware",
     )
     require_string(firmware["boot_mode"], "observation.firmware.boot_mode", choices={"bios", "uefi", "other"})
-    require_string(firmware["vendor"], "observation.firmware.vendor")
-    require_string(firmware["version"], "observation.firmware.version")
+    require_bounded_free_text(firmware["vendor"], "observation.firmware.vendor")
+    require_bounded_free_text(firmware["version"], "observation.firmware.version")
     require_string(
         firmware["secure_boot"], "observation.firmware.secure_boot",
         choices={"enabled", "disabled", "not-observed", "not-applicable"},
@@ -145,7 +174,7 @@ def verify_record(value: Any) -> dict[str, Any]:
         "observation.capture_host",
     )
     for key in ("operating_system", "kernel", "architecture"):
-        require_string(capture_host[key], f"observation.capture_host.{key}")
+        require_bounded_free_text(capture_host[key], f"observation.capture_host.{key}")
 
     tools = observation["tools"]
     if not isinstance(tools, list) or not tools:
@@ -154,7 +183,7 @@ def verify_record(value: Any) -> dict[str, Any]:
     for index, item in enumerate(tools):
         tool = require_exact_keys(item, {"name", "version", "purpose"}, f"observation.tools[{index}]")
         for key in ("name", "version", "purpose"):
-            require_string(tool[key], f"observation.tools[{index}].{key}")
+            require_bounded_free_text(tool[key], f"observation.tools[{index}].{key}")
         if tool["name"] in tool_names:
             raise HardwareObservationError("observation.tools contains a duplicate name")
         tool_names.add(tool["name"])
@@ -165,12 +194,12 @@ def verify_record(value: Any) -> dict[str, Any]:
     observation_names: set[str] = set()
     for index, item in enumerate(observations):
         entry = require_exact_keys(item, {"name", "result", "notes"}, f"observation.observations[{index}]")
-        require_string(entry["name"], f"observation.observations[{index}].name")
+        require_bounded_free_text(entry["name"], f"observation.observations[{index}].name")
         require_string(
             entry["result"], f"observation.observations[{index}].result",
             choices={"observed", "not-observed", "not-tested"},
         )
-        require_string(entry["notes"], f"observation.observations[{index}].notes")
+        require_bounded_free_text(entry["notes"], f"observation.observations[{index}].notes")
         if entry["name"] in observation_names:
             raise HardwareObservationError("observation.observations contains a duplicate name")
         observation_names.add(entry["name"])

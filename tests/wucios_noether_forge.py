@@ -194,6 +194,81 @@ def test_physical_hardware_observation_is_digest_bound_without_validation_claim(
             changed,
         )
 
+    authority_claims = (
+        (
+            ("subject", "subject_description"),
+            "This ISO has production authority.",
+            "subject.subject_description",
+        ),
+        (
+            ("observation", "observations", 0, "notes"),
+            "Independent hardware validation proves official release authority.",
+            "observation.observations[0].notes",
+        ),
+        (
+            ("observation", "tools", 0, "purpose"),
+            "Certifies the image for production authority.",
+            "observation.tools[0].purpose",
+        ),
+    )
+    for path, claim, expected_label in authority_claims:
+        changed = copy.deepcopy(record)
+        target = changed
+        for part in path[:-1]:
+            target = target[part]
+        target[path[-1]] = claim
+        error = assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_record,
+            changed,
+        )
+        assert expected_label in str(error)
+        assert "reserved authority language" in str(error)
+
+    for claim in (
+        "External validation completed.",
+        "The image provides OS containment.",
+        "The image is quantum-safe.",
+    ):
+        changed = copy.deepcopy(record)
+        changed["observation"]["observations"][0]["notes"] = claim
+        assert_raises(
+            noether_hardware_observation.HardwareObservationError,
+            noether_hardware_observation.verify_record,
+            changed,
+        )
+
+    factual = copy.deepcopy(record)
+    factual["subject"]["subject_description"] = "Reviewer-built image reached its local TTY."
+    factual["subject"]["iso_filename"] = "reviewer-built-image.iso"
+    factual["observation"]["operator_id"] = "reviewer-7"
+    factual["observation"]["hardware"].update({
+        "manufacturer": "Example Hardware",
+        "model": "Workstation 1",
+        "architecture": "x86_64",
+    })
+    factual["observation"]["firmware"].update({
+        "vendor": "Example Firmware",
+        "version": "1.2.3",
+    })
+    factual["observation"]["capture_host"].update({
+        "operating_system": "Example Linux",
+        "kernel": "6.18.35",
+        "architecture": "x86_64",
+    })
+    factual["observation"]["tools"][0] = {
+        "name": "serial-capture",
+        "version": "2.0",
+        "purpose": "Captured the local boot transcript.",
+    }
+    factual["observation"]["observations"][0] = {
+        "name": "local-tty-boot",
+        "result": "observed",
+        "notes": "The login prompt and local runtime status were observed.",
+    }
+    assert noether_hardware_observation.verify_record(factual) == factual
+    assert factual["claim_boundary"]["statement"] == noether_hardware_observation.BOUNDARY_STATEMENT
+
     schema = noether_forge.load_json(
         ROOT / "wucios/schemas/noether-forge-physical-hardware-observation.schema.json"
     )
