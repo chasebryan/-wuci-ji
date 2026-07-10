@@ -96,10 +96,89 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
         "prohibited Noether binary or archive extension",
         "tracked Noether ELF payload",
     ]
+    assert noether_source_guard.violations_for_file(
+        "wucios/releases/noether-forge-v2.4.0/candidate.payload",
+        b"\x1f\x8brenamed-gzip-fixture",
+    ) == ["tracked Noether non-source binary payload"]
+    assert noether_source_guard.violations_for_file(
+        "wucios/releases/noether-forge-v2.4.0/candidate.pointer",
+        b"version https://git-lfs.github.com/spec/v1\noid sha256:" + (b"0" * 64) + b"\nsize 1\n",
+    ) == ["tracked Noether Git LFS indirection"]
+    assert noether_source_guard.violations_for_file(
+        "wucios/releases/noether-forge-v2.4.0/vendor",
+        b"",
+        mode="160000",
+    ) == ["tracked Noether gitlink indirection"]
+    assert noether_source_guard.violations_for_file(
+        "tests/fixtures/unrelated-image.payload",
+        b"\x1f\x8bunrelated-binary-fixture",
+    ) == []
     workflow = b"name: Noether\nuses: actions/upload-artifact@v4\n"
     assert noether_source_guard.violations_for_file(".github/workflows/noether.yml", workflow) == [
         "workflow can publish a Noether binary artifact"
     ]
+    continued_workflow = b"name: Noether\nrun: gh " + b"\\" + b"\n  release upload candidate\n"
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/review.yml", continued_workflow
+    ) == ["workflow can publish a Noether binary artifact"]
+    remote_workflow = (
+        b"name: Noether\njobs:\n  publish:\n"
+        b"    uses: example/release/.github/workflows/publish.yml@0123456789abcdef\n"
+    )
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/review.yml", remote_workflow
+    ) == [
+        "workflow remote dependency cannot be inspected: "
+        "example/release/.github/workflows/publish.yml@0123456789abcdef"
+    ]
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/unrelated.yml",
+        remote_workflow.replace(b"Noether", b"Unrelated"),
+    ) == []
+    remote_action = b"name: Noether\nsteps:\n  - uses: example/validator@0123456789abcdef\n"
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/review.yml", remote_action
+    ) == ["workflow uses unapproved remote action: example/validator@0123456789abcdef"]
+    pinned_checkout = (
+        b"name: Noether\nsteps:\n  - uses: "
+        b"actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n"
+    )
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/review.yml", pinned_checkout
+    ) == []
+    assert noether_source_guard.violations_for_file(
+        ".github/workflows/unrelated.yml",
+        remote_action.replace(b"Noether", b"Unrelated"),
+    ) == []
+
+    indirect_workflow = [
+        (
+            ".github/workflows/noether-review.yml",
+            "100644",
+            b"name: Noether\njobs:\n  review:\n    uses: ./.github/workflows/shared-review.yml\n",
+        ),
+        (
+            ".github/workflows/shared-review.yml",
+            "100644",
+            b"name: Shared review\njobs:\n  upload:\n    uses: actions/upload-artifact@v4\n",
+        ),
+    ]
+    assert noether_source_guard.violations_for_repository(indirect_workflow) == [
+        (
+            ".github/workflows/noether-review.yml",
+            "workflow can publish a Noether binary artifact through local dependency "
+            ".github/workflows/shared-review.yml",
+        )
+    ]
+    safe_indirect_workflow = [
+        indirect_workflow[0],
+        (
+            ".github/workflows/shared-review.yml",
+            "100644",
+            b"name: Shared review\njobs:\n  check:\n    run: make wucios-validate\n",
+        ),
+    ]
+    assert noether_source_guard.violations_for_repository(safe_indirect_workflow) == []
     with tempfile.TemporaryDirectory() as temporary:
         repository = Path(temporary)
         subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
@@ -113,6 +192,67 @@ def test_source_only_guard_rejects_noether_binary_distribution() -> None:
         assert "tracked Noether ELF payload" in noether_source_guard.violations_for_file(
             "tools/noether-payload", staged["tools/noether-payload"]
         )
+
+
+def test_source_guard_rejects_out_of_scope_renamed_payload() -> None:
+    elf_path = "review/candidate.dat"
+    assert "noether" not in elf_path
+    with tempfile.TemporaryDirectory() as temporary:
+        repository = Path(temporary)
+        subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+        payload = repository / elf_path
+        payload.parent.mkdir()
+        payload.write_bytes(b"\x7fELF\x02\x01\x01\x00renamed fixture")
+        subprocess.run(["git", "add", "--", elf_path], cwd=repository, check=True)
+        elf = list(noether_source_guard.tracked_files(repository, [elf_path]))
+    assert noether_source_guard.violations_for_repository(elf, [elf_path]) == [
+        (elf_path, "review-range non-source binary payload")
+    ]
+    assert noether_source_guard.violations_for_repository(elf, []) == []
+
+    iso_path = "review/media.fixture"
+    iso = bytearray(0x8006)
+    iso[0x8001:0x8006] = b"CD001"
+    assert "noether" not in iso_path
+    iso_entry = [(iso_path, "100644", bytes(iso))]
+    assert noether_source_guard.violations_for_repository(iso_entry, [iso_path]) == [
+        (iso_path, "review-range non-source binary payload")
+    ]
+    assert noether_source_guard.violations_for_repository(iso_entry, []) == []
+
+
+def test_source_guard_scopes_pages_upload_to_noether_workflows() -> None:
+    pages = b"name: Pages\nsteps:\n  - uses: actions/upload-pages-artifact@v5\n"
+    pages_path = ".github/workflows/pages.yml"
+    assert noether_source_guard.violations_for_repository(
+        [(pages_path, "100644", pages)],
+        [pages_path],
+    ) == []
+    noether = pages.replace(b"name: Pages", b"name: Noether")
+    assert noether_source_guard.violations_for_repository([
+        (".github/workflows/review.yml", "100644", noether)
+    ]) == [
+        (
+            ".github/workflows/review.yml",
+            "workflow can publish a Noether binary artifact",
+        )
+    ]
+
+
+def test_source_guard_review_base_is_available_and_required() -> None:
+    assert noether_source_guard.REVIEW_BASE == "d9e1f5466a29cd4e0e0870b37398130b116c79e8"
+    changed = set(noether_source_guard.review_changed_files())
+    assert "tools/wucios/noether_forge.py" in changed
+    assert "site/favicon.png" not in changed
+    with tempfile.TemporaryDirectory() as temporary:
+        repository = Path(temporary)
+        subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
+        error = assert_raises(
+            noether_source_guard.SourceGuardError,
+            noether_source_guard.review_changed_files,
+            repository,
+        )
+    assert "configured review base is unavailable" in str(error)
 
 
 def test_cli_paths_are_resolved_before_dispatch() -> None:
@@ -251,6 +391,70 @@ def test_xorriso_report_normalization_removes_host_state() -> None:
     assert "183776 data blocks" in normalized
     assert "<host-free-space> free" in normalized
     assert "<host-elapsed-time> seconds" in normalized
+
+
+def test_xorriso_extract_accepts_regular_single_link_output() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        iso = root / "source.iso"
+        destination = root / "extracted/member"
+        iso.write_bytes(b"fixture ISO")
+
+        def extract(_argv) -> None:
+            destination.write_bytes(b"regular extracted fixture")
+
+        with mock.patch.object(noether_forge, "run", side_effect=extract) as runner:
+            noether_forge.xorriso_extract(iso, "/member", destination)
+        runner.assert_called_once_with([
+            "xorriso",
+            "-osirrox",
+            "on",
+            "-indev",
+            iso,
+            "-extract",
+            "/member",
+            destination,
+        ])
+        assert destination.read_bytes() == b"regular extracted fixture"
+
+
+def test_xorriso_extract_rejects_unsafe_outputs() -> None:
+    def rejected_output(kind: str) -> str:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            iso = root / "source.iso"
+            destination = root / "extracted/member"
+            iso.write_bytes(b"fixture ISO")
+
+            def extract(_argv) -> None:
+                if kind == "missing":
+                    return
+                if kind == "directory":
+                    destination.mkdir()
+                    return
+                target = root / f"{kind}-target"
+                target.write_bytes(b"unsafe extracted fixture")
+                if kind == "symlink":
+                    destination.symlink_to(target)
+                elif kind == "hardlink":
+                    os.link(target, destination)
+                else:
+                    raise AssertionError(f"unsupported fixture kind: {kind}")
+
+            with mock.patch.object(noether_forge, "run", side_effect=extract):
+                error = assert_raises(
+                    noether_forge.NoetherForgeError,
+                    noether_forge.xorriso_extract,
+                    iso,
+                    "/member",
+                    destination,
+                )
+            return str(error)
+
+    assert "is missing" in rejected_output("missing")
+    assert "must be a regular file" in rejected_output("directory")
+    assert "must be a regular file" in rejected_output("symlink")
+    assert "hardlink rejected" in rejected_output("hardlink")
 
 
 def test_qemu_contract_has_no_network_device() -> None:
@@ -423,6 +627,9 @@ TESTS = [
     test_release_configuration,
     test_external_review_policy_is_source_only,
     test_source_only_guard_rejects_noether_binary_distribution,
+    test_source_guard_rejects_out_of_scope_renamed_payload,
+    test_source_guard_scopes_pages_upload_to_noether_workflows,
+    test_source_guard_review_base_is_available_and_required,
     test_cli_paths_are_resolved_before_dispatch,
     test_component_map_covers_package_lock,
     test_source_manifest_binds_native_build_inputs,
@@ -431,6 +638,8 @@ TESTS = [
     test_apkovl_rejects_traversal_and_hardlinks,
     test_volume_label_patch_is_equal_length_and_exact,
     test_xorriso_report_normalization_removes_host_state,
+    test_xorriso_extract_accepts_regular_single_link_output,
+    test_xorriso_extract_rejects_unsafe_outputs,
     test_qemu_contract_has_no_network_device,
     test_configuration_paths_are_fail_closed,
     test_runtime_parsers,

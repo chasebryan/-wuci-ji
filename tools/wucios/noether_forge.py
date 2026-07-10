@@ -385,6 +385,7 @@ def download_locked(record: dict[str, Any], cache: Path) -> None:
 def xorriso_extract(iso: Path, iso_path: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", iso_path, destination])
+    ensure_regular(destination, f"extracted ISO file {iso_path}")
 
 
 def normalize_xorriso_report(report: str, iso: Path) -> str:
@@ -399,7 +400,6 @@ def normalize_xorriso_report(report: str, iso: Path) -> str:
         r"\1<host-elapsed-time> seconds",
         normalized,
     )
-    ensure_regular(destination, f"extracted ISO file {iso_path}")
 
 
 def extract_apk_member(apk: Path, member_name: str, destination: Path) -> None:
