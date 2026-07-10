@@ -136,6 +136,23 @@ export function normalizeGitRepositoryUrl(input) {
   return match ? `https://github.com/${match[1]}/${match[2]}` : undefined;
 }
 
+export function assertBundleSourceMetadata(source) {
+  const record = expectRecord(source, "release manifest source");
+  const repository = record.repository;
+  const commit = record.commit;
+  const treeState = record.treeState;
+  const repositoryIsValid =
+    repository === "unknown" ||
+    (typeof repository === "string" && normalizeGitRepositoryUrl(repository) === repository);
+  const commitIsValid =
+    commit === "unknown" || (typeof commit === "string" && /^[0-9a-f]{40}$/.test(commit));
+
+  if (!repositoryIsValid || !commitIsValid || !["clean", "dirty", "unknown"].includes(treeState)) {
+    throw new Error("Built release manifest source metadata is invalid.");
+  }
+  return record;
+}
+
 export function assertCurrentCleanSource(
   manifest,
   currentCommit,

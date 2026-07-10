@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  assertBundleSourceMetadata,
   assertCleanSourceSnapshot,
   assertCurrentCleanSource,
   assertSameBytes,
@@ -109,6 +110,33 @@ describe("release manifest filesystem boundary", () => {
       "https://github.com/example/fork"
     );
     expect(normalizeGitRepositoryUrl("https://git.example.com/example/fork.git")).toBeUndefined();
+  });
+
+  it("allows unknown source identity for portable bundle checks but rejects malformed metadata", () => {
+    const commit = "a".repeat(40);
+    expect(() =>
+      assertBundleSourceMetadata({
+        repository: "https://github.com/chasebryan/-wuci-ji",
+        commit,
+        treeState: "clean"
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertBundleSourceMetadata({ repository: "unknown", commit: "unknown", treeState: "unknown" })
+    ).not.toThrow();
+    expect(() =>
+      assertBundleSourceMetadata({ repository: undefined, commit, treeState: "clean" })
+    ).toThrow(/source metadata/);
+    expect(() =>
+      assertBundleSourceMetadata({
+        repository: "git@github.com:chasebryan/-wuci-ji.git",
+        commit,
+        treeState: "clean"
+      })
+    ).toThrow(/source metadata/);
+    expect(() =>
+      assertBundleSourceMetadata({ repository: "unknown", commit: "not-a-commit", treeState: "clean" })
+    ).toThrow(/source metadata/);
   });
 
   it("matches runtime keyring validation without rejecting public keyname words", () => {

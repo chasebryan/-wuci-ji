@@ -2,11 +2,11 @@ import { extname, relative, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 import {
   WORKER_SOURCE_PATHS,
+  assertBundleSourceMetadata,
   assertSameBytes,
   assertValidKeyring,
   buildSourceClosure,
   collectRegularFiles,
-  normalizeGitRepositoryUrl,
   readRegularFile,
   sha256
 } from "./release-manifest-lib.mjs";
@@ -89,13 +89,7 @@ async function verifyReleaseManifest() {
   }
   const source = expectRecord(manifest.source, "release manifest source");
   assertExactFields(source, ["repository", "commit", "treeState"], "release manifest source");
-  if (
-    normalizeGitRepositoryUrl(source.repository) !== source.repository ||
-    (source.commit !== "unknown" && !/^[0-9a-f]{40}$/.test(source.commit)) ||
-    !["clean", "dirty", "unknown"].includes(source.treeState)
-  ) {
-    throw new Error("Built release manifest source metadata is invalid.");
-  }
+  assertBundleSourceMetadata(source);
   const build = expectRecord(manifest.build, "release manifest build");
   assertExactFields(
     build,
