@@ -39,6 +39,10 @@ body {
   overflow-x: hidden;
 }
 
+body.nav-scroll-locked {
+  overscroll-behavior: none;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -64,6 +68,11 @@ a {
 code,
 pre {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 ::selection {

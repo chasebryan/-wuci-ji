@@ -109,6 +109,7 @@ export async function handleRequest(
       if (request.method !== "GET") {
         return withSecurityHeaders(methodNotAllowed(["GET"]));
       }
+      await enforceReadRateLimit(request, env);
       return withSecurityHeaders(
         await handleEvidence(decodeBottleId(evidenceMatch[1] ?? ""), env, now)
       );
@@ -363,7 +364,7 @@ async function handleListBottles(
   now: Date
 ): Promise<Response> {
   const { recipientFingerprint, cursor } = parseClientInput(() => parseListQuery(url));
-  await enforceReadRateLimit(request, recipientFingerprint, env);
+  await enforceReadRateLimit(request, env);
   const page = await getStorage(env).listByRecipientFingerprint(recipientFingerprint, cursor);
   const publicBottles: StoredBottlePublic[] = page.bottles
     .filter((bottle) => Date.parse(bottle.expiresAt) > now.getTime())
@@ -404,7 +405,6 @@ function parseListQuery(url: URL): { recipientFingerprint: string; cursor?: stri
 
 async function enforceReadRateLimit(
   request: Request,
-  recipientFingerprint: string,
   env: BottleWorkerEnv
 ): Promise<void> {
   const limiter = env.READ_RATE_LIMITER;
@@ -416,14 +416,12 @@ async function enforceReadRateLimit(
   }
 
   const clientAddress = request.headers.get("CF-Connecting-IP")?.trim() || "unavailable";
-  const key = await sha256Hex(
-    `nsm.daylight-bottle.read-rate.v1\n${clientAddress}\n${recipientFingerprint}`
-  );
+  const key = await sha256Hex(`nsm.daylight-bottle.read-rate.v2\n${clientAddress}`);
   const result = await limiter.limit({ key });
   if (!result.success) {
     throw new HttpError(
       429,
-      "Too many bottle lookups for this network and recipient. Try again in one minute.",
+      "Too many bottle lookups for this network. Try again in one minute.",
       { "Retry-After": "60" }
     );
   }

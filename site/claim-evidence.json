@@ -3,7 +3,7 @@
   "project": "wuci-ji",
   "surface": "Wuci-Ji v2.2 — Aperture Bastion website",
   "canonical_url": "https://nosuchmachine.net/",
-  "last_updated": "2026-07-03",
+  "last_updated": "2026-07-09",
   "purpose": "Map public website claims to the local evidence files and commands that can check them.",
   "claim_boundary": "Every listed claim is repository-local or hosted-site evidence only; no listed claim is external certification, production cryptography, runtime containment, host-cleanliness proof, or independent audit completion.",
   "primary_validation": [
@@ -36,6 +36,37 @@
       "does_not_prove": [
         "brand trademark registration",
         "external certification"
+      ]
+    },
+    {
+      "id": "daylight-bottle-public-preview",
+      "public_claim": "The website links to the Daylight Bottle preview, describes its reviewed browser-local encryption boundary, and discloses that recipient activation was pending at the recorded live keyring observation.",
+      "status": "implementation-reviewed; live-recipient-activation-pending",
+      "evidence_paths": [
+        "site/index.html",
+        "site/daylight-bottle-status.json",
+        "site/daylight-bottle-keyring-observation.json",
+        "apps/bottle/public/keyring.json",
+        "apps/bottle/src/tests/product-surface.test.ts",
+        "apps/bottle/src/tests/lifecycle.test.ts",
+        "apps/bottle/worker/index.test.ts"
+      ],
+      "evidence_values": {
+        "origin": "https://bottle.nosuchmachine.net",
+        "observed_at": "2026-07-10T04:21:51Z",
+        "keyring_sha256": "sha256:d3c6c2e035d44f731bbc538f861e2886ba6165c31fd128977060de8b3a009ce1",
+        "active_recipient_count": 0,
+        "recipient_activation": "pending"
+      },
+      "validation_commands": [
+        "make site-validate",
+        "cd apps/bottle && npm run check"
+      ],
+      "does_not_prove": [
+        "continuous service availability or future keyring state",
+        "uncompromised JavaScript delivery, browser integrity, or device integrity",
+        "that the server never observed plaintext outside the implemented request path",
+        "production authority"
       ]
     },
     {

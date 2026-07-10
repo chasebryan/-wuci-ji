@@ -47,6 +47,8 @@
     "/audits/daylight/score-integrity/",
     "/aperture-status.json",
     "/daylight-status.json",
+    "/daylight-bottle-status.json",
+    "/daylight-bottle-keyring-observation.json",
     "/daylight-v20-aperture-singularity-status.json",
     "/defense-assurance-status.json",
     "/codemeta.json",

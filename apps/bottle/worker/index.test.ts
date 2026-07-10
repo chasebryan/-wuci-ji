@@ -287,9 +287,10 @@ describe("bottle worker API", () => {
     expectSecurityHeaders(response);
   });
 
-  it("rate-limits repeated bounded reads without exposing the network address in the key", async () => {
+  it("shares one address-only rate bucket across fingerprints and read routes", async () => {
     const store = createMemoryBottleStorage();
-    await postBottle(validDropRequest(), { __TEST_STORE__: store });
+    const dropResponse = await postBottle(validDropRequest(), { __TEST_STORE__: store });
+    const dropBody = await dropResponse.json();
     const rateKeys: string[] = [];
     let calls = 0;
     const limiter: BottleRateLimiter = {
@@ -302,36 +303,70 @@ describe("bottle worker API", () => {
     const env = { __TEST_STORE__: store, READ_RATE_LIMITER: limiter };
 
     const accepted = await listBottles(env, now, undefined, "203.0.113.84");
-    const limited = await listBottles(env, now, undefined, "203.0.113.84");
+    const rotatedFingerprint = `sha256:${"f".repeat(64)}`;
+    const limited = await handleRequest(
+      new Request(
+        `https://bottle.nosuchmachine.net/api/bottles?recipientFingerprint=${rotatedFingerprint}`,
+        { headers: { "CF-Connecting-IP": "203.0.113.84" } }
+      ),
+      env,
+      now
+    );
+    const limitedEvidence = await getEvidence(
+      dropBody.bottleId,
+      env,
+      now,
+      "203.0.113.84"
+    );
 
     expect(accepted.status).toBe(200);
     expect(limited.status).toBe(429);
+    expect(limitedEvidence.status).toBe(429);
     expect(limited.headers.get("Retry-After")).toBe("60");
-    expect(rateKeys[0]).toBe(rateKeys[1]);
+    expect(limitedEvidence.headers.get("Retry-After")).toBe("60");
+    expect(rateKeys).toHaveLength(3);
+    expect(new Set(rateKeys).size).toBe(1);
     expect(rateKeys[0]).toMatch(/^[0-9a-f]{64}$/);
     expect(rateKeys[0]).not.toContain("203.0.113.84");
+    expect(rateKeys[0]).not.toContain(recipientFingerprint);
+    expect(rateKeys[0]).not.toContain(rotatedFingerprint);
     await expect(limited.json()).resolves.toEqual({
-      error: "Too many bottle lookups for this network and recipient. Try again in one minute."
+      error: "Too many bottle lookups for this network. Try again in one minute."
+    });
+    await expect(limitedEvidence.json()).resolves.toEqual({
+      error: "Too many bottle lookups for this network. Try again in one minute."
     });
     expectSecurityHeaders(limited);
+    expectSecurityHeaders(limitedEvidence);
   });
 
   it("fails closed when production storage has no read limiter binding", async () => {
     const kv = new FakeBottleKv();
-    const response = await handleRequest(
+    const listResponse = await handleRequest(
       new Request(
         `https://bottle.nosuchmachine.net/api/bottles?recipientFingerprint=${recipientFingerprint}`
       ),
       { BOTTLES_KV: kv },
       now
     );
+    const evidenceResponse = await handleRequest(
+      new Request("https://bottle.nosuchmachine.net/api/bottles/bottle123/evidence"),
+      { BOTTLES_KV: kv },
+      now
+    );
 
-    expect(response.status).toBe(503);
+    expect(listResponse.status).toBe(503);
+    expect(evidenceResponse.status).toBe(503);
     expect(kv.listCalls).toBe(0);
-    await expect(response.json()).resolves.toEqual({
+    expect(kv.getCalls).toBe(0);
+    await expect(listResponse.json()).resolves.toEqual({
       error: "Bottle read protection is unavailable."
     });
-    expectSecurityHeaders(response);
+    await expect(evidenceResponse.json()).resolves.toEqual({
+      error: "Bottle read protection is unavailable."
+    });
+    expectSecurityHeaders(listResponse);
+    expectSecurityHeaders(evidenceResponse);
   });
 
   it("returns only unexpired candidate ciphertexts by recipient fingerprint", async () => {
@@ -736,10 +771,17 @@ function listBottles(
   );
 }
 
-function getEvidence(bottleId: string, env: BottleWorkerEnv, at: Date): Promise<Response> {
+function getEvidence(
+  bottleId: string,
+  env: BottleWorkerEnv,
+  at: Date,
+  clientAddress?: string
+): Promise<Response> {
+  const init: RequestInit =
+    clientAddress === undefined ? {} : { headers: { "CF-Connecting-IP": clientAddress } };
   return handleRequest(
-    new Request(`https://bottle.nosuchmachine.net/api/bottles/${bottleId}/evidence`),
-    env,
+    new Request(`https://bottle.nosuchmachine.net/api/bottles/${bottleId}/evidence`, init),
+    { READ_RATE_LIMITER: allowRateLimiter, ...env },
     at
   );
 }

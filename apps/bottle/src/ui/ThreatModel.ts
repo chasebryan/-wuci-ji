@@ -31,7 +31,7 @@ export function renderThreatModel(container: HTMLElement): void {
       section("Metadata the server can observe", [
         "Keynames, recipient fingerprints, ciphertext sizes, bottle ids, storage times, expiry times, and request timing are public or operational metadata.",
         "Opening begins with a fingerprint lookup, so the server can observe which public fingerprint was queried and when. It is not told which candidate ciphertexts decrypted successfully.",
-        "Drop and inbox-read burst protection hash the request network address together with the recipient fingerprint and maintain short-lived, location-local counter state. Those derived counter keys are not bottle content and are not written to bottle storage.",
+        "Drop burst protection hashes the request network address together with the recipient fingerprint. Inbox-list and evidence reads share a coarser counter derived only from the network address, so rotating lookup identifiers does not reset the read budget. These counters are short-lived and location-local; their derived keys are not bottle content and are not written to bottle storage.",
         "Hosting infrastructure may also observe ordinary connection metadata such as network addresses even though this app includes no analytics or trackers."
       ]),
       section("Availability and server behavior", [
