@@ -35,8 +35,8 @@ installed-system credential model. `wj_low` cannot use `doas`.
 
 The runtime loads a real nftables policy with input, forward, and output set to
 default-drop and loopback-only allowances. BIOS and UEFI validation boot QEMU
-with no network device. Those measured properties do not constitute a general
-runtime sandbox or OS-containment claim.
+with no network device. A general runtime sandbox is not claimed from those
+measured properties. An OS-containment claim is also not made.
 
 ## Real reviewer tools
 

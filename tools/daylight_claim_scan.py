@@ -10,12 +10,14 @@ from __future__ import annotations
 import argparse
 import bisect
 import hashlib
+import html
 import json
 import os
 import re
 import stat
 import subprocess
 import sys
+from array import array
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -43,6 +45,9 @@ DEFAULT_MAX_INLINE_BYTES = 65_536
 DEFAULT_MAX_INLINE_OCCURRENCES = 256
 DEFAULT_MAX_JSON_STRINGS = 20_000
 DEFAULT_MAX_JSON_DEPTH = 64
+MAX_NEGATION_CLAUSE_CHARS = 16_384
+MAX_DISCOVERY_DEPTH = 64
+DISCOVERY_ENTRY_FACTOR = 16
 
 FORBIDDEN_AUTHORITY_PATTERNS = (
     "production cryptography",
@@ -93,21 +98,51 @@ _DIRECT_NEGATION_RE = re.compile(
     r"(?:"
     r"\bnot(?:\s+(?:a|an|the|whole-system|general|current|external|local)){0,3}"
     r"|\bno(?:\s+(?:claim|assertion|authority)\s+(?:of|that|to))?"
+    r"|\b(?:has|have|had)\s+not\s+been"
     r")\s*$",
     re.IGNORECASE,
 )
 _IMMEDIATE_FOLLOWING_NEGATION_RE = re.compile(
     r"^\s+(?:is|are|was|were|remain|remains)\s+"
-    r"(?:not\s+(?:allowed|authorized|available|claimed|established|implemented|proven|supported)"
+    r"(?:not\s+(?:allowed|authorized|available|claimed|complete|created|enforced|established|"
+    r"implemented|proven|provided|supplied|supported)"
     r"|future-gated)\b",
     re.IGNORECASE,
 )
-_SAFE_NEGATED_ITEM_PREFIX_RE = re.compile(
-    r"^(?:\s|<[^>\n]{1,200}>|[,:/>*_`'\"()\[\]-])*"
-    r"(?:(?:a|an|the|any|our|your|its|their|local|external|general|current|"
-    r"claimed|alleged|purported|whole-system|production|publish|niap)\s+){0,4}$",
+_NEGATION_SUFFIX_REVERSAL_RE = re.compile(
+    r"\b(?:albeit|although|as|asserts?|because|boasts?|but|claims?|despite|except|grants?|"
+    r"however|is|are|was|were|has|have|had|nevertheless|nonetheless|notwithstanding|"
+    r"offers?|plus|provides?|remain|remains|establishes?|then|though|while|whereas|yet)\b",
     re.IGNORECASE,
 )
+_DIRECT_NEGATION_CONTRAST_RE = re.compile(
+    r"\b(?:albeit|although|but|despite|except|however|nevertheless|nonetheless|"
+    r"notwithstanding|save|though|whereas|yet)\b",
+    re.IGNORECASE,
+)
+_DIRECT_NEGATION_POSITIVE_RE = re.compile(
+    r"(?:"
+    r"\b(?:can\s+be|has\s+been|have\s+been|is|are|was|were|remain|remains)\s+"
+    r"(?:(?:actually|already|certainly|definitely|fully|indeed|now|really|still)\s+){0,3}"
+    r"(?!not\b)(?:allowed|authorized|available|claimed|complete|created|enforced|"
+    r"established|granted|implemented|proven|provided|real|supplied|supported|true)\b"
+    r"|(?:^|[,/])\s*(?:(?:actually|certainly|definitely|indeed|really)\s+){0,3}"
+    r"(?:allowed|authorized|available|claimed|complete|created|enforced|established|"
+    r"granted|implemented|proven|provided|real|supplied|supported|true)\b"
+    r")",
+    re.IGNORECASE,
+)
+_CLAUSE_BOUNDARY_RE = re.compile(
+    r"[.!?;]|\n\s*\n|</(?:p|li|article|section|h[1-6])\s*>",
+    re.IGNORECASE,
+)
+_MARKUP_TOKEN_RE = re.compile(
+    r"<!--.*?-->|<!\[CDATA\[|\]\]>|<[^>]*>|"
+    r"&(?:#[0-9]{1,8}|#x[0-9A-Fa-f]{1,8}|[A-Za-z][A-Za-z0-9]{1,31});?",
+    re.DOTALL,
+)
+_CANONICAL_HTML_DOCTYPE_RE = re.compile(r"<!\s*DOCTYPE\s+html\s*>", re.IGNORECASE)
+_MARKUP_DECLARATION_START_RE = re.compile(r"<!\s*(?:DOCTYPE|ENTITY)\b", re.IGNORECASE)
 _MARKDOWN_NONCLAIM_HEADING_RE = re.compile(
     r"^\s{0,3}#{1,6}\s+.*\b(?:forbidden|unsupported|rejected|reserved|non[- ]claims?|does not claim)\b",
     re.IGNORECASE,
@@ -121,16 +156,21 @@ _MARKDOWN_NONCLAIM_INTRO_RE = re.compile(
     re.IGNORECASE,
 )
 _MARKDOWN_LIST_PREFIX_RE = re.compile(r"^\s*(?:[-+*]|\d+[.)])\s+")
-PUBLIC_TEXT_SUFFIXES = frozenset({".html", ".js", ".md", ".txt", ".webmanifest", ".xml"})
+PUBLIC_TEXT_SUFFIXES = frozenset({".html", ".js", ".md", ".svg", ".txt", ".webmanifest", ".xml"})
 PUBLIC_BOTTLE_SOURCE_SUFFIXES = frozenset({".html", ".json", ".md", ".svg", ".ts", ".txt"})
 PUBLIC_RELEASE_TEXT_SUFFIXES = frozenset({".json", ".md", ".txt"})
 PUBLIC_DOC_PATHS = frozenset({
     "docs/DAYLIGHT_EQUATION_STANDARD.md",
+    "docs/PRODUCTION_READINESS.md",
+    "docs/RELEASE_PROCESS.md",
+    "docs/SECURITY_BOUNDARY.md",
+    "docs/THREAT_MODEL.md",
     "docs/WUCI_ENTERPRISE_ADOPTION.md",
     "docs/WUCI_MARKET_POSITIONING.md",
     "docs/WUCI_SECURITY_PRODUCT_BOUNDARY.md",
     "docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md",
     "docs/wucios/NOETHER_FORGE_V240.md",
+    "docs/wucios/NOETHER_CORE.md",
 })
 
 
@@ -140,6 +180,10 @@ class ClaimScanWriteError(RuntimeError):
 
 class ClaimOccurrenceLimitError(RuntimeError):
     """Raised when configured phrase occurrences exceed the report limit."""
+
+
+class UnsupportedMarkupDeclarationError(RuntimeError):
+    """Raised when rendered text depends on unexpanded DTD/entity declarations."""
 
 
 class ClaimTextLimitError(ValueError):
@@ -162,15 +206,102 @@ def _phrase_regex(phrase: str) -> re.Pattern[str]:
 
 _PHRASE_REGEXES = tuple((phrase, _phrase_regex(phrase)) for phrase in FORBIDDEN_AUTHORITY_PATTERNS)
 
+_SIMPLE_PHRASE_LIST_WORDS = frozenset({
+    "a",
+    "an",
+    "and",
+    "any",
+    "current",
+    "external",
+    "general",
+    "its",
+    "local",
+    "niap",
+    "or",
+    "our",
+    "production",
+    "publish",
+    "the",
+    "their",
+    "whole-system",
+    "your",
+})
 
-def _local_clause_prefix(text: str, start: int) -> str:
-    prefix = text[max(0, start - 1_024):start]
-    parts = re.split(
-        r"[.!?;]|\n\s*\n|</(?:p|li|article|section|h[1-6])\s*>",
-        prefix,
-        flags=re.IGNORECASE,
+
+def _configured_phrase_spans(text: str) -> list[tuple[int, int]]:
+    candidates: list[tuple[int, int]] = []
+    for _phrase, pattern in _PHRASE_REGEXES:
+        candidates.extend((match.start(), match.end()) for match in pattern.finditer(text))
+    candidates.sort(key=lambda item: (item[0], -(item[1] - item[0])))
+    spans: list[tuple[int, int]] = []
+    for start, end in candidates:
+        if spans and start < spans[-1][1]:
+            continue
+        spans.append((start, end))
+    return spans
+
+
+def _is_simple_configured_phrase_list(text: str) -> bool:
+    """Accept only configured phrases plus flat list punctuation/modifiers."""
+
+    normalized = re.sub(
+        r"<!--.*?-->|<!\[CDATA\[|\]\]>|<[^>]*>",
+        " ",
+        text,
+        flags=re.DOTALL,
     )
-    return parts[-1]
+    normalized = html.unescape(normalized)
+    normalized = re.sub(r"(?m)^\s*(?:>|[-+*]|\d+[.)])\s?", " ", normalized)
+    spans = _configured_phrase_spans(normalized)
+    if not spans:
+        return False
+    outside_parts: list[str] = []
+    cursor = 0
+    for start, end in spans:
+        outside_parts.append(normalized[cursor:start])
+        outside_parts.append(" ")
+        cursor = end
+    outside_parts.append(normalized[cursor:])
+    outside = "".join(outside_parts)
+    words = [word.lower() for word in re.findall(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", outside)]
+    if any(word not in _SIMPLE_PHRASE_LIST_WORDS for word in words):
+        return False
+    punctuation = re.sub(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", "", outside)
+    return re.fullmatch(r"[\s,.!?;:/&()\[\]{}'\"`*_-]*", punctuation) is not None
+
+
+def _markup_separator_view(text: str) -> tuple[str, array, array]:
+    """Return rendered text plus normalized-index to source-span maps."""
+
+    if _MARKUP_TOKEN_RE.search(text) is None:
+        return text, array("I"), array("I")
+    rendered: list[str] = []
+    source_starts = array("I")
+    source_ends = array("I")
+    cursor = 0
+    for match in _MARKUP_TOKEN_RE.finditer(text):
+        if cursor < match.start():
+            rendered.append(text[cursor:match.start()])
+            source_starts.extend(range(cursor, match.start()))
+            source_ends.extend(range(cursor + 1, match.start() + 1))
+        token = match.group(0)
+        replacement = html.unescape(token) if token.startswith("&") else " "
+        if replacement == token:
+            replacement = " "
+        rendered.append(replacement)
+        source_starts.extend([match.start()] * len(replacement))
+        source_ends.extend([match.end()] * len(replacement))
+        cursor = match.end()
+    if cursor < len(text):
+        rendered.append(text[cursor:])
+        source_starts.extend(range(cursor, len(text)))
+        source_ends.extend(range(cursor + 1, len(text) + 1))
+    return "".join(rendered), source_starts, source_ends
+
+
+def _has_unsupported_markup_declaration(text: str) -> bool:
+    without_inert_html_doctype = _CANONICAL_HTML_DOCTYPE_RE.sub("", text)
+    return _MARKUP_DECLARATION_START_RE.search(without_inert_html_doctype) is not None
 
 
 def _markdown_table_cell_is_explicit_non_claim(text: str, start: int, end: int | None) -> bool:
@@ -196,6 +327,13 @@ def _markdown_table_cell_is_explicit_non_claim(text: str, start: int, end: int |
     cell_begin, _cell_finish, cell = matching[0]
     phrase_start = relative_start - cell_begin
     phrase_end = phrase_start + ((end - start) if end is not None else 0)
+    marker_text = r"(?:not claimed|not supported|forbidden|unsupported|rejected|reserved|non[- ]claim)"
+    global_leading = re.match(rf"^[\s:()\[\]-]*{marker_text}\b[\s:()\[\]-]*", cell, flags=re.IGNORECASE)
+    global_trailing = re.search(rf"[\s:()\[\]-]*{marker_text}\b[\s:()\[\]-]*$", cell, flags=re.IGNORECASE)
+    if global_leading is not None:
+        return _is_simple_configured_phrase_list(cell[global_leading.end():])
+    if global_trailing is not None:
+        return _is_simple_configured_phrase_list(cell[:global_trailing.start()])
     prefix = re.sub(r"[*_`<>]", " ", cell[:phrase_start])
     suffix = re.sub(r"[*_`<>]", " ", cell[phrase_end:])
     leading_marker = re.search(
@@ -210,13 +348,26 @@ def _markdown_table_cell_is_explicit_non_claim(text: str, start: int, end: int |
         suffix,
         flags=re.IGNORECASE,
     )
-    return leading_marker is not None or trailing_marker is not None
+    if leading_marker is not None:
+        without_marker = cell[:leading_marker.start()] + cell[leading_marker.end():]
+        return _is_simple_configured_phrase_list(without_marker)
+    if trailing_marker is not None:
+        marker_start = phrase_end + trailing_marker.start()
+        marker_end = phrase_end + trailing_marker.end()
+        without_marker = cell[:marker_start] + cell[marker_end:]
+        return _is_simple_configured_phrase_list(without_marker)
+    return False
 
 
 def _markdown_list_is_under_nonclaim_heading(text: str, start: int) -> bool:
     line_start = text.rfind("\n", 0, start) + 1
     current_prefix = text[line_start:start]
     if _MARKDOWN_LIST_PREFIX_RE.match(current_prefix) is None:
+        return False
+    line_end = text.find("\n", start)
+    if line_end == -1:
+        line_end = len(text)
+    if not _is_simple_configured_phrase_list(text[line_start:line_end]):
         return False
     previous_lines = text[max(0, line_start - 4_096):line_start].splitlines()
     for candidate in reversed(previous_lines[-32:]):
@@ -232,7 +383,8 @@ def _markdown_list_is_under_nonclaim_heading(text: str, start: int) -> bool:
 
 
 def _html_content_is_under_nonclaim_heading(text: str, start: int) -> bool:
-    prefix = text[max(0, start - 8_192):start]
+    base = max(0, start - 8_192)
+    prefix = text[base:start]
     headings = list(re.finditer(
         r"<h[1-6]\b[^>]*>(.*?)</h[1-6]\s*>",
         prefix,
@@ -261,38 +413,76 @@ def _html_content_is_under_nonclaim_heading(text: str, start: int) -> bool:
         if last_close < last_open.start():
             if tag == "p" and "</p>" in after_heading[:last_open.start()].lower():
                 return False
-            return True
+            open_end = base + last_heading.end() + last_open.end()
+            close_start = text.lower().find(f"</{tag}>", start)
+            if close_start == -1:
+                return False
+            return _is_simple_configured_phrase_list(text[open_end:close_start])
     return False
 
 
-def _explicit_negative_list_applies(clause: str) -> bool:
+def _explicit_negative_list_applies(clause: str, phrase_text: str, suffix: str) -> bool:
     markers = list(_NEGATED_LIST_RE.finditer(clause))
     if not markers:
         return False
-    after_marker = clause[markers[-1].end():]
-    current_item_prefix = re.split(r",|\b(?:and|or)\b", after_marker, flags=re.IGNORECASE)[-1]
-    current_item_prefix = re.sub(r"<[^>\n]{1,200}>", " ", current_item_prefix)
-    current_item_prefix = re.sub(r"(?m)^\s*>\s?", " ", current_item_prefix)
-    current_item_prefix = re.sub(r"\s+", " ", current_item_prefix)
-    return _SAFE_NEGATED_ITEM_PREFIX_RE.fullmatch(current_item_prefix) is not None
+    whole_scope = clause[markers[-1].end():] + phrase_text + suffix
+    return _is_simple_configured_phrase_list(whole_scope)
 
 
-def phrase_is_negated(text: str, start: int, end: int | None = None) -> bool:
+def _direct_negation_applies(suffix: str) -> bool:
+    """Reject contrast or an active positive predicate after a direct negation."""
+
+    if _DIRECT_NEGATION_CONTRAST_RE.search(suffix):
+        return False
+    return _DIRECT_NEGATION_POSITIVE_RE.search(suffix) is None
+
+
+def _following_negation_applies(suffix: str) -> bool:
+    matched = _IMMEDIATE_FOLLOWING_NEGATION_RE.match(suffix)
+    if matched is None:
+        return False
+    local_tail = re.split(r"[.!?;\n]", suffix[matched.end():], maxsplit=1)[0]
+    if "," in local_tail:
+        return False
+    return _NEGATION_SUFFIX_REVERSAL_RE.search(local_tail) is None
+
+
+def phrase_is_negated(
+    text: str,
+    start: int,
+    end: int | None = None,
+    *,
+    clause_start: int | None = None,
+    clause_end: int | None = None,
+) -> bool:
     """Return whether the occurrence at *start* is inside an explicit non-claim."""
 
+    occurrence_end = end if end is not None else start
+    if clause_start is None:
+        clause_start = 0
+        for boundary in _CLAUSE_BOUNDARY_RE.finditer(text, 0, start):
+            clause_start = boundary.end()
+    if clause_end is None:
+        next_boundary = _CLAUSE_BOUNDARY_RE.search(text, occurrence_end)
+        clause_end = next_boundary.start() if next_boundary is not None else len(text)
+    if start - clause_start > MAX_NEGATION_CLAUSE_CHARS:
+        return False
+    if clause_end - occurrence_end > MAX_NEGATION_CLAUSE_CHARS:
+        return False
     if _markdown_table_cell_is_explicit_non_claim(text, start, end):
         return True
     if _markdown_list_is_under_nonclaim_heading(text, start):
         return True
     if _html_content_is_under_nonclaim_heading(text, start):
         return True
-    clause = _local_clause_prefix(text, start)
-    if _DIRECT_NEGATION_RE.search(clause):
+    clause = text[clause_start:start]
+    phrase_text = text[start:end] if end is not None else ""
+    suffix = text[occurrence_end:clause_end]
+    if _DIRECT_NEGATION_RE.search(clause) and _direct_negation_applies(suffix):
         return True
-    if _explicit_negative_list_applies(clause):
+    if phrase_text and _explicit_negative_list_applies(clause, phrase_text, suffix):
         return True
-    suffix = text[end if end is not None else start:start + 160]
-    return bool(_IMMEDIATE_FOLLOWING_NEGATION_RE.match(suffix))
+    return _following_negation_applies(suffix)
 
 
 def _line_start_offsets(text: str) -> list[int]:
@@ -311,21 +501,47 @@ def claim_phrase_occurrences(
 ) -> list[dict[str, Any]]:
     """Return every configured phrase occurrence in deterministic source order."""
 
-    occurrences: list[dict[str, Any]] = []
-    line_starts = _line_start_offsets(text)
+    if _has_unsupported_markup_declaration(text):
+        raise UnsupportedMarkupDeclarationError
+    matched_occurrences: dict[tuple[int, int, str], None] = {}
+    markup_view, markup_starts, markup_ends = _markup_separator_view(text)
     for phrase, pattern in _PHRASE_REGEXES:
         for match in pattern.finditer(text):
-            if max_occurrences is not None and len(occurrences) >= max_occurrences:
+            matched_occurrences[(match.start(), match.end(), phrase)] = None
+            if max_occurrences is not None and len(matched_occurrences) > max_occurrences:
                 raise ClaimOccurrenceLimitError
-            line, column = _line_column(line_starts, match.start())
-            occurrences.append({
-                "start": match.start(),
-                "line": line,
-                "column": column,
-                "phrase": phrase,
-                "negated": phrase_is_negated(text, match.start(), match.end()),
-            })
-    occurrences.sort(key=lambda item: (item["start"], item["phrase"]))
+        if markup_starts:
+            for match in pattern.finditer(markup_view):
+                source_start = markup_starts[match.start()]
+                source_end = markup_ends[match.end() - 1]
+                matched_occurrences[(source_start, source_end, phrase)] = None
+                if max_occurrences is not None and len(matched_occurrences) > max_occurrences:
+                    raise ClaimOccurrenceLimitError
+
+    boundaries = list(_CLAUSE_BOUNDARY_RE.finditer(text))
+    boundary_starts = [match.start() for match in boundaries]
+    boundary_ends = [match.end() for match in boundaries]
+    occurrences: list[dict[str, Any]] = []
+    line_starts = _line_start_offsets(text)
+    for start, end, phrase in sorted(matched_occurrences, key=lambda item: (item[0], item[2], item[1])):
+        previous_index = bisect.bisect_right(boundary_ends, start) - 1
+        next_index = bisect.bisect_left(boundary_starts, end)
+        clause_start = boundary_ends[previous_index] if previous_index >= 0 else 0
+        clause_end = boundary_starts[next_index] if next_index < len(boundary_starts) else len(text)
+        line, column = _line_column(line_starts, start)
+        occurrences.append({
+            "start": start,
+            "line": line,
+            "column": column,
+            "phrase": phrase,
+            "negated": phrase_is_negated(
+                text,
+                start,
+                end,
+                clause_start=clause_start,
+                clause_end=clause_end,
+            ),
+        })
     return occurrences
 
 
@@ -355,6 +571,8 @@ def unsupported_claims_in_text(
         occurrences = claim_phrase_occurrences(text, max_occurrences=max_occurrences)
     except ClaimOccurrenceLimitError as exc:
         raise ClaimTextLimitError(f"claim text exceeds {max_occurrences} phrase occurrences") from exc
+    except UnsupportedMarkupDeclarationError as exc:
+        raise ClaimTextLimitError("claim text contains unsupported DTD/entity declarations") from exc
 
     unsupported = {
         occurrence["phrase"]
@@ -559,8 +777,10 @@ def _walk_public_json_strings(
         occurrences = claim_phrase_occurrences(value, max_occurrences=remaining)
     except ClaimOccurrenceLimitError as exc:
         raise ClaimTextLimitError(f"public JSON exceeds {max_occurrences} phrase occurrences") from exc
+    except UnsupportedMarkupDeclarationError as exc:
+        raise ClaimTextLimitError("public JSON contains unsupported DTD/entity declarations") from exc
     counters["occurrences"] += len(occurrences)
-    if explicit_nonclaim:
+    if explicit_nonclaim and _is_simple_configured_phrase_list(value):
         return
     for occurrence in occurrences:
         if occurrence["negated"]:
@@ -786,10 +1006,21 @@ def _discover_path(
     errors: list[dict[str, str]],
     max_files: int,
     limit_reached: list[bool],
+    discovery_entries: list[int],
+    max_discovery_entries: int,
+    depth: int,
 ) -> None:
     if limit_reached[0]:
         return
     display = _display_path(path, root)
+    if depth > MAX_DISCOVERY_DEPTH:
+        errors.append(_error(
+            display,
+            "max-discovery-depth-exceeded",
+            "scan exceeds the bounded directory-depth limit",
+        ))
+        limit_reached[0] = True
+        return
     try:
         info = os.lstat(path)
     except FileNotFoundError:
@@ -819,11 +1050,24 @@ def _discover_path(
         if path in seen_directories:
             return
         seen_directories.add(path)
+        children: list[Path] = []
         try:
-            children = sorted(path.iterdir(), key=lambda child: child.name)
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    if discovery_entries[0] >= max_discovery_entries:
+                        errors.append(_error(
+                            display,
+                            "max-discovery-entries-exceeded",
+                            "scan exceeds the bounded directory-entry limit",
+                        ))
+                        limit_reached[0] = True
+                        return
+                    discovery_entries[0] += 1
+                    children.append(Path(entry.path))
         except OSError:
             errors.append(_error(display, "read-failed", "input directory could not be enumerated"))
             return
+        children.sort(key=lambda child: child.name)
         for child in children:
             _discover_path(
                 child,
@@ -834,6 +1078,9 @@ def _discover_path(
                 errors,
                 max_files,
                 limit_reached,
+                discovery_entries,
+                max_discovery_entries,
+                depth + 1,
             )
         return
     errors.append(_error(display, "input-not-regular", "input must be a regular file or directory"))
@@ -926,6 +1173,8 @@ def scan_paths(
     seen_files: set[Path] = set()
     seen_directories: set[Path] = set()
     limit_reached = [False]
+    discovery_entries = [0]
+    max_discovery_entries = max_files * DISCOVERY_ENTRY_FACTOR
     for path in normalized:
         _discover_path(
             path,
@@ -936,6 +1185,9 @@ def scan_paths(
             errors,
             max_files,
             limit_reached,
+            discovery_entries,
+            max_discovery_entries,
+            0,
         )
     discovered.sort(key=lambda path: _display_path(path, scan_root))
     if not discovered and not errors:
@@ -1004,6 +1256,13 @@ def scan_paths(
                 display,
                 "max-occurrences-exceeded",
                 "scan exceeds the configured phrase-occurrence limit",
+            ))
+            break
+        except UnsupportedMarkupDeclarationError:
+            errors.append(_error(
+                display,
+                "unsupported-markup-declaration",
+                "input contains unsupported DTD/entity declarations",
             ))
             break
         phrase_occurrences += len(occurrences)

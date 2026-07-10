@@ -7,10 +7,10 @@ state its non-claims explicitly. It now includes a CARROT kernel no-network
 proof lane using a seccomp network-syscall deny filter plus Linux user and
 network namespace checks, but not a complete production runtime sandbox.
 
-Do not describe WUCI-JI as production crypto, a runtime sandbox, no-network
-containment outside the CARROT proof lane, post-quantum secure, independently
-audited, or production trust authority until the corresponding controls exist
-and pass proof gates.
+WUCI-JI is not post-quantum secure and is not independently audited. Production
+trust authority is not established. A complete runtime sandbox and no-network
+containment outside the CARROT proof lane are not claimed until corresponding
+controls exist and pass proof gates.
 
 ## Current Evidence
 
@@ -46,19 +46,20 @@ These targets produce or verify:
   open/release actions, pressure-to-threshold/PQ-mode consistency, participant
   and custody-domain diversity, missing public evidence blockers, fail-closed
   `pq-secure`, hybrid-evidence flags, private-material rejection, and explicit
-  non-claims. This is a model validator, not production cryptography, host
-  security, runtime sandboxing, post-quantum system security, production
-  authority, or independent audit evidence.
+  non-claims. This model validator is not production cryptography. Runtime
+  sandboxing is not implemented by this model. Production authority is not
+  established. Host/PQ system security and independent audit evidence are not
+  supplied.
 - WJ-next canonical transcript model checks through `make wjnext-model-test`,
   covering `C14N_v2`, the `wuci/transcript/v2` authorization hash, typed
   verifier predicates, and PQ modes where `pq-secure` remains false until
   independently earned.
-- Real-PQ verifier detection that fails closed for quantum-safe claims when no
+- Real-PQ verifier detection that fails closed for unsupported PQ-safety claims when no
   pinned verifier is available. `make pq-verifier-fips204-proof` builds the
   local Rust FIPS 204 ML-DSA verifier, runs its KAT/selftest, emits v2
   real-PQ evidence, and writes a local pin for that verifier binary. This
-  clears only the real-PQ verifier evidence gate; it does not make the WUCI-JI
-  system quantum-safe.
+  clears only the real-PQ verifier evidence gate; the WUCI-JI system is not
+  quantum-safe.
 - Internal crypto self-audit evidence that is explicitly not an external audit.
 - Signed external audit evidence tooling. `tools/wuci_external_audit.py`
   verifies report digests, required scope, current reviewed commit, and an
@@ -70,9 +71,9 @@ These targets produce or verify:
   WJ-next model inputs with zero timeout or signal exits.
 - Release bundle verification evidence in
   `build/wuci-release-bundle-verification.json`.
-- Production authority policy evidence that rejects fixture authority and
+- Deployment-authority policy evidence that rejects fixture authority and
   requires a signed non-fixture ceremony plus assembly Gate publish/trust
-  positive authority before any publish/trust production authority claim. The
+  positive authority before any stronger publish/trust claim. The
   current publish and trust commands are fail-closed decision paths only.
 - Daylight cap-removal evidence through `make daylight-v06-cap-removal-test`,
   proving that the current 8250/10000 cap remains active, fixture authority
@@ -90,20 +91,19 @@ These targets produce or verify:
 
 - Fixture authority is still test-only and must not be treated as production
   trust.
-- FROST/secp256k1/X25519 evidence is classical-only and must not be called
-  quantum-safe.
+- FROST/secp256k1/X25519 evidence is classical-only and is not quantum-safe.
 - Custom assembly crypto has not been independently audited or formally
   verified.
 - Production publish/trust Gate authority is incomplete. The
   `publish-authorized-rooted` and `trust-authorized-rooted` now exist as
   fail-closed decision-only assembly paths that verify rooted contracts and
   print unauthorized decisions; they do not install, execute, decrypt, write
-  plaintext, or create production authority. Production authority roots emitted
-  by the verifier must still keep `allow-publish` and `allow-trust` false until
-  the signed ceremony workflow and production-authority verifier acceptance are
-  linked.
-- General runtime sandboxing, independent wrapper/seccomp review, and VM-grade
-  containment are not complete. CARROT currently proves a narrow
+  plaintext. Production authority is not created. Deployment-authority roots
+  emitted by the verifier must still keep `allow-publish` and `allow-trust`
+  false until the signed ceremony workflow and deployment-authority verifier
+  acceptance are linked.
+- General runtime sandboxing is not complete. Independent wrapper/seccomp
+  review and VM-grade containment are also incomplete. CARROT currently proves a narrow
   network-syscall deny lane on kernels that allow seccomp filters and
   unprivileged user+net namespaces.
 - Real pinned PQ verifier evidence is available only when
@@ -114,7 +114,7 @@ These targets produce or verify:
 - Release bundle verification currently records blockers instead of a
   production-ready claim when the install manifest is not signed for the
   current build, no real pinned PQ verifier evidence exists, no signed
-  non-fixture production authority ceremony is supplied, or no signed
+  non-fixture deployment-authority ceremony is supplied, or no signed
   independent external audit evidence is supplied.
 - External audit evidence can only clear its blocker when an external report,
   evidence JSON, auditor root public key, and detached signature all verify.
@@ -131,7 +131,7 @@ These targets produce or verify:
 
 A future production-ready claim requires all of the following:
 
-- Non-fixture production authority roots and documented key ceremony.
+- Non-fixture deployment-authority roots and documented key ceremony.
   `tools/wuci_production_authority.py emit-root`, `ceremony`,
   `sign-ceremony`, and `verify` provide the local workflow. Production
   verification requires an external OpenSSH Ed25519 ceremony root signature;

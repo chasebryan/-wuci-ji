@@ -56,6 +56,121 @@ def main() -> None:
         )
         assert list(wuci_safeio.iter_regular_chunks(target, "chunked input", chunk_size=3)) == [b"tar", b"get", b"\n"]
 
+        mutation_target = tmp / "mutation-target.txt"
+        mutation_target.write_text("original\n", encoding="ascii")
+        original_read = wuci_safeio.os.read
+        mutated = False
+
+        def mutate_during_read(fd: int, size: int) -> bytes:
+            nonlocal mutated
+            data = original_read(fd, size)
+            if data and not mutated:
+                mutated = True
+                mutation_target.write_text("mutated!\n", encoding="ascii")
+            return data
+
+        wuci_safeio.os.read = mutate_during_read
+        try:
+            assert_fails(
+                lambda: wuci_safeio.read_regular_bytes(mutation_target, "mutating input"),
+                "safe read must reject a file changed through its open descriptor",
+            )
+        finally:
+            wuci_safeio.os.read = original_read
+
+        chunk_mutation_target = tmp / "chunk-mutation-target.txt"
+        chunk_mutation_target.write_text("original\n", encoding="ascii")
+        mutated = False
+
+        def mutate_chunked_read(fd: int, size: int) -> bytes:
+            nonlocal mutated
+            data = original_read(fd, size)
+            if data and not mutated:
+                mutated = True
+                chunk_mutation_target.write_text("mutated!\n", encoding="ascii")
+            return data
+
+        wuci_safeio.os.read = mutate_chunked_read
+        try:
+            assert_fails(
+                lambda: list(wuci_safeio.iter_regular_chunks(
+                    chunk_mutation_target,
+                    "mutating chunked input",
+                    chunk_size=3,
+                )),
+                "chunked safe read must reject a file changed before exhaustion",
+            )
+        finally:
+            wuci_safeio.os.read = original_read
+
+        path_swap_target = tmp / "path-swap-target.txt"
+        path_swap_target.write_text("path one\n", encoding="ascii")
+        path_swap_replacement = tmp / "path-swap-replacement.txt"
+        path_swap_replacement.write_text("path two\n", encoding="ascii")
+        swapped = False
+
+        def swap_path_during_read(fd: int, size: int) -> bytes:
+            nonlocal swapped
+            data = original_read(fd, size)
+            if data and not swapped:
+                swapped = True
+                os.replace(path_swap_replacement, path_swap_target)
+            return data
+
+        wuci_safeio.os.read = swap_path_during_read
+        try:
+            assert_fails(
+                lambda: wuci_safeio.read_regular_bytes(path_swap_target, "path-swapped input"),
+                "safe read must reject a path swapped after opening",
+            )
+        finally:
+            wuci_safeio.os.read = original_read
+
+        original_open = wuci_safeio.os.open
+        open_mutation_target = tmp / "open-mutation-target.txt"
+        open_mutation_target.write_text("original\n", encoding="ascii")
+        opened_after_mutation = False
+
+        def mutate_before_open(path: str | os.PathLike[str], flags: int, *args: int) -> int:
+            nonlocal opened_after_mutation
+            if Path(path) == open_mutation_target and not opened_after_mutation:
+                opened_after_mutation = True
+                open_mutation_target.write_text("mutated!\n", encoding="ascii")
+            return original_open(path, flags, *args)
+
+        wuci_safeio.os.open = mutate_before_open
+        try:
+            assert_fails(
+                lambda: wuci_safeio.read_regular_bytes(open_mutation_target, "open-mutated input"),
+                "safe read must reject same-inode mutation between lstat and open",
+            )
+        finally:
+            wuci_safeio.os.open = original_open
+
+        chunk_open_mutation_target = tmp / "chunk-open-mutation-target.txt"
+        chunk_open_mutation_target.write_text("original\n", encoding="ascii")
+        opened_after_mutation = False
+
+        def mutate_before_chunk_open(path: str | os.PathLike[str], flags: int, *args: int) -> int:
+            nonlocal opened_after_mutation
+            if Path(path) == chunk_open_mutation_target and not opened_after_mutation:
+                opened_after_mutation = True
+                chunk_open_mutation_target.write_text("mutated!\n", encoding="ascii")
+            return original_open(path, flags, *args)
+
+        wuci_safeio.os.open = mutate_before_chunk_open
+        try:
+            assert_fails(
+                lambda: list(wuci_safeio.iter_regular_chunks(
+                    chunk_open_mutation_target,
+                    "open-mutated chunked input",
+                    chunk_size=3,
+                )),
+                "chunked safe read must reject same-inode mutation between lstat and open",
+            )
+        finally:
+            wuci_safeio.os.open = original_open
+
         large = tmp / "large.txt"
         large.write_text("abcdef", encoding="ascii")
         assert_fails(

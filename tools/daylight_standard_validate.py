@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import stat
 import sys
 from pathlib import Path
 from typing import Any
@@ -16,7 +18,9 @@ try:
         DEFAULT_MAX_INLINE_BYTES,
         DEFAULT_MAX_INLINE_OCCURRENCES,
         FORBIDDEN_AUTHORITY_PATTERNS,
+        dump_report as dump_claim_scan_report,
         phrase_is_negated,
+        report_path_overlaps_inputs,
         scan_paths as scan_claim_paths,
         unsupported_claims_in_text,
     )
@@ -26,10 +30,19 @@ except ImportError:  # pragma: no cover - package import path used by tests
         DEFAULT_MAX_INLINE_BYTES,
         DEFAULT_MAX_INLINE_OCCURRENCES,
         FORBIDDEN_AUTHORITY_PATTERNS,
+        dump_report as dump_claim_scan_report,
         phrase_is_negated,
+        report_path_overlaps_inputs,
         scan_paths as scan_claim_paths,
         unsupported_claims_in_text,
     )
+
+try:
+    import wuci_safeio
+    if not hasattr(wuci_safeio, "read_regular_bytes"):
+        raise ImportError("wrong wuci_safeio module")
+except ImportError:  # pragma: no cover - package import path used by tests
+    from tools import wuci_safeio  # type: ignore[no-redef]
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,9 +67,72 @@ class ValidationError(Exception):
     pass
 
 
+MAX_CLAIM_REPORT_BYTES = 8_388_608
+MAX_VERIFIED_CLAIM_FILE_BYTES = 2_097_152
+MAX_VERIFIED_CLAIM_FILES = 256
+MAX_VERIFIED_CLAIM_OCCURRENCES = 10_000
+MAX_VERIFIED_CLAIM_TOTAL_BYTES = 8_388_608
+
+
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def _reject_duplicate_report_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValidationError(f"duplicate report key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_report_constant(value: str) -> None:
+    raise ValidationError(f"non-standard JSON constant in claim report: {value}")
+
+
+def load_claim_scan_report_safely(path: Path, root: Path) -> tuple[dict[str, Any], str, Path]:
+    root = root.resolve(strict=True)
+    candidate = path if path.is_absolute() else root / path
+    absolute = Path(os.path.abspath(os.fspath(candidate)))
+    try:
+        relative = absolute.relative_to(root)
+    except ValueError as exc:
+        raise ValidationError("claim report path must stay under the verification root") from exc
+    current = root
+    for part in relative.parts[:-1]:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except OSError as exc:
+            raise ValidationError("claim report ancestor could not be inspected") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise ValidationError("claim report ancestor must not be a symlink")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValidationError("claim report ancestor must be a directory")
+    try:
+        data = wuci_safeio.read_regular_bytes(
+            absolute,
+            "Daylight claim report",
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=MAX_CLAIM_REPORT_BYTES,
+        )
+        text = data.decode("utf-8")
+    except (wuci_safeio.SafeIOError, UnicodeDecodeError) as exc:
+        raise ValidationError("claim report must be a bounded regular UTF-8 file") from exc
+    try:
+        obj = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_report_keys,
+            parse_constant=_reject_nonfinite_report_constant,
+        )
+    except (ValueError, RecursionError) as exc:
+        raise ValidationError("claim report must contain valid JSON") from exc
+    if not isinstance(obj, dict):
+        raise ValidationError("claim report must contain a JSON object")
+    return obj, text, absolute
 
 
 def dump_json(data: Any) -> str:
@@ -163,18 +239,42 @@ def validate_claim_scan_report_contract(obj: dict[str, Any]) -> None:
     inputs = obj["inputs"]
     limits = obj["limits"]
 
+    def validate_report_path(value: str, path: str, *, allow_dot: bool = False) -> None:
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ValidationError(f"{path}: path must be valid UTF-8") from exc
+        if value.startswith("/") or re.match(r"^[A-Za-z]:[\\/]", value) or "\\" in value:
+            raise ValidationError(f"{path}: path must be relative POSIX syntax")
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValidationError(f"{path}: path must not contain control characters")
+        parts = value.split("/")
+        if any(part == ".." for part in parts):
+            raise ValidationError(f"{path}: parent traversal is forbidden")
+        if any(part in {"", "."} for part in parts) and not (allow_dot and value == "."):
+            raise ValidationError(f"{path}: path must be normalized")
+
     if inputs != sorted(set(inputs)):
         raise ValidationError("$.inputs: paths must be sorted and unique")
+    for index, input_path in enumerate(inputs):
+        validate_report_path(input_path, f"$.inputs[{index}]", allow_dot=True)
     file_paths = [item["path"] for item in files]
     if file_paths != sorted(set(file_paths)):
         raise ValidationError("$.files: paths must be sorted and unique")
+    for index, file_path in enumerate(file_paths):
+        validate_report_path(file_path, f"$.files[{index}].path")
     if findings != sorted(
         findings,
         key=lambda item: (item["path"], item["line"], item["column"], item["phrase"]),
     ):
         raise ValidationError("$.findings: entries must use deterministic source order")
+    for index, finding in enumerate(findings):
+        validate_report_path(finding["path"], f"$.findings[{index}].path")
     if errors != sorted(errors, key=lambda item: (item["path"], item["code"], item["message"])):
         raise ValidationError("$.errors: entries must use deterministic order")
+    for index, error in enumerate(errors):
+        if not (error["path"].startswith("<") and error["path"].endswith(">")):
+            validate_report_path(error["path"], f"$.errors[{index}].path")
     if len(files) > limits["max_files"]:
         raise ValidationError("$.files: length exceeds limits.max_files")
     if any(item["bytes"] > limits["max_file_bytes"] for item in files):
@@ -382,6 +482,45 @@ def command_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_verify_claim_scan_report(args: argparse.Namespace) -> int:
+    root = Path(args.root)
+    try:
+        obj, source_text, report_path = load_claim_scan_report_safely(Path(args.input), root)
+        validate_object(obj)
+        if source_text != dump_claim_scan_report(obj):
+            raise ValidationError("claim report is not canonical JSON")
+        verifier_caps = {
+            "max_file_bytes": MAX_VERIFIED_CLAIM_FILE_BYTES,
+            "max_files": MAX_VERIFIED_CLAIM_FILES,
+            "max_occurrences": MAX_VERIFIED_CLAIM_OCCURRENCES,
+            "max_total_bytes": MAX_VERIFIED_CLAIM_TOTAL_BYTES,
+        }
+        for name, cap in verifier_caps.items():
+            if obj["limits"][name] > cap:
+                raise ValidationError(f"claim report limit {name} exceeds verifier cap {cap}")
+        if len(obj["inputs"]) > MAX_VERIFIED_CLAIM_FILES:
+            raise ValidationError("claim report input count exceeds verifier cap")
+        if report_path_overlaps_inputs(report_path, obj["inputs"], root=root):
+            raise ValidationError("claim report path overlaps a declared scan input")
+        regenerated = scan_claim_paths(
+            obj["inputs"],
+            root=root,
+            max_file_bytes=obj["limits"]["max_file_bytes"],
+            max_files=obj["limits"]["max_files"],
+            max_occurrences=obj["limits"]["max_occurrences"],
+            max_total_bytes=obj["limits"]["max_total_bytes"],
+        )
+        if regenerated != obj:
+            raise ValidationError("claim report does not match safe regeneration from declared inputs")
+        if source_text != dump_claim_scan_report(regenerated):
+            raise ValidationError("claim report does not use scanner-canonical key order")
+    except (OSError, ValidationError) as exc:
+        print(f"{args.input}: {exc}", file=sys.stderr)
+        return 1
+    print(f"{args.input}: verified by safe regeneration")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -396,6 +535,11 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--input", required=True)
     validate.add_argument("--policy", action="store_true")
     validate.set_defaults(func=command_validate)
+
+    verify_claim_report = sub.add_parser("verify-claim-scan-report")
+    verify_claim_report.add_argument("--input", required=True)
+    verify_claim_report.add_argument("--root", default=".")
+    verify_claim_report.set_defaults(func=command_verify_claim_scan_report)
 
     return parser
 

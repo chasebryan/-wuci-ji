@@ -18,9 +18,9 @@ verifies the locked APK closure before an offline build begins.
 
 This review lane is defined by
 `wucios/releases/noether-forge-v2.4.0/external-review.json`. It is not a GitHub
-Release or an official WuciOS release. It does not confer production authority,
-external certification, or permission to redistribute a reviewer-built
-binary.
+Release or an official WuciOS release. Production authority is not established.
+External certification and permission to redistribute a reviewer-built binary
+are also not conferred.
 
 ## Review from source
 
@@ -221,9 +221,10 @@ Use this description:
 > release.
 
 Repository-owned Daylight evidence is scoped provenance and claim checking; it
-is not external certification. Do not claim production cryptography, general
-runtime sandboxing, quantum safety, government approval, independent audit,
-publish authority, or trust authority from this source-review packet.
+is not external certification. Production cryptography is not claimed. Runtime
+sandboxing is not claimed. Quantum safety, government approval, and independent
+audit are not claimed. Publish authority is not claimed. Trust authority is not
+claimed.
 
 Wuci-Ji source is provided under the repository Apache-2.0 `LICENSE` and
 `NOTICE`. Third-party binary redistribution and encryption export treatment

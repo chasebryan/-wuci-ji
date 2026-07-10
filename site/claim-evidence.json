@@ -274,7 +274,7 @@
     },
     {
       "id": "defense-assurance-roadmap-non-certifying",
-      "public_claim": "The defense-assurance roadmap is explicitly non-certifying and does not claim Department of War approval, cATO authorization, RMF authorization, FIPS validation, production authority, or external certification.",
+      "public_claim": "The defense-assurance roadmap is explicitly non-certifying. It is not Department of War approved. It is not cATO authorized. It is not RMF authorized. It is not FIPS validated. Production authority is not claimed. External certification is not claimed.",
       "status": "non-claim-boundary",
       "evidence_paths": [
         "docs/DEFENSE_ASSURANCE_ROADMAP.md",
@@ -372,7 +372,7 @@
     },
     {
       "id": "defense-assurance-no-government-approval",
-      "public_claim": "The defense-assurance roadmap and website do not claim government approval, Department of War approval, production authority, cATO authorization, RMF authorization, FIPS validation, or external certification.",
+      "public_claim": "The defense-assurance roadmap and website are not government approved. They are not Department of War approved. Production authority is not claimed. They are not cATO authorized. They are not RMF authorized. They are not FIPS validated. External certification is not claimed.",
       "status": "non-claim-boundary",
       "evidence_paths": [
         "docs/DEFENSE_ASSURANCE_ROADMAP.md",

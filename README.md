@@ -17,10 +17,12 @@
 </p>
 
 > [!IMPORTANT]
-> Wuci-Ji is a research and public-review artifact. It does not claim production
-> readiness, production cryptography, production trust authority, general
-> runtime containment, whole-system post-quantum safety, independent audit
-> completion, or official endorsement.
+> Wuci-Ji is a research and public-review artifact. Production readiness is not
+> claimed. Production cryptography is not claimed.
+> Production trust authority is not established.
+> General runtime containment is not claimed. Whole-system
+> post-quantum safety, independent audit completion, and official endorsement
+> are not claimed.
 
 ## Why Wuci-Ji Exists
 
@@ -194,8 +196,9 @@ reports visible WJSEAL structure, artifact hashes, and Gate-required status.
 | README status and claim anchors | `make readme-remaster-check` |
 
 `make high-attestation-proof` composes many local checks. Its success strengthens
-local evidence only; it does not create production authority, general runtime
-containment, external review, quantum safety, or a vulnerability-free claim.
+local evidence only. Production authority is not created. General runtime
+containment is not created. External review, quantum safety, and a
+vulnerability-free claim are also not created.
 
 ## Daylight Evidence Stack
 

@@ -77,7 +77,7 @@ def assert_policy_matching() -> None:
     ) == ["fips validated"]
     assert scanner.unsupported_claims_in_text(
         "This document does not claim production cryptography and the product has trust authority."
-    ) == ["trust authority"]
+    ) == ["production cryptography", "trust authority"]
     assert scanner.unsupported_claims_in_text(
         "The old build does not claim FIPS validation, while this build is FIPS validated."
     ) == ["fips validated"]
@@ -86,9 +86,13 @@ def assert_policy_matching() -> None:
     ) == ["fips validated"]
     assert scanner.unsupported_claims_in_text(
         "This document does not claim production cryptography and our product provides trust authority."
-    ) == ["trust authority"]
+    ) == ["production cryptography", "trust authority"]
     for bypass in (
         "This product is not only FIPS validated.",
+        "This is not FIPS validated but is established here.",
+        "This is not production authority, however it is granted here.",
+        "This is not FIPS validated except in production.",
+        "This is not FIPS validated save in production.",
         "It is not disputed that this product is FIPS validated.",
         "This artifact does not claim production cryptography although our product has trust authority.",
         "This artifact does not claim production cryptography whereas our product has trust authority.",
@@ -98,6 +102,21 @@ def assert_policy_matching() -> None:
         "This artifact does not claim production cryptography nor deny our product has trust authority.",
         "This artifact does not claim production cryptography and, as operators know, our product has trust authority.",
         "| Does not claim | Evidence |\n| --- | --- |\n| FIPS validated | none |",
+        "We do not claim FIPS validated, however, trust authority is provided.",
+        "We do not claim production cryptography and, in fact, trust authority is provided.",
+        "We do not claim FIPS validated and trust authority is provided.",
+        "We do not claim production authority, but this system provides it.",
+        "We do not claim FIPS validated and trust authority really is provided.",
+        "We do not claim FIPS validated, and trust authority certainly is provided.",
+        "We do not claim FIPS validated: trust authority can be provided.",
+        "We do not claim FIPS validated / trust authority exists.",
+        "FIPS validated is not claimed by competitors but is established here.",
+        "FIPS validated is not claimed by competitors despite being established here.",
+        "FIPS validated is not claimed by competitors notwithstanding its establishment here.",
+        "FIPS validated is not claimed by competitors albeit established here.",
+        "FIPS validated is not claimed by competitors even as it remains established here.",
+        "FIPS validated is not claimed " + (" " * 130) + "but is established here.",
+        "Production authority remains not claimed by the old team, but is granted by us.",
     ):
         findings = scanner.unsupported_claims_in_text(bypass)
         assert findings, (bypass, findings)
@@ -105,11 +124,14 @@ def assert_policy_matching() -> None:
         "This artifact does not claim production cryptography or trust authority.",
         "This artifact does not claim production cryptography and trust authority.",
         "This artifact does not claim production cryptography and our external trust authority.",
+        "This artifact does not claim production authority, trust authority, or FIPS validated.",
         "Forbidden: FIPS validated, FedRAMP authorized, or trust authority.",
         "This release is not FIPS validated and is not FedRAMP authorized.",
         "| Claim | Evidence |\n| --- | --- |\n| FIPS validated (not claimed) | none |",
         "## Forbidden Current Claims\n\n- FIPS validated\n- production authority\n",
         "<section><h2>What still cannot be claimed</h2><ul><li>FIPS validated</li></ul></section>",
+        "<section><h2>What still cannot be claimed</h2><ul><li>FIPS <strong>validated</strong></li></ul></section>",
+        "<section><h2>What still cannot be claimed</h2><ul><li>FIPS&nbsp;validated</li></ul></section>",
     ):
         assert scanner.unsupported_claims_in_text(safe_non_claim) == [], safe_non_claim
     escaped_html_section = (
@@ -129,6 +151,59 @@ def assert_policy_matching() -> None:
         "| An old status was not claimed. This product is FIPS validated. | none |"
     )
     assert scanner.unsupported_claims_in_text(unrelated_same_cell) == ["fips validated"]
+    mixed_structural_contexts = (
+        "## Forbidden Claims\n\n"
+        "- FIPS validated, however trust authority is provided\n\n"
+        "<section><h2>Forbidden Claims</h2><ul>"
+        "<li>production cryptography but production authority is granted</li>"
+        "</ul></section>\n"
+        "| Claim | Evidence |\n| --- | --- |\n"
+        "| FIPS validated (not claimed) but trust authority is provided | none |"
+    )
+    assert scanner.unsupported_claims_in_text(mixed_structural_contexts) == [
+        "production cryptography",
+        "fips validated",
+        "production authority",
+        "trust authority",
+    ]
+    for rendered_markup, expected in (
+        ("<p>FIPS <strong>validated</strong></p>", ["fips validated"]),
+        ("<p>FIPS&nbsp;validated</p>", ["fips validated"]),
+        ("<p>FIPS&nbsp validated</p>", ["fips validated"]),
+        ("<p>FIPS val&#105;dated</p>", ["fips validated"]),
+        ("<p>FIPS val&#105dated</p>", ["fips validated"]),
+        ("<p>F&#73;PS validated</p>", ["fips validated"]),
+        ("<p>F&#73PS validated</p>", ["fips validated"]),
+        ("<p>production <em>cryptography</em></p>", ["production cryptography"]),
+        ("<p>production <em\nclass=\"term\">cryptography</em></p>", ["production cryptography"]),
+        ("<svg><text>trust <tspan>authority</tspan></text></svg>", ["trust authority"]),
+        ("<svg><text>FIPS <![CDATA[validated]]></text></svg>", ["fips validated"]),
+        ("<svg><text>trust <![CDATA[authority]]></text></svg>", ["trust authority"]),
+        ("<svg><text>trust auth&#111;rity</text></svg>", ["trust authority"]),
+    ):
+        assert scanner.unsupported_claims_in_text(rendered_markup) == expected
+    assert scanner.unsupported_claims_in_text("<!doctype html><p>bounded</p>") == []
+    overlong_tag = "FIPS <span data-pad=\"" + ("x" * 65_537) + "\">validated</span>"
+    assert [item["phrase"] for item in scanner.claim_phrase_occurrences(overlong_tag)] == [
+        "fips validated"
+    ]
+    try:
+        scanner.unsupported_claims_in_text(
+            '<!DOCTYPE svg [<!ENTITY a "FIPS "><!ENTITY b "validated">]><svg>&a;&b;</svg>'
+        )
+    except scanner.ClaimTextLimitError as exc:
+        assert "DTD/entity declarations" in str(exc)
+    else:
+        raise AssertionError("claim scan accepted unexpanded DTD/entity declarations")
+    mixed_rendered_nonclaim = (
+        "<section><h2>Forbidden Claims</h2><ul><li>"
+        "FIPS <strong>validated</strong> but trust <em>authority</em> is provided"
+        "</li></ul></section>"
+    )
+    assert scanner.unsupported_claims_in_text(mixed_rendered_nonclaim) == [
+        "fips validated",
+        "trust authority",
+    ]
     unicode_occurrence = scanner.claim_phrase_occurrences("αβ FIPS validated")[0]
     assert (unicode_occurrence["line"], unicode_occurrence["column"]) == (1, 4)
 
@@ -204,6 +279,19 @@ def assert_report_contract() -> None:
             lambda report: report["findings"][0].__setitem__("path", "unscanned.md"),
             "claim report accepted a finding for an unscanned file",
         )
+        reject_mutation(
+            lambda report: report.__setitem__("inputs", ["/absolute"]),
+            "claim report accepted an absolute input path",
+        )
+        reject_mutation(
+            lambda report: report.__setitem__("inputs", ["../escape", "b.md"]),
+            "claim report accepted parent traversal in an input path",
+        )
+
+        def parent_traversal_file(report: dict[str, object]) -> None:
+            report["files"][0]["path"] = "../a.md"
+
+        reject_mutation(parent_traversal_file, "claim report accepted parent traversal in a file path")
 
         def duplicate_finding(report: dict[str, object]) -> None:
             report["findings"].append(dict(report["findings"][0]))
@@ -307,6 +395,30 @@ def assert_invalid_inputs_and_limits() -> None:
         report = scan(root, ".", max_files=2)
         assert [item["code"] for item in report["errors"]] == ["max-files-exceeded"]
 
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-entries-") as tmp_name:
+        root = Path(tmp_name)
+        directory = root / "many"
+        for index in range(scanner.DISCOVERY_ENTRY_FACTOR + 1):
+            (directory / f"directory-{index:02d}").mkdir(parents=True)
+        report = scan(root, "many", max_files=1)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == [
+            "max-discovery-entries-exceeded"
+        ]
+
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-depth-") as tmp_name:
+        root = Path(tmp_name)
+        deepest = root / "deep"
+        deepest.mkdir()
+        for _index in range(scanner.MAX_DISCOVERY_DEPTH + 1):
+            deepest = deepest / "d"
+            deepest.mkdir()
+        report = scan(root, "deep")
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == [
+            "max-discovery-depth-exceeded"
+        ]
+
     with tempfile.TemporaryDirectory(prefix="daylight-claim-total-") as tmp_name:
         root = Path(tmp_name)
         (root / "a.md").write_bytes(b"1234")
@@ -354,6 +466,177 @@ def assert_invalid_inputs_and_limits() -> None:
             else:
                 report = scan(root, "claim.pipe")
                 assert [item["code"] for item in report["errors"]] == ["input-not-regular"]
+
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-mutation-") as tmp_name:
+        root = Path(tmp_name)
+        mutable = root / "mutable.md"
+        write(mutable, "bounded original\n")
+        original_read = scanner.wuci_safeio.os.read
+        mutated = False
+
+        def mutate_during_read(fd: int, size: int) -> bytes:
+            nonlocal mutated
+            data = original_read(fd, size)
+            if data and not mutated:
+                mutated = True
+                write(mutable, "FIPS validated after concurrent mutation\n")
+            return data
+
+        scanner.wuci_safeio.os.read = mutate_during_read
+        try:
+            report = scan(root, "mutable.md")
+        finally:
+            scanner.wuci_safeio.os.read = original_read
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["read-failed"]
+
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-dtd-") as tmp_name:
+        root = Path(tmp_name)
+        write(root / "entity.svg", '<!DOCTYPE svg [<!ENTITY a "FIPS validated">]><svg>&a;</svg>\n')
+        report = scan(root, "entity.svg")
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == [
+            "unsupported-markup-declaration"
+        ]
+
+
+def assert_report_regeneration() -> None:
+    validator = TOOLS / "daylight_standard_validate.py"
+    with tempfile.TemporaryDirectory(prefix="daylight-report-verify-") as tmp_name:
+        root = Path(tmp_name)
+        write(root / "a.md", "This does not claim production cryptography.\n")
+        write(root / "b.md", "This is FIPS validated.\n")
+        original = scan(root, "a.md", "b.md")
+        report_path = root / "report.json"
+
+        def verify(report: dict[str, object]) -> subprocess.CompletedProcess[bytes]:
+            write(report_path, scanner.dump_report(report))
+            return run_cli(
+                validator,
+                root,
+                "verify-claim-scan-report",
+                "--input",
+                "report.json",
+                "--root",
+                ".",
+            )
+
+        valid = verify(json.loads(scanner.dump_report(original)))
+        assert valid.returncode == 0, valid.stderr
+        assert b"verified by safe regeneration" in valid.stdout
+
+        forged_hash = json.loads(scanner.dump_report(original))
+        forged_hash["files"][0]["sha256"] = "0" * 64
+        result = verify(forged_hash)
+        assert result.returncode == 1
+        assert b"does not match safe regeneration" in result.stderr and b"Traceback" not in result.stderr
+
+        forged_bytes = json.loads(scanner.dump_report(original))
+        forged_bytes["files"][0]["bytes"] += 1
+        forged_bytes["summary"]["bytes_scanned"] += 1
+        result = verify(forged_bytes)
+        assert result.returncode == 1
+        assert b"does not match safe regeneration" in result.stderr and b"Traceback" not in result.stderr
+
+        forged_negation = json.loads(scanner.dump_report(original))
+        forged_negation["summary"]["negated_occurrences"] = 0
+        forged_negation["summary"]["unsupported_occurrences"] = 2
+        forged_negation["findings"] = [
+            {"path": "a.md", "line": 1, "column": 21, "phrase": "production cryptography"},
+            *forged_negation["findings"],
+        ]
+        result = verify(forged_negation)
+        assert result.returncode == 1
+        assert b"does not match safe regeneration" in result.stderr and b"Traceback" not in result.stderr
+
+        original_copy = json.loads(scanner.dump_report(original))
+        reordered = {key: original_copy[key] for key in reversed(list(original_copy))}
+        result = verify(reordered)
+        assert result.returncode == 1
+        assert b"scanner-canonical key order" in result.stderr and b"Traceback" not in result.stderr
+
+        over_cap = json.loads(scanner.dump_report(original))
+        over_cap["limits"]["max_file_bytes"] = 2_097_153
+        result = verify(over_cap)
+        assert result.returncode == 1
+        assert b"exceeds verifier cap" in result.stderr and b"Traceback" not in result.stderr
+
+        surrogate_path = json.loads(scanner.dump_report(original))
+        surrogate_path["inputs"] = ["\ud800"]
+        result = verify(surrogate_path)
+        assert result.returncode == 1
+        assert b"valid UTF-8" in result.stderr and b"Traceback" not in result.stderr
+
+        write(report_path, json.dumps(original, separators=(",", ":")) + "\n")
+        noncanonical = run_cli(
+            validator,
+            root,
+            "verify-claim-scan-report",
+            "--input",
+            "report.json",
+            "--root",
+            ".",
+        )
+        assert noncanonical.returncode == 1
+        assert b"not canonical JSON" in noncanonical.stderr
+
+        write(report_path, '{"schema":"one","schema":"two"}\n')
+        duplicate_keys = run_cli(
+            validator,
+            root,
+            "verify-claim-scan-report",
+            "--input",
+            "report.json",
+            "--root",
+            ".",
+        )
+        assert duplicate_keys.returncode == 1
+        assert b"duplicate report key" in duplicate_keys.stderr and b"Traceback" not in duplicate_keys.stderr
+
+        write(report_path, '{"score":NaN}\n')
+        nonfinite = run_cli(
+            validator,
+            root,
+            "verify-claim-scan-report",
+            "--input",
+            "report.json",
+            "--root",
+            ".",
+        )
+        assert nonfinite.returncode == 1
+        assert b"non-standard JSON constant" in nonfinite.stderr and b"Traceback" not in nonfinite.stderr
+
+        write(report_path, ("[" * 100_000) + "0" + ("]" * 100_000) + "\n")
+        deeply_nested = run_cli(
+            validator,
+            root,
+            "verify-claim-scan-report",
+            "--input",
+            "report.json",
+            "--root",
+            ".",
+        )
+        assert deeply_nested.returncode == 1
+        assert b"valid JSON" in deeply_nested.stderr and b"Traceback" not in deeply_nested.stderr
+
+        target = root / "target-report.json"
+        write(target, scanner.dump_report(original))
+        symlink = root / "linked-report.json"
+        try:
+            symlink.symlink_to(target)
+        except (OSError, NotImplementedError):
+            pass
+        else:
+            linked = run_cli(
+                validator,
+                root,
+                "verify-claim-scan-report",
+                "--input",
+                "linked-report.json",
+                "--root",
+                ".",
+            )
+            assert linked.returncode == 1 and b"bounded regular UTF-8 file" in linked.stderr
 
 
 def assert_high_occurrence_contract() -> None:
@@ -467,10 +750,17 @@ def assert_tracked_public_inventory() -> None:
             "README.md": "bounded\n",
             "SECURITY.md": "bounded\n",
             "docs/WUCI_ENTERPRISE_ADOPTION.md": "bounded\n",
+            "docs/PRODUCTION_READINESS.md": "bounded\n",
+            "docs/RELEASE_PROCESS.md": "bounded\n",
+            "docs/SECURITY_BOUNDARY.md": "bounded\n",
+            "docs/THREAT_MODEL.md": "bounded\n",
+            "docs/wucios/NOETHER_CORE.md": "bounded\n",
             "docs/internal-note.md": "FIPS validated\n",
             "docs/archive/old.md": "FIPS validated\n",
             "site/index.html": "<p>bounded</p>\n",
             "site/app.js": "const copy = 'bounded';\n",
+            "site/validate.mjs": "const rejected = 'FIPS validated';\n",
+            "site/logo.svg": "<svg><text>bounded</text></svg>\n",
             "site/$(touch injected).html": "<p>bounded</p>\n",
             "site/image.png": "not really an image\n",
             "apps/bottle/src/ui/ThreatModel.ts": "export const copy = 'bounded';\n",
@@ -480,7 +770,9 @@ def assert_tracked_public_inventory() -> None:
             "specs/example/README.md": "bounded\n",
             "specs/example/example.schema.json": "{\"claim\": \"FIPS validated\"}\n",
             "wucios/releases/example/release.json": "{}\n",
+            "wucios/releases/example/fixtures/bounded-claims.txt": "This fixture is not FIPS validated.\n",
             "build/generated.html": "FIPS validated\n",
+            "examples/daylight-standard/fixture.md": "FIPS validated\n",
         }
         for relative, content in tracked.items():
             write(root / relative, content)
@@ -493,13 +785,20 @@ def assert_tracked_public_inventory() -> None:
             "README.md",
             "SECURITY.md",
             "docs/WUCI_ENTERPRISE_ADOPTION.md",
+            "docs/PRODUCTION_READINESS.md",
+            "docs/RELEASE_PROCESS.md",
+            "docs/SECURITY_BOUNDARY.md",
+            "docs/THREAT_MODEL.md",
+            "docs/wucios/NOETHER_CORE.md",
             "site/$(touch injected).html",
             "site/app.js",
             "site/index.html",
+            "site/logo.svg",
             "apps/bottle/public/keyring.json",
             "apps/bottle/src/ui/ThreatModel.ts",
             "specs/example/README.md",
             "wucios/releases/example/release.json",
+            "wucios/releases/example/fixtures/bounded-claims.txt",
         })
         assert not (root / "injected").exists()
         report = scanner.scan_paths(inventory, root=root)
@@ -565,6 +864,35 @@ def assert_public_json_claims() -> None:
         assert {(item["json_path"], item["phrase"]) for item in report["findings"]} == {
             ('$["claim_boundary"]', "fips validated"),
             ('$["non_claims"]["marketing"]', "trust authority"),
+        }
+
+        unsafe = dict(safe_status)
+        unsafe["nonClaims"] = ["FIPS validated, however trust authority is provided"]
+        unsafe["does_not_prove"] = ["production cryptography and production authority is granted"]
+        write(status_path, json.dumps(unsafe) + "\n")
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "fail"
+        assert {(item["json_path"], item["phrase"]) for item in report["findings"]} == {
+            ('$["does_not_prove"][0]', "production authority"),
+            ('$["does_not_prove"][0]', "production cryptography"),
+            ('$["nonClaims"][0]', "fips validated"),
+            ('$["nonClaims"][0]', "trust authority"),
+        }
+
+        unsafe = dict(safe_status)
+        unsafe["nonClaims"] = [
+            "We do not claim FIPS validated, however, trust authority is provided."
+        ]
+        unsafe["does_not_prove"] = [
+            "Production authority remains not claimed by the old team, but is granted by us."
+        ]
+        write(status_path, json.dumps(unsafe) + "\n")
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "fail"
+        assert {(item["json_path"], item["phrase"]) for item in report["findings"]} == {
+            ('$["does_not_prove"][0]', "production authority"),
+            ('$["nonClaims"][0]', "fips validated"),
+            ('$["nonClaims"][0]', "trust authority"),
         }
 
         unsafe = dict(safe_status)
@@ -710,6 +1038,7 @@ def main() -> int:
     assert_policy_matching()
     assert_report_contract()
     assert_invalid_inputs_and_limits()
+    assert_report_regeneration()
     assert_high_occurrence_contract()
     assert_inline_claim_limits()
     assert_tracked_public_inventory()

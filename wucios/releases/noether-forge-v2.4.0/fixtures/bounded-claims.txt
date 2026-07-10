@@ -1,2 +1,3 @@
-Noether Forge does not claim runtime sandboxing, quantum safety, external
-certification, production authority, publish authority, or trust authority.
+Runtime sandboxing is not claimed by Noether Forge. Quantum safety and external
+certification are not claimed. Production authority is not claimed. Publish
+authority is not claimed. Trust authority is not claimed.

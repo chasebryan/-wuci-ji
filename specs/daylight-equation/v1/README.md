@@ -17,12 +17,16 @@ a deterministic stdlib-only subset for local CI.
 - `daylight-conformance-report.v1.schema.json`: project conformance report.
 - `daylight-claim-scan-report.v1.schema.json`: deterministic phrase-firewall report with safe-input errors and source locations.
 
+Claim-scan reports are accepted by CI only after canonical safe regeneration
+from their declared relative inputs; schema/structure validation alone is not a
+provenance check.
+
 ## Non-Claims
 
 The v1 schemas do not certify security, production readiness, government
-approval, FIPS validation, FedRAMP authorization, cATO/RMF authorization,
-post-quantum safety, or runtime containment. They define evidence obligations
-and refusal rules.
+approval, FIPS validation, FedRAMP authorization, cATO/RMF authorization, or
+post-quantum safety. Runtime containment is not claimed. The schemas define
+evidence obligations and refusal rules.
 
 `daylight-claim-v1.claim_text` has a 65,536-character schema ceiling. The
 stdlib validator also enforces a 65,536-byte UTF-8 ceiling and a 256 configured

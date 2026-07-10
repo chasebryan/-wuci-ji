@@ -50,10 +50,11 @@ secret. Fixture authority is test-only.
 ## Not Enforced Today
 
 - Production FROST authority or arbitrary signer material.
-- General runtime sandboxing, seccomp policy beyond the CARROT network-syscall
-  deny filter, VM containment, or no-network claims outside the CARROT proof
-  lane.
-- Post-quantum signature verification or quantum-safe status.
+- General runtime sandboxing is not enforced. Seccomp policy beyond the CARROT
+  network-syscall deny filter, VM containment, and no-network claims outside the
+  CARROT proof lane are also not enforced.
+- The system is not quantum-safe; post-quantum signature verification is not
+  implemented.
 - WJ-GOLD does not implement production FROST or ML-DSA verification, and
   `pq-secure` remains fail-closed.
 - Independent audit, formal verification, broad fuzzing, or constant-time
@@ -85,8 +86,9 @@ secret. Fixture authority is test-only.
 
 ## Non-Goals
 
-- Do not market Wuci-ji as production cryptography.
-- Do not claim runtime sandboxing until real OS-level enforcement exists.
+- Production cryptography is not claimed in Wuci-ji marketing.
+- Runtime sandboxing is not claimed. Real OS-level enforcement is required
+  before that boundary can change.
 - Do not claim post-quantum security until real PQ signatures are verified.
 - Do not treat fixture authority roots as production trust anchors.
 - Do not use Python/Zig policy emitters as a substitute for assembly-enforced

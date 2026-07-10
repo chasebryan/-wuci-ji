@@ -337,10 +337,11 @@ daylight-claim-firewall:
 	@mkdir -p build/daylight/claim-firewall-v1
 	$(PYTHON) tools/daylight_conformance.py reject-overclaims \
 		--tracked-public \
+		--max-file-bytes 2097152 \
 		--report build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
 	$(PYTHON) tools/daylight_public_json_claims.py \
 		--report build/daylight/claim-firewall-v1/daylight-public-json-claim-report.json
-	$(PYTHON) tools/daylight_standard_validate.py validate \
+	$(PYTHON) tools/daylight_standard_validate.py verify-claim-scan-report \
 		--input build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
 
 daylight-claim-firewall-ci: daylight-claim-firewall-test daylight-claim-firewall
