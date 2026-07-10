@@ -162,6 +162,8 @@ def public_route_aliases(path: str) -> set[str]:
     if path.endswith(".html"):
         clean, _status = public_url_and_status(path)
         aliases.add(clean)
+        if path.endswith("/index.html") and clean != "/":
+            aliases.add(clean.rstrip("/"))
     return aliases
 
 

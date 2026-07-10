@@ -28,6 +28,7 @@ def main() -> None:
         "/public-page.html",
     }
     assert site_dist.public_route_aliases("docs/index.html") == {
+        "/docs",
         "/docs/",
         "/docs/index.html",
     }

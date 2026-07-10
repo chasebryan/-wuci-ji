@@ -9,6 +9,7 @@ import sys
 import tempfile
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -275,7 +276,14 @@ def main() -> None:
     assert len(gzip.compress(APP_BYTES, compresslevel=9, mtime=0)) == 56
     local_site = canonical_local_site_build()
     assert all(
-        redirect.url.startswith((live.SITE_ORIGIN, "http://nosuchmachine.net/", "http://www.nosuchmachine.net/", "https://www.nosuchmachine.net/"))
+        redirect.url.startswith(
+            (
+                live.SITE_ORIGIN,
+                "http://nosuchmachine.net/",
+                "http://www.nosuchmachine.net/",
+                "https://www.nosuchmachine.net/",
+            )
+        )
         for redirect in local_site.redirects
     )
     for invalid_redirect, expected_error in [
@@ -690,6 +698,38 @@ def main() -> None:
         )
 
         snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+        original_fstat = live.os.fstat
+        fstat_calls = 0
+
+        def changing_fstat(descriptor: int):
+            nonlocal fstat_calls
+            metadata = original_fstat(descriptor)
+            fstat_calls += 1
+            if fstat_calls != 2:
+                return metadata
+            return SimpleNamespace(
+                st_dev=metadata.st_dev,
+                st_ino=metadata.st_ino,
+                st_mode=metadata.st_mode,
+                st_nlink=metadata.st_nlink,
+                st_size=metadata.st_size,
+                st_mtime_ns=metadata.st_mtime_ns,
+                st_ctime_ns=metadata.st_ctime_ns + 1,
+            )
+
+        live.os.fstat = changing_fstat
+        try:
+            assert_value_error(
+                lambda: live.load_snapshot(
+                    snapshot_path,
+                    canonical_local_build(),
+                    local_site,
+                ),
+                "changed during the bounded read",
+            )
+        finally:
+            live.os.fstat = original_fstat
+
         symlink_path = Path(tmp) / "snapshot-link.json"
         symlink_path.symlink_to(snapshot_path)
         assert_value_error(

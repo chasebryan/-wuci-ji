@@ -764,13 +764,28 @@ def read_snapshot_bytes(path: Path) -> bytes:
     except OSError as error:
         raise ValueError("snapshot must be a single-link regular file") from error
     try:
-        metadata = os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
             raise ValueError("snapshot must be a single-link regular file")
-        if metadata.st_size > SNAPSHOT_MAX_FILE_BYTES:
+        if before.st_size > SNAPSHOT_MAX_FILE_BYTES:
             raise ValueError("snapshot exceeds the fixed file-size budget")
         with os.fdopen(descriptor, "rb", closefd=False) as handle:
             content = handle.read(SNAPSHOT_MAX_FILE_BYTES + 1)
+        after = os.fstat(descriptor)
+        stable_fields = (
+            "st_dev",
+            "st_ino",
+            "st_mode",
+            "st_nlink",
+            "st_size",
+            "st_mtime_ns",
+            "st_ctime_ns",
+        )
+        if (
+            any(getattr(before, field) != getattr(after, field) for field in stable_fields)
+            or len(content) != after.st_size
+        ):
+            raise ValueError("snapshot changed during the bounded read")
         if len(content) > SNAPSHOT_MAX_FILE_BYTES:
             raise ValueError("snapshot exceeds the fixed file-size budget")
         return content
