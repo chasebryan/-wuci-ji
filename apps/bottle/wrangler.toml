@@ -1,0 +1,16 @@
+name = "daylight-bottle"
+main = "worker/index.ts"
+compatibility_date = "2026-07-09"
+workers_dev = false
+
+[[routes]]
+pattern = "bottle.nosuchmachine.net"
+custom_domain = true
+
+[assets]
+directory = "./dist"
+run_worker_first = ["/api/*"]
+
+[[kv_namespaces]]
+binding = "BOTTLES_KV"
+id = "20625e8d95504df28ba0e1bc94d97fc0"

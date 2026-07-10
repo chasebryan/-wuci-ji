@@ -2072,11 +2072,21 @@ def assert_remaster_from_extracted_rootfs_is_wrapped(tmp: Path) -> None:
     if not source_iso.is_file():
         return
     overlay_root = tmp / "direct-rootfs-overlay"
-    wuci_os.create_overlay(
-        overlay_root,
-        wallpaper_source=REPO / "docs" / "wuci-os" / "assets" / "wallpaper1.png",
-        force=True,
+    ssv_report = tmp / "daylight-ssv.report.json"
+    ssv_report.write_text(
+        (REPO / "daylight" / "ssv" / "v1" / "examples" / "mixed-score.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
     )
+    original_ssv_report_source = wuci_os.DEFAULT_DAYLIGHT_SSV_REPORT_SOURCE
+    wuci_os.DEFAULT_DAYLIGHT_SSV_REPORT_SOURCE = ssv_report
+    try:
+        wuci_os.create_overlay(
+            overlay_root,
+            wallpaper_source=REPO / "docs" / "wuci-os" / "assets" / "wallpaper1.png",
+            force=True,
+        )
+    finally:
+        wuci_os.DEFAULT_DAYLIGHT_SSV_REPORT_SOURCE = original_ssv_report_source
     extracted_rootfs = tmp / "void-rootfs"
     make_tiny_extracted_rootfs(extracted_rootfs)
     result = wuci_os.remaster_live_rootfs(
