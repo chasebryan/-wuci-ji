@@ -1,0 +1,82 @@
+{
+  "schema": "nsm.wucios.noether-forge.public-status.v1",
+  "releaseId": "noether-forge-v2.4.0",
+  "product": "WuciOS",
+  "version": "2.4.0",
+  "codename": "Noether Forge",
+  "profile": "Noether Core",
+  "updatedAt": "2026-07-10T00:00:00.000Z",
+  "reviewStatus": "review-requested",
+  "distributionMode": "source-only",
+  "officialRelease": false,
+  "publicReleaseAuthorized": false,
+  "binaryAssetsPublished": false,
+  "externalValidationReceived": false,
+  "reviewedCommit": "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+  "pullRequest": "https://github.com/chasebryan/-wuci-ji/pull/30",
+  "reviewerGuide": "https://github.com/chasebryan/-wuci-ji/blob/00171c4cbd377f7c3c200c8a2493ad42c90a1207/docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md",
+  "substrate": {
+    "name": "Alpine Linux",
+    "version": "3.24.1",
+    "architecture": "x86_64",
+    "lockedApkPayloadCount": 52,
+    "upstreamEndorsementClaimed": false
+  },
+  "publicMaterial": [
+    "Wuci-Ji-owned repository source and Noether Forge build logic",
+    "build scripts and configuration",
+    "schemas and deterministic tests",
+    "pinned upstream URLs, identities, signatures, and digests",
+    "bounded source-review instructions"
+  ],
+  "excludedMaterial": [
+    "ISO images",
+    "APK payloads and package caches",
+    "compiled Wuci-Ji binaries",
+    "kernel, initramfs, modloop, EFI, firmware, and bootloader binaries",
+    "private generated build evidence",
+    "private keys, credentials, tokens, and private identity material"
+  ],
+  "validationAtReviewedCommit": {
+    "sourceOnlyGuard": "passed",
+    "noetherForgeTests": "passed",
+    "wuciosValidator": "passed",
+    "repeatBuild": {
+      "result": "byte-identical",
+      "scope": "one clean checkout and host toolchain",
+      "crossHostReproducibilityEstablished": false
+    },
+    "virtualBoot": {
+      "exactPromotedImageObserved": true,
+      "firmwareLanes": [
+        "QEMU SeaBIOS",
+        "QEMU OVMF/UEFI"
+      ]
+    },
+    "referencePhysicalHardwareValidated": false
+  },
+  "publicationHolds": [
+    "third-party binary redistribution review not cleared by this record",
+    "export classification not determined",
+    "required digest-bound reference-hardware evidence absent from the release packet",
+    "production release signature absent",
+    "operated witness inclusion absent",
+    "explicit binary-publication authorization absent"
+  ],
+  "reporting": {
+    "general": "https://github.com/chasebryan/-wuci-ji/issues",
+    "sensitive": "https://github.com/chasebryan/-wuci-ji/security/advisories/new",
+    "locallyBuiltIsoAttachmentAllowed": false
+  },
+  "nonClaims": [
+    "not an official or production WuciOS release",
+    "not binary redistribution authorization",
+    "not external certification or independent audit",
+    "not Alpine Linux project endorsement",
+    "not cross-host reproducibility",
+    "not reference physical-hardware validation",
+    "not general runtime sandboxing or OS containment",
+    "not evidence of quantum safety",
+    "not legal advice or an export classification"
+  ]
+}

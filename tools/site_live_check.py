@@ -4,16 +4,19 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 
 
 APEX = "https://nosuchmachine.net/"
 HTTP_APEX = "http://nosuchmachine.net/"
 WWW = "https://www.nosuchmachine.net/"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -87,6 +90,12 @@ def check_https_root() -> list[Check]:
             and contains(response.body, "Endorsement is not implied."),
             "homepage references Daylight v20 public challenge",
         ),
+        Check(
+            "https-root-noether-forge-marker",
+            contains(response.body, "Source review is open. The ISO is not published.")
+            and contains(response.body, "Noether Forge · source-only review"),
+            "homepage publishes Noether Forge as source-only review",
+        ),
     ]
     hsts = response.headers.get("strict-transport-security", "")
     checks.append(Check("hsts", bool(hsts and "max-age=" in hsts.lower()), hsts or "<missing>"))
@@ -98,6 +107,8 @@ def check_redirects() -> list[Check]:
     http_location = http_response.headers.get("location", "")
     www_response = fetch(WWW, method="HEAD", follow_redirects=False)
     www_location = www_response.headers.get("location", "")
+    legacy_wucios = fetch(APEX + "docs/wuci-os", method="HEAD", follow_redirects=False)
+    legacy_wucios_location = legacy_wucios.headers.get("location", "")
     return [
         Check(
             "http-to-https-redirect",
@@ -108,6 +119,12 @@ def check_redirects() -> list[Check]:
             "www-to-apex-redirect",
             www_response.status in {301, 308} and www_location.startswith(APEX),
             f"{WWW} -> {www_response.status} {www_location or '<no location>'}",
+        ),
+        Check(
+            "legacy-wucios-to-current",
+            legacy_wucios.status == 302
+            and legacy_wucios_location in {"/wucios.html", APEX + "wucios.html"},
+            f"{APEX}docs/wuci-os -> {legacy_wucios.status} {legacy_wucios_location or '<no location>'}",
         ),
     ]
 
@@ -177,6 +194,36 @@ def check_json_asset(path: str, required_keys: set[str]) -> list[Check]:
     return checks
 
 
+def check_exact_local_asset(path: str) -> list[Check]:
+    url = APEX + path
+    response = fetch(url)
+    local_path = REPOSITORY_ROOT / "site" / path
+    try:
+        expected = local_path.read_bytes()
+    except OSError as error:
+        return [Check(f"{path}-local-source", False, str(error))]
+    expected_digest = hashlib.sha256(expected).hexdigest()
+    observed_digest = hashlib.sha256(response.body).hexdigest()
+    return [
+        Check(f"{path}-exact-status", response.status == 200, f"{url} -> {response.status}"),
+        Check(
+            f"{path}-content-type",
+            "application/json" in response.headers.get("content-type", ""),
+            response.headers.get("content-type", "<missing>"),
+        ),
+        Check(
+            f"{path}-cache-control",
+            "no-store" in response.headers.get("cache-control", "").lower(),
+            response.headers.get("cache-control", "<missing>"),
+        ),
+        Check(
+            f"{path}-exact-bytes",
+            response.body == expected,
+            f"expected-sha256={expected_digest} observed-sha256={observed_digest}",
+        ),
+    ]
+
+
 def check_binary_asset(path: str, expected_content_type: str) -> list[Check]:
     url = APEX + path
     response = fetch(url, method="HEAD")
@@ -207,9 +254,24 @@ def run_checks() -> list[Check]:
             "llms.txt",
             [
                 "Wuci-Ji v2",
+                "WuciOS 2.4.0 Noether Forge source-only external review candidate",
+                "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
                 "not production cryptography",
                 "Daylight v20 public challenge poster",
                 "declaration_allowed = false",
+            ],
+        )
+    )
+    checks.extend(
+        check_text_asset(
+            "wucios.html",
+            [
+                "WuciOS 2.4.0 · Source-only external review",
+                "Noether Forge",
+                "We do not distribute the ISO or upstream binary payloads.",
+                "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+                "Why there is no ISO download",
+                "A sanitized video may supplement review.",
             ],
         )
     )
@@ -225,6 +287,8 @@ def run_checks() -> list[Check]:
                 "no-such-machine-official-emblem.jpg",
                 "daylight-v20-gate-repo-owned-ceiling-score-surface-999801305.webp",
                 "daylight-v20-public-challenge-780thc.jpg",
+                "https://nosuchmachine.net/wucios.html",
+                "https://nosuchmachine.net/noether-forge-status.json",
                 "daylight-v20-gate-fixture-score-surface.webp",
                 "daylight-v20-gate-aes-256-gcm-comparison-surface.webp",
             ],
@@ -265,6 +329,27 @@ def run_checks() -> list[Check]:
             {"schema", "surface", "claims", "primary_validation", "non_claims"},
         )
     )
+    checks.extend(
+        check_json_asset(
+            "noether-forge-status.json",
+            {
+                "schema",
+                "releaseId",
+                "reviewStatus",
+                "distributionMode",
+                "officialRelease",
+                "publicReleaseAuthorized",
+                "binaryAssetsPublished",
+                "externalValidationReceived",
+                "reviewedCommit",
+                "substrate",
+                "validationAtReviewedCommit",
+                "publicationHolds",
+                "nonClaims",
+            },
+        )
+    )
+    checks.extend(check_exact_local_asset("noether-forge-status.json"))
     checks.extend(
         check_json_asset(
             "aperture-status.json",

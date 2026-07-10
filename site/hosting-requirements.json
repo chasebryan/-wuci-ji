@@ -5,7 +5,10 @@
   "canonical_origin": "https://nosuchmachine.net",
   "canonical_url": "https://nosuchmachine.net/",
   "checked_by": "make site-live-check",
-  "last_updated": "2026-07-03",
+  "last_updated": "2026-07-10",
+  "production_host": "Cloudflare Pages",
+  "production_project": "wuci-ji",
+  "secondary_host": "GitHub Pages",
   "required_redirects": [
     {
       "name": "apex-http-to-https",
@@ -38,6 +41,8 @@
   "required_public_paths": [
     "/",
     "/app.js",
+    "/wucios.html",
+    "/noether-forge-status.json",
     "/llms.txt",
     "/sitemap.xml",
     "/.well-known/security.txt",
