@@ -221,6 +221,9 @@
           showManualCopy();
         } finally {
           document.body.removeChild(textArea);
+          if (document.contains(button)) {
+            button.focus({ preventScroll: true });
+          }
         }
       }
 
@@ -253,19 +256,210 @@
       return Array.prototype.slice.call(nav.querySelectorAll("a[href], button:not([disabled])"));
     }
 
+    var desktopQuery = window.matchMedia("(min-width: 981px)");
+    var suppressedRegions = [];
+    var scrollLockState = null;
+    var lastMenuFocus = null;
+
+    function focusWithoutScroll(element) {
+      if (!element || typeof element.focus !== "function") {
+        return;
+      }
+      try {
+        element.focus({ preventScroll: true });
+      } catch (error) {
+        element.focus();
+      }
+    }
+
+    function suppressRegion(element) {
+      if (!element || suppressedRegions.some(function (state) { return state.element === element; })) {
+        return;
+      }
+      suppressedRegions.push({
+        element: element,
+        hadAriaHidden: element.hasAttribute("aria-hidden"),
+        ariaHidden: element.getAttribute("aria-hidden"),
+        hadInert: element.hasAttribute("inert"),
+        inert: element.getAttribute("inert")
+      });
+      element.setAttribute("aria-hidden", "true");
+      element.setAttribute("inert", "");
+    }
+
+    function suppressObscuredContent() {
+      suppressedRegions = [];
+      Array.prototype.forEach.call(document.body.children, function (element) {
+        if (
+          element === header ||
+          element.tagName === "SCRIPT" ||
+          element.tagName === "STYLE" ||
+          element.tagName === "TEMPLATE"
+        ) {
+          return;
+        }
+        suppressRegion(element);
+      });
+      Array.prototype.forEach.call(header.children, function (element) {
+        if (element !== nav && element !== toggle) {
+          suppressRegion(element);
+        }
+      });
+    }
+
+    function restoreSuppressedContent() {
+      suppressedRegions.forEach(function (state) {
+        if (state.hadAriaHidden) {
+          state.element.setAttribute("aria-hidden", state.ariaHidden || "");
+        } else {
+          state.element.removeAttribute("aria-hidden");
+        }
+        if (state.hadInert) {
+          state.element.setAttribute("inert", state.inert || "");
+        } else {
+          state.element.removeAttribute("inert");
+        }
+      });
+      suppressedRegions = [];
+    }
+
+    function freezePageScroll() {
+      if (scrollLockState) {
+        return;
+      }
+      var body = document.body;
+      var scrollbarGap = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+      scrollLockState = {
+        x: window.scrollX,
+        y: window.scrollY,
+        hadStyle: body.hasAttribute("style"),
+        style: body.getAttribute("style"),
+        hadClass: body.classList.contains("nav-scroll-locked")
+      };
+      body.classList.add("nav-scroll-locked");
+      body.style.position = "fixed";
+      body.style.top = "-" + scrollLockState.y + "px";
+      body.style.left = "-" + scrollLockState.x + "px";
+      body.style.right = "0";
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
+      if (scrollbarGap > 0) {
+        var currentPadding = parseFloat(window.getComputedStyle(body).paddingRight) || 0;
+        body.style.paddingRight = currentPadding + scrollbarGap + "px";
+      }
+    }
+
+    function restorePageScroll() {
+      if (!scrollLockState) {
+        return;
+      }
+      var state = scrollLockState;
+      var body = document.body;
+      var root = document.documentElement;
+      scrollLockState = null;
+      if (state.hadStyle) {
+        body.setAttribute("style", state.style || "");
+      } else {
+        body.removeAttribute("style");
+      }
+      if (!state.hadClass) {
+        body.classList.remove("nav-scroll-locked");
+      }
+      var previousScrollBehavior = root.style.scrollBehavior;
+      root.style.scrollBehavior = "auto";
+      window.scrollTo(state.x, state.y);
+      root.style.scrollBehavior = previousScrollBehavior;
+    }
+
     function setOpen(open, restoreToggleFocus) {
-      header.classList.toggle("nav-open", open);
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      var wasOpen = header.classList.contains("nav-open");
+      if (open && desktopQuery.matches) {
+        return;
+      }
+      if (open === wasOpen) {
+        if (!open && restoreToggleFocus && !desktopQuery.matches) {
+          focusWithoutScroll(toggle);
+        }
+        return;
+      }
       if (open) {
+        header.classList.add("nav-open");
+        toggle.setAttribute("aria-expanded", "true");
+        suppressObscuredContent();
+        freezePageScroll();
         window.requestAnimationFrame(function () {
           var first = navItems()[0];
           if (first && header.classList.contains("nav-open")) {
             first.focus();
           }
         });
-      } else if (restoreToggleFocus) {
-        toggle.focus();
+        return;
       }
+
+      header.classList.remove("nav-open");
+      toggle.setAttribute("aria-expanded", "false");
+      restoreSuppressedContent();
+      restorePageScroll();
+      if (restoreToggleFocus && !desktopQuery.matches) {
+        focusWithoutScroll(toggle);
+      }
+    }
+
+    function samePageDestination(anchor) {
+      var href = anchor.getAttribute("href");
+      if (!href || href.indexOf("#") === -1) {
+        return null;
+      }
+      var url;
+      try {
+        url = new URL(anchor.href, document.baseURI);
+      } catch (error) {
+        return null;
+      }
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname ||
+        url.search !== window.location.search ||
+        url.hash.length < 2
+      ) {
+        return null;
+      }
+      var id;
+      try {
+        id = decodeURIComponent(url.hash.slice(1));
+      } catch (error) {
+        return null;
+      }
+      var destination = document.getElementById(id);
+      return destination ? { element: destination, hash: url.hash } : null;
+    }
+
+    function focusFragmentDestination(destination) {
+      var element = destination.element;
+      var hadTabIndex = element.hasAttribute("tabindex");
+      if (!hadTabIndex) {
+        element.setAttribute("tabindex", "-1");
+        element.addEventListener("blur", function removeTemporaryTabIndex() {
+          if (element.getAttribute("tabindex") === "-1") {
+            element.removeAttribute("tabindex");
+          }
+        }, { once: true });
+      }
+      if (window.location.hash !== destination.hash) {
+        try {
+          window.history.pushState(null, "", destination.hash);
+        } catch (error) {
+          window.location.hash = destination.hash;
+        }
+      }
+      focusWithoutScroll(element);
+      var root = document.documentElement;
+      var previousScrollBehavior = root.style.scrollBehavior;
+      var headerOffset = Math.ceil(header.getBoundingClientRect().height) + 12;
+      var targetTop = Math.max(0, element.getBoundingClientRect().top + window.scrollY - headerOffset);
+      root.style.scrollBehavior = "auto";
+      window.scrollTo(window.scrollX, targetTop);
+      root.style.scrollBehavior = previousScrollBehavior;
     }
 
     toggle.addEventListener("click", function () {
@@ -275,8 +469,25 @@
 
     nav.addEventListener("click", function (event) {
       var target = event.target;
-      if (target instanceof Element && target.closest("a")) {
-        setOpen(false, true);
+      var anchor = target instanceof Element ? target.closest("a") : null;
+      if (!anchor || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      var destination = samePageDestination(anchor);
+      if (destination) {
+        event.preventDefault();
+        setOpen(false, false);
+        window.requestAnimationFrame(function () {
+          focusFragmentDestination(destination);
+        });
+      } else {
+        setOpen(false, false);
+      }
+    });
+
+    header.addEventListener("focusin", function (event) {
+      if (event.target === toggle || nav.contains(event.target)) {
+        lastMenuFocus = event.target;
       }
     });
 
@@ -292,28 +503,65 @@
       if (event.key === "Tab") {
         var items = navItems();
         var first = items[0];
+        var last = items[items.length - 1];
         var active = document.activeElement;
         if (!first) {
           event.preventDefault();
           toggle.focus();
           return;
         }
-        if (event.shiftKey && active === first) {
+        if (active === toggle) {
+          event.preventDefault();
+          if (event.shiftKey) {
+            last.focus();
+          } else {
+            first.focus();
+          }
+        } else if (event.shiftKey && active === first) {
           event.preventDefault();
           toggle.focus();
-        } else if (!event.shiftKey && active === toggle) {
+        } else if (!event.shiftKey && active === last) {
           event.preventDefault();
-          first.focus();
-        } else if (active !== toggle && items.indexOf(active) === -1) {
+          toggle.focus();
+        } else if (items.indexOf(active) === -1) {
           event.preventDefault();
           first.focus();
         }
       }
     });
 
-    var desktopQuery = window.matchMedia("(min-width: 981px)");
+    function visibleHeaderTarget(preferred) {
+      var candidates = [];
+      if (preferred) {
+        candidates.push(preferred);
+      }
+      candidates = candidates.concat(navItems());
+      candidates.push(header.querySelector(".brand"));
+      for (var index = 0; index < candidates.length; index += 1) {
+        var candidate = candidates[index];
+        if (
+          candidate &&
+          candidate.getClientRects().length > 0 &&
+          window.getComputedStyle(candidate).visibility !== "hidden"
+        ) {
+          return candidate;
+        }
+      }
+      return null;
+    }
+
     function handleChange(event) {
       if (event.matches) {
+        var wasOpen = header.classList.contains("nav-open");
+        var active = document.activeElement;
+        var focusWasLostFromMenu =
+          wasOpen &&
+          active === document.body &&
+          lastMenuFocus &&
+          (lastMenuFocus === toggle || nav.contains(lastMenuFocus));
+        if (wasOpen && (active === toggle || focusWasLostFromMenu)) {
+          focusWithoutScroll(visibleHeaderTarget(lastMenuFocus === toggle ? null : lastMenuFocus));
+        }
         setOpen(false, false);
       }
     }

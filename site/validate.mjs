@@ -3,8 +3,12 @@ import { constants } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
+import { assertValidKeyring } from "../apps/bottle/scripts/release-manifest-lib.mjs";
 
 const siteRoot = new URL(".", import.meta.url);
+const siteRootPath = path.resolve(fileURLToPath(siteRoot));
+const canonicalSiteOrigin = "https://nosuchmachine.net";
 
 const requiredFiles = [
   "index.html",
@@ -31,6 +35,8 @@ const requiredFiles = [
   "security.txt",
   ".well-known/security.txt",
   "daylight-status.json",
+  "daylight-bottle-status.json",
+  "daylight-bottle-keyring-observation.json",
   "aperture-status.json",
   "daylight-v20-aperture-singularity-status.json",
   "assets/wuci-ji-white-brick-banner.jpg",
@@ -151,10 +157,6 @@ async function assertIndexReferences() {
     'Not external certification',
     'Evidence-bound public review',
     'https://bottle.nosuchmachine.net/',
-    'Public preview · recipient activation pending',
-    'Daylight Bottle uses a browser-local encryption path before its API request.',
-    'No public key registration',
-    'Does not prove: uncompromised JavaScript delivery',
     'NoEvidence(x) -&gt; NoClaim(x)',
     'NoProof(x) -&gt; NoRelease(x)',
     'ManualScore(x) -&gt; Reject(x)',
@@ -200,6 +202,252 @@ async function assertIndexReferences() {
   ]) {
     if (!index.includes(required)) {
       fail(`index.html is missing in-document security policy: ${required}`);
+    }
+  }
+}
+
+async function assertBottlePreviewBinding() {
+  const index = await readFile(new URL("index.html", siteRoot), "utf8");
+  const renderableIndex = index.replace(/<!--[\s\S]*?-->/g, "");
+  const status = await readJsonOrNull(new URL("daylight-bottle-status.json", siteRoot));
+  if (status === null) {
+    fail("site/daylight-bottle-status.json is missing or not valid JSON");
+    return;
+  }
+  const expected = {
+    schema: "nsm.daylight-bottle.public-status.v1",
+    origin: "https://bottle.nosuchmachine.net",
+    keyringUrl: "https://bottle.nosuchmachine.net/keyring.json",
+    observationMethod: "https-live-readback",
+    observationPath: "daylight-bottle-keyring-observation.json",
+    keyringSchema: "nsm.daylight-bottle.keyring.v1",
+    claimBoundary: "Point-in-time public readback, not proof of continuous availability or future keyring state."
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (status[key] !== value) {
+      fail(`daylight-bottle-status.json ${key} does not match the public status contract`);
+    }
+  }
+  if (
+    typeof status.observedAt !== "string"
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(status.observedAt)
+    || Number.isNaN(Date.parse(status.observedAt))
+  ) {
+    fail("daylight-bottle-status.json observedAt must be a UTC ISO timestamp");
+  }
+  if (typeof status.keyringUpdatedAt !== "string" || Number.isNaN(Date.parse(status.keyringUpdatedAt))) {
+    fail("daylight-bottle-status.json keyringUpdatedAt must be an ISO timestamp");
+  }
+  if (typeof status.keyringSha256 !== "string" || !/^sha256:[0-9a-f]{64}$/.test(status.keyringSha256)) {
+    fail("daylight-bottle-status.json keyringSha256 must be lowercase sha256 evidence");
+  }
+  if (!Number.isInteger(status.activeRecipientCount) || status.activeRecipientCount < 0) {
+    fail("daylight-bottle-status.json activeRecipientCount must be a non-negative integer");
+    return;
+  }
+  const expectedActivation = status.activeRecipientCount === 0 ? "pending" : "active";
+  if (status.recipientActivation !== expectedActivation) {
+    fail(`daylight-bottle-status.json recipientActivation must be ${expectedActivation}`);
+  }
+
+  const observation = await readJsonOrNull(new URL(status.observationPath, siteRoot));
+  if (observation === null) {
+    fail("daylight-bottle-keyring-observation.json is missing or not valid JSON");
+    return;
+  }
+  try {
+    assertValidKeyring(observation);
+  } catch (error) {
+    fail(`daylight-bottle-keyring-observation.json is not a valid Bottle keyring: ${error.message}`);
+    return;
+  }
+  const observedDigest = `sha256:${await sha256Hex(status.observationPath)}`;
+  const observedActiveRecipientCount = observation.keys.filter((record) => record.status === "active").length;
+  if (status.keyringSha256 !== observedDigest) {
+    fail("daylight-bottle-status.json keyringSha256 must match the captured keyring bytes");
+  }
+  if (status.keyringSchema !== observation.schema) {
+    fail("daylight-bottle-status.json keyringSchema must match the captured keyring");
+  }
+  if (status.keyringUpdatedAt !== observation.updatedAt) {
+    fail("daylight-bottle-status.json keyringUpdatedAt must match the captured keyring");
+  }
+  if (status.activeRecipientCount !== observedActiveRecipientCount) {
+    fail("daylight-bottle-status.json activeRecipientCount must match the captured keyring");
+  }
+
+  const pendingMarker = "Public preview · activation pending at last live readback";
+  const normalizedIndex = renderableIndex.toLowerCase();
+  const observedUtcLabel = `${status.observedAt.slice(0, 16).replace("T", " ")} UTC`;
+  if (!renderableIndex.includes(`data-bottle-activation="${status.recipientActivation}"`)) {
+    fail("index.html Bottle activation attribute does not match the live-readback status record");
+  }
+  for (const required of [
+    "Daylight Bottle uses a browser-local encryption path before its API request.",
+    "No public key registration",
+    "Does not prove: uncompromised JavaScript delivery",
+    `datetime="${status.observedAt}">${observedUtcLabel}</time>`,
+    "Point-in-time readback; not continuous availability."
+  ]) {
+    if (!renderableIndex.includes(required)) {
+      fail(`index.html is missing rendered Bottle claim or boundary: ${required}`);
+    }
+  }
+  if (status.recipientActivation === "pending" && !renderableIndex.includes(pendingMarker)) {
+    fail("index.html must disclose activation pending at the recorded live readback while the status has no active recipients");
+  }
+  if (status.recipientActivation === "active" && normalizedIndex.includes("activation pending")) {
+    fail("index.html must remove all activation pending copy after a live readback records an active recipient");
+  }
+
+  for (const required of [
+    'href="https://bottle.nosuchmachine.net/">Preview Daylight Bottle</a>',
+    'href="https://github.com/chasebryan/-wuci-ji/tree/main/apps/bottle">Inspect the source</a>',
+    'href="https://bottle.nosuchmachine.net/#threat">Read the threat model</a>',
+    'href="daylight-bottle-status.json">Read activation status</a>'
+  ]) {
+    if (!renderableIndex.includes(required)) {
+      fail(`index.html is missing exact Daylight Bottle action: ${required}`);
+    }
+  }
+}
+
+function siteRelativePath(filePath) {
+  return path.relative(siteRootPath, filePath).split(path.sep).join("/");
+}
+
+function isWithinSite(filePath) {
+  const relativePath = path.relative(siteRootPath, filePath);
+  return (
+    relativePath === ""
+    || (!path.isAbsolute(relativePath)
+      && relativePath !== ".."
+      && !relativePath.startsWith(`..${path.sep}`))
+  );
+}
+
+async function listHtmlFiles(directoryPath = siteRootPath) {
+  const htmlFiles = [];
+  const entries = (await readdir(directoryPath, { withFileTypes: true }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  for (const entry of entries) {
+    const entryPath = path.join(directoryPath, entry.name);
+    if (entry.isDirectory()) {
+      htmlFiles.push(...await listHtmlFiles(entryPath));
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".html")) {
+      htmlFiles.push(entryPath);
+    }
+  }
+  return htmlFiles;
+}
+
+function localReferences(html) {
+  return Array.from(html.matchAll(
+    /(?:^|[\s<])(href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi
+  ), (match) => ({
+    attribute: match[1].toLowerCase(),
+    value: (match[2] ?? match[3] ?? match[4]).trim()
+  }));
+}
+
+function htmlFragmentTargets(html) {
+  const targets = new Set(Array.from(
+    html.matchAll(/(?:^|[\s<])id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi),
+    (match) => match[1] ?? match[2] ?? match[3]
+  ));
+  for (const anchor of html.matchAll(/<a\b[^>]*[\s<]name\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi)) {
+    targets.add(anchor[1] ?? anchor[2] ?? anchor[3]);
+  }
+  return targets;
+}
+
+async function resolveSiteFile(url) {
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(url.pathname);
+  } catch {
+    return null;
+  }
+
+  const relativePath = decodedPath.replace(/^\/+/, "");
+  let filePath = path.resolve(siteRootPath, relativePath);
+  if (!relativePath || decodedPath.endsWith("/")) {
+    filePath = path.join(filePath, "index.html");
+  }
+  if (!isWithinSite(filePath)) {
+    return null;
+  }
+
+  try {
+    let info = await stat(filePath);
+    if (info.isDirectory()) {
+      filePath = path.join(filePath, "index.html");
+      if (!isWithinSite(filePath)) {
+        return null;
+      }
+      info = await stat(filePath);
+    }
+    return info.isFile() ? filePath : null;
+  } catch {
+    return null;
+  }
+}
+
+async function assertAllSameOriginReferences() {
+  const htmlFiles = await listHtmlFiles();
+  const htmlCache = new Map();
+  const fragmentTargetCache = new Map();
+
+  async function readHtml(filePath) {
+    if (!htmlCache.has(filePath)) {
+      htmlCache.set(filePath, await readFile(filePath, "utf8"));
+    }
+    return htmlCache.get(filePath);
+  }
+
+  for (const htmlFile of htmlFiles) {
+    const pagePath = siteRelativePath(htmlFile);
+    const pageUrl = new URL(pagePath, `${canonicalSiteOrigin}/`);
+    const html = await readHtml(htmlFile);
+    for (const reference of localReferences(html)) {
+      if (!reference.value) {
+        fail(`${pagePath} has an empty ${reference.attribute} reference`);
+        continue;
+      }
+
+      let targetUrl;
+      try {
+        targetUrl = new URL(reference.value, pageUrl);
+      } catch {
+        fail(`${pagePath} has an invalid ${reference.attribute} reference: ${reference.value}`);
+        continue;
+      }
+      if (targetUrl.origin !== canonicalSiteOrigin) {
+        continue;
+      }
+
+      const targetFile = await resolveSiteFile(targetUrl);
+      if (targetFile === null) {
+        fail(`${pagePath} references missing local target: ${reference.value}`);
+        continue;
+      }
+
+      if (!targetUrl.hash || !targetFile.toLowerCase().endsWith(".html")) {
+        continue;
+      }
+      let fragment;
+      try {
+        fragment = decodeURIComponent(targetUrl.hash.slice(1));
+      } catch {
+        fail(`${pagePath} has an invalid fragment reference: ${reference.value}`);
+        continue;
+      }
+      if (!fragmentTargetCache.has(targetFile)) {
+        fragmentTargetCache.set(targetFile, htmlFragmentTargets(await readHtml(targetFile)));
+      }
+      if (!fragmentTargetCache.get(targetFile).has(fragment)) {
+        fail(`${pagePath} references missing fragment #${fragment} in ${siteRelativePath(targetFile)}`);
+      }
     }
   }
 }
@@ -462,6 +710,7 @@ async function assertCloudflareFiles() {
   for (const requiredHeader of [
     "/aperture-status.json",
     "/daylight-status.json",
+    "/daylight-bottle-status.json",
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
@@ -1157,6 +1406,8 @@ async function assertHostingRequirements() {
     "/audits/daylight/score-integrity/",
     "/aperture-status.json",
     "/daylight-status.json",
+    "/daylight-bottle-status.json",
+    "/daylight-bottle-keyring-observation.json",
     "/daylight-v20-aperture-singularity-status.json",
     "/codemeta.json",
     "/citation.cff",
@@ -1230,6 +1481,7 @@ async function assertClaimEvidenceMap() {
   const claims = new Map(claimMap.claims.map((entry) => [entry.id, entry]));
   for (const requiredId of [
     "official-emblem",
+    "daylight-bottle-public-preview",
     "aperture-review-capsule",
     "public-artifact-firewall",
     "daylight-score-binding",
@@ -1268,9 +1520,10 @@ async function assertClaimEvidenceMap() {
 
   const aperture = await readJsonOrNull(new URL("aperture-status.json", siteRoot));
   const daylight = await readJsonOrNull(new URL("daylight-status.json", siteRoot));
+  const bottleStatus = await readJsonOrNull(new URL("daylight-bottle-status.json", siteRoot));
   const daylightV20 = await readJsonOrNull(new URL("daylight-v20-aperture-singularity-status.json", siteRoot));
-  if (aperture === null || daylight === null || daylightV20 === null) {
-    fail("claim-evidence.json cross-check requires aperture-status.json, daylight-status.json, and daylight-v20-aperture-singularity-status.json");
+  if (aperture === null || daylight === null || bottleStatus === null || daylightV20 === null) {
+    fail("claim-evidence.json cross-check requires Aperture, Daylight, Bottle, and Daylight v20 status records");
     return;
   }
 
@@ -1283,6 +1536,19 @@ async function assertClaimEvidenceMap() {
   }
   if (emblem?.evidence_values?.banner_sha256 !== await sha256Hex("assets/no-such-machine-official-banner.jpg")) {
     fail("claim-evidence.json official-emblem banner_sha256 must match asset bytes");
+  }
+  const bottleClaim = claims.get("daylight-bottle-public-preview");
+  const bottleEvidence = bottleClaim?.evidence_values;
+  for (const [claimKey, statusKey] of [
+    ["origin", "origin"],
+    ["observed_at", "observedAt"],
+    ["keyring_sha256", "keyringSha256"],
+    ["active_recipient_count", "activeRecipientCount"],
+    ["recipient_activation", "recipientActivation"]
+  ]) {
+    if (bottleEvidence?.[claimKey] !== bottleStatus[statusKey]) {
+      fail(`claim-evidence.json Bottle ${claimKey} must match daylight-bottle-status.json`);
+    }
   }
   const apertureClaim = claims.get("aperture-review-capsule");
   if (apertureClaim?.evidence_values?.release_tag !== aperture.release_tag) {
@@ -1538,9 +1804,11 @@ async function assertSecondaryPageShells() {
     const content = await readFile(new URL(page, siteRoot), "utf8");
     for (const required of [
       'name="description"',
+      'rel="icon"',
       'class="site-header"',
       'class="site-nav"',
-      'src="app.js?'
+      'href="styles.css?v=nsm-20260710-2"',
+      'src="app.js?v=nsm-20260710-2"'
     ]) {
       if (!content.includes(required)) {
         fail(`${page} is missing responsive shell marker: ${required}`);
@@ -1555,19 +1823,35 @@ async function assertSecondaryPageShells() {
     "Toggle navigation menu",
     "Daylight Bottle",
     "function navItems()",
+    "function suppressObscuredContent()",
+    "function restoreSuppressedContent()",
+    "function freezePageScroll()",
+    "function restorePageScroll()",
+    "function focusFragmentDestination(destination)",
+    "function visibleHeaderTarget(preferred)",
     'event.key === "Tab"',
     "setOpen(false, true)",
-    "first.focus()"
+    "first.focus()",
+    "last.focus()",
+    'body.classList.add("nav-scroll-locked")',
+    "button.focus({ preventScroll: true })"
   ]) {
     if (!app.includes(required)) {
       fail(`app.js is missing secondary-page shell behavior: ${required}`);
     }
+  }
+
+  const styles = await readFile(new URL("styles.css", siteRoot), "utf8");
+  if (!styles.includes("body.nav-scroll-locked")) {
+    fail("styles.css is missing the mobile navigation scroll-lock marker");
   }
 }
 
 await assertRequiredFiles();
 await assertCustomDomain();
 await assertIndexReferences();
+await assertBottlePreviewBinding();
+await assertAllSameOriginReferences();
 await assertNotFoundPage();
 await assertBrowserHttpsFallback();
 await assertNoPublicBrowserCrypto();

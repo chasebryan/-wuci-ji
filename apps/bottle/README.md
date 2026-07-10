@@ -34,10 +34,12 @@ refused once a recipient listing reaches 500 indexed bottles; this admission
 ceiling is not transactional under KV's eventual consistency. The page and
 response-byte limits remain authoritative if concurrent writes overshoot it.
 The production Worker also applies a native Cloudflare burst limit of 12 drops
-per minute for each hashed network-and-recipient pair before any KV write. The
-same pair is limited to 60 inbox lookups per minute. Both limits are local to a
-Cloudflare location and intentionally permissive, so they are abuse resistance
-rather than exact global quotas.
+per minute for each hashed network-and-recipient pair before any KV write. All
+inbox-list and evidence reads share a coarser limit of 60 lookups per minute for
+each hashed network address, so rotating a recipient fingerprint or bottle id
+does not create a fresh read bucket. Both limits are local to a Cloudflare
+location and intentionally permissive, so they are abuse resistance rather
+than exact global quotas.
 
 ## Toolchain
 
@@ -146,8 +148,9 @@ and is not independent proof that the production origin delivered those bytes.
 - Production drops and inbox reads fail closed if their configured burst
   limiters are unavailable; rejected drops do not write to KV.
 - Bottle storage contains ciphertext and public metadata. The platform rate
-  limiters separately maintain short-lived counters keyed by hashes of network
-  address plus recipient fingerprint; they are not exact accounting.
+  limiters separately maintain short-lived counters keyed by hashes of the
+  network address alone for reads and of network address plus recipient
+  fingerprint for drops; they are not exact accounting.
 - The encrypted payload repeats the keyname and recipient fingerprint so local
   decryption can compare them with server metadata.
 - Browser JavaScript delivery is part of the trust boundary.

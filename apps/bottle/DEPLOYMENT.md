@@ -28,9 +28,12 @@ approval.
   valid fail-closed deployment state: identity creation and the threat model
   remain available, while the Worker rejects every bottle drop.
 - `wrangler.toml` includes the `DROP_RATE_LIMITER` and `READ_RATE_LIMITER`
-  bindings. They permit 12 drops and 60 inbox lookups per 60 seconds for each
-  hashed network-and-recipient pair in a Cloudflare location. This is burst
-  protection, not accurate accounting or a global daily quota; see Cloudflare's
+  bindings. Drops permit 12 requests per 60 seconds for each hashed
+  network-and-recipient pair. Inbox-list and evidence reads share 60 requests
+  per 60 seconds for each hashed network address, so changing a fingerprint or
+  bottle id cannot reset the read budget. These counters are local to a
+  Cloudflare location. This is burst protection, not accurate accounting or a
+  global daily quota; see Cloudflare's
   [Rate Limiting API limits](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/#accuracy).
   Its numeric namespace id must remain unique within the Cloudflare account
   unless counter sharing with another Worker is explicitly intended.

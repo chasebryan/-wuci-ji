@@ -6,10 +6,20 @@ on:
       - main
     paths:
       - "apps/bottle/**"
+      - "site/index.html"
+      - "site/daylight-bottle-keyring-observation.json"
+      - "site/daylight-bottle-status.json"
+      - "site/validate.mjs"
+      - "tools/daylight_public_evidence_firewall.py"
       - ".github/workflows/daylight-bottle.yml"
   pull_request:
     paths:
       - "apps/bottle/**"
+      - "site/index.html"
+      - "site/daylight-bottle-keyring-observation.json"
+      - "site/daylight-bottle-status.json"
+      - "site/validate.mjs"
+      - "tools/daylight_public_evidence_firewall.py"
       - ".github/workflows/daylight-bottle.yml"
   workflow_dispatch:
 
@@ -52,6 +62,9 @@ jobs:
 
       - name: Install locked dependencies
         run: npm ci
+
+      - name: Validate linked public site claims
+        run: node ../../site/validate.mjs
 
       - name: Lint
         run: npm run lint

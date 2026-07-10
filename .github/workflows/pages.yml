@@ -6,7 +6,9 @@ on:
       - main
     paths:
       - "site/**"
+      - "apps/bottle/scripts/release-manifest-lib.mjs"
       - "CNAME"
+      - "Makefile"
       - "wrangler.toml"
       - ".github/workflows/pages.yml"
   workflow_dispatch:

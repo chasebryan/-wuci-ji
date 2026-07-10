@@ -1,0 +1,14 @@
+{
+  "schema": "nsm.daylight-bottle.public-status.v1",
+  "origin": "https://bottle.nosuchmachine.net",
+  "keyringUrl": "https://bottle.nosuchmachine.net/keyring.json",
+  "observedAt": "2026-07-10T04:21:51Z",
+  "observationMethod": "https-live-readback",
+  "observationPath": "daylight-bottle-keyring-observation.json",
+  "keyringSchema": "nsm.daylight-bottle.keyring.v1",
+  "keyringUpdatedAt": "2026-07-07T00:00:00.000Z",
+  "keyringSha256": "sha256:d3c6c2e035d44f731bbc538f861e2886ba6165c31fd128977060de8b3a009ce1",
+  "activeRecipientCount": 0,
+  "recipientActivation": "pending",
+  "claimBoundary": "Point-in-time public readback, not proof of continuous availability or future keyring state."
+}
