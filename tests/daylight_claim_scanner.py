@@ -80,9 +80,16 @@ def assert_policy_matching() -> None:
     assert scanner.unsupported_claims_in_text(
         "The old build does not claim FIPS validation, while this build is FIPS validated."
     ) == ["fips validated"]
+    assert scanner.unsupported_claims_in_text(
+        "The product is FIPS validated; deletion is not allowed."
+    ) == ["fips validated"]
+    assert scanner.unsupported_claims_in_text(
+        "This document does not claim production cryptography and our product provides trust authority."
+    ) == ["trust authority"]
     for safe_non_claim in (
         "This artifact does not claim production cryptography or trust authority.",
         "This artifact does not claim production cryptography and trust authority.",
+        "This artifact does not claim production cryptography and our external trust authority.",
         "Forbidden: FIPS validated, FedRAMP authorized, or trust authority.",
         "This release is not FIPS validated and is not FedRAMP authorized.",
     ):
@@ -150,6 +157,7 @@ def assert_report_contract() -> None:
             "limits": {
                 "max_file_bytes": scanner.DEFAULT_MAX_FILE_BYTES,
                 "max_files": scanner.DEFAULT_MAX_FILES,
+                "max_occurrences": scanner.DEFAULT_MAX_OCCURRENCES,
                 "max_total_bytes": scanner.DEFAULT_MAX_TOTAL_BYTES,
             },
             "summary": {
@@ -262,6 +270,53 @@ def assert_invalid_inputs_and_limits() -> None:
                 assert [item["code"] for item in report["errors"]] == ["input-not-regular"]
 
 
+def assert_high_occurrence_contract() -> None:
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-occurrences-") as tmp_name:
+        root = Path(tmp_name)
+        within_limit_count = 8_000
+        within_limit = root / "within-limit.md"
+        write(within_limit, "FIPS validated\n" * within_limit_count)
+        assert within_limit_count < scanner.DEFAULT_MAX_OCCURRENCES
+        assert within_limit.stat().st_size < scanner.DEFAULT_MAX_FILE_BYTES
+        first = scan(
+            root,
+            within_limit.name,
+            max_occurrences=within_limit_count,
+        )
+        second = scan(
+            root,
+            within_limit.name,
+            max_occurrences=within_limit_count,
+        )
+        assert scanner.dump_report(first) == scanner.dump_report(second)
+        assert first["status"] == "fail"
+        assert first["summary"]["phrase_occurrences"] == within_limit_count
+        assert first["summary"]["unsupported_occurrences"] == within_limit_count
+        assert first["findings"][0] == {
+            "path": within_limit.name,
+            "line": 1,
+            "column": 1,
+            "phrase": "fips validated",
+        }
+        assert first["findings"][-1] == {
+            "path": within_limit.name,
+            "line": within_limit_count,
+            "column": 1,
+            "phrase": "fips validated",
+        }
+        validate_object(first)
+
+        above_limit = root / "above-limit.md"
+        write(above_limit, "FIPS validated\n" * (scanner.DEFAULT_MAX_OCCURRENCES + 1))
+        assert above_limit.stat().st_size < scanner.DEFAULT_MAX_FILE_BYTES
+        report = scan(root, above_limit.name)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["max-occurrences-exceeded"]
+        assert report["summary"]["phrase_occurrences"] == 0
+        assert report["findings"] == []
+        validate_object(report)
+
+
 def assert_cli_contract() -> None:
     conformance = TOOLS / "daylight_conformance.py"
     standalone = TOOLS / "daylight_claim_scan.py"
@@ -296,6 +351,32 @@ def assert_cli_contract() -> None:
         assert standalone_json.stdout == wrapper_json.stdout
         validate_object(json.loads(standalone_json.stdout.decode("utf-8")))
 
+        write(root / "two-claims.md", "FIPS validated\nFIPS validated\n")
+        standalone_capped = run_cli(
+            standalone,
+            root,
+            "--path",
+            "two-claims.md",
+            "--max-occurrences",
+            "1",
+        )
+        wrapper_capped = run_cli(
+            conformance,
+            root,
+            "reject-overclaims",
+            "--path",
+            "two-claims.md",
+            "--max-occurrences",
+            "1",
+            "--report",
+            "-",
+        )
+        assert standalone_capped.returncode == wrapper_capped.returncode == 2
+        assert standalone_capped.stdout == wrapper_capped.stdout
+        capped_report = json.loads(standalone_capped.stdout.decode("utf-8"))
+        assert [item["code"] for item in capped_report["errors"]] == ["max-occurrences-exceeded"]
+        validate_object(capped_report)
+
         report_path = root / "build" / "claim-report.json"
         file_report = run_cli(
             conformance,
@@ -329,6 +410,7 @@ def main() -> int:
     assert_policy_matching()
     assert_report_contract()
     assert_invalid_inputs_and_limits()
+    assert_high_occurrence_contract()
     assert_cli_contract()
     if not args.quiet:
         print("daylight claim scanner: PASS")

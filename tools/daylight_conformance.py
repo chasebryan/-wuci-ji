@@ -24,6 +24,7 @@ from daylight_claim_scan import (
     ClaimScanWriteError,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
+    DEFAULT_MAX_OCCURRENCES,
     DEFAULT_MAX_TOTAL_BYTES,
     dump_report as dump_claim_scan_report,
     report_exit_code as claim_scan_exit_code,
@@ -320,6 +321,7 @@ def command_reject_overclaims(args: argparse.Namespace) -> int:
         max_file_bytes=args.max_file_bytes,
         max_files=args.max_files,
         max_total_bytes=args.max_total_bytes,
+        max_occurrences=args.max_occurrences,
     )
     if args.report:
         if args.report == "-":
@@ -419,6 +421,7 @@ def build_parser() -> argparse.ArgumentParser:
     reject.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)
     reject.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
     reject.add_argument("--max-total-bytes", type=int, default=DEFAULT_MAX_TOTAL_BYTES)
+    reject.add_argument("--max-occurrences", type=int, default=DEFAULT_MAX_OCCURRENCES)
     reject.set_defaults(func=command_reject_overclaims)
 
     monitor = sub.add_parser("monitor-signal")

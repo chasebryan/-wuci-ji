@@ -8,6 +8,7 @@
   "limits": {
     "max_file_bytes": 1048576,
     "max_files": 256,
+    "max_occurrences": 10000,
     "max_total_bytes": 8388608
   },
   "summary": {

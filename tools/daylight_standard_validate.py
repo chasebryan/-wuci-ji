@@ -289,6 +289,7 @@ def validate_examples() -> list[str]:
         root=ROOT,
         max_file_bytes=claim_scan_example["limits"]["max_file_bytes"],
         max_files=claim_scan_example["limits"]["max_files"],
+        max_occurrences=claim_scan_example["limits"]["max_occurrences"],
         max_total_bytes=claim_scan_example["limits"]["max_total_bytes"],
     )
     if regenerated_claim_scan != claim_scan_example:

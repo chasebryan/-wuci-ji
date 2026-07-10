@@ -40,6 +40,7 @@
       "required": [
         "max_file_bytes",
         "max_files",
+        "max_occurrences",
         "max_total_bytes"
       ],
       "properties": {
@@ -48,6 +49,10 @@
           "minimum": 1
         },
         "max_files": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_occurrences": {
           "type": "integer",
           "minimum": 1
         },

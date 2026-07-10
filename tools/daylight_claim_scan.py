@@ -8,6 +8,7 @@ proof, vulnerability discovery, or runtime enforcement.
 from __future__ import annotations
 
 import argparse
+import bisect
 import hashlib
 import json
 import os
@@ -36,6 +37,7 @@ BOUNDARY = (
 DEFAULT_MAX_FILE_BYTES = 1_048_576
 DEFAULT_MAX_FILES = 256
 DEFAULT_MAX_TOTAL_BYTES = 8_388_608
+DEFAULT_MAX_OCCURRENCES = 10_000
 
 FORBIDDEN_AUTHORITY_PATTERNS = (
     "production cryptography",
@@ -63,14 +65,16 @@ FORBIDDEN_AUTHORITY_PATTERNS = (
 )
 
 _CONTRAST_RE = re.compile(r"\b(?:but|however|yet|except)\b", re.IGNORECASE)
-_CLAIM_SCOPE_BREAK_RE = re.compile(
+_CLAIM_SCOPE_BREAK_RE = re.compile(r"\b(?:but|however|yet|except|while)\b", re.IGNORECASE)
+_NEW_SUBJECT_AND_RE = re.compile(
+    r"\band\s+"
     r"(?:"
-    r"\b(?:but|however|yet|except|while)\b"
-    r"|\band\s+"
-    r"(?:(?:this|that|the|our|your|its|their|a|an)\s+)?"
-    r"(?:[\w-]+\s+){0,3}"
-    r"(?:is|are|was|were|has|have|claims?|asserts?|proves?|establishes?|confers?|implies?|creates?)\b"
-    r")",
+    r"(?:(?:this|that|the|our|your|its|their|a|an)\s+[\w-]+|(?:we|they|it|he|she))"
+    r"\s+[\w-]+(?:\s+[\w-]+){0,2}"
+    r"|[\w-]+\s+"
+    r"(?:is|are|was|were|has|have|had|does|do|did|can|could|will|would|may|might|must|should|shall|"
+    r"claims?|asserts?|proves?|establishes?|confers?|implies?|creates?|provides?|grants?|offers?)"
+    r")\s*$",
     re.IGNORECASE,
 )
 _NEGATED_LIST_RE = re.compile(
@@ -94,8 +98,8 @@ _DIRECT_NEGATION_RE = re.compile(
     r")\s*$",
     re.IGNORECASE,
 )
-_FOLLOWING_NEGATION_RE = re.compile(
-    r"\b(?:is|are|was|were|remain|remains)\s+not\s+"
+_IMMEDIATE_FOLLOWING_NEGATION_RE = re.compile(
+    r"^\s+(?:is|are|was|were|remain|remains)\s+not\s+"
     r"(?:allowed|authorized|available|claimed|established|implemented|proven|supported)\b",
     re.IGNORECASE,
 )
@@ -103,6 +107,10 @@ _FOLLOWING_NEGATION_RE = re.compile(
 
 class ClaimScanWriteError(RuntimeError):
     """Raised when a deterministic report cannot be written safely."""
+
+
+class ClaimOccurrenceLimitError(RuntimeError):
+    """Raised when configured phrase occurrences exceed the report limit."""
 
 
 def _phrase_regex(phrase: str) -> re.Pattern[str]:
@@ -160,25 +168,38 @@ def phrase_is_negated(text: str, start: int, end: int | None = None) -> bool:
     list_markers = list(_NEGATED_LIST_RE.finditer(clause))
     if list_markers:
         matched_scope = clause[list_markers[-1].end():]
-        if _CLAIM_SCOPE_BREAK_RE.search(matched_scope) is None:
+        if (
+            _CLAIM_SCOPE_BREAK_RE.search(matched_scope) is None
+            and _NEW_SUBJECT_AND_RE.search(matched_scope) is None
+        ):
             return True
     suffix = text[end if end is not None else start:start + 160]
-    return bool(_FOLLOWING_NEGATION_RE.search(suffix))
+    return bool(_IMMEDIATE_FOLLOWING_NEGATION_RE.match(suffix))
 
 
-def _line_column(text: str, start: int) -> tuple[int, int]:
-    line = text.count("\n", 0, start) + 1
-    previous_newline = text.rfind("\n", 0, start)
-    return line, start - previous_newline
+def _line_start_offsets(text: str) -> list[int]:
+    return [0, *(index + 1 for index, character in enumerate(text) if character == "\n")]
 
 
-def claim_phrase_occurrences(text: str) -> list[dict[str, Any]]:
+def _line_column(line_starts: list[int], start: int) -> tuple[int, int]:
+    line_index = bisect.bisect_right(line_starts, start) - 1
+    return line_index + 1, start - line_starts[line_index] + 1
+
+
+def claim_phrase_occurrences(
+    text: str,
+    *,
+    max_occurrences: int | None = None,
+) -> list[dict[str, Any]]:
     """Return every configured phrase occurrence in deterministic source order."""
 
     occurrences: list[dict[str, Any]] = []
+    line_starts = _line_start_offsets(text)
     for phrase, pattern in _PHRASE_REGEXES:
         for match in pattern.finditer(text):
-            line, column = _line_column(text, match.start())
+            if max_occurrences is not None and len(occurrences) >= max_occurrences:
+                raise ClaimOccurrenceLimitError
+            line, column = _line_column(line_starts, match.start())
             occurrences.append({
                 "start": match.start(),
                 "line": line,
@@ -313,6 +334,7 @@ def _base_report(
     max_file_bytes: int,
     max_files: int,
     max_total_bytes: int,
+    max_occurrences: int,
 ) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
@@ -322,6 +344,7 @@ def _base_report(
         "limits": {
             "max_file_bytes": max_file_bytes,
             "max_files": max_files,
+            "max_occurrences": max_occurrences,
             "max_total_bytes": max_total_bytes,
         },
         "summary": {
@@ -345,6 +368,7 @@ def scan_paths(
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     max_files: int = DEFAULT_MAX_FILES,
     max_total_bytes: int = DEFAULT_MAX_TOTAL_BYTES,
+    max_occurrences: int = DEFAULT_MAX_OCCURRENCES,
 ) -> dict[str, Any]:
     """Scan explicit files/directories below *root* and return a stable report."""
 
@@ -367,7 +391,7 @@ def scan_paths(
     inputs = [_display_path(path, scan_root) for path in normalized]
     reported_limits = [
         value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 1
-        for value in (max_file_bytes, max_files, max_total_bytes)
+        for value in (max_file_bytes, max_files, max_total_bytes, max_occurrences)
     ]
     report = _base_report(inputs, *reported_limits)
     errors = report["errors"]
@@ -377,6 +401,7 @@ def scan_paths(
         ("max_file_bytes", max_file_bytes),
         ("max_files", max_files),
         ("max_total_bytes", max_total_bytes),
+        ("max_occurrences", max_occurrences),
     ]:
         if not isinstance(value, int) or isinstance(value, bool) or value < 1:
             errors.append(_error("<limits>", "invalid-limit", f"{name} must be a positive integer"))
@@ -459,7 +484,18 @@ def scan_paths(
             "bytes": len(data),
             "sha256": hashlib.sha256(data).hexdigest(),
         })
-        occurrences = claim_phrase_occurrences(text)
+        try:
+            occurrences = claim_phrase_occurrences(
+                text,
+                max_occurrences=max_occurrences - phrase_occurrences,
+            )
+        except ClaimOccurrenceLimitError:
+            errors.append(_error(
+                display,
+                "max-occurrences-exceeded",
+                "scan exceeds the configured phrase-occurrence limit",
+            ))
+            break
         phrase_occurrences += len(occurrences)
         negated_occurrences += sum(1 for occurrence in occurrences if occurrence["negated"])
         for occurrence in occurrences:
@@ -551,6 +587,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-file-bytes", type=_positive_int, default=DEFAULT_MAX_FILE_BYTES)
     parser.add_argument("--max-files", type=_positive_int, default=DEFAULT_MAX_FILES)
     parser.add_argument("--max-total-bytes", type=_positive_int, default=DEFAULT_MAX_TOTAL_BYTES)
+    parser.add_argument("--max-occurrences", type=_positive_int, default=DEFAULT_MAX_OCCURRENCES)
     return parser
 
 
@@ -561,6 +598,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_file_bytes=args.max_file_bytes,
         max_files=args.max_files,
         max_total_bytes=args.max_total_bytes,
+        max_occurrences=args.max_occurrences,
     )
     if args.out == "-":
         print(dump_report(report), end="")
