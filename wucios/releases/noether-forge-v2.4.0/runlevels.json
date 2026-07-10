@@ -1,0 +1,31 @@
+{
+  "schema": "wucios.noether_forge.runlevels.v1",
+  "runlevels": {
+    "sysinit": [
+      "devfs",
+      "dmesg",
+      "mdev",
+      "hwdrivers",
+      "modloop"
+    ],
+    "boot": [
+      "modules",
+      "hwclock",
+      "hostname",
+      "sysctl",
+      "bootmisc",
+      "syslog",
+      "localmount",
+      "wuci-loopback",
+      "nftables"
+    ],
+    "default": [
+      "wuci-runtime-contract"
+    ],
+    "shutdown": [
+      "savecache",
+      "killprocs",
+      "mount-ro"
+    ]
+  }
+}

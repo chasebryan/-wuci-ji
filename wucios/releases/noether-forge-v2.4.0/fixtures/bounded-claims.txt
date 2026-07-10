@@ -1,0 +1,2 @@
+Noether Forge does not claim runtime sandboxing, quantum safety, external
+certification, production authority, publish authority, or trust authority.

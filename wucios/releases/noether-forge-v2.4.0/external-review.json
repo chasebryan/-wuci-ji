@@ -1,0 +1,46 @@
+{
+  "schema": "wucios.noether_forge.external_review.v1",
+  "release_id": "noether-forge-v2.4.0",
+  "status": "review-requested",
+  "distribution_mode": "source-only",
+  "official_release": false,
+  "public_release_authorized": false,
+  "binary_assets_published": false,
+  "external_validation_received": false,
+  "reproducibility_scope": "same-checkout-repeat-build-only",
+  "third_party_binary_redistribution_review": "not-cleared-by-this-record",
+  "export_classification": "not-determined",
+  "reviewer_build": {
+    "reviewer_fetches_upstream_inputs": true,
+    "repository_mirrors_alpine_binaries": false,
+    "commands": [
+      "make wucios-noether-forge-test",
+      "make wucios-validate",
+      "make wucios-noether-forge-fetch",
+      "make wucios-noether-forge-verify"
+    ]
+  },
+  "public_material": [
+    "source code",
+    "build scripts and configuration",
+    "schemas and deterministic tests",
+    "pinned upstream URLs, identities, and digests",
+    "bounded source-review instructions"
+  ],
+  "excluded_material": [
+    "ISO images",
+    "APK payloads or package caches",
+    "compiled Wuci-Ji binaries",
+    "kernel, initramfs, modloop, EFI, firmware, and bootloader binaries",
+    "generated build evidence",
+    "private keys, credentials, tokens, private identity material, or private vulnerability reports"
+  ],
+  "non_claims": [
+    "Source publication is not an official or production WuciOS release.",
+    "This record grants no binary release or redistribution authority.",
+    "Repository-owned Daylight evidence is not external certification or legal review.",
+    "The network policy is not a general runtime sandbox or OS containment claim.",
+    "Classical signatures and hashes do not establish quantum safety.",
+    "This engineering policy is not legal advice or an export classification."
+  ]
+}

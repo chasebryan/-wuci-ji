@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-alpine-input-lock.v1.json",
+  "title": "WuciOS Noether Forge Alpine input lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "alpine_release",
+    "architecture",
+    "release_signer",
+    "iso",
+    "sidecars",
+    "apk_index",
+    "apk_static",
+    "upstream_layout",
+    "required_host_tools"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.alpine_input_lock.v1"},
+    "alpine_release": {"const": "3.24.1"},
+    "architecture": {"const": "x86_64"},
+    "release_signer": {
+      "type": "object",
+      "required": ["key_url", "key_filename", "key_sha256", "fingerprint"],
+      "properties": {
+        "fingerprint": {"const": "0482D84022F52DF1C4E7CD43293ACD0907D9495A"},
+        "key_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "key_url": {"type": "string", "pattern": "^https://"},
+        "key_filename": {"type": "string", "minLength": 1}
+      }
+    },
+    "iso": {
+      "type": "object",
+      "required": ["filename", "url", "size", "sha256", "sha512"],
+      "properties": {
+        "filename": {"type": "string", "pattern": "^alpine-standard-3\\.24\\.1-x86_64\\.iso$"},
+        "url": {"type": "string", "pattern": "^https://dl-cdn\\.alpinelinux\\.org/"},
+        "size": {"const": 369098752},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "sha512": {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+      }
+    },
+    "sidecars": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "object"}},
+    "apk_index": {"type": "object"},
+    "apk_static": {"type": "object"},
+    "upstream_layout": {"type": "object"},
+    "required_host_tools": {"type": "object"}
+  }
+}

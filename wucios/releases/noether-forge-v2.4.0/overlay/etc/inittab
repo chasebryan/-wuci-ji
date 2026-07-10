@@ -1,0 +1,10 @@
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+
+tty1::respawn:/sbin/getty -n -l /usr/local/sbin/wuci-autologin 38400 tty1 linux
+tty2::respawn:/sbin/getty 38400 tty2 linux
+ttyS0::respawn:/sbin/getty -n -l /usr/local/sbin/wuci-autologin -L 115200 ttyS0 vt100
+
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/openrc shutdown

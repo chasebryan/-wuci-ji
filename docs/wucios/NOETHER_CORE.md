@@ -4,6 +4,11 @@ Noether Core is the invariant-preserving WuciOS base profile. It is TTY-first, G
 
 Noether Core is the serious WuciOS v2.4 release profile.
 
+The first internally maintained implementation of this profile is
+[WuciOS 2.4.0 - Noether Forge](NOETHER_FORGE_V240.md), built on authenticated
+Alpine 3.24.1 inputs. The profile remains an invariant contract; a named image
+must still earn its own exact-artifact evidence.
+
 ## Allowed Classes
 
 - bootloader

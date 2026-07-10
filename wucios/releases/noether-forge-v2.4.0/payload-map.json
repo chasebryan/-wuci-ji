@@ -1,0 +1,11 @@
+{
+  "schema": "wucios.noether_forge.payload_map.v1",
+  "payloads": [
+    {"source": "build/wuci-ji", "destination": "usr/local/bin/wuci-ji", "mode": "0755"},
+    {"source": "tools/daylight_claim_scan.py", "destination": "usr/local/lib/wucios/daylight_claim_scan.py", "mode": "0644"},
+    {"source": "tools/wuci_prism.py", "destination": "usr/local/lib/wucios/wuci_prism.py", "mode": "0644"},
+    {"source": "tools/wuci_progress.py", "destination": "usr/local/lib/wucios/wuci_progress.py", "mode": "0644"},
+    {"source": "tools/wuci_safeio.py", "destination": "usr/local/lib/wucios/wuci_safeio.py", "mode": "0644"},
+    {"source": "tools/wucios/noether_runtime.py", "destination": "usr/local/lib/wucios/noether_runtime.py", "mode": "0644"}
+  ]
+}

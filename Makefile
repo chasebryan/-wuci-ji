@@ -161,6 +161,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-euclid-yocto-phase-3c-d wucios-euclid-yocto-phase-3c-d-json wucios-euclid-yocto-phase-3c-d-scaffold wucios-euclid-yocto-phase-3c-d-scaffold-json wucios-euclid-yocto-phase-3c-d-guardrails wucios-yocto-prep euclid-phase-3c-d yocto-prep yocto-scaffold yocto-guardrails
 .PHONY: wucios-euclid-openbsd-reference-phase-3c-e wucios-euclid-openbsd-reference-phase-3c-e-json wucios-euclid-openbsd-reference-phase-3c-e-scaffold wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json wucios-euclid-openbsd-reference-phase-3c-e-guardrails wucios-openbsd-reference-prep euclid-phase-3c-e openbsd-reference-prep openbsd-reference-scaffold openbsd-reference-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
+.PHONY: wucios-noether-forge-source-guard wucios-noether-forge-test wucios-noether-forge-fetch wucios-noether-forge-inputs wucios-noether-forge-build wucios-noether-forge-inspect wucios-noether-forge-boot wucios-noether-forge-launch wucios-noether-forge-internal wucios-noether-forge-verify
 .PHONY: zp1-upstream-test zp1-wuciji-bridge-test zp1-wuciji-coupling-test
 
 all: check-native $(TARGET)
@@ -171,6 +172,18 @@ help:
 	@printf '%s\n' "WuciOS v2.4 Reduction Gate:"
 	@printf '%s\n' "  make wucios-validate          Validate WuciOS v2.4 structure"
 	@printf '%s\n' "  make wucios-fluff-audit       Scan current surfaces for denied claim phrases"
+	@printf '%s\n' "  make wucios-noether-forge-test"
+	@printf '%s\n' "                                Test the Alpine Noether Forge pipeline"
+	@printf '%s\n' "  make wucios-noether-forge-source-guard"
+	@printf '%s\n' "                                Reject tracked Noether binary artifacts"
+	@printf '%s\n' "  make wucios-noether-forge-fetch"
+	@printf '%s\n' "                                Explicitly fetch and authenticate locked Alpine inputs"
+	@printf '%s\n' "  make wucios-noether-forge-build"
+	@printf '%s\n' "                                Build the offline ISO twice and require identical bytes"
+	@printf '%s\n' "  make wucios-noether-forge-verify"
+	@printf '%s\n' "                                Reinspect and boot the exact ISO in BIOS and UEFI"
+	@printf '%s\n' "  make wucios-noether-forge-launch"
+	@printf '%s\n' "                                Launch the built TTY-first ISO interactively"
 	@printf '%s\n' "  make wucios-substrate-matrix  Generate Euclid substrate matrix"
 	@printf '%s\n' "  make wucios-euclid-trial-phase-1"
 	@printf '%s\n' "                                Generate first-cohort substrate trial protocol"
@@ -761,6 +774,35 @@ wucios-validate:
 
 wucios-fluff-audit:
 	$(PYTHON) tools/wucios/scan_claims.py
+
+wucios-noether-forge-source-guard:
+	$(PYTHON) tools/wucios/noether_source_guard.py
+
+wucios-noether-forge-test: wucios-noether-forge-source-guard
+	$(PYTHON) tests/wucios_noether_forge.py --quiet
+
+wucios-noether-forge-fetch: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py fetch
+
+wucios-noether-forge-inputs: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py verify-inputs
+
+wucios-noether-forge-build: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py build
+
+wucios-noether-forge-inspect: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py inspect
+
+wucios-noether-forge-boot: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py boot --firmware all
+
+wucios-noether-forge-launch: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py launch --firmware bios
+
+wucios-noether-forge-internal: wucios-noether-forge-build
+	$(PYTHON) tools/wucios/noether_forge.py internal --firmware all
+
+wucios-noether-forge-verify: wucios-noether-forge-internal
 
 wucios-substrate-matrix:
 	$(PYTHON) tools/wucios/generate_substrate_matrix.py

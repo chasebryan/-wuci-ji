@@ -1,0 +1,19 @@
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet wuci_noether {
+  chain input {
+    type filter hook input priority 0; policy drop;
+    iifname "lo" accept comment "Noether loopback input"
+  }
+
+  chain forward {
+    type filter hook forward priority 0; policy drop;
+  }
+
+  chain output {
+    type filter hook output priority 0; policy drop;
+    oifname "lo" accept comment "Noether loopback output"
+  }
+}

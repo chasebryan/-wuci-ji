@@ -1,0 +1,61 @@
+{
+  "schema": "wucios.noether_forge.alpine_input_lock.v1",
+  "alpine_release": "3.24.1",
+  "architecture": "x86_64",
+  "release_signer": {
+    "key_url": "https://www.alpinelinux.org/keys/ncopa.asc",
+    "key_filename": "ncopa.asc",
+    "key_sha256": "75a9a7e0cc35bfa946ce40c26133b3ed29a204fbd98a3b33331b659d927b3027",
+    "fingerprint": "0482D84022F52DF1C4E7CD43293ACD0907D9495A"
+  },
+  "iso": {
+    "filename": "alpine-standard-3.24.1-x86_64.iso",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-standard-3.24.1-x86_64.iso",
+    "size": 369098752,
+    "sha256": "f4dd613206676c62949144c8ad75fc64582099f444dd1485bae104a60f51dd26",
+    "sha512": "fd80cc7aeb60e40af60a683790e89385b8a506d7430ea972793f8d0f318d4bc95276ee38923fa784ee9413eb47dd297006b808a5935ac6ec00eadf1e12095e71"
+  },
+  "sidecars": [
+    {
+      "filename": "alpine-standard-3.24.1-x86_64.iso.sha256",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-standard-3.24.1-x86_64.iso.sha256",
+      "sha256": "520c7f507ef0381b6e1182ac57b0b7f089eb3c219f369f513df49f51bf04de74"
+    },
+    {
+      "filename": "alpine-standard-3.24.1-x86_64.iso.sha512",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-standard-3.24.1-x86_64.iso.sha512",
+      "sha256": "346bb63dc65701988d2599fc6b3b38122c0788d6607af12a22be48ab14fc8c70"
+    },
+    {
+      "filename": "alpine-standard-3.24.1-x86_64.iso.asc",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-standard-3.24.1-x86_64.iso.asc",
+      "sha256": "db4040253748c15b228cf842877a54ba8a7ba4b8de69b1282ce8862f8c6c3d26"
+    }
+  ],
+  "apk_index": {
+    "filename": "APKINDEX-main.tar.gz",
+    "iso_filename": "APKINDEX.tar.gz",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/APKINDEX.tar.gz",
+    "size": 528151,
+    "sha256": "15151d4ca064f4c0e313ed07be5e0f9606a8b8f6e0193e075402f4d4407d6272"
+  },
+  "apk_static": {
+    "filename": "apk-tools-static-3.0.6-r0.apk",
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/apk-tools-static-3.0.6-r0.apk",
+    "size": 2218635,
+    "sha256": "a62f54609910d1eb23d8ebcf69dd7954280fe76047452bb88410122cbca14a6e"
+  },
+  "upstream_layout": {
+    "volume_id": "alpine-std 3.24.1 x86_64",
+    "syslinux_config_sha256": "93e003a848e8a3c1b2b1ff8fa777c37e477b20d051d9233a585de7d198e89844",
+    "grub_config_sha256": "69f2eeefaa9a8f406cb87e7fac0abb99fba4facce3167302970feb5691a10389",
+    "bootx64_efi_sha256": "a7a9cd9eadba38ab7e72c71d325eebf10619ca950a9b0ce24e339b0abe4151e2",
+    "efi_embedded_volume_label_occurrences": 1,
+    "efi_image_embedded_volume_label_occurrences": 1
+  },
+  "required_host_tools": {
+    "gpg": "2.4",
+    "qemu-system-x86_64": "10.2",
+    "xorriso": "1.5.8.pl02"
+  }
+}

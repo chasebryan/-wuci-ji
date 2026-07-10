@@ -1,0 +1,62 @@
+{
+  "schema": "wucios.noether_forge.release.v1",
+  "product": "WuciOS",
+  "version": "2.4.0",
+  "codename": "Noether Forge",
+  "release_id": "noether-forge-v2.4.0",
+  "profile": "noether-core",
+  "architecture": "x86_64",
+  "artifact_filename": "WuciOS-v2.4.0-Noether-Forge-x86_64.iso",
+  "volume_id": "WuciOS 2.4 Noether Forge",
+  "source_date_epoch": 1783641600,
+  "substrate": {
+    "distribution": "Alpine Linux",
+    "version": "3.24.1",
+    "kernel": "6.18.35-0-lts",
+    "libc": "musl",
+    "init": "OpenRC"
+  },
+  "authorization": {
+    "scope": "internal ISO implementation and maintenance",
+    "opened_by": "explicit user direction after the WuciOS v2.4 Phase 3C closeout",
+    "public_release_authorized": false
+  },
+  "runtime_contract": {
+    "schema": "wucios.noether.runtime.v1",
+    "console_admin": "wj",
+    "unprivileged_operator": "wj_low",
+    "password_model": "all human and root password hashes locked; local live-console autologin only",
+    "firewall": "nftables input, forward, and output default-drop with loopback-only accept rules",
+    "network_services": [],
+    "allowed_suid_paths": [
+      "/usr/bin/doas"
+    ],
+    "required_commands": [
+      "apk",
+      "daylight-claim-scan",
+      "doas",
+      "nft",
+      "openssl",
+      "python3",
+      "rc-status",
+      "wuci-ji",
+      "wuci-prism",
+      "wuci-runtime-contract",
+      "wuci-status",
+      "wuci-surface-audit"
+    ]
+  },
+  "publication_holds": [
+    "clean release-source commit and annotated tag",
+    "reference-hardware boot evidence",
+    "production release-key signature",
+    "operated WUCI-WITNESS inclusion proof",
+    "explicit publication authorization"
+  ],
+  "non_claims": [
+    "The network policy is not a general runtime sandbox or OS containment claim.",
+    "The live console trust model is not an installed-system credential model.",
+    "Classical signatures and hashes do not establish quantum safety.",
+    "Internal readiness is not production authority and does not grant publish, trust, or certification authority."
+  ]
+}

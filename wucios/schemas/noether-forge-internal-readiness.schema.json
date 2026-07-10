@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-internal-readiness.v1.json",
+  "title": "WuciOS Noether Forge internal readiness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "release",
+    "artifact",
+    "profile",
+    "substrate",
+    "local_gates",
+    "local_blockers",
+    "internal_release_candidate_ready",
+    "public_release_authorized",
+    "publication_holds",
+    "tag_created",
+    "published",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.internal_readiness.v1"},
+    "status": {"enum": ["ready", "blocked"]},
+    "release": {"type": "object"},
+    "artifact": {"type": "object"},
+    "profile": {"const": "noether-core"},
+    "substrate": {"type": "object"},
+    "local_gates": {"type": "object", "additionalProperties": {"type": "boolean"}},
+    "local_blockers": {"type": "array", "items": {"type": "string"}},
+    "internal_release_candidate_ready": {"type": "boolean"},
+    "public_release_authorized": {"const": false},
+    "publication_holds": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "tag_created": {"const": false},
+    "published": {"const": false},
+    "non_claims": {"type": "array", "items": {"type": "string"}}
+  }
+}

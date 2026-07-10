@@ -55,6 +55,22 @@ x86_64 input recorded in generated input evidence.
 The generated score evidence records that the earlier Daylight Candidate
 Readiness Score was not reused as an artifact/security score.
 
+## Noether Forge implementation scope
+
+The historical Phase 3C closeout remains the record of the earlier bounded
+substrate-trial work. A later repository-maintainer decision opened a new,
+separate implementation and maintenance pass for an Alpine-based WuciOS ISO.
+That pass is named **WuciOS 2.4.0 - Noether Forge** and is specified in
+[NOETHER_FORGE_V240.md](NOETHER_FORGE_V240.md).
+
+This implementation scope does not silently widen the earlier trial claims or
+grant binary publication authority. Noether
+Forge must authenticate its Alpine input and APK closure, build repeatably,
+boot the exact ISO under both locally supported firmware paths, satisfy the
+Noether runtime contract, and keep production signing, operated witness,
+reference-hardware, tagging, and publication authority as explicit later
+holds.
+
 ## Runtime Validation Status Preservation
 
 Runtime Gates 5 through 9 are summarized in

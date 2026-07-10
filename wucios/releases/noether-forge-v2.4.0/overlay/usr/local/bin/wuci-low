@@ -1,0 +1,2 @@
+#!/bin/ash
+exec doas -u wj_low /bin/ash -l

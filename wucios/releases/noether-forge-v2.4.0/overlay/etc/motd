@@ -1,0 +1,11 @@
+Noether Forge is a live reviewer environment.
+
+The wj session is trusted as the local live console and may use narrowly
+command-restricted doas without a password. wj_low has no administrative authority.
+
+The loaded nftables policy is default-drop with loopback-only allowances.
+That policy is not a claim of general runtime sandboxing or OS containment.
+
+Run: wuci-status --json
+     wuci-surface-audit --json
+     wuci-runtime-contract --json

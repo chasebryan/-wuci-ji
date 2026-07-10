@@ -1,0 +1,3 @@
+#!/bin/ash
+export PYTHONPATH=/usr/local/lib/wucios
+exec python3 /usr/local/lib/wucios/daylight_claim_scan.py "$@"
