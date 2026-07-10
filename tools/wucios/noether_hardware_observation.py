@@ -15,6 +15,7 @@ import json
 import re
 import stat
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -27,22 +28,103 @@ BOUNDARY_STATEMENT = (
     "This record is a digest-bound operator observation only; it is not independent hardware "
     "validation, certification, official release authority, or proof of OS containment."
 )
+# Unicode's Default_Ignorable_Code_Point property includes format controls plus
+# a small number of marks and reserved ranges.  Python's stdlib exposes general
+# categories rather than that derived property, so keep the non-Cf ranges here.
+# NFKC is applied before these characters are removed.
+DEFAULT_IGNORABLE_RANGES = (
+    (0x034F, 0x034F),
+    (0x115F, 0x1160),
+    (0x17B4, 0x17B5),
+    (0x180B, 0x180F),
+    (0x2065, 0x2065),
+    (0x3164, 0x3164),
+    (0xFE00, 0xFE0F),
+    (0xFFA0, 0xFFA0),
+    (0xFFF0, 0xFFF8),
+    (0x1BCA0, 0x1BCA3),
+    (0x1D173, 0x1D17A),
+    (0xE0000, 0xE0FFF),
+)
+
+# Mutable observation text may record facts, but it may not grant assurance,
+# release, containment, or quantum-resistance status.  These expressions run on
+# normalized text and intentionally reserve the claim families rather than a
+# finite list of marketing phrases.  Negated versions are also rejected: the
+# exact claim_boundary.statement is the sole supported non-claim statement.
 FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS = (
-    ("hardware-validation", re.compile(r"\bhardware[\s-]+validation\b", re.IGNORECASE)),
-    ("external-validation", re.compile(r"\bexternal[\s-]+validation\b", re.IGNORECASE)),
-    ("independent-validation", re.compile(r"\bindependent(?:ly)?[\s-]+validat(?:e|ed|es|ing|ion)\b", re.IGNORECASE)),
-    ("validation", re.compile(r"\bvalidat(?:e|ed|es|ing|ion)\b", re.IGNORECASE)),
-    ("certification", re.compile(r"\bcertif(?:y|ies|ied|ication|ications)\b", re.IGNORECASE)),
-    ("official-release", re.compile(r"\bofficial[\s-]+release\b", re.IGNORECASE)),
-    ("release-authority", re.compile(r"\brelease[\s-]+authority\b", re.IGNORECASE)),
-    ("production-authority", re.compile(r"\bproduction[\s-]+authority\b", re.IGNORECASE)),
-    ("runtime-containment", re.compile(r"\bruntime[\s-]+containment\b", re.IGNORECASE)),
-    ("os-containment", re.compile(r"\bos[\s-]+containment\b", re.IGNORECASE)),
-    ("containment", re.compile(r"\bcontainment\b", re.IGNORECASE)),
-    ("runtime-sandbox", re.compile(r"\bruntime[\s-]+sandbox(?:ing)?\b", re.IGNORECASE)),
-    ("post-quantum-secure", re.compile(r"\bpost[\s-]+quantum[\s-]+secure\b", re.IGNORECASE)),
-    ("quantum-safety", re.compile(r"\bquantum[\s-]+(?:safe|safety|secure|security)\b", re.IGNORECASE)),
-    ("independently-audited", re.compile(r"\bindependently[\s-]+audited\b", re.IGNORECASE)),
+    ("validation", re.compile(r"\bvalidat(?:e|ed|es|ing|ion|ions|or|ors)\b")),
+    (
+        "certification",
+        re.compile(r"\bcertif(?:y|ies|ied|icate|icates|ication|ications|ying)\b"),
+    ),
+    ("accreditation", re.compile(r"\baccredit(?:ed|ing|s|ation|ations)?\b")),
+    ("authority", re.compile(r"authorit(?:y|ies|ative|atively)\b")),
+    (
+        "official-release",
+        re.compile(
+            r"(?:official(?:ly)?\s*releas(?:e|ed|es|ing)?"
+            r"|releas(?:e|ed|es|ing)?(?:\s+\w+){0,2}\s*official(?:ly)?)\b"
+        ),
+    ),
+    (
+        "independent-assurance",
+        re.compile(
+            r"(?:\b(?:independent(?:ly)?|external(?:ly)?|third\s+party)\s*"
+            r"(?:laborator(?:y|ies)|labs?|audits?|reviews?|reviewers?|"
+            r"assess(?:ed|ing|ment|ments|or|ors)|tests?|verification)\b"
+            r"|\b(?:laborator(?:y|ies)|labs?|audits?|reviews?|reviewers?|"
+            r"assess(?:ed|ing|ment|ments|or|ors)|tests?|verification)"
+            r"(?:\s+\w+){0,3}\s+(?:independent(?:ly)?|external(?:ly)?|third\s+party)\b)"
+        ),
+    ),
+    (
+        "all-hardware-tests",
+        re.compile(
+            r"(?:\bpass(?:ed|es|ing)?\s+(?:all|every)\s+(?:the\s+)?hardware\s+tests?\b"
+            r"|\b(?:all|every)\s+(?:the\s+)?hardware\s+tests?"
+            r"(?:\s+\w+){0,2}\s+pass(?:ed|es|ing)?\b"
+            r"|\bhardware\s+pass(?:ed|es|ing)?\s+(?:all|every)\s+tests?\b)"
+        ),
+    ),
+    (
+        "hardware-verification",
+        re.compile(
+            r"\bhardware\s+(?:(?:has\s+been|is|was|independently|externally|"
+            r"fully|successfully)\s+){0,4}"
+            r"verif(?:y|ied|ies|ying|ication|ications)\b"
+        ),
+    ),
+    (
+        "production-readiness",
+        re.compile(
+            r"(?:\bproduction(?:\s+(?:deployment|use|release|trust)){0,2}\s+"
+            r"(?:ready|readiness|approved|authorized|trusted)\b"
+            r"|\b(?:ready|readiness|approved|authorized|trusted)\s+"
+            r"(?:for\s+)?production\b)"
+        ),
+    ),
+    ("containment", re.compile(r"\bcontainment\b")),
+    (
+        "os-containment",
+        re.compile(
+            r"(?:\b(?:os|operating\s+system|kernel|runtime|workloads?)"
+            r"(?:\s+\w+){0,2}\s+contain(?:ed|s|ing)\b"
+            r"|\bcontain(?:ed|s|ing)(?:\s+\w+){0,2}\s+"
+            r"(?:os|operating\s+system|kernel|runtime|workloads?)\b)"
+        ),
+    ),
+    ("sandbox", re.compile(r"sandbox(?:ed|es|ing)?\b")),
+    (
+        "os-isolation",
+        re.compile(
+            r"(?:\bisolat(?:e|es|ed|ing|ion)\s*(?:(?:the|of|for)\s+){0,2}"
+            r"(?:os|operating\s+system|kernel|runtime|workloads?)\b"
+            r"|\b(?:os|operating\s+system|kernel|runtime|workloads?)"
+            r"(?:\s+\w+){0,2}\s+isolat(?:e|es|ed|ing|ion)\b)"
+        ),
+    ),
+    ("quantum-resistance", re.compile(r"(?:quantum|\bpqc\b)")),
 )
 
 
@@ -71,12 +153,37 @@ def require_string(value: Any, label: str, *, choices: set[str] | None = None) -
     return value
 
 
+def is_default_ignorable(character: str) -> bool:
+    """Return whether a Unicode character is format/default-ignorable."""
+
+    if unicodedata.category(character) == "Cf":
+        return True
+    codepoint = ord(character)
+    return any(start <= codepoint <= end for start, end in DEFAULT_IGNORABLE_RANGES)
+
+
+def normalize_free_text_for_claim_scan(value: str) -> str:
+    """Canonicalize claim text without changing the evidence value itself."""
+
+    characters: list[str] = []
+    for character in unicodedata.normalize("NFKC", value).casefold():
+        if is_default_ignorable(character):
+            continue
+        category = unicodedata.category(character)
+        if character.isspace() or category[0] in {"P", "S", "Z"}:
+            characters.append(" ")
+        else:
+            characters.append(character)
+    return " ".join("".join(characters).split())
+
+
 def require_bounded_free_text(value: Any, label: str) -> str:
     """Reject authority language from operator-controlled record strings."""
 
     text = require_string(value, label)
+    normalized = normalize_free_text_for_claim_scan(text)
     for claim_id, pattern in FORBIDDEN_FREE_TEXT_AUTHORITY_PATTERNS:
-        if pattern.search(text):
+        if pattern.search(normalized):
             raise HardwareObservationError(
                 f"{label} contains reserved authority language: {claim_id}"
             )

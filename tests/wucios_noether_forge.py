@@ -225,18 +225,53 @@ def test_physical_hardware_observation_is_digest_bound_without_validation_claim(
         assert expected_label in str(error)
         assert "reserved authority language" in str(error)
 
-    for claim in (
+    reserved_claims = (
         "External validation completed.",
         "The image provides OS containment.",
         "The image is quantum-safe.",
-    ):
+        "independent laboratory confirms passed all hardware tests",
+        "accredited for production deployment",
+        "release is official",
+        "authoritative for production use",
+        "isolates OS workloads",
+        "resists quantum-computer attacks",
+        "quantum-resistant",
+        "quantum-proof",
+        "PQC",
+        "postquantum",
+        "sandboxed",
+        "kernel sandbox",
+        "officially released",
+        "production trust authority",
+        "production readiness",
+        "independent audit",
+        "hardware verified for release",
+        "production\u200bauthority",
+        "produc\u200btion authority",
+        "quantum\u2011safe",
+        "ｏｆｆｉｃｉａｌ release",
+        "offi\u2060cially released",
+        "quant\u034fum-resistant",
+        "laboratory independently confirms compliance",
+        "external audit completed",
+        "third-party review passed",
+        "all hardware tests passed",
+        "hardware has been independently verified",
+        "production deployment approved",
+        "approved for production",
+        "ready for production",
+        "OS workloads are isolated",
+        "isolation of OS workloads",
+    )
+    for claim in reserved_claims:
         changed = copy.deepcopy(record)
         changed["observation"]["observations"][0]["notes"] = claim
-        assert_raises(
+        error = assert_raises(
             noether_hardware_observation.HardwareObservationError,
             noether_hardware_observation.verify_record,
             changed,
         )
+        assert "reserved authority language" in str(error), claim
 
     factual = copy.deepcopy(record)
     factual["subject"]["subject_description"] = "Reviewer-built image reached its local TTY."
@@ -268,6 +303,20 @@ def test_physical_hardware_observation_is_digest_bound_without_validation_claim(
     }
     assert noether_hardware_observation.verify_record(factual) == factual
     assert factual["claim_boundary"]["statement"] == noether_hardware_observation.BOUNDARY_STATEMENT
+
+    safe_factual_observations = (
+        "The device reached the Alpine login prompt.",
+        "The SHA-512 digest was verified against the local manifest.",
+        "The release notes file was copied to removable media.",
+        "Production model 7 reached the local TTY.",
+        "Independent power input was used for the test host.",
+        "The test host stood on an isolated workbench.",
+        "The hardware serial number was verified against its chassis label.",
+    )
+    for observation in safe_factual_observations:
+        changed = copy.deepcopy(factual)
+        changed["observation"]["observations"][0]["notes"] = observation
+        assert noether_hardware_observation.verify_record(changed) == changed
 
     schema = noether_forge.load_json(
         ROOT / "wucios/schemas/noether-forge-physical-hardware-observation.schema.json"
