@@ -12,6 +12,9 @@ from typing import Any
 
 try:
     from daylight_claim_scan import (
+        ClaimTextLimitError,
+        DEFAULT_MAX_INLINE_BYTES,
+        DEFAULT_MAX_INLINE_OCCURRENCES,
         FORBIDDEN_AUTHORITY_PATTERNS,
         phrase_is_negated,
         scan_paths as scan_claim_paths,
@@ -19,6 +22,9 @@ try:
     )
 except ImportError:  # pragma: no cover - package import path used by tests
     from tools.daylight_claim_scan import (  # type: ignore[no-redef]
+        ClaimTextLimitError,
+        DEFAULT_MAX_INLINE_BYTES,
+        DEFAULT_MAX_INLINE_OCCURRENCES,
         FORBIDDEN_AUTHORITY_PATTERNS,
         phrase_is_negated,
         scan_paths as scan_claim_paths,
@@ -116,6 +122,8 @@ def validate_against_schema(value: Any, schema: dict[str, Any], path: str = "$")
     if isinstance(value, str):
         if "minLength" in schema and len(value) < schema["minLength"]:
             raise ValidationError(f"{path}: string shorter than minLength")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            raise ValidationError(f"{path}: string longer than maxLength")
         if "pattern" in schema and re.search(schema["pattern"], value) is None:
             raise ValidationError(f"{path}: string does not match pattern {schema['pattern']!r}")
 
@@ -153,6 +161,7 @@ def validate_claim_scan_report_contract(obj: dict[str, Any]) -> None:
     findings = obj["findings"]
     errors = obj["errors"]
     inputs = obj["inputs"]
+    limits = obj["limits"]
 
     if inputs != sorted(set(inputs)):
         raise ValidationError("$.inputs: paths must be sorted and unique")
@@ -166,32 +175,67 @@ def validate_claim_scan_report_contract(obj: dict[str, Any]) -> None:
         raise ValidationError("$.findings: entries must use deterministic source order")
     if errors != sorted(errors, key=lambda item: (item["path"], item["code"], item["message"])):
         raise ValidationError("$.errors: entries must use deterministic order")
+    if len(files) > limits["max_files"]:
+        raise ValidationError("$.files: length exceeds limits.max_files")
+    if any(item["bytes"] > limits["max_file_bytes"] for item in files):
+        raise ValidationError("$.files: file byte count exceeds limits.max_file_bytes")
     if summary["files_scanned"] != len(files):
         raise ValidationError("$.summary.files_scanned: must equal files length")
     if summary["bytes_scanned"] != sum(item["bytes"] for item in files):
         raise ValidationError("$.summary.bytes_scanned: must equal scanned file bytes")
+    if summary["bytes_scanned"] > limits["max_total_bytes"]:
+        raise ValidationError("$.summary.bytes_scanned: exceeds limits.max_total_bytes")
     if summary["phrase_occurrences"] != (
         summary["negated_occurrences"] + summary["unsupported_occurrences"]
     ):
         raise ValidationError("$.summary.phrase_occurrences: must equal negated plus unsupported")
+    if summary["phrase_occurrences"] > limits["max_occurrences"]:
+        raise ValidationError("$.summary.phrase_occurrences: exceeds limits.max_occurrences")
     if summary["unsupported_occurrences"] != len(findings):
         raise ValidationError("$.summary.unsupported_occurrences: must equal findings length")
+    if len(findings) != len({(item["path"], item["line"], item["column"], item["phrase"]) for item in findings}):
+        raise ValidationError("$.findings: duplicate entries are not allowed")
+    unknown_finding_paths = sorted({item["path"] for item in findings} - set(file_paths))
+    if unknown_finding_paths:
+        raise ValidationError("$.findings: every finding path must name a scanned file")
+
+    def covers(input_path: str, file_path: str) -> bool:
+        return input_path == "." or file_path == input_path or file_path.startswith(input_path.rstrip("/") + "/")
+
+    for file_path in file_paths:
+        if not any(covers(input_path, file_path) for input_path in inputs):
+            raise ValidationError("$.files: every scanned file must be covered by a declared input")
+    if not errors:
+        for input_path in inputs:
+            if not any(covers(input_path, file_path) for file_path in file_paths):
+                raise ValidationError("$.inputs: every successful input must cover a scanned file")
 
     status = obj["status"]
-    if status == "pass" and (not inputs or not files):
-        raise ValidationError("$.status: pass report requires at least one input and one scanned file")
-    if status == "pass" and (findings or errors):
-        raise ValidationError("$.status: pass report must not contain findings or errors")
-    if status == "fail" and (not findings or errors):
-        raise ValidationError("$.status: fail report requires findings and no input errors")
-    if status == "invalid-input" and not errors:
-        raise ValidationError("$.status: invalid-input report requires at least one input error")
+    expected_status = "invalid-input" if errors else "fail" if findings else "pass"
+    if status != expected_status:
+        raise ValidationError(f"$.status: must be {expected_status!r} for the report contents")
+    if status in {"pass", "fail"} and (not inputs or not files):
+        raise ValidationError("$.status: completed report requires at least one input and one scanned file")
+
+
+def validate_claim_text_contract(obj: dict[str, Any]) -> None:
+    text = obj["claim_text"]
+    try:
+        unsupported_claims_in_text(
+            text,
+            max_bytes=DEFAULT_MAX_INLINE_BYTES,
+            max_occurrences=DEFAULT_MAX_INLINE_OCCURRENCES,
+        )
+    except ClaimTextLimitError as exc:
+        raise ValidationError(f"$.claim_text: {exc}") from exc
 
 
 def validate_object(obj: dict[str, Any]) -> None:
     validate_against_schema(obj, load_schema_for_object(obj))
     if obj.get("schema") == "daylight-claim-scan-report-v1":
         validate_claim_scan_report_contract(obj)
+    elif obj.get("schema") == "daylight-claim-v1":
+        validate_claim_text_contract(obj)
 
 
 def iter_schema_files() -> list[Path]:
@@ -236,8 +280,11 @@ def policy_findings(obj: dict[str, Any]) -> list[str]:
     schema = obj.get("schema")
     if schema == "daylight-claim-v1":
         text = str(obj.get("claim_text", ""))
-        for phrase in unsupported_claims_in_text(text):
-            findings.append(f"unsupported authority claim in {obj.get('claim_id')}: {phrase}")
+        try:
+            for phrase in unsupported_claims_in_text(text):
+                findings.append(f"unsupported authority claim in {obj.get('claim_id')}: {phrase}")
+        except ClaimTextLimitError as exc:
+            findings.append(f"claim text rejected in {obj.get('claim_id')}: {exc}")
         score_impact = obj.get("score_impact", {})
         if isinstance(score_impact, dict) and score_impact.get("manual_score_allowed") is not False:
             findings.append(f"manual score is not rejected in {obj.get('claim_id')}")

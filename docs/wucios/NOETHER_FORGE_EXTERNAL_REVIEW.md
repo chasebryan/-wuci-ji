@@ -222,8 +222,8 @@ Use this description:
 
 Repository-owned Daylight evidence is scoped provenance and claim checking; it
 is not external certification. Do not claim production cryptography, general
-runtime sandboxing, quantum safety, government approval, independent audit, or
-publish/trust authority from this source-review packet.
+runtime sandboxing, quantum safety, government approval, independent audit,
+publish authority, or trust authority from this source-review packet.
 
 Wuci-Ji source is provided under the repository Apache-2.0 `LICENSE` and
 `NOTICE`. Third-party binary redistribution and encryption export treatment

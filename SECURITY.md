@@ -31,7 +31,7 @@ A useful report includes:
 - Fixture material (`authority/*.fixture.*`, `daylight-equation/fixtures/`,
   `daylight/v15-meridian/examples/demo.key`) is intentionally public test
   evidence, not a secret. Reports that fixture keys are "leaked" are out of
-  scope; reports that fixture authority can pass as production authority are in
+  scope; reports that fixture authority can pass as real deployment authority are in
   scope.
 - Public evidence artifacts must not contain vault keys, plaintext secrets,
   opened plaintext, private vault stores, or privately openable demo envelopes.

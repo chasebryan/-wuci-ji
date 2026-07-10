@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -86,14 +87,48 @@ def assert_policy_matching() -> None:
     assert scanner.unsupported_claims_in_text(
         "This document does not claim production cryptography and our product provides trust authority."
     ) == ["trust authority"]
+    for bypass in (
+        "This product is not only FIPS validated.",
+        "It is not disputed that this product is FIPS validated.",
+        "This artifact does not claim production cryptography although our product has trust authority.",
+        "This artifact does not claim production cryptography whereas our product has trust authority.",
+        "This artifact does not claim production cryptography plus our product has trust authority.",
+        "This artifact does not claim production cryptography then our product has trust authority.",
+        "This artifact does not claim production cryptography because our product has trust authority.",
+        "This artifact does not claim production cryptography nor deny our product has trust authority.",
+        "This artifact does not claim production cryptography and, as operators know, our product has trust authority.",
+        "| Does not claim | Evidence |\n| --- | --- |\n| FIPS validated | none |",
+    ):
+        findings = scanner.unsupported_claims_in_text(bypass)
+        assert findings, (bypass, findings)
     for safe_non_claim in (
         "This artifact does not claim production cryptography or trust authority.",
         "This artifact does not claim production cryptography and trust authority.",
         "This artifact does not claim production cryptography and our external trust authority.",
         "Forbidden: FIPS validated, FedRAMP authorized, or trust authority.",
         "This release is not FIPS validated and is not FedRAMP authorized.",
+        "| Claim | Evidence |\n| --- | --- |\n| FIPS validated (not claimed) | none |",
+        "## Forbidden Current Claims\n\n- FIPS validated\n- production authority\n",
+        "<section><h2>What still cannot be claimed</h2><ul><li>FIPS validated</li></ul></section>",
     ):
         assert scanner.unsupported_claims_in_text(safe_non_claim) == [], safe_non_claim
+    escaped_html_section = (
+        "<section><h2>Forbidden Claims</h2><p>FIPS validated</p></section>"
+        "<section><h2>Current Statement</h2><p>This is FIPS validated.</p></section>"
+    )
+    assert scanner.unsupported_claims_in_text(escaped_html_section) == ["fips validated"]
+    unrelated_table_status = (
+        "| Claim | Evidence | Unrelated note |\n"
+        "| --- | --- | --- |\n"
+        "| FIPS validated | vendor assertion | not claimed |"
+    )
+    assert scanner.unsupported_claims_in_text(unrelated_table_status) == ["fips validated"]
+    unrelated_same_cell = (
+        "| Claim narrative | Evidence |\n"
+        "| --- | --- |\n"
+        "| An old status was not claimed. This product is FIPS validated. | none |"
+    )
+    assert scanner.unsupported_claims_in_text(unrelated_same_cell) == ["fips validated"]
     unicode_occurrence = scanner.claim_phrase_occurrences("αβ FIPS validated")[0]
     assert (unicode_occurrence["line"], unicode_occurrence["column"]) == (1, 4)
 
@@ -130,6 +165,57 @@ def assert_report_contract() -> None:
         ]
         assert all(not item["path"].startswith("/") for item in first["files"])
         validate_object(first)
+
+        def reject_mutation(mutator: object, message: str) -> None:
+            mutated_report = json.loads(scanner.dump_report(first))
+            assert callable(mutator)
+            mutator(mutated_report)
+            try:
+                validate_object(mutated_report)
+            except ValidationError:
+                return
+            raise AssertionError(message)
+
+        reject_mutation(
+            lambda report: report["inputs"].append("unused.md"),
+            "claim report accepted an input unrelated to every scanned file",
+        )
+        reject_mutation(
+            lambda report: report.__setitem__("inputs", ["unrelated.md"]),
+            "claim report accepted files outside its declared inputs",
+        )
+        reject_mutation(
+            lambda report: report["limits"].__setitem__("max_files", 1),
+            "claim report accepted more files than its declared file limit",
+        )
+        reject_mutation(
+            lambda report: report["limits"].__setitem__("max_file_bytes", 1),
+            "claim report accepted a file beyond its declared byte limit",
+        )
+        reject_mutation(
+            lambda report: report["limits"].__setitem__("max_total_bytes", 1),
+            "claim report accepted total bytes beyond its declared limit",
+        )
+        reject_mutation(
+            lambda report: report["limits"].__setitem__("max_occurrences", 1),
+            "claim report accepted occurrences beyond its declared limit",
+        )
+        reject_mutation(
+            lambda report: report["findings"][0].__setitem__("path", "unscanned.md"),
+            "claim report accepted a finding for an unscanned file",
+        )
+
+        def duplicate_finding(report: dict[str, object]) -> None:
+            report["findings"].append(dict(report["findings"][0]))
+            report["summary"]["unsupported_occurrences"] = 2
+            report["summary"]["phrase_occurrences"] = 3
+
+        reject_mutation(duplicate_finding, "claim report accepted a duplicate finding")
+
+        def inconsistent_status(report: dict[str, object]) -> None:
+            report["errors"] = [{"path": "b.md", "code": "read-failed", "message": "bounded failure"}]
+
+        reject_mutation(inconsistent_status, "claim report accepted fail status despite input errors")
 
         mutated = json.loads(scanner.dump_report(first))
         mutated["extra"] = True
@@ -317,6 +403,216 @@ def assert_high_occurrence_contract() -> None:
         validate_object(report)
 
 
+def assert_inline_claim_limits() -> None:
+    exact_bytes = "x" * scanner.DEFAULT_MAX_INLINE_BYTES
+    assert scanner.unsupported_claims_in_text(exact_bytes) == []
+    try:
+        scanner.unsupported_claims_in_text(exact_bytes + "x")
+    except scanner.ClaimTextLimitError as exc:
+        assert str(exc) == f"claim text exceeds {scanner.DEFAULT_MAX_INLINE_BYTES} UTF-8 bytes"
+    else:
+        raise AssertionError("inline claim scan accepted a claim above its byte limit")
+
+    exact_occurrences = "FIPS validated\n" * scanner.DEFAULT_MAX_INLINE_OCCURRENCES
+    assert scanner.unsupported_claims_in_text(exact_occurrences) == ["fips validated"]
+    try:
+        scanner.unsupported_claims_in_text(exact_occurrences + "FIPS validated\n")
+    except scanner.ClaimTextLimitError as exc:
+        assert str(exc) == (
+            f"claim text exceeds {scanner.DEFAULT_MAX_INLINE_OCCURRENCES} phrase occurrences"
+        )
+    else:
+        raise AssertionError("inline claim scan accepted too many phrase occurrences")
+
+    claim = json.loads((REPO / "examples/daylight-standard/minimal-claim.json").read_text(encoding="utf-8"))
+    claim["claim_text"] = "é" * (scanner.DEFAULT_MAX_INLINE_BYTES // 2 + 1)
+    try:
+        validate_object(claim)
+    except ValidationError as exc:
+        assert "UTF-8 bytes" in str(exc)
+    else:
+        raise AssertionError("structured claim validation accepted an oversized UTF-8 claim")
+
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-structured-") as tmp_name:
+        root = Path(tmp_name)
+        write(root / "claim.json", json.dumps(claim) + "\n")
+        evidence = (REPO / "examples/daylight-standard/evidence-example.json").read_text(encoding="utf-8")
+        write(root / "evidence.json", evidence)
+        result = run_cli(
+            TOOLS / "daylight_conformance.py",
+            root,
+            "score",
+            "--claims",
+            "claim.json",
+            "--evidence",
+            "evidence.json",
+            "--out",
+            "scorecard.json",
+        )
+        assert result.returncode == 2
+        assert b"claim text exceeds" in result.stderr and b"Traceback" not in result.stderr
+        assert not (root / "scorecard.json").exists()
+
+    claim_schema = json.loads(
+        (REPO / "specs/daylight-equation/v1/daylight-claim.v1.schema.json").read_text(encoding="utf-8")
+    )
+    assert claim_schema["properties"]["claim_text"]["maxLength"] == scanner.DEFAULT_MAX_INLINE_BYTES
+
+
+def assert_tracked_public_inventory() -> None:
+    with tempfile.TemporaryDirectory(prefix="daylight-claim-inventory-") as tmp_name:
+        root = Path(tmp_name)
+        subprocess.run(["git", "-C", str(root), "init", "--quiet"], check=True)
+        tracked = {
+            "README.md": "bounded\n",
+            "SECURITY.md": "bounded\n",
+            "docs/WUCI_ENTERPRISE_ADOPTION.md": "bounded\n",
+            "docs/internal-note.md": "FIPS validated\n",
+            "docs/archive/old.md": "FIPS validated\n",
+            "site/index.html": "<p>bounded</p>\n",
+            "site/app.js": "const copy = 'bounded';\n",
+            "site/$(touch injected).html": "<p>bounded</p>\n",
+            "site/image.png": "not really an image\n",
+            "apps/bottle/src/ui/ThreatModel.ts": "export const copy = 'bounded';\n",
+            "apps/bottle/src/ui/ThreatModel.test.ts": "const fixture = 'FIPS validated';\n",
+            "apps/bottle/public/keyring.json": "{}\n",
+            "apps/bottle/package-lock.json": "{}\n",
+            "specs/example/README.md": "bounded\n",
+            "specs/example/example.schema.json": "{\"claim\": \"FIPS validated\"}\n",
+            "wucios/releases/example/release.json": "{}\n",
+            "build/generated.html": "FIPS validated\n",
+        }
+        for relative, content in tracked.items():
+            write(root / relative, content)
+        untracked = root / "site" / "untracked.html"
+        write(untracked, "FIPS validated\n")
+        subprocess.run(["git", "-C", str(root), "add", "--", *sorted(tracked)], check=True)
+
+        inventory = scanner.tracked_public_claim_paths(root)
+        assert inventory == sorted({
+            "README.md",
+            "SECURITY.md",
+            "docs/WUCI_ENTERPRISE_ADOPTION.md",
+            "site/$(touch injected).html",
+            "site/app.js",
+            "site/index.html",
+            "apps/bottle/public/keyring.json",
+            "apps/bottle/src/ui/ThreatModel.ts",
+            "specs/example/README.md",
+            "wucios/releases/example/release.json",
+        })
+        assert not (root / "injected").exists()
+        report = scanner.scan_paths(inventory, root=root)
+        assert report["status"] == "pass", report
+        validate_object(report)
+
+        cli = run_cli(TOOLS / "daylight_claim_scan.py", root, "--tracked-public")
+        assert cli.returncode == 0, cli.stderr
+        assert json.loads(cli.stdout.decode("utf-8"))["inputs"] == inventory
+        assert not (root / "injected").exists()
+
+
+def assert_public_json_claims() -> None:
+    with tempfile.TemporaryDirectory(prefix="daylight-public-json-") as tmp_name:
+        root = Path(tmp_name)
+        subprocess.run(["git", "-C", str(root), "init", "--quiet"], check=True)
+        status_path = root / "site" / "status.json"
+        nested_path = root / "site" / "nested" / "evidence.json"
+        safe_status = {
+            "schema": "example-v1",
+            "claim_boundary": "FIPS validated is not claimed.",
+            "nonClaims": ["production cryptography"],
+            "does_not_prove": ["production authority"],
+            "forbidden_authority_claims": ["trust authority"],
+            "ordinary": "bounded evidence",
+        }
+        write(status_path, json.dumps(safe_status, indent=2) + "\n")
+        write(nested_path, "{\n  \"ordinary\": \"bounded\"\n}\n")
+        untracked = root / "site" / "untracked.json"
+        write(untracked, "{\"marketing\": \"FIPS validated\"}\n")
+        subprocess.run(
+            ["git", "-C", str(root), "add", "--", "site/status.json", "site/nested/evidence.json"],
+            check=True,
+        )
+
+        first = scanner.scan_tracked_public_json_claims(root=root)
+        second = scanner.scan_tracked_public_json_claims(root=root)
+        assert scanner.dump_report(first) == scanner.dump_report(second)
+        assert first["status"] == "pass", first
+        assert first["inputs"] == ["site/nested/evidence.json", "site/status.json"]
+        assert first["summary"]["files_scanned"] == 2
+        assert first["summary"]["strings_scanned"] == 14
+        assert first["summary"]["phrase_occurrences"] == 4
+        assert first["findings"] == []
+
+        unsafe = dict(safe_status)
+        unsafe["marketing"] = "This product is FIPS validated."
+        write(status_path, json.dumps(unsafe) + "\n")
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "fail"
+        assert report["findings"] == [{
+            "path": "site/status.json",
+            "json_path": '$["marketing"]',
+            "phrase": "fips validated",
+        }]
+
+        unsafe = dict(safe_status)
+        unsafe["claim_boundary"] = "This product is FIPS validated."
+        unsafe["non_claims"] = {"marketing": "This product has trust authority."}
+        write(status_path, json.dumps(unsafe) + "\n")
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "fail"
+        assert {(item["json_path"], item["phrase"]) for item in report["findings"]} == {
+            ('$["claim_boundary"]', "fips validated"),
+            ('$["non_claims"]["marketing"]', "trust authority"),
+        }
+
+        unsafe = dict(safe_status)
+        unsafe["FIPS validated"] = True
+        write(status_path, json.dumps(unsafe) + "\n")
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "fail"
+        assert report["findings"] == [{
+            "path": "site/status.json",
+            "json_path": '$.<key:"FIPS validated">',
+            "phrase": "fips validated",
+        }]
+
+        write(status_path, '{"schema":"one","schema":"two"}\n')
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["duplicate-json-key"]
+
+        write(status_path, '{"score":NaN}\n')
+        report = scanner.scan_tracked_public_json_claims(root=root)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["invalid-json"]
+
+        write(status_path, json.dumps(safe_status) + "\n")
+        report = scanner.scan_tracked_public_json_claims(root=root, max_strings=1)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["json-claim-limit-exceeded"]
+
+        write(status_path, '{"outer":{"inner":"bounded"}}\n')
+        report = scanner.scan_tracked_public_json_claims(root=root, max_depth=1)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["json-claim-limit-exceeded"]
+
+        report = scanner.scan_tracked_public_json_claims(root=root, max_strings=0)
+        assert report["status"] == "invalid-input"
+        assert [item["code"] for item in report["errors"]] == ["invalid-limit"]
+
+
+def assert_linear_time_regression() -> None:
+    text = ("ordinary bounded claim context\n" * 6_000) + ("FIPS validated\n" * 8_000)
+    assert len(text.encode("utf-8")) < scanner.DEFAULT_MAX_FILE_BYTES
+    started = time.monotonic()
+    occurrences = scanner.claim_phrase_occurrences(text, max_occurrences=8_000)
+    elapsed = time.monotonic() - started
+    assert len(occurrences) == 8_000
+    assert elapsed < 6.0, f"claim occurrence scan regressed: {elapsed:.3f}s"
+
+
 def assert_cli_contract() -> None:
     conformance = TOOLS / "daylight_conformance.py"
     standalone = TOOLS / "daylight_claim_scan.py"
@@ -401,6 +697,10 @@ def assert_cli_contract() -> None:
         assert overlap.returncode == 2
         assert b"must not overlap" in overlap.stderr
 
+        no_inputs = run_cli(standalone, root)
+        assert no_inputs.returncode == 2
+        assert b"at least one --path or --tracked-public input is required" in no_inputs.stderr
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Test the Daylight Claim Firewall MVP.")
@@ -411,6 +711,10 @@ def main() -> int:
     assert_report_contract()
     assert_invalid_inputs_and_limits()
     assert_high_occurrence_contract()
+    assert_inline_claim_limits()
+    assert_tracked_public_inventory()
+    assert_public_json_claims()
+    assert_linear_time_regression()
     assert_cli_contract()
     if not args.quiet:
         print("daylight claim scanner: PASS")

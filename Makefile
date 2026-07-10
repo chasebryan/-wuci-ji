@@ -336,11 +336,10 @@ daylight-claim-firewall-test:
 daylight-claim-firewall:
 	@mkdir -p build/daylight/claim-firewall-v1
 	$(PYTHON) tools/daylight_conformance.py reject-overclaims \
-		--path README.md \
-		--path docs/WUCI_ENTERPRISE_ADOPTION.md \
-		--path site/index.html \
-		--path apps/bottle/README.md \
+		--tracked-public \
 		--report build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
+	$(PYTHON) tools/daylight_public_json_claims.py \
+		--report build/daylight/claim-firewall-v1/daylight-public-json-claim-report.json
 	$(PYTHON) tools/daylight_standard_validate.py validate \
 		--input build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
 

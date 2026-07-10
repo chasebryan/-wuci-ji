@@ -24,6 +24,11 @@ approval, FIPS validation, FedRAMP authorization, cATO/RMF authorization,
 post-quantum safety, or runtime containment. They define evidence obligations
 and refusal rules.
 
+`daylight-claim-v1.claim_text` has a 65,536-character schema ceiling. The
+stdlib validator also enforces a 65,536-byte UTF-8 ceiling and a 256 configured
+phrase-occurrence ceiling before applying the claim policy, so oversized
+structured claims fail closed.
+
 ## Local Validation
 
 Run:

@@ -24,7 +24,7 @@
   "properties": {
     "schema": { "const": "daylight-claim-v1" },
     "claim_id": { "type": "string", "minLength": 1 },
-    "claim_text": { "type": "string", "minLength": 1 },
+    "claim_text": { "type": "string", "minLength": 1, "maxLength": 65536 },
     "claim_type": {
       "type": "string",
       "enum": ["security", "release", "audit", "cryptographic-boundary", "supply-chain", "deployment-authority", "non-claim", "product-standard"]

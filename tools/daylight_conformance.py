@@ -22,6 +22,7 @@ from daylight_standard_validate import (
 )
 from daylight_claim_scan import (
     ClaimScanWriteError,
+    TrackedSurfaceInventoryError,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_FILES,
     DEFAULT_MAX_OCCURRENCES,
@@ -30,6 +31,7 @@ from daylight_claim_scan import (
     report_exit_code as claim_scan_exit_code,
     report_path_overlaps_inputs,
     scan_paths as scan_claim_paths,
+    tracked_public_claim_paths,
     write_report as write_claim_scan_report,
 )
 
@@ -136,10 +138,14 @@ def command_score(args: argparse.Namespace) -> int:
     claims = load_objects(Path(args.claims), "daylight-claim-v1")
     evidence = load_objects(Path(args.evidence), "daylight-evidence-v1")
 
-    for claim in claims:
-        validate_object(claim)
-    for item in evidence:
-        validate_object(item)
+    try:
+        for claim in claims:
+            validate_object(claim)
+        for item in evidence:
+            validate_object(item)
+    except ValidationError as exc:
+        print(f"conformance input rejected: {exc}", file=sys.stderr)
+        return 2
 
     evidence_by_id = {item["evidence_id"]: item for item in evidence}
     all_scores: list[int] = []
@@ -316,8 +322,19 @@ def command_status(args: argparse.Namespace) -> int:
 
 
 def command_reject_overclaims(args: argparse.Namespace) -> int:
+    paths = list(args.path)
+    if args.tracked_public:
+        try:
+            paths.extend(tracked_public_claim_paths())
+        except TrackedSurfaceInventoryError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    paths = sorted(set(paths))
+    if not paths:
+        print("at least one --path or --tracked-public input is required", file=sys.stderr)
+        return 2
     report = scan_claim_paths(
-        args.path,
+        paths,
         max_file_bytes=args.max_file_bytes,
         max_files=args.max_files,
         max_total_bytes=args.max_total_bytes,
@@ -334,7 +351,7 @@ def command_reject_overclaims(args: argparse.Namespace) -> int:
             except ValueError:
                 print("claim scan report path must stay under the current directory", file=sys.stderr)
                 return 2
-            if report_path_overlaps_inputs(report_path, args.path):
+            if report_path_overlaps_inputs(report_path, paths):
                 print("claim scan report path must not overlap a scanned input", file=sys.stderr)
                 return 2
             try:
@@ -355,10 +372,10 @@ def command_reject_overclaims(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     if not args.report and report["status"] == "pass":
-        if len(args.path) == 1:
-            print(f"{args.path[0]}: no unsupported authority claims")
+        if len(paths) == 1:
+            print(f"{paths[0]}: no unsupported authority claims")
         else:
-            print(f"{len(args.path)} claim scan inputs: no unsupported authority claims")
+            print(f"{len(paths)} claim scan inputs: no unsupported authority claims")
     return claim_scan_exit_code(report)
 
 
@@ -416,7 +433,8 @@ def build_parser() -> argparse.ArgumentParser:
     status.set_defaults(func=command_status)
 
     reject = sub.add_parser("reject-overclaims")
-    reject.add_argument("--path", action="append", required=True)
+    reject.add_argument("--path", action="append", default=[])
+    reject.add_argument("--tracked-public", action="store_true")
     reject.add_argument("--report")
     reject.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)
     reject.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)

@@ -36,7 +36,7 @@ message application.
 | The repository can demonstrate | The repository deliberately refuses to infer |
 | --- | --- |
 | Artifact bytes were sealed, inspected, hashed, and checked through explicit proof lanes. | That custom research cryptography is suitable for production. |
-| Rooted Gate contracts can authorize supported open/release paths and fail closed on reserved publish/trust actions. | Production publish or trust authority from fixture roots or denial-only commands. |
+| Rooted Gate contracts can authorize supported open/release paths and fail closed on reserved publish/trust actions. | Production publish authority is not established; trust authority is not established by fixture roots or denial-only commands. |
 | Witness and ledger tools can create deterministic public evidence and local history proofs. | An operated transparency-log service or proof of host cleanliness. |
 | CAGE, QCAGE, HARDEN, INSTALL, CARROT, and Daylight can emit bounded evidence about their implemented controls. | General OS containment, quantum safety, certification, accreditation, or absence of vulnerabilities. |
 
@@ -119,7 +119,7 @@ ownership table lives in [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md).
 
 | Surface | What it does | Boundary |
 | --- | --- | --- |
-| **WJSEAL / assembly core** | Hashes, seals, opens, inspects, armors, and manifests artifacts; implements the narrow authenticated-output path. | Research implementation; not independently audited production cryptography. |
+| **WJSEAL / assembly core** | Hashes, seals, opens, inspects, armors, and manifests artifacts; implements the narrow authenticated-output path. | Research implementation; not independently audited; not production cryptography. |
 | **Warrant** | Produces deterministic authorization receipts for review workflows. | Committed FROST authority is fixture-only. |
 | **Gate / Root / Anchor** | Verifies flat and rooted contracts for open/release, with fail-closed publish/trust decisions. | Positive production publish/trust authority is not implemented. |
 | **Witness** | Emits keyless public evidence bundles with a fixed public file profile. | Private keys, plaintext binaries, and private transcripts are excluded. |

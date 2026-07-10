@@ -5,7 +5,7 @@
   "canonical_url": "https://nosuchmachine.net/",
   "last_updated": "2026-07-10",
   "purpose": "Map public website claims to the local evidence files and commands that can check them.",
-  "claim_boundary": "Every listed claim is repository-local or hosted-site evidence only; no listed claim is external certification, production cryptography, runtime containment, host-cleanliness proof, or independent audit completion.",
+  "claim_boundary": "Every listed claim is repository-local or hosted-site evidence only. Production cryptography is not claimed; runtime containment is not claimed; external certification, host-cleanliness proof, and independent audit completion are not claimed.",
   "primary_validation": [
     "make site-validate",
     "make daylight-v19-aperture-bastion-ci",

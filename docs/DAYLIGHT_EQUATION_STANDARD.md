@@ -80,7 +80,7 @@ The v1 schemas are in `specs/daylight-equation/v1/`:
 Wuci-Ji / Daylight must not be described as current production cryptography, a
 general runtime sandbox, post-quantum secure, independently audited, Department
 of War approved, government endorsed, cATO authorized, RMF authorized, FIPS
-validated, FedRAMP authorized, NIAP/Common Criteria certified, or a replacement
+validated, FedRAMP authorized, NIAP certified, Common Criteria certified, or a replacement
 for EDR, SIEM, IAM, backups, patch management, or incident response.
 
 ## Conformance Rules
