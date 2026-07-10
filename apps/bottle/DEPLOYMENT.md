@@ -188,11 +188,16 @@ overshoot that ceiling.
 
 Confirm the live release manifest has schema
 `nsm.daylight-bottle.release-manifest.v1`, its source commit matches the exact
-commit approved for deployment, its canonical subject digest recomputes, its
-source-input digests match the checkout, and every bounded public artifact
-matches its declared size and hash. The consumed `_headers` artifact is bound
-to the checkout and its resulting policy is checked on live responses. This is
-a deployment parity check, not independent proof of an uncompromised origin.
+commit approved for deployment, its canonical subject digest recomputes, and
+its source-input digests match the checkout. The live checker does not trust a
+self-consistent remote manifest as byte authority: a freshly rebuilt local
+`dist/` tree defines every requested public artifact, exact expected content,
+size/hash record, per-response read cap, and aggregate capture budget. The
+consumed `_headers` artifact is bound locally and its resulting policy is
+checked on live responses. JavaScript, CSS, HTML, JSON, image, and font paths
+must return an extension-appropriate MIME type; `application/octet-stream` is
+not accepted for JavaScript. This is deployment parity evidence, not proof of
+an uncompromised origin.
 
 From the repository root, run the deterministic policy tests and then the
 explicit no-secret public readback. The live command binds the manifest,
@@ -208,7 +213,10 @@ make live-integrity-check
 ```
 
 The command never sends credentials, identity material, plaintext, or a real
-recipient fingerprint, caps every response body, and never prints bodies.
+recipient fingerprint, caps every response body, limits the locally defined
+artifact capture to 20 aggregate seconds, and never prints bodies. It also
+compares the canonical site's HTML, `app.js`, `styles.css`, and fixed public
+JSON status/evidence responses directly with the checkout.
 
 For a commit validated by GitHub Actions, the `daylight-bottle` workflow also
 retains `daylight-bottle-validated-release-<commit>` for 30 days. Compare its

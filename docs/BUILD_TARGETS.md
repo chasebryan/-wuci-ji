@@ -54,13 +54,20 @@ mapping, status JSON, and official image assets are live. It is a hosted
 deployment gate, not a proof of host cleanliness or runtime containment.
 
 `live-integrity-test` exercises the focused deployment-drift policy entirely
-offline with deterministic response mocks. `live-integrity-check` is the
-explicit network lane: it verifies exact checked-out website bytes, the
-canonical and retired-secondary HTTPS state, rejects redirects, NEL/`Report-To`
-and analytics injection, and checks the live Bottle manifest's canonical
-subject digest, checked-out source inputs, bounded same-origin artifact bytes,
-API schema, security headers, keyring, and public status parity. It sends no
-credentials or user content and never prints response bodies.
+offline with deterministic response mocks. `live-integrity-check` requires a
+fresh local Bottle build. That rebuilt `dist/` tree, not the remote manifest,
+defines every Bottle artifact path, expected byte string, read cap, aggregate
+byte budget, and expected manifest. The live lane rejects redirects and unsafe
+MIME types, enforces a 20-second aggregate artifact-fetch deadline, and checks
+each response directly against the local build. A forged but internally
+consistent remote manifest and script therefore fail.
+
+The same lane verifies exact bytes and MIME types for the canonical website's
+HTML, `app.js`, `styles.css`, and fixed public JSON status/evidence surfaces;
+checks the canonical and retired-secondary HTTPS state; rejects NEL,
+`Report-To`, and executable analytics injection; and validates the Bottle API,
+security headers, keyring, and public status parity. It sends no credentials or
+user content and never prints response bodies.
 
 ## ZP-1 / Wuci-Ji Coupling
 

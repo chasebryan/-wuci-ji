@@ -2,10 +2,11 @@
 """Evaluate public deployment drift without sending credentials or user data.
 
 The default mode reads an explicit JSON snapshot and performs no network I/O.
-Pass ``--live`` to issue the bounded, same-origin, read-only request plan.
-Manifest-declared Bottle artifacts are fetched only after their paths and
-declared aggregate size pass strict validation. Response bodies are bounded
-and never printed.
+Pass ``--live`` to issue the bounded, same-origin, read-only request plan after
+rebuilding Daylight Bottle locally. The local ``dist/`` tree defines every
+Bottle artifact request, expected byte string, and response cap; the remote
+manifest cannot expand the request plan. Response bodies are bounded and never
+printed.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import hashlib
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -36,7 +38,11 @@ ZERO_FINGERPRINT = f"sha256:{'0' * 64}"
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_MANIFEST_ARTIFACTS = 32
 MAX_MANIFEST_ARTIFACT_BYTES = 2_097_152
-BROWSER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
+MAX_ARTIFACT_CAPTURE_SECONDS = 20.0
+MAX_ARTIFACT_REQUEST_SECONDS = 5.0
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
+)
 
 REQUIRED_BOTTLE_HEADERS = {
     "content-security-policy": (
@@ -100,6 +106,23 @@ MANIFEST_INPUT_PATHS = {
     "wranglerConfigSha256": "wrangler.toml",
 }
 
+ARTIFACT_MEDIA_TYPES = {
+    ".css": {"text/css"},
+    ".gif": {"image/gif"},
+    ".html": {"text/html"},
+    ".ico": {"image/vnd.microsoft.icon", "image/x-icon"},
+    ".jpeg": {"image/jpeg"},
+    ".jpg": {"image/jpeg"},
+    ".js": {"application/javascript", "text/javascript"},
+    ".json": {"application/json"},
+    ".mjs": {"application/javascript", "text/javascript"},
+    ".png": {"image/png"},
+    ".svg": {"image/svg+xml"},
+    ".webp": {"image/webp"},
+    ".woff": {"font/woff"},
+    ".woff2": {"font/woff2"},
+}
+
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -134,12 +157,157 @@ class Check:
     detail: str
 
 
-REQUEST_PLAN = (
-    RequestSpec("site_https_root", SITE_APEX),
+@dataclass(frozen=True)
+class SiteSurface:
+    name: str
+    label: str
+    url: str
+    repository_path: str
+    media_types: frozenset[str]
+    user_agent: str = "wuci-live-integrity-check/1"
+
+
+@dataclass(frozen=True)
+class LocalBottleBuild:
+    manifest: Mapping[str, Any]
+    manifest_bytes: bytes
+    artifacts: Mapping[str, bytes]
+
+
+def site_surface(
+    name: str,
+    label: str,
+    public_path: str,
+    repository_path: str,
+    *media_types: str,
+    user_agent: str = "wuci-live-integrity-check/1",
+) -> SiteSurface:
+    return SiteSurface(
+        name=name,
+        label=label,
+        url=f"{SITE_ORIGIN}{public_path}",
+        repository_path=repository_path,
+        media_types=frozenset(media_types),
+        user_agent=user_agent,
+    )
+
+
+SITE_SURFACES = (
+    site_surface("site_https_root", "site-root", "/", "site/index.html", "text/html"),
+    site_surface(
+        "site_browser_wucios",
+        "site-browser-wucios",
+        "/wucios",
+        "site/wucios.html",
+        "text/html",
+        user_agent=BROWSER_USER_AGENT,
+    ),
+    site_surface(
+        "site_app_js",
+        "site-app-js",
+        "/app.js",
+        "site/app.js",
+        "application/javascript",
+        "text/javascript",
+    ),
+    site_surface(
+        "site_styles_css", "site-styles-css", "/styles.css", "site/styles.css", "text/css"
+    ),
+    site_surface(
+        "site_aperture_status",
+        "site-aperture-status",
+        "/aperture-status.json",
+        "site/aperture-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_claim_evidence",
+        "site-claim-evidence",
+        "/claim-evidence.json",
+        "site/claim-evidence.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_codemeta",
+        "site-codemeta",
+        "/codemeta.json",
+        "site/codemeta.json",
+        "application/json",
+        "application/ld+json",
+    ),
+    site_surface(
+        "site_bottle_observation",
+        "site-bottle-observation",
+        "/daylight-bottle-keyring-observation.json",
+        "site/daylight-bottle-keyring-observation.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_bottle_status",
+        "site-bottle-status",
+        "/daylight-bottle-status.json",
+        "site/daylight-bottle-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_daylight_standard_status",
+        "site-daylight-standard-status",
+        "/daylight-standard-status.json",
+        "site/daylight-standard-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_daylight_status",
+        "site-daylight-status",
+        "/daylight-status.json",
+        "site/daylight-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_daylight_v20_status",
+        "site-daylight-v20-status",
+        "/daylight-v20-aperture-singularity-status.json",
+        "site/daylight-v20-aperture-singularity-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_defense_assurance_status",
+        "site-defense-assurance-status",
+        "/defense-assurance-status.json",
+        "site/defense-assurance-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_hosting_requirements",
+        "site-hosting-requirements",
+        "/hosting-requirements.json",
+        "site/hosting-requirements.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_noether_status",
+        "site-noether-status",
+        "/noether-forge-status.json",
+        "site/noether-forge-status.json",
+        "application/json",
+    ),
+    site_surface(
+        "site_product_standard_status",
+        "site-product-standard-status",
+        "/wuci-product-standard-status.json",
+        "site/wuci-product-standard-status.json",
+        "application/json",
+    ),
+)
+
+
+REQUEST_PLAN = tuple(
+    RequestSpec(surface.name, surface.url, user_agent=surface.user_agent)
+    for surface in SITE_SURFACES
+) + (
     RequestSpec("site_http_root", SITE_HTTP_APEX, method="HEAD", follow_redirects=False),
     RequestSpec("site_www_root", SITE_WWW, method="HEAD", follow_redirects=False),
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
-    RequestSpec("site_browser_wucios", f"{SITE_ORIGIN}/wucios", user_agent=BROWSER_USER_AGENT),
     RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
     RequestSpec("bottle_manifest", f"{BOTTLE_ORIGIN}/release-manifest.json"),
     RequestSpec(
@@ -147,11 +315,6 @@ REQUEST_PLAN = (
         f"{BOTTLE_ORIGIN}/api/bottles?recipientFingerprint={ZERO_FINGERPRINT}",
     ),
     RequestSpec("bottle_keyring", f"{BOTTLE_ORIGIN}/keyring.json"),
-    RequestSpec("site_bottle_status", f"{SITE_ORIGIN}/daylight-bottle-status.json"),
-    RequestSpec(
-        "site_bottle_observation",
-        f"{SITE_ORIGIN}/daylight-bottle-keyring-observation.json",
-    ),
 )
 
 
@@ -174,6 +337,75 @@ def read_regular_repo_file(relative_path: str) -> bytes:
 
 def bottle_file(relative_path: str) -> bytes:
     return read_regular_repo_file(f"apps/bottle/{relative_path}")
+
+
+def expected_site_surfaces() -> dict[str, bytes]:
+    return {
+        surface.name: read_regular_repo_file(surface.repository_path)
+        for surface in SITE_SURFACES
+    }
+
+
+def collect_regular_tree(root: Path) -> dict[str, bytes]:
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError(f"artifact root must be a real directory: {root}")
+
+    files: dict[str, bytes] = {}
+
+    def visit(directory: Path) -> None:
+        for path in sorted(directory.iterdir(), key=lambda candidate: candidate.name):
+            metadata = path.lstat()
+            relative = path.relative_to(root).as_posix()
+            if path.is_symlink():
+                raise ValueError(f"artifact entry must not be a symlink: {relative}")
+            if path.is_dir():
+                visit(path)
+                continue
+            if not path.is_file() or metadata.st_nlink != 1:
+                raise ValueError(
+                    f"artifact entry must be a single-link regular file: {relative}"
+                )
+            files[relative] = path.read_bytes()
+
+    visit(root)
+    return files
+
+
+def load_local_bottle_build() -> LocalBottleBuild:
+    dist = REPOSITORY_ROOT / "apps" / "bottle" / "dist"
+    files = collect_regular_tree(dist)
+    manifest_bytes = files.pop("release-manifest.json", None)
+    if manifest_bytes is None:
+        raise ValueError("local Bottle build is missing dist/release-manifest.json")
+    try:
+        manifest = json.loads(
+            manifest_bytes.decode("utf-8"),
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError("local Bottle release manifest is invalid JSON") from error
+    if not isinstance(manifest, dict):
+        raise ValueError("local Bottle release manifest must be an object")
+    if not files:
+        raise ValueError("local Bottle build contains no public artifacts")
+    if len(files) > MAX_MANIFEST_ARTIFACTS:
+        raise ValueError("local Bottle build exceeds the artifact-count budget")
+    if sum(len(content) for content in files.values()) > MAX_MANIFEST_ARTIFACT_BYTES:
+        raise ValueError("local Bottle build exceeds the aggregate artifact-byte budget")
+    if not all(valid_artifact_path(path) for path in files):
+        raise ValueError("local Bottle build contains a path outside the public artifact contract")
+
+    records = [
+        {"path": path, "bytes": len(content), "sha256": sha256(content)}
+        for path, content in sorted(files.items())
+    ]
+    if manifest.get("artifacts") != records:
+        raise ValueError("local Bottle manifest does not describe the rebuilt dist bytes")
+    return LocalBottleBuild(
+        manifest=manifest,
+        manifest_bytes=manifest_bytes,
+        artifacts=files,
+    )
 
 
 def build_worker_source_closure() -> dict[str, Any]:
@@ -277,7 +509,14 @@ def manifest_artifact_paths(payload: Any) -> list[str]:
     return paths
 
 
-def fetch(spec: RequestSpec, *, timeout: float = 12.0) -> Response:
+def fetch(
+    spec: RequestSpec,
+    *,
+    timeout: float = 12.0,
+    max_body_bytes: int = MAX_RESPONSE_BYTES,
+) -> Response:
+    if max_body_bytes < 0 or max_body_bytes > MAX_RESPONSE_BYTES:
+        raise ValueError("response body limit is outside the fixed checker budget")
     request = urllib.request.Request(
         spec.url,
         method=spec.method,
@@ -286,38 +525,71 @@ def fetch(spec: RequestSpec, *, timeout: float = 12.0) -> Response:
     opener = urllib.request.urlopen if spec.follow_redirects else NO_REDIRECT_OPENER.open
     try:
         with opener(request, timeout=timeout) as handle:
-            body = handle.read(MAX_RESPONSE_BYTES + 1)
+            body = handle.read(max_body_bytes + 1)
             return Response(
                 status=handle.status,
                 headers={key.lower(): value for key, value in handle.headers.items()},
-                body=body[:MAX_RESPONSE_BYTES],
+                body=body[:max_body_bytes],
                 url=handle.geturl(),
-                truncated=len(body) > MAX_RESPONSE_BYTES,
+                truncated=len(body) > max_body_bytes,
             )
     except urllib.error.HTTPError as error:
-        body = error.read(MAX_RESPONSE_BYTES + 1)
+        body = error.read(max_body_bytes + 1)
         return Response(
             status=error.code,
             headers={key.lower(): value for key, value in error.headers.items()},
-            body=body[:MAX_RESPONSE_BYTES],
+            body=body[:max_body_bytes],
             url=spec.url,
-            truncated=len(body) > MAX_RESPONSE_BYTES,
+            truncated=len(body) > max_body_bytes,
         )
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         return Response(status=0, headers={}, body=b"", url=spec.url)
 
 
-def capture_live() -> dict[str, Response]:
-    responses = {spec.name: fetch(spec) for spec in REQUEST_PLAN}
-    manifest = json_body(response_or_missing(responses, "bottle_manifest"))
-    for path in manifest_artifact_paths(manifest):
+def capture_live(local_build: LocalBottleBuild) -> dict[str, Response]:
+    site_bytes = expected_site_surfaces()
+    base_limits = {name: len(content) for name, content in site_bytes.items()}
+    base_limits.update(
+        {
+            "site_http_root": 4096,
+            "site_www_root": 4096,
+            "site_secondary": 4096,
+            "bottle_root": len(local_build.artifacts.get("index.html", b"")),
+            "bottle_manifest": len(local_build.manifest_bytes),
+            "bottle_api": 64 * 1024,
+            "bottle_keyring": len(local_build.artifacts.get("keyring.json", b"")),
+        }
+    )
+    responses = {
+        spec.name: fetch(spec, max_body_bytes=base_limits[spec.name])
+        for spec in REQUEST_PLAN
+    }
+
+    expected_total = sum(
+        len(content)
+        for path, content in local_build.artifacts.items()
+        if path != "_headers"
+    )
+    if expected_total > MAX_MANIFEST_ARTIFACT_BYTES:
+        raise ValueError("local Bottle artifact capture exceeds its aggregate byte budget")
+
+    deadline = time.monotonic() + MAX_ARTIFACT_CAPTURE_SECONDS
+    for path, expected_content in sorted(local_build.artifacts.items()):
         # Cloudflare consumes _headers as deployment configuration. Bind it to
         # the checkout and verify its resulting headers instead of requesting
         # a path that is intentionally not public.
         if path == "_headers":
             continue
         name = artifact_response_name(path)
-        responses[name] = fetch(RequestSpec(name, artifact_url(path)))
+        remaining_seconds = deadline - time.monotonic()
+        if remaining_seconds <= 0:
+            responses[name] = Response(status=0, headers={}, body=b"", url=artifact_url(path))
+            continue
+        responses[name] = fetch(
+            RequestSpec(name, artifact_url(path)),
+            timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
+            max_body_bytes=len(expected_content),
+        )
     return responses
 
 
@@ -371,6 +643,30 @@ def json_body(response: Response) -> Any | None:
         )
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
         return None
+
+
+def response_media_type(response: Response) -> str:
+    return response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+
+
+def artifact_media_types(path: str) -> frozenset[str]:
+    return frozenset(ARTIFACT_MEDIA_TYPES.get(Path(path).suffix.lower(), set()))
+
+
+def add_media_type_check(
+    checks: list[Check],
+    label: str,
+    response: Response,
+    allowed: frozenset[str] | set[str],
+) -> None:
+    observed = response_media_type(response)
+    checks.append(
+        Check(
+            f"{label}-content-type",
+            bool(allowed) and observed in allowed,
+            f"expected={','.join(sorted(allowed)) or '<none>'} observed={observed or '<missing>'}",
+        )
+    )
 
 
 def has_forbidden_analytics(body: bytes) -> bool:
@@ -489,6 +785,7 @@ def release_manifest_checks(
     expected_commit: str,
     bottle_root: Response,
     keyring_response: Response,
+    local_build: LocalBottleBuild,
 ) -> list[Check]:
     checks: list[Check] = []
     top_fields = {"schema", "subjectSha256", "source", "build", "inputs", "bundleBudget", "artifacts"}
@@ -546,41 +843,82 @@ def release_manifest_checks(
             "canonical package, keyring, headers, Worker closure, and Wrangler input digests",
         )
     )
+    checks.append(
+        Check(
+            "bottle-manifest-matches-local-build",
+            manifest == local_build.manifest,
+            "live manifest must equal the locally rebuilt dist manifest",
+        )
+    )
 
     artifact_paths = manifest_artifact_paths(manifest)
     artifacts = manifest.get("artifacts") if isinstance(manifest, dict) else None
     required_artifacts = {"_headers", "index.html", "keyring.json"}
-    artifacts_contract = bool(artifact_paths) and required_artifacts.issubset(artifact_paths)
+    expected_paths = sorted(local_build.artifacts)
+    artifacts_contract = (
+        bool(artifact_paths)
+        and artifact_paths == expected_paths
+        and required_artifacts.issubset(artifact_paths)
+    )
     checks.append(
         Check(
             "bottle-manifest-artifact-contract",
             artifacts_contract,
-            f"bounded sorted artifact list containing {','.join(sorted(required_artifacts))}",
+            "artifact paths exactly match the locally rebuilt dist tree",
         )
     )
 
     artifact_contents: dict[str, bytes] = {}
-    artifact_records = artifacts if isinstance(artifacts, list) else []
-    for record in artifact_records if artifact_paths else []:
-        path = record["path"]
+    artifact_records: dict[str, Mapping[str, Any]] = {}
+    if isinstance(artifacts, list):
+        artifact_records = {
+            record["path"]: record
+            for record in artifacts
+            if isinstance(record, dict) and isinstance(record.get("path"), str)
+        }
+    artifact_responses: list[Response] = []
+    for path, expected_content in sorted(local_build.artifacts.items()):
+        record = artifact_records.get(path)
+        record_matches_local = (
+            isinstance(record, dict)
+            and set(record) == {"path", "bytes", "sha256"}
+            and record.get("bytes") == len(expected_content)
+            and record.get("sha256") == sha256(expected_content)
+        )
+        checks.append(
+            Check(
+                f"bottle-artifact-{path}-manifest-local-binding",
+                record_matches_local,
+                byte_match_detail(expected_content, expected_content)
+                if record_matches_local
+                else "manifest record differs from locally rebuilt dist artifact",
+            )
+        )
         if path == "_headers":
-            content = bottle_file("public/_headers")
-            artifact_contents[path] = content
-            matches = record["bytes"] == len(content) and record["sha256"] == sha256(content)
+            checkout_content = bottle_file("public/_headers")
+            artifact_contents[path] = expected_content
+            matches = expected_content == checkout_content
             checks.append(
                 Check(
                     "bottle-artifact-_headers-checkout-binding",
                     matches,
-                    byte_match_detail(content, content) if matches else "manifest _headers differs from checkout",
+                    byte_match_detail(checkout_content, expected_content),
                 )
             )
             continue
 
         response = response_or_missing(responses, artifact_response_name(path))
+        artifact_responses.append(response)
         if path in {"index.html", "keyring.json"}:
             add_bottle_header_checks(checks, f"bottle-artifact-{path}", response)
         else:
             add_common_response_checks(checks, f"bottle-artifact-{path}", response)
+        add_media_type_check(
+            checks,
+            f"bottle-artifact-{path}",
+            response,
+            artifact_media_types(path),
+        )
         checks.extend(
             [
                 Check(
@@ -594,16 +932,28 @@ def release_manifest_checks(
                     response.url,
                 ),
                 Check(
-                    f"bottle-artifact-{path}-bytes-and-sha256",
-                    record["bytes"] == len(response.body) and record["sha256"] == sha256(response.body),
-                    (
-                        f"declared-bytes={record['bytes']} observed-bytes={len(response.body)} "
-                        f"observed-sha256={sha256(response.body)}"
-                    ),
+                    f"bottle-artifact-{path}-local-byte-binding",
+                    response.body == expected_content,
+                    byte_match_detail(expected_content, response.body),
                 ),
             ]
         )
         artifact_contents[path] = response.body
+
+    observed_artifact_bytes = sum(len(response.body) for response in artifact_responses)
+    expected_artifact_bytes = sum(
+        len(content)
+        for path, content in local_build.artifacts.items()
+        if path != "_headers"
+    )
+    checks.append(
+        Check(
+            "bottle-artifact-aggregate-body-budget",
+            observed_artifact_bytes <= expected_artifact_bytes
+            and expected_artifact_bytes <= MAX_MANIFEST_ARTIFACT_BYTES,
+            f"observed={observed_artifact_bytes} expected-cap={expected_artifact_bytes}",
+        )
+    )
 
     checks.extend(
         [
@@ -670,10 +1020,15 @@ def release_manifest_checks(
     return checks
 
 
-def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Check]:
+def evaluate(
+    responses: Mapping[str, Response],
+    expected_commit: str,
+    local_build: LocalBottleBuild | None = None,
+) -> list[Check]:
     checks: list[Check] = []
-    expected_site_root = read_regular_repo_file("site/index.html")
-    expected_site_wucios = read_regular_repo_file("site/wucios.html")
+    if local_build is None:
+        local_build = load_local_bottle_build()
+    site_bytes = expected_site_surfaces()
     checks.append(
         Check(
             "expected-commit-format",
@@ -682,11 +1037,56 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
         )
     )
 
+    for surface in SITE_SURFACES:
+        observed = response_or_missing(responses, surface.name)
+        expected = site_bytes[surface.name]
+        status_name = (
+            "site-https-status"
+            if surface.name == "site_https_root"
+            else f"{surface.label}-status"
+        )
+        url_name = (
+            "site-https-final-url"
+            if surface.name == "site_https_root"
+            else "site-browser-wucios-https"
+            if surface.name == "site_browser_wucios"
+            else f"{surface.label}-final-url"
+        )
+        analytics_name = (
+            "site-browser-no-analytics-injection"
+            if surface.name == "site_browser_wucios"
+            else f"{surface.label}-no-analytics-injection"
+        )
+        checks.extend(
+            [
+                Check(status_name, observed.status == 200, f"status={observed.status}"),
+                Check(url_name, observed.url == surface.url, observed.url),
+                Check(
+                    f"{surface.label}-exact-bytes",
+                    observed.body == expected,
+                    byte_match_detail(expected, observed.body),
+                ),
+            ]
+        )
+        if Path(surface.repository_path).suffix in {".html", ".js", ".mjs"}:
+            checks.append(
+                Check(
+                    analytics_name,
+                    not has_forbidden_analytics(observed.body),
+                    "analytics markers absent",
+                )
+            )
+        add_media_type_check(
+            checks,
+            surface.label,
+            observed,
+            surface.media_types,
+        )
+        add_common_response_checks(checks, surface.label, observed)
+
     site_root = response_or_missing(responses, "site_https_root")
     checks.extend(
         [
-            Check("site-https-status", site_root.status == 200, f"status={site_root.status}"),
-            Check("site-https-final-url", site_root.url == SITE_APEX, site_root.url),
             Check(
                 "site-hsts",
                 "max-age=" in site_root.headers.get("strict-transport-security", "").lower(),
@@ -697,19 +1097,8 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
                 "no-transform" in site_root.headers.get("cache-control", "").lower(),
                 site_root.headers.get("cache-control", "<missing>"),
             ),
-            Check(
-                "site-root-no-analytics-injection",
-                not has_forbidden_analytics(site_root.body),
-                "analytics markers absent",
-            ),
-            Check(
-                "site-root-exact-bytes",
-                site_root.body == expected_site_root,
-                byte_match_detail(expected_site_root, site_root.body),
-            ),
         ]
     )
-    add_common_response_checks(checks, "site-root", site_root)
 
     http_root = response_or_missing(responses, "site_http_root")
     http_location = http_root.headers.get("location", "")
@@ -748,39 +1137,11 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
     )
     add_common_response_checks(checks, "site-secondary", secondary)
 
-    browser_page = response_or_missing(responses, "site_browser_wucios")
-    checks.extend(
-        [
-            Check("site-browser-wucios-status", browser_page.status == 200, f"status={browser_page.status}"),
-            Check(
-                "site-browser-wucios-https",
-                browser_page.url == f"{SITE_ORIGIN}/wucios",
-                browser_page.url,
-            ),
-            Check(
-                "site-browser-wucios-exact-bytes",
-                browser_page.body == expected_site_wucios,
-                byte_match_detail(expected_site_wucios, browser_page.body),
-            ),
-            Check(
-                "site-browser-no-analytics-injection",
-                not has_forbidden_analytics(browser_page.body),
-                "analytics markers absent",
-            ),
-        ]
-    )
-    add_common_response_checks(checks, "site-browser", browser_page)
-
     bottle_root = response_or_missing(responses, "bottle_root")
     checks.extend(
         [
             Check("bottle-root-status", bottle_root.status == 200, f"status={bottle_root.status}"),
             Check("bottle-root-https", bottle_root.url == f"{BOTTLE_ORIGIN}/", bottle_root.url),
-            Check(
-                "bottle-root-content-type",
-                "text/html" in bottle_root.headers.get("content-type", "").lower(),
-                bottle_root.headers.get("content-type", "<missing>"),
-            ),
             Check(
                 "bottle-root-no-analytics-injection",
                 not has_forbidden_analytics(bottle_root.body),
@@ -788,10 +1149,17 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
             ),
         ]
     )
+    add_media_type_check(checks, "bottle-root", bottle_root, {"text/html"})
     add_bottle_header_checks(checks, "bottle-root", bottle_root)
 
     manifest_response = response_or_missing(responses, "bottle_manifest")
     add_bottle_header_checks(checks, "bottle-manifest", manifest_response)
+    add_media_type_check(
+        checks,
+        "bottle-manifest",
+        manifest_response,
+        {"application/json"},
+    )
     add_exact_url_check(
         checks,
         "bottle-manifest",
@@ -802,6 +1170,11 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
     checks.extend(
         [
             Check("bottle-manifest-status", manifest_response.status == 200, f"status={manifest_response.status}"),
+            Check(
+                "bottle-manifest-exact-local-bytes",
+                manifest_response.body == local_build.manifest_bytes,
+                byte_match_detail(local_build.manifest_bytes, manifest_response.body),
+            ),
             Check(
                 "bottle-manifest-json",
                 isinstance(manifest, dict),
@@ -820,6 +1193,7 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
 
     api_response = response_or_missing(responses, "bottle_api")
     add_bottle_header_checks(checks, "bottle-api", api_response)
+    add_media_type_check(checks, "bottle-api", api_response, {"application/json"})
     add_exact_url_check(
         checks,
         "bottle-api",
@@ -848,6 +1222,12 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
 
     keyring_response = response_or_missing(responses, "bottle_keyring")
     add_bottle_header_checks(checks, "bottle-keyring", keyring_response)
+    add_media_type_check(
+        checks,
+        "bottle-keyring",
+        keyring_response,
+        {"application/json"},
+    )
     add_exact_url_check(
         checks,
         "bottle-keyring",
@@ -876,17 +1256,11 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
             expected_commit,
             bottle_root,
             keyring_response,
+            local_build,
         )
     )
 
     status_response = response_or_missing(responses, "site_bottle_status")
-    add_common_response_checks(checks, "site-bottle-status", status_response)
-    add_exact_url_check(
-        checks,
-        "site-bottle-status",
-        status_response,
-        f"{SITE_ORIGIN}/daylight-bottle-status.json",
-    )
     status = json_body(status_response)
     expected_activation = "pending" if active_count == 0 else "active"
     checks.extend(
@@ -937,13 +1311,6 @@ def evaluate(responses: Mapping[str, Response], expected_commit: str) -> list[Ch
     )
 
     observation_response = response_or_missing(responses, "site_bottle_observation")
-    add_common_response_checks(checks, "site-bottle-observation", observation_response)
-    add_exact_url_check(
-        checks,
-        "site-bottle-observation",
-        observation_response,
-        f"{SITE_ORIGIN}/daylight-bottle-keyring-observation.json",
-    )
     observation = json_body(observation_response)
     checks.extend(
         [
@@ -1000,6 +1367,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        local_build = load_local_bottle_build()
         if args.snapshot:
             snapshot_commit, responses = load_snapshot(args.snapshot)
             expected_commit = args.expected_commit or snapshot_commit
@@ -1007,8 +1375,8 @@ def main(argv: list[str] | None = None) -> int:
             if not args.expected_commit:
                 parser.error("--live requires --expected-commit")
             expected_commit = args.expected_commit
-            responses = capture_live()
-        checks = evaluate(responses, expected_commit)
+            responses = capture_live(local_build)
+        checks = evaluate(responses, expected_commit, local_build)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"live-integrity-check: {error}", file=sys.stderr)
         return 2

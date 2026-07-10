@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import gzip
-import hashlib
 import json
 import sys
 import tempfile
@@ -98,6 +97,16 @@ def canonical_artifacts() -> dict[str, bytes]:
     }
 
 
+def canonical_local_build() -> live.LocalBottleBuild:
+    artifacts = canonical_artifacts()
+    manifest = build_manifest(artifacts)
+    return live.LocalBottleBuild(
+        manifest=manifest,
+        manifest_bytes=(json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+        artifacts=artifacts,
+    )
+
+
 def bottle_headers(content_type: str) -> dict[str, str]:
     return {
         **live.REQUIRED_BOTTLE_HEADERS,
@@ -117,35 +126,11 @@ def response(
 
 
 def passing_responses() -> dict[str, live.Response]:
-    keyring_sha = hashlib.sha256(KEYRING_BYTES).hexdigest()
-    artifacts = canonical_artifacts()
-    manifest = build_manifest(artifacts)
+    local_build = canonical_local_build()
+    artifacts = dict(local_build.artifacts)
+    manifest = dict(local_build.manifest)
     api = {"schema": "nsm.daylight-bottle.list.response.v1", "bottles": []}
-    status = {
-        "schema": "nsm.daylight-bottle.public-status.v1",
-        "origin": live.BOTTLE_ORIGIN,
-        "keyringUrl": f"{live.BOTTLE_ORIGIN}/keyring.json",
-        "observedAt": "2026-07-10T04:21:51Z",
-        "observationMethod": "https-live-readback",
-        "observationPath": "daylight-bottle-keyring-observation.json",
-        "keyringSchema": "nsm.daylight-bottle.keyring.v1",
-        "keyringUpdatedAt": "2026-07-07T00:00:00.000Z",
-        "keyringSha256": f"sha256:{keyring_sha}",
-        "activeRecipientCount": 0,
-        "recipientActivation": "pending",
-        "claimBoundary": "Point-in-time public readback.",
-    }
     responses = {
-        "site_https_root": response(
-            200,
-            live.SITE_APEX,
-            headers={
-                "content-type": "text/html; charset=utf-8",
-                "strict-transport-security": "max-age=31536000; includeSubDomains",
-                "cache-control": "public, max-age=0, must-revalidate, no-transform",
-            },
-            body=(REPO_ROOT / "site/index.html").read_bytes(),
-        ),
         "site_http_root": response(
             308,
             live.SITE_HTTP_APEX,
@@ -157,12 +142,6 @@ def passing_responses() -> dict[str, live.Response]:
             headers={"location": live.SITE_APEX},
         ),
         "site_secondary": response(410, live.SITE_SECONDARY),
-        "site_browser_wucios": response(
-            200,
-            f"{live.SITE_ORIGIN}/wucios",
-            headers={"content-type": "text/html; charset=utf-8"},
-            body=(REPO_ROOT / "site/wucios.html").read_bytes(),
-        ),
         "bottle_root": response(
             200,
             f"{live.BOTTLE_ORIGIN}/",
@@ -173,7 +152,7 @@ def passing_responses() -> dict[str, live.Response]:
             200,
             f"{live.BOTTLE_ORIGIN}/release-manifest.json",
             headers=bottle_headers("application/json; charset=utf-8"),
-            body=json.dumps(manifest).encode("utf-8"),
+            body=local_build.manifest_bytes,
         ),
         "bottle_api": response(
             200,
@@ -187,19 +166,25 @@ def passing_responses() -> dict[str, live.Response]:
             headers=bottle_headers("application/json; charset=utf-8"),
             body=KEYRING_BYTES,
         ),
-        "site_bottle_status": response(
-            200,
-            f"{live.SITE_ORIGIN}/daylight-bottle-status.json",
-            headers={"content-type": "application/json; charset=utf-8", "cache-control": "no-store"},
-            body=json.dumps(status, sort_keys=True).encode("utf-8"),
-        ),
-        "site_bottle_observation": response(
-            200,
-            f"{live.SITE_ORIGIN}/daylight-bottle-keyring-observation.json",
-            headers={"content-type": "application/json; charset=utf-8", "cache-control": "no-store"},
-            body=KEYRING_BYTES,
-        ),
     }
+    for surface in live.SITE_SURFACES:
+        headers = {
+            "content-type": f"{sorted(surface.media_types)[0]}; charset=utf-8",
+            "cache-control": "no-store",
+        }
+        if surface.name == "site_https_root":
+            headers.update(
+                {
+                    "strict-transport-security": "max-age=31536000; includeSubDomains",
+                    "cache-control": "public, max-age=0, must-revalidate, no-transform",
+                }
+            )
+        responses[surface.name] = response(
+            200,
+            surface.url,
+            headers=headers,
+            body=(REPO_ROOT / surface.repository_path).read_bytes(),
+        )
     for path, content in artifacts.items():
         if path == "_headers":
             continue
@@ -208,7 +193,7 @@ def passing_responses() -> dict[str, live.Response]:
             live.artifact_url(path),
             headers={
                 **live.REQUIRED_BOTTLE_HEADERS,
-                "content-type": "application/octet-stream",
+                "content-type": f"{sorted(live.artifact_media_types(path))[0]}; charset=utf-8",
                 "cache-control": (
                     "no-store"
                     if path in {"index.html", "keyring.json"}
@@ -221,7 +206,7 @@ def passing_responses() -> dict[str, live.Response]:
 
 
 def assert_passes(responses: dict[str, live.Response]) -> None:
-    checks = live.evaluate(responses, EXPECTED_COMMIT)
+    checks = live.evaluate(responses, EXPECTED_COMMIT, canonical_local_build())
     failures = [check for check in checks if not check.ok]
     assert not failures, failures
     assert len({check.name for check in checks}) == len(checks), "check names must be unique"
@@ -233,7 +218,7 @@ def assert_rejects(
     *,
     expected_commit: str = EXPECTED_COMMIT,
 ) -> None:
-    checks = live.evaluate(responses, expected_commit)
+    checks = live.evaluate(responses, expected_commit, canonical_local_build())
     failures = {check.name for check in checks if not check.ok}
     assert expected_name in failures, failures
 
@@ -271,6 +256,50 @@ def main() -> None:
     assert not live.RequestSpec("artifact", live.artifact_url("index.html")).follow_redirects
     assert not live.valid_artifact_path("api/bottles")
     assert not live.valid_artifact_path("https://example.invalid/payload.js")
+
+    capture_calls: list[tuple[live.RequestSpec, float, int]] = []
+    original_fetch = live.fetch
+
+    def fake_fetch(
+        spec: live.RequestSpec,
+        *,
+        timeout: float = 12.0,
+        max_body_bytes: int = live.MAX_RESPONSE_BYTES,
+    ) -> live.Response:
+        capture_calls.append((spec, timeout, max_body_bytes))
+        body = (
+            b'{"artifacts":[{"path":"assets/remote-only.js","bytes":1,"sha256":"'
+            + b"0" * 64
+            + b'"}]}'
+            if spec.name == "bottle_manifest"
+            else b""
+        )
+        return response(200, spec.url, body=body[:max_body_bytes])
+
+    live.fetch = fake_fetch
+    try:
+        live.capture_live(canonical_local_build())
+    finally:
+        live.fetch = original_fetch
+    artifact_calls = {
+        call_spec.name.removeprefix("bottle_artifact:"): (call_timeout, call_limit)
+        for call_spec, call_timeout, call_limit in capture_calls
+        if call_spec.name.startswith("bottle_artifact:")
+    }
+    expected_capture = {
+        path: content
+        for path, content in canonical_artifacts().items()
+        if path != "_headers"
+    }
+    assert set(artifact_calls) == set(expected_capture)
+    assert all(
+        timeout <= live.MAX_ARTIFACT_REQUEST_SECONDS
+        and limit == len(expected_capture[path])
+        for path, (timeout, limit) in artifact_calls.items()
+    )
+    assert sum(limit for _, limit in artifact_calls.values()) == sum(
+        len(content) for content in expected_capture.values()
+    )
 
     case = passing_responses()
     case["bottle_api"] = replace(
@@ -327,7 +356,61 @@ def main() -> None:
     case = passing_responses()
     artifact_name = live.artifact_response_name("assets/app.js")
     case[artifact_name] = replace(case[artifact_name], body=case[artifact_name].body + b"tamper")
-    assert_rejects(case, "bottle-artifact-assets/app.js-bytes-and-sha256")
+    assert_rejects(case, "bottle-artifact-assets/app.js-local-byte-binding")
+
+    # A forged deployment cannot make a substituted script legitimate by
+    # rewriting its remote manifest record and canonical subject together.
+    case = passing_responses()
+    forged_js = b"export const daylightBottle = false;\n"
+    artifact_name = live.artifact_response_name("assets/app.js")
+    case[artifact_name] = replace(case[artifact_name], body=forged_js)
+    manifest = json.loads(case["bottle_manifest"].body)
+    app_record = next(
+        record for record in manifest["artifacts"] if record["path"] == "assets/app.js"
+    )
+    app_record["bytes"] = len(forged_js)
+    app_record["sha256"] = live.sha256(forged_js)
+    runtime = [
+        forged_js if path == "assets/app.js" else content
+        for path, content in canonical_artifacts().items()
+        if Path(path).suffix in live.RUNTIME_EXTENSIONS
+    ]
+    manifest["bundleBudget"]["runtimeBytes"] = sum(len(content) for content in runtime)
+    manifest["bundleBudget"]["runtimeGzipBytes"] = sum(
+        len(gzip.compress(content, compresslevel=9, mtime=0)) for content in runtime
+    )
+    refresh_manifest_subject(manifest)
+    replace_manifest(case, manifest)
+    assert_rejects(case, "bottle-manifest-matches-local-build")
+    assert_rejects(case, "bottle-artifact-assets/app.js-local-byte-binding")
+
+    # Both standardized browser-safe JavaScript media types are accepted.
+    case = passing_responses()
+    artifact_name = live.artifact_response_name("assets/app.js")
+    case[artifact_name] = replace(
+        case[artifact_name],
+        headers={**case[artifact_name].headers, "content-type": "text/javascript"},
+    )
+    case["site_app_js"] = replace(
+        case["site_app_js"],
+        headers={**case["site_app_js"].headers, "content-type": "text/javascript"},
+    )
+    assert_passes(case)
+
+    case = passing_responses()
+    artifact_name = live.artifact_response_name("assets/app.js")
+    case[artifact_name] = replace(
+        case[artifact_name],
+        headers={**case[artifact_name].headers, "content-type": "application/octet-stream"},
+    )
+    assert_rejects(case, "bottle-artifact-assets/app.js-content-type")
+
+    case = passing_responses()
+    case["site_app_js"] = replace(
+        case["site_app_js"],
+        headers={**case["site_app_js"].headers, "content-type": "application/octet-stream"},
+    )
+    assert_rejects(case, "site-app-js-content-type")
 
     case = passing_responses()
     artifact_name = live.artifact_response_name("assets/app.js")

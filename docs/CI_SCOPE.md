@@ -23,10 +23,12 @@ The checked-in workflow runs on Ubuntu Linux x86_64 and currently verifies:
 - Offline live-integrity response-policy tests and repository-maintenance
   policy checks. These deterministic CI lanes perform no public network reads.
 - The separate scheduled/manual `live-integrity` workflow explicitly checks
-  out `main`, performs only bounded public GET/HEAD requests to the canonical
-  origins and validated same-origin Bottle artifact paths, sends no secrets or
-  user content, and fails when production bytes no longer match checked-out
-  `main` and the declared hosting policy.
+  out `main`, installs the locked Bottle dependencies with Node 22.23.1 and npm
+  11.8.0, rebuilds and verifies `apps/bottle/dist`, then performs only bounded
+  public GET/HEAD requests. The local build defines the Bottle request set and
+  byte caps; the remote manifest cannot add paths or legitimize substituted
+  bytes. Fixed website HTML, JavaScript, CSS, and public JSON surfaces are also
+  compared directly with `main`. The workflow sends no secrets or user content.
 - Defensive CodeQL analysis for repository-owned JavaScript/TypeScript and
   Python. Third-party, frozen-fixture, dependency, build, and deployment-output
   paths are excluded by the checked-in CodeQL configuration.

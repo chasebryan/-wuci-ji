@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from tools import daylight_public_evidence_firewall as firewall
+from tools import live_integrity_check as live_integrity
 
 
 def read(relative_path: str) -> str:
@@ -37,6 +38,19 @@ def main() -> None:
         "data-cf-beacon",
         "/cdn-cgi/rum",
     }.issubset(hosting["forbidden_html_markers"])
+
+    bound_site_paths = {
+        item.repository_path for item in live_integrity.SITE_SURFACES
+    }
+    assert {"site/index.html", "site/wucios.html", "site/app.js", "site/styles.css"}.issubset(
+        bound_site_paths
+    )
+    assert {
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in (REPO_ROOT / "site").glob("*.json")
+    } == {
+        path for path in bound_site_paths if path.endswith(".json")
+    }, "every top-level public site JSON surface must be byte-bound by the live checker"
 
     dependabot = read(".github/dependabot.yml")
     for marker in [
@@ -73,6 +87,23 @@ def main() -> None:
     assert "if: github.ref == 'refs/heads/main'" in live_integrity_workflow
     assert re.search(r"(?m)^\s+ref: main$", live_integrity_workflow)
     assert 'test "$(git branch --show-current)" = main' in live_integrity_workflow
+    assert "NODE_VERSION: 22.23.1" in live_integrity_workflow
+    assert "NPM_VERSION: 11.8.0" in live_integrity_workflow
+    assert (
+        "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"
+        in live_integrity_workflow
+    )
+    for command in [
+        "npm install --global npm@${NPM_VERSION}",
+        "npm ci",
+        "npm run build",
+        "npm run verify:bundle",
+        "npm run validate:release-source",
+    ]:
+        assert command in live_integrity_workflow
+    assert live_integrity_workflow.index("npm run build") < live_integrity_workflow.index(
+        "make live-integrity-check"
+    )
 
     for workflow in sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml")):
         report = firewall.check_workflow(workflow)
