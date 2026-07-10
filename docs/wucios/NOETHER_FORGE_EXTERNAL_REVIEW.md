@@ -102,14 +102,51 @@ The schema at
 `wucios/schemas/noether-forge-physical-hardware-observation.schema.json` binds
 an operator record to the reviewed Git commit and the privately built ISO's
 SHA-256, SHA-384, and SHA-512. It also records redacted hardware, firmware,
-capture-host, tool, and observed-result fields. The tracked record under
-`fixtures/` is synthetic and exercises the verifier only; its subject is not an
-ISO and it records no boot result.
+capture-host, tool, and observed-result fields. Mutable record values use a
+closed vocabulary: enums, bounded identifiers and versions, `redacted` /
+`not-observed` tokens, or `sha256:<hex>` tokens. There is no operator prose
+field. The tracked record under `fixtures/` is the format example; it is
+synthetic, its subject is not an ISO, and it records no boot result.
 
 For a real observation, copy the fixture outside the repository, change
 `record_status` to `operator-observation`, change `subject_kind` to
-`private-reviewer-built-iso`, and replace every fixture value with the actual
-sanitized observation. Verify the record and its private local artifact with:
+`private-reviewer-built-iso`, set `subject_description` to that same exact
+token, set `iso_filename` to
+`WuciOS-v2.4.0-Noether-Forge-x86_64.iso`, and replace every fixture token with
+a schema-listed value. A structured operator record can, for example, use:
+
+```json
+{
+  "operator_id": "reviewer-7",
+  "hardware": {
+    "manufacturer": "redacted",
+    "model": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "architecture": "x86_64",
+    "identifiers_redacted": true
+  },
+  "firmware": {
+    "boot_mode": "uefi",
+    "vendor": "redacted",
+    "version": "version:1.2.3",
+    "secure_boot": "disabled"
+  },
+  "tools": [{
+    "name": "serial-capture",
+    "version": "2.0",
+    "purpose": "boot-observation-capture"
+  }],
+  "observations": [{
+    "name": "local-tty-login-prompt-visible",
+    "result": "observed",
+    "notes": "observed-in-private-capture"
+  }]
+}
+```
+
+This is a field fragment, not a complete record. Use the schema and fixture for
+the complete key set, capture-host values, timestamp, commit, digest vector,
+and fixed claim boundary. Verify the complete record and its private local
+artifact with:
 
 ```sh
 python3 tools/wucios/noether_hardware_observation.py \
@@ -119,11 +156,14 @@ python3 tools/wucios/noether_hardware_observation.py \
 ```
 
 Replace the example commit with the exact reviewed commit. The verifier uses
-only the Python standard library, rejects symlink and hardlink inputs, rejects
-extra fields and positive validation/authority claims, and optionally
-recomputes the ISO digest vector. A passing result establishes record
-consistency only; it is not independent hardware validation, certification,
-official release authority, or proof of OS containment.
+only the Python standard library. It rejects records over 128 KiB before JSON
+parsing, duplicate JSON keys, symlink and hardlink inputs, extra fields,
+out-of-vocabulary values, inconsistent result/note pairs, and fixture tokens in
+operator records. It bounds tools to 16 entries and observations to 32, and it
+optionally recomputes the ISO digest vector. The verifier establishes
+structured consistency only; it does not infer semantic absence from a lexical
+denylist. A passing result is not independent hardware validation,
+certification, official release authority, or proof of OS containment.
 
 ## What to review
 

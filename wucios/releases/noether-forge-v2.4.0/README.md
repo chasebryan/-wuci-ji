@@ -37,5 +37,7 @@ deterministic inventory generated only from the locked Alpine artifact records.
 Unknown source, license, notice, firmware, redistribution, and export-review
 facts remain `NOASSERTION` or explicitly unreviewed. It is a review aid, not
 legal clearance. A schema and synthetic fixture also define a digest-bound
-physical-hardware observation format without claiming that hardware validation
-has occurred.
+physical-hardware observation format. Its mutable fields use a closed,
+size-bounded vocabulary rather than free prose, and verifier success establishes
+record consistency only; it does not claim that hardware validation has
+occurred.

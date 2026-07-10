@@ -8,18 +8,18 @@
   },
   "observation": {
     "capture_host": {
-      "architecture": "x86_64",
+      "architecture": "fixture-not-observed",
       "kernel": "fixture-not-observed",
       "operating_system": "fixture-not-observed"
     },
     "firmware": {
-      "boot_mode": "other",
-      "secure_boot": "not-observed",
+      "boot_mode": "fixture-not-observed",
+      "secure_boot": "fixture-not-observed",
       "vendor": "fixture-not-observed",
       "version": "fixture-not-observed"
     },
     "hardware": {
-      "architecture": "x86_64",
+      "architecture": "fixture-not-observed",
       "identifiers_redacted": true,
       "manufacturer": "fixture-not-observed",
       "model": "fixture-not-observed"
@@ -27,7 +27,7 @@
     "observations": [
       {
         "name": "fixture-record-shape",
-        "notes": "Synthetic fixture exercises verifier shape only and records no physical boot result.",
+        "notes": "fixture-shape-only",
         "result": "not-tested"
       }
     ],
@@ -36,7 +36,7 @@
     "tools": [
       {
         "name": "noether_hardware_observation.py",
-        "purpose": "Verify fixture record shape and bounded claims.",
+        "purpose": "record-shape-check",
         "version": "v1"
       }
     ]
@@ -52,7 +52,7 @@
       "sha512": "36c628c2da87c880ae0cf963497c0ac716679f00fb34fb469302563df47b62bd2babfc6c8c838dd3fadafd8b5737ae8ee80ff2de5ca3aab7cc4271e4d1d2551d"
     },
     "iso_filename": "NOT-A-RELEASE-noether-hardware-observation-fixture.iso",
-    "subject_description": "Digests bind the UTF-8 fixture marker NOETHER_FORGE_HARDWARE_OBSERVATION_FIXTURE followed by LF; no ISO is included.",
+    "subject_description": "synthetic-fixture-marker-only",
     "subject_kind": "synthetic-fixture"
   }
 }
