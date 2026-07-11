@@ -31,6 +31,7 @@ This review lane is defined by
 Release or an official WuciOS release. Production authority is not established.
 External certification and permission to redistribute a reviewer-built binary
 are also not conferred.
+
 ### Initramfs modification provenance
 
 Noether Forge modifies the authenticated `/init` member derived byte-for-byte

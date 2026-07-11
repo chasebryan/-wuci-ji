@@ -179,9 +179,9 @@ async function assertIndexReferences() {
     'ce077fea615528634ad27fec516fdb402f101602',
     '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0',
     'WuciOS 2.4.0 · Noether Forge',
-    'Source review is open. The ISO is not published.',
+    'Source review is published. The ISO is not.',
     'Noether Forge · source-only review',
-    '00171c4',
+    '4783ebc',
     '3.24.1 x86_64 · 52 locked APKs',
     'QEMU SeaBIOS + OVMF/UEFI',
     'href="wucios.html"',
@@ -325,13 +325,14 @@ async function assertNoetherForgeStatusBinding() {
     version: "2.4.0",
     codename: "Noether Forge",
     profile: "Noether Core",
-    reviewStatus: "review-requested",
+    reviewStatus: "source-review-merged",
     distributionMode: "source-only",
     officialRelease: false,
     publicReleaseAuthorized: false,
     binaryAssetsPublished: false,
     externalValidationReceived: false,
-    reviewedCommit: "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    reviewedCommit: "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
+    mergeCommit: "bc8ac166055a935ee10872eee371ef2f8972df68",
     pullRequest: "https://github.com/chasebryan/-wuci-ji/pull/30"
   };
   for (const [key, value] of Object.entries(expected)) {
@@ -395,15 +396,15 @@ async function assertNoetherForgeStatusBinding() {
     "WuciOS 2.4.0 · Source-only external review",
     "Noether Forge",
     "We do not distribute the ISO or upstream binary payloads.",
-    "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     "Exactly 52 signed APK payloads",
     "QEMU SeaBIOS and OVMF/UEFI",
     "Why there is no ISO download",
     "This is a conservative publication hold, not a claim",
     "not a general runtime sandbox or OS-containment claim",
     "A sanitized video may supplement review.",
-    "not available on <code>main</code> while PR #30 remains open.",
-    "git switch --detach 00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    "now in <code>main</code> history through merged PR #30.",
+    "git switch --detach 4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     'href="noether-forge-status.json"'
   ]) {
     if (!wucios.includes(required)) {
@@ -412,8 +413,8 @@ async function assertNoetherForgeStatusBinding() {
   }
   for (const required of [
     "Noether Forge · source-only review",
-    "Source review is open. The ISO is not published.",
-    "review-requested · source-only",
+    "Source review is published. The ISO is not.",
+    "source-review-merged · source-only",
     "3.24.1 x86_64 · 52 locked APKs",
     "QEMU SeaBIOS + OVMF/UEFI"
   ]) {
@@ -1320,7 +1321,7 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg",
     "https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg",
     "WuciOS 2.4.0 Noether Forge source-only external review candidate",
-    "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     "distribution mode: source only",
     "QEMU SeaBIOS and OVMF/UEFI",
     "Noether Core",
@@ -1789,6 +1790,7 @@ async function assertClaimEvidenceMap() {
   for (const [claimKey, statusKey] of [
     ["release_id", "releaseId"],
     ["reviewed_commit", "reviewedCommit"],
+    ["merge_commit", "mergeCommit"],
     ["distribution_mode", "distributionMode"],
     ["official_release", "officialRelease"],
     ["public_release_authorized", "publicReleaseAuthorized"],

@@ -50,8 +50,8 @@
             We do not distribute the ISO or upstream binary payloads.
           </p>
           <div class="hero-actions" aria-label="Noether Forge review actions">
-            <a class="button primary" href="https://github.com/chasebryan/-wuci-ji/pull/30">Open review PR</a>
-            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/blob/00171c4cbd377f7c3c200c8a2493ad42c90a1207/docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md">Read reviewer guide</a>
+            <a class="button primary" href="https://github.com/chasebryan/-wuci-ji/pull/30">View merged source PR</a>
+            <a class="button secondary" href="https://github.com/chasebryan/-wuci-ji/blob/4783ebc530bc8c28cdeed2f06e79c233cee13b08/docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md">Read reviewer guide</a>
             <a class="button secondary" href="noether-forge-status.json">Status JSON</a>
           </div>
         </div>
@@ -85,8 +85,10 @@
             </div>
             <p>
               Review is anchored to immutable commit
-              <code>00171c4cbd377f7c3c200c8a2493ad42c90a1207</code>. The pull request is
-              the discussion surface; the commit is the measured subject.
+              <code>4783ebc530bc8c28cdeed2f06e79c233cee13b08</code>, merged to
+              <code>main</code> by <code>bc8ac166055a935ee10872eee371ef2f8972df68</code>.
+              The pull request is the discussion record; the reviewed commit is
+              the measured source subject.
             </p>
           </div>
           <div class="nsm-card-grid">
@@ -95,21 +97,21 @@
               <h3>Buildable review material</h3>
               <p>Build logic, configuration, schemas, deterministic tests, and bounded reviewer instructions are public.</p>
               <p class="does-not">Does not include: generated build output or upstream binary payloads.</p>
-              <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/tree/00171c4cbd377f7c3c200c8a2493ad42c90a1207">Browse reviewed source</a>
+              <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/tree/4783ebc530bc8c28cdeed2f06e79c233cee13b08">Browse reviewed source</a>
             </article>
             <article class="nsm-bastion-card">
               <span>02 / inputs</span>
               <h3>Authenticated Alpine acquisition</h3>
               <p>The explicit fetch step verifies the upstream ISO SHA-256, SHA-512, detached GPG signature, and locked APK closure.</p>
               <p class="does-not">Does not imply: Alpine project production, approval, certification, or endorsement.</p>
-              <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/00171c4cbd377f7c3c200c8a2493ad42c90a1207/wucios/releases/noether-forge-v2.4.0/alpine-input-lock.json">Inspect input lock</a>
+              <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/4783ebc530bc8c28cdeed2f06e79c233cee13b08/wucios/releases/noether-forge-v2.4.0/alpine-input-lock.json">Inspect input lock</a>
             </article>
             <article class="nsm-bastion-card">
               <span>03 / policy</span>
               <h3>Source-only publication guard</h3>
               <p>The publication policy excludes ISO images, APK payloads, package caches, compiled Wuci-Ji binaries, and generated kernel, initramfs, modloop, EFI, firmware, and bootloader binaries.</p>
               <p class="does-not">Does not grant: binary release or redistribution authority.</p>
-              <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/00171c4cbd377f7c3c200c8a2493ad42c90a1207/wucios/releases/noether-forge-v2.4.0/external-review.json">Inspect source-only policy</a>
+              <a class="text-link" href="https://github.com/chasebryan/-wuci-ji/blob/4783ebc530bc8c28cdeed2f06e79c233cee13b08/wucios/releases/noether-forge-v2.4.0/external-review.json">Inspect source-only policy</a>
             </article>
             <article class="nsm-bastion-card">
               <span>04 / reports</span>
@@ -127,7 +129,7 @@
           <p class="eyebrow">Measured at the review commit</p>
           <h2 id="validation-title">A stronger build lane, with explicit limits.</h2>
           <p>
-            At review commit <code>00171c4</code>, the source-only guard,
+            At review commit <code>4783ebc</code>, the source-only guard,
             Noether Forge tests, and the WuciOS validator passed. The lane
             authenticated the pinned Alpine 3.24.1 input and exact 52-package
             closure, produced two byte-identical builds within one clean
@@ -151,7 +153,7 @@
           <dl class="verification-list">
             <div>
               <dt>Review status</dt>
-              <dd><code>review-requested</code> · source-only candidate</dd>
+              <dd><code>source-review-merged</code> · source-only candidate</dd>
             </div>
             <div>
               <dt>Official release</dt>
@@ -251,9 +253,9 @@
           </div>
           <p>
             The Noether Forge make targets are defined at immutable source-review
-            commit <code>00171c4cbd377f7c3c200c8a2493ad42c90a1207</code>. They are
-            not available on <code>main</code> while PR #30 remains open. Check
-            out that commit first, then use network access only for the explicit
+            commit <code>4783ebc530bc8c28cdeed2f06e79c233cee13b08</code>, which is
+            now in <code>main</code> history through merged PR #30. Check out that
+            exact commit first, then use network access only for the explicit
             fetch step. Generated files remain under <code>build/</code> and must
             not be published from this review lane.
           </p>
@@ -261,8 +263,8 @@
         <div class="command-grid">
           <article class="command-card">
             <div class="command-card-head"><h3>Review checkout</h3></div>
-            <pre><code>git fetch origin agent/noether-forge-source-review
-git switch --detach 00171c4cbd377f7c3c200c8a2493ad42c90a1207</code></pre>
+            <pre><code>git fetch origin main
+git switch --detach 4783ebc530bc8c28cdeed2f06e79c233cee13b08</code></pre>
           </article>
           <article class="command-card">
             <div class="command-card-head"><h3>Source-only guard</h3></div>

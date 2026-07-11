@@ -42,7 +42,7 @@
     {
       "id": "noether-forge-source-only-review",
       "public_claim": "The website publishes WuciOS 2.4.0 Noether Forge as a source-only external review candidate and does not offer its ISO or upstream binary payloads.",
-      "status": "review-requested; distribution-mode-source-only; binary-publication-not-authorized",
+      "status": "source-review-merged; distribution-mode-source-only; binary-publication-not-authorized",
       "evidence_paths": [
         "site/index.html",
         "site/wucios.html",
@@ -53,7 +53,8 @@
       ],
       "evidence_values": {
         "release_id": "noether-forge-v2.4.0",
-        "reviewed_commit": "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+        "reviewed_commit": "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
+        "merge_commit": "bc8ac166055a935ee10872eee371ef2f8972df68",
         "distribution_mode": "source-only",
         "official_release": false,
         "public_release_authorized": false,
