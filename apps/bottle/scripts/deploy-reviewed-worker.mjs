@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   assertCurrentCleanSource,
   assertReleaseBuildToolchain,
@@ -18,6 +18,7 @@ import {
 
 const appRoot = new URL("../", import.meta.url);
 const repositoryRoot = new URL("../../", appRoot);
+const productionConfigPath = fileURLToPath(new URL("wrangler.toml", appRoot));
 const environment = {
   ...process.env,
   GIT_TERMINAL_PROMPT: "0",
@@ -57,7 +58,12 @@ try {
     "Retained CI-shape Worker bundle"
   );
   assertSameBytes(retained, fresh, "Retained and fresh reviewed Worker bundles");
-  const deployment = buildReviewedWorkerDeployArguments(freshPath, head, fresh);
+  const deployment = buildReviewedWorkerDeployArguments(
+    freshPath,
+    productionConfigPath,
+    head,
+    fresh
+  );
   run("wrangler", deployment.args, appRoot, 300_000);
   const liveEvidence = await verifyLiveDeployment(deployment.tag);
   console.log(

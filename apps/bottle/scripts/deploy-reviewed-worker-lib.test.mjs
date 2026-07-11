@@ -6,17 +6,26 @@ import {
 } from "./deploy-reviewed-worker-lib.mjs";
 
 describe("reviewed Worker deployment", () => {
-  it("deploys the exact prebuilt bytes without a second bundle pass", () => {
+  it("deploys the exact prebuilt bytes with the reviewed production config", () => {
     const bytes = Buffer.from("export default { fetch() { return new Response(); } };\n");
     const commit = "a".repeat(40);
     const tag = workerBundleTag(bytes);
-    const built = buildReviewedWorkerDeployArguments("/tmp/reviewed/index.js", commit, bytes);
+    const built = buildReviewedWorkerDeployArguments(
+      "/tmp/reviewed/index.js",
+      "/repo/apps/bottle/wrangler.toml",
+      commit,
+      bytes
+    );
     expect(tag).toMatch(/^sha256-[0-9a-f]{64}$/);
     expect(built).toEqual({
       tag,
       args: [
         "deploy",
         "/tmp/reviewed/index.js",
+        "--config",
+        "/repo/apps/bottle/wrangler.toml",
+        "--name",
+        "daylight-bottle",
         "--no-bundle",
         "--strict",
         "--tag",
@@ -28,8 +37,20 @@ describe("reviewed Worker deployment", () => {
   });
 
   it("rejects unsafe source metadata and mismatched live evidence", () => {
-    expect(() => buildReviewedWorkerDeployArguments("", "a".repeat(40), Buffer.from("x"))).toThrow();
-    expect(() => buildReviewedWorkerDeployArguments("/tmp/index.js", "short", Buffer.from("x"))).toThrow();
+    expect(() =>
+      buildReviewedWorkerDeployArguments("", "/repo/wrangler.toml", "a".repeat(40), Buffer.from("x"))
+    ).toThrow();
+    expect(() =>
+      buildReviewedWorkerDeployArguments("/tmp/index.js", "", "a".repeat(40), Buffer.from("x"))
+    ).toThrow();
+    expect(() =>
+      buildReviewedWorkerDeployArguments(
+        "/tmp/index.js",
+        "/repo/wrangler.toml",
+        "short",
+        Buffer.from("x")
+      )
+    ).toThrow();
     const expectedTag = `sha256-${"b".repeat(64)}`;
     const evidence = {
       schema: "nsm.daylight-bottle.deployment.v1",
