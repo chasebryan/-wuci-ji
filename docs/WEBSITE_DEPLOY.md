@@ -178,6 +178,14 @@ version tag equal to the SHA-256 tag of the exact locally rebuilt Wrangler
 bundle; this is platform metadata binding, not independent retrieval of the
 deployed program bytes.
 
+The Bottle manifest's gzip measurement is produced and verified by the exact
+pinned Node/npm build lane. The Python live checker binds the complete live
+manifest and artifact bytes to that locally verified manifest, enforces the
+declared ceiling, and recomputes the raw byte total. It deliberately does not
+require Python's gzip implementation to reproduce Node/zlib's compressed byte
+count, because valid gzip encoders and zlib versions can produce different
+sizes for identical input bytes.
+
 The checker loads the generated `build/site-dist/site-inventory.json` and binds
 every staged public file—including HTML, JavaScript, CSS, JSON, discovery text,
 the generated inventory, and all media—by exact URL, status, MIME type, size,

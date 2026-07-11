@@ -17,7 +17,6 @@ import argparse
 import base64
 import binascii
 import concurrent.futures
-import gzip
 import hashlib
 import json
 import os
@@ -1450,23 +1449,34 @@ def release_manifest_checks(
         if Path(path).suffix in RUNTIME_EXTENSIONS
     ]
     runtime_bytes = sum(len(content) for content in runtime_contents)
-    runtime_gzip_bytes = sum(len(gzip.compress(content, compresslevel=9, mtime=0)) for content in runtime_contents)
+    reported_runtime_gzip_bytes = (
+        budget.get("runtimeGzipBytes") if isinstance(budget, dict) else None
+    )
+    local_budget = (
+        local_build.manifest.get("bundleBudget")
+        if isinstance(local_build.manifest, dict)
+        else None
+    )
     budget_matches = (
         budget_exact
         and budget.get("schema") == "nsm.daylight-bottle.bundle-budget.v1"
         and all(valid_nonnegative_integer(budget.get(field)) for field in budget_fields - {"schema"})
+        and budget == local_budget
         and budget.get("runtimeBytes") == runtime_bytes
-        and budget.get("runtimeGzipBytes") == runtime_gzip_bytes
         and budget.get("maxRuntimeBytes") == MAX_RUNTIME_BYTES
         and budget.get("maxRuntimeGzipBytes") == MAX_RUNTIME_GZIP_BYTES
         and runtime_bytes <= MAX_RUNTIME_BYTES
-        and runtime_gzip_bytes <= MAX_RUNTIME_GZIP_BYTES
+        and reported_runtime_gzip_bytes > 0
+        and reported_runtime_gzip_bytes <= MAX_RUNTIME_GZIP_BYTES
     )
     checks.append(
         Check(
             "bottle-manifest-bundle-budget",
             budget_matches,
-            f"runtime={runtime_bytes}/{MAX_RUNTIME_BYTES} gzip={runtime_gzip_bytes}/{MAX_RUNTIME_GZIP_BYTES}",
+            (
+                f"runtime={runtime_bytes}/{MAX_RUNTIME_BYTES} "
+                f"declared-gzip={reported_runtime_gzip_bytes}/{MAX_RUNTIME_GZIP_BYTES}"
+            ),
         )
     )
 

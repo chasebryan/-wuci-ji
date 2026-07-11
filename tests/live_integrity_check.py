@@ -60,9 +60,13 @@ def build_manifest(artifacts_by_path: dict[str, bytes]) -> dict[str, object]:
         "bundleBudget": {
             "schema": "nsm.daylight-bottle.bundle-budget.v1",
             "runtimeBytes": sum(len(content) for content in runtime),
+            # The production value is emitted by the pinned Node/zlib
+            # toolchain. A different standards-compliant gzip implementation
+            # need not produce the same compressed byte count.
             "runtimeGzipBytes": sum(
                 len(gzip.compress(content, compresslevel=9, mtime=0)) for content in runtime
-            ),
+            )
+            + 7,
             "maxRuntimeBytes": live.MAX_RUNTIME_BYTES,
             "maxRuntimeGzipBytes": live.MAX_RUNTIME_GZIP_BYTES,
         },
@@ -822,6 +826,21 @@ def main() -> None:
     refresh_manifest_subject(manifest)
     replace_manifest(case, manifest)
     assert_rejects(case, "bottle-manifest-inputs-match-checkout")
+
+    for invalid_gzip_bytes in (0, live.MAX_RUNTIME_GZIP_BYTES + 1):
+        case = passing_responses()
+        manifest = json.loads(case["bottle_manifest"].body)
+        manifest["bundleBudget"]["runtimeGzipBytes"] = invalid_gzip_bytes
+        refresh_manifest_subject(manifest)
+        replace_manifest(case, manifest)
+        assert_rejects(case, "bottle-manifest-bundle-budget")
+
+    case = passing_responses()
+    manifest = json.loads(case["bottle_manifest"].body)
+    manifest["bundleBudget"]["runtimeBytes"] += 1
+    refresh_manifest_subject(manifest)
+    replace_manifest(case, manifest)
+    assert_rejects(case, "bottle-manifest-bundle-budget")
 
     case = passing_responses()
     artifact_name = live.artifact_response_name("assets/app.js")
