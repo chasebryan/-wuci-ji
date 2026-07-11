@@ -7,7 +7,8 @@ export const SCHEMAS = {
   listResponse: "nsm.daylight-bottle.list.response.v1",
   stored: "nsm.daylight-bottle.stored.v1",
   publicBottle: "nsm.daylight-bottle.public.v1",
-  evidence: "nsm.daylight-bottle.evidence.v1"
+  evidence: "nsm.daylight-bottle.evidence.v1",
+  deployment: "nsm.daylight-bottle.deployment.v1"
 } as const;
 
 export type GeneratedIdentity = {
@@ -94,4 +95,11 @@ export type StoredBottlePublic = {
 export type ListBottlesResponse = {
   schema: typeof SCHEMAS.listResponse;
   bottles: StoredBottlePublic[];
+};
+
+export type BottleDeploymentEvidence = {
+  schema: typeof SCHEMAS.deployment;
+  workerVersionId: string;
+  workerVersionTag: string;
+  versionCreatedAt: string;
 };

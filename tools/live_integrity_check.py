@@ -21,9 +21,11 @@ import gzip
 import hashlib
 import json
 import os
+import queue
 import re
 import stat
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -48,6 +50,7 @@ ZERO_FINGERPRINT = f"sha256:{'0' * 64}"
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_MANIFEST_ARTIFACTS = 32
 MAX_MANIFEST_ARTIFACT_BYTES = 2_097_152
+MAX_WORKER_BUNDLE_BYTES = 1_048_576
 MAX_REPOSITORY_INPUT_BYTES = 8 * 1024 * 1024
 MAX_ARTIFACT_CAPTURE_SECONDS = 20.0
 MAX_ARTIFACT_REQUEST_SECONDS = 5.0
@@ -89,12 +92,17 @@ KEYNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._/-]{2,63}$")
 FINGERPRINT_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 AGE_RECIPIENT_PATTERN = re.compile(r"^age1[a-z0-9]{20,511}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+WORKER_VERSION_ID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 ISO_TIMESTAMP_PATTERN = re.compile(
     r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$"
 )
 ARTIFACT_PATH_PATTERN = re.compile(r"^[A-Za-z0-9._/-]+$")
-NODE_VERSION_PATTERN = re.compile(r"^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+EXPECTED_BOTTLE_NODE_VERSION = "v22.23.1"
+EXPECTED_BOTTLE_PACKAGE_MANAGER = "npm@11.8.0"
 RUNTIME_EXTENSIONS = {".html", ".js", ".mjs", ".css"}
 PUBLIC_ROOT_ARTIFACTS = {"_headers", "favicon.svg", "index.html", "keyring.json"}
 PUBLIC_ASSET_EXTENSIONS = {
@@ -115,6 +123,13 @@ MAX_RUNTIME_BYTES = 220 * 1024
 MAX_RUNTIME_GZIP_BYTES = 80 * 1024
 WORKER_SOURCE_PATHS = (
     "public/keyring.json",
+    "scripts/deploy-reviewed-worker-lib.mjs",
+    "scripts/deploy-reviewed-worker.mjs",
+    "scripts/generate-release-manifest.mjs",
+    "scripts/production-config-lib.mjs",
+    "scripts/release-manifest-lib.mjs",
+    "scripts/validate-production-config.mjs",
+    "scripts/verify-bundle.mjs",
     "src/crypto/fingerprint.ts",
     "src/domain/types.ts",
     "src/domain/validation.ts",
@@ -184,6 +199,7 @@ class LocalBottleBuild:
     manifest: Mapping[str, Any]
     manifest_bytes: bytes
     artifacts: Mapping[str, bytes]
+    worker_bundle_sha256: str
 
 
 @dataclass(frozen=True)
@@ -229,12 +245,14 @@ CANONICAL_ABSOLUTE_REDIRECT_SOURCES = {
     "https://www.nosuchmachine.net/*": "site_www_root",
 }
 CANONICAL_ABSOLUTE_REDIRECT_TARGET = "https://nosuchmachine.net/:splat"
+CANONICAL_REDIRECT_PROBE_PATH = "wuci-live-integrity-redirect-7f36c09e"
 SAFE_REDIRECT_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9._/-]+$")
 
 
 REQUEST_PLAN = (
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
     RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
+    RequestSpec("bottle_deployment", f"{BOTTLE_ORIGIN}/api/deployment"),
     RequestSpec("bottle_manifest", f"{BOTTLE_ORIGIN}/release-manifest.json"),
     RequestSpec(
         "bottle_api",
@@ -309,8 +327,8 @@ def parse_site_redirects(content: bytes) -> tuple[RedirectExpectation, ...]:
             ):
                 raise ValueError(f"staged _redirects wildcard line {line_number} is invalid")
             absolute_sources.add(source)
-            url = source.removesuffix("*")
-            location = target.replace(":splat", "")
+            url = f"{source.removesuffix('*')}{CANONICAL_REDIRECT_PROBE_PATH}"
+            location = target.replace(":splat", CANONICAL_REDIRECT_PROBE_PATH)
         else:
             if (
                 not SAFE_REDIRECT_PATH_PATTERN.fullmatch(source)
@@ -550,10 +568,15 @@ def load_local_bottle_build() -> LocalBottleBuild:
     ]
     if manifest.get("artifacts") != records:
         raise ValueError("local Bottle manifest does not describe the rebuilt dist bytes")
+    worker_bundle = site_dist.stable_read_regular_file(
+        REPOSITORY_ROOT / "apps" / "bottle" / ".wrangler" / "dry-run" / "index.js",
+        max_bytes=MAX_WORKER_BUNDLE_BYTES,
+    )
     return LocalBottleBuild(
         manifest=manifest,
         manifest_bytes=manifest_bytes,
         artifacts=files,
+        worker_bundle_sha256=sha256(worker_bundle),
     )
 
 
@@ -667,6 +690,51 @@ def fetch(
     absolute_limit = max(MAX_RESPONSE_BYTES, site_dist.MAX_SITE_FILE_BYTES)
     if max_body_bytes < 0 or max_body_bytes > absolute_limit:
         raise ValueError("response body limit is outside the fixed checker budget")
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, (int, float))
+        or not 0 < timeout <= MAX_SITE_REQUEST_SECONDS
+    ):
+        raise ValueError("response timeout is outside the fixed checker budget")
+    results: queue.Queue[Response] = queue.Queue(maxsize=1)
+    cancelled = threading.Event()
+
+    def run() -> None:
+        if cancelled.is_set():
+            return
+        try:
+            result = _fetch_direct(
+                spec,
+                timeout=float(timeout),
+                max_body_bytes=max_body_bytes,
+            )
+        except Exception:
+            result = Response(status=0, headers={}, body=b"", url=spec.url)
+        if not cancelled.is_set():
+            try:
+                results.put_nowait(result)
+            except queue.Full:
+                pass
+
+    worker = threading.Thread(
+        target=run,
+        name=f"wuci-live-fetch-{spec.name}",
+        daemon=True,
+    )
+    worker.start()
+    try:
+        return results.get(timeout=float(timeout))
+    except queue.Empty:
+        cancelled.set()
+        return Response(status=0, headers={}, body=b"", url=spec.url)
+
+
+def _fetch_direct(
+    spec: RequestSpec,
+    *,
+    timeout: float,
+    max_body_bytes: int,
+) -> Response:
     request = urllib.request.Request(
         spec.url,
         method=spec.method,
@@ -762,6 +830,7 @@ def capture_live(
     base_limits = {
         "site_secondary": 4096,
         "bottle_root": len(local_build.artifacts.get("index.html", b"")),
+        "bottle_deployment": 4096,
         "bottle_manifest": len(local_build.manifest_bytes),
         "bottle_api": 64 * 1024,
         "bottle_keyring": len(local_build.artifacts.get("keyring.json", b"")),
@@ -808,6 +877,7 @@ def expected_snapshot_response_limits(
     limits = {
         "site_secondary": 4096,
         "bottle_root": len(local_build.artifacts.get("index.html", b"")),
+        "bottle_deployment": 4096,
         "bottle_manifest": len(local_build.manifest_bytes),
         "bottle_api": 64 * 1024,
         "bottle_keyring": len(local_build.artifacts.get("keyring.json", b"")),
@@ -1204,9 +1274,9 @@ def release_manifest_checks(
         build_exact
         and build.get("appVersion") == package.get("version")
         and build.get("packageManager") == package.get("packageManager")
+        and build.get("packageManager") == EXPECTED_BOTTLE_PACKAGE_MANAGER
         and build.get("command") == "npm run build"
-        and isinstance(build.get("nodeVersion"), str)
-        and bool(NODE_VERSION_PATTERN.fullmatch(build["nodeVersion"]))
+        and build.get("nodeVersion") == EXPECTED_BOTTLE_NODE_VERSION
     )
     checks.extend(
         [
@@ -1597,6 +1667,72 @@ def evaluate(
     )
     add_media_type_check(checks, "bottle-root", bottle_root, {"text/html"})
     add_bottle_header_checks(checks, "bottle-root", bottle_root)
+
+    deployment_response = response_or_missing(responses, "bottle_deployment")
+    add_bottle_header_checks(checks, "bottle-deployment", deployment_response)
+    add_media_type_check(
+        checks,
+        "bottle-deployment",
+        deployment_response,
+        {"application/json"},
+    )
+    add_exact_url_check(
+        checks,
+        "bottle-deployment",
+        deployment_response,
+        f"{BOTTLE_ORIGIN}/api/deployment",
+    )
+    deployment = json_body(deployment_response)
+    deployment_fields = {
+        "schema",
+        "workerVersionId",
+        "workerVersionTag",
+        "versionCreatedAt",
+    }
+    deployment_exact = exact_fields(deployment, deployment_fields)
+    expected_worker_tag = f"sha256-{local_build.worker_bundle_sha256}"
+    checks.extend(
+        [
+            Check(
+                "bottle-deployment-status",
+                deployment_response.status == 200,
+                f"status={deployment_response.status}",
+            ),
+            Check(
+                "bottle-deployment-exact-fields",
+                deployment_exact,
+                ",".join(sorted(deployment_fields)),
+            ),
+            Check(
+                "bottle-deployment-schema",
+                deployment_exact
+                and deployment.get("schema") == "nsm.daylight-bottle.deployment.v1",
+                str(deployment.get("schema")) if isinstance(deployment, dict) else "<invalid>",
+            ),
+            Check(
+                "bottle-deployment-version-id",
+                deployment_exact
+                and isinstance(deployment.get("workerVersionId"), str)
+                and bool(WORKER_VERSION_ID_PATTERN.fullmatch(deployment["workerVersionId"])),
+                str(deployment.get("workerVersionId"))
+                if isinstance(deployment, dict)
+                else "<invalid>",
+            ),
+            Check(
+                "bottle-deployment-reviewed-worker-tag",
+                deployment_exact
+                and deployment.get("workerVersionTag") == expected_worker_tag,
+                f"expected={expected_worker_tag} observed={deployment.get('workerVersionTag') if isinstance(deployment, dict) else '<invalid>'}",
+            ),
+            Check(
+                "bottle-deployment-created-at",
+                deployment_exact and valid_canonical_timestamp(deployment.get("versionCreatedAt")),
+                str(deployment.get("versionCreatedAt"))
+                if isinstance(deployment, dict)
+                else "<invalid>",
+            ),
+        ]
+    )
 
     manifest_response = response_or_missing(responses, "bottle_manifest")
     add_bottle_header_checks(checks, "bottle-manifest", manifest_response)

@@ -20,6 +20,7 @@ applying their own cache policy. Do not enable browser analytics or remove
 Authenticate and verify the target before publishing:
 
 ```sh
+npm ci
 npm run cloudflare:whoami
 WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false \
   npx --no-install wrangler pages deployment list --project-name wuci-ji
@@ -33,9 +34,17 @@ git status --short
 npm run deploy
 ```
 
-The deploy command rebuilds and validates `build/site-dist/` before upload. A
-dirty checkout or a failed `make site-validate` remains a release stop
-condition.
+The deploy command first installs the exact root lock with `npm ci`, then
+rebuilds and validates `build/site-dist/`, fetches
+`origin/main`, then refuses upload unless the checkout is clean, on `main`, at
+the exact fetched `origin/main` commit, and connected to the canonical GitHub
+origin. It passes that commit and its bounded one-line subject to Wrangler with
+`--commit-dirty=false`. A dirty, detached, forked, stale, or failed build is a
+release stop condition. The uploader copies the already validated bytes into a
+private read-only temporary tree, validates that snapshot again, uploads only
+that path, and verifies it remained byte-identical afterward. This closes
+ordinary staging drift; it is not a hardened boundary against a hostile
+same-user process racing pathnames during the Wrangler subprocess.
 
 After every production deployment, verify:
 
@@ -159,12 +168,15 @@ make live-integrity-check
 The live command sends no credentials or user content. It uses a fixed all-zero
 recipient fingerprint that cannot be registered through the application,
 rejects redirects, expects an empty list, and never prints response bodies.
-Run `npm ci`, `npm run build`, and `npm run verify:bundle` in `apps/bottle`
-first: the rebuilt `dist/` tree defines the complete Bottle artifact request
+Run `npm ci` and `npm run check` in `apps/bottle` first: the rebuilt `dist/`
+tree and retained deterministic Wrangler bundle define the complete Bottle artifact request
 set, expected bytes, per-response caps, aggregate byte budget, and 20-second
 artifact-fetch deadline. Remote manifest declarations do not expand that set.
 JavaScript and CSS require browser-safe extension-specific MIME types, and an
-octet-stream script fails.
+octet-stream script fails. `/api/deployment` must also report an active Worker
+version tag equal to the SHA-256 tag of the exact locally rebuilt Wrangler
+bundle; this is platform metadata binding, not independent retrieval of the
+deployed program bytes.
 
 The checker loads the generated `build/site-dist/site-inventory.json` and binds
 every staged public file—including HTML, JavaScript, CSS, JSON, discovery text,
@@ -175,15 +187,19 @@ those consumed config files. The local tree is capped at 96 files, 4 MiB per
 file, and 40 MiB total. Eight bounded workers share a 120-second site-artifact
 deadline; remote content cannot add requests or raise a local byte cap.
 The redirect parser refuses any absolute probe other than the exact HTTP apex,
-HTTP `www`, and HTTPS `www` wildcard rules. Other redirect sources must be
-literal same-origin paths; targets are checked only as response `Location`
-values and are never followed or fetched. Clean HTML routes, raw `.html`
+HTTP `www`, and HTTPS `www` wildcard rules. Each wildcard is exercised with a
+fixed non-empty sentinel path and must preserve that path in its exact HTTPS
+apex `Location`. Other redirect sources must be literal same-origin paths;
+targets are checked only as response `Location` values and are never followed
+or fetched. Clean HTML routes, raw `.html`
 routes, directory indexes, and local wildcard collisions are considered when
 the staged builder excludes redirect-shadowed source files.
 The three canonical wildcard sources must all be present with exact status
 `301` and the exact HTTPS apex target; comments do not satisfy that contract.
-Redirect probes share a
-30-second deadline and the complete live request plan is count-bounded.
+Redirect probes share a 30-second deadline and the complete live request plan
+is count-bounded. Every individual network read runs behind a daemonized
+wall-clock boundary; a slow-drip or stalled origin yields a failed response at
+the fixed timeout instead of extending the capture or blocking process exit.
 Every staged public response must also match the effective `Cache-Control`
 value produced by the global and route-specific `_headers` rules: HTML keeps
 `no-transform`, mutable code/evidence uses `no-store`, and versioned media uses
@@ -215,22 +231,16 @@ npm run cloudflare:whoami
 For the standard Cloudflare Pages direct upload:
 
 ```sh
-npm run build
 npm run deploy
 ```
 
-The deploy script pins project `wuci-ji`, directory `build/site-dist/`, and deployment
-branch `main`. For an evidence-bound manual deployment, Wrangler also accepts
-explicit `--commit-hash`, `--commit-message`, and `--commit-dirty=false`
-metadata. Record the resulting deployment ID and run `make site-live-check`.
-
-```sh
-COMMIT_SHA=$(git rev-parse HEAD)
-WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false \
-  npx --no-install wrangler pages deploy build/site-dist \
-  --project-name wuci-ji --branch main \
-  --commit-hash "$COMMIT_SHA" --commit-dirty=false
-```
+The deploy script pins project `wuci-ji`, directory `build/site-dist/`, and
+deployment branch `main`; validates the canonical, clean, freshly fetched
+source state; and supplies explicit `--commit-hash`, `--commit-message`, and
+`--commit-dirty=false` metadata. Record the resulting deployment ID and run
+`make live-integrity-check`.
+Do not replace this with a direct `wrangler pages deploy` call: that bypasses
+the fresh-main, clean-tree, private-snapshot, and exact-metadata gates.
 
 For token-based deploys, keep the token outside git:
 

@@ -11,6 +11,13 @@ export function assertProductionConfig(source) {
     throw new Error("Worker compatibility_date must be a canonical date.");
   }
 
+  const versionMetadata = expectTable(config.version_metadata, "version_metadata");
+  expectEqual(
+    versionMetadata.binding,
+    "CF_VERSION_METADATA",
+    "Worker version metadata binding"
+  );
+
   const route = expectSingleTable(config.routes, "routes");
   expectEqual(route.pattern, "bottle.nosuchmachine.net", "custom-domain route");
   expectEqual(route.custom_domain, true, "custom-domain mode");

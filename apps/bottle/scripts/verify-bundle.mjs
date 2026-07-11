@@ -3,6 +3,7 @@ import { gzipSync } from "node:zlib";
 import {
   WORKER_SOURCE_PATHS,
   assertBundleSourceMetadata,
+  assertReleaseBuildToolchain,
   assertSameBytes,
   assertValidKeyring,
   buildSourceClosure,
@@ -105,6 +106,7 @@ async function verifyReleaseManifest() {
   if (build.command !== "npm run build") {
     throw new Error("Built release manifest has an unexpected build command.");
   }
+  assertReleaseBuildToolchain(build.nodeVersion, build.packageManager);
 
   const actualFiles = (await collectRegularFiles(dist, "Built release artifact"))
     .filter((file) => !file.pathname.endsWith("/release-manifest.json"))

@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { extname, relative, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 import {
+  assertReleaseBuildToolchain,
   assertSameBytes,
   buildSourceClosure,
   collectRegularFiles,
@@ -52,6 +53,8 @@ const packageJsonBytes = await readRegularFile(
   "Package manifest"
 );
 const packageJson = JSON.parse(packageJsonBytes.toString("utf8"));
+const packageManager = `npm@${currentNpmVersion()}`;
+assertReleaseBuildToolchain(process.version, packageManager);
 const treeStatus = gitOutput(["status", "--porcelain=v1", "--untracked-files=all"]);
 const repository = normalizeGitRepositoryUrl(gitOutput(["remote", "get-url", "origin"])) ?? "unknown";
 const subject = {
@@ -63,7 +66,7 @@ const subject = {
   build: {
     appVersion: expectString(packageJson.version, "package version"),
     nodeVersion: process.version,
-    packageManager: `npm@${currentNpmVersion()}`,
+    packageManager,
     command: "npm run build"
   },
   inputs: {

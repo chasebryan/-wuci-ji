@@ -19,8 +19,9 @@ approval.
   browsers to an external reporting endpoint, which conflicts with Daylight
   Bottle's no-third-party-runtime-calls boundary. See Cloudflare's
   [Network Error Logging documentation](https://developers.cloudflare.com/network-error-logging/).
-- Node.js `22.23.1` and npm `11.8.0` are installed. The supported runtime range
-  is also recorded in `package.json`.
+- Node.js `22.23.1` and npm `11.8.0` are installed. Development engines are
+  recorded in `package.json`, but the production manifest and bundle verifier
+  reject every other Node/npm pair so deployment stays aligned with hosted CI.
 - No private identity, message plaintext, passphrase, or private key is present
   in the checkout, environment, Wrangler variables, or KV seed data.
 - `public/keyring.json` contains only manually reviewed public records whose
@@ -54,8 +55,10 @@ npm run check
 ```
 
 The two commit ids must match exactly and `git status --short` must be empty.
-The live-deploy validator rejects a fork origin, an unfetched/unmerged commit,
-or any dirty tree even if a local build succeeds.
+Immediately before deployment, the live-deploy validator refreshes
+`origin/main` with prompting disabled, then rejects a fork origin, an
+unfetched/unmerged commit, the wrong toolchain, or any dirty tree even if a
+local build succeeds.
 
 `npm run check` runs real ESLint, all TypeScript environment checks, unit tests,
 the production build, the same-origin bundle verifier, and a Wrangler dry-run.
@@ -141,11 +144,18 @@ npx wrangler deployments status
 npx wrangler deployments list
 ```
 
+The deploy command starts with `npm ci`; it does not reuse a pre-existing
+dependency tree as release input.
+
 `npm run deploy` refuses to contact Cloudflare unless the custom domain, assets,
 KV, and rate-limit bindings match the pinned production sections. It also
 refuses a release manifest that does not verify against the canonical upstream,
 the exact fetched `origin/main` commit, the current clean Git tree, recorded
-source closure, built assets, or byte-identical source and built keyring.
+source closure, exact Node/npm toolchain, built assets, or byte-identical source
+and built keyring. It generates a second fresh Wrangler bundle, requires it to
+match the retained dry-run bundle byte-for-byte, then uploads that exact
+`index.js` with `--no-bundle`, strict remote-setting checks, and a version tag
+equal to `sha256-<worker-bundle-digest>`.
 
 Record the new deployment id and the immediately previous deployment id in the
 change record. Do not claim the deployment succeeded until the live checks
@@ -222,9 +232,13 @@ MIME contract under separate fixed site count, byte, and deadline budgets.
 For a commit validated by GitHub Actions, the `daylight-bottle` workflow also
 retains `daylight-bottle-validated-release-<commit>` for 30 days. Compare its
 manifest, static bundle, and Wrangler dry-run Worker bundle with the live
-deployment when available. The Worker bundle is not yet bound into the manifest
-subject. This CI-retained artifact is unsigned and does not independently prove
-which bytes the production origin delivered.
+deployment when available. The deployment wrapper reads back
+`/api/deployment`, which exposes only the Cloudflare version id, creation time,
+and bundle-digest version tag, and requires that tag to match the exact local
+prebuilt bytes. This is strong operator/platform binding, but the public
+endpoint is still a statement by the deployed Worker and is not independent
+cryptographic retrieval of Cloudflare's stored program bytes. The CI artifact
+is unsigned.
 
 Finally, complete the browser acceptance path with a manually approved keyring
 record:

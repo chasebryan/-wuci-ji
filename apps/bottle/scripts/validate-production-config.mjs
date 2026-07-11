@@ -29,6 +29,18 @@ try {
   );
 }
 
+try {
+  execFileSync("git", ["fetch", "--quiet", "origin", "main"], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    stdio: ["ignore", "ignore", "ignore"],
+    timeout: 60_000
+  });
+} catch {
+  refuse("Refusing live deployment: origin/main could not be refreshed.");
+}
+
 const currentCommit = gitOutput(["rev-parse", "HEAD"]);
 const currentTreeStatus = gitOutput(["status", "--porcelain=v1", "--untracked-files=all"]);
 const currentRepository = normalizeGitRepositoryUrl(gitOutput(["remote", "get-url", "origin"]));

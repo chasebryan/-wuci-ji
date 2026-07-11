@@ -70,7 +70,7 @@ npm ci
 | `npm run verify:bundle` | Verify required files, keyring fingerprints, asset/input hashes, size budgets, same-origin runtime URLs, CSP-compatible HTML, and headers. |
 | `npm run check` | Run the full non-deploying local/CI release gate. |
 | `npm run deploy:dry-run` | Rebuild, verify the bundle, and bundle Worker/assets without deploying. |
-| `npm run deploy` | Run the complete gate, require the pinned production config and exact fetched `origin/main`, then perform a live Wrangler deployment. |
+| `npm run deploy` | Run the complete gate, require exact fetched `origin/main`, reproduce the retained Worker bundle, deploy that exact file without rebundling, and verify its live version tag. |
 
 The Vite development API uses an in-memory store and resets when the process
 stops. It is for local validation only and is not a claim of OS sandboxing or
@@ -88,6 +88,9 @@ durable storage.
 - `scripts/generate-release-manifest.mjs`: hashes the explicit Worker source
   closure and static artifacts, records the source commit, verifies source and
   built keyring equality, and applies the runtime bundle budget.
+- `scripts/deploy-reviewed-worker.mjs`: reproduces the Wrangler bundle, requires
+  byte equality with the retained dry-run output, deploys it with `--no-bundle`,
+  and checks the active SHA-256 version tag at `/api/deployment`.
 - `wrangler.toml`: Worker, static assets, custom domain, and KV binding.
 - `DEPLOYMENT.md`: approved production setup, smoke, and rollback runbook.
 
@@ -137,7 +140,11 @@ validated static `dist` bundle, release manifest, and Wrangler dry-run Worker
 bundle for 30 days as
 `daylight-bottle-validated-release-<commit>`. This gives reviewers a separate
 CI-retained copy to compare with live bytes. The Worker bundle is retained for
-review but is not yet part of the manifest subject. The artifact is unsigned
+review but is not itself part of the manifest subject. The subject binds the
+selected source/config inputs, package lock, exact Node/npm metadata, and
+static artifacts; it does not inventory realized dependency bytes. Production
+starts with `npm ci` and uses the full resulting bundle SHA-256 as the
+Cloudflare version tag. The artifact is unsigned
 and is not independent proof that the production origin delivered those bytes.
 
 ## Security boundary
@@ -147,6 +154,8 @@ and is not independent proof that the production origin delivered those bytes.
 - The API accepts new bottles only for active public keyring records.
 - Production drops and inbox reads fail closed if their configured burst
   limiters are unavailable; rejected drops do not write to KV.
+- `/api/deployment` exposes only the active Worker version id, bundle-digest
+  tag, and creation time; it accepts no body or query parameters.
 - Bottle storage contains ciphertext and public metadata. The platform rate
   limiters separately maintain short-lived counters keyed by hashes of the
   network address alone for reads and of network address plus recipient

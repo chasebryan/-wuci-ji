@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import tempfile
+import threading
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -109,6 +110,7 @@ def canonical_local_build() -> live.LocalBottleBuild:
         manifest=manifest,
         manifest_bytes=(json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
         artifacts=artifacts,
+        worker_bundle_sha256="a" * 64,
     )
 
 
@@ -151,6 +153,19 @@ def passing_responses() -> dict[str, live.Response]:
             f"{live.BOTTLE_ORIGIN}/",
             headers=bottle_headers("text/html; charset=utf-8"),
             body=INDEX_BYTES,
+        ),
+        "bottle_deployment": response(
+            200,
+            f"{live.BOTTLE_ORIGIN}/api/deployment",
+            headers=bottle_headers("application/json; charset=utf-8"),
+            body=json.dumps(
+                {
+                    "schema": "nsm.daylight-bottle.deployment.v1",
+                    "workerVersionId": "01234567-89ab-4cde-8f01-23456789abcd",
+                    "workerVersionTag": f"sha256-{'a' * 64}",
+                    "versionCreatedAt": "2026-07-11T03:30:00.000Z",
+                }
+            ).encode("utf-8"),
         ),
         "bottle_manifest": response(
             200,
@@ -302,6 +317,19 @@ def main() -> None:
         )
         for redirect in local_site.redirects
     )
+    canonical_redirect_names = set(live.CANONICAL_ABSOLUTE_REDIRECT_SOURCES.values())
+    canonical_redirects = [
+        redirect
+        for redirect in local_site.redirects
+        if redirect.response_name in canonical_redirect_names
+    ]
+    assert len(canonical_redirects) == 3
+    assert all(
+        redirect.url.endswith(f"/{live.CANONICAL_REDIRECT_PROBE_PATH}")
+        and redirect.location
+        == f"{live.SITE_ORIGIN}/{live.CANONICAL_REDIRECT_PROBE_PATH}"
+        for redirect in canonical_redirects
+    )
     for invalid_redirect, expected_error in [
         (
             b"http://127.0.0.1:8788/* https://nosuchmachine.net/:splat 301\n",
@@ -368,6 +396,55 @@ def main() -> None:
     assert not live.RequestSpec("artifact", live.artifact_url("index.html")).follow_redirects
     assert not live.valid_artifact_path("api/bottles")
     assert not live.valid_artifact_path("https://example.invalid/payload.js")
+
+    original_urlopen = live.urllib.request.urlopen
+    slow_started = threading.Event()
+    slow_release = threading.Event()
+    slow_finished = threading.Event()
+
+    class SlowResponse:
+        status = 200
+        headers: dict[str, str] = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit: int) -> bytes:
+            slow_started.set()
+            slow_release.wait(2.0)
+            slow_finished.set()
+            return b"slow"
+
+        def geturl(self) -> str:
+            return "https://example.invalid/slow"
+
+    def slow_urlopen(_request, *, timeout: float):
+        assert timeout == 0.05
+        return SlowResponse()
+
+    live.urllib.request.urlopen = slow_urlopen
+    started_at = live.time.monotonic()
+    try:
+        slow = live.fetch(
+            live.RequestSpec(
+                "slow-drip",
+                "https://example.invalid/slow",
+                follow_redirects=True,
+            ),
+            timeout=0.05,
+            max_body_bytes=16,
+        )
+        elapsed = live.time.monotonic() - started_at
+        assert slow_started.wait(0.2)
+        assert slow.status == 0
+        assert elapsed < 0.25, elapsed
+    finally:
+        slow_release.set()
+        slow_finished.wait(0.5)
+        live.urllib.request.urlopen = original_urlopen
 
     capture_calls: list[tuple[live.RequestSpec, float, int]] = []
     original_fetch = live.fetch
@@ -606,6 +683,17 @@ def main() -> None:
     replace_manifest(case, manifest)
     assert_rejects(case, "bottle-manifest-exact-fields")
 
+    for field, value in [
+        ("nodeVersion", "v24.0.0"),
+        ("packageManager", "npm@11.9.0"),
+    ]:
+        case = passing_responses()
+        manifest = json.loads(case["bottle_manifest"].body)
+        manifest["build"][field] = value
+        refresh_manifest_subject(manifest)
+        replace_manifest(case, manifest)
+        assert_rejects(case, "bottle-manifest-build-contract")
+
     for response_name, invalid_body, expected_check in [
         (
             "bottle_manifest",
@@ -711,6 +799,7 @@ def main() -> None:
     assert_rejects(case, "bottle-artifact-assets/app.js-final-url")
 
     for name, expected_check in [
+        ("bottle_deployment", "bottle-deployment-final-url"),
         ("bottle_manifest", "bottle-manifest-final-url"),
         ("bottle_api", "bottle-api-final-url"),
         ("bottle_keyring", "bottle-keyring-final-url"),
@@ -720,6 +809,15 @@ def main() -> None:
         case = passing_responses()
         case[name] = replace(case[name], url="https://example.invalid/redirected")
         assert_rejects(case, expected_check)
+
+    case = passing_responses()
+    deployment = json.loads(case["bottle_deployment"].body)
+    deployment["workerVersionTag"] = f"sha256-{'b' * 64}"
+    case["bottle_deployment"] = replace(
+        case["bottle_deployment"],
+        body=json.dumps(deployment).encode("utf-8"),
+    )
+    assert_rejects(case, "bottle-deployment-reviewed-worker-tag")
 
     case = passing_responses()
     manifest = json.loads(case["bottle_manifest"].body)

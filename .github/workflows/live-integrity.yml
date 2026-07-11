@@ -45,8 +45,7 @@ jobs:
         working-directory: apps/bottle
         run: |
           npm ci
-          npm run build
-          npm run verify:bundle
+          npm run check
           npm run validate:release-source
 
       - name: Build the exact Cloudflare Pages upload tree

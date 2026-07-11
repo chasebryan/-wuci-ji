@@ -50,8 +50,38 @@ def main() -> None:
     ), "every staged public site file must be byte-bound by the live checker"
     root_package = json.loads(read("package.json"))
     assert "python3 tools/site_dist.py" in root_package["scripts"]["build"]
-    assert "pages deploy build/site-dist" in root_package["scripts"]["deploy:pages"]
-    assert "pages deploy site " not in root_package["scripts"]["deploy:pages"]
+    assert root_package["scripts"]["deploy:pages"] == (
+        "npm ci && npm run build && python3 tools/site_deploy.py"
+    )
+    assert "npx --no-install wrangler" in root_package["scripts"]["cloudflare:login"]
+    assert "npx --no-install wrangler" in root_package["scripts"]["cloudflare:whoami"]
+    wrangler_config = read("wrangler.toml")
+    assert 'pages_build_output_dir = "./build/site-dist"' in wrangler_config
+    deploy_source = read("tools/site_deploy.py")
+    for marker in [
+        '"git", "fetch", "--quiet", "origin", CANONICAL_BRANCH',
+        'origin_main=run_git(["rev-parse", "refs/remotes/origin/main"])',
+        'branch=run_git(["branch", "--show-current"])',
+        'tree_status=run_git(["status", "--porcelain=v1", "--untracked-files=all"])',
+        '"--commit-hash"',
+        '"--commit-message"',
+        '"--commit-dirty=false"',
+    ]:
+        assert marker in deploy_source, f"site deploy source gate is missing {marker}"
+
+    bottle_deploy_source = read("apps/bottle/scripts/validate-production-config.mjs")
+    assert 'execFileSync("git", ["fetch", "--quiet", "origin", "main"]' in bottle_deploy_source
+    assert 'GIT_TERMINAL_PROMPT: "0"' in bottle_deploy_source
+    bottle_package = json.loads(read("apps/bottle/package.json"))
+    assert bottle_package["scripts"]["deploy"] == (
+        "npm ci && npm run check && node scripts/deploy-reviewed-worker.mjs"
+    )
+    reviewed_worker_deploy = read("apps/bottle/scripts/deploy-reviewed-worker-lib.mjs")
+    for marker in ['"--no-bundle"', '"--strict"', '"--tag"', "workerBundleTag"]:
+        assert marker in reviewed_worker_deploy, f"reviewed Worker deploy is missing {marker}"
+    assert '[version_metadata]\nbinding = "CF_VERSION_METADATA"' in read(
+        "apps/bottle/wrangler.toml"
+    )
 
     dependabot = read(".github/dependabot.yml")
     for marker in [
@@ -97,13 +127,12 @@ def main() -> None:
     for command in [
         "npm install --global npm@${NPM_VERSION}",
         "npm ci",
-        "npm run build",
-        "npm run verify:bundle",
+        "npm run check",
         "npm run validate:release-source",
     ]:
         assert command in live_integrity_workflow
     assert "Build the exact Cloudflare Pages upload tree" in live_integrity_workflow
-    assert live_integrity_workflow.index("npm run build") < live_integrity_workflow.index(
+    assert live_integrity_workflow.index("npm run check") < live_integrity_workflow.index(
         "make live-integrity-check"
     )
 

@@ -24,7 +24,7 @@
     "validate:release-source": "node scripts/validate-release-source.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run verify:bundle && npm run wrangler:dry-run",
     "deploy:dry-run": "npm run build && npm run verify:bundle && npm run wrangler:dry-run",
-    "deploy": "npm run check && npm run validate:production-config && WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false wrangler deploy"
+    "deploy": "npm ci && npm run check && node scripts/deploy-reviewed-worker.mjs"
   },
   "dependencies": {
     "age-encryption": "0.3.0"
