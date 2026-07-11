@@ -85,7 +85,14 @@ def main() -> None:
         "npm ci && npm run check && node scripts/deploy-reviewed-worker.mjs"
     )
     reviewed_worker_deploy = read("apps/bottle/scripts/deploy-reviewed-worker-lib.mjs")
-    for marker in ['"--no-bundle"', '"--strict"', '"--tag"', "workerBundleTag"]:
+    for marker in [
+        '"--config"',
+        '"--name"',
+        '"--no-bundle"',
+        '"--strict"',
+        '"--tag"',
+        "workerBundleTag",
+    ]:
         assert marker in reviewed_worker_deploy, f"reviewed Worker deploy is missing {marker}"
     assert '[version_metadata]\nbinding = "CF_VERSION_METADATA"' in read(
         "apps/bottle/wrangler.toml"

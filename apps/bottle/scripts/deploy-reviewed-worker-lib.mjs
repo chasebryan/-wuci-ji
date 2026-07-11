@@ -2,16 +2,20 @@ import { sha256 } from "./release-manifest-lib.mjs";
 
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const TAG_PATTERN = /^sha256-[0-9a-f]{64}$/;
+const WORKER_NAME = "daylight-bottle";
 
 export function workerBundleTag(bundleBytes) {
   return `sha256-${sha256(bundleBytes)}`;
 }
 
-export function buildReviewedWorkerDeployArguments(bundlePath, commit, bundleBytes) {
+export function buildReviewedWorkerDeployArguments(bundlePath, configPath, commit, bundleBytes) {
   if (
     typeof bundlePath !== "string"
     || bundlePath.length === 0
     || bundlePath.includes("\0")
+    || typeof configPath !== "string"
+    || configPath.length === 0
+    || configPath.includes("\0")
     || !COMMIT_PATTERN.test(commit)
   ) {
     throw new Error("Reviewed Worker deploy metadata is invalid.");
@@ -25,6 +29,10 @@ export function buildReviewedWorkerDeployArguments(bundlePath, commit, bundleByt
     args: [
       "deploy",
       bundlePath,
+      "--config",
+      configPath,
+      "--name",
+      WORKER_NAME,
       "--no-bundle",
       "--strict",
       "--tag",
