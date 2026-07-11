@@ -535,6 +535,11 @@ def main() -> None:
     assert len(root_calls) == 1
     assert root_calls[0][0] <= live.MAX_ARTIFACT_REQUEST_SECONDS
     assert root_calls[0][1] == len(canonical_artifacts()["index.html"])
+    root_specs = [
+        spec for spec, _, _ in capture_calls if spec.name == "bottle_root"
+    ]
+    assert len(root_specs) == 1
+    assert root_specs[0].accept == live.BROWSER_NAVIGATION_ACCEPT
     assert all(
         spec.user_agent == live.BROWSER_USER_AGENT
         for spec, _, _ in capture_calls
@@ -670,6 +675,33 @@ def main() -> None:
     )
     case[live.artifact_response_name("index.html")] = case["bottle_root"]
     assert_rejects(case, "bottle-root-no-transform")
+
+    for lookalike in (
+        "x-no-transform",
+        "no-transform-disabled",
+        'no-transform="true"',
+        "no-transform=1",
+    ):
+        case = passing_responses()
+        case["bottle_root"] = replace(
+            case["bottle_root"],
+            headers={
+                **case["bottle_root"].headers,
+                "cache-control": f"no-store, {lookalike}",
+            },
+        )
+        case[live.artifact_response_name("index.html")] = case["bottle_root"]
+        assert_rejects(case, "bottle-root-no-transform")
+
+    case = passing_responses()
+    case["bottle_api"] = replace(
+        case["bottle_api"],
+        headers={
+            **case["bottle_api"].headers,
+            "cache-control": "x-no-store, no-transform",
+        },
+    )
+    assert_rejects(case, "bottle-api-no-store")
 
     case = passing_responses()
     bottle_script_name = live.artifact_response_name("assets/app.js")

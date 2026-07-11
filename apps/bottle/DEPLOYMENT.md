@@ -217,9 +217,12 @@ not accepted for JavaScript. This is deployment parity evidence, not proof of
 an uncompromised origin.
 
 From the repository root, run the deterministic policy tests and then the
-explicit no-secret public readback. The live command uses a fixed browser user
-agent for every Bottle response so provider behavior cannot hide behind
-client-selective transformation. It binds the manifest,
+explicit no-secret public readback. The live command uses one fixed
+Firefox-like user agent for every Bottle response and a navigation-shaped
+`Accept` header for the HTML root. This catches transformations selected for
+that profile; it is not proof against every possible user-agent- or
+client-hint-specific variant. Real-browser acceptance remains a separate
+release check. The command binds the manifest,
 checked-out source inputs, and exact bounded same-origin artifact bytes to the
 checked-out commit; rejects redirects; requires the zero-fingerprint API probe
 to return an empty versioned response; checks the static/API security headers;

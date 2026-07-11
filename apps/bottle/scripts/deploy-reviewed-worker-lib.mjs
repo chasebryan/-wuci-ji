@@ -8,6 +8,16 @@ export function workerBundleTag(bundleBytes) {
   return `sha256-${sha256(bundleBytes)}`;
 }
 
+export function hasCacheControlDirective(value, directive) {
+  if (typeof value !== "string" || typeof directive !== "string" || directive.length === 0) {
+    return false;
+  }
+  const expected = directive.toLowerCase();
+  return value
+    .split(",")
+    .some((part) => part.trim().toLowerCase() === expected);
+}
+
 export function buildReviewedWorkerDeployArguments(bundlePath, configPath, commit, bundleBytes) {
   if (
     typeof bundlePath !== "string"

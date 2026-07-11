@@ -67,6 +67,10 @@ SNAPSHOT_MAX_HEADERS = 64
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
 )
+BROWSER_NAVIGATION_ACCEPT = (
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+    "image/webp,*/*;q=0.8"
+)
 
 REQUIRED_BOTTLE_HEADERS = {
     "content-security-policy": (
@@ -175,6 +179,7 @@ class RequestSpec:
     method: str = "GET"
     follow_redirects: bool = False
     user_agent: str = "wuci-live-integrity-check/1"
+    accept: str = "*/*"
 
 
 @dataclass(frozen=True)
@@ -760,7 +765,7 @@ def _fetch_direct(
     request = urllib.request.Request(
         spec.url,
         method=spec.method,
-        headers={"User-Agent": spec.user_agent, "Accept": "*/*"},
+        headers={"User-Agent": spec.user_agent, "Accept": spec.accept},
     )
     opener = urllib.request.urlopen if spec.follow_redirects else NO_REDIRECT_OPENER.open
     try:
@@ -886,6 +891,7 @@ def capture_bottle_artifacts(local_build: LocalBottleBuild) -> dict[str, Respons
             "bottle_root",
             f"{BOTTLE_ORIGIN}/",
             user_agent=BROWSER_USER_AGENT,
+            accept=BROWSER_NAVIGATION_ACCEPT,
         ),
         timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
         max_body_bytes=len(index_content),
@@ -1217,7 +1223,7 @@ def add_bottle_header_checks(checks: list[Check], label: str, response: Response
     checks.append(
         Check(
             f"{label}-no-store",
-            "no-store" in cache_control.lower(),
+            has_cache_control_directive(cache_control, "no-store"),
             cache_control or "<missing>",
         )
     )
@@ -1231,10 +1237,15 @@ def add_bottle_no_transform_check(
     checks.append(
         Check(
             f"{label}-no-transform",
-            "no-transform" in cache_control.lower(),
+            has_cache_control_directive(cache_control, "no-transform"),
             cache_control or "<missing>",
         )
     )
+
+
+def has_cache_control_directive(value: str, directive: str) -> bool:
+    expected = directive.lower()
+    return any(part.strip().lower() == expected for part in value.split(","))
 
 
 def valid_keyring(payload: Any) -> tuple[bool, str, int]:

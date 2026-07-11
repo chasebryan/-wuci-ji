@@ -13,7 +13,8 @@ import {
 import { assertProductionConfig } from "./production-config-lib.mjs";
 import {
   assertDeploymentEvidence,
-  buildReviewedWorkerDeployArguments
+  buildReviewedWorkerDeployArguments,
+  hasCacheControlDirective
 } from "./deploy-reviewed-worker-lib.mjs";
 
 const appRoot = new URL("../", import.meta.url);
@@ -91,8 +92,8 @@ async function verifyLiveDeployment(expectedTag) {
         response.status !== 200
         || response.url !== "https://bottle.nosuchmachine.net/api/deployment"
         || !response.headers.get("content-type")?.toLowerCase().startsWith("application/json")
-        || !response.headers.get("cache-control")?.toLowerCase().includes("no-store")
-        || !response.headers.get("cache-control")?.toLowerCase().includes("no-transform")
+        || !hasCacheControlDirective(response.headers.get("cache-control"), "no-store")
+        || !hasCacheControlDirective(response.headers.get("cache-control"), "no-transform")
       ) {
         throw new Error("Live Worker deployment evidence response is invalid.");
       }
