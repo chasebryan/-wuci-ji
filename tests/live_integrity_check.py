@@ -5,6 +5,7 @@ import base64
 import gzip
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -196,6 +197,8 @@ def passing_responses() -> dict[str, live.Response]:
         expected_cache = live.expected_site_cache_control(cache_rules, artifact.url)
         if expected_cache is None:
             headers.pop("cache-control", None)
+        elif artifact.status == 404:
+            headers["cache-control"] = "no-store"
         else:
             headers["cache-control"] = expected_cache
         responses[artifact.response_name] = response(
@@ -208,7 +211,7 @@ def passing_responses() -> dict[str, live.Response]:
         responses[redirect.response_name] = response(
             redirect.status,
             redirect.url,
-            headers={**global_headers, "location": redirect.location},
+            headers={"location": redirect.location},
         )
     for path, content in artifacts.items():
         if path == "_headers":
@@ -268,6 +271,17 @@ def assert_value_error(function, expected: str) -> None:
 
 
 def main() -> None:
+    module_help = subprocess.run(
+        [sys.executable, "-m", "tools.live_integrity_check", "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert module_help.returncode == 0, module_help.stderr
+    assert "--live" in module_help.stdout
+
     js_subject_vector = {
         "source": {
             "repository": live.CANONICAL_REPOSITORY,
@@ -394,6 +408,7 @@ def main() -> None:
         for redirect in local_site.redirects
     )
     assert not live.RequestSpec("artifact", live.artifact_url("index.html")).follow_redirects
+    assert live.artifact_url("index.html") == f"{live.BOTTLE_ORIGIN}/"
     assert not live.valid_artifact_path("api/bottles")
     assert not live.valid_artifact_path("https://example.invalid/payload.js")
 
@@ -478,7 +493,7 @@ def main() -> None:
     expected_capture = {
         path: content
         for path, content in canonical_artifacts().items()
-        if path != "_headers"
+        if path not in {"_headers", "index.html"}
     }
     assert set(artifact_calls) == set(expected_capture)
     assert all(
@@ -489,6 +504,58 @@ def main() -> None:
     assert sum(limit for _, limit in artifact_calls.values()) == sum(
         len(content) for content in expected_capture.values()
     )
+    root_calls = [
+        (timeout, limit)
+        for spec, timeout, limit in capture_calls
+        if spec.name == "bottle_root"
+    ]
+    assert len(root_calls) == 1
+    assert root_calls[0][0] <= live.MAX_ARTIFACT_REQUEST_SECONDS
+    assert root_calls[0][1] == len(canonical_artifacts()["index.html"])
+
+    artifact_deadline_fetches: list[tuple[str, float]] = []
+    original_fetch = live.fetch
+    original_monotonic = live.time.monotonic
+    artifact_paths = {
+        path
+        for path in canonical_artifacts()
+        if path not in {"_headers", "index.html"}
+    }
+    artifact_clock = iter(
+        [0.0, 0.0]
+        + [live.MAX_ARTIFACT_CAPTURE_SECONDS + 1.0] * len(artifact_paths)
+    )
+
+    def artifact_deadline_fetch(
+        spec: live.RequestSpec,
+        *,
+        timeout: float = 12.0,
+        max_body_bytes: int = live.MAX_RESPONSE_BYTES,
+    ) -> live.Response:
+        artifact_deadline_fetches.append((spec.name, timeout))
+        return response(200, spec.url, body=INDEX_BYTES[:max_body_bytes])
+
+    live.fetch = artifact_deadline_fetch
+    live.time.monotonic = lambda: next(artifact_clock)
+    try:
+        artifact_deadline_responses = live.capture_bottle_artifacts(
+            canonical_local_build()
+        )
+    finally:
+        live.fetch = original_fetch
+        live.time.monotonic = original_monotonic
+    assert artifact_deadline_fetches == [
+        ("bottle_root", live.MAX_ARTIFACT_REQUEST_SECONDS)
+    ]
+    assert (
+        artifact_deadline_responses[live.artifact_response_name("index.html")]
+        is artifact_deadline_responses["bottle_root"]
+    )
+    assert all(
+        artifact_deadline_responses[live.artifact_response_name(path)].status == 0
+        for path in artifact_paths
+    )
+
     site_calls = {
         call_spec.name: (call_timeout, call_limit)
         for call_spec, call_timeout, call_limit in capture_calls
@@ -576,6 +643,14 @@ def main() -> None:
     assert_rejects(case, "site-root-no-report-to")
 
     case = passing_responses()
+    redirect_name = canonical_local_site_build().redirects[0].response_name
+    case[redirect_name] = replace(
+        case[redirect_name],
+        headers={**case[redirect_name].headers, "nel": '{"report_to":"cf-nel"}'},
+    )
+    assert_rejects(case, f"{redirect_name.replace(':', '-').replace('/', '-')}-no-nel")
+
+    case = passing_responses()
     case["site_browser_wucios"] = replace(
         case["site_browser_wucios"],
         body=case["site_browser_wucios"].body + b'<script src="https://static.cloudflareinsights.com/beacon.js"></script>',
@@ -618,6 +693,17 @@ def main() -> None:
         case,
         "site-artifact-assets/wuci-ji-systems-hero.jpg-cache-control-policy",
     )
+
+    case = passing_responses()
+    not_found_name = live.site_response_name("404.html")
+    case[not_found_name] = replace(
+        case[not_found_name],
+        headers={
+            **case[not_found_name].headers,
+            "cache-control": "public, max-age=86400",
+        },
+    )
+    assert_rejects(case, "site-artifact-404.html-cache-control-policy")
 
     case = passing_responses()
     case["site_app_js"] = replace(

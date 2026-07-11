@@ -251,7 +251,6 @@ SAFE_REDIRECT_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9._/-]+$")
 
 REQUEST_PLAN = (
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
-    RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
     RequestSpec("bottle_deployment", f"{BOTTLE_ORIGIN}/api/deployment"),
     RequestSpec("bottle_manifest", f"{BOTTLE_ORIGIN}/release-manifest.json"),
     RequestSpec(
@@ -647,6 +646,8 @@ def artifact_response_name(path: str) -> str:
 
 
 def artifact_url(path: str) -> str:
+    if path == "index.html":
+        return f"{BOTTLE_ORIGIN}/"
     return f"{BOTTLE_ORIGIN}/{path}"
 
 
@@ -829,7 +830,6 @@ def capture_live(
     expected_snapshot_response_limits(local_build, local_site)
     base_limits = {
         "site_secondary": 4096,
-        "bottle_root": len(local_build.artifacts.get("index.html", b"")),
         "bottle_deployment": 4096,
         "bottle_manifest": len(local_build.manifest_bytes),
         "bottle_api": 64 * 1024,
@@ -841,6 +841,14 @@ def capture_live(
     }
     responses.update(capture_redirects(local_site))
     responses.update(capture_site_artifacts(local_site))
+    responses.update(capture_bottle_artifacts(local_build))
+    return responses
+
+
+def capture_bottle_artifacts(local_build: LocalBottleBuild) -> dict[str, Response]:
+    index_content = local_build.artifacts.get("index.html")
+    if index_content is None:
+        raise ValueError("local Bottle artifact capture is missing index.html")
 
     expected_total = sum(
         len(content)
@@ -851,6 +859,16 @@ def capture_live(
         raise ValueError("local Bottle artifact capture exceeds its aggregate byte budget")
 
     deadline = time.monotonic() + MAX_ARTIFACT_CAPTURE_SECONDS
+    remaining_seconds = deadline - time.monotonic()
+    bottle_root = fetch(
+        RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
+        timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
+        max_body_bytes=len(index_content),
+    )
+    responses = {
+        "bottle_root": bottle_root,
+        artifact_response_name("index.html"): bottle_root,
+    }
     for path, expected_content in sorted(local_build.artifacts.items()):
         # Cloudflare consumes _headers as deployment configuration. Bind it to
         # the checkout and verify its resulting headers instead of requesting
@@ -858,6 +876,8 @@ def capture_live(
         if path == "_headers":
             continue
         name = artifact_response_name(path)
+        if path == "index.html":
+            continue
         remaining_seconds = deadline - time.monotonic()
         if remaining_seconds <= 0:
             responses[name] = Response(status=0, headers={}, body=b"", url=artifact_url(path))
@@ -1564,10 +1584,15 @@ def evaluate(
         )
         expected_cache = expected_site_cache_control(cache_rules, artifact.url)
         observed_cache = observed.headers.get("cache-control")
+        # Cloudflare-generated 404 responses may replace the configured cache
+        # policy with the stricter no-store directive.
+        cache_matches = observed_cache == expected_cache or (
+            artifact.status == 404 and observed_cache == "no-store"
+        )
         checks.append(
             Check(
                 f"{label}-cache-control-policy",
-                observed_cache == expected_cache,
+                cache_matches,
                 f"expected={expected_cache!r} observed={observed_cache!r}",
             )
         )
@@ -1629,13 +1654,10 @@ def evaluate(
                 ),
             ]
         )
+        # Cloudflare Pages applies redirects before _headers. Bind redirects
+        # to exact status/location and reject telemetry headers without
+        # depending on incidental asset headers.
         add_common_response_checks(checks, label, observed)
-        add_site_global_header_checks(
-            checks,
-            label,
-            observed,
-            global_site_headers,
-        )
 
     secondary = response_or_missing(responses, "site_secondary")
     secondary_location = secondary.headers.get("location", "")

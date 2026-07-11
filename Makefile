@@ -794,7 +794,7 @@ live-integrity-test:
 	$(PYTHON) tests/site_dist.py
 
 live-integrity-check:
-	$(PYTHON) tools/live_integrity_check.py --live --expected-commit "$$(git rev-parse HEAD)"
+	$(PYTHON) -m tools.live_integrity_check --live --expected-commit "$$(git rev-parse HEAD)"
 
 repository-maintenance-test:
 	$(PYTHON) tests/repository_maintenance.py
