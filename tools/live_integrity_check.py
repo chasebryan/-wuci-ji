@@ -1696,7 +1696,10 @@ def evaluate(
             ),
             Check(
                 "site-html-no-transform",
-                "no-transform" in site_root.headers.get("cache-control", "").lower(),
+                has_cache_control_directive(
+                    site_root.headers.get("cache-control", ""),
+                    "no-transform",
+                ),
                 site_root.headers.get("cache-control", "<missing>"),
             ),
         ]

@@ -78,6 +78,11 @@ def contains(body: bytes, needle: str) -> bool:
     return needle.encode("utf-8") in body
 
 
+def has_cache_control_directive(value: str, directive: str) -> bool:
+    expected = directive.lower()
+    return any(part.strip().lower() == expected for part in value.split(","))
+
+
 def check_https_root() -> list[Check]:
     response = fetch(APEX)
     checks = [
@@ -113,7 +118,7 @@ def check_https_root() -> list[Check]:
     checks.append(
         Check(
             "html-no-transform",
-            "no-transform" in cache_control.lower(),
+            has_cache_control_directive(cache_control, "no-transform"),
             cache_control or "<missing>",
         )
     )

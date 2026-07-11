@@ -752,6 +752,22 @@ def main() -> None:
     case["site_https_root"] = replace(case["site_https_root"], body=b"unrelated deployment")
     assert_rejects(case, "site-root-exact-bytes")
 
+    for lookalike in (
+        "x-no-transform",
+        "no-transform-disabled",
+        'no-transform="true"',
+        "no-transform=1",
+    ):
+        case = passing_responses()
+        case["site_https_root"] = replace(
+            case["site_https_root"],
+            headers={
+                **case["site_https_root"].headers,
+                "cache-control": f"public, max-age=0, must-revalidate, {lookalike}",
+            },
+        )
+        assert_rejects(case, "site-html-no-transform")
+
     case = passing_responses()
     case["site_browser_wucios"] = replace(
         case["site_browser_wucios"], body=b"unrelated deployment"
