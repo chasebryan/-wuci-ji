@@ -38,6 +38,12 @@ def main() -> None:
         for item in hosting["retired_publishers"]
     )
     assert sorted(hosting["forbidden_response_headers"]) == ["nel", "report-to"]
+    assert any(
+        item.get("host") == "Cloudflare Response Header Transform Rule"
+        and item.get("required_setting")
+        == 'For http.host eq "nosuchmachine.net", remove NEL and Report-To after managed response transforms'
+        for item in hosting["deployment_controls"]
+    )
     assert {
         "static.cloudflareinsights.com",
         "data-cf-beacon",

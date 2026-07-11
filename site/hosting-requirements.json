@@ -110,6 +110,10 @@
     {
       "host": "Cloudflare",
       "required_setting": "Network Error Logging disabled"
+    },
+    {
+      "host": "Cloudflare Response Header Transform Rule",
+      "required_setting": "For http.host eq \"nosuchmachine.net\", remove NEL and Report-To after managed response transforms"
     }
   ],
   "forbidden_response_headers": [
@@ -125,7 +129,9 @@
     "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/",
     "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/http-strict-transport-security/",
     "https://developers.cloudflare.com/pages/configuration/headers/",
-    "https://developers.cloudflare.com/pages/configuration/redirects/"
+    "https://developers.cloudflare.com/pages/configuration/redirects/",
+    "https://developers.cloudflare.com/rules/transform/response-header-modification/",
+    "https://developers.cloudflare.com/network-error-logging/"
   ],
   "non_claims": [
     "not host-cleanliness proof",

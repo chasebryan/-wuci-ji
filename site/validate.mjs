@@ -1667,6 +1667,14 @@ async function assertHostingRequirements() {
       fail(`hosting-requirements.json is missing deploy control: ${required}`);
     }
   }
+  if (!(requirements.deployment_controls || []).some(
+    (entry) =>
+      entry.host === "Cloudflare Response Header Transform Rule"
+      && entry.required_setting
+        === 'For http.host eq "nosuchmachine.net", remove NEL and Report-To after managed response transforms'
+  )) {
+    fail("hosting-requirements.json is missing the exact canonical-host telemetry removal control");
+  }
   if (
     !Array.isArray(requirements.forbidden_response_headers)
     || JSON.stringify([...requirements.forbidden_response_headers].sort()) !== JSON.stringify(["nel", "report-to"])
