@@ -61,11 +61,26 @@ Input acquisition is the only networked action:
 make wucios-noether-forge-fetch
 ```
 
-It downloads only locked files, checks the Alpine ISO SHA-256 and SHA-512,
-verifies the detached GPG signature against fingerprint
+It downloads only locked files, checks both Alpine release-media SHA-256 and
+SHA-512 values, verifies both detached GPG signatures against fingerprint
 `0482D84022F52DF1C4E7CD43293ACD0907D9495A`, verifies every APK signature with
-keys extracted from that authenticated ISO, and proves the exact package
-closure can install offline.
+keys extracted from the authenticated standard ISO initramfs, verifies every
+whole-file digest, and proves the exact package closure can install offline.
+
+Forty-nine runtime APKs and the source-evidence APK index come from the locked,
+GPG-authenticated Alpine extended 3.24.1 release ISO. Three exact post-release
+APKs come from official versioned Alpine v3.24 repository URLs: libexpat
+2.8.2-r0 incorporates upstream's 2.8.2 security fixes; openrc and openrc-user
+0.63.2-r0 retain the already reviewed compatible pair. All three are size,
+SHA-256, SHA-512, package-identity, and exact 6165-key verified. Their mutable
+CDN locators create a future availability risk; the pipeline fails closed if
+they disappear or change, and a future point-release media migration should
+remove this exception. Review the upstream
+[2.8.2 Changes](https://raw.githubusercontent.com/libexpat/libexpat/R_2_8_2/expat/Changes)
+and [R_2_8_2 release](https://github.com/libexpat/libexpat/releases/tag/R_2_8_2)
+for the bounded Expat security-release basis; this repository does not claim
+that every listed issue is exploitable here or that the closure is
+vulnerability-free.
 
 The build command performs no network operations and consumes only the pinned
 local cache; this is a workflow property, not OS-level network isolation:
@@ -76,9 +91,18 @@ make wucios-noether-forge-build
 
 It builds the hybrid ISO twice with a locked `SOURCE_DATE_EPOCH`, replays the
 authenticated BIOS/UEFI boot equipment with xorriso, prunes unused APK blobs,
-and promotes only byte-identical results. The signed upstream APK index remains
-intact; it is broader catalog metadata, while exactly 52 locked APK payloads are
-present on the medium and installed at boot.
+and promotes only byte-identical results. The final ISO contains exactly 52
+locked APK files and neither `APKINDEX` nor `.boot_repository`. A deterministic,
+same-expanded-size initramfs patch delegates installation to the first-party
+wrapper. The Apache-licensed builder reads a separately marked GPL-2.0-only
+patch specification containing only WUCI-JI replacement fragments; upstream
+mkinitfs source spans are represented by locked offsets, lengths, and SHA-256
+values rather than copied source text. The exact source template, instantiated
+member, and output member are digest-bound. See the release-scoped patch notice
+and license text. This engineering provenance does not clear binary
+redistribution. The wrapper rechecks all 52 whole-file SHA-256 values, uses an empty
+repositories file, forces no-network/non-repository mode, and fails the boot on
+any mismatch or install error.
 
 Full internal verification is:
 

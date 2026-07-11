@@ -1,0 +1,92 @@
+#!/bin/sh
+set -eu
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+LC_ALL=C
+IFS=$(printf ' \t\n_')
+IFS=${IFS%_}
+export PATH LC_ALL IFS
+umask 077
+
+[ "$#" -eq 3 ] || exit 64
+sysroot=$1
+ovl=$2
+mode=$3
+
+case "$sysroot" in
+	/*) ;;
+	*) exit 65 ;;
+esac
+case "$ovl" in
+	/*/wucios-noether-forge.apkovl.tar.gz) ;;
+	*) exit 66 ;;
+esac
+case "$mode" in
+	overlay|plain) ;;
+	*) exit 67 ;;
+esac
+
+media=${ovl%/*}
+package_dir=$media/apks/x86_64
+manifest=$sysroot/usr/share/wucios/locked-apk-manifest.sha256
+state_dir=$sysroot/.wuci-apk-install
+empty_repositories=$state_dir/repositories
+
+[ -d "$package_dir" ] || exit 68
+[ -f "$manifest" ] && [ ! -L "$manifest" ] || exit 69
+[ "$(wc -l < "$manifest")" -eq 52 ] || exit 70
+awk '
+	NF != 2 || length($1) != 64 || $1 !~ /^[0-9a-f]+$/ ||
+	$2 !~ /^[A-Za-z0-9][A-Za-z0-9._+~-]*-r[0-9]+\.apk$/ { exit 1 }
+	seen[$2]++ { exit 1 }
+	END { if (NR != 52) exit 1 }
+' "$manifest" || exit 70
+[ ! -e "$media/apks/.boot_repository" ] || exit 71
+[ ! -e "$package_dir/APKINDEX.tar.gz" ] || exit 72
+[ "$(find "$package_dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq 52 ] || exit 73
+
+set -- "$package_dir"/*
+[ "$#" -eq 52 ] || exit 73
+for package do
+	[ -f "$package" ] && [ ! -L "$package" ] || exit 74
+	case "$package" in
+		"$package_dir"/*.apk) ;;
+		*) exit 75 ;;
+	esac
+done
+
+(cd "$package_dir" && sha256sum -c "$manifest" >/dev/null) || exit 76
+echo NOETHER_FORGE_APK_SHA256_PASS
+[ ! -e "$state_dir" ] && [ ! -L "$state_dir" ] || exit 77
+mkdir "$state_dir" || exit 77
+[ -d "$state_dir" ] && [ ! -L "$state_dir" ] || exit 77
+
+cleanup() {
+	rm -f "$empty_repositories"
+	rmdir "$state_dir"
+}
+on_signal() {
+	trap - 0 1 2 15
+	cleanup || :
+	exit 78
+}
+trap cleanup 0
+trap on_signal 1 2 15
+: > "$empty_repositories"
+
+status=0
+if [ "$mode" = overlay ]; then
+	env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C \
+		apk add --root "$sysroot" --initramfs-diskless-boot --progress \
+		--no-cache --no-network --force-non-repository \
+		--repositories-file "$empty_repositories" --arch x86_64 --clean-protected \
+		--overlay-from-stdin "$@" || status=$?
+else
+	env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C \
+		apk add --root "$sysroot" --initramfs-diskless-boot --progress \
+		--no-cache --no-network --force-non-repository \
+		--repositories-file "$empty_repositories" --arch x86_64 --clean-protected "$@" \
+		|| status=$?
+fi
+trap - 0 1 2 15
+cleanup || exit 79
+exit "$status"

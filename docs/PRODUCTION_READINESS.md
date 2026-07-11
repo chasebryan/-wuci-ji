@@ -155,5 +155,8 @@ A future production-ready claim requires all of the following:
 
 ## Adoption License
 
-WUCI-JI is licensed under Apache-2.0 for broad adoption, commercial use, and an
-explicit patent license. See `LICENSE` and `NOTICE`.
+WUCI-JI project material is licensed under Apache-2.0 for broad adoption,
+commercial use, and an explicit patent license, except for the Noether Forge
+release-scoped initramfs patch specification and replacement fragments marked
+GPL-2.0-only in its `PATCH-NOTICE.md` and scoped license text. See `LICENSE`
+and `NOTICE` for the repository-wide terms and notice pointer.

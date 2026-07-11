@@ -29,7 +29,7 @@
     },
     {
       "register_component": "alpine-signature-manifest-tooling",
-      "implementation": "Pinned apk-tools, Alpine signing keys, and OpenSSL",
+      "implementation": "Pinned apk-tools bootstrap, Alpine signing keys, authenticated release media, and whole-file hash enforcement",
       "evidence": ["input-verification.json", "package-lock.json"]
     },
     {

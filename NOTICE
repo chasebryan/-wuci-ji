@@ -2,3 +2,8 @@ WUCI-JI
 Copyright 2026 Chase Bryan
 
 This product includes software developed for the WUCI-JI project.
+
+The Noether Forge release-scoped initramfs patch specification and its
+replacement shell fragments are treated as GPL-2.0-only. See
+wucios/releases/noether-forge-v2.4.0/PATCH-NOTICE.md and the corresponding
+license text in that release directory.

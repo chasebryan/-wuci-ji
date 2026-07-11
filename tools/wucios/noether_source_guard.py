@@ -7,8 +7,11 @@ not escape by moving outside a path containing ``noether``.
 
 from __future__ import annotations
 
+import ast
 import base64
 import binascii
+import hashlib
+import json
 import os
 import re
 import subprocess
@@ -134,6 +137,12 @@ HEX_LINE_BLOCK = re.compile(
     rb"(?im)(?:^[ \t]*[0-9a-f]{32,}[ \t]*(?:\r?\n|$)){2,}"
 )
 ENCODED_SIGNATURE_SAMPLE_BYTES = 0x8006
+LOCKED_UPSTREAM_SOURCE_WINDOWS = (
+    ("direct-file-policy-and-byte-budget", 67, 6273, 216608, "865a4a5bf8249bb88d784d28d661cef36acd4b77163d572505adece343d18c56"),
+    ("wrapper-owned-install-policy", 158, 13436, 1058304, "fc5c610ae559eb45d8951f4f1ccc96f6f4b83b74e18790fbaf2db3372441bca9"),
+    ("overlay-stdin-wrapper-fail-closed", 170, 14137, 1210810, "249acc162c86cb2e363c9a32ac929223cbb42e74390459efd48ab5e1631b3f2c"),
+    ("plain-wrapper-fail-closed", 156, 13041, 1024813, "3f723838e9c37c3ab1c059d9d27a90587378622eae871234bb8167cbbc14d36f"),
+)
 
 
 class SourceGuardError(RuntimeError):
@@ -220,6 +229,92 @@ def contains_encoded_binary_payload(data: bytes) -> bool:
     hex_candidates = [match.group(1) for match in HEX_TOKEN.finditer(data)]
     hex_candidates.extend(HEX_LINE_BLOCK.findall(data))
     return any(_hex_decodes_to_binary_signature(candidate) for candidate in hex_candidates)
+
+
+def locked_upstream_source_window_labels(
+    data: bytes,
+    windows: Iterable[tuple[str, int, int, int, str]] = LOCKED_UPSTREAM_SOURCE_WINDOWS,
+) -> tuple[str, ...]:
+    """Find exact locked upstream spans without storing their source bytes."""
+
+    matches: list[str] = []
+    for label, length, expected_sum, expected_weighted, expected_sha256 in windows:
+        if length < 1 or len(data) < length:
+            continue
+        first = data[:length]
+        byte_sum = sum(first)
+        weighted = sum((index + 1) * value for index, value in enumerate(first))
+        for offset in range(len(data) - length + 1):
+            if (
+                byte_sum == expected_sum
+                and weighted == expected_weighted
+                and hashlib.sha256(data[offset:offset + length]).hexdigest() == expected_sha256
+            ):
+                matches.append(label)
+                break
+            if offset + length < len(data):
+                incoming = data[offset + length]
+                previous_sum = byte_sum
+                byte_sum = previous_sum - data[offset] + incoming
+                weighted = weighted - previous_sum + length * incoming
+    return tuple(matches)
+
+
+def decoded_text_literals(path: str, data: bytes) -> tuple[bytes, ...]:
+    """Return semantic Python/JSON string bytes for copied-span inspection."""
+
+    suffix = Path(path).suffix.lower()
+    if suffix == ".py":
+        try:
+            tree = ast.parse(data)
+        except (SyntaxError, ValueError):
+            return ()
+        values: list[bytes] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Constant):
+                continue
+            if isinstance(node.value, bytes):
+                values.append(node.value)
+            elif isinstance(node.value, str):
+                try:
+                    values.append(node.value.encode("utf-8"))
+                except UnicodeEncodeError:
+                    continue
+        return tuple(values)
+    if suffix == ".json":
+        try:
+            value = json.loads(data)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return ()
+        values = []
+
+        def collect(item: object) -> None:
+            if isinstance(item, str):
+                try:
+                    values.append(item.encode("utf-8"))
+                except UnicodeEncodeError:
+                    return
+            elif isinstance(item, list):
+                for child in item:
+                    collect(child)
+            elif isinstance(item, dict):
+                for key, child in item.items():
+                    try:
+                        values.append(str(key).encode("utf-8"))
+                    except UnicodeEncodeError:
+                        pass
+                    collect(child)
+
+        collect(value)
+        return tuple(values)
+    return ()
+
+
+def locked_upstream_source_labels_for_file(path: str, data: bytes) -> tuple[str, ...]:
+    labels = list(locked_upstream_source_window_labels(data))
+    for literal in decoded_text_literals(path, data):
+        labels.extend(locked_upstream_source_window_labels(literal))
+    return tuple(dict.fromkeys(labels))
 
 
 def contains_publication_primitive(data: bytes) -> bool:
@@ -333,6 +428,8 @@ def violations_for_repository(
             failures.append((path, "review-range non-source binary payload"))
         if mode.startswith("100") and contains_encoded_binary_payload(data):
             failures.append((path, "review-range encoded binary payload"))
+        for label in locked_upstream_source_labels_for_file(path, data):
+            failures.append((path, f"review-range copied upstream initramfs source span: {label}"))
     return list(dict.fromkeys(failures))
 
 

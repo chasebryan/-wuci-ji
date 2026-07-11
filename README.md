@@ -402,8 +402,12 @@ defensive-development and claim-discipline rules.
 
 ## License and Citation
 
-Wuci-Ji is licensed under the [Apache License 2.0](LICENSE). Attribution and
-included-project notices are in [NOTICE](NOTICE).
+Wuci-Ji project material is licensed under the [Apache License 2.0](LICENSE),
+except for the Noether Forge release-scoped initramfs patch specification and
+replacement fragments, which are identified as GPL-2.0-only in
+[PATCH-NOTICE.md](wucios/releases/noether-forge-v2.4.0/PATCH-NOTICE.md) with
+their [license text](wucios/releases/noether-forge-v2.4.0/LICENSES/GPL-2.0-only.txt).
+Attribution and included-project notices are in [NOTICE](NOTICE).
 
 If you use the research artifact, cite **Wuci-Ji v2.2 — Aperture Bastion** with
 the metadata in [CITATION.cff](CITATION.cff).

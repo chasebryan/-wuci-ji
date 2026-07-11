@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-initramfs-patch-spec.v1.json",
+  "title": "WuciOS Noether Forge initramfs patch specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "license",
+    "license_file",
+    "notice_file",
+    "copyright",
+    "modification_notice",
+    "upstream",
+    "replacements"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.initramfs_patch_spec.v1"},
+    "license": {"const": "GPL-2.0-only"},
+    "license_file": {"const": "LICENSES/GPL-2.0-only.txt"},
+    "notice_file": {"const": "PATCH-NOTICE.md"},
+    "copyright": {"type": "string", "minLength": 1, "maxLength": 160},
+    "modification_notice": {"type": "string", "minLength": 1, "maxLength": 512},
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "project_url", "source_file", "version", "distribution", "aports_commit", "provenance_basis", "source_archive", "authenticated_source"],
+      "properties": {
+        "project": {"const": "Alpine mkinitfs"},
+        "project_url": {"const": "https://gitlab.alpinelinux.org/alpine/mkinitfs"},
+        "source_file": {"const": "initramfs-init.in"},
+        "version": {"const": "3.14.0-r0"},
+        "distribution": {"const": "Alpine Linux 3.24.1"},
+        "aports_commit": {"const": "ae535315a7cea5b415c834cc81ba68f03a3aae17"},
+        "provenance_basis": {"type": "string", "minLength": 1, "maxLength": 512},
+        "source_archive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "size", "sha256", "sha512", "template_path", "template_sha256", "instantiation"],
+          "properties": {
+            "url": {"const": "https://gitlab.alpinelinux.org/alpine/mkinitfs/-/archive/3.14.0/mkinitfs-3.14.0.tar.gz"},
+            "size": {"const": 43617},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "sha512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+            "template_path": {"const": "mkinitfs-3.14.0/initramfs-init.in"},
+            "template_sha256": {"$ref": "#/$defs/sha256"},
+            "instantiation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["token", "value", "result_size", "result_sha256"],
+              "properties": {
+                "token": {"const": "@VERSION@"},
+                "value": {"const": "3.14.0-r0"},
+                "result_size": {"const": 30037},
+                "result_sha256": {"$ref": "#/$defs/sha256"}
+              }
+            }
+          }
+        },
+        "authenticated_source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "boot_media_filename",
+            "boot_media_sha256",
+            "initramfs_iso_path",
+            "initramfs_sha256",
+            "member",
+            "member_size",
+            "member_sha256"
+          ],
+          "properties": {
+            "boot_media_filename": {"const": "alpine-standard-3.24.1-x86_64.iso"},
+            "boot_media_sha256": {"$ref": "#/$defs/sha256"},
+            "initramfs_iso_path": {"const": "/boot/initramfs-lts"},
+            "initramfs_sha256": {"$ref": "#/$defs/sha256"},
+            "member": {"const": "init"},
+            "member_size": {"const": 30037},
+            "member_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        }
+      }
+    },
+    "replacements": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/replacement"}, {"properties": {"label": {"const": "direct-file-policy-and-byte-budget"}}}]},
+        {"allOf": [{"$ref": "#/$defs/replacement"}, {"properties": {"label": {"const": "wrapper-owned-install-policy"}}}]},
+        {"allOf": [{"$ref": "#/$defs/replacement"}, {"properties": {"label": {"const": "overlay-stdin-wrapper-fail-closed"}}}]},
+        {"allOf": [{"$ref": "#/$defs/replacement"}, {"properties": {"label": {"const": "plain-wrapper-fail-closed"}}}]}
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "replacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "encoding", "content"],
+      "properties": {
+        "label": {"type": "string"},
+        "encoding": {"const": "utf-8"},
+        "content": {"type": "string", "minLength": 1, "maxLength": 1024}
+      }
+    }
+  }
+}

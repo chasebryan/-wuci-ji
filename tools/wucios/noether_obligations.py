@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Generate the Noether Forge third-party review inventory.
 
-The inventory is derived only from the committed Alpine input and package
-locks.  Missing source, license, notice, firmware, and export-review facts stay
-``NOASSERTION`` or explicitly unreviewed; this tool never infers legal
-clearance from an artifact digest or package name.
+The inventory is derived only from the committed Alpine input/package locks
+and the release-scoped initramfs patch specification. Missing source, license,
+notice, firmware, and export-review facts stay ``NOASSERTION`` or explicitly
+unreviewed; recorded declared-license metadata never becomes legal clearance.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RELEASE_ROOT = ROOT / "wucios/releases/noether-forge-v2.4.0"
 INPUT_LOCK = RELEASE_ROOT / "alpine-input-lock.json"
 PACKAGE_LOCK = RELEASE_ROOT / "package-lock.json"
+PATCH_SPEC = RELEASE_ROOT / "initramfs-patch-spec.json"
 DEFAULT_INVENTORY = RELEASE_ROOT / "third-party-obligations.json"
 SCHEMA = "wucios.noether_forge.third_party_obligations.v1"
 NOASSERTION = "NOASSERTION"
@@ -114,17 +115,29 @@ def inventory_item(
     *,
     kind: str,
     filename: str,
-    url: str,
+    url: str | None,
     sha256: str,
     size: int | None,
     package: str = NOASSERTION,
     version: str = NOASSERTION,
     sha512: str = NOASSERTION,
+    container_filename: str = NOASSERTION,
+    container_url: str = NOASSERTION,
+    member_path: str = NOASSERTION,
 ) -> dict[str, Any]:
     if not filename or "/" in filename or "\\" in filename:
         raise ObligationsError(f"locked artifact filename must be a basename: {filename!r}")
-    if not isinstance(url, str) or not url.startswith("https://"):
+    if url is not None and (not isinstance(url, str) or not url.startswith("https://")):
         raise ObligationsError(f"locked artifact origin must be an HTTPS URL: {filename}")
+    if url is None:
+        if (
+            container_filename == NOASSERTION
+            or not isinstance(container_url, str)
+            or not container_url.startswith("https://")
+            or not isinstance(member_path, str)
+            or not member_path.startswith("/")
+        ):
+            raise ObligationsError(f"container-member origin is incomplete: {filename}")
     require_hex(sha256, 64, f"{filename} SHA-256")
     if sha512 != NOASSERTION:
         require_hex(sha512, 128, f"{filename} SHA-512")
@@ -136,9 +149,13 @@ def inventory_item(
         "item_id": f"{kind}:{filename}",
         "kind": kind,
         "origin": {
-            "artifact_url": url,
+            "acquisition": "network" if url is not None else "container-member",
+            "artifact_url": url if url is not None else NOASSERTION,
+            "container_filename": container_filename,
+            "container_url": container_url,
+            "member_path": member_path,
             "record_state": "locked",
-            "repository_url": url.rsplit("/", 1)[0],
+            "repository_url": url.rsplit("/", 1)[0] if url is not None else NOASSERTION,
         },
         "package": package,
         "size_bytes": size if size is not None else NOASSERTION,
@@ -149,14 +166,10 @@ def inventory_item(
 
 def input_items(input_lock: dict[str, Any]) -> list[dict[str, Any]]:
     signer = input_lock.get("release_signer")
-    iso = input_lock.get("iso")
-    sidecars = input_lock.get("sidecars")
-    apk_index = input_lock.get("apk_index")
-    apk_static = input_lock.get("apk_static")
-    if not all(isinstance(item, dict) for item in (signer, iso, apk_index, apk_static)):
+    boot_media = input_lock.get("boot_media")
+    package_media = input_lock.get("package_source_media")
+    if not all(isinstance(item, dict) for item in (signer, boot_media, package_media)):
         raise ObligationsError("Alpine input lock is missing a required object")
-    if not isinstance(sidecars, list) or not all(isinstance(item, dict) for item in sidecars):
-        raise ObligationsError("Alpine input lock sidecars must be an array of objects")
 
     records: list[dict[str, Any]] = [
         inventory_item(
@@ -166,64 +179,63 @@ def input_items(input_lock: dict[str, Any]) -> list[dict[str, Any]]:
             sha256=signer["key_sha256"],
             size=None,
         ),
-        inventory_item(
-            kind="alpine-iso",
+    ]
+    for media in (boot_media, package_media):
+        iso = media["iso"]
+        records.append(inventory_item(
+            kind=f"alpine-{media['role']}-iso",
             filename=iso["filename"],
             url=iso["url"],
             sha256=iso["sha256"],
-            sha512=iso.get("sha512", NOASSERTION),
-            size=iso.get("size"),
-        ),
-    ]
-    records.extend(
-        inventory_item(
-            kind="alpine-sidecar",
-            filename=item["filename"],
-            url=item["url"],
-            sha256=item["sha256"],
-            size=item.get("size"),
+            sha512=iso["sha512"],
+            size=iso["size"],
+        ))
+        records.extend(
+            inventory_item(
+                kind=f"alpine-{media['role']}-sidecar",
+                filename=item["filename"],
+                url=item["url"],
+                sha256=item["sha256"],
+                size=item["size"],
+            )
+            for item in media["sidecars"]
         )
-        for item in sidecars
-    )
-    records.extend([
-        inventory_item(
-            kind="alpine-apk-index",
-            filename=apk_index["filename"],
-            url=apk_index["url"],
-            sha256=apk_index["sha256"],
-            size=apk_index.get("size"),
-        ),
-        inventory_item(
-            kind="alpine-bootstrap-apk",
-            filename=apk_static["filename"],
-            url=apk_static["url"],
-            sha256=apk_static["sha256"],
-            size=apk_static.get("size"),
-            package="apk-tools-static",
-            version=parse_package_filename(apk_static["filename"])[1],
-        ),
-    ])
+    repository = package_media["repository"]
+    records.append(inventory_item(
+        kind="alpine-apk-index-container-member",
+        filename=repository["index_filename"],
+        url=None,
+        sha256=repository["index_sha256"],
+        size=repository["index_size"],
+        container_filename=package_media["iso"]["filename"],
+        container_url=package_media["iso"]["url"],
+        member_path=f"{repository['path']}/{repository['index_filename']}",
+    ))
     return sorted(records, key=lambda item: item["item_id"])
 
 
-def package_items(package_lock: dict[str, Any]) -> list[dict[str, Any]]:
-    repository = package_lock.get("repository_url")
+def package_items(package_lock: dict[str, Any], input_lock: dict[str, Any]) -> list[dict[str, Any]]:
     packages = package_lock.get("packages")
-    if not isinstance(repository, str) or not repository.startswith("https://"):
-        raise ObligationsError("package lock repository_url must be HTTPS")
     if not isinstance(packages, list) or not packages or not all(isinstance(item, dict) for item in packages):
         raise ObligationsError("package lock packages must be a non-empty array of objects")
+    package_media = input_lock["package_source_media"]
+    overlay = {item["filename"]: item for item in input_lock["post_release_overlay"]}
     records: list[dict[str, Any]] = []
     for item in packages:
         package, version = parse_package_filename(item.get("filename"))
+        overlay_record = overlay.get(item["filename"])
         records.append(inventory_item(
-            kind="alpine-apk-package",
+            kind="alpine-apk-post-release-overlay" if overlay_record else "alpine-apk-container-member",
             filename=item["filename"],
-            url=f"{repository.rstrip('/')}/{item['filename']}",
+            url=overlay_record["url"] if overlay_record else None,
             sha256=item["sha256"],
+            sha512=overlay_record["sha512"] if overlay_record else NOASSERTION,
             size=item.get("size"),
             package=package,
             version=version,
+            container_filename=NOASSERTION if overlay_record else package_media["iso"]["filename"],
+            container_url=NOASSERTION if overlay_record else package_media["iso"]["url"],
+            member_path=NOASSERTION if overlay_record else f"{package_lock['repository_path']}/{item['filename']}",
         ))
     item_ids = [item["item_id"] for item in records]
     if len(item_ids) != len(set(item_ids)):
@@ -231,18 +243,58 @@ def package_items(package_lock: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(records, key=lambda item: item["item_id"])
 
 
+def patch_provenance_item(patch_spec: dict[str, Any]) -> dict[str, Any]:
+    upstream = patch_spec.get("upstream")
+    if patch_spec.get("license") != "GPL-2.0-only" or not isinstance(upstream, dict):
+        raise ObligationsError("initramfs patch specification licensing or provenance is invalid")
+    archive = upstream.get("source_archive")
+    if not isinstance(archive, dict) or not isinstance(archive.get("instantiation"), dict):
+        raise ObligationsError("initramfs patch source archive provenance is missing")
+    record = inventory_item(
+        kind="alpine-mkinitfs-source-provenance",
+        filename="mkinitfs-3.14.0.tar.gz",
+        url=archive.get("url"),
+        sha256=archive.get("sha256"),
+        sha512=archive.get("sha512"),
+        size=archive.get("size"),
+        package="mkinitfs",
+        version=upstream.get("version", NOASSERTION),
+    )
+    record["license_metadata"] = {
+        "declared_expression": "GPL-2.0-only",
+        "evidence": "initramfs-patch-spec.json and authenticated Alpine package-index metadata",
+        "review_state": "declared-metadata-recorded",
+    }
+    record["notices"] = {
+        "provided": "PATCH-NOTICE.md and LICENSES/GPL-2.0-only.txt",
+        "required": NOASSERTION,
+        "review_state": "provided-files-recorded",
+    }
+    record["source_metadata"] = {
+        "origin_package": "mkinitfs",
+        "source_archive_digest": f"sha256:{archive['sha256']};sha512:{archive['sha512']}",
+        "upstream_source_url": archive["url"],
+        "review_state": "exact-source-provenance-recorded",
+    }
+    return record
+
+
 def build_inventory(
     input_lock_path: Path = INPUT_LOCK,
     package_lock_path: Path = PACKAGE_LOCK,
+    patch_spec_path: Path = PATCH_SPEC,
 ) -> dict[str, Any]:
     input_lock, input_raw = load_object(input_lock_path, "Alpine input lock")
     package_lock, package_raw = load_object(package_lock_path, "Alpine package lock")
-    packages = package_items(package_lock)
+    patch_spec, patch_spec_raw = load_object(patch_spec_path, "initramfs patch specification")
+    packages = package_items(package_lock, input_lock)
     inputs = input_items(input_lock)
+    provenance = [patch_provenance_item(patch_spec)]
+    records = inputs + packages + provenance
     if input_lock.get("architecture") != package_lock.get("architecture"):
         raise ObligationsError("input and package lock architectures differ")
-    if str(input_lock.get("alpine_release", "")).split(".")[:2] != str(package_lock.get("alpine_release", "")).split(".")[:2]:
-        raise ObligationsError("input and package locks identify different Alpine release series")
+    if input_lock.get("alpine_release") != package_lock.get("alpine_release"):
+        raise ObligationsError("input and package locks identify different Alpine releases")
     return {
         "schema": SCHEMA,
         "release_id": "noether-forge-v2.4.0",
@@ -258,11 +310,22 @@ def build_inventory(
                 "schema": package_lock.get("schema", NOASSERTION),
                 "sha256": hashlib.sha256(package_raw).hexdigest(),
             },
+            {
+                "path": patch_spec_path.relative_to(ROOT).as_posix(),
+                "schema": patch_spec.get("schema", NOASSERTION),
+                "sha256": hashlib.sha256(patch_spec_raw).hexdigest(),
+            },
         ],
         "summary": {
             "input_records": len(inputs),
             "package_records": len(packages),
-            "total_records": len(inputs) + len(packages),
+            "provenance_records": len(provenance),
+            "total_records": len(records),
+            "network_records": sum(1 for item in records if item["origin"]["acquisition"] == "network"),
+            "container_member_records": sum(1 for item in records if item["origin"]["acquisition"] == "container-member"),
+            "records_with_declared_license_metadata": 1,
+            "records_with_source_provenance": 1,
+            "records_with_notice_files": 1,
             "records_with_license_conclusions": 0,
             "records_with_redistribution_clearance": 0,
             "records_with_export_classification": 0,
@@ -273,12 +336,14 @@ def build_inventory(
             "network_performed": False,
             "official_release_authority": False,
         },
-        "items": sorted(inputs + packages, key=lambda item: item["item_id"]),
+        "items": sorted(records, key=lambda item: item["item_id"]),
         "non_claims": [
             "This deterministic inventory is a review aid, not legal advice or legal clearance.",
             "NOASSERTION means the locked records do not establish the field and a reviewer must investigate it.",
             "Artifact origins and digests do not establish source availability, license terms, required notices, firmware treatment, redistribution permission, or export classification.",
+            "The three post-release overlay URLs are authenticity-checked versioned locators, but the mutable Alpine repository does not guarantee their future availability.",
             "This inventory does not authorize an ISO, APK cache, firmware, bootloader, or other binary publication.",
+            "The mkinitfs row records declared license metadata, exact source provenance, and provided files; it is not a license conclusion or redistribution clearance.",
         ],
     }
 

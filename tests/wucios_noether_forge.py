@@ -5,13 +5,16 @@ import argparse
 import base64
 import copy
 import gzip
+import hashlib
 import io
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tarfile
 import tempfile
+import stat
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -35,6 +38,33 @@ def assert_raises(error_type: type[BaseException], func, *args, **kwargs) -> Bas
     raise AssertionError(f"expected {error_type.__name__}")
 
 
+def newc_entry(
+    name: str,
+    data: bytes = b"",
+    *,
+    mode: int = stat.S_IFREG | 0o644,
+    uid: int = 0,
+    gid: int = 0,
+    nlink: int = 1,
+) -> bytes:
+    encoded_name = name.encode("utf-8") + b"\0"
+    fields = [1, mode, uid, gid, nlink, 0, len(data), 0, 0, 0, 0, len(encoded_name), 0]
+    header = b"070701" + b"".join(f"{value:08x}".encode("ascii") for value in fields)
+    name_part = header + encoded_name
+    name_part += b"\0" * ((-len(name_part)) % 4)
+    data_part = data + (b"\0" * ((-(len(name_part) + len(data))) % 4))
+    return name_part + data_part
+
+
+def newc_archive(*entries: bytes) -> bytes:
+    trailer_fields = [0] * 13
+    trailer_fields[11] = 11
+    trailer = b"070701" + b"".join(f"{value:08x}".encode("ascii") for value in trailer_fields)
+    trailer += b"TRAILER!!!\0"
+    trailer += b"\0" * ((-len(trailer)) % 4)
+    return b"".join(entries) + trailer
+
+
 def test_release_configuration() -> None:
     release, input_lock, package_lock = noether_forge.validate_configuration()
     assert release["artifact_filename"] == "WuciOS-v2.4.0-Noether-Forge-x86_64.iso"
@@ -45,6 +75,119 @@ def test_release_configuration() -> None:
     assert len(input_lock["release_signer"]["fingerprint"]) == 40
     assert len(package_lock["packages"]) == 52
     assert all(len(item["sha256"]) == 64 for item in package_lock["packages"])
+    assert input_lock["schema"] == "wucios.noether_forge.alpine_input_lock.v2"
+    assert package_lock["schema"] == "wucios.noether_forge.package_lock.v2"
+    assert len(noether_forge.cache_records(input_lock)) == 12
+    cache_names = [item["filename"] for item in noether_forge.cache_records(input_lock)]
+    assert "APKINDEX.tar.gz" not in cache_names
+    assert sum(name.endswith(".apk") for name in cache_names) == 3
+    assert package_lock["post_release_overlay"] == [item["filename"] for item in input_lock["post_release_overlay"]]
+    patch_spec = noether_forge.load_initramfs_patch_spec(input_lock)
+    assert patch_spec["license"] == "GPL-2.0-only"
+    assert patch_spec["upstream"]["version"] == "3.14.0-r0"
+    assert patch_spec["upstream"]["source_archive"]["instantiation"] == {
+        "token": "@VERSION@",
+        "value": "3.14.0-r0",
+        "result_size": input_lock["bootstrap"]["patch"]["source_member_size"],
+        "result_sha256": input_lock["bootstrap"]["patch"]["source_member_sha256"],
+    }
+    assert list(noether_forge.initramfs_replacements(patch_spec)) == [
+        span["label"] for span in input_lock["bootstrap"]["patch"]["source_spans"]
+    ]
+
+
+def test_generated_spdx_package_purposes_use_official_json_enum() -> None:
+    package_lock = {
+        "packages": [{"filename": "fixture-1.0-r0.apk", "sha256": "1" * 64}],
+        "repository_path": "apks/x86_64",
+        "source_media": "fixture-source.iso",
+    }
+    source = {
+        "files": [{"path": "Makefile", "sha256": "2" * 64}],
+        "source_payload_sha256": "3" * 64,
+    }
+    package_info = {
+        "pkgname": "fixture",
+        "pkgver": "1.0-r0",
+        "arch": "x86_64",
+        "license": "MIT",
+    }
+    with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+        noether_forge,
+        "apk_pkginfo",
+        return_value=package_info,
+    ):
+        package_source = Path(temporary)
+        first = noether_forge.generate_sbom(package_source, package_lock, source)
+        second = noether_forge.generate_sbom(package_source, package_lock, source)
+
+    assert noether_forge.canonical_json(first) == noether_forge.canonical_json(second)
+    purposes = {
+        package["primaryPackagePurpose"]
+        for package in first["packages"]
+        if "primaryPackagePurpose" in package
+    }
+    assert purposes == {"OPERATING_SYSTEM"}
+    assert b"OPERATING-SYSTEM" not in noether_forge.canonical_json(first)
+
+    for invalid_purpose in ("OPERATING-SYSTEM", "DEVICE-DRIVER"):
+        invalid = copy.deepcopy(first)
+        next(
+            package for package in invalid["packages"] if "primaryPackagePurpose" in package
+        )["primaryPackagePurpose"] = invalid_purpose
+        assert_raises(
+            noether_forge.NoetherForgeError,
+            noether_forge.validate_spdx_sbom,
+            invalid,
+            package_lock,
+            source,
+        )
+
+
+def test_exact_trust_locks_reject_substitution_and_expat_downgrade() -> None:
+    input_lock = noether_forge.load_json(noether_forge.RELEASE_ROOT / "alpine-input-lock.json")
+    package_lock = noether_forge.load_json(noether_forge.RELEASE_ROOT / "package-lock.json")
+    noether_forge.validate_trust_locks(input_lock, package_lock)
+
+    mutations = []
+    changed = copy.deepcopy(input_lock)
+    changed["release_signer"]["key_url"] = "file:///tmp/ncopa.asc"
+    mutations.append(changed)
+    changed = copy.deepcopy(input_lock)
+    changed["boot_media"]["iso"]["url"] = "https://attacker.invalid/alpine.iso"
+    mutations.append(changed)
+    changed = copy.deepcopy(input_lock)
+    changed["package_source_media"]["iso"]["url"] += "?mirror=attacker"
+    mutations.append(changed)
+    changed = copy.deepcopy(input_lock)
+    changed["boot_media"], changed["package_source_media"] = changed["package_source_media"], changed["boot_media"]
+    mutations.append(changed)
+    changed = copy.deepcopy(input_lock)
+    changed["boot_media"]["sidecars"][1] = copy.deepcopy(changed["boot_media"]["sidecars"][0])
+    mutations.append(changed)
+    changed = copy.deepcopy(input_lock)
+    changed["post_release_overlay"][0], changed["post_release_overlay"][1] = changed["post_release_overlay"][1], changed["post_release_overlay"][0]
+    mutations.append(changed)
+    changed = copy.deepcopy(input_lock)
+    changed["bootstrap"]["members"][0]["sha256"] = "0" * 64
+    mutations.append(changed)
+    for changed in mutations:
+        assert_raises(
+            noether_forge.NoetherForgeError,
+            noether_forge.validate_trust_locks,
+            changed,
+            package_lock,
+        )
+
+    downgraded = copy.deepcopy(package_lock)
+    expat = next(item for item in downgraded["packages"] if item["filename"].startswith("libexpat-"))
+    expat["filename"] = "libexpat-2.8.1-r0.apk"
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.validate_trust_locks,
+        input_lock,
+        downgraded,
+    )
 
 
 def test_external_review_policy_is_source_only() -> None:
@@ -96,12 +239,18 @@ def test_third_party_obligations_inventory_is_deterministic_and_bounded() -> Non
     assert inventory["schema"] == "wucios.noether_forge.third_party_obligations.v1"
     assert inventory["inventory_status"] == "review-input-only"
     assert inventory["summary"] == {
-        "input_records": 7,
+        "input_records": 10,
         "package_records": 52,
+        "provenance_records": 1,
+        "network_records": 13,
+        "container_member_records": 50,
+        "records_with_declared_license_metadata": 1,
+        "records_with_source_provenance": 1,
+        "records_with_notice_files": 1,
         "records_with_export_classification": 0,
         "records_with_license_conclusions": 0,
         "records_with_redistribution_clearance": 0,
-        "total_records": 59,
+        "total_records": 63,
     }
     assert inventory["policy"] == {
         "binary_distribution_authorized": False,
@@ -109,20 +258,58 @@ def test_third_party_obligations_inventory_is_deterministic_and_bounded() -> Non
         "network_performed": False,
         "official_release_authority": False,
     }
-    assert len(inventory["items"]) == 59
+    assert len(inventory["generated_from"]) == 3
+    assert [(item["path"], item["schema"]) for item in inventory["generated_from"]] == [
+        (
+            "wucios/releases/noether-forge-v2.4.0/alpine-input-lock.json",
+            "wucios.noether_forge.alpine_input_lock.v2",
+        ),
+        (
+            "wucios/releases/noether-forge-v2.4.0/package-lock.json",
+            "wucios.noether_forge.package_lock.v2",
+        ),
+        (
+            "wucios/releases/noether-forge-v2.4.0/initramfs-patch-spec.json",
+            "wucios.noether_forge.initramfs_patch_spec.v1",
+        ),
+    ]
+    assert len(inventory["items"]) == 63
     assert [item["item_id"] for item in inventory["items"]] == sorted(
         item["item_id"] for item in inventory["items"]
     )
     for item in inventory["items"]:
         assert item["origin"]["record_state"] == "locked"
-        assert item["origin"]["artifact_url"].startswith("https://")
-        assert item["source_metadata"] == {
-            "origin_package": "NOASSERTION",
-            "review_state": "not-reviewed",
-            "source_archive_digest": "NOASSERTION",
-            "upstream_source_url": "NOASSERTION",
-        }
-        assert item["license_metadata"]["declared_expression"] == "NOASSERTION"
+        assert item["origin"]["acquisition"] in {"network", "container-member"}
+        if item["origin"]["acquisition"] == "network":
+            assert item["origin"]["artifact_url"].startswith("https://")
+        else:
+            assert item["origin"]["artifact_url"] == "NOASSERTION"
+            assert item["origin"]["container_url"].startswith("https://")
+        if item["kind"] == "alpine-mkinitfs-source-provenance":
+            assert item["package"] == "mkinitfs"
+            assert item["version"] == "3.14.0-r0"
+            assert item["license_metadata"] == {
+                "declared_expression": "GPL-2.0-only",
+                "evidence": "initramfs-patch-spec.json and authenticated Alpine package-index metadata",
+                "review_state": "declared-metadata-recorded",
+            }
+            assert item["notices"] == {
+                "provided": "PATCH-NOTICE.md and LICENSES/GPL-2.0-only.txt",
+                "required": "NOASSERTION",
+                "review_state": "provided-files-recorded",
+            }
+            assert item["source_metadata"]["origin_package"] == "mkinitfs"
+            assert item["source_metadata"]["review_state"] == "exact-source-provenance-recorded"
+            assert item["source_metadata"]["upstream_source_url"].startswith("https://")
+            assert item["source_metadata"]["source_archive_digest"].startswith("sha256:")
+        else:
+            assert item["source_metadata"] == {
+                "origin_package": "NOASSERTION",
+                "review_state": "not-reviewed",
+                "source_archive_digest": "NOASSERTION",
+                "upstream_source_url": "NOASSERTION",
+            }
+            assert item["license_metadata"]["declared_expression"] == "NOASSERTION"
         assert item["notices"]["required"] == "NOASSERTION"
         assert item["firmware"]["content_state"] == "not-determined"
         assert item["export_review"] == {
@@ -130,7 +317,9 @@ def test_third_party_obligations_inventory_is_deterministic_and_bounded() -> Non
             "review_state": "not-determined",
         }
         assert item["redistribution_review"] == "not-cleared"
-    packages = [item for item in inventory["items"] if item["kind"] == "alpine-apk-package"]
+    packages = [item for item in inventory["items"] if item["kind"].startswith("alpine-apk-") and item["package"] != "NOASSERTION"]
+    assert len(packages) == 52
+    assert sum(item["kind"] == "alpine-apk-post-release-overlay" for item in packages) == 3
     assert all(item["package"] != "NOASSERTION" and item["version"] != "NOASSERTION" for item in packages)
     schema = noether_forge.load_json(
         ROOT / "wucios/schemas/noether-forge-third-party-obligations.schema.json"
@@ -1131,6 +1320,474 @@ def test_volume_label_patch_is_equal_length_and_exact() -> None:
         assert_raises(noether_forge.NoetherForgeError, noether_forge.patch_volume_label, source, destination, old, new)
 
 
+def test_newc_bootstrap_parser_is_exact_and_bounded() -> None:
+    data = b"locked bootstrap"
+    spec = {
+        "path": "usr/bin/tool",
+        "type": "regular",
+        "mode": "0755",
+        "size": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+    archive = newc_archive(newc_entry("usr/bin/tool", data, mode=stat.S_IFREG | 0o755))
+    parsed = noether_forge.parse_newc_bootstrap(archive, [spec], expected_entry_count=1)
+    assert parsed["usr/bin/tool"]["data"] == data
+
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.parse_newc_bootstrap,
+        archive[:-1],
+        [spec],
+        expected_entry_count=1,
+    )
+    malformed_hex = bytearray(archive)
+    malformed_hex[6] = ord("g")
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, bytes(malformed_hex), [spec], expected_entry_count=1)
+    malformed_nul = bytearray(archive)
+    malformed_nul[110 + len("usr/bin/tool")] = ord("x")
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, bytes(malformed_nul), [spec], expected_entry_count=1)
+
+    padding_archive = bytearray(newc_archive(newc_entry("ab", b"x")))
+    padding_archive[113] = 1
+    padding_spec = {"path": "ab", "type": "regular", "mode": "0644", "size": 1, "sha256": hashlib.sha256(b"x").hexdigest()}
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, bytes(padding_archive), [padding_spec], expected_entry_count=1)
+    traversal = newc_archive(newc_entry("../escape", b"x"))
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, traversal, [spec], expected_entry_count=1)
+    duplicate = newc_archive(
+        newc_entry("usr/bin/tool", data, mode=stat.S_IFREG | 0o755),
+        newc_entry("usr/bin/tool", data, mode=stat.S_IFREG | 0o755),
+    )
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, duplicate, [spec], expected_entry_count=2)
+    directory = newc_archive(newc_entry("usr/bin/tool", b"", mode=stat.S_IFDIR | 0o755))
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, directory, [spec], expected_entry_count=1)
+
+    link_spec = {"path": "usr/lib/libx.so", "type": "symlink", "mode": "0777", "target": "libx.so.1"}
+    wrong_link = newc_archive(newc_entry("usr/lib/libx.so", b"wrong.so", mode=stat.S_IFLNK | 0o777))
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, wrong_link, [link_spec], expected_entry_count=1)
+    missing_spec = dict(spec, path="usr/bin/missing")
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, archive, [missing_spec], expected_entry_count=1)
+    with mock.patch.object(noether_forge, "NEWC_MAX_ENTRY_SIZE", 1):
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, archive, [spec], expected_entry_count=1)
+    with mock.patch.object(noether_forge, "NEWC_MAX_ARCHIVE_SIZE", len(archive) - 1):
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.parse_newc_bootstrap, archive, [spec], expected_entry_count=1)
+
+
+def synthetic_initramfs_patch_fixture() -> tuple[bytes, bytes, dict[str, object], dict[str, object]]:
+    replacement_records = [
+        {"label": "synthetic-alpha", "encoding": "utf-8", "content": "replacement-alpha-0"},
+        {"label": "synthetic-bravo", "encoding": "utf-8", "content": "replacement-bravo-1"},
+        {"label": "synthetic-charlie", "encoding": "utf-8", "content": "replacement-charlie-2"},
+        {"label": "synthetic-delta", "encoding": "utf-8", "content": "replacement-delta-3"},
+    ]
+    patch_spec: dict[str, object] = {"replacements": replacement_records}
+    member_parts = [b"synthetic-prefix|"]
+    output_parts = [b"synthetic-prefix|"]
+    source_spans: list[dict[str, object]] = []
+    offset = len(member_parts[0])
+    for index, record in enumerate(replacement_records):
+        replacement = record["content"].encode("utf-8")
+        source_slice = bytes([ord("A") + index]) * len(replacement)
+        source_spans.append({
+            "label": record["label"],
+            "offset": offset,
+            "length": len(source_slice),
+            "sha256": hashlib.sha256(source_slice).hexdigest(),
+            "replacement_length": len(replacement),
+            "replacement_sha256": hashlib.sha256(replacement).hexdigest(),
+        })
+        member_parts.append(source_slice)
+        output_parts.append(replacement)
+        offset += len(source_slice)
+        gap = f"|synthetic-gap-{index}|".encode("ascii")
+        member_parts.append(gap)
+        output_parts.append(gap)
+        offset += len(gap)
+    member = b"".join(member_parts)
+    output_member = b"".join(output_parts)
+    archive = newc_archive(newc_entry("init", member, mode=stat.S_IFREG | 0o755))
+    expected = newc_archive(newc_entry("init", output_member, mode=stat.S_IFREG | 0o755))
+    patch_lock = {
+        "member": "init",
+        "source_member_size": len(member),
+        "source_member_sha256": hashlib.sha256(member).hexdigest(),
+        "source_spans": source_spans,
+        "output_member_size": len(output_member),
+        "output_member_sha256": hashlib.sha256(output_member).hexdigest(),
+        "output_uncompressed_size": len(expected),
+        "output_uncompressed_sha256": hashlib.sha256(expected).hexdigest(),
+    }
+    return archive, expected, patch_lock, patch_spec
+
+
+def test_initramfs_patch_changes_only_locked_init_member() -> None:
+    archive, expected, patch_lock, patch_spec = synthetic_initramfs_patch_fixture()
+    patched = noether_forge.patch_initramfs_payload(
+        archive,
+        patch_lock,
+        patch_spec,
+        expected_entry_count=1,
+    )
+    assert patched == expected
+    assert len(patched) == len(archive)
+    start, end = noether_forge.locate_newc_regular_member(archive, "init", expected_entry_count=1)
+    assert patched[:start] == archive[:start]
+    assert patched[end:] == archive[end:]
+    replacements = noether_forge.initramfs_replacements(patch_spec)
+    for replacement in replacements.values():
+        assert patched.count(replacement) == 1
+    evidence = noether_forge.verify_patched_initramfs_payload(
+        patched,
+        patch_lock,
+        patch_spec,
+        expected_entry_count=1,
+    )
+    assert evidence["marker_counts"] == {label: 1 for label in replacements}
+
+    member_start, member_end = noether_forge.locate_newc_regular_member(archive, "init", expected_entry_count=1)
+    member = archive[member_start:member_end]
+    outside_marker = next(iter(replacements.values()))
+    injected = newc_archive(
+        newc_entry("init", member, mode=stat.S_IFREG | 0o755),
+        newc_entry("outside", outside_marker),
+    )
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.patch_initramfs_payload,
+        injected,
+        patch_lock,
+        patch_spec,
+        expected_entry_count=2,
+    )
+
+
+def test_initramfs_patch_rejects_span_and_accounting_drift() -> None:
+    archive, _expected, patch_lock, patch_spec = synthetic_initramfs_patch_fixture()
+    member_size = patch_lock["source_member_size"]
+
+    out_of_range = copy.deepcopy(patch_lock)
+    out_of_range["source_spans"][0]["offset"] = member_size
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.patch_initramfs_payload,
+        archive,
+        out_of_range,
+        patch_spec,
+        expected_entry_count=1,
+    )
+
+    overlap = copy.deepcopy(patch_lock)
+    first = overlap["source_spans"][0]
+    overlap["source_spans"][1]["offset"] = first["offset"] + first["length"] - 1
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.patch_initramfs_payload,
+        archive,
+        overlap,
+        patch_spec,
+        expected_entry_count=1,
+    )
+
+    slice_drift = copy.deepcopy(patch_lock)
+    slice_drift["source_spans"][0]["sha256"] = "0" * 64
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.patch_initramfs_payload,
+        archive,
+        slice_drift,
+        patch_spec,
+        expected_entry_count=1,
+    )
+
+    output_drift = copy.deepcopy(patch_lock)
+    output_drift["output_member_sha256"] = "0" * 64
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.patch_initramfs_payload,
+        archive,
+        output_drift,
+        patch_spec,
+        expected_entry_count=1,
+    )
+
+    length_drift_spec = copy.deepcopy(patch_spec)
+    length_drift_spec["replacements"][0]["content"] += "x"
+    replacement = length_drift_spec["replacements"][0]["content"].encode("utf-8")
+    length_drift_lock = copy.deepcopy(patch_lock)
+    length_drift_lock["source_spans"][0]["replacement_length"] = len(replacement)
+    length_drift_lock["source_spans"][0]["replacement_sha256"] = hashlib.sha256(replacement).hexdigest()
+    assert_raises(
+        noether_forge.NoetherForgeError,
+        noether_forge.patch_initramfs_payload,
+        archive,
+        length_drift_lock,
+        length_drift_spec,
+        expected_entry_count=1,
+    )
+
+
+def test_initramfs_patch_rejects_duplicate_replacement_markers() -> None:
+    _archive, _expected, _patch_lock, patch_spec = synthetic_initramfs_patch_fixture()
+    duplicate_label = copy.deepcopy(patch_spec)
+    duplicate_label["replacements"][1]["label"] = duplicate_label["replacements"][0]["label"]
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.initramfs_replacements, duplicate_label)
+
+    duplicate_content = copy.deepcopy(patch_spec)
+    duplicate_content["replacements"][1]["content"] = duplicate_content["replacements"][0]["content"]
+    assert_raises(noether_forge.NoetherForgeError, noether_forge.initramfs_replacements, duplicate_content)
+
+
+def test_source_guard_detects_digest_only_copied_source_window() -> None:
+    marker = b"synthetic-upstream\nwindow"
+    fingerprint = (
+        "synthetic-window",
+        len(marker),
+        sum(marker),
+        sum((index + 1) * value for index, value in enumerate(marker)),
+        hashlib.sha256(marker).hexdigest(),
+    )
+    data = b"prefix|" + marker + b"|suffix"
+    assert noether_source_guard.locked_upstream_source_window_labels(data, (fingerprint,)) == ("synthetic-window",)
+    assert noether_source_guard.locked_upstream_source_window_labels(data.replace(b"window", b"changed"), (fingerprint,)) == ()
+
+    escaped_python = b'payload = b"synthetic-upstream\\nwindow"\n'
+    assert noether_source_guard.locked_upstream_source_window_labels(escaped_python, (fingerprint,)) == ()
+    python_literals = noether_source_guard.decoded_text_literals("fixture.py", escaped_python)
+    assert any(
+        noether_source_guard.locked_upstream_source_window_labels(literal, (fingerprint,))
+        == ("synthetic-window",)
+        for literal in python_literals
+    )
+
+    escaped_json = json.dumps({"payload": "synthetic-upstream\nwindow"}).encode("utf-8")
+    assert noether_source_guard.locked_upstream_source_window_labels(escaped_json, (fingerprint,)) == ()
+    json_literals = noether_source_guard.decoded_text_literals("fixture.json", escaped_json)
+    assert any(
+        noether_source_guard.locked_upstream_source_window_labels(literal, (fingerprint,))
+        == ("synthetic-window",)
+        for literal in json_literals
+    )
+
+
+def test_download_locked_enforces_stream_size_cap() -> None:
+    record = {
+        "filename": "locked.bin",
+        "url": "https://example.invalid/locked.bin",
+        "size": 4,
+        "sha256": hashlib.sha256(b"four").hexdigest(),
+        "kind": "test-input",
+    }
+    with tempfile.TemporaryDirectory() as temporary:
+        cache = Path(temporary)
+        with mock.patch.object(noether_forge.urllib.request, "urlopen", return_value=io.BytesIO(b"five!")):
+            assert_raises(noether_forge.NoetherForgeError, noether_forge.download_locked, record, cache)
+        with mock.patch.object(noether_forge.urllib.request, "urlopen", return_value=io.BytesIO(b"two")):
+            assert_raises(noether_forge.NoetherForgeError, noether_forge.download_locked, record, cache)
+        with mock.patch.object(noether_forge.urllib.request, "urlopen", return_value=io.BytesIO(b"four")):
+            noether_forge.download_locked(record, cache)
+        assert (cache / "locked.bin").read_bytes() == b"four"
+
+
+def write_overlay_apk(path: Path, *, signer: str, origin: str) -> None:
+    pkginfo = (
+        "pkgname = libexpat\n"
+        "pkgver = 2.8.2-r0\n"
+        "arch = x86_64\n"
+        f"origin = {origin}\n"
+    ).encode("utf-8")
+    with tarfile.open(path, "w:gz") as archive:
+        for name, data in ((signer, b"signature"), (".PKGINFO", pkginfo)):
+            member = tarfile.TarInfo(name)
+            member.size = len(data)
+            archive.addfile(member, io.BytesIO(data))
+
+
+def test_post_release_overlay_metadata_is_exact() -> None:
+    record = {
+        "package": "libexpat",
+        "version": "2.8.2-r0",
+        "architecture": "x86_64",
+        "origin": "expat",
+    }
+    signer = ".SIGN.RSA.alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub"
+    with tempfile.TemporaryDirectory() as temporary:
+        path = Path(temporary) / "overlay.apk"
+        write_overlay_apk(path, signer=signer, origin="expat")
+        assert noether_forge.verify_post_release_overlay_metadata(path, record)["origin"] == "expat"
+        write_overlay_apk(path, signer=".SIGN.RSA.attacker.rsa.pub", origin="expat")
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.verify_post_release_overlay_metadata, path, record)
+        write_overlay_apk(path, signer=signer, origin="attacker")
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.verify_post_release_overlay_metadata, path, record)
+
+
+def prepare_wrapper_fixture(root: Path) -> tuple[Path, Path, Path]:
+    sysroot = root / "sysroot"
+    media = root / "media/cdrom"
+    packages = media / "apks/x86_64"
+    manifest = sysroot / "usr/share/wucios/locked-apk-manifest.sha256"
+    packages.mkdir(parents=True)
+    manifest.parent.mkdir(parents=True)
+    lines = []
+    for index in range(52):
+        name = f"package-{index:02d}-1.0-r0.apk"
+        data = f"package-{index}\n".encode("ascii")
+        (packages / name).write_bytes(data)
+        lines.append(f"{hashlib.sha256(data).hexdigest()}  {name}")
+    manifest.write_text("\n".join(lines) + "\n", encoding="ascii")
+    ovl = media / "wucios-noether-forge.apkovl.tar.gz"
+    ovl.write_bytes(b"fixture")
+    return sysroot, ovl, packages
+
+
+def run_wrapper(
+    wrapper: Path,
+    sysroot: Path,
+    ovl: Path,
+    *,
+    mode: str = "plain",
+    stdin_text: str = "",
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["/bin/sh", str(wrapper), str(sysroot), str(ovl), mode],
+        input=stdin_text,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+
+def test_locked_apk_wrapper_rejects_tampering_and_propagates_apk_failure() -> None:
+    wrapper = noether_forge.RELEASE_ROOT / "overlay/usr/local/sbin/wuci-install-locked-apks"
+    assert subprocess.run(["/bin/sh", "-n", wrapper], check=False).returncode == 0
+    text = wrapper.read_text(encoding="utf-8")
+    for required in (
+        "set -eu",
+        "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
+        "NOETHER_FORGE_APK_SHA256_PASS",
+        "--no-network --force-non-repository",
+        "--repositories-file",
+        "--arch x86_64",
+        "env -i",
+        ".wuci-apk-install",
+        "trap cleanup 0",
+        "trap - 0 1 2 15",
+        "cleanup || exit 79",
+    ):
+        assert required in text
+    assert "exec env -i" not in text
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        sysroot, ovl, packages = prepare_wrapper_fixture(root)
+        (packages / ".hidden").write_bytes(b"extra")
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 73
+        (packages / ".hidden").unlink()
+        (packages / ".hidden-link").symlink_to("missing")
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 73
+        (packages / ".hidden-link").unlink()
+
+        first = sorted(packages.iterdir())[0]
+        original = first.read_bytes()
+        first.write_bytes(b"tampered")
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 76
+        first.write_bytes(original)
+
+        manifest = sysroot / "usr/share/wucios/locked-apk-manifest.sha256"
+        original_manifest = manifest.read_text(encoding="ascii")
+        lines = original_manifest.splitlines()
+        manifest.write_text("\n".join([lines[0], lines[0], *lines[2:]]) + "\n", encoding="ascii")
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 70
+        manifest.write_text(original_manifest.replace("package-00-1.0-r0.apk", "../escape.apk", 1), encoding="ascii")
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 70
+        manifest.write_text(original_manifest, encoding="ascii")
+
+        state_dir = sysroot / ".wuci-apk-install"
+        state_dir.mkdir()
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 77
+        state_dir.rmdir()
+        state_dir.write_bytes(b"preexisting state")
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 77
+        state_dir.unlink()
+        outside = root / "outside-state-target"
+        outside.mkdir()
+        state_dir.symlink_to(outside, target_is_directory=True)
+        assert run_wrapper(wrapper, sysroot, ovl).returncode == 77
+        assert list(outside.iterdir()) == []
+        state_dir.unlink()
+        assert not (sysroot / "tmp").exists()
+
+        fakebin = root / "fakebin"
+        fakebin.mkdir()
+        fake_apk = fakebin / "apk"
+        argv_capture = fakebin / "argv"
+        env_capture = fakebin / "env"
+        stdin_capture = fakebin / "stdin"
+
+        def write_fake_apk(exit_status: int) -> None:
+            fake_apk.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$@\" > {shlex.quote(str(argv_capture))}\n"
+                f"env | sort > {shlex.quote(str(env_capture))}\n"
+                f"cat > {shlex.quote(str(stdin_capture))}\n"
+                f"exit {exit_status}\n",
+                encoding="ascii",
+            )
+            fake_apk.chmod(0o755)
+
+        write_fake_apk(42)
+        test_wrapper = root / "wrapper"
+        test_wrapper.write_text(
+            text.replace(
+                "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
+                f"PATH={fakebin}:/usr/bin:/bin:/usr/sbin:/sbin",
+            ).replace(
+                "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+                f"PATH={fakebin}:/usr/sbin:/usr/bin:/sbin:/bin",
+            ),
+            encoding="utf-8",
+        )
+        test_wrapper.chmod(0o755)
+        result = run_wrapper(test_wrapper, sysroot, ovl)
+        assert result.returncode == 42, (result.returncode, result.stdout, result.stderr)
+        assert "NOETHER_FORGE_APK_SHA256_PASS" in result.stdout
+        assert not state_dir.exists() and not state_dir.is_symlink()
+        assert not (sysroot / "tmp").exists()
+        expected_argv = [
+            "add",
+            "--root", str(sysroot),
+            "--initramfs-diskless-boot", "--progress",
+            "--no-cache", "--no-network", "--force-non-repository",
+            "--repositories-file", str(state_dir / "repositories"),
+            "--arch", "x86_64", "--clean-protected",
+            *(str(path) for path in sorted(packages.iterdir())),
+        ]
+        assert argv_capture.read_text(encoding="utf-8").splitlines() == expected_argv
+        environment = set(env_capture.read_text(encoding="utf-8").splitlines())
+        assert {"HOME=/root", "LC_ALL=C", f"PATH={fakebin}:/usr/sbin:/usr/bin:/sbin:/bin"} <= environment
+        assert not any(line.startswith(("USER=", "LOGNAME=", "SSH_", "XDG_")) for line in environment)
+
+        write_fake_apk(0)
+        result = run_wrapper(test_wrapper, sysroot, ovl)
+        assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
+        assert not state_dir.exists() and not state_dir.is_symlink()
+        assert argv_capture.read_text(encoding="utf-8").splitlines() == expected_argv
+
+        overlay_stdin = "etc/apk/world\netc/network/interfaces\n"
+        result = run_wrapper(
+            test_wrapper,
+            sysroot,
+            ovl,
+            mode="overlay",
+            stdin_text=overlay_stdin,
+        )
+        assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
+        assert not state_dir.exists() and not state_dir.is_symlink()
+        assert stdin_capture.read_text(encoding="utf-8") == overlay_stdin
+        expected_overlay_argv = [*expected_argv[:13], "--overlay-from-stdin", *expected_argv[13:]]
+        assert argv_capture.read_text(encoding="utf-8").splitlines() == expected_overlay_argv
+        assert set(env_capture.read_text(encoding="utf-8").splitlines()) == environment
+
+
 def test_xorriso_report_normalization_removes_host_state() -> None:
     iso = Path("/private/build/candidate.iso")
     one = (
@@ -1242,6 +1899,97 @@ def test_configuration_paths_are_fail_closed() -> None:
         assert_raises(noether_forge.NoetherForgeError, noether_forge.validated_relative_posix, value, "test")
 
 
+def test_safe_reset_removes_read_only_generated_tree() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        generated = root / "generated"
+        readonly = generated / "readonly"
+        readonly.mkdir(parents=True)
+        (readonly / "member").write_bytes(b"generated")
+        readonly.chmod(0o555)
+        noether_forge.safe_reset_directory(generated, root)
+        assert generated.is_dir()
+        assert list(generated.iterdir()) == []
+
+
+def test_safe_reset_rejects_escape_and_non_directory_leaves_without_side_effects() -> None:
+    with tempfile.TemporaryDirectory() as temporary:
+        base = Path(temporary)
+        allowed = base / "allowed"
+        allowed.mkdir()
+
+        sibling = base / "sibling"
+        sibling.mkdir()
+        sibling_marker = sibling / "marker"
+        sibling_marker.write_bytes(b"preserve sibling")
+
+        base_marker = base / "base-marker"
+        base_marker.write_bytes(b"preserve base")
+        leaf_parent_escape = allowed / ".."
+        assert_raises(
+            noether_forge.NoetherForgeError,
+            noether_forge.safe_reset_directory,
+            leaf_parent_escape,
+            allowed,
+        )
+        assert base_marker.read_bytes() == b"preserve base"
+        assert allowed.is_dir()
+
+        lexical_escape = allowed / ".." / "sibling"
+        assert_raises(
+            noether_forge.NoetherForgeError,
+            noether_forge.safe_reset_directory,
+            lexical_escape,
+            allowed,
+        )
+        assert sibling_marker.read_bytes() == b"preserve sibling"
+
+        outside = base / "outside"
+        outside.mkdir()
+        outside_generated = outside / "generated"
+        outside_generated.mkdir()
+        outside_marker = outside_generated / "marker"
+        outside_marker.write_bytes(b"preserve outside")
+        parent_link = allowed / "parent-link"
+        parent_link.symlink_to(outside, target_is_directory=True)
+        assert_raises(
+            noether_forge.NoetherForgeError,
+            noether_forge.safe_reset_directory,
+            parent_link / "generated",
+            allowed,
+        )
+        assert outside_marker.read_bytes() == b"preserve outside"
+
+        regular = allowed / "regular"
+        regular.write_bytes(b"regular leaf")
+        regular.chmod(0o440)
+        regular_mode = stat.S_IMODE(regular.stat().st_mode)
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.safe_reset_directory, regular, allowed)
+        assert regular.read_bytes() == b"regular leaf"
+        assert stat.S_IMODE(regular.stat().st_mode) == regular_mode
+
+        peer = base / "hardlink-peer"
+        peer.write_bytes(b"hardlink leaf")
+        peer.chmod(0o440)
+        hardlink = allowed / "hardlink"
+        os.link(peer, hardlink)
+        peer_mode = stat.S_IMODE(peer.stat().st_mode)
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.safe_reset_directory, hardlink, allowed)
+        assert peer.read_bytes() == b"hardlink leaf"
+        assert stat.S_IMODE(peer.stat().st_mode) == peer_mode
+        assert hardlink.exists()
+
+        target = base / "symlink-target"
+        target.mkdir()
+        target_marker = target / "marker"
+        target_marker.write_bytes(b"preserve symlink target")
+        leaf_link = allowed / "leaf-link"
+        leaf_link.symlink_to(target, target_is_directory=True)
+        assert_raises(noether_forge.NoetherForgeError, noether_forge.safe_reset_directory, leaf_link, allowed)
+        assert leaf_link.is_symlink()
+        assert target_marker.read_bytes() == b"preserve symlink target"
+
+
 def test_runtime_parsers() -> None:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
@@ -1337,6 +2085,7 @@ def test_runtime_marker_and_guest_command_boundary() -> None:
     assert "| wuci-low" in commands
     assert "doas -n /bin/sh -c true" in commands
     assert commands.count("\n") == 1
+    assert noether_forge.APK_SHA256_PASS_MARKER == "NOETHER_FORGE_APK_SHA256_PASS"
     report = {"schema": noether_runtime.REPORT_SCHEMA, "status": "pass"}
     log = f"noise\n{noether_forge.RUNTIME_JSON_BEGIN}\n{json.dumps(report)}\n{noether_forge.RUNTIME_JSON_END}\n"
     assert noether_forge.extract_runtime_json(log) == report
@@ -1349,6 +2098,69 @@ def test_canonical_denied_package_set_and_doas_policy() -> None:
     policy = (noether_forge.RELEASE_ROOT / "overlay/etc/doas.conf").read_text(encoding="utf-8")
     assert policy == noether_runtime.EXPECTED_DOAS_POLICY
     assert "permit nopass wj as root\n" not in policy
+
+
+def test_runtime_package_contract_preserves_noarch_installed_identity() -> None:
+    package_lock = {
+        "packages": [
+            {"filename": f"fixture-{index:02d}.apk", "sha256": f"{index:064x}"}
+            for index in range(52)
+        ],
+    }
+    package_info = {
+        item["filename"]: {
+            "pkgname": f"package-{index:02d}",
+            "pkgver": "1.0-r0",
+            "arch": "noarch" if index % 2 == 0 else "x86_64",
+        }
+        for index, item in enumerate(package_lock["packages"])
+    }
+    with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+        noether_forge,
+        "verify_locked_file",
+    ), mock.patch.object(
+        noether_forge,
+        "apk_pkginfo",
+        side_effect=lambda path: package_info[path.name],
+    ):
+        contract = noether_forge.generate_runtime_package_contract(Path(temporary), package_lock)
+
+        by_name = {item["name"]: item for item in contract["packages"]}
+        assert by_name["package-00"]["package_architecture"] == "noarch"
+        assert by_name["package-00"]["installed_architecture"] == "noarch"
+        assert by_name["package-01"]["package_architecture"] == "x86_64"
+        assert by_name["package-01"]["installed_architecture"] == "x86_64"
+        expected_identities = [
+            (item["name"], item["version"], item["installed_architecture"])
+            for item in contract["packages"]
+        ]
+        assert expected_identities == sorted(expected_identities)
+        assert len(expected_identities) == len(set(expected_identities)) == 52
+
+        installed = Path(temporary) / "installed"
+        installed.write_text(
+            "\n\n".join(
+                f"P:{name}\nV:{version}\nA:{architecture}"
+                for name, version, architecture in reversed(expected_identities)
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        assert noether_forge.installed_apk_identities(installed) == expected_identities
+
+        duplicate_info = copy.deepcopy(package_info)
+        duplicate_info["fixture-51.apk"] = dict(duplicate_info["fixture-00.apk"])
+        with mock.patch.object(
+            noether_forge,
+            "apk_pkginfo",
+            side_effect=lambda path: duplicate_info[path.name],
+        ):
+            assert_raises(
+                noether_forge.NoetherForgeError,
+                noether_forge.generate_runtime_package_contract,
+                Path(temporary),
+                package_lock,
+            )
 
 
 def test_runtime_package_contract_parser() -> None:
@@ -1379,6 +2191,8 @@ def test_runtime_package_contract_parser() -> None:
 
 TESTS = [
     test_release_configuration,
+    test_generated_spdx_package_purposes_use_official_json_enum,
+    test_exact_trust_locks_reject_substitution_and_expat_downgrade,
     test_external_review_policy_is_source_only,
     test_third_party_obligations_inventory_is_deterministic_and_bounded,
     test_physical_hardware_observation_is_digest_bound_and_structured,
@@ -1397,16 +2211,27 @@ TESTS = [
     test_deterministic_apkovl_and_safe_links,
     test_apkovl_rejects_traversal_and_hardlinks,
     test_volume_label_patch_is_equal_length_and_exact,
+    test_newc_bootstrap_parser_is_exact_and_bounded,
+    test_initramfs_patch_changes_only_locked_init_member,
+    test_initramfs_patch_rejects_span_and_accounting_drift,
+    test_initramfs_patch_rejects_duplicate_replacement_markers,
+    test_source_guard_detects_digest_only_copied_source_window,
+    test_download_locked_enforces_stream_size_cap,
+    test_post_release_overlay_metadata_is_exact,
+    test_locked_apk_wrapper_rejects_tampering_and_propagates_apk_failure,
     test_xorriso_report_normalization_removes_host_state,
     test_xorriso_extract_accepts_regular_single_link_output,
     test_xorriso_extract_rejects_unsafe_outputs,
     test_qemu_contract_has_no_network_device,
     test_configuration_paths_are_fail_closed,
+    test_safe_reset_removes_read_only_generated_tree,
+    test_safe_reset_rejects_escape_and_non_directory_leaves_without_side_effects,
     test_runtime_parsers,
     test_privileged_file_inventory_scans_full_root,
     test_firewall_policy_rejects_extra_rules,
     test_runtime_marker_and_guest_command_boundary,
     test_canonical_denied_package_set_and_doas_policy,
+    test_runtime_package_contract_preserves_noarch_installed_identity,
     test_runtime_package_contract_parser,
 ]
 

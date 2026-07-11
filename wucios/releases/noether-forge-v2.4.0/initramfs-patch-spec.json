@@ -1,0 +1,62 @@
+{
+  "schema": "wucios.noether_forge.initramfs_patch_spec.v1",
+  "license": "GPL-2.0-only",
+  "license_file": "LICENSES/GPL-2.0-only.txt",
+  "notice_file": "PATCH-NOTICE.md",
+  "copyright": "Copyright 2026 Chase Bryan",
+  "modification_notice": "WUCI-JI replaces four digest-bound spans in the authenticated Alpine initramfs init member. No upstream source text is stored in this specification.",
+  "upstream": {
+    "project": "Alpine mkinitfs",
+    "project_url": "https://gitlab.alpinelinux.org/alpine/mkinitfs",
+    "source_file": "initramfs-init.in",
+    "version": "3.14.0-r0",
+    "distribution": "Alpine Linux 3.24.1",
+    "aports_commit": "ae535315a7cea5b415c834cc81ba68f03a3aae17",
+    "provenance_basis": "The exact authenticated init member binding is authoritative. The recorded upstream archive was independently matched by substituting @VERSION@ with 3.14.0-r0; it is provenance evidence and is not fetched or executed by the build.",
+    "source_archive": {
+      "url": "https://gitlab.alpinelinux.org/alpine/mkinitfs/-/archive/3.14.0/mkinitfs-3.14.0.tar.gz",
+      "size": 43617,
+      "sha256": "7fae5c06d13f701c7a1578198fd7b92551ad53a747a607748b0753e31f003c0e",
+      "sha512": "1cb5639347706b49c520f3b25ca19a1494601163b5b9117ffcd55b07c977a9e736303b050743bcd433958f6041bffec8d3b72177c5e507192e7d651bc013f01a",
+      "template_path": "mkinitfs-3.14.0/initramfs-init.in",
+      "template_sha256": "033bfaee121e0d294b0d15cdc7a789e450136323240c1aed3c96ce6a2eeecd80",
+      "instantiation": {
+        "token": "@VERSION@",
+        "value": "3.14.0-r0",
+        "result_size": 30037,
+        "result_sha256": "ed39cc3fe4db146315f1f877c94fad9fa99a057ed590cf1857ed9fb32912f57a"
+      }
+    },
+    "authenticated_source": {
+      "boot_media_filename": "alpine-standard-3.24.1-x86_64.iso",
+      "boot_media_sha256": "f4dd613206676c62949144c8ad75fc64582099f444dd1485bae104a60f51dd26",
+      "initramfs_iso_path": "/boot/initramfs-lts",
+      "initramfs_sha256": "5fc19f53cf9cde467a696b33801c38b5ef586bc0c0d580d013f08c16d2a0a6be",
+      "member": "init",
+      "member_size": 30037,
+      "member_sha256": "ed39cc3fe4db146315f1f877c94fad9fa99a057ed590cf1857ed9fb32912f57a"
+    }
+  },
+  "replacements": [
+    {
+      "label": "direct-file-policy-and-byte-budget",
+      "encoding": "utf-8",
+      "content": "## Noether: install only the exact signed and digest-locked APK files adjacent to this apkovl; do not use repository metadata, network indexes, kernel pkgs= additions, chart packages, tiny-cloud packages, or any other mounted media; failure exits PID 1 and stops boot. SHA-256 checked."
+    },
+    {
+      "label": "wrapper-owned-install-policy",
+      "encoding": "utf-8",
+      "content": "apkflags=\"wrapper-enforces-no-network-and-exact-files\""
+    },
+    {
+      "label": "overlay-stdin-wrapper-fail-closed",
+      "encoding": "utf-8",
+      "content": "if ! \"$sysroot\"/usr/local/sbin/wuci-install-locked-apks \"$sysroot\" \"$ovl\" overlay < \"$ovlfiles\"; then\n\t\texit 1\n\tfi"
+    },
+    {
+      "label": "plain-wrapper-fail-closed",
+      "encoding": "utf-8",
+      "content": "if ! \"$sysroot\"/usr/local/sbin/wuci-install-locked-apks \"$sysroot\" \"$ovl\" plain; then\n\t\texit 1\n\tfi"
+    }
+  ]
+}

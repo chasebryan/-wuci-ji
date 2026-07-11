@@ -13,14 +13,42 @@ approved, certified, or endorsed by the Alpine Linux project.
 
 Reviewers acquire the authenticated Alpine inputs directly from the upstream
 locations recorded in `alpine-input-lock.json`. The explicit fetch step checks
-the upstream ISO SHA-256 and SHA-512, verifies its detached GPG signature, and
-verifies the locked APK closure before an offline build begins.
+both upstream release-media SHA-256 and SHA-512 values, verifies both detached
+GPG signatures, and verifies the locked APK closure before an offline build
+begins. Forty-nine APKs and the signed source index are extracted from the
+authenticated extended release ISO. Three post-release APKs use exact official
+Alpine v3.24 URLs with size, SHA-256, SHA-512, package identity, and exact
+6165-key verification. These URLs are mutable availability locators:
+authentication is fail-closed, but future CDN retention is not guaranteed.
+Alpine's [APK v2 package format](https://wiki.alpinelinux.org/wiki/Alpine_package_format)
+uses RSA signatures over a SHA-1 control stream, so exact whole-file SHA-256
+and SHA-512 locks are security-critical alongside signature verification. This
+does not establish immutable acquisition, freshness, or vulnerability-free
+status.
 
 This review lane is defined by
 `wucios/releases/noether-forge-v2.4.0/external-review.json`. It is not a GitHub
 Release or an official WuciOS release. Production authority is not established.
 External certification and permission to redistribute a reviewer-built binary
 are also not conferred.
+
+### Initramfs modification provenance
+
+Noether Forge modifies the authenticated `/init` member derived byte-for-byte
+from Alpine mkinitfs 3.14.0-r0 `initramfs-init.in`, whose upstream package
+metadata declares `GPL-2.0-only`. The separately marked GPL-2.0-only patch
+specification contains only WUCI-JI-authored replacement fragments; replaced
+upstream spans are referenced only by member-relative offset, length, and
+SHA-256. The exact upstream archive, template, instantiated member, and output
+member are digest-bound. See
+`wucios/releases/noether-forge-v2.4.0/initramfs-patch-spec.json` and its scoped
+`PATCH-NOTICE.md` and `LICENSES/GPL-2.0-only.txt`.
+
+This provenance record is an engineering disclosure, not legal advice, a
+license conclusion for other components, or redistribution clearance. This
+project does not distribute the generated ISO. Any proposed binary distribution
+remains prohibited pending independent review of corresponding-source, notice,
+license, trademark, export, firmware, and other obligations.
 
 ## Review from source
 
@@ -63,8 +91,8 @@ python3 tools/wucios/noether_forge.py internal \
   --firmware all --ovmf /path/to/OVMF.fd
 ```
 
-Allow network access for the fetch step only. Plan for about 375 MB of network
-acquisition and at least 3 GiB of free space for the Alpine input, locked APK
+Allow network access for the fetch step only. Plan for about 1.8 GB of network
+acquisition and at least 5 GiB of free space for the Alpine inputs, locked APK
 cache, two temporary ISO builds, inspection files, and the final private image.
 
 ### Determinism boundary
@@ -79,8 +107,9 @@ established.
 ### Third-party obligations inventory
 
 `wucios/releases/noether-forge-v2.4.0/third-party-obligations.json` is generated
-deterministically from `alpine-input-lock.json` and `package-lock.json`. Check
-that the committed matrix still matches those locks with:
+deterministically from `alpine-input-lock.json`, `package-lock.json`, and the
+initramfs patch specification. Check that the committed matrix still matches
+those records with:
 
 ```sh
 python3 tools/wucios/noether_obligations.py check
@@ -95,6 +124,11 @@ notices are required, classify cryptography, or provide redistribution or
 export clearance. Regenerate it after an intentional lock change with
 `python3 tools/wucios/noether_obligations.py write`, review the diff, and rerun
 the source-review gates.
+
+The mkinitfs provenance row records upstream-declared license metadata, exact
+source archive/template/member digests, and provided notice/license-file paths.
+Those are recorded facts, not a license conclusion, compliance determination,
+or redistribution clearance.
 
 ### Physical-hardware observation records
 
@@ -179,6 +213,11 @@ certification, official release authority, or proof of OS containment.
 ## What to review
 
 - Confirm every fetched object matches its pinned digest and signature.
+- Confirm the final ISO has exactly 52 APK files, no `APKINDEX`, no
+  `.boot_repository`, and the locked install wrapper rechecks SHA-256 before
+  invoking apk with an empty repository file and no network.
+- Treat the three post-release CDN URLs as a documented rebuild-availability
+  risk, not as immutable media, freshness, or a vulnerability-free claim.
 - Confirm both complete builds are byte-identical within the reviewed clean
   checkout and toolchain.
 - Confirm SeaBIOS and OVMF boot the exact promoted ISO and observe its digest.
@@ -226,9 +265,12 @@ sandboxing is not claimed. Quantum safety, government approval, and independent
 audit are not claimed. Publish authority is not claimed. Trust authority is not
 claimed.
 
-Wuci-Ji source is provided under the repository Apache-2.0 `LICENSE` and
-`NOTICE`. Third-party binary redistribution and encryption export treatment
-remain separate legal questions. The generated SPDX document is an inventory
-whose license conclusions remain `NOASSERTION`; it is not license clearance.
+Wuci-Ji source is generally provided under the repository Apache-2.0 `LICENSE`
+and `NOTICE`, except for the release-scoped GPL-2.0-only initramfs patch
+specification and replacement fragments identified by `PATCH-NOTICE.md` and
+`LICENSES/GPL-2.0-only.txt`. Third-party binary redistribution and encryption
+export treatment remain separate legal questions. The generated SPDX document
+is an inventory whose license conclusions remain `NOASSERTION`; it is not
+license clearance.
 This engineering review policy is not legal advice or an export
 classification.

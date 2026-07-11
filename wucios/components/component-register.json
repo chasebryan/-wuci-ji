@@ -297,7 +297,7 @@
       ],
       "component_class": "signature-tooling",
       "default_in_noether_core": true,
-      "reason": "Verifies signed Alpine package metadata and provides local hash and signature inspection.",
+      "reason": "Verifies authenticated Alpine release media, signed package members, and exact whole-file hash locks.",
       "network_surface": "none required for verification",
       "privilege_surface": "local package database and evidence reads",
       "language_surface": [
@@ -311,8 +311,9 @@
         "Package signatures authenticate package origin; they do not grant WuciOS production authority."
       ],
       "acceptance_gate": [
-        "signed APK index verified",
-        "every retained APK signature and digest verified",
+        "extended-media signed APK index verified as source evidence only",
+        "49 release-media members and three post-release overlay APK signatures and digests verified",
+        "post-release overlay verified only with the authenticated Alpine 6165 key",
         "manifest bound to ISO digest"
       ],
       "evidence_hooks": [

@@ -19,6 +19,7 @@
     "usr/local/bin/wuci-status": {"mode": "0755"},
     "usr/local/bin/wuci-surface-audit": {"mode": "0755"},
     "usr/local/sbin/wuci-autologin": {"mode": "0755"},
+    "usr/local/sbin/wuci-install-locked-apks": {"mode": "0755"},
     "home/wj": {"mode": "0700", "uid": 1000, "gid": 1000},
     "home/wj_low": {"mode": "0700", "uid": 1001, "gid": 1001}
   }

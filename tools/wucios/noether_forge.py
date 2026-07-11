@@ -44,6 +44,7 @@ PASS_MARKER = (
 )
 BOOT_MEDIA_MARKER = "NOETHER_FORGE_BOOT_MEDIA_SHA256 "
 SHUTDOWN_MARKER = "NOETHER_FORGE_SHUTDOWN_REQUESTED"
+APK_SHA256_PASS_MARKER = "NOETHER_FORGE_APK_SHA256_PASS"
 HOST_PASS_MARKER = "NOETHER_FORGE_HOST_INTERACTIVE_PASS"
 HOME_PASS_MARKER = "NOETHER_FORGE_HOME_WRITABLE_PASS"
 DOAS_DENY_PASS_MARKER = "NOETHER_FORGE_DOAS_ARBITRARY_ROOT_DENIED"
@@ -67,6 +68,32 @@ STATIC_PRIVACY_PATTERNS = (
     (b"WuciA/OS", "legacy-wucia-identity"),
     (b"Aperture Bastion", "legacy-aperture-identity"),
 )
+
+NEWC_HEADER_SIZE = 110
+NEWC_MAX_NAME_SIZE = 4096
+NEWC_MAX_ENTRY_SIZE = 8 * 1024 * 1024
+NEWC_MAX_ENTRIES = 4096
+NEWC_MAX_ARCHIVE_SIZE = 128 * 1024 * 1024
+GZIP_CHUNK_SIZE = 1024 * 1024
+
+EXPECTED_LOCK_SECTION_SHA256 = {
+    "release_signer": "ff13cf8c63c7a081f9132cf767af2f1d19bfc750b665ffe95a550c6aed20a656",
+    "boot_media": "119073981ac3cadfa5a89dd77838301728eb5ecb60c92a7204077fb4770e831b",
+    "package_source_media": "1d795d5eefed841c719641a563c85890730764cbffd9b2bb80aed15f61f243bf",
+    "post_release_overlay": "f22b6b436c956fbf2ab552e1e155a57d67e2f871a2b96a8080e46b7e30908870",
+    "bootstrap": "7fbff6e29a077f27855c3cb84968bc5e87d0095ff07c5ae7cf659b80cd0bb00e",
+    "upstream_layout": "22611a90fddd9b8caea2262cddcdd52decc63887ee0d3be3059def7065b3ae7c",
+    "required_host_tools": "d2fcda2bc9be60102f6e0c00f73165015fc154c73069a2d1f319fa720e882561",
+}
+EXPECTED_INPUT_LOCK_SHA256 = "06b6714a23715f5d4df2786d289a5f6930a6172703145285cc4cacdcacad42ce"
+EXPECTED_PACKAGE_LOCK_SHA256 = "cb1cb6149c4d8b8cd840ed31917cb53b1d8d3179d5c0c880572ba9506f3756b2"
+EXPECTED_RELEASE_BASE_URL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/"
+EXPECTED_OVERLAY_BASE_URL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/"
+INITRAMFS_PATCH_SPEC = RELEASE_ROOT / "initramfs-patch-spec.json"
+INITRAMFS_PATCH_LICENSE = RELEASE_ROOT / "LICENSES/GPL-2.0-only.txt"
+INITRAMFS_PATCH_NOTICE = RELEASE_ROOT / "PATCH-NOTICE.md"
+EXPECTED_INITRAMFS_PATCH_SPEC_SHA256 = "b95d22cf33e879b01085dea8bd3a6b8580df8f94cac1cfe6791ea425c3ec7e1b"
+EXPECTED_GPL2_ONLY_TEXT_SHA256 = "b3c87315aae4c9f276c37168f2655dd8bd990544d7a0bbfb929664155c7ab257"
 
 
 class NoetherForgeError(RuntimeError):
@@ -122,6 +149,114 @@ def digest_file(path: Path, algorithm: str = "sha256") -> str:
                 break
             digest.update(block)
     return digest.hexdigest()
+
+
+def initramfs_replacements(patch_spec: dict[str, Any]) -> dict[str, bytes]:
+    records = patch_spec.get("replacements")
+    if not isinstance(records, list) or len(records) != 4:
+        raise NoetherForgeError("initramfs patch specification must contain exactly four replacements")
+    replacements: dict[str, bytes] = {}
+    for record in records:
+        if not isinstance(record, dict) or set(record) != {"label", "encoding", "content"}:
+            raise NoetherForgeError("initramfs replacement record is structurally invalid")
+        label = record.get("label")
+        content = record.get("content")
+        if (
+            not isinstance(label, str)
+            or re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", label) is None
+            or label in replacements
+            or record.get("encoding") != "utf-8"
+            or not isinstance(content, str)
+            or not content
+            or "\0" in content
+        ):
+            raise NoetherForgeError("initramfs replacement identity or content is invalid")
+        replacements[label] = content.encode("utf-8")
+    values = list(replacements.values())
+    if len(values) != len(set(values)) or any(
+        index != other_index and value in other
+        for index, value in enumerate(values)
+        for other_index, other in enumerate(values)
+    ):
+        raise NoetherForgeError("initramfs replacement markers must be unique and non-overlapping")
+    return replacements
+
+
+def load_initramfs_patch_spec(input_lock: dict[str, Any]) -> dict[str, Any]:
+    ensure_regular(INITRAMFS_PATCH_SPEC, "initramfs patch specification")
+    patch_spec = load_json(INITRAMFS_PATCH_SPEC)
+    if hashlib.sha256(canonical_json(patch_spec)).hexdigest() != EXPECTED_INITRAMFS_PATCH_SPEC_SHA256:
+        raise NoetherForgeError("exact canonical initramfs patch specification drift")
+    if set(patch_spec) != {
+        "schema", "license", "license_file", "notice_file", "copyright",
+        "modification_notice", "upstream", "replacements",
+    }:
+        raise NoetherForgeError("initramfs patch specification fields are invalid")
+    if (
+        patch_spec.get("schema") != "wucios.noether_forge.initramfs_patch_spec.v1"
+        or patch_spec.get("license") != "GPL-2.0-only"
+        or patch_spec.get("license_file") != "LICENSES/GPL-2.0-only.txt"
+        or patch_spec.get("notice_file") != "PATCH-NOTICE.md"
+        or not isinstance(patch_spec.get("copyright"), str)
+        or not isinstance(patch_spec.get("modification_notice"), str)
+    ):
+        raise NoetherForgeError("initramfs patch licensing metadata is invalid")
+    upstream = patch_spec.get("upstream")
+    if not isinstance(upstream, dict) or set(upstream) != {
+        "project", "project_url", "source_file", "version", "distribution",
+        "aports_commit", "provenance_basis", "source_archive", "authenticated_source",
+    }:
+        raise NoetherForgeError("initramfs patch upstream provenance is invalid")
+    expected_binding = {
+        "boot_media_filename": input_lock["boot_media"]["iso"]["filename"],
+        "boot_media_sha256": input_lock["boot_media"]["iso"]["sha256"],
+        "initramfs_iso_path": input_lock["bootstrap"]["initramfs"]["iso_path"],
+        "initramfs_sha256": input_lock["bootstrap"]["initramfs"]["sha256"],
+        "member": input_lock["bootstrap"]["patch"]["member"],
+        "member_size": input_lock["bootstrap"]["patch"]["source_member_size"],
+        "member_sha256": input_lock["bootstrap"]["patch"]["source_member_sha256"],
+    }
+    expected_source_archive = {
+        "url": "https://gitlab.alpinelinux.org/alpine/mkinitfs/-/archive/3.14.0/mkinitfs-3.14.0.tar.gz",
+        "size": 43617,
+        "sha256": "7fae5c06d13f701c7a1578198fd7b92551ad53a747a607748b0753e31f003c0e",
+        "sha512": "1cb5639347706b49c520f3b25ca19a1494601163b5b9117ffcd55b07c977a9e736303b050743bcd433958f6041bffec8d3b72177c5e507192e7d651bc013f01a",
+        "template_path": "mkinitfs-3.14.0/initramfs-init.in",
+        "template_sha256": "033bfaee121e0d294b0d15cdc7a789e450136323240c1aed3c96ce6a2eeecd80",
+        "instantiation": {
+            "token": "@VERSION@",
+            "value": "3.14.0-r0",
+            "result_size": input_lock["bootstrap"]["patch"]["source_member_size"],
+            "result_sha256": input_lock["bootstrap"]["patch"]["source_member_sha256"],
+        },
+    }
+    if (
+        upstream.get("project") != "Alpine mkinitfs"
+        or upstream.get("project_url") != "https://gitlab.alpinelinux.org/alpine/mkinitfs"
+        or upstream.get("source_file") != "initramfs-init.in"
+        or upstream.get("version") != "3.14.0-r0"
+        or upstream.get("distribution") != "Alpine Linux 3.24.1"
+        or upstream.get("aports_commit") != "ae535315a7cea5b415c834cc81ba68f03a3aae17"
+        or not isinstance(upstream.get("provenance_basis"), str)
+        or upstream.get("source_archive") != expected_source_archive
+        or upstream.get("authenticated_source") != expected_binding
+    ):
+        raise NoetherForgeError("initramfs patch provenance differs from the authenticated member lock")
+    ensure_regular(INITRAMFS_PATCH_LICENSE, "GPL-2.0-only license text")
+    if digest_file(INITRAMFS_PATCH_LICENSE) != EXPECTED_GPL2_ONLY_TEXT_SHA256:
+        raise NoetherForgeError("release-scoped GPL-2.0-only license text drift")
+    ensure_regular(INITRAMFS_PATCH_NOTICE, "initramfs patch notice")
+    try:
+        notice = INITRAMFS_PATCH_NOTICE.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise NoetherForgeError("initramfs patch notice is unreadable") from exc
+    if not all(marker in notice for marker in ("GPL-2.0-only", "source-only", "does not provide legal clearance")):
+        raise NoetherForgeError("initramfs patch notice omits required licensing or non-clearance language")
+    replacements = initramfs_replacements(patch_spec)
+    span_labels = [record.get("label") for record in input_lock["bootstrap"]["patch"].get("source_spans", [])]
+    if list(replacements) != span_labels:
+        raise NoetherForgeError("initramfs replacement labels differ from the ordered source-span lock")
+    return patch_spec
 
 
 def digest_vector(path: Path) -> dict[str, str]:
@@ -187,15 +322,34 @@ def run(
 
 
 def safe_reset_directory(path: Path, allowed_parent: Path) -> None:
-    resolved_parent = allowed_parent.resolve()
-    lexical = path.absolute()
+    if path.name in {"", ".", ".."}:
+        raise NoetherForgeError(f"generated directory leaf name is unsafe: {path}")
     try:
-        lexical.relative_to(resolved_parent)
-    except ValueError as exc:
-        raise NoetherForgeError(f"generated directory escapes output root: {path}") from exc
-    if path.is_symlink():
-        raise NoetherForgeError(f"generated directory symlink rejected: {path}")
-    if path.exists():
+        resolved_parent = allowed_parent.resolve(strict=True)
+        resolved_path_parent = path.parent.resolve(strict=True)
+    except OSError as exc:
+        raise NoetherForgeError(f"generated directory parent is missing or unresolved: {path.parent}") from exc
+    parent_info = allowed_parent.lstat()
+    if not stat.S_ISDIR(parent_info.st_mode) or stat.S_ISLNK(parent_info.st_mode):
+        raise NoetherForgeError(f"generated directory allowed parent must be a real directory: {allowed_parent}")
+    if resolved_path_parent != resolved_parent:
+        raise NoetherForgeError(f"generated directory must be a direct child of its resolved output root: {path}")
+    try:
+        leaf_info = path.lstat()
+    except FileNotFoundError:
+        leaf_info = None
+    except OSError as exc:
+        raise NoetherForgeError(f"cannot inspect generated directory leaf: {path}") from exc
+    if leaf_info is not None:
+        if not stat.S_ISDIR(leaf_info.st_mode) or stat.S_ISLNK(leaf_info.st_mode):
+            raise NoetherForgeError(f"generated directory leaf must be a real directory: {path}")
+        os.chmod(path, stat.S_IRWXU)
+        for current, directories, _files in os.walk(path, topdown=True, followlinks=False):
+            os.chmod(current, stat.S_IRWXU)
+            for name in directories:
+                child = Path(current) / name
+                if not child.is_symlink():
+                    os.chmod(child, stat.S_IRWXU)
         shutil.rmtree(path)
     path.mkdir(parents=True, exist_ok=False)
 
@@ -225,6 +379,58 @@ def validated_relative_posix(value: Any, label: str) -> PurePosixPath:
     return path
 
 
+def validate_trust_locks(input_lock: dict[str, Any], package_lock: dict[str, Any]) -> None:
+    if hashlib.sha256(canonical_json(input_lock)).hexdigest() != EXPECTED_INPUT_LOCK_SHA256:
+        raise NoetherForgeError("exact canonical Alpine input lock drift")
+    for name, expected in EXPECTED_LOCK_SECTION_SHA256.items():
+        if name not in input_lock or hashlib.sha256(canonical_json(input_lock[name])).hexdigest() != expected:
+            raise NoetherForgeError(f"exact Alpine trust-lock section drift: {name}")
+    if hashlib.sha256(canonical_json(package_lock)).hexdigest() != EXPECTED_PACKAGE_LOCK_SHA256:
+        raise NoetherForgeError("exact Noether package lock drift")
+    signer = input_lock["release_signer"]
+    if signer != {
+        "key_url": "https://www.alpinelinux.org/keys/ncopa.asc",
+        "key_filename": "ncopa.asc",
+        "key_size": 3092,
+        "key_sha256": "75a9a7e0cc35bfa946ce40c26133b3ed29a204fbd98a3b33331b659d927b3027",
+        "fingerprint": "0482D84022F52DF1C4E7CD43293ACD0907D9495A",
+    }:
+        raise NoetherForgeError("Alpine release signer tuple drift")
+    exact_media = {
+        "boot_media": ("boot-base", "alpine-standard-3.24.1-x86_64.iso"),
+        "package_source_media": ("package-source", "alpine-extended-3.24.1-x86_64.iso"),
+    }
+    for name, (role, filename) in exact_media.items():
+        media = input_lock[name]
+        if media["role"] != role or media["iso"]["filename"] != filename:
+            raise NoetherForgeError(f"exact Alpine media role drift: {name}")
+        if media["iso"]["url"] != EXPECTED_RELEASE_BASE_URL + filename:
+            raise NoetherForgeError(f"exact Alpine media URL drift: {name}")
+        for sidecar in media["sidecars"]:
+            if sidecar["url"] != EXPECTED_RELEASE_BASE_URL + sidecar["filename"]:
+                raise NoetherForgeError(f"exact Alpine sidecar URL drift: {sidecar.get('filename')}")
+    overlay = input_lock["post_release_overlay"]
+    expected_overlay_names = [
+        "libexpat-2.8.2-r0.apk",
+        "openrc-0.63.2-r0.apk",
+        "openrc-user-0.63.2-r0.apk",
+    ]
+    if [item["filename"] for item in overlay] != expected_overlay_names:
+        raise NoetherForgeError("post-release overlay order or identity drift")
+    if package_lock["post_release_overlay"] != expected_overlay_names:
+        raise NoetherForgeError("package lock post-release overlay binding drift")
+    package_by_name = {item["filename"]: item for item in package_lock["packages"]}
+    for record in overlay:
+        if record["url"] != EXPECTED_OVERLAY_BASE_URL + record["filename"]:
+            raise NoetherForgeError(f"post-release overlay URL drift: {record['filename']}")
+        package = package_by_name.get(record["filename"])
+        if package is None or package["size"] != record["size"] or package["sha256"] != record["sha256"]:
+            raise NoetherForgeError(f"post-release overlay package-lock mismatch: {record['filename']}")
+    expat = package_by_name.get("libexpat-2.8.2-r0.apk")
+    if expat is None or not expat["filename"].startswith("libexpat-2.8.2-"):
+        raise NoetherForgeError("release blocker: libexpat must be at least 2.8.2")
+
+
 def ensure_no_symlink_parents(path: Path, root: Path, label: str) -> None:
     try:
         relative = path.relative_to(root)
@@ -243,10 +449,11 @@ def validate_configuration() -> tuple[dict[str, Any], dict[str, Any], dict[str, 
     release = load_json(RELEASE_ROOT / "release.json")
     input_lock = load_json(RELEASE_ROOT / "alpine-input-lock.json")
     package_lock = load_json(RELEASE_ROOT / "package-lock.json")
+    validate_trust_locks(input_lock, package_lock)
     expected = {
         "release": "wucios.noether_forge.release.v1",
-        "input": "wucios.noether_forge.alpine_input_lock.v1",
-        "packages": "wucios.noether_forge.package_lock.v1",
+        "input": "wucios.noether_forge.alpine_input_lock.v2",
+        "packages": "wucios.noether_forge.package_lock.v2",
     }
     observed = {
         "release": release.get("schema"),
@@ -262,6 +469,56 @@ def validate_configuration() -> tuple[dict[str, Any], dict[str, Any], dict[str, 
     artifact_filename = validated_basename(release.get("artifact_filename"), "release artifact filename")
     if not artifact_filename.endswith(".iso"):
         raise NoetherForgeError("release artifact filename must end in .iso")
+    expected_media = {
+        "boot_media": ("boot-base", "alpine-standard-3.24.1-x86_64.iso"),
+        "package_source_media": ("package-source", "alpine-extended-3.24.1-x86_64.iso"),
+    }
+    for media_name, (role, filename) in expected_media.items():
+        media = input_lock.get(media_name)
+        if not isinstance(media, dict) or media.get("role") != role or not isinstance(media.get("iso"), dict):
+            raise NoetherForgeError(f"Alpine {media_name} identity is invalid")
+        iso_record = media["iso"]
+        if validated_basename(iso_record.get("filename"), f"{media_name} ISO filename") != filename:
+            raise NoetherForgeError(f"Alpine {media_name} filename is invalid")
+        sidecars = media.get("sidecars")
+        if not isinstance(sidecars, list) or len(sidecars) != 3 or any(not isinstance(item, dict) for item in sidecars):
+            raise NoetherForgeError(f"Alpine {media_name} sidecar set is invalid")
+        expected_suffixes = {
+            "sha256-digest": ".sha256",
+            "sha512-digest": ".sha512",
+            "detached-signature": ".asc",
+        }
+        observed_roles = [item.get("role") for item in sidecars]
+        if set(observed_roles) != set(expected_suffixes) or len(observed_roles) != len(set(observed_roles)):
+            raise NoetherForgeError(f"Alpine {media_name} sidecar roles are not exact and unique")
+        iso_url = iso_record.get("url")
+        if not isinstance(iso_url, str) or not iso_url.endswith("/" + filename):
+            raise NoetherForgeError(f"Alpine {media_name} URL does not bind its filename")
+        for sidecar in sidecars:
+            suffix = expected_suffixes[sidecar["role"]]
+            if (
+                sidecar.get("suffix") != suffix
+                or sidecar.get("filename") != filename + suffix
+                or sidecar.get("url") != iso_url + suffix
+            ):
+                raise NoetherForgeError(f"Alpine {media_name} sidecar does not bind its parent ISO")
+    if input_lock.get("alpine_release") != package_lock.get("alpine_release"):
+        raise NoetherForgeError("input and package locks identify different Alpine releases")
+    package_media = input_lock["package_source_media"]
+    if (
+        package_lock.get("source_media") != package_media["iso"]["filename"]
+        or package_lock.get("repository_path") != package_media["repository"]["path"]
+    ):
+        raise NoetherForgeError("package lock source does not bind the package-source release media")
+    bootstrap = input_lock.get("bootstrap")
+    if not isinstance(bootstrap, dict) or not isinstance(bootstrap.get("initramfs"), dict):
+        raise NoetherForgeError("Alpine bootstrap lock is missing")
+    members = bootstrap.get("members")
+    if not isinstance(members, list) or len(members) != 11 or any(not isinstance(item, dict) for item in members):
+        raise NoetherForgeError("Alpine bootstrap must pin exactly 11 members")
+    member_paths = [validated_relative_posix(item.get("path"), "bootstrap member path").as_posix() for item in members]
+    if member_paths != sorted(member_paths) or len(member_paths) != len(set(member_paths)):
+        raise NoetherForgeError("Alpine bootstrap member paths must be unique and sorted")
     packages = package_lock.get("packages")
     if not isinstance(packages, list) or len(packages) != 52:
         raise NoetherForgeError("package lock must contain exactly 52 packages")
@@ -278,7 +535,7 @@ def validate_configuration() -> tuple[dict[str, Any], dict[str, Any], dict[str, 
         "python3=3.14.5-r0",
     ]:
         raise NoetherForgeError("package world does not match the frozen runtime contract")
-    records = cache_records(input_lock, package_lock)
+    records = cache_records(input_lock)
     record_filenames = [validated_basename(item.get("filename"), f"{item.get('kind', 'input')} filename") for item in records]
     if len(record_filenames) != len(set(record_filenames)):
         raise NoetherForgeError("Alpine cache filenames must be unique")
@@ -324,24 +581,24 @@ def validate_configuration() -> tuple[dict[str, Any], dict[str, Any], dict[str, 
             raise NoetherForgeError(f"overlay metadata mode is invalid: {name}")
         if any(key in metadata and (not isinstance(metadata[key], int) or metadata[key] < 0) for key in ("uid", "gid")):
             raise NoetherForgeError(f"overlay metadata ownership is invalid: {name}")
+    load_initramfs_patch_spec(input_lock)
     return release, input_lock, package_lock
 
 
-def cache_records(input_lock: dict[str, Any], package_lock: dict[str, Any]) -> list[dict[str, Any]]:
+def cache_records(input_lock: dict[str, Any]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    records.append({**input_lock["iso"], "kind": "iso"})
-    records.extend({**item, "kind": "sidecar"} for item in input_lock["sidecars"])
+    for media_name in ("boot_media", "package_source_media"):
+        media = input_lock[media_name]
+        records.append({**media["iso"], "kind": media["role"] + "-iso"})
+        records.extend({**item, "kind": media["role"] + "-sidecar"} for item in media["sidecars"])
     records.append({
         "filename": input_lock["release_signer"]["key_filename"],
         "url": input_lock["release_signer"]["key_url"],
+        "size": input_lock["release_signer"]["key_size"],
         "sha256": input_lock["release_signer"]["key_sha256"],
         "kind": "release-key",
     })
-    records.append({**input_lock["apk_index"], "kind": "apk-index"})
-    records.append({**input_lock["apk_static"], "kind": "apk-static"})
-    repository = package_lock["repository_url"].rstrip("/")
-    for package in package_lock["packages"]:
-        records.append({**package, "url": f"{repository}/{package['filename']}", "kind": "apk"})
+    records.extend({**item, "kind": "post-release-overlay-apk"} for item in input_lock["post_release_overlay"])
     return records
 
 
@@ -366,11 +623,18 @@ def download_locked(record: dict[str, Any], cache: Path) -> None:
     try:
         request = urllib.request.Request(record["url"], headers={"User-Agent": f"{BUILDER_VERSION}/1"})
         with urllib.request.urlopen(request, timeout=90) as response, open(temporary, "wb") as stream:
+            received = 0
+            expected_size = record.get("size")
             while True:
                 block = response.read(1024 * 1024)
                 if not block:
                     break
+                received += len(block)
+                if isinstance(expected_size, int) and received > expected_size:
+                    raise NoetherForgeError(f"{record['kind']} download exceeds locked size {expected_size}")
                 stream.write(block)
+            if isinstance(expected_size, int) and received != expected_size:
+                raise NoetherForgeError(f"{record['kind']} download size mismatch: expected {expected_size}, got {received}")
         os.chmod(temporary, 0o644)
         verify_locked_file(Path(temporary), record, record["kind"])
         os.replace(temporary, destination)
@@ -388,6 +652,487 @@ def xorriso_extract(iso: Path, iso_path: str, destination: Path) -> None:
     ensure_regular(destination, f"extracted ISO file {iso_path}")
 
 
+def read_locked_gzip(path: Path, record: dict[str, Any], label: str) -> bytes:
+    """Read one digest-pinned gzip while bounding compressed and expanded bytes."""
+    verify_locked_file(path, record, label)
+    expected_size = record.get("uncompressed_size")
+    expected_sha256 = record.get("uncompressed_sha256")
+    if not isinstance(expected_size, int) or expected_size < 1 or not isinstance(expected_sha256, str):
+        raise NoetherForgeError(f"{label} lacks an exact expanded-size and digest lock")
+    expanded = bytearray()
+    try:
+        with path.open("rb") as source, gzip.GzipFile(fileobj=source, mode="rb") as stream:
+            while len(expanded) <= expected_size:
+                remaining = expected_size + 1 - len(expanded)
+                block = stream.read(min(GZIP_CHUNK_SIZE, remaining))
+                if not block:
+                    break
+                expanded.extend(block)
+    except (EOFError, OSError) as exc:
+        raise NoetherForgeError(f"{label} is not a complete valid gzip stream: {exc}") from exc
+    if len(expanded) != expected_size:
+        relation = "exceeds" if len(expanded) > expected_size else "does not reach"
+        raise NoetherForgeError(f"{label} expanded data {relation} locked size {expected_size}")
+    observed = hashlib.sha256(expanded).hexdigest()
+    if observed != expected_sha256:
+        raise NoetherForgeError(f"{label} expanded SHA-256 mismatch: expected {expected_sha256}, got {observed}")
+    return bytes(expanded)
+
+
+def locate_newc_regular_member(
+    archive: bytes,
+    member_name: str,
+    *,
+    expected_entry_count: int,
+) -> tuple[int, int]:
+    target = validated_relative_posix(member_name, "newc patch member").as_posix()
+    offset = 0
+    entry_count = 0
+    match: tuple[int, int] | None = None
+    seen: set[str] = set()
+    while offset < len(archive):
+        if entry_count >= NEWC_MAX_ENTRIES or len(archive) - offset < NEWC_HEADER_SIZE:
+            raise NoetherForgeError("newc patch scan is truncated or exceeds its entry ceiling")
+        header = archive[offset:offset + NEWC_HEADER_SIZE]
+        if header[:6] != b"070701" or re.fullmatch(rb"[0-9A-Fa-f]{104}", header[6:]) is None:
+            raise NoetherForgeError("newc patch scan found a malformed header")
+        fields = [int(header[6 + index * 8:14 + index * 8], 16) for index in range(13)]
+        mode, filesize, namesize = fields[1], fields[6], fields[11]
+        offset += NEWC_HEADER_SIZE
+        if namesize < 2 or namesize > NEWC_MAX_NAME_SIZE or offset + namesize > len(archive):
+            raise NoetherForgeError("newc patch scan found an invalid member name length")
+        encoded_name = archive[offset:offset + namesize]
+        if encoded_name[-1:] != b"\0" or b"\0" in encoded_name[:-1]:
+            raise NoetherForgeError("newc patch scan found a malformed member name")
+        try:
+            name = encoded_name[:-1].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise NoetherForgeError("newc patch scan found a non-UTF-8 member name") from exc
+        offset += namesize
+        offset += (-offset) % 4
+        data_start = offset
+        data_end = data_start + filesize
+        if filesize > NEWC_MAX_ENTRY_SIZE or data_end > len(archive):
+            raise NoetherForgeError("newc patch scan found oversized or truncated member data")
+        offset = data_end
+        offset += (-offset) % 4
+        if name == "TRAILER!!!":
+            if fields != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0] or any(archive[offset:]):
+                raise NoetherForgeError("newc patch scan found a malformed trailer")
+            break
+        _newc_path(name)
+        if name in seen:
+            raise NoetherForgeError(f"duplicate newc member rejected during patch scan: {name}")
+        seen.add(name)
+        entry_count += 1
+        if name == target:
+            if match is not None or stat.S_IFMT(mode) != stat.S_IFREG:
+                raise NoetherForgeError("newc patch member is duplicate or not regular")
+            match = (data_start, data_end)
+    if entry_count != expected_entry_count or match is None:
+        raise NoetherForgeError("newc patch member or archive entry count differs from its lock")
+    return match
+
+
+def patch_initramfs_payload(
+    payload: bytes,
+    patch_lock: dict[str, Any],
+    patch_spec: dict[str, Any],
+    *,
+    expected_entry_count: int,
+) -> bytes:
+    replacements = initramfs_replacements(patch_spec)
+    member_start, member_end = locate_newc_regular_member(
+        payload,
+        patch_lock["member"],
+        expected_entry_count=expected_entry_count,
+    )
+    member = payload[member_start:member_end]
+    if (
+        len(member) != patch_lock.get("source_member_size")
+        or hashlib.sha256(member).hexdigest() != patch_lock.get("source_member_sha256")
+    ):
+        raise NoetherForgeError("initramfs patch source member digest drift")
+    raw_spans = patch_lock.get("source_spans")
+    if not isinstance(raw_spans, list) or len(raw_spans) != len(replacements):
+        raise NoetherForgeError("initramfs source-span count differs from the replacement specification")
+    spans: list[dict[str, Any]] = []
+    labels: set[str] = set()
+    for record in raw_spans:
+        if (
+            not isinstance(record, dict)
+            or set(record) != {
+                "label", "offset", "length", "sha256", "replacement_length", "replacement_sha256",
+            }
+            or not isinstance(record.get("label"), str)
+            or type(record.get("offset")) is not int
+            or type(record.get("length")) is not int
+            or type(record.get("replacement_length")) is not int
+            or not isinstance(record.get("sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", record["sha256"]) is None
+            or not isinstance(record.get("replacement_sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", record["replacement_sha256"]) is None
+        ):
+            raise NoetherForgeError("initramfs source-span record is structurally invalid")
+        label = record["label"]
+        if label in labels or label not in replacements:
+            raise NoetherForgeError("initramfs source-span labels are duplicate or unbound")
+        labels.add(label)
+        replacement = replacements[label]
+        if (
+            record["replacement_length"] != len(replacement)
+            or record["replacement_sha256"] != hashlib.sha256(replacement).hexdigest()
+        ):
+            raise NoetherForgeError(f"initramfs replacement binding drift: {label}")
+        spans.append(record)
+    if labels != set(replacements):
+        raise NoetherForgeError("initramfs source-span labels do not exactly cover replacements")
+    spans.sort(key=lambda item: (item["offset"], item["label"]))
+    previous_end = 0
+    source_total = 0
+    replacement_total = 0
+    chunks: list[bytes] = []
+    for record in spans:
+        label = record["label"]
+        offset = record["offset"]
+        length = record["length"]
+        end = offset + length
+        if offset < 0 or length <= 0 or end > len(member):
+            raise NoetherForgeError(f"initramfs source span is out of range: {label}")
+        if offset < previous_end:
+            raise NoetherForgeError(f"initramfs source spans overlap: {label}")
+        source_slice = member[offset:end]
+        if hashlib.sha256(source_slice).hexdigest() != record["sha256"]:
+            raise NoetherForgeError(f"initramfs source-slice digest drift: {label}")
+        replacement = replacements[label]
+        if payload.count(replacement) != 0:
+            raise NoetherForgeError(f"initramfs replacement marker already exists before patch: {label}")
+        chunks.extend((member[previous_end:offset], replacement))
+        source_total += length
+        replacement_total += len(replacement)
+        previous_end = end
+    chunks.append(member[previous_end:])
+    expected_member_size = len(member) - source_total + replacement_total
+    if (
+        expected_member_size != patch_lock.get("output_member_size")
+        or expected_member_size != len(member)
+    ):
+        raise NoetherForgeError("initramfs replacement length accounting does not preserve the locked member size")
+    patched_member = b"".join(chunks)
+    if (
+        len(patched_member) != patch_lock["output_member_size"]
+        or hashlib.sha256(patched_member).hexdigest() != patch_lock.get("output_member_sha256")
+    ):
+        raise NoetherForgeError("initramfs patched member length or digest differs from its exact lock")
+    patched = payload[:member_start] + patched_member + payload[member_end:]
+    if (
+        len(patched) != len(payload)
+        or patched[:member_start] != payload[:member_start]
+        or patched[member_end:] != payload[member_end:]
+    ):
+        raise NoetherForgeError("initramfs patch changed bytes outside its exact member")
+    for label, replacement in replacements.items():
+        if patched.count(replacement) != 1:
+            raise NoetherForgeError(f"initramfs replacement marker count drift after patch: {label}")
+    return patched
+
+
+def verify_patched_initramfs_payload(
+    payload: bytes,
+    patch_lock: dict[str, Any],
+    patch_spec: dict[str, Any],
+    *,
+    expected_entry_count: int,
+) -> dict[str, Any]:
+    if len(payload) != patch_lock["output_uncompressed_size"]:
+        raise NoetherForgeError("patched initramfs expanded size differs from its exact lock")
+    observed = hashlib.sha256(payload).hexdigest()
+    if observed != patch_lock["output_uncompressed_sha256"]:
+        raise NoetherForgeError("patched initramfs expanded digest differs from its exact lock")
+    member_start, member_end = locate_newc_regular_member(
+        payload,
+        patch_lock["member"],
+        expected_entry_count=expected_entry_count,
+    )
+    member = payload[member_start:member_end]
+    if (
+        len(member) != patch_lock["output_member_size"]
+        or hashlib.sha256(member).hexdigest() != patch_lock["output_member_sha256"]
+    ):
+        raise NoetherForgeError("patched initramfs member differs from its exact output lock")
+    marker_counts: dict[str, int] = {}
+    for label, replacement in initramfs_replacements(patch_spec).items():
+        if payload.count(replacement) != 1:
+            raise NoetherForgeError(f"patched initramfs marker verification failed: {label}")
+        marker_counts[label] = 1
+    return {
+        "expanded_size": len(payload),
+        "expanded_sha256": observed,
+        "marker_counts": marker_counts,
+    }
+
+
+def write_patched_initramfs(
+    source: Path,
+    destination: Path,
+    initramfs_lock: dict[str, Any],
+    patch_lock: dict[str, Any],
+    patch_spec: dict[str, Any],
+) -> dict[str, Any]:
+    source_payload = read_locked_gzip(source, initramfs_lock, "authenticated boot-media initramfs")
+    patched_payload = patch_initramfs_payload(
+        source_payload,
+        patch_lock,
+        patch_spec,
+        expected_entry_count=initramfs_lock["entry_count"],
+    )
+    evidence = verify_patched_initramfs_payload(
+        patched_payload,
+        patch_lock,
+        patch_spec,
+        expected_entry_count=initramfs_lock["entry_count"],
+    )
+    compressed = io.BytesIO()
+    with gzip.GzipFile(
+        filename="",
+        mode="wb",
+        fileobj=compressed,
+        mtime=patch_lock["gzip_mtime"],
+        compresslevel=9,
+    ) as stream:
+        stream.write(patched_payload)
+    output = compressed.getvalue()
+    if len(output) != patch_lock["output_size"] or hashlib.sha256(output).hexdigest() != patch_lock["output_sha256"]:
+        raise NoetherForgeError("deterministic patched initramfs compressed bytes differ from their exact lock")
+    atomic_write(destination, output)
+    return {
+        **evidence,
+        "filename": destination.name,
+        "size": len(output),
+        "sha256": hashlib.sha256(output).hexdigest(),
+        "gzip_mtime": patch_lock["gzip_mtime"],
+    }
+
+
+def read_patched_initramfs(
+    path: Path,
+    patch_lock: dict[str, Any],
+    patch_spec: dict[str, Any],
+    *,
+    expected_entry_count: int,
+) -> tuple[bytes, dict[str, Any]]:
+    verify_locked_file(
+        path,
+        {"size": patch_lock["output_size"], "sha256": patch_lock["output_sha256"]},
+        "patched ISO initramfs",
+    )
+    expanded = bytearray()
+    try:
+        with path.open("rb") as source, gzip.GzipFile(fileobj=source, mode="rb") as stream:
+            while len(expanded) <= patch_lock["output_uncompressed_size"]:
+                remaining = patch_lock["output_uncompressed_size"] + 1 - len(expanded)
+                block = stream.read(min(GZIP_CHUNK_SIZE, remaining))
+                if not block:
+                    break
+                expanded.extend(block)
+    except (EOFError, OSError) as exc:
+        raise NoetherForgeError(f"patched ISO initramfs gzip is malformed: {exc}") from exc
+    payload = bytes(expanded)
+    return payload, verify_patched_initramfs_payload(
+        payload,
+        patch_lock,
+        patch_spec,
+        expected_entry_count=expected_entry_count,
+    )
+
+
+def _newc_path(name: str) -> PurePosixPath:
+    if name == ".":
+        return PurePosixPath(name)
+    if not name or "\\" in name:
+        raise NoetherForgeError(f"newc member path is empty or non-POSIX: {name!r}")
+    path = PurePosixPath(name)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts) or path.as_posix() != name:
+        raise NoetherForgeError(f"newc member path is non-canonical or traversing: {name!r}")
+    return path
+
+
+def parse_newc_bootstrap(
+    archive: bytes,
+    member_specs: Sequence[dict[str, Any]],
+    *,
+    expected_entry_count: int,
+) -> dict[str, dict[str, Any]]:
+    """Strictly parse a newc archive and return only the exact bootstrap allowlist."""
+    if len(archive) > NEWC_MAX_ARCHIVE_SIZE:
+        raise NoetherForgeError("newc archive exceeds the hard expanded-size ceiling")
+    specs = {item["path"]: item for item in member_specs}
+    if len(specs) != len(member_specs):
+        raise NoetherForgeError("newc bootstrap allowlist contains duplicate paths")
+    found: dict[str, dict[str, Any]] = {}
+    seen: set[str] = set()
+    offset = 0
+    entry_count = 0
+    trailer_seen = False
+    while offset < len(archive):
+        if entry_count >= NEWC_MAX_ENTRIES or len(archive) - offset < NEWC_HEADER_SIZE:
+            raise NoetherForgeError("newc archive is truncated or exceeds the entry-count ceiling")
+        header = archive[offset:offset + NEWC_HEADER_SIZE]
+        if header[:6] != b"070701" or re.fullmatch(rb"[0-9A-Fa-f]{104}", header[6:]) is None:
+            raise NoetherForgeError("newc header magic or hexadecimal fields are malformed")
+        fields = [int(header[6 + index * 8:14 + index * 8], 16) for index in range(13)]
+        mode, uid, gid, nlink, filesize, namesize, checksum = (
+            fields[1], fields[2], fields[3], fields[4], fields[6], fields[11], fields[12]
+        )
+        trailer_shape = mode == 0 and nlink == 0 and filesize == 0 and namesize == 11
+        if uid != 0 or gid != 0 or checksum != 0 or (nlink < 1 and not trailer_shape):
+            raise NoetherForgeError("newc entry ownership, link count, or checksum field is outside the locked format")
+        if namesize < 2 or namesize > NEWC_MAX_NAME_SIZE:
+            raise NoetherForgeError("newc member name length is outside the allowed bounds")
+        offset += NEWC_HEADER_SIZE
+        name_end = offset + namesize
+        if name_end > len(archive):
+            raise NoetherForgeError("newc member name is truncated")
+        encoded_name = archive[offset:name_end]
+        if encoded_name[-1:] != b"\0" or b"\0" in encoded_name[:-1]:
+            raise NoetherForgeError("newc member name must contain one terminal NUL")
+        try:
+            name = encoded_name[:-1].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise NoetherForgeError("newc member name is not valid UTF-8") from exc
+        offset = name_end
+        name_padding = (-offset) % 4
+        if archive[offset:offset + name_padding] != b"\0" * name_padding:
+            raise NoetherForgeError("newc member name padding is malformed")
+        offset += name_padding
+        if filesize > NEWC_MAX_ENTRY_SIZE:
+            raise NoetherForgeError(f"newc member exceeds the entry-size ceiling: {name!r}")
+        data_end = offset + filesize
+        if data_end > len(archive):
+            raise NoetherForgeError(f"newc member data is truncated: {name!r}")
+        data = archive[offset:data_end]
+        offset = data_end
+        data_padding = (-offset) % 4
+        if archive[offset:offset + data_padding] != b"\0" * data_padding:
+            raise NoetherForgeError("newc member data padding is malformed")
+        offset += data_padding
+        if name == "TRAILER!!!":
+            if fields != [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0] or trailer_seen:
+                raise NoetherForgeError("newc trailer is duplicated or carries data")
+            trailer_seen = True
+            if any(archive[offset:]):
+                raise NoetherForgeError("newc archive has non-zero bytes after its trailer")
+            break
+        _newc_path(name)
+        if name in seen:
+            raise NoetherForgeError(f"duplicate newc member rejected: {name}")
+        seen.add(name)
+        entry_count += 1
+        file_type = stat.S_IFMT(mode)
+        if file_type not in {stat.S_IFREG, stat.S_IFDIR, stat.S_IFLNK}:
+            raise NoetherForgeError(f"newc member has an unsupported type: {name}")
+        if file_type != stat.S_IFDIR and nlink != 1:
+            raise NoetherForgeError(f"newc non-directory member link count is not one: {name}")
+        if file_type == stat.S_IFDIR and filesize != 0:
+            raise NoetherForgeError(f"newc directory carries data: {name}")
+        if file_type == stat.S_IFLNK and (b"\0" in data or len(data) > NEWC_MAX_NAME_SIZE):
+            raise NoetherForgeError(f"newc symlink target is malformed: {name}")
+        spec = specs.get(name)
+        if spec is None:
+            continue
+        expected_type = stat.S_IFREG if spec["type"] == "regular" else stat.S_IFLNK
+        if file_type != expected_type or stat.S_IMODE(mode) != int(spec["mode"], 8):
+            raise NoetherForgeError(f"bootstrap member type or mode drift: {name}")
+        if spec["type"] == "regular":
+            if len(data) != spec["size"] or hashlib.sha256(data).hexdigest() != spec["sha256"]:
+                raise NoetherForgeError(f"bootstrap member size or digest drift: {name}")
+            found[name] = {"type": "regular", "mode": stat.S_IMODE(mode), "data": bytes(data)}
+        else:
+            try:
+                target = data.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise NoetherForgeError(f"bootstrap symlink target is not UTF-8: {name}") from exc
+            if len(data) != len(spec["target"].encode("utf-8")) or target != spec["target"]:
+                raise NoetherForgeError(f"bootstrap symlink target drift: {name}")
+            found[name] = {"type": "symlink", "mode": stat.S_IMODE(mode), "target": target}
+    if not trailer_seen:
+        raise NoetherForgeError("newc archive trailer is missing")
+    if entry_count != expected_entry_count:
+        raise NoetherForgeError(f"newc entry count mismatch: expected {expected_entry_count}, got {entry_count}")
+    missing = sorted(set(specs) - set(found))
+    if missing:
+        raise NoetherForgeError(f"newc bootstrap members are missing: {missing}")
+    return found
+
+
+def materialize_bootstrap(root: Path, members: dict[str, dict[str, Any]]) -> list[Path]:
+    root.mkdir(parents=True, exist_ok=False)
+    regular = [(name, item) for name, item in members.items() if item["type"] == "regular"]
+    links = [(name, item) for name, item in members.items() if item["type"] == "symlink"]
+    for name, item in sorted(regular):
+        destination = root / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write(destination, item["data"], mode=item["mode"])
+    for name, item in sorted(links):
+        destination = root / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists() or destination.is_symlink():
+            raise NoetherForgeError(f"duplicate bootstrap output: {destination}")
+        os.symlink(item["target"], destination)
+    keys = sorted((root / "etc/apk/keys").glob("*.rsa.pub"))
+    if len(keys) != 3:
+        raise NoetherForgeError("bootstrap did not materialize exactly three Alpine public keys")
+    return keys
+
+
+def bootstrap_apk_command(root: Path) -> list[str | os.PathLike[str]]:
+    return [
+        root / "usr/lib/ld-musl-x86_64.so.1",
+        "--library-path",
+        root / "usr/lib",
+        root / "usr/sbin/apk",
+    ]
+
+
+def extract_locked_repository(
+    media_iso: Path,
+    destination: Path,
+    repository_lock: dict[str, Any],
+    package_lock: dict[str, Any],
+    overlay_cache: Path,
+) -> Path:
+    destination.mkdir(parents=True, exist_ok=False)
+    overlay_names = set(package_lock["post_release_overlay"])
+    media_packages = [item for item in package_lock["packages"] if item["filename"] not in overlay_names]
+    media_names = [repository_lock["index_filename"], *[item["filename"] for item in media_packages]]
+    command: list[str | os.PathLike[str]] = ["xorriso", "-osirrox", "on", "-indev", media_iso]
+    repository_path = package_lock["repository_path"].rstrip("/")
+    for filename in media_names:
+        command.extend(["-extract", f"{repository_path}/{filename}", destination / filename])
+    run(command, timeout=600)
+    for filename in package_lock["post_release_overlay"]:
+        source = overlay_cache / filename
+        locked = next(item for item in package_lock["packages"] if item["filename"] == filename)
+        verify_locked_file(source, locked, "post-release overlay APK")
+        shutil.copyfile(source, destination / filename)
+    expected_names = [repository_lock["index_filename"], *[item["filename"] for item in package_lock["packages"]]]
+    observed_names = sorted(path.name for path in destination.iterdir())
+    if observed_names != sorted(expected_names):
+        raise NoetherForgeError("extracted package repository has missing or extra members")
+    verify_locked_file(
+        destination / repository_lock["index_filename"],
+        {
+            "size": repository_lock["index_size"],
+            "sha256": repository_lock["index_sha256"],
+        },
+        "extended-media signed APK index",
+    )
+    for package in package_lock["packages"]:
+        source_label = "post-release overlay APK" if package["filename"] in overlay_names else "extended-media APK member"
+        verify_locked_file(destination / package["filename"], package, source_label)
+    return destination
+
+
 def normalize_xorriso_report(report: str, iso: Path) -> str:
     normalized = report.replace(str(iso), iso.name)
     normalized = re.sub(
@@ -402,42 +1147,6 @@ def normalize_xorriso_report(report: str, iso: Path) -> str:
     )
 
 
-def extract_apk_member(apk: Path, member_name: str, destination: Path) -> None:
-    with tarfile.open(apk, "r:gz") as archive:
-        try:
-            member = archive.getmember(member_name)
-        except KeyError as exc:
-            raise NoetherForgeError(f"APK member missing: {apk.name}:{member_name}") from exc
-        if not member.isfile():
-            raise NoetherForgeError(f"APK member is not a regular file: {apk.name}:{member_name}")
-        stream = archive.extractfile(member)
-        if stream is None:
-            raise NoetherForgeError(f"cannot extract APK member: {apk.name}:{member_name}")
-        atomic_write(destination, stream.read(), mode=member.mode & 0o777)
-
-
-def extract_apk_keys(apk: Path, destination: Path) -> list[Path]:
-    destination.mkdir(parents=True, exist_ok=True)
-    outputs: list[Path] = []
-    with tarfile.open(apk, "r:gz") as archive:
-        for member in archive.getmembers():
-            prefix = "etc/apk/keys/"
-            if not member.name.startswith(prefix) or not member.isfile():
-                continue
-            name = PurePosixPath(member.name).name
-            if not name.endswith(".rsa.pub") or "/" in name:
-                continue
-            stream = archive.extractfile(member)
-            if stream is None:
-                raise NoetherForgeError(f"cannot extract Alpine key {member.name}")
-            output = destination / name
-            atomic_write(output, stream.read())
-            outputs.append(output)
-    if len(outputs) < 3:
-        raise NoetherForgeError("authenticated Alpine key package yielded fewer than three release keys")
-    return sorted(outputs)
-
-
 def tool_version(command: str, *args: str) -> str:
     path = shutil.which(command)
     if not path:
@@ -446,25 +1155,29 @@ def tool_version(command: str, *args: str) -> str:
     return (result.stdout or result.stderr).splitlines()[0].strip()
 
 
-def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
-    release, input_lock, package_lock = validate_configuration()
-    records = cache_records(input_lock, package_lock)
-    for record in records:
-        verify_locked_file(cache / record["filename"], record, record["kind"])
+def media_sidecar(media: dict[str, Any], role: str) -> dict[str, Any]:
+    matches = [item for item in media["sidecars"] if item.get("role") == role]
+    if len(matches) != 1:
+        raise NoetherForgeError(f"release media requires exactly one {role} sidecar")
+    return matches[0]
 
-    iso = cache / input_lock["iso"]["filename"]
-    if digest_file(iso, "sha512") != input_lock["iso"]["sha512"]:
-        raise NoetherForgeError("Alpine ISO SHA-512 mismatch")
-    sha256_text = (cache / input_lock["sidecars"][0]["filename"]).read_text(encoding="ascii").strip()
-    sha512_text = (cache / input_lock["sidecars"][1]["filename"]).read_text(encoding="ascii").strip()
-    if sha256_text.split()[0] != input_lock["iso"]["sha256"] or sha512_text.split()[0] != input_lock["iso"]["sha512"]:
-        raise NoetherForgeError("published Alpine digest sidecar does not bind the locked ISO")
 
-    gpg_home = work / "gnupg"
-    gpg_home.mkdir(mode=0o700)
-    key = cache / input_lock["release_signer"]["key_filename"]
-    run(["gpg", "--no-autostart", "--batch", "--homedir", gpg_home, "--import", key])
-    signature = cache / "alpine-standard-3.24.1-x86_64.iso.asc"
+def verify_release_media(
+    media: dict[str, Any],
+    cache: Path,
+    gpg_home: Path,
+    fingerprint: str,
+) -> dict[str, Any]:
+    iso_record = media["iso"]
+    iso = cache / iso_record["filename"]
+    if digest_file(iso, "sha512") != iso_record["sha512"]:
+        raise NoetherForgeError(f"{media['role']} ISO SHA-512 mismatch")
+    for role, algorithm in (("sha256-digest", "sha256"), ("sha512-digest", "sha512")):
+        record = media_sidecar(media, role)
+        text = (cache / record["filename"]).read_text(encoding="ascii").strip()
+        if text.split() != [iso_record[algorithm], iso.name]:
+            raise NoetherForgeError(f"published Alpine {media['role']} {algorithm} sidecar does not bind the locked ISO")
+    signature_record = media_sidecar(media, "detached-signature")
     signature_result = run([
         "gpg",
         "--no-autostart",
@@ -474,12 +1187,41 @@ def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
         "--status-fd",
         "1",
         "--verify",
-        signature,
+        cache / signature_record["filename"],
         iso,
     ])
-    fingerprint = input_lock["release_signer"]["fingerprint"]
     if f"[GNUPG:] VALIDSIG {fingerprint} " not in signature_result.stdout:
-        raise NoetherForgeError("Alpine detached signature did not produce the pinned fingerprint")
+        raise NoetherForgeError(f"Alpine {media['role']} detached signature did not produce the pinned fingerprint")
+    return {
+        "role": media["role"],
+        "filename": iso.name,
+        "size": iso.stat().st_size,
+        "sha256": digest_file(iso),
+        "sha512": digest_file(iso, "sha512"),
+        "sidecars_match": True,
+        "detached_signature_valid": True,
+        "signer_fingerprint": fingerprint,
+    }
+
+
+def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
+    release, input_lock, package_lock = validate_configuration()
+    records = cache_records(input_lock)
+    for record in records:
+        verify_locked_file(cache / record["filename"], record, record["kind"])
+    for record in input_lock["post_release_overlay"]:
+        if digest_file(cache / record["filename"], "sha512") != record["sha512"]:
+            raise NoetherForgeError(f"post-release overlay APK SHA-512 mismatch: {record['filename']}")
+
+    gpg_home = work / "gnupg"
+    gpg_home.mkdir(mode=0o700)
+    key = cache / input_lock["release_signer"]["key_filename"]
+    run(["gpg", "--no-autostart", "--batch", "--homedir", gpg_home, "--import", key])
+    fingerprint = input_lock["release_signer"]["fingerprint"]
+    boot_media = verify_release_media(input_lock["boot_media"], cache, gpg_home, fingerprint)
+    package_source_media = verify_release_media(input_lock["package_source_media"], cache, gpg_home, fingerprint)
+    iso = cache / input_lock["boot_media"]["iso"]["filename"]
+    package_source_iso = cache / input_lock["package_source_media"]["iso"]["filename"]
 
     extracted = work / "upstream"
     extracted.mkdir()
@@ -488,12 +1230,12 @@ def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
     grub = extracted / "grub.cfg"
     bootx64 = extracted / "bootx64.efi"
     efi_image = extracted / "efi.img"
-    alpine_keys_apk = extracted / "alpine-keys.apk"
+    initramfs = extracted / "initramfs-lts"
     xorriso_extract(iso, "/boot/syslinux/syslinux.cfg", syslinux)
     xorriso_extract(iso, "/boot/grub/grub.cfg", grub)
     xorriso_extract(iso, "/efi/boot/bootx64.efi", bootx64)
     xorriso_extract(iso, "/boot/grub/efi.img", efi_image)
-    xorriso_extract(iso, "/apks/x86_64/alpine-keys-2.6-r0.apk", alpine_keys_apk)
+    xorriso_extract(iso, input_lock["bootstrap"]["initramfs"]["iso_path"], initramfs)
     for path, expected in (
         (syslinux, layout["syslinux_config_sha256"]),
         (grub, layout["grub_config_sha256"]),
@@ -507,27 +1249,59 @@ def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
     if efi_image.read_bytes().count(original_label) != layout["efi_image_embedded_volume_label_occurrences"]:
         raise NoetherForgeError("unexpected EFI image volume-label occurrence count")
 
-    alpine_key_lock = next(item for item in package_lock["packages"] if item["filename"] == "alpine-keys-2.6-r0.apk")
-    verify_locked_file(alpine_keys_apk, alpine_key_lock, "Alpine signing-key package inside GPG-authenticated ISO")
-    keys_dir = work / "apk-keys"
-    keys = extract_apk_keys(alpine_keys_apk, keys_dir)
-    apk_static_package = cache / input_lock["apk_static"]["filename"]
-    apk_static = work / "apk.static"
-    extract_apk_member(apk_static_package, "sbin/apk.static", apk_static)
-    os.chmod(apk_static, 0o755)
-    run([apk_static, "verify", "--keys-dir", keys_dir, apk_static_package])
-    for package in package_lock["packages"]:
-        run([apk_static, "verify", "--keys-dir", keys_dir, cache / package["filename"]])
+    initramfs_record = input_lock["bootstrap"]["initramfs"]
+    archive = read_locked_gzip(initramfs, initramfs_record, "authenticated boot-media initramfs")
+    bootstrap_members = parse_newc_bootstrap(
+        archive,
+        input_lock["bootstrap"]["members"],
+        expected_entry_count=initramfs_record["entry_count"],
+    )
+    bootstrap_root = work / "apk-bootstrap"
+    keys = materialize_bootstrap(bootstrap_root, bootstrap_members)
+    keys_dir = bootstrap_root / "etc/apk/keys"
+    overlay_keys_dir = work / "post-release-overlay-keys"
+    overlay_keys_dir.mkdir()
+    overlay_key = keys_dir / "alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub"
+    if digest_file(overlay_key) != "207e4696d3c05f7cb05966aee557307151f1f00217af4143c1bcaf33b8df733f":
+        raise NoetherForgeError("authenticated post-release overlay signer key digest drift")
+    shutil.copyfile(overlay_key, overlay_keys_dir / overlay_key.name)
+    apk_home = work / "apk-home"
+    apk_home.mkdir()
+    apk_environment = {
+        "HOME": str(apk_home),
+        "LANG": "C",
+        "LC_ALL": "C",
+        "PATH": "/usr/bin:/bin",
+    }
+    apk_command = bootstrap_apk_command(bootstrap_root)
+    version_result = run([*apk_command, "--version"], env=apk_environment)
+    if version_result.stdout.strip() != input_lock["bootstrap"]["apk_version"]:
+        raise NoetherForgeError(f"authenticated bootstrap apk version drift: {version_result.stdout.strip()}")
 
-    local_repo = work / "local-repo/x86_64"
-    local_repo.mkdir(parents=True)
-    shutil.copyfile(cache / input_lock["apk_index"]["filename"], local_repo / "APKINDEX.tar.gz")
+    local_repo = extract_locked_repository(
+        package_source_iso,
+        work / "package-source/x86_64",
+        input_lock["package_source_media"]["repository"],
+        package_lock,
+        cache,
+    )
+    index = local_repo / input_lock["package_source_media"]["repository"]["index_filename"]
+    run([*apk_command, "verify", "--keys-dir", keys_dir, index], env=apk_environment)
+    overlay_records = {item["filename"]: item for item in input_lock["post_release_overlay"]}
     for package in package_lock["packages"]:
-        shutil.copyfile(cache / package["filename"], local_repo / package["filename"])
+        package_path = local_repo / package["filename"]
+        signature_keys = keys_dir
+        if package["filename"] in overlay_records:
+            verify_post_release_overlay_metadata(package_path, overlay_records[package["filename"]])
+            signature_keys = overlay_keys_dir
+        run([*apk_command, "verify", "--keys-dir", signature_keys, package_path], env=apk_environment)
+
     root = work / "closure-root"
     root.mkdir()
+    empty_repositories = work / "empty-repositories"
+    atomic_write(empty_repositories, b"")
     closure_result = run([
-        apk_static,
+        *apk_command,
         "add",
         "--root",
         root,
@@ -535,20 +1309,29 @@ def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
         "--usermode",
         "--no-cache",
         "--no-network",
+        "--force-non-repository",
+        "--repositories-file",
+        empty_repositories,
         "--arch",
         "x86_64",
         "--keys-dir",
         keys_dir,
-        "--repository",
-        local_repo.parent,
         "--no-scripts",
+        *[local_repo / package["filename"] for package in package_lock["packages"]],
         *package_lock["world"],
-    ])
+    ], env=apk_environment)
     installed = root / "lib/apk/db/installed"
     ensure_regular(installed, "rootless closure database")
     installed_count = sum(1 for line in installed.read_text(encoding="utf-8").splitlines() if line.startswith("P:"))
     if installed_count != len(package_lock["packages"]):
         raise NoetherForgeError(f"APK closure installed {installed_count} packages, expected {len(package_lock['packages'])}")
+    expected_identities = sorted(
+        (info["pkgname"], info["pkgver"], info["arch"])
+        for info in (apk_pkginfo(local_repo / package["filename"]) for package in package_lock["packages"])
+    )
+    observed_identities = installed_apk_identities(installed)
+    if observed_identities != expected_identities:
+        raise NoetherForgeError("rootless direct-file closure installed identities differ from the exact 52 APK inputs")
 
     xorriso_version = tool_version("xorriso", "-version")
     qemu_version = tool_version("qemu-system-x86_64", "--version")
@@ -559,23 +1342,31 @@ def verify_inputs(cache: Path, work: Path) -> dict[str, Any]:
         "schema": "wucios.noether_forge.input_verification.v1",
         "status": "pass",
         "release": release["release_id"],
-        "iso": {
-            "filename": iso.name,
-            "size": iso.stat().st_size,
-            "sha256": digest_file(iso),
-            "sha512": digest_file(iso, "sha512"),
-            "sidecars_match": True,
-            "detached_signature_valid": True,
-            "signer_fingerprint": fingerprint,
+        "media": {
+            "boot": boot_media,
+            "package_source": package_source_media,
         },
         "apk": {
-            "signed_index_sha256": digest_file(cache / input_lock["apk_index"]["filename"]),
+            "signed_index_sha256": digest_file(index),
+            "source_media": package_source_iso.name,
+            "release_media_member_count": 49,
+            "post_release_overlay_count": 3,
+            "post_release_overlay": list(package_lock["post_release_overlay"]),
             "package_count": installed_count,
             "all_package_signatures_valid": True,
             "rootless_offline_closure_install": "pass",
+            "closure_mode": "52-absolute-files-force-non-repository",
+            "installed_identities_exact": True,
             "signing_keys": [{"filename": item.name, "sha256": digest_file(item)} for item in keys],
             "world": list(package_lock["world"]),
             "stdout_tail": closure_result.stdout[-2000:],
+        },
+        "bootstrap": {
+            "source": "GPG-authenticated boot-media initramfs",
+            "initramfs_sha256": digest_file(initramfs),
+            "initramfs_uncompressed_sha256": hashlib.sha256(archive).hexdigest(),
+            "member_count": len(bootstrap_members),
+            "apk_version": version_result.stdout.strip(),
         },
         "host_tools": {
             "gpg": gpg_version,
@@ -606,11 +1397,16 @@ def source_manifest() -> dict[str, Any]:
     sources: set[Path] = {
         Path(__file__),
         REPO / "Makefile",
+        REPO / "NOTICE",
         REPO / "include/wuci.inc",
         REPO / "tools/wucios/noether_runtime.py",
+        REPO / "tools/wucios/noether_obligations.py",
         REPO / "wucios/sets/cantor-denied-noether-packages.txt",
         REPO / "wucios/components/component-register.json",
         REPO / "wucios/profiles/noether-core.json",
+        REPO / "wucios/schemas/noether-forge-alpine-input-lock.schema.json",
+        REPO / "wucios/schemas/noether-forge-initramfs-patch-spec.schema.json",
+        REPO / "wucios/schemas/noether-forge-package-lock.schema.json",
         REPO / "wucios/substrates/alpine.json",
     }
     sources.update((REPO / "src").glob("*.s"))
@@ -661,8 +1457,52 @@ def apk_pkginfo(path: Path) -> dict[str, str]:
     return fields
 
 
+def verify_post_release_overlay_metadata(path: Path, record: dict[str, Any]) -> dict[str, str]:
+    expected_signer = ".SIGN.RSA.alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub"
+    with tarfile.open(path, "r:gz") as archive:
+        signatures = [member for member in archive.getmembers() if member.name.startswith(".SIGN")]
+        if len(signatures) != 1 or signatures[0].name != expected_signer or not signatures[0].isfile():
+            raise NoetherForgeError(f"post-release overlay signer member drift: {path.name}")
+        pkginfo_members = [member for member in archive.getmembers() if member.name == ".PKGINFO"]
+        if len(pkginfo_members) != 1 or not pkginfo_members[0].isfile():
+            raise NoetherForgeError(f"post-release overlay .PKGINFO member drift: {path.name}")
+        stream = archive.extractfile(pkginfo_members[0])
+        if stream is None:
+            raise NoetherForgeError(f"post-release overlay .PKGINFO unreadable: {path.name}")
+        text = stream.read().decode("utf-8")
+    values: dict[str, list[str]] = {}
+    for line in text.splitlines():
+        if " = " in line:
+            key, value = line.split(" = ", 1)
+            values.setdefault(key, []).append(value)
+    expected = {
+        "pkgname": record["package"],
+        "pkgver": record["version"],
+        "arch": record["architecture"],
+        "origin": record["origin"],
+    }
+    for key, value in expected.items():
+        if values.get(key) != [value]:
+            raise NoetherForgeError(f"post-release overlay .PKGINFO {key} drift: {path.name}")
+    return expected
+
+
+def installed_apk_identities(path: Path) -> list[tuple[str, str, str]]:
+    identities: list[tuple[str, str, str]] = []
+    for paragraph in path.read_text(encoding="utf-8").strip().split("\n\n"):
+        fields: dict[str, list[str]] = {}
+        for line in paragraph.splitlines():
+            if len(line) >= 3 and line[1] == ":":
+                fields.setdefault(line[0], []).append(line[2:])
+        if any(len(fields.get(key, [])) != 1 for key in ("P", "V", "A")):
+            raise NoetherForgeError("installed APK database has ambiguous package identity fields")
+        identities.append((fields["P"][0], fields["V"][0], fields["A"][0]))
+    if len(identities) != len(set(identities)):
+        raise NoetherForgeError("installed APK database contains duplicate package identities")
+    return sorted(identities)
+
+
 def generate_runtime_package_contract(cache: Path, package_lock: dict[str, Any]) -> dict[str, Any]:
-    target_architecture = load_json(RELEASE_ROOT / "alpine-input-lock.json")["architecture"]
     packages: list[dict[str, str]] = []
     for locked in package_lock["packages"]:
         path = cache / locked["filename"]
@@ -675,7 +1515,7 @@ def generate_runtime_package_contract(cache: Path, package_lock: dict[str, Any])
             "name": info["pkgname"],
             "version": info["pkgver"],
             "package_architecture": info["arch"],
-            "installed_architecture": target_architecture if info["arch"] == "noarch" else info["arch"],
+            "installed_architecture": info["arch"],
             "apk_sha256": locked["sha256"],
         })
     packages.sort(key=lambda item: (item["name"], item["version"], item["installed_architecture"]))
@@ -727,8 +1567,8 @@ def validate_spdx_sbom(sbom: dict[str, Any], package_lock: dict[str, Any], sourc
     packages = sbom.get("packages")
     files = sbom.get("files")
     relationships = sbom.get("relationships")
-    if not isinstance(packages, list) or len(packages) != len(package_lock["packages"]) + 1:
-        raise NoetherForgeError("SPDX package scope must cover the Alpine ISO plus every locked APK")
+    if not isinstance(packages, list) or len(packages) != len(package_lock["packages"]) + 2:
+        raise NoetherForgeError("SPDX package scope must cover both Alpine release media plus every locked APK member")
     if not isinstance(files, list) or len(files) != len(source["files"]):
         raise NoetherForgeError("SPDX file scope must cover every bound first-party build input")
     package_allowed = {
@@ -759,6 +1599,11 @@ def validate_spdx_sbom(sbom: dict[str, Any], package_lock: dict[str, Any], sourc
     for package in packages:
         if not isinstance(package, dict) or not {"SPDXID", "downloadLocation", "name"} <= set(package) or not set(package) <= package_allowed:
             raise NoetherForgeError("SPDX package record is structurally invalid")
+        if "primaryPackagePurpose" in package and package["primaryPackagePurpose"] not in {
+            "APPLICATION", "CONTAINER", "DEVICE", "FIRMWARE", "FILE", "FRAMEWORK",
+            "INSTALL", "LIBRARY", "OPERATING_SYSTEM", "OTHER", "SOURCE", "ARCHIVE",
+        }:
+            raise NoetherForgeError("SPDX package primaryPackagePurpose is invalid")
         check_checksums(package.get("checksums"), "SPDX package")
         if package.get("filesAnalyzed") is not False:
             raise NoetherForgeError("SPDX package records must explicitly state filesAnalyzed=false")
@@ -795,23 +1640,37 @@ def validate_spdx_sbom(sbom: dict[str, Any], package_lock: dict[str, Any], sourc
         raise NoetherForgeError("SPDX DESCRIBES relationships are incomplete or contain extras")
 
 
-def generate_sbom(cache: Path, package_lock: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
+def generate_sbom(package_source: Path, package_lock: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
     packages: list[dict[str, Any]] = []
+    input_lock = load_json(RELEASE_ROOT / "alpine-input-lock.json")
+    overlay_records = {item["filename"]: item for item in input_lock["post_release_overlay"]}
     for locked in package_lock["packages"]:
-        path = cache / locked["filename"]
+        path = package_source / locked["filename"]
         info = apk_pkginfo(path)
         identifier = spdx_id(info["pkgname"])
         alpine_license = info.get("license", "not reported")
+        overlay_record = overlay_records.get(locked["filename"])
+        checksums = [{"algorithm": "SHA256", "checksumValue": locked["sha256"]}]
+        if overlay_record is not None:
+            checksums.append({"algorithm": "SHA512", "checksumValue": overlay_record["sha512"]})
+        source_comment = (
+            f"Post-release Alpine-signed package fetched from an exact official versioned URL, whole-file "
+            f"SHA-256/SHA-512 locked, and verified only with the authenticated 6165 signing key. Its mutable "
+            f"repository locator creates future rebuild-availability risk. Inclusion reason: {overlay_record['reason']}. "
+            if overlay_record is not None
+            else f"Signed APK member {package_lock['repository_path']}/{locked['filename']} is extracted from "
+                 f"locked container {package_lock['source_media']}. "
+        )
         packages.append({
             "SPDXID": identifier,
             "name": info["pkgname"],
             "versionInfo": info["pkgver"],
             "packageFileName": locked["filename"],
-            "downloadLocation": f"{package_lock['repository_url']}/{locked['filename']}",
+            "downloadLocation": overlay_record["url"] if overlay_record is not None else "NOASSERTION",
             "filesAnalyzed": False,
             "licenseConcluded": "NOASSERTION",
             "licenseDeclared": "NOASSERTION",
-            "checksums": [{"algorithm": "SHA256", "checksumValue": locked["sha256"]}],
+            "checksums": checksums,
             "externalRefs": [{
                 "referenceCategory": "PACKAGE-MANAGER",
                 "referenceType": "purl",
@@ -819,13 +1678,13 @@ def generate_sbom(cache: Path, package_lock: dict[str, Any], source: dict[str, A
             }],
             "supplier": "Organization: Alpine Linux",
             "comment": (
-                "Signed APK present on the boot medium and selected into the diskless runtime closure. "
+                source_comment + "The package is selected into the diskless runtime closure. "
                 f"Raw Alpine package metadata reports license: {alpine_license}. This SBOM does not independently "
                 "normalize that expression or make a license conclusion."
             ),
         })
-    input_lock = load_json(RELEASE_ROOT / "alpine-input-lock.json")
-    alpine_iso = input_lock["iso"]
+    alpine_iso = input_lock["boot_media"]["iso"]
+    package_source_iso = input_lock["package_source_media"]["iso"]
     packages.append({
         "SPDXID": "SPDXRef-Package-Alpine-Standard-ISO",
         "name": "alpine-standard",
@@ -842,6 +1701,23 @@ def generate_sbom(cache: Path, package_lock: dict[str, Any], source: dict[str, A
         "primaryPackagePurpose": "OPERATING_SYSTEM",
         "supplier": "Organization: Alpine Linux",
         "comment": "Authenticated upstream ISO substrate supplying the kernel, initramfs, and BIOS/UEFI boot equipment.",
+    })
+    packages.append({
+        "SPDXID": "SPDXRef-Alpine-Extended-ISO",
+        "name": "Alpine Linux extended ISO package-source media",
+        "versionInfo": input_lock["alpine_release"],
+        "packageFileName": package_source_iso["filename"],
+        "primaryPackagePurpose": "OPERATING_SYSTEM",
+        "downloadLocation": package_source_iso["url"],
+        "filesAnalyzed": False,
+        "licenseConcluded": "NOASSERTION",
+        "licenseDeclared": "NOASSERTION",
+        "checksums": [
+            {"algorithm": "SHA256", "checksumValue": package_source_iso["sha256"]},
+            {"algorithm": "SHA512", "checksumValue": package_source_iso["sha512"]},
+        ],
+        "supplier": "Organization: Alpine Linux",
+        "comment": "Authenticated release media supplying the signed APK index and 49 locked APK members; the three post-release overlay APKs are not members of this ISO.",
     })
     files: list[dict[str, Any]] = []
     for record in source["files"]:
@@ -868,7 +1744,8 @@ def generate_sbom(cache: Path, package_lock: dict[str, Any], source: dict[str, A
     namespace_seed = hashlib.sha256(canonical_json({
         "package_lock": package_lock,
         "source_payload_sha256": source["source_payload_sha256"],
-        "alpine_iso_sha256": alpine_iso["sha256"],
+        "alpine_boot_iso_sha256": alpine_iso["sha256"],
+        "alpine_package_source_iso_sha256": package_source_iso["sha256"],
     })).hexdigest()
     timestamp = datetime.fromtimestamp(load_json(RELEASE_ROOT / "release.json")["source_date_epoch"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     sbom = {
@@ -894,9 +1771,12 @@ def generate_sbom(cache: Path, package_lock: dict[str, Any], source: dict[str, A
             "annotator": f"Tool: {BUILDER_VERSION}",
             "annotationDate": timestamp,
             "comment": (
-                "The signed APKINDEX is broader catalog metadata. Only the 52 listed APK payloads are present, "
-                "and QEMU runtime evidence independently records the installed package set. The Alpine ISO "
-                "package record covers inherited boot equipment; source-manifest files cover first-party payloads."
+                "The signed APKINDEX and 49 APK payloads are members of the locked, GPG-authenticated Alpine extended "
+                "release ISO and serve source verification only; APKINDEX is absent from the final WuciOS ISO. Three "
+                "post-release official Alpine APKs use exact mutable repository locators, whole-file SHA-256/SHA-512 "
+                "locks, and exact 6165-key verification. APK v2 RSA signatures cover a SHA-1 control stream, so signature "
+                "verification alone is not represented as modern collision-resistant whole-file integrity; the exact "
+                "whole-file digest locks are security-critical. QEMU evidence records the installed 52-package set."
             ),
         }],
     }
@@ -992,9 +1872,14 @@ def prepare_overlay(
             os.symlink(f"/etc/init.d/{service}", link)
 
     package_lines = [f"{item['filename']} {item['sha256']}" for item in load_json(RELEASE_ROOT / "package-lock.json")["packages"]]
+    sha256sum_lines = [f"{item['sha256']}  {item['filename']}" for item in load_json(RELEASE_ROOT / "package-lock.json")["packages"]]
     evidence = overlay / "usr/share/wucios/evidence"
     evidence.mkdir(parents=True, exist_ok=True)
     atomic_write(evidence / "package-manifest.txt", ("\n".join(package_lines) + "\n").encode("utf-8"))
+    atomic_write(
+        overlay / "usr/share/wucios/locked-apk-manifest.sha256",
+        ("\n".join(sha256sum_lines) + "\n").encode("ascii"),
+    )
     atomic_write(
         evidence / "godel-boundary.md",
         (
@@ -1129,6 +2014,7 @@ def prepare_iso_metadata(
 
 def build_iso_once(
     cache: Path,
+    package_source: Path,
     work: Path,
     output: Path,
     source: dict[str, Any],
@@ -1137,27 +2023,37 @@ def build_iso_once(
     runtime_package_contract: dict[str, Any],
 ) -> dict[str, Any]:
     release, input_lock, package_lock = validate_configuration()
+    patch_spec = load_initramfs_patch_spec(input_lock)
     overlay, metadata, overlay_manifest = prepare_overlay(work, source, sbom, input_verification, runtime_package_contract)
     apkovl = work / OVERLAY_FILENAME
     apkovl_result = write_deterministic_apkovl(overlay, apkovl, metadata, release["source_date_epoch"])
 
     repository = work / "repository/x86_64"
     repository.mkdir(parents=True)
-    shutil.copyfile(cache / input_lock["apk_index"]["filename"], repository / "APKINDEX.tar.gz")
     for package in package_lock["packages"]:
-        shutil.copyfile(cache / package["filename"], repository / package["filename"])
+        shutil.copyfile(package_source / package["filename"], repository / package["filename"])
 
     boot = work / "boot"
     boot.mkdir()
     upstream_bootx64 = boot / "upstream-bootx64.efi"
     upstream_efi_image = boot / "upstream-efi.img"
-    iso = cache / input_lock["iso"]["filename"]
+    upstream_initramfs = boot / "upstream-initramfs-lts"
+    iso = cache / input_lock["boot_media"]["iso"]["filename"]
     xorriso_extract(iso, "/efi/boot/bootx64.efi", upstream_bootx64)
     xorriso_extract(iso, "/boot/grub/efi.img", upstream_efi_image)
+    xorriso_extract(iso, input_lock["bootstrap"]["initramfs"]["iso_path"], upstream_initramfs)
     patched_bootx64 = boot / "bootx64.efi"
     patched_efi_image = boot / "efi.img"
+    patched_initramfs = boot / "initramfs-lts"
     patch_volume_label(upstream_bootx64, patched_bootx64, input_lock["upstream_layout"]["volume_id"], release["volume_id"])
     patch_volume_label(upstream_efi_image, patched_efi_image, input_lock["upstream_layout"]["volume_id"], release["volume_id"])
+    initramfs_result = write_patched_initramfs(
+        upstream_initramfs,
+        patched_initramfs,
+        input_lock["bootstrap"]["initramfs"],
+        input_lock["bootstrap"]["patch"],
+        patch_spec,
+    )
     iso_metadata = prepare_iso_metadata(work, source, sbom, input_verification, runtime_package_contract)
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -1183,11 +2079,13 @@ def build_iso_once(
         "-volume_date", "all_file_dates", date_text,
         "-boot_image", "any", "gpt_disk_guid=volume_date_uuid",
         "-rm_r", "/apks/x86_64", "--",
+        "-rm", "/apks/.boot_repository", "--",
         "-map", repository, "/apks/x86_64",
         "-map", RELEASE_ROOT / "boot/grub.cfg", "/boot/grub/grub.cfg",
         "-map", RELEASE_ROOT / "boot/syslinux.cfg", "/boot/syslinux/syslinux.cfg",
         "-map", patched_efi_image, "/boot/grub/efi.img",
         "-map", patched_bootx64, "/efi/boot/bootx64.efi",
+        "-map", patched_initramfs, "/boot/initramfs-lts",
         "-map", iso_metadata, "/wucios",
         "-map", apkovl, f"/{OVERLAY_FILENAME}",
         "-commit",
@@ -1204,6 +2102,7 @@ def build_iso_once(
         "apkovl": apkovl_result,
         "overlay_manifest": overlay_manifest,
         "runtime_package_contract_sha256": hashlib.sha256(canonical_json(runtime_package_contract)).hexdigest(),
+        "initramfs": initramfs_result,
         "xorriso_stdout_tail": result.stdout[-3000:],
         "xorriso_stderr_tail": result.stderr[-3000:],
     }
@@ -1278,6 +2177,7 @@ def safe_tar_audit(apkovl: Path) -> tuple[dict[str, Any], dict[str, Any]]:
 
 def inspect_iso(iso: Path, work: Path) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     release, input_lock, package_lock = validate_configuration()
+    patch_spec = load_initramfs_patch_spec(input_lock)
     ensure_regular(iso, "Noether Forge ISO")
     pvd_result = run(["xorriso", "-indev", iso, "-pvd_info"])
     boot_result = run(["xorriso", "-indev", iso, "-report_el_torito", "plain"])
@@ -1290,16 +2190,30 @@ def inspect_iso(iso: Path, work: Path) -> tuple[dict[str, Any], dict[str, Any], 
         raise NoetherForgeError("ISO does not preserve both BIOS and UEFI boot entries")
     extracted = work / "inspect"
     extracted.mkdir()
-    packages = extracted / "packages"
-    run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", "/apks/x86_64", packages])
+    apks_root = extracted / "apks"
+    run(["xorriso", "-osirrox", "on", "-indev", iso, "-extract", "/apks", apks_root])
+    if sorted(path.name for path in apks_root.iterdir()) != ["x86_64"] or not (apks_root / "x86_64").is_dir():
+        raise NoetherForgeError("ISO /apks must contain only the x86_64 direct-file package directory")
+    packages = apks_root / "x86_64"
     package_files = sorted(path.name for path in packages.iterdir() if path.is_file() and path.name.endswith(".apk"))
     expected_packages = [item["filename"] for item in package_lock["packages"]]
     if package_files != expected_packages:
         raise NoetherForgeError("ISO APK payload set differs from the exact package lock")
-    index = packages / "APKINDEX.tar.gz"
-    verify_locked_file(index, input_lock["apk_index"], "ISO signed APK index")
+    expected_repository_files = sorted(expected_packages)
+    observed_repository_files = sorted(path.name for path in packages.iterdir())
+    if observed_repository_files != expected_repository_files or any(not path.is_file() for path in packages.iterdir()):
+        raise NoetherForgeError("ISO package directory must contain exactly 52 locked APKs and no repository index")
     for locked in package_lock["packages"]:
         verify_locked_file(packages / locked["filename"], locked, "ISO APK payload")
+
+    patched_initramfs = extracted / "initramfs-lts"
+    xorriso_extract(iso, "/boot/initramfs-lts", patched_initramfs)
+    _, initramfs_evidence = read_patched_initramfs(
+        patched_initramfs,
+        input_lock["bootstrap"]["patch"],
+        patch_spec,
+        expected_entry_count=input_lock["bootstrap"]["initramfs"]["entry_count"],
+    )
 
     apkovl = extracted / OVERLAY_FILENAME
     xorriso_extract(iso, f"/{OVERLAY_FILENAME}", apkovl)
@@ -1347,7 +2261,15 @@ def inspect_iso(iso: Path, work: Path) -> tuple[dict[str, Any], dict[str, Any], 
         "uefi_boot_image": "/boot/grub/efi.img",
         "boot_entry_count": boot_entry_count,
         "package_payload_count": len(package_files),
-        "signed_apk_index_sha256": digest_file(index),
+        "package_source_media": input_lock["package_source_media"]["iso"]["filename"],
+        "signed_apk_index_embedded": False,
+        "apkindex_files_present": False,
+        "boot_repository_marker_present": False,
+        "patched_initramfs": {
+            **initramfs_evidence,
+            "size": patched_initramfs.stat().st_size,
+            "sha256": digest_file(patched_initramfs),
+        },
         "apkovl_sha256": digest_file(apkovl),
         "runtime_package_contract_sha256": runtime_package_contract_sha256,
         "pvd_report": pvd,
@@ -1426,7 +2348,7 @@ def build_wuci_runtime() -> dict[str, Any]:
 def command_fetch(args: argparse.Namespace) -> int:
     _, input_lock, package_lock = validate_configuration()
     cache = Path(args.cache)
-    for record in cache_records(input_lock, package_lock):
+    for record in cache_records(input_lock):
         print(f"fetch {record['kind']}: {record['filename']}", flush=True)
         download_locked(record, cache)
     with tempfile.TemporaryDirectory(prefix="noether-input-verify-", dir=args.temp_dir) as temporary:
@@ -1454,7 +2376,8 @@ def command_build(args: argparse.Namespace) -> int:
     verification_work = output / "verify-inputs"
     safe_reset_directory(verification_work, output)
     input_verification = verify_inputs(cache, verification_work)
-    runtime_package_contract = generate_runtime_package_contract(cache, package_lock)
+    package_source = verification_work / "package-source/x86_64"
+    runtime_package_contract = generate_runtime_package_contract(package_source, package_lock)
 
     work_a = output / "work-a"
     work_b = output / "work-b"
@@ -1465,19 +2388,19 @@ def command_build(args: argparse.Namespace) -> int:
 
     runtime_a = build_wuci_runtime()
     source_a = source_manifest()
-    sbom_a = generate_sbom(cache, package_lock, source_a)
-    build_a = build_iso_once(cache, work_a, iso_a, source_a, sbom_a, input_verification, runtime_package_contract)
+    sbom_a = generate_sbom(package_source, package_lock, source_a)
+    build_a = build_iso_once(cache, package_source, work_a, iso_a, source_a, sbom_a, input_verification, runtime_package_contract)
 
     runtime_b = build_wuci_runtime()
     source_b = source_manifest()
-    sbom_b = generate_sbom(cache, package_lock, source_b)
+    sbom_b = generate_sbom(package_source, package_lock, source_b)
     if canonical_json(source_a) != canonical_json(source_b):
         raise NoetherForgeError("tracked source changed between independent ISO builds")
     if canonical_json(runtime_a) != canonical_json(runtime_b):
         raise NoetherForgeError("independent Wuci-Ji native builds did not produce identical evidence")
     if canonical_json(sbom_a) != canonical_json(sbom_b):
         raise NoetherForgeError("SBOM changed between independent ISO builds")
-    build_b = build_iso_once(cache, work_b, iso_b, source_b, sbom_b, input_verification, runtime_package_contract)
+    build_b = build_iso_once(cache, package_source, work_b, iso_b, source_b, sbom_b, input_verification, runtime_package_contract)
     digest_a = digest_file(iso_a)
     digest_b = digest_file(iso_b)
     if iso_a.stat().st_size != iso_b.stat().st_size or digest_a != digest_b:
@@ -1737,6 +2660,7 @@ def run_qemu_boot(
         failures.append("console-prompt-not-reached")
     for required in (
         PASS_MARKER,
+        APK_SHA256_PASS_MARKER,
         BOOT_MEDIA_MARKER + host_sha256,
         RUNTIME_JSON_BEGIN,
         RUNTIME_JSON_END,
@@ -1788,6 +2712,7 @@ def run_qemu_boot(
         },
         "markers": {
             "runtime_pass": PASS_MARKER in log_text,
+            "apk_sha256_pass": APK_SHA256_PASS_MARKER in log_text,
             "boot_media_sha256": host_sha256 if BOOT_MEDIA_MARKER + host_sha256 in log_text else None,
             "interactive_pass": HOST_PASS_MARKER in log_text,
             "home_writable": HOME_PASS_MARKER in log_text,
