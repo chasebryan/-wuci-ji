@@ -13,7 +13,7 @@ daylight-model = { path = "../daylight-model" }
 fips203 = { version = "=0.4.3", default-features = false, features = ["ml-kem-1024"] }
 fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-87"] }
 fips205 = { version = "=0.4.1", default-features = false, features = ["slh_dsa_shake_256s"] }
-hkdf = { version = "=0.12.4", default-features = false }
+hkdf = { version = "=0.13.0", default-features = false }
 p384 = { version = "=0.13.1", default-features = false, features = ["ecdh"] }
 rand_core = { version = "=0.6.4", default-features = false }
 sha2 = { version = "=0.10.9", default-features = false }
