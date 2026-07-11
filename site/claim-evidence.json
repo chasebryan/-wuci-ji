@@ -10,7 +10,8 @@
     "make site-validate",
     "make daylight-v19-aperture-bastion-ci",
     "make daylight-public-artifact-firewall",
-    "make site-live-check"
+    "make site-live-check",
+    "make live-integrity-check"
   ],
   "claims": [
     {
@@ -41,7 +42,7 @@
     {
       "id": "noether-forge-source-only-review",
       "public_claim": "The website publishes WuciOS 2.4.0 Noether Forge as a source-only external review candidate and does not offer its ISO or upstream binary payloads.",
-      "status": "review-requested; distribution-mode-source-only; binary-publication-not-authorized",
+      "status": "source-review-merged; distribution-mode-source-only; binary-publication-not-authorized",
       "evidence_paths": [
         "site/index.html",
         "site/wucios.html",
@@ -52,7 +53,8 @@
       ],
       "evidence_values": {
         "release_id": "noether-forge-v2.4.0",
-        "reviewed_commit": "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+        "reviewed_commit": "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
+        "merge_commit": "bc8ac166055a935ee10872eee371ef2f8972df68",
         "distribution_mode": "source-only",
         "official_release": false,
         "public_release_authorized": false,
@@ -88,6 +90,8 @@
         "site/daylight-bottle-status.json",
         "site/daylight-bottle-keyring-observation.json",
         "apps/bottle/public/keyring.json",
+        "tools/live_integrity_check.py",
+        "tests/live_integrity_check.py",
         "apps/bottle/src/tests/product-surface.test.ts",
         "apps/bottle/src/tests/lifecycle.test.ts",
         "apps/bottle/worker/index.test.ts"
@@ -101,6 +105,8 @@
       },
       "validation_commands": [
         "make site-validate",
+        "make live-integrity-test",
+        "make live-integrity-check",
         "cd apps/bottle && npm run check"
       ],
       "does_not_prove": [
@@ -441,6 +447,7 @@
       "evidence_paths": [
         "site/hosting-requirements.json",
         "tools/site_live_check.py",
+        "tools/live_integrity_check.py",
         "docs/WEBSITE_DEPLOY.md"
       ],
       "evidence_values": {
@@ -451,7 +458,8 @@
         "required_redirect_target_prefix": "https://nosuchmachine.net/"
       },
       "validation_commands": [
-        "make site-live-check"
+        "make site-live-check",
+        "make live-integrity-check"
       ],
       "does_not_prove": [
         "current hosted compliance until the live gate passes",

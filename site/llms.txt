@@ -31,10 +31,12 @@ declaration_allowed = false
 
 Noether Forge is an Alpine-based, TTY-first realization of the Noether Core
 profile. Review is anchored to commit
-00171c4cbd377f7c3c200c8a2493ad42c90a1207 and PR #30.
+4783ebc530bc8c28cdeed2f06e79c233cee13b08, merged to main by
+bc8ac166055a935ee10872eee371ef2f8972df68 through PR #30.
 
 Current status:
 
+- source review state: merged
 - distribution mode: source only
 - official release: false
 - public binary release authorized: false
@@ -51,7 +53,7 @@ Current status:
 Source-review handles:
 
 - https://github.com/chasebryan/-wuci-ji/pull/30
-- https://github.com/chasebryan/-wuci-ji/blob/00171c4cbd377f7c3c200c8a2493ad42c90a1207/docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md
+- https://github.com/chasebryan/-wuci-ji/blob/4783ebc530bc8c28cdeed2f06e79c233cee13b08/docs/wucios/NOETHER_FORGE_EXTERNAL_REVIEW.md
 - make wucios-noether-forge-source-guard
 - make wucios-noether-forge-test
 - make wucios-validate

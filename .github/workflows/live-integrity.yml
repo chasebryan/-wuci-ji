@@ -1,0 +1,58 @@
+name: live-integrity
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-integrity
+  cancel-in-progress: false
+
+jobs:
+  public-readback:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NODE_VERSION: 22.23.1
+      NPM_VERSION: 11.8.0
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+
+      - name: Confirm canonical main checkout
+        run: test "$(git branch --show-current)" = main
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/bottle/package-lock.json
+
+      - name: Pin npm
+        working-directory: apps/bottle
+        run: npm install --global npm@${NPM_VERSION}
+
+      - name: Rebuild the reviewed Bottle artifact
+        working-directory: apps/bottle
+        run: |
+          npm ci
+          npm run check
+          npm run validate:release-source
+
+      - name: Build the exact Cloudflare Pages upload tree
+        run: npm run build
+
+      - name: Validate deterministic response policy
+        run: make live-integrity-test repository-maintenance-test
+
+      - name: Check canonical public deployment drift
+        run: make live-integrity-check

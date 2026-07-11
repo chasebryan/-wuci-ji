@@ -6,13 +6,13 @@
   "description": "Static Wuci-Ji / Wuci-OS website deployment package.",
   "packageManager": "npm@10.9.7",
   "scripts": {
-    "build": "node site/validate.mjs",
-    "check": "node site/validate.mjs",
-    "preview": "python3 -m http.server 8788 --directory site",
-    "cloudflare:login": "WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config} npx wrangler login",
-    "cloudflare:whoami": "WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config} npx wrangler whoami",
+    "build": "node site/validate.mjs && python3 tools/site_dist.py",
+    "check": "node site/validate.mjs && python3 tests/site_dist.py",
+    "preview": "npm run build && python3 -m http.server 8788 --directory build/site-dist",
+    "cloudflare:login": "WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config} npx --no-install wrangler login",
+    "cloudflare:whoami": "WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config} npx --no-install wrangler whoami",
     "deploy": "npm run deploy:pages",
-    "deploy:pages": "WRANGLER_WRITE_LOGS=false WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config} npx wrangler pages deploy site --project-name wuci-ji --branch main"
+    "deploy:pages": "npm ci && npm run build && python3 tools/site_deploy.py"
   },
   "engines": {
     "node": ">=20"

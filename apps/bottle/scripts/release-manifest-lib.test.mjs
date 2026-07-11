@@ -7,6 +7,7 @@ import {
   assertBundleSourceMetadata,
   assertCleanSourceSnapshot,
   assertCurrentCleanSource,
+  assertReleaseBuildToolchain,
   assertSameBytes,
   assertValidKeyring,
   buildSourceClosure,
@@ -16,6 +17,16 @@ import {
 } from "./release-manifest-lib.mjs";
 
 describe("release manifest filesystem boundary", () => {
+  it("pins the production Bottle build toolchain exactly", () => {
+    expect(() => assertReleaseBuildToolchain("v22.23.1", "npm@11.8.0")).not.toThrow();
+    expect(() => assertReleaseBuildToolchain("v24.0.0", "npm@11.8.0")).toThrow(
+      /Production Bottle builds require/
+    );
+    expect(() => assertReleaseBuildToolchain("v22.23.1", "npm@11.9.0")).toThrow(
+      /Production Bottle builds require/
+    );
+  });
+
   it("rejects symbolic links and multiply linked files", async () => {
     const directory = await mkdtemp(join(tmpdir(), "daylight-release-files-"));
     try {

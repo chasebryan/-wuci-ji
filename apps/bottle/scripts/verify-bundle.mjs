@@ -3,6 +3,7 @@ import { gzipSync } from "node:zlib";
 import {
   WORKER_SOURCE_PATHS,
   assertBundleSourceMetadata,
+  assertReleaseBuildToolchain,
   assertSameBytes,
   assertValidKeyring,
   buildSourceClosure,
@@ -51,6 +52,9 @@ for (const required of [
   if (!headers.includes(required)) {
     throw new Error(`Built _headers is missing required policy: ${required}`);
   }
+}
+if (!/(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store(?:\n|$)/.test(headers)) {
+  throw new Error("Built _headers must serve release-manifest.json with Cache-Control: no-store.");
 }
 
 await verifyKeyring();
@@ -102,6 +106,7 @@ async function verifyReleaseManifest() {
   if (build.command !== "npm run build") {
     throw new Error("Built release manifest has an unexpected build command.");
   }
+  assertReleaseBuildToolchain(build.nodeVersion, build.packageManager);
 
   const actualFiles = (await collectRegularFiles(dist, "Built release artifact"))
     .filter((file) => !file.pathname.endsWith("/release-manifest.json"))

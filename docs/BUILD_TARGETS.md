@@ -37,11 +37,17 @@ make secret-path-isolation-test
 ```sh
 make site-daylight-status
 make site-validate
+make site-dist-test
 make site-live-check
+make live-integrity-test
+make live-integrity-check
 ```
 
 `site-daylight-status` regenerates the committed website Daylight status JSON
-from the v17 scorecard. `site-validate` checks the local static artifact for
+from the v17 scorecard. `site-validate` checks the website source and stages the
+exact Cloudflare Pages artifact at `build/site-dist/`. `site-dist-test` checks
+the deterministic inventory, exclusions, safe MIME map, and file/byte budgets.
+The source validator checks the local static artifact for
 fresh evidence, required discovery metadata, CodeMeta JSON-LD research software
 metadata, hosted TLS requirements, public claim/evidence mapping, canonical
 HTTPS metadata, official Wuci-Ji imagery, and claim-boundary text.
@@ -50,6 +56,34 @@ apex, server-side HTTP to HTTPS redirect, `www` redirect, HSTS header,
 discovery files, CodeMeta JSON-LD, hosted TLS requirements, claim/evidence
 mapping, status JSON, and official image assets are live. It is a hosted
 deployment gate, not a proof of host cleanliness or runtime containment.
+
+`live-integrity-test` exercises the focused deployment-drift policy entirely
+offline with deterministic response mocks. `live-integrity-check` requires a
+fresh local Bottle build. That rebuilt `dist/` tree, not the remote manifest,
+defines every Bottle artifact path, expected byte string, read cap, aggregate
+byte budget, and expected manifest. The live lane rejects redirects and unsafe
+MIME types, enforces a 20-second aggregate artifact-fetch deadline, and checks
+each response directly against the local build. A forged but internally
+consistent remote manifest and script therefore fail.
+
+The same lane verifies every public file in the deterministic Pages inventory,
+including all HTML, JavaScript, CSS, JSON, discovery text, and media. It checks
+exact canonical URLs, statuses, MIME types, and bytes with trusted local
+file-count, per-file, aggregate-byte, and shared-deadline caps. Pages config
+files are bound locally while all configured redirects and global headers are
+checked live. The lane also checks the retired-secondary HTTPS state, rejects
+NEL, `Report-To`, and executable analytics injection, and validates the Bottle
+API, security headers, keyring, and public status parity.
+
+Offline snapshots use `wuci-live-integrity-snapshot-v2`. The reader accepts
+only a single-link regular file no larger than 64 MiB, rejects duplicate keys
+and non-finite JSON, requires the exact locally derived response-name set, and
+enforces fixed response-count, header, decoded per-body, and aggregate caps.
+Redirect probes are limited to the three canonical apex/`www` wildcard sources
+plus literal same-origin paths; redirect targets are compared as `Location`
+values and are never fetched. Redirect and total response counts are capped,
+and sequential redirect probes share one deadline. Live site responses must
+match the exact effective cache policy derived from staged `_headers` rules.
 
 ## ZP-1 / Wuci-Ji Coupling
 

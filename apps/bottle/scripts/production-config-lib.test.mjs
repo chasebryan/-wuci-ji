@@ -7,6 +7,9 @@ main = "worker/index.ts"
 compatibility_date = "2026-07-09"
 workers_dev = false
 
+[version_metadata]
+binding = "CF_VERSION_METADATA"
+
 [[routes]]
 pattern = "bottle.nosuchmachine.net"
 custom_domain = true
@@ -40,6 +43,7 @@ describe("production Wrangler config", () => {
   it("parses and accepts the exact approved binding sections", () => {
     const parsed = assertProductionConfig(validConfig);
     expect(parsed.kv_namespaces[0].binding).toBe("BOTTLES_KV");
+    expect(parsed.version_metadata.binding).toBe("CF_VERSION_METADATA");
     expect(parsed.ratelimits[0].simple).toEqual({ limit: 12, period: 60 });
     expect(parsed.ratelimits[1].simple).toEqual({ limit: 60, period: 60 });
   });

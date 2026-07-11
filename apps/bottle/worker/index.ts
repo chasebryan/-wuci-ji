@@ -2,6 +2,7 @@ import { fingerprintKeyRecordInput, sha256Hex } from "../src/crypto/fingerprint"
 import publishedKeyringJson from "../public/keyring.json";
 import {
   SCHEMAS,
+  type BottleDeploymentEvidence,
   type DaylightBottleEvidence,
   type DropBottleResponse,
   type DropBottleRequest,
@@ -29,6 +30,9 @@ export const BOTTLE_LIST_RESPONSE_MAX_BYTES =
   BOTTLE_LIST_PAGE_SIZE * MAX_DROP_BODY_BYTES + 64 * 1024;
 export const BOTTLE_LIST_CURSOR_HEADER = "X-Daylight-Next-Cursor";
 const SERVER_ORIGIN = "bottle.nosuchmachine.net" as const;
+const WORKER_VERSION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WORKER_VERSION_TAG_PATTERN = /^sha256-[0-9a-f]{64}$/;
 const PUBLISHED_KEYRING = parseKeyring(publishedKeyringJson);
 
 export const SECURITY_HEADERS: Record<string, string> = {
@@ -44,10 +48,17 @@ export const SECURITY_HEADERS: Record<string, string> = {
 
 export type BottleWorkerEnv = {
   BOTTLES_KV?: BottleKVNamespace;
+  CF_VERSION_METADATA?: BottleWorkerVersionMetadata;
   DROP_RATE_LIMITER?: BottleRateLimiter;
   READ_RATE_LIMITER?: BottleRateLimiter;
   __TEST_STORE__?: BottleStorage;
   __TEST_KEYRING__?: Keyring;
+};
+
+export type BottleWorkerVersionMetadata = {
+  id: string;
+  tag: string;
+  timestamp: string;
 };
 
 export type BottleRateLimiter = {
@@ -94,6 +105,16 @@ export async function handleRequest(
   try {
     const url = new URL(request.url);
 
+    if (url.pathname === "/api/deployment") {
+      if (request.method !== "GET") {
+        return withSecurityHeaders(methodNotAllowed(["GET"]));
+      }
+      if (url.search !== "") {
+        throw new HttpError(400, "Deployment evidence does not accept query parameters.");
+      }
+      return withSecurityHeaders(handleDeploymentEvidence(env));
+    }
+
     if (url.pathname === "/api/bottles") {
       if (request.method === "POST") {
         return withSecurityHeaders(await handleDropBottle(request, env, now));
@@ -126,6 +147,28 @@ export async function handleRequest(
     }
     return withSecurityHeaders(json({ error: "Internal server error." }, 500));
   }
+}
+
+function handleDeploymentEvidence(env: BottleWorkerEnv): Response {
+  const metadata = env.CF_VERSION_METADATA;
+  if (
+    !metadata
+    || !WORKER_VERSION_ID_PATTERN.test(metadata.id)
+    || !WORKER_VERSION_TAG_PATTERN.test(metadata.tag)
+  ) {
+    throw new HttpError(503, "Worker deployment evidence is unavailable.");
+  }
+  const created = new Date(metadata.timestamp);
+  if (Number.isNaN(created.getTime())) {
+    throw new HttpError(503, "Worker deployment evidence is unavailable.");
+  }
+  const evidence: BottleDeploymentEvidence = {
+    schema: SCHEMAS.deployment,
+    workerVersionId: metadata.id.toLowerCase(),
+    workerVersionTag: metadata.tag,
+    versionCreatedAt: created.toISOString()
+  };
+  return json(evidence);
 }
 
 export function createMemoryBottleStorage(

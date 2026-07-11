@@ -1,5 +1,5 @@
 (function () {
-  // Host-side HTTPS enforcement still belongs in Cloudflare/GitHub Pages.
+  // Host-side HTTPS enforcement belongs in the canonical Cloudflare deployment.
   // This fallback only upgrades real browser visits that reach the static app
   // over plain HTTP while that host-side setting is being verified.
   function enforceCanonicalHttps() {

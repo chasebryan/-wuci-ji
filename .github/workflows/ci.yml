@@ -55,6 +55,9 @@ jobs:
       - name: Run DaylightNPT number precision gate
         run: make daylight-npt-ci
 
+      - name: Run offline live-integrity and repository-maintenance gates
+        run: make live-integrity-test repository-maintenance-test
+
       - name: Run assembly self-release contract proof
         run: make self-release-asm-contract-proof
 

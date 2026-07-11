@@ -6,8 +6,18 @@ const FINGERPRINT_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const AGE_RECIPIENT_PATTERN = /^age1[a-z0-9]{20,511}$/;
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
+export const PRODUCTION_NODE_VERSION = "v22.23.1";
+export const PRODUCTION_PACKAGE_MANAGER = "npm@11.8.0";
+
 export const WORKER_SOURCE_PATHS = Object.freeze([
   "public/keyring.json",
+  "scripts/deploy-reviewed-worker-lib.mjs",
+  "scripts/deploy-reviewed-worker.mjs",
+  "scripts/generate-release-manifest.mjs",
+  "scripts/production-config-lib.mjs",
+  "scripts/release-manifest-lib.mjs",
+  "scripts/validate-production-config.mjs",
+  "scripts/verify-bundle.mjs",
   "src/crypto/fingerprint.ts",
   "src/domain/types.ts",
   "src/domain/validation.ts",
@@ -66,6 +76,17 @@ export async function buildSourceClosure(appRoot, sourcePaths) {
 export function assertSameBytes(left, right, label) {
   if (!Buffer.from(left).equals(Buffer.from(right))) {
     throw new Error(`${label} must be byte-for-byte identical.`);
+  }
+}
+
+export function assertReleaseBuildToolchain(nodeVersion, packageManager) {
+  if (
+    nodeVersion !== PRODUCTION_NODE_VERSION
+    || packageManager !== PRODUCTION_PACKAGE_MANAGER
+  ) {
+    throw new Error(
+      `Production Bottle builds require ${PRODUCTION_NODE_VERSION} and ${PRODUCTION_PACKAGE_MANAGER}.`
+    );
   }
 }
 

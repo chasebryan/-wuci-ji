@@ -17,7 +17,6 @@ const requiredFiles = [
   "ai-scoring-integrity.html",
   "daylight-grok-audit.html",
   "audits/daylight/score-integrity/index.html",
-  "CNAME",
   "404.html",
   "styles.css",
   "app.js",
@@ -101,13 +100,6 @@ async function assertRequiredFiles() {
   }
 }
 
-async function assertCustomDomain() {
-  const cname = (await readFile(new URL("CNAME", siteRoot), "utf8")).trim();
-  if (cname !== "nosuchmachine.net") {
-    fail("site/CNAME must contain exactly nosuchmachine.net");
-  }
-}
-
 async function assertIndexReferences() {
   const index = await readFile(new URL("index.html", siteRoot), "utf8");
   const references = Array.from(index.matchAll(/\b(?:href|src)="([^":#?]+)(?:[?#][^"]*)?"/g)).map((match) => match[1]);
@@ -187,9 +179,9 @@ async function assertIndexReferences() {
     'ce077fea615528634ad27fec516fdb402f101602',
     '9109e7d9364f305a0618e6f5d810f3dd665d995e5c56f9d0ccc8d01875b9eec0',
     'WuciOS 2.4.0 · Noether Forge',
-    'Source review is open. The ISO is not published.',
+    'Source review is published. The ISO is not.',
     'Noether Forge · source-only review',
-    '00171c4',
+    '4783ebc',
     '3.24.1 x86_64 · 52 locked APKs',
     'QEMU SeaBIOS + OVMF/UEFI',
     'href="wucios.html"',
@@ -200,8 +192,8 @@ async function assertIndexReferences() {
       fail(`index.html is missing SEO or site marker: ${required}`);
     }
   }
-  // The GitHub Pages deploy path does not serve _headers, so the document
-  // itself must carry the CSP and referrer policy.
+  // Keep an in-document policy as defense in depth even though the canonical
+  // Cloudflare Pages deployment also serves site/_headers.
   for (const required of [
     'http-equiv="Content-Security-Policy"',
     'upgrade-insecure-requests',
@@ -333,13 +325,14 @@ async function assertNoetherForgeStatusBinding() {
     version: "2.4.0",
     codename: "Noether Forge",
     profile: "Noether Core",
-    reviewStatus: "review-requested",
+    reviewStatus: "source-review-merged",
     distributionMode: "source-only",
     officialRelease: false,
     publicReleaseAuthorized: false,
     binaryAssetsPublished: false,
     externalValidationReceived: false,
-    reviewedCommit: "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    reviewedCommit: "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
+    mergeCommit: "bc8ac166055a935ee10872eee371ef2f8972df68",
     pullRequest: "https://github.com/chasebryan/-wuci-ji/pull/30"
   };
   for (const [key, value] of Object.entries(expected)) {
@@ -403,15 +396,15 @@ async function assertNoetherForgeStatusBinding() {
     "WuciOS 2.4.0 · Source-only external review",
     "Noether Forge",
     "We do not distribute the ISO or upstream binary payloads.",
-    "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     "Exactly 52 signed APK payloads",
     "QEMU SeaBIOS and OVMF/UEFI",
     "Why there is no ISO download",
     "This is a conservative publication hold, not a claim",
     "not a general runtime sandbox or OS-containment claim",
     "A sanitized video may supplement review.",
-    "not available on <code>main</code> while PR #30 remains open.",
-    "git switch --detach 00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    "now in <code>main</code> history through merged PR #30.",
+    "git switch --detach 4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     'href="noether-forge-status.json"'
   ]) {
     if (!wucios.includes(required)) {
@@ -420,8 +413,8 @@ async function assertNoetherForgeStatusBinding() {
   }
   for (const required of [
     "Noether Forge · source-only review",
-    "Source review is open. The ISO is not published.",
-    "review-requested · source-only",
+    "Source review is published. The ISO is not.",
+    "source-review-merged · source-only",
     "3.24.1 x86_64 · 52 locked APKs",
     "QEMU SeaBIOS + OVMF/UEFI"
   ]) {
@@ -605,7 +598,7 @@ async function assertSourceOnlyDeployArtifactFirewall() {
     ".webp",
     ".xml"
   ]);
-  const allowedExtensionlessPaths = new Set(["CNAME", "_headers", "_redirects"]);
+  const allowedExtensionlessPaths = new Set(["_headers", "_redirects"]);
   const textExtensions = new Set([".cff", ".css", ".html", ".js", ".json", ".mjs", ".txt", ".webmanifest", ".xml"]);
   const forbiddenPayloadName = /(?:^|\/)(?:bzimage|initramfs|initrd|kernel|modloop|vmlinuz|bootx64|grub|isolinux|syslinux)(?:[-._].*)?$/i;
   const forbiddenPublicReference = /(?:\/releases\/download\/|[A-Za-z0-9_./:%?&=+#-]+\.(?:apk|bin|efi|img|iso|ko)(?:[?#][A-Za-z0-9_./:%?&=+#-]*)?)/i;
@@ -893,6 +886,7 @@ async function assertCloudflareFiles() {
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
+    "/site-inventory.json",
     "/claim-evidence.json",
     "Content-Type: application/json; charset=utf-8",
     "Content-Type: application/ld+json; charset=utf-8",
@@ -1327,7 +1321,7 @@ async function assertPublicTextDiscovery() {
     "https://nosuchmachine.net/assets/no-such-machine-official-emblem.jpg",
     "https://nosuchmachine.net/assets/no-such-machine-official-banner.jpg",
     "WuciOS 2.4.0 Noether Forge source-only external review candidate",
-    "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+    "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     "distribution mode: source only",
     "QEMU SeaBIOS and OVMF/UEFI",
     "Noether Core",
@@ -1545,20 +1539,45 @@ async function assertHostingRequirements() {
     return;
   }
   const expected = {
-    schema: "wuci-site-hosting-requirements-v1",
+    schema: "wuci-site-hosting-requirements-v2",
     project: "wuci-ji",
     surface: "Wuci-Ji v2.2 — Aperture Bastion website",
     canonical_origin: "https://nosuchmachine.net",
     canonical_url: "https://nosuchmachine.net/",
-    checked_by: "make site-live-check",
+    checked_by: "make live-integrity-check",
     production_host: "Cloudflare Pages",
-    production_project: "wuci-ji",
-    secondary_host: "GitHub Pages"
+    production_project: "wuci-ji"
   };
   for (const [key, value] of Object.entries(expected)) {
     if (requirements[key] !== value) {
       fail(`hosting-requirements.json ${key} does not match expected value`);
     }
+  }
+  if (
+    requirements.production_upload_directory !== "build/site-dist"
+    || requirements.public_inventory_path !== "/site-inventory.json"
+    || JSON.stringify(requirements.source_only_exclusions) !== JSON.stringify([
+      "validate.mjs",
+      "daylight-grok-audit.html",
+      "security.txt"
+    ])
+  ) {
+    fail("hosting-requirements.json staged upload contract is invalid");
+  }
+
+  if (!Array.isArray(requirements.secondary_publishers) || requirements.secondary_publishers.length !== 0) {
+    fail("hosting-requirements.json must not declare an active secondary publisher");
+  }
+  if (
+    !Array.isArray(requirements.retired_publishers)
+    || !requirements.retired_publishers.some(
+      (entry) =>
+        entry.host === "GitHub Pages"
+        && entry.repository_status === "retired"
+        && entry.account_follow_up === "disable-pages-publishing"
+    )
+  ) {
+    fail("hosting-requirements.json must record the GitHub Pages retirement and account follow-up");
   }
 
   if (!Array.isArray(requirements.required_redirects)) {
@@ -1637,14 +1656,33 @@ async function assertHostingRequirements() {
 
   const controls = JSON.stringify(requirements.deployment_controls || []);
   for (const required of [
-    "Enforce HTTPS enabled",
     "Always Use HTTPS enabled",
     "HTTP Strict Transport Security enabled",
-    "HTML no-transform prevents automatic Web Analytics injection"
+    "HTML no-transform prevents automatic Web Analytics injection",
+    "Network Error Logging disabled"
   ]) {
     if (!controls.includes(required)) {
       fail(`hosting-requirements.json is missing deploy control: ${required}`);
     }
+  }
+  if (
+    !Array.isArray(requirements.forbidden_response_headers)
+    || JSON.stringify([...requirements.forbidden_response_headers].sort()) !== JSON.stringify(["nel", "report-to"])
+  ) {
+    fail("hosting-requirements.json must forbid NEL and Report-To response headers");
+  }
+  const forbiddenHtmlMarkers = new Set(
+    Array.isArray(requirements.forbidden_html_markers)
+      ? requirements.forbidden_html_markers
+      : []
+  );
+  if (
+    !Array.isArray(requirements.forbidden_html_markers)
+    || !forbiddenHtmlMarkers.has("static.cloudflareinsights.com")
+    || !forbiddenHtmlMarkers.has("data-cf-beacon")
+    || !forbiddenHtmlMarkers.has("/cdn-cgi/rum")
+  ) {
+    fail("hosting-requirements.json must forbid Cloudflare analytics injection markers");
   }
   for (const required of [
     "not host-cleanliness proof",
@@ -1680,7 +1718,8 @@ async function assertClaimEvidenceMap() {
     "make site-validate",
     "make daylight-v19-aperture-bastion-ci",
     "make daylight-public-artifact-firewall",
-    "make site-live-check"
+    "make site-live-check",
+    "make live-integrity-check"
   ]) {
     if (!Array.isArray(claimMap.primary_validation) || !claimMap.primary_validation.includes(required)) {
       fail(`claim-evidence.json primary_validation is missing ${required}`);
@@ -1756,6 +1795,7 @@ async function assertClaimEvidenceMap() {
   for (const [claimKey, statusKey] of [
     ["release_id", "releaseId"],
     ["reviewed_commit", "reviewedCommit"],
+    ["merge_commit", "mergeCommit"],
     ["distribution_mode", "distributionMode"],
     ["official_release", "officialRelease"],
     ["public_release_authorized", "publicReleaseAuthorized"],
@@ -2086,7 +2126,6 @@ async function assertSecondaryPageShells() {
 }
 
 await assertRequiredFiles();
-await assertCustomDomain();
 await assertIndexReferences();
 await assertBottlePreviewBinding();
 await assertNoetherForgeStatusBinding();
@@ -2121,4 +2160,4 @@ if (process.exitCode) {
 }
 
 console.log("site build: OK");
-console.log("site output: site");
+console.log("site source: site");

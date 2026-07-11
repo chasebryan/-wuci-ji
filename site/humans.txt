@@ -11,7 +11,8 @@ https://nosuchmachine.net/noether-forge-status.json
 
 Review subject:
 https://github.com/chasebryan/-wuci-ji/pull/30
-Commit: 00171c4cbd377f7c3c200c8a2493ad42c90a1207
+Commit: 4783ebc530bc8c28cdeed2f06e79c233cee13b08
+Merged to main by: bc8ac166055a935ee10872eee371ef2f8972df68
 
 Publication boundary:
 No Noether Forge ISO or upstream binary payload is published. The candidate is
@@ -58,8 +59,11 @@ Production deployment:
 Cloudflare Pages project wuci-ji from a validated clean repository commit.
 
 Secondary deployment:
-GitHub Pages workflow from the main branch.
+None. The repository GitHub Pages publisher is retired; disable any remaining
+Pages setting at the account boundary.
 
 Validation:
 make site-validate
 make site-live-check
+make live-integrity-test
+make live-integrity-check

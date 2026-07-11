@@ -32,6 +32,72 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const textEncoder = new TextEncoder();
 
 describe("bottle worker API", () => {
+  it("reports the active Cloudflare Worker version tag without exposing secrets", async () => {
+    const response = await handleRequest(
+      new Request("https://bottle.nosuchmachine.net/api/deployment"),
+      {
+        CF_VERSION_METADATA: {
+          id: "01234567-89ab-4cde-8f01-23456789abcd",
+          tag: `sha256-${"a".repeat(64)}`,
+          timestamp: "2026-07-11T03:30:00.000Z"
+        }
+      }
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      schema: SCHEMAS.deployment,
+      workerVersionId: "01234567-89ab-4cde-8f01-23456789abcd",
+      workerVersionTag: `sha256-${"a".repeat(64)}`,
+      versionCreatedAt: "2026-07-11T03:30:00.000Z"
+    });
+    expectSecurityHeaders(response);
+  });
+
+  it("fails closed on missing or malformed Worker version metadata", async () => {
+    for (const env of [
+      {},
+      {
+        CF_VERSION_METADATA: {
+          id: "not-a-version",
+          tag: `sha256-${"a".repeat(64)}`,
+          timestamp: "2026-07-11T03:30:00.000Z"
+        }
+      },
+      {
+        CF_VERSION_METADATA: {
+          id: "01234567-89ab-4cde-8f01-23456789abcd",
+          tag: "source-unbound",
+          timestamp: "2026-07-11T03:30:00.000Z"
+        }
+      }
+    ] satisfies BottleWorkerEnv[]) {
+      const response = await handleRequest(
+        new Request("https://bottle.nosuchmachine.net/api/deployment"),
+        env
+      );
+      expect(response.status).toBe(503);
+      expectSecurityHeaders(response);
+    }
+  });
+
+  it("keeps deployment evidence read-only and query-free", async () => {
+    const post = await handleRequest(
+      new Request("https://bottle.nosuchmachine.net/api/deployment", { method: "POST" }),
+      {}
+    );
+    expect(post.status).toBe(405);
+    expect(post.headers.get("Allow")).toBe("GET");
+    expectSecurityHeaders(post);
+
+    const query = await handleRequest(
+      new Request("https://bottle.nosuchmachine.net/api/deployment?detail=1"),
+      {}
+    );
+    expect(query.status).toBe(400);
+    expectSecurityHeaders(query);
+  });
+
   it("rejects plaintext fields in bottle requests", async () => {
     const response = await postBottle(
       {

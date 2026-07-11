@@ -10,6 +10,9 @@ describe("security header parity", () => {
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
       expect(staticHeaders, name).toContain(`${name}: ${value}`);
     }
+    expect(staticHeaders).toMatch(
+      /(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store(?:\n|$)/
+    );
     expect(SECURITY_HEADERS["Content-Security-Policy"]).not.toMatch(/unsafe-(?:inline|eval)/);
     expect(SECURITY_HEADERS["Content-Security-Policy"]).not.toMatch(/https?:|data:|blob:/);
   });

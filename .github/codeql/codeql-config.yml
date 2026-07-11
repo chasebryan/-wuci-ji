@@ -1,0 +1,9 @@
+name: wuci-ji-defensive-codeql
+
+paths-ignore:
+  - third_party/**
+  - daylight-equation/fixtures/**
+  - build/**
+  - "**/dist/**"
+  - "**/node_modules/**"
+  - "**/.wrangler/**"

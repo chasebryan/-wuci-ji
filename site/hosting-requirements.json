@@ -1,14 +1,29 @@
 {
-  "schema": "wuci-site-hosting-requirements-v1",
+  "schema": "wuci-site-hosting-requirements-v2",
   "project": "wuci-ji",
   "surface": "Wuci-Ji v2.2 — Aperture Bastion website",
   "canonical_origin": "https://nosuchmachine.net",
   "canonical_url": "https://nosuchmachine.net/",
-  "checked_by": "make site-live-check",
+  "checked_by": "make live-integrity-check",
   "last_updated": "2026-07-10",
   "production_host": "Cloudflare Pages",
   "production_project": "wuci-ji",
-  "secondary_host": "GitHub Pages",
+  "production_upload_directory": "build/site-dist",
+  "public_inventory_path": "/site-inventory.json",
+  "source_only_exclusions": [
+    "validate.mjs",
+    "daylight-grok-audit.html",
+    "security.txt"
+  ],
+  "secondary_publishers": [],
+  "retired_publishers": [
+    {
+      "host": "GitHub Pages",
+      "repository_status": "retired",
+      "account_follow_up": "disable-pages-publishing",
+      "safe_live_state": "404, 410, or an HTTPS redirect to https://nosuchmachine.net/"
+    }
+  ],
   "required_redirects": [
     {
       "name": "apex-http-to-https",
@@ -64,6 +79,7 @@
     "/codemeta.json",
     "/citation.cff",
     "/hosting-requirements.json",
+    "/site-inventory.json",
     "/claim-evidence.json",
     "/assets/no-such-machine-official-banner.jpg",
     "/assets/no-such-machine-official-emblem.svg",
@@ -80,10 +96,6 @@
   ],
   "deployment_controls": [
     {
-      "host": "GitHub Pages",
-      "required_setting": "Enforce HTTPS enabled"
-    },
-    {
       "host": "Cloudflare",
       "required_setting": "Always Use HTTPS enabled"
     },
@@ -94,7 +106,20 @@
     {
       "host": "Cloudflare Pages",
       "required_setting": "HTML no-transform prevents automatic Web Analytics injection"
+    },
+    {
+      "host": "Cloudflare",
+      "required_setting": "Network Error Logging disabled"
     }
+  ],
+  "forbidden_response_headers": [
+    "nel",
+    "report-to"
+  ],
+  "forbidden_html_markers": [
+    "static.cloudflareinsights.com",
+    "data-cf-beacon",
+    "/cdn-cgi/rum"
   ],
   "references": [
     "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/",
