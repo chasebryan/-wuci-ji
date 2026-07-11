@@ -18,6 +18,8 @@ HTTP_APEX = "http://nosuchmachine.net/"
 WWW = "https://www.nosuchmachine.net/"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 BROWSER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
+NOETHER_REVIEWED_COMMIT = "4783ebc530bc8c28cdeed2f06e79c233cee13b08"
+NOETHER_HOMEPAGE_MARKER = "Source review is published. The ISO is not."
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -100,9 +102,9 @@ def check_https_root() -> list[Check]:
         ),
         Check(
             "https-root-noether-forge-marker",
-            contains(response.body, "Source review is open. The ISO is not published.")
+            contains(response.body, NOETHER_HOMEPAGE_MARKER)
             and contains(response.body, "Noether Forge · source-only review"),
-            "homepage publishes Noether Forge as source-only review",
+            "homepage publishes the merged Noether Forge source review",
         ),
     ]
     hsts = response.headers.get("strict-transport-security", "")
@@ -292,7 +294,7 @@ def run_checks() -> list[Check]:
             [
                 "Wuci-Ji v2",
                 "WuciOS 2.4.0 Noether Forge source-only external review candidate",
-                "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+                NOETHER_REVIEWED_COMMIT,
                 "not production cryptography",
                 "Daylight v20 public challenge poster",
                 "declaration_allowed = false",
@@ -306,7 +308,7 @@ def run_checks() -> list[Check]:
                 "WuciOS 2.4.0 · Source-only external review",
                 "Noether Forge",
                 "We do not distribute the ISO or upstream binary payloads.",
-                "00171c4cbd377f7c3c200c8a2493ad42c90a1207",
+                NOETHER_REVIEWED_COMMIT,
                 "Why there is no ISO download",
                 "A sanitized video may supplement review.",
             ],
