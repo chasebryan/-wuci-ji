@@ -23,6 +23,11 @@ def main() -> None:
     makefile = read("Makefile")
     assert "$(PYTHON) -m tools.live_integrity_check --live" in makefile
     assert "$(PYTHON) tools/live_integrity_check.py --live" not in makefile
+    assert (
+        "live-integrity-check:\n"
+        "\tcd apps/bottle && npm run verify:bundle\n"
+        "\t$(PYTHON) -m tools.live_integrity_check --live"
+    ) in makefile
 
     for retired_path in [".github/workflows/pages.yml", "CNAME", "site/CNAME"]:
         assert not (REPO_ROOT / retired_path).exists(), f"retired Pages path remains: {retired_path}"
@@ -38,12 +43,20 @@ def main() -> None:
         for item in hosting["retired_publishers"]
     )
     assert sorted(hosting["forbidden_response_headers"]) == ["nel", "report-to"]
-    assert any(
-        item.get("host") == "Cloudflare Response Header Transform Rule"
-        and item.get("required_setting")
-        == 'For http.host eq "nosuchmachine.net", remove NEL and Report-To after managed response transforms'
+    transform_control = next(
+        item
         for item in hosting["deployment_controls"]
+        if item.get("kind") == "response_header_transform_rule"
     )
+    assert transform_control == {
+        "host": "Cloudflare",
+        "kind": "response_header_transform_rule",
+        "phase": "http_response_headers_transform",
+        "expression": 'http.host eq "nosuchmachine.net"',
+        "operation": "remove",
+        "headers": ["nel", "report-to"],
+        "ordering": "after-managed-response-transforms",
+    }
     assert {
         "static.cloudflareinsights.com",
         "data-cf-beacon",
@@ -93,6 +106,11 @@ def main() -> None:
     bottle_package = json.loads(read("apps/bottle/package.json"))
     assert bottle_package["scripts"]["deploy"] == (
         "npm ci && npm run check && node scripts/deploy-reviewed-worker.mjs"
+    )
+    bottle_verifier = read("apps/bottle/scripts/verify-bundle.mjs")
+    assert (
+        "assertReleaseBuildToolchain(process.version, `npm@${currentNpmVersion()}`);"
+        in bottle_verifier
     )
     reviewed_worker_deploy = read("apps/bottle/scripts/deploy-reviewed-worker-lib.mjs")
     for marker in [

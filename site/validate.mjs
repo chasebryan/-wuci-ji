@@ -1667,12 +1667,27 @@ async function assertHostingRequirements() {
       fail(`hosting-requirements.json is missing deploy control: ${required}`);
     }
   }
-  if (!(requirements.deployment_controls || []).some(
-    (entry) =>
-      entry.host === "Cloudflare Response Header Transform Rule"
-      && entry.required_setting
-        === 'For http.host eq "nosuchmachine.net", remove NEL and Report-To after managed response transforms'
-  )) {
+  const transformControl = (requirements.deployment_controls || []).find(
+    (entry) => entry.kind === "response_header_transform_rule"
+  );
+  if (
+    !transformControl
+    || JSON.stringify(Object.keys(transformControl).sort()) !== JSON.stringify([
+      "expression",
+      "headers",
+      "host",
+      "kind",
+      "operation",
+      "ordering",
+      "phase"
+    ])
+    || transformControl.host !== "Cloudflare"
+    || transformControl.phase !== "http_response_headers_transform"
+    || transformControl.expression !== 'http.host eq "nosuchmachine.net"'
+    || transformControl.operation !== "remove"
+    || JSON.stringify(transformControl.headers) !== JSON.stringify(["nel", "report-to"])
+    || transformControl.ordering !== "after-managed-response-transforms"
+  ) {
     fail("hosting-requirements.json is missing the exact canonical-host telemetry removal control");
   }
   if (

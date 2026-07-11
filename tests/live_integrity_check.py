@@ -237,11 +237,15 @@ def passing_responses() -> dict[str, live.Response]:
     return responses
 
 
-def assert_passes(responses: dict[str, live.Response]) -> None:
+def assert_passes(
+    responses: dict[str, live.Response],
+    *,
+    local_build: live.LocalBottleBuild | None = None,
+) -> None:
     checks = live.evaluate(
         responses,
         EXPECTED_COMMIT,
-        canonical_local_build(),
+        local_build or canonical_local_build(),
         canonical_local_site_build(),
     )
     failures = [check for check in checks if not check.ok]
@@ -254,11 +258,12 @@ def assert_rejects(
     expected_name: str,
     *,
     expected_commit: str = EXPECTED_COMMIT,
+    local_build: live.LocalBottleBuild | None = None,
 ) -> None:
     checks = live.evaluate(
         responses,
         expected_commit,
-        canonical_local_build(),
+        local_build or canonical_local_build(),
         canonical_local_site_build(),
     )
     failures = {check.name for check in checks if not check.ok}
@@ -842,14 +847,32 @@ def main() -> None:
         manifest["bundleBudget"]["runtimeGzipBytes"] = invalid_gzip_bytes
         refresh_manifest_subject(manifest)
         replace_manifest(case, manifest)
-        assert_rejects(case, "bottle-manifest-bundle-budget")
+        local_build = replace(
+            canonical_local_build(),
+            manifest=manifest,
+            manifest_bytes=(json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+        )
+        assert_rejects(
+            case,
+            "bottle-manifest-bundle-budget",
+            local_build=local_build,
+        )
 
     case = passing_responses()
     manifest = json.loads(case["bottle_manifest"].body)
     manifest["bundleBudget"]["runtimeBytes"] += 1
     refresh_manifest_subject(manifest)
     replace_manifest(case, manifest)
-    assert_rejects(case, "bottle-manifest-bundle-budget")
+    local_build = replace(
+        canonical_local_build(),
+        manifest=manifest,
+        manifest_bytes=(json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+    )
+    assert_rejects(
+        case,
+        "bottle-manifest-bundle-budget",
+        local_build=local_build,
+    )
 
     case = passing_responses()
     artifact_name = live.artifact_response_name("assets/app.js")

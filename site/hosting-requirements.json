@@ -112,8 +112,16 @@
       "required_setting": "Network Error Logging disabled"
     },
     {
-      "host": "Cloudflare Response Header Transform Rule",
-      "required_setting": "For http.host eq \"nosuchmachine.net\", remove NEL and Report-To after managed response transforms"
+      "host": "Cloudflare",
+      "kind": "response_header_transform_rule",
+      "phase": "http_response_headers_transform",
+      "expression": "http.host eq \"nosuchmachine.net\"",
+      "operation": "remove",
+      "headers": [
+        "nel",
+        "report-to"
+      ],
+      "ordering": "after-managed-response-transforms"
     }
   ],
   "forbidden_response_headers": [
