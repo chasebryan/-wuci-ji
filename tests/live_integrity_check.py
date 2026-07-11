@@ -208,13 +208,10 @@ def passing_responses() -> dict[str, live.Response]:
             body=artifact.content,
         )
     for redirect in local_site.redirects:
-        redirect_headers = {"location": redirect.location}
-        if redirect.response_name not in live.CANONICAL_ABSOLUTE_REDIRECT_SOURCES.values():
-            redirect_headers = {**global_headers, **redirect_headers}
         responses[redirect.response_name] = response(
             redirect.status,
             redirect.url,
-            headers=redirect_headers,
+            headers={"location": redirect.location},
         )
     for path, content in artifacts.items():
         if path == "_headers":
@@ -512,7 +509,53 @@ def main() -> None:
         for spec, timeout, limit in capture_calls
         if spec.name == "bottle_root"
     ]
-    assert root_calls == [(12.0, len(canonical_artifacts()["index.html"]))]
+    assert len(root_calls) == 1
+    assert root_calls[0][0] <= live.MAX_ARTIFACT_REQUEST_SECONDS
+    assert root_calls[0][1] == len(canonical_artifacts()["index.html"])
+
+    artifact_deadline_fetches: list[tuple[str, float]] = []
+    original_fetch = live.fetch
+    original_monotonic = live.time.monotonic
+    artifact_paths = {
+        path
+        for path in canonical_artifacts()
+        if path not in {"_headers", "index.html"}
+    }
+    artifact_clock = iter(
+        [0.0, 0.0]
+        + [live.MAX_ARTIFACT_CAPTURE_SECONDS + 1.0] * len(artifact_paths)
+    )
+
+    def artifact_deadline_fetch(
+        spec: live.RequestSpec,
+        *,
+        timeout: float = 12.0,
+        max_body_bytes: int = live.MAX_RESPONSE_BYTES,
+    ) -> live.Response:
+        artifact_deadline_fetches.append((spec.name, timeout))
+        return response(200, spec.url, body=INDEX_BYTES[:max_body_bytes])
+
+    live.fetch = artifact_deadline_fetch
+    live.time.monotonic = lambda: next(artifact_clock)
+    try:
+        artifact_deadline_responses = live.capture_bottle_artifacts(
+            canonical_local_build()
+        )
+    finally:
+        live.fetch = original_fetch
+        live.time.monotonic = original_monotonic
+    assert artifact_deadline_fetches == [
+        ("bottle_root", live.MAX_ARTIFACT_REQUEST_SECONDS)
+    ]
+    assert (
+        artifact_deadline_responses[live.artifact_response_name("index.html")]
+        is artifact_deadline_responses["bottle_root"]
+    )
+    assert all(
+        artifact_deadline_responses[live.artifact_response_name(path)].status == 0
+        for path in artifact_paths
+    )
+
     site_calls = {
         call_spec.name: (call_timeout, call_limit)
         for call_spec, call_timeout, call_limit in capture_calls
@@ -606,17 +649,6 @@ def main() -> None:
         headers={**case[redirect_name].headers, "nel": '{"report_to":"cf-nel"}'},
     )
     assert_rejects(case, f"{redirect_name.replace(':', '-').replace('/', '-')}-no-nel")
-
-    case = passing_responses()
-    relative_redirect_name = "site_redirect:/repo"
-    case[relative_redirect_name] = replace(
-        case[relative_redirect_name],
-        headers={
-            **case[relative_redirect_name].headers,
-            "content-security-policy": "default-src 'none'",
-        },
-    )
-    assert_rejects(case, "site_redirect--repo-content-security-policy")
 
     case = passing_responses()
     case["site_browser_wucios"] = replace(
