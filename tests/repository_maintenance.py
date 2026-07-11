@@ -12,6 +12,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from tools import daylight_public_evidence_firewall as firewall
 from tools import live_integrity_check as live_integrity
+from tools import site_live_check
 from tools import site_dist
 
 
@@ -23,6 +24,11 @@ def main() -> None:
     makefile = read("Makefile")
     assert "$(PYTHON) -m tools.live_integrity_check --live" in makefile
     assert "$(PYTHON) tools/live_integrity_check.py --live" not in makefile
+    assert (
+        "live-integrity-check:\n"
+        "\tcd apps/bottle && npm run verify:bundle\n"
+        "\t$(PYTHON) -m tools.live_integrity_check --live"
+    ) in makefile
 
     for retired_path in [".github/workflows/pages.yml", "CNAME", "site/CNAME"]:
         assert not (REPO_ROOT / retired_path).exists(), f"retired Pages path remains: {retired_path}"
@@ -38,11 +44,51 @@ def main() -> None:
         for item in hosting["retired_publishers"]
     )
     assert sorted(hosting["forbidden_response_headers"]) == ["nel", "report-to"]
+    transform_control = next(
+        item
+        for item in hosting["deployment_controls"]
+        if item.get("kind") == "response_header_transform_rule"
+    )
+    assert transform_control == {
+        "host": "Cloudflare",
+        "kind": "response_header_transform_rule",
+        "phase": "http_response_headers_transform",
+        "expression": 'http.host eq "nosuchmachine.net"',
+        "operation": "remove",
+        "headers": ["nel", "report-to"],
+        "ordering": "after-managed-response-transforms",
+    }
+    analytics_control = next(
+        item
+        for item in hosting["deployment_controls"]
+        if item.get("kind") == "web_analytics_site"
+    )
+    assert analytics_control == {
+        "host": "Cloudflare",
+        "kind": "web_analytics_site",
+        "hostname": "nosuchmachine.net",
+        "mode": "disabled",
+        "automatic_script_injection": False,
+    }
     assert {
         "static.cloudflareinsights.com",
         "data-cf-beacon",
         "/cdn-cgi/rum",
     }.issubset(hosting["forbidden_html_markers"])
+    assert site_live_check.has_cache_control_directive(
+        "public, max-age=0, must-revalidate, no-transform",
+        "no-transform",
+    )
+    for lookalike in [
+        "x-no-transform",
+        "no-transform-disabled",
+        'no-transform="true"',
+        "no-transform=1",
+    ]:
+        assert not site_live_check.has_cache_control_directive(
+            f"public, {lookalike}",
+            "no-transform",
+        )
 
     inventory = site_dist.build_site_dist()
     staged_site = site_dist.collect_regular_tree(site_dist.OUTPUT_ROOT)
@@ -61,14 +107,14 @@ def main() -> None:
     assert "npx --no-install wrangler" in root_package["scripts"]["cloudflare:whoami"]
     wrangler_config = read("wrangler.toml")
     assert 'pages_build_output_dir = "./build/site-dist"' in wrangler_config
-    site_live_check = read("tools/site_live_check.py")
-    assert "Source review is open. The ISO is not published." not in site_live_check
-    assert "00171c4cbd377f7c3c200c8a2493ad42c90a1207" not in site_live_check
+    site_live_source = read("tools/site_live_check.py")
+    assert "Source review is open. The ISO is not published." not in site_live_source
+    assert "00171c4cbd377f7c3c200c8a2493ad42c90a1207" not in site_live_source
     for marker in [
         "Source review is published. The ISO is not.",
         "4783ebc530bc8c28cdeed2f06e79c233cee13b08",
     ]:
-        assert marker in site_live_check, f"legacy live checker is missing current Noether marker: {marker}"
+        assert marker in site_live_source, f"legacy live checker is missing current Noether marker: {marker}"
     deploy_source = read("tools/site_deploy.py")
     for marker in [
         '"git", "fetch", "--quiet", "origin", CANONICAL_BRANCH',
@@ -87,6 +133,11 @@ def main() -> None:
     bottle_package = json.loads(read("apps/bottle/package.json"))
     assert bottle_package["scripts"]["deploy"] == (
         "npm ci && npm run check && node scripts/deploy-reviewed-worker.mjs"
+    )
+    bottle_verifier = read("apps/bottle/scripts/verify-bundle.mjs")
+    assert (
+        "assertReleaseBuildToolchain(process.version, `npm@${currentNpmVersion()}`);"
+        in bottle_verifier
     )
     reviewed_worker_deploy = read("apps/bottle/scripts/deploy-reviewed-worker-lib.mjs")
     for marker in [

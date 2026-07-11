@@ -110,6 +110,25 @@
     {
       "host": "Cloudflare",
       "required_setting": "Network Error Logging disabled"
+    },
+    {
+      "host": "Cloudflare",
+      "kind": "response_header_transform_rule",
+      "phase": "http_response_headers_transform",
+      "expression": "http.host eq \"nosuchmachine.net\"",
+      "operation": "remove",
+      "headers": [
+        "nel",
+        "report-to"
+      ],
+      "ordering": "after-managed-response-transforms"
+    },
+    {
+      "host": "Cloudflare",
+      "kind": "web_analytics_site",
+      "hostname": "nosuchmachine.net",
+      "mode": "disabled",
+      "automatic_script_injection": false
     }
   ],
   "forbidden_response_headers": [
@@ -125,7 +144,9 @@
     "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/always-use-https/",
     "https://developers.cloudflare.com/ssl/edge-certificates/additional-options/http-strict-transport-security/",
     "https://developers.cloudflare.com/pages/configuration/headers/",
-    "https://developers.cloudflare.com/pages/configuration/redirects/"
+    "https://developers.cloudflare.com/pages/configuration/redirects/",
+    "https://developers.cloudflare.com/rules/transform/response-header-modification/",
+    "https://developers.cloudflare.com/network-error-logging/"
   ],
   "non_claims": [
     "not host-cleanliness proof",

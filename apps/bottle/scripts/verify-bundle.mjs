@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { extname, relative, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 import {
@@ -18,6 +19,8 @@ const requiredFiles = ["index.html", "keyring.json", "_headers", "release-manife
 const runtimeExtensions = new Set([".html", ".js", ".mjs", ".css"]);
 const expectedMaxRuntimeBytes = 220 * 1024;
 const expectedMaxRuntimeGzipBytes = 80 * 1024;
+
+assertReleaseBuildToolchain(process.version, `npm@${currentNpmVersion()}`);
 
 for (const file of requiredFiles) {
   await readRegularFile(new URL(file, dist), `Required built file ${file}`);
@@ -53,8 +56,10 @@ for (const required of [
     throw new Error(`Built _headers is missing required policy: ${required}`);
   }
 }
-if (!/(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store(?:\n|$)/.test(headers)) {
-  throw new Error("Built _headers must serve release-manifest.json with Cache-Control: no-store.");
+if (!/(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store, no-transform(?:\n|$)/.test(headers)) {
+  throw new Error(
+    "Built _headers must serve release-manifest.json with Cache-Control: no-store, no-transform."
+  );
 }
 
 await verifyKeyring();
@@ -230,6 +235,22 @@ function expectPositiveInteger(value, label) {
     throw new Error(`${label} must be a positive integer.`);
   }
   return value;
+}
+
+function currentNpmVersion() {
+  const userAgentMatch = process.env["npm_config_user_agent"]?.match(/\bnpm\/([^\s]+)/);
+  if (userAgentMatch?.[1]) {
+    return userAgentMatch[1];
+  }
+  try {
+    return execFileSync("npm", ["--version"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+  } catch {
+    throw new Error("Unable to determine the npm version for bundle verification.");
+  }
 }
 
 function assertExactFields(record, fields, label) {

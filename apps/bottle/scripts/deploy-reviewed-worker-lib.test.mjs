@@ -2,10 +2,25 @@ import { describe, expect, it } from "vitest";
 import {
   assertDeploymentEvidence,
   buildReviewedWorkerDeployArguments,
+  hasCacheControlDirective,
   workerBundleTag
 } from "./deploy-reviewed-worker-lib.mjs";
 
 describe("reviewed Worker deployment", () => {
+  it("matches exact Cache-Control directive names only", () => {
+    expect(hasCacheControlDirective("no-store, no-transform", "no-store")).toBe(true);
+    expect(hasCacheControlDirective("NO-STORE, No-Transform", "no-transform")).toBe(true);
+    for (const lookalike of [
+      "x-no-transform",
+      "no-transform-disabled",
+      'no-transform="true"',
+      "no-transform=1"
+    ]) {
+      expect(hasCacheControlDirective(`no-store, ${lookalike}`, "no-transform")).toBe(false);
+    }
+    expect(hasCacheControlDirective("x-no-store, no-transform", "no-store")).toBe(false);
+  });
+
   it("deploys the exact prebuilt bytes with the reviewed production config", () => {
     const bytes = Buffer.from("export default { fetch() { return new Response(); } };\n");
     const commit = "a".repeat(40);

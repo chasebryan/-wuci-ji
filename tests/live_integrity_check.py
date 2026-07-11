@@ -60,9 +60,13 @@ def build_manifest(artifacts_by_path: dict[str, bytes]) -> dict[str, object]:
         "bundleBudget": {
             "schema": "nsm.daylight-bottle.bundle-budget.v1",
             "runtimeBytes": sum(len(content) for content in runtime),
+            # The production value is emitted by the pinned Node/zlib
+            # toolchain. A different standards-compliant gzip implementation
+            # need not produce the same compressed byte count.
             "runtimeGzipBytes": sum(
                 len(gzip.compress(content, compresslevel=9, mtime=0)) for content in runtime
-            ),
+            )
+            + 7,
             "maxRuntimeBytes": live.MAX_RUNTIME_BYTES,
             "maxRuntimeGzipBytes": live.MAX_RUNTIME_GZIP_BYTES,
         },
@@ -127,7 +131,7 @@ def bottle_headers(content_type: str) -> dict[str, str]:
     return {
         **live.REQUIRED_BOTTLE_HEADERS,
         "content-type": content_type,
-        "cache-control": "no-store",
+        "cache-control": "no-store, no-transform",
     }
 
 
@@ -223,9 +227,9 @@ def passing_responses() -> dict[str, live.Response]:
                 **live.REQUIRED_BOTTLE_HEADERS,
                 "content-type": f"{sorted(live.artifact_media_types(path))[0]}; charset=utf-8",
                 "cache-control": (
-                    "no-store"
+                    "no-store, no-transform"
                     if path in {"index.html", "keyring.json"}
-                    else "public, max-age=31536000, immutable"
+                    else "public, max-age=31536000, immutable, no-transform"
                 ),
             },
             body=content,
@@ -233,11 +237,15 @@ def passing_responses() -> dict[str, live.Response]:
     return responses
 
 
-def assert_passes(responses: dict[str, live.Response]) -> None:
+def assert_passes(
+    responses: dict[str, live.Response],
+    *,
+    local_build: live.LocalBottleBuild | None = None,
+) -> None:
     checks = live.evaluate(
         responses,
         EXPECTED_COMMIT,
-        canonical_local_build(),
+        local_build or canonical_local_build(),
         canonical_local_site_build(),
     )
     failures = [check for check in checks if not check.ok]
@@ -250,11 +258,12 @@ def assert_rejects(
     expected_name: str,
     *,
     expected_commit: str = EXPECTED_COMMIT,
+    local_build: live.LocalBottleBuild | None = None,
 ) -> None:
     checks = live.evaluate(
         responses,
         expected_commit,
-        canonical_local_build(),
+        local_build or canonical_local_build(),
         canonical_local_site_build(),
     )
     failures = {check.name for check in checks if not check.ok}
@@ -310,6 +319,15 @@ def main() -> None:
     assert len(gzip.compress(INDEX_BYTES, compresslevel=9, mtime=0)) == 59
     assert len(gzip.compress(APP_BYTES, compresslevel=9, mtime=0)) == 56
     local_site = canonical_local_site_build()
+    global_headers_bytes = local_site.configs["_headers"]
+    assert "nel" not in live.site_global_headers(global_headers_bytes)
+    for required_removal in (b"  ! NEL\n", b"  ! Report-To\n"):
+        assert_value_error(
+            lambda required_removal=required_removal: live.site_global_headers(
+                global_headers_bytes.replace(required_removal, b"", 1)
+            ),
+            "global rule removals are not exact",
+        )
     cache_rules = live.site_cache_control_rules(local_site.configs["_headers"])
     assert live.expected_site_cache_control(
         cache_rules, f"{live.SITE_ORIGIN}/app.js"
@@ -399,6 +417,11 @@ def main() -> None:
     )
     assert_passes(passing_responses())
     assert all(not spec.follow_redirects for spec in live.REQUEST_PLAN)
+    assert all(
+        spec.user_agent == live.BROWSER_USER_AGENT
+        for spec in live.REQUEST_PLAN
+        if spec.name.startswith("bottle_")
+    )
     assert all(
         not live.RequestSpec(
             redirect.response_name,
@@ -512,6 +535,16 @@ def main() -> None:
     assert len(root_calls) == 1
     assert root_calls[0][0] <= live.MAX_ARTIFACT_REQUEST_SECONDS
     assert root_calls[0][1] == len(canonical_artifacts()["index.html"])
+    root_specs = [
+        spec for spec, _, _ in capture_calls if spec.name == "bottle_root"
+    ]
+    assert len(root_specs) == 1
+    assert root_specs[0].accept == live.BROWSER_NAVIGATION_ACCEPT
+    assert all(
+        spec.user_agent == live.BROWSER_USER_AGENT
+        for spec, _, _ in capture_calls
+        if spec.name == "bottle_root" or spec.name.startswith("bottle_artifact:")
+    )
 
     artifact_deadline_fetches: list[tuple[str, float]] = []
     original_fetch = live.fetch
@@ -636,6 +669,64 @@ def main() -> None:
     assert_rejects(case, "bottle-api-no-nel")
 
     case = passing_responses()
+    case["bottle_root"] = replace(
+        case["bottle_root"],
+        headers={**case["bottle_root"].headers, "cache-control": "no-store"},
+    )
+    case[live.artifact_response_name("index.html")] = case["bottle_root"]
+    assert_rejects(case, "bottle-root-no-transform")
+
+    for lookalike in (
+        "x-no-transform",
+        "no-transform-disabled",
+        'no-transform="true"',
+        "no-transform=1",
+    ):
+        case = passing_responses()
+        case["bottle_root"] = replace(
+            case["bottle_root"],
+            headers={
+                **case["bottle_root"].headers,
+                "cache-control": f"no-store, {lookalike}",
+            },
+        )
+        case[live.artifact_response_name("index.html")] = case["bottle_root"]
+        assert_rejects(case, "bottle-root-no-transform")
+
+    case = passing_responses()
+    case["bottle_api"] = replace(
+        case["bottle_api"],
+        headers={
+            **case["bottle_api"].headers,
+            "cache-control": "x-no-store, no-transform",
+        },
+    )
+    assert_rejects(case, "bottle-api-no-store")
+
+    case = passing_responses()
+    bottle_script_name = live.artifact_response_name("assets/app.js")
+    case[bottle_script_name] = replace(
+        case[bottle_script_name],
+        headers={
+            **case[bottle_script_name].headers,
+            "cache-control": "public, max-age=31536000, immutable",
+        },
+    )
+    assert_rejects(case, "bottle-artifact-assets/app.js-no-transform")
+
+    case = passing_responses()
+    injected_root = replace(
+        case["bottle_root"],
+        body=(
+            case["bottle_root"].body
+            + b'<script src="https://static.cloudflareinsights.com/beacon.js"></script>'
+        ),
+    )
+    case["bottle_root"] = injected_root
+    case[live.artifact_response_name("index.html")] = injected_root
+    assert_rejects(case, "bottle-root-no-analytics-injection")
+
+    case = passing_responses()
     case["site_https_root"] = replace(
         case["site_https_root"],
         headers={**case["site_https_root"].headers, "report-to": '{"group":"cf-nel"}'},
@@ -660,6 +751,22 @@ def main() -> None:
     case = passing_responses()
     case["site_https_root"] = replace(case["site_https_root"], body=b"unrelated deployment")
     assert_rejects(case, "site-root-exact-bytes")
+
+    for lookalike in (
+        "x-no-transform",
+        "no-transform-disabled",
+        'no-transform="true"',
+        "no-transform=1",
+    ):
+        case = passing_responses()
+        case["site_https_root"] = replace(
+            case["site_https_root"],
+            headers={
+                **case["site_https_root"].headers,
+                "cache-control": f"public, max-age=0, must-revalidate, {lookalike}",
+            },
+        )
+        assert_rejects(case, "site-html-no-transform")
 
     case = passing_responses()
     case["site_browser_wucios"] = replace(
@@ -822,6 +929,39 @@ def main() -> None:
     refresh_manifest_subject(manifest)
     replace_manifest(case, manifest)
     assert_rejects(case, "bottle-manifest-inputs-match-checkout")
+
+    for invalid_gzip_bytes in (0, live.MAX_RUNTIME_GZIP_BYTES + 1):
+        case = passing_responses()
+        manifest = json.loads(case["bottle_manifest"].body)
+        manifest["bundleBudget"]["runtimeGzipBytes"] = invalid_gzip_bytes
+        refresh_manifest_subject(manifest)
+        replace_manifest(case, manifest)
+        local_build = replace(
+            canonical_local_build(),
+            manifest=manifest,
+            manifest_bytes=(json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+        )
+        assert_rejects(
+            case,
+            "bottle-manifest-bundle-budget",
+            local_build=local_build,
+        )
+
+    case = passing_responses()
+    manifest = json.loads(case["bottle_manifest"].body)
+    manifest["bundleBudget"]["runtimeBytes"] += 1
+    refresh_manifest_subject(manifest)
+    replace_manifest(case, manifest)
+    local_build = replace(
+        canonical_local_build(),
+        manifest=manifest,
+        manifest_bytes=(json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+    )
+    assert_rejects(
+        case,
+        "bottle-manifest-bundle-budget",
+        local_build=local_build,
+    )
 
     case = passing_responses()
     artifact_name = live.artifact_response_name("assets/app.js")

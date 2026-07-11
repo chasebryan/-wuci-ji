@@ -794,6 +794,7 @@ live-integrity-test:
 	$(PYTHON) tests/site_dist.py
 
 live-integrity-check:
+	cd apps/bottle && npm run verify:bundle
 	$(PYTHON) -m tools.live_integrity_check --live --expected-commit "$$(git rev-parse HEAD)"
 
 repository-maintenance-test:

@@ -17,7 +17,6 @@ import argparse
 import base64
 import binascii
 import concurrent.futures
-import gzip
 import hashlib
 import json
 import os
@@ -67,6 +66,10 @@ SNAPSHOT_MAX_RESPONSES = 192
 SNAPSHOT_MAX_HEADERS = 64
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"
+)
+BROWSER_NAVIGATION_ACCEPT = (
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
+    "image/webp,*/*;q=0.8"
 )
 
 REQUIRED_BOTTLE_HEADERS = {
@@ -176,6 +179,7 @@ class RequestSpec:
     method: str = "GET"
     follow_redirects: bool = False
     user_agent: str = "wuci-live-integrity-check/1"
+    accept: str = "*/*"
 
 
 @dataclass(frozen=True)
@@ -251,13 +255,26 @@ SAFE_REDIRECT_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9._/-]+$")
 
 REQUEST_PLAN = (
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
-    RequestSpec("bottle_deployment", f"{BOTTLE_ORIGIN}/api/deployment"),
-    RequestSpec("bottle_manifest", f"{BOTTLE_ORIGIN}/release-manifest.json"),
+    RequestSpec(
+        "bottle_deployment",
+        f"{BOTTLE_ORIGIN}/api/deployment",
+        user_agent=BROWSER_USER_AGENT,
+    ),
+    RequestSpec(
+        "bottle_manifest",
+        f"{BOTTLE_ORIGIN}/release-manifest.json",
+        user_agent=BROWSER_USER_AGENT,
+    ),
     RequestSpec(
         "bottle_api",
         f"{BOTTLE_ORIGIN}/api/bottles?recipientFingerprint={ZERO_FINGERPRINT}",
+        user_agent=BROWSER_USER_AGENT,
     ),
-    RequestSpec("bottle_keyring", f"{BOTTLE_ORIGIN}/keyring.json"),
+    RequestSpec(
+        "bottle_keyring",
+        f"{BOTTLE_ORIGIN}/keyring.json",
+        user_agent=BROWSER_USER_AGENT,
+    ),
 )
 
 
@@ -381,17 +398,24 @@ def site_global_headers(content: bytes) -> dict[str, str]:
     except StopIteration as error:
         raise ValueError("staged _headers is missing the global rule") from error
     headers: dict[str, str] = {}
+    removals: set[str] = set()
     for line in lines[start + 1 :]:
         if line and not line[0].isspace():
             break
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith("!") or ":" not in stripped:
+        if stripped.startswith("!"):
+            normalized = stripped[1:].strip().lower()
+            if not normalized or normalized in removals or normalized in headers:
+                raise ValueError("staged _headers global rule contains a duplicate removal")
+            removals.add(normalized)
+            continue
+        if ":" not in stripped:
             raise ValueError("staged _headers global rule is invalid")
         name, value = stripped.split(":", 1)
         normalized = name.strip().lower()
-        if not normalized or normalized in headers:
+        if not normalized or normalized in headers or normalized in removals:
             raise ValueError("staged _headers global rule contains a duplicate header")
         headers[normalized] = value.strip()
     required = {
@@ -407,6 +431,8 @@ def site_global_headers(content: bytes) -> dict[str, str]:
     }
     if set(headers) != required:
         raise ValueError("staged _headers global rule fields are not exact")
+    if removals != {"nel", "report-to"}:
+        raise ValueError("staged _headers global rule removals are not exact")
     return headers
 
 
@@ -739,7 +765,7 @@ def _fetch_direct(
     request = urllib.request.Request(
         spec.url,
         method=spec.method,
-        headers={"User-Agent": spec.user_agent, "Accept": "*/*"},
+        headers={"User-Agent": spec.user_agent, "Accept": spec.accept},
     )
     opener = urllib.request.urlopen if spec.follow_redirects else NO_REDIRECT_OPENER.open
     try:
@@ -861,7 +887,12 @@ def capture_bottle_artifacts(local_build: LocalBottleBuild) -> dict[str, Respons
     deadline = time.monotonic() + MAX_ARTIFACT_CAPTURE_SECONDS
     remaining_seconds = deadline - time.monotonic()
     bottle_root = fetch(
-        RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
+        RequestSpec(
+            "bottle_root",
+            f"{BOTTLE_ORIGIN}/",
+            user_agent=BROWSER_USER_AGENT,
+            accept=BROWSER_NAVIGATION_ACCEPT,
+        ),
         timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
         max_body_bytes=len(index_content),
     )
@@ -883,7 +914,11 @@ def capture_bottle_artifacts(local_build: LocalBottleBuild) -> dict[str, Respons
             responses[name] = Response(status=0, headers={}, body=b"", url=artifact_url(path))
             continue
         responses[name] = fetch(
-            RequestSpec(name, artifact_url(path)),
+            RequestSpec(
+                name,
+                artifact_url(path),
+                user_agent=BROWSER_USER_AGENT,
+            ),
             timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
             max_body_bytes=len(expected_content),
         )
@@ -1188,10 +1223,29 @@ def add_bottle_header_checks(checks: list[Check], label: str, response: Response
     checks.append(
         Check(
             f"{label}-no-store",
-            "no-store" in cache_control.lower(),
+            has_cache_control_directive(cache_control, "no-store"),
             cache_control or "<missing>",
         )
     )
+    add_bottle_no_transform_check(checks, label, response)
+
+
+def add_bottle_no_transform_check(
+    checks: list[Check], label: str, response: Response
+) -> None:
+    cache_control = response.headers.get("cache-control", "")
+    checks.append(
+        Check(
+            f"{label}-no-transform",
+            has_cache_control_directive(cache_control, "no-transform"),
+            cache_control or "<missing>",
+        )
+    )
+
+
+def has_cache_control_directive(value: str, directive: str) -> bool:
+    expected = directive.lower()
+    return any(part.strip().lower() == expected for part in value.split(","))
 
 
 def valid_keyring(payload: Any) -> tuple[bool, str, int]:
@@ -1384,6 +1438,11 @@ def release_manifest_checks(
             add_bottle_header_checks(checks, f"bottle-artifact-{path}", response)
         else:
             add_common_response_checks(checks, f"bottle-artifact-{path}", response)
+            add_bottle_no_transform_check(
+                checks,
+                f"bottle-artifact-{path}",
+                response,
+            )
         add_media_type_check(
             checks,
             f"bottle-artifact-{path}",
@@ -1450,23 +1509,34 @@ def release_manifest_checks(
         if Path(path).suffix in RUNTIME_EXTENSIONS
     ]
     runtime_bytes = sum(len(content) for content in runtime_contents)
-    runtime_gzip_bytes = sum(len(gzip.compress(content, compresslevel=9, mtime=0)) for content in runtime_contents)
+    reported_runtime_gzip_bytes = (
+        budget.get("runtimeGzipBytes") if isinstance(budget, dict) else None
+    )
+    local_budget = (
+        local_build.manifest.get("bundleBudget")
+        if isinstance(local_build.manifest, dict)
+        else None
+    )
     budget_matches = (
         budget_exact
         and budget.get("schema") == "nsm.daylight-bottle.bundle-budget.v1"
         and all(valid_nonnegative_integer(budget.get(field)) for field in budget_fields - {"schema"})
+        and budget == local_budget
         and budget.get("runtimeBytes") == runtime_bytes
-        and budget.get("runtimeGzipBytes") == runtime_gzip_bytes
         and budget.get("maxRuntimeBytes") == MAX_RUNTIME_BYTES
         and budget.get("maxRuntimeGzipBytes") == MAX_RUNTIME_GZIP_BYTES
         and runtime_bytes <= MAX_RUNTIME_BYTES
-        and runtime_gzip_bytes <= MAX_RUNTIME_GZIP_BYTES
+        and reported_runtime_gzip_bytes > 0
+        and reported_runtime_gzip_bytes <= MAX_RUNTIME_GZIP_BYTES
     )
     checks.append(
         Check(
             "bottle-manifest-bundle-budget",
             budget_matches,
-            f"runtime={runtime_bytes}/{MAX_RUNTIME_BYTES} gzip={runtime_gzip_bytes}/{MAX_RUNTIME_GZIP_BYTES}",
+            (
+                f"runtime={runtime_bytes}/{MAX_RUNTIME_BYTES} "
+                f"declared-gzip={reported_runtime_gzip_bytes}/{MAX_RUNTIME_GZIP_BYTES}"
+            ),
         )
     )
 
@@ -1626,7 +1696,10 @@ def evaluate(
             ),
             Check(
                 "site-html-no-transform",
-                "no-transform" in site_root.headers.get("cache-control", "").lower(),
+                has_cache_control_directive(
+                    site_root.headers.get("cache-control", ""),
+                    "no-transform",
+                ),
                 site_root.headers.get("cache-control", "<missing>"),
             ),
         ]

@@ -872,7 +872,9 @@ async function assertCloudflareFiles() {
     "X-Frame-Options: DENY",
     "Cross-Origin-Opener-Policy: same-origin",
     "Cross-Origin-Resource-Policy: same-origin",
-    "Permissions-Policy:"
+    "Permissions-Policy:",
+    "! NEL",
+    "! Report-To"
   ]) {
     if (!headers.includes(requiredHeader)) {
       fail(`site/_headers is missing security header: ${requiredHeader}`);
@@ -1664,6 +1666,48 @@ async function assertHostingRequirements() {
     if (!controls.includes(required)) {
       fail(`hosting-requirements.json is missing deploy control: ${required}`);
     }
+  }
+  const transformControl = (requirements.deployment_controls || []).find(
+    (entry) => entry.kind === "response_header_transform_rule"
+  );
+  if (
+    !transformControl
+    || JSON.stringify(Object.keys(transformControl).sort()) !== JSON.stringify([
+      "expression",
+      "headers",
+      "host",
+      "kind",
+      "operation",
+      "ordering",
+      "phase"
+    ])
+    || transformControl.host !== "Cloudflare"
+    || transformControl.phase !== "http_response_headers_transform"
+    || transformControl.expression !== 'http.host eq "nosuchmachine.net"'
+    || transformControl.operation !== "remove"
+    || JSON.stringify(transformControl.headers) !== JSON.stringify(["nel", "report-to"])
+    || transformControl.ordering !== "after-managed-response-transforms"
+  ) {
+    fail("hosting-requirements.json is missing the exact canonical-host telemetry removal control");
+  }
+  const analyticsControl = (requirements.deployment_controls || []).find(
+    (entry) => entry.kind === "web_analytics_site"
+  );
+  if (
+    !analyticsControl
+    || JSON.stringify(Object.keys(analyticsControl).sort()) !== JSON.stringify([
+      "automatic_script_injection",
+      "host",
+      "hostname",
+      "kind",
+      "mode"
+    ])
+    || analyticsControl.host !== "Cloudflare"
+    || analyticsControl.hostname !== "nosuchmachine.net"
+    || analyticsControl.mode !== "disabled"
+    || analyticsControl.automatic_script_injection !== false
+  ) {
+    fail("hosting-requirements.json is missing the exact disabled Web Analytics control");
   }
   if (
     !Array.isArray(requirements.forbidden_response_headers)
