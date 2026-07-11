@@ -647,6 +647,8 @@ def artifact_response_name(path: str) -> str:
 
 
 def artifact_url(path: str) -> str:
+    if path == "index.html":
+        return f"{BOTTLE_ORIGIN}/"
     return f"{BOTTLE_ORIGIN}/{path}"
 
 
@@ -858,6 +860,9 @@ def capture_live(
         if path == "_headers":
             continue
         name = artifact_response_name(path)
+        if path == "index.html":
+            responses[name] = responses["bottle_root"]
+            continue
         remaining_seconds = deadline - time.monotonic()
         if remaining_seconds <= 0:
             responses[name] = Response(status=0, headers={}, body=b"", url=artifact_url(path))
@@ -1564,10 +1569,15 @@ def evaluate(
         )
         expected_cache = expected_site_cache_control(cache_rules, artifact.url)
         observed_cache = observed.headers.get("cache-control")
+        # Cloudflare-generated 404 responses may replace the configured cache
+        # policy with the stricter no-store directive.
+        cache_matches = observed_cache == expected_cache or (
+            artifact.status == 404 and observed_cache == "no-store"
+        )
         checks.append(
             Check(
                 f"{label}-cache-control-policy",
-                observed_cache == expected_cache,
+                cache_matches,
                 f"expected={expected_cache!r} observed={observed_cache!r}",
             )
         )
@@ -1629,13 +1639,10 @@ def evaluate(
                 ),
             ]
         )
+        # Pages _headers apply to served assets, not synthetic redirect
+        # responses. Redirects remain bound by exact status/location and the
+        # no-NEL/no-Report-To checks above.
         add_common_response_checks(checks, label, observed)
-        add_site_global_header_checks(
-            checks,
-            label,
-            observed,
-            global_site_headers,
-        )
 
     secondary = response_or_missing(responses, "site_secondary")
     secondary_location = secondary.headers.get("location", "")

@@ -197,6 +197,8 @@ def passing_responses() -> dict[str, live.Response]:
         expected_cache = live.expected_site_cache_control(cache_rules, artifact.url)
         if expected_cache is None:
             headers.pop("cache-control", None)
+        elif artifact.status == 404:
+            headers["cache-control"] = "no-store"
         else:
             headers["cache-control"] = expected_cache
         responses[artifact.response_name] = response(
@@ -209,7 +211,7 @@ def passing_responses() -> dict[str, live.Response]:
         responses[redirect.response_name] = response(
             redirect.status,
             redirect.url,
-            headers={**global_headers, "location": redirect.location},
+            headers={"location": redirect.location},
         )
     for path, content in artifacts.items():
         if path == "_headers":
@@ -406,6 +408,7 @@ def main() -> None:
         for redirect in local_site.redirects
     )
     assert not live.RequestSpec("artifact", live.artifact_url("index.html")).follow_redirects
+    assert live.artifact_url("index.html") == f"{live.BOTTLE_ORIGIN}/"
     assert not live.valid_artifact_path("api/bottles")
     assert not live.valid_artifact_path("https://example.invalid/payload.js")
 
@@ -490,7 +493,7 @@ def main() -> None:
     expected_capture = {
         path: content
         for path, content in canonical_artifacts().items()
-        if path != "_headers"
+        if path not in {"_headers", "index.html"}
     }
     assert set(artifact_calls) == set(expected_capture)
     assert all(
@@ -501,6 +504,12 @@ def main() -> None:
     assert sum(limit for _, limit in artifact_calls.values()) == sum(
         len(content) for content in expected_capture.values()
     )
+    root_calls = [
+        (timeout, limit)
+        for spec, timeout, limit in capture_calls
+        if spec.name == "bottle_root"
+    ]
+    assert root_calls == [(12.0, len(canonical_artifacts()["index.html"]))]
     site_calls = {
         call_spec.name: (call_timeout, call_limit)
         for call_spec, call_timeout, call_limit in capture_calls
@@ -588,6 +597,14 @@ def main() -> None:
     assert_rejects(case, "site-root-no-report-to")
 
     case = passing_responses()
+    redirect_name = canonical_local_site_build().redirects[0].response_name
+    case[redirect_name] = replace(
+        case[redirect_name],
+        headers={**case[redirect_name].headers, "nel": '{"report_to":"cf-nel"}'},
+    )
+    assert_rejects(case, f"{redirect_name.replace(':', '-').replace('/', '-')}-no-nel")
+
+    case = passing_responses()
     case["site_browser_wucios"] = replace(
         case["site_browser_wucios"],
         body=case["site_browser_wucios"].body + b'<script src="https://static.cloudflareinsights.com/beacon.js"></script>',
@@ -630,6 +647,17 @@ def main() -> None:
         case,
         "site-artifact-assets/wuci-ji-systems-hero.jpg-cache-control-policy",
     )
+
+    case = passing_responses()
+    not_found_name = live.site_response_name("404.html")
+    case[not_found_name] = replace(
+        case[not_found_name],
+        headers={
+            **case[not_found_name].headers,
+            "cache-control": "public, max-age=86400",
+        },
+    )
+    assert_rejects(case, "site-artifact-404.html-cache-control-policy")
 
     case = passing_responses()
     case["site_app_js"] = replace(
