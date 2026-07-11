@@ -380,17 +380,24 @@ def site_global_headers(content: bytes) -> dict[str, str]:
     except StopIteration as error:
         raise ValueError("staged _headers is missing the global rule") from error
     headers: dict[str, str] = {}
+    removals: set[str] = set()
     for line in lines[start + 1 :]:
         if line and not line[0].isspace():
             break
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith("!") or ":" not in stripped:
+        if stripped.startswith("!"):
+            normalized = stripped[1:].strip().lower()
+            if not normalized or normalized in removals or normalized in headers:
+                raise ValueError("staged _headers global rule contains a duplicate removal")
+            removals.add(normalized)
+            continue
+        if ":" not in stripped:
             raise ValueError("staged _headers global rule is invalid")
         name, value = stripped.split(":", 1)
         normalized = name.strip().lower()
-        if not normalized or normalized in headers:
+        if not normalized or normalized in headers or normalized in removals:
             raise ValueError("staged _headers global rule contains a duplicate header")
         headers[normalized] = value.strip()
     required = {
@@ -406,6 +413,8 @@ def site_global_headers(content: bytes) -> dict[str, str]:
     }
     if set(headers) != required:
         raise ValueError("staged _headers global rule fields are not exact")
+    if removals != {"nel", "report-to"}:
+        raise ValueError("staged _headers global rule removals are not exact")
     return headers
 
 

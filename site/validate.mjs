@@ -872,7 +872,9 @@ async function assertCloudflareFiles() {
     "X-Frame-Options: DENY",
     "Cross-Origin-Opener-Policy: same-origin",
     "Cross-Origin-Resource-Policy: same-origin",
-    "Permissions-Policy:"
+    "Permissions-Policy:",
+    "! NEL",
+    "! Report-To"
   ]) {
     if (!headers.includes(requiredHeader)) {
       fail(`site/_headers is missing security header: ${requiredHeader}`);

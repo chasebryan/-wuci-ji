@@ -17,6 +17,11 @@ specific static-asset and evidence rules detach that cache header before
 applying their own cache policy. Do not enable browser analytics or remove
 `no-transform` without an explicit privacy/CSP review.
 
+The global Pages `_headers` rule also detaches `NEL` and `Report-To`. Keep the
+zone's Network Error Logging setting off as the primary control; the detach
+directives prevent the Pages response path from retaining those external
+reporting headers when static response headers are applied.
+
 Authenticate and verify the target before publishing:
 
 ```sh

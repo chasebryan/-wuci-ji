@@ -314,6 +314,15 @@ def main() -> None:
     assert len(gzip.compress(INDEX_BYTES, compresslevel=9, mtime=0)) == 59
     assert len(gzip.compress(APP_BYTES, compresslevel=9, mtime=0)) == 56
     local_site = canonical_local_site_build()
+    global_headers_bytes = local_site.configs["_headers"]
+    assert "nel" not in live.site_global_headers(global_headers_bytes)
+    for required_removal in (b"  ! NEL\n", b"  ! Report-To\n"):
+        assert_value_error(
+            lambda required_removal=required_removal: live.site_global_headers(
+                global_headers_bytes.replace(required_removal, b"", 1)
+            ),
+            "global rule removals are not exact",
+        )
     cache_rules = live.site_cache_control_rules(local_site.configs["_headers"])
     assert live.expected_site_cache_control(
         cache_rules, f"{live.SITE_ORIGIN}/app.js"
