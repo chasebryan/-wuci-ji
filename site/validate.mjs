@@ -1671,11 +1671,16 @@ async function assertHostingRequirements() {
   ) {
     fail("hosting-requirements.json must forbid NEL and Report-To response headers");
   }
+  const forbiddenHtmlMarkers = new Set(
+    Array.isArray(requirements.forbidden_html_markers)
+      ? requirements.forbidden_html_markers
+      : []
+  );
   if (
     !Array.isArray(requirements.forbidden_html_markers)
-    || !requirements.forbidden_html_markers.includes("static.cloudflareinsights.com")
-    || !requirements.forbidden_html_markers.includes("data-cf-beacon")
-    || !requirements.forbidden_html_markers.includes("/cdn-cgi/rum")
+    || !forbiddenHtmlMarkers.has("static.cloudflareinsights.com")
+    || !forbiddenHtmlMarkers.has("data-cf-beacon")
+    || !forbiddenHtmlMarkers.has("/cdn-cgi/rum")
   ) {
     fail("hosting-requirements.json must forbid Cloudflare analytics injection markers");
   }
