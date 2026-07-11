@@ -92,6 +92,7 @@ async function verifyLiveDeployment(expectedTag) {
         || response.url !== "https://bottle.nosuchmachine.net/api/deployment"
         || !response.headers.get("content-type")?.toLowerCase().startsWith("application/json")
         || !response.headers.get("cache-control")?.toLowerCase().includes("no-store")
+        || !response.headers.get("cache-control")?.toLowerCase().includes("no-transform")
       ) {
         throw new Error("Live Worker deployment evidence response is invalid.");
       }

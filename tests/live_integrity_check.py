@@ -131,7 +131,7 @@ def bottle_headers(content_type: str) -> dict[str, str]:
     return {
         **live.REQUIRED_BOTTLE_HEADERS,
         "content-type": content_type,
-        "cache-control": "no-store",
+        "cache-control": "no-store, no-transform",
     }
 
 
@@ -227,9 +227,9 @@ def passing_responses() -> dict[str, live.Response]:
                 **live.REQUIRED_BOTTLE_HEADERS,
                 "content-type": f"{sorted(live.artifact_media_types(path))[0]}; charset=utf-8",
                 "cache-control": (
-                    "no-store"
+                    "no-store, no-transform"
                     if path in {"index.html", "keyring.json"}
-                    else "public, max-age=31536000, immutable"
+                    else "public, max-age=31536000, immutable, no-transform"
                 ),
             },
             body=content,
@@ -418,6 +418,11 @@ def main() -> None:
     assert_passes(passing_responses())
     assert all(not spec.follow_redirects for spec in live.REQUEST_PLAN)
     assert all(
+        spec.user_agent == live.BROWSER_USER_AGENT
+        for spec in live.REQUEST_PLAN
+        if spec.name.startswith("bottle_")
+    )
+    assert all(
         not live.RequestSpec(
             redirect.response_name,
             redirect.url,
@@ -530,6 +535,11 @@ def main() -> None:
     assert len(root_calls) == 1
     assert root_calls[0][0] <= live.MAX_ARTIFACT_REQUEST_SECONDS
     assert root_calls[0][1] == len(canonical_artifacts()["index.html"])
+    assert all(
+        spec.user_agent == live.BROWSER_USER_AGENT
+        for spec, _, _ in capture_calls
+        if spec.name == "bottle_root" or spec.name.startswith("bottle_artifact:")
+    )
 
     artifact_deadline_fetches: list[tuple[str, float]] = []
     original_fetch = live.fetch
@@ -652,6 +662,37 @@ def main() -> None:
         headers={**case["bottle_api"].headers, "nel": '{"report_to":"cf-nel"}'},
     )
     assert_rejects(case, "bottle-api-no-nel")
+
+    case = passing_responses()
+    case["bottle_root"] = replace(
+        case["bottle_root"],
+        headers={**case["bottle_root"].headers, "cache-control": "no-store"},
+    )
+    case[live.artifact_response_name("index.html")] = case["bottle_root"]
+    assert_rejects(case, "bottle-root-no-transform")
+
+    case = passing_responses()
+    bottle_script_name = live.artifact_response_name("assets/app.js")
+    case[bottle_script_name] = replace(
+        case[bottle_script_name],
+        headers={
+            **case[bottle_script_name].headers,
+            "cache-control": "public, max-age=31536000, immutable",
+        },
+    )
+    assert_rejects(case, "bottle-artifact-assets/app.js-no-transform")
+
+    case = passing_responses()
+    injected_root = replace(
+        case["bottle_root"],
+        body=(
+            case["bottle_root"].body
+            + b'<script src="https://static.cloudflareinsights.com/beacon.js"></script>'
+        ),
+    )
+    case["bottle_root"] = injected_root
+    case[live.artifact_response_name("index.html")] = injected_root
+    assert_rejects(case, "bottle-root-no-analytics-injection")
 
     case = passing_responses()
     case["site_https_root"] = replace(

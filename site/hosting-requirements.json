@@ -122,6 +122,13 @@
         "report-to"
       ],
       "ordering": "after-managed-response-transforms"
+    },
+    {
+      "host": "Cloudflare",
+      "kind": "web_analytics_site",
+      "hostname": "nosuchmachine.net",
+      "mode": "disabled",
+      "automatic_script_injection": false
     }
   ],
   "forbidden_response_headers": [

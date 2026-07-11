@@ -129,7 +129,7 @@ function localErrorResponse(status: number, message: string): Response {
     status,
     headers: {
       ...SECURITY_HEADERS,
-      "Cache-Control": "no-store",
+      "Cache-Control": "no-store, no-transform",
       "Content-Type": "application/json; charset=utf-8"
     }
   });

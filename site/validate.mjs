@@ -1690,6 +1690,25 @@ async function assertHostingRequirements() {
   ) {
     fail("hosting-requirements.json is missing the exact canonical-host telemetry removal control");
   }
+  const analyticsControl = (requirements.deployment_controls || []).find(
+    (entry) => entry.kind === "web_analytics_site"
+  );
+  if (
+    !analyticsControl
+    || JSON.stringify(Object.keys(analyticsControl).sort()) !== JSON.stringify([
+      "automatic_script_injection",
+      "host",
+      "hostname",
+      "kind",
+      "mode"
+    ])
+    || analyticsControl.host !== "Cloudflare"
+    || analyticsControl.hostname !== "nosuchmachine.net"
+    || analyticsControl.mode !== "disabled"
+    || analyticsControl.automatic_script_injection !== false
+  ) {
+    fail("hosting-requirements.json is missing the exact disabled Web Analytics control");
+  }
   if (
     !Array.isArray(requirements.forbidden_response_headers)
     || JSON.stringify([...requirements.forbidden_response_headers].sort()) !== JSON.stringify(["nel", "report-to"])

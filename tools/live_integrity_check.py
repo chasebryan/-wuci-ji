@@ -250,13 +250,26 @@ SAFE_REDIRECT_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9._/-]+$")
 
 REQUEST_PLAN = (
     RequestSpec("site_secondary", SITE_SECONDARY, method="HEAD", follow_redirects=False),
-    RequestSpec("bottle_deployment", f"{BOTTLE_ORIGIN}/api/deployment"),
-    RequestSpec("bottle_manifest", f"{BOTTLE_ORIGIN}/release-manifest.json"),
+    RequestSpec(
+        "bottle_deployment",
+        f"{BOTTLE_ORIGIN}/api/deployment",
+        user_agent=BROWSER_USER_AGENT,
+    ),
+    RequestSpec(
+        "bottle_manifest",
+        f"{BOTTLE_ORIGIN}/release-manifest.json",
+        user_agent=BROWSER_USER_AGENT,
+    ),
     RequestSpec(
         "bottle_api",
         f"{BOTTLE_ORIGIN}/api/bottles?recipientFingerprint={ZERO_FINGERPRINT}",
+        user_agent=BROWSER_USER_AGENT,
     ),
-    RequestSpec("bottle_keyring", f"{BOTTLE_ORIGIN}/keyring.json"),
+    RequestSpec(
+        "bottle_keyring",
+        f"{BOTTLE_ORIGIN}/keyring.json",
+        user_agent=BROWSER_USER_AGENT,
+    ),
 )
 
 
@@ -869,7 +882,11 @@ def capture_bottle_artifacts(local_build: LocalBottleBuild) -> dict[str, Respons
     deadline = time.monotonic() + MAX_ARTIFACT_CAPTURE_SECONDS
     remaining_seconds = deadline - time.monotonic()
     bottle_root = fetch(
-        RequestSpec("bottle_root", f"{BOTTLE_ORIGIN}/"),
+        RequestSpec(
+            "bottle_root",
+            f"{BOTTLE_ORIGIN}/",
+            user_agent=BROWSER_USER_AGENT,
+        ),
         timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
         max_body_bytes=len(index_content),
     )
@@ -891,7 +908,11 @@ def capture_bottle_artifacts(local_build: LocalBottleBuild) -> dict[str, Respons
             responses[name] = Response(status=0, headers={}, body=b"", url=artifact_url(path))
             continue
         responses[name] = fetch(
-            RequestSpec(name, artifact_url(path)),
+            RequestSpec(
+                name,
+                artifact_url(path),
+                user_agent=BROWSER_USER_AGENT,
+            ),
             timeout=min(MAX_ARTIFACT_REQUEST_SECONDS, remaining_seconds),
             max_body_bytes=len(expected_content),
         )
@@ -1200,6 +1221,20 @@ def add_bottle_header_checks(checks: list[Check], label: str, response: Response
             cache_control or "<missing>",
         )
     )
+    add_bottle_no_transform_check(checks, label, response)
+
+
+def add_bottle_no_transform_check(
+    checks: list[Check], label: str, response: Response
+) -> None:
+    cache_control = response.headers.get("cache-control", "")
+    checks.append(
+        Check(
+            f"{label}-no-transform",
+            "no-transform" in cache_control.lower(),
+            cache_control or "<missing>",
+        )
+    )
 
 
 def valid_keyring(payload: Any) -> tuple[bool, str, int]:
@@ -1392,6 +1427,11 @@ def release_manifest_checks(
             add_bottle_header_checks(checks, f"bottle-artifact-{path}", response)
         else:
             add_common_response_checks(checks, f"bottle-artifact-{path}", response)
+            add_bottle_no_transform_check(
+                checks,
+                f"bottle-artifact-{path}",
+                response,
+            )
         add_media_type_check(
             checks,
             f"bottle-artifact-{path}",

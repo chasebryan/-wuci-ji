@@ -17,6 +17,11 @@ specific static-asset and evidence rules detach that cache header before
 applying their own cache policy. Do not enable browser analytics or remove
 `no-transform` without an explicit privacy/CSP review.
 
+The account-level Cloudflare Web Analytics site for `nosuchmachine.net` must
+remain disabled, including automatic Real User Measurements script injection.
+`no-transform` is still required on served HTML as source-controlled defense
+against provider-side or account-setting drift.
+
 The global Pages `_headers` rule also detaches `NEL` and `Report-To` as
 source-controlled defense in depth. Keep the zone's Network Error Logging
 setting off as the primary control. Pages can apply managed NEL headers after

@@ -14,6 +14,10 @@ approval.
 - `nosuchmachine.net` is an active zone in the target Cloudflare account.
 - The operator can edit Workers, Workers KV, Custom Domains, and DNS for that
   zone.
+- Cloudflare Web Analytics / Real User Measurements is **Disabled** for
+  `nosuchmachine.net`; automatic JS snippet injection violates the same-origin
+  and no-third-party-runtime boundary. Bottle still serves `no-transform` as a
+  source-controlled backstop.
 - Cloudflare Network Error Logging is **Off** for `nosuchmachine.net`. When it
   is enabled, Cloudflare adds `NEL` and `Report-To` response headers that direct
   browsers to an external reporting endpoint, which conflicts with Daylight
@@ -183,7 +187,10 @@ curl --silent --show-error --dump-header - --output /dev/null \
 
 Both responses must include the CSP, `Referrer-Policy`, `Permissions-Policy`,
 `Cross-Origin-Opener-Policy`, and `X-Content-Type-Options` values maintained in
-`public/_headers` and the Worker. Neither response may include `NEL` or
+`public/_headers` and the Worker. Their `Cache-Control` policy must include
+`no-transform`; this prevents browser-selective Cloudflare Web Analytics
+injection from adding an external script to otherwise exact HTML. Neither
+response may include `NEL` or
 `Report-To`; if either is present, turn off Cloudflare Network Error Logging for
 the zone and repeat the checks. The API response should be `200` with schema
 `nsm.daylight-bottle.list.response.v1`. Each request lists at most 8 candidate
@@ -210,7 +217,9 @@ not accepted for JavaScript. This is deployment parity evidence, not proof of
 an uncompromised origin.
 
 From the repository root, run the deterministic policy tests and then the
-explicit no-secret public readback. The live command binds the manifest,
+explicit no-secret public readback. The live command uses a fixed browser user
+agent for every Bottle response so provider behavior cannot hide behind
+client-selective transformation. It binds the manifest,
 checked-out source inputs, and exact bounded same-origin artifact bytes to the
 checked-out commit; rejects redirects; requires the zero-fingerprint API probe
 to return an empty versioned response; checks the static/API security headers;

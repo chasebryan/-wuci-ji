@@ -57,6 +57,18 @@ def main() -> None:
         "headers": ["nel", "report-to"],
         "ordering": "after-managed-response-transforms",
     }
+    analytics_control = next(
+        item
+        for item in hosting["deployment_controls"]
+        if item.get("kind") == "web_analytics_site"
+    )
+    assert analytics_control == {
+        "host": "Cloudflare",
+        "kind": "web_analytics_site",
+        "hostname": "nosuchmachine.net",
+        "mode": "disabled",
+        "automatic_script_injection": False,
+    }
     assert {
         "static.cloudflareinsights.com",
         "data-cf-beacon",

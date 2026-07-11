@@ -856,6 +856,7 @@ function expectSecurityHeaders(response: Response): void {
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     expect(response.headers.get(name), name).toBe(value);
   }
+  expect(response.headers.get("Cache-Control")).toBe("no-store, no-transform");
 }
 
 class FakeBottleKv implements BottleKVNamespace {

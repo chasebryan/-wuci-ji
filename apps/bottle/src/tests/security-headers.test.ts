@@ -11,7 +11,10 @@ describe("security header parity", () => {
       expect(staticHeaders, name).toContain(`${name}: ${value}`);
     }
     expect(staticHeaders).toMatch(
-      /(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store(?:\n|$)/
+      /(?:^|\n)\/release-manifest\.json\n {2}Cache-Control: no-store, no-transform(?:\n|$)/
+    );
+    expect(staticHeaders).toContain(
+      "Cache-Control: public, max-age=31536000, immutable, no-transform"
     );
     expect(SECURITY_HEADERS["Content-Security-Policy"]).not.toMatch(/unsafe-(?:inline|eval)/);
     expect(SECURITY_HEADERS["Content-Security-Policy"]).not.toMatch(/https?:|data:|blob:/);
