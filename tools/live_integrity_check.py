@@ -1639,10 +1639,14 @@ def evaluate(
                 ),
             ]
         )
-        # Pages _headers apply to served assets, not synthetic redirect
-        # responses. Redirects remain bound by exact status/location and the
-        # no-NEL/no-Report-To checks above.
         add_common_response_checks(checks, label, observed)
+        if redirect.response_name not in CANONICAL_ABSOLUTE_REDIRECT_SOURCES.values():
+            add_site_global_header_checks(
+                checks,
+                label,
+                observed,
+                global_site_headers,
+            )
 
     secondary = response_or_missing(responses, "site_secondary")
     secondary_location = secondary.headers.get("location", "")

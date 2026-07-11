@@ -208,10 +208,13 @@ def passing_responses() -> dict[str, live.Response]:
             body=artifact.content,
         )
     for redirect in local_site.redirects:
+        redirect_headers = {"location": redirect.location}
+        if redirect.response_name not in live.CANONICAL_ABSOLUTE_REDIRECT_SOURCES.values():
+            redirect_headers = {**global_headers, **redirect_headers}
         responses[redirect.response_name] = response(
             redirect.status,
             redirect.url,
-            headers={"location": redirect.location},
+            headers=redirect_headers,
         )
     for path, content in artifacts.items():
         if path == "_headers":
@@ -603,6 +606,17 @@ def main() -> None:
         headers={**case[redirect_name].headers, "nel": '{"report_to":"cf-nel"}'},
     )
     assert_rejects(case, f"{redirect_name.replace(':', '-').replace('/', '-')}-no-nel")
+
+    case = passing_responses()
+    relative_redirect_name = "site_redirect:/repo"
+    case[relative_redirect_name] = replace(
+        case[relative_redirect_name],
+        headers={
+            **case[relative_redirect_name].headers,
+            "content-security-policy": "default-src 'none'",
+        },
+    )
+    assert_rejects(case, "site_redirect--repo-content-security-policy")
 
     case = passing_responses()
     case["site_browser_wucios"] = replace(
