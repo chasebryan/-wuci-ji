@@ -1,0 +1,2 @@
+#!/bin/ash
+exec python3 /usr/local/lib/wucios/noether_runtime.py contract "$@"

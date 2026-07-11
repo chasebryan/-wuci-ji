@@ -1,0 +1,3 @@
+#!/bin/ash
+printf '%s\n' 'NOETHER_FORGE_SHUTDOWN_REQUESTED'
+exec doas /sbin/poweroff

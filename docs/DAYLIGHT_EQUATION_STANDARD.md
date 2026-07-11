@@ -77,11 +77,20 @@ The v1 schemas are in `specs/daylight-equation/v1/`:
 
 ## Forbidden Current Claims
 
-Wuci-Ji / Daylight must not be described as current production cryptography, a
-general runtime sandbox, post-quantum secure, independently audited, Department
-of War approved, government endorsed, cATO authorized, RMF authorized, FIPS
-validated, FedRAMP authorized, NIAP/Common Criteria certified, or a replacement
-for EDR, SIEM, IAM, backups, patch management, or incident response.
+- Production cryptography is not claimed.
+- A general runtime sandbox is not claimed.
+- The system is not post-quantum secure.
+- The system is not independently audited.
+- The system is not Department of War approved.
+- The system is not government endorsed.
+- The system is not cATO authorized.
+- The system is not RMF authorized.
+- The system is not FIPS validated.
+- The system is not FedRAMP authorized.
+- The system is not NIAP certified.
+- The system is not Common Criteria certified.
+- Replacement for EDR is not claimed. Replacement of SIEM, IAM, backups,
+  patch management, and incident response is also not claimed.
 
 ## Conformance Rules
 

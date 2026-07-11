@@ -1,0 +1,26 @@
+{
+  "schema": "wucios.noether_forge.overlay_metadata.v1",
+  "defaults": {
+    "directory_mode": "0755",
+    "file_mode": "0644",
+    "uid": 0,
+    "gid": 0
+  },
+  "paths": {
+    "etc/doas.conf": {"mode": "0600"},
+    "etc/shadow": {"mode": "0640", "gid": 42},
+    "etc/init.d/wuci-loopback": {"mode": "0755"},
+    "etc/init.d/wuci-runtime-contract": {"mode": "0755"},
+    "usr/local/bin/daylight-claim-scan": {"mode": "0755"},
+    "usr/local/bin/wuci-low": {"mode": "0755"},
+    "usr/local/bin/wuci-poweroff": {"mode": "0755"},
+    "usr/local/bin/wuci-prism": {"mode": "0755"},
+    "usr/local/bin/wuci-runtime-contract": {"mode": "0755"},
+    "usr/local/bin/wuci-status": {"mode": "0755"},
+    "usr/local/bin/wuci-surface-audit": {"mode": "0755"},
+    "usr/local/sbin/wuci-autologin": {"mode": "0755"},
+    "usr/local/sbin/wuci-install-locked-apks": {"mode": "0755"},
+    "home/wj": {"mode": "0700", "uid": 1000, "gid": 1000},
+    "home/wj_low": {"mode": "0700", "uid": 1001, "gid": 1001}
+  }
+}

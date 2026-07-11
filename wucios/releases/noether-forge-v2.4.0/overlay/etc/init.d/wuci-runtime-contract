@@ -1,0 +1,23 @@
+#!/sbin/openrc-run
+
+description="Verify the WuciOS Noether Forge runtime contract"
+
+depend() {
+  need nftables
+  after wuci-loopback
+}
+
+start() {
+  ebegin "Verifying Noether Forge runtime contract"
+  chmod 0755 /bin/bbsuid 2>/dev/null || true
+  mkdir -p /home/wj /home/wj_low
+  chown 1000:1000 /home/wj
+  chown 1001:1001 /home/wj_low
+  chmod 0700 /home/wj /home/wj_low
+  install -d -m 0755 /run/wucios
+  python3 /usr/local/lib/wucios/noether_runtime.py contract \
+    --write /run/wucios/runtime-contract.json
+  local rc=$?
+  eend "$rc"
+  return "$rc"
+}

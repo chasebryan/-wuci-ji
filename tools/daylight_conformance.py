@@ -20,6 +20,20 @@ from daylight_standard_validate import (
     unsupported_claims_in_text,
     validate_object,
 )
+from daylight_claim_scan import (
+    ClaimScanWriteError,
+    TrackedSurfaceInventoryError,
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_FILES,
+    DEFAULT_MAX_OCCURRENCES,
+    DEFAULT_MAX_TOTAL_BYTES,
+    dump_report as dump_claim_scan_report,
+    report_exit_code as claim_scan_exit_code,
+    report_path_overlaps_inputs,
+    scan_paths as scan_claim_paths,
+    tracked_public_claim_paths,
+    write_report as write_claim_scan_report,
+)
 
 
 EPOCH = "1970-01-01T00:00:00Z"
@@ -124,10 +138,14 @@ def command_score(args: argparse.Namespace) -> int:
     claims = load_objects(Path(args.claims), "daylight-claim-v1")
     evidence = load_objects(Path(args.evidence), "daylight-evidence-v1")
 
-    for claim in claims:
-        validate_object(claim)
-    for item in evidence:
-        validate_object(item)
+    try:
+        for claim in claims:
+            validate_object(claim)
+        for item in evidence:
+            validate_object(item)
+    except ValidationError as exc:
+        print(f"conformance input rejected: {exc}", file=sys.stderr)
+        return 2
 
     evidence_by_id = {item["evidence_id"]: item for item in evidence}
     all_scores: list[int] = []
@@ -304,15 +322,61 @@ def command_status(args: argparse.Namespace) -> int:
 
 
 def command_reject_overclaims(args: argparse.Namespace) -> int:
-    path = Path(args.path)
-    text = path.read_text(encoding="utf-8")
-    findings = unsupported_claims_in_text(text)
-    if findings:
-        for finding in findings:
-            print(f"{path}: unsupported authority phrase: {finding}", file=sys.stderr)
-        return 1
-    print(f"{path}: no unsupported authority claims")
-    return 0
+    paths = list(args.path)
+    if args.tracked_public:
+        try:
+            paths.extend(tracked_public_claim_paths())
+        except TrackedSurfaceInventoryError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+    paths = sorted(set(paths))
+    if not paths:
+        print("at least one --path or --tracked-public input is required", file=sys.stderr)
+        return 2
+    report = scan_claim_paths(
+        paths,
+        max_file_bytes=args.max_file_bytes,
+        max_files=args.max_files,
+        max_total_bytes=args.max_total_bytes,
+        max_occurrences=args.max_occurrences,
+    )
+    if args.report:
+        if args.report == "-":
+            print(dump_claim_scan_report(report), end="")
+        else:
+            report_path = Path(args.report)
+            report_absolute = Path(os.path.abspath(os.fspath(report_path)))
+            try:
+                report_absolute.relative_to(Path.cwd().resolve(strict=True))
+            except ValueError:
+                print("claim scan report path must stay under the current directory", file=sys.stderr)
+                return 2
+            if report_path_overlaps_inputs(report_path, paths):
+                print("claim scan report path must not overlap a scanned input", file=sys.stderr)
+                return 2
+            try:
+                write_claim_scan_report(report_absolute, report)
+            except ClaimScanWriteError as exc:
+                print(str(exc), file=sys.stderr)
+                return 2
+
+    for error in report["errors"]:
+        print(
+            f"{error['path']}: invalid claim scan input ({error['code']}): {error['message']}",
+            file=sys.stderr,
+        )
+    for finding in report["findings"]:
+        print(
+            f"{finding['path']}: unsupported authority phrase: {finding['phrase']} "
+            f"(line {finding['line']}, column {finding['column']})",
+            file=sys.stderr,
+        )
+    if not args.report and report["status"] == "pass":
+        if len(paths) == 1:
+            print(f"{paths[0]}: no unsupported authority claims")
+        else:
+            print(f"{len(paths)} claim scan inputs: no unsupported authority claims")
+    return claim_scan_exit_code(report)
 
 
 def command_monitor_signal(args: argparse.Namespace) -> int:
@@ -369,7 +433,13 @@ def build_parser() -> argparse.ArgumentParser:
     status.set_defaults(func=command_status)
 
     reject = sub.add_parser("reject-overclaims")
-    reject.add_argument("--path", required=True)
+    reject.add_argument("--path", action="append", default=[])
+    reject.add_argument("--tracked-public", action="store_true")
+    reject.add_argument("--report")
+    reject.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)
+    reject.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
+    reject.add_argument("--max-total-bytes", type=int, default=DEFAULT_MAX_TOTAL_BYTES)
+    reject.add_argument("--max-occurrences", type=int, default=DEFAULT_MAX_OCCURRENCES)
     reject.set_defaults(func=command_reject_overclaims)
 
     monitor = sub.add_parser("monitor-signal")

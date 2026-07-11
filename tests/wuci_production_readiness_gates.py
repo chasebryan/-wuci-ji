@@ -30,6 +30,7 @@ def main() -> None:
     audit = load(CRYPTO_AUDIT)
     pq = load(PQ_CONTRACT)
     readiness = READINESS.read_text(encoding="utf-8")
+    readiness_normalized = " ".join(readiness.split())
     fixture = FIXTURE_ROOT.read_text(encoding="ascii")
 
     assert authority["schema"] == "wuci-production-authority-policy-v1"
@@ -110,11 +111,12 @@ def main() -> None:
         "Custom assembly crypto has not been independently audited",
         "`publish-authorized-rooted`",
         "`trust-authorized-rooted`",
-        "General runtime sandboxing, independent wrapper/seccomp review",
+        "General runtime sandboxing is not complete.",
+        "Independent wrapper/seccomp review and VM-grade containment are also incomplete.",
         "If claiming quantum safety, a real pinned PQ verifier lane",
         "Internal crypto self-audit evidence",
     ):
-        assert blocker in readiness
+        assert blocker in readiness_normalized
 
     if not args.quiet:
         print("wuci production-readiness gates: PASS")

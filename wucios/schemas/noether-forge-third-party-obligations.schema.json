@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-third-party-obligations.v1.json",
+  "title": "WuciOS Noether Forge third-party review inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "release_id",
+    "inventory_status",
+    "generated_from",
+    "summary",
+    "policy",
+    "items",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.third_party_obligations.v1"},
+    "release_id": {"const": "noether-forge-v2.4.0"},
+    "inventory_status": {"const": "review-input-only"},
+    "generated_from": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "schema", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "schema": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_records",
+        "package_records",
+        "provenance_records",
+        "total_records",
+        "network_records",
+        "container_member_records",
+        "records_with_declared_license_metadata",
+        "records_with_source_provenance",
+        "records_with_notice_files",
+        "records_with_license_conclusions",
+        "records_with_redistribution_clearance",
+        "records_with_export_classification"
+      ],
+      "properties": {
+        "input_records": {"type": "integer", "minimum": 1},
+        "package_records": {"type": "integer", "minimum": 1},
+        "provenance_records": {"const": 1},
+        "total_records": {"type": "integer", "minimum": 2},
+        "network_records": {"const": 13},
+        "container_member_records": {"const": 50},
+        "records_with_declared_license_metadata": {"const": 1},
+        "records_with_source_provenance": {"const": 1},
+        "records_with_notice_files": {"const": 1},
+        "records_with_license_conclusions": {"const": 0},
+        "records_with_redistribution_clearance": {"const": 0},
+        "records_with_export_classification": {"const": 0}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binary_distribution_authorized",
+        "legal_clearance",
+        "network_performed",
+        "official_release_authority"
+      ],
+      "properties": {
+        "binary_distribution_authorized": {"const": false},
+        "legal_clearance": {"const": "not-provided-by-this-inventory"},
+        "network_performed": {"const": false},
+        "official_release_authority": {"const": false}
+      }
+    },
+    "items": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/item"}
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_filename",
+        "digests",
+        "export_review",
+        "firmware",
+        "item_id",
+        "kind",
+        "license_metadata",
+        "notices",
+        "origin",
+        "package",
+        "redistribution_review",
+        "size_bytes",
+        "source_metadata",
+        "version"
+      ],
+      "properties": {
+        "artifact_filename": {"type": "string", "minLength": 1},
+        "digests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "sha512"],
+          "properties": {
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "sha512": {
+              "oneOf": [
+                {"const": "NOASSERTION"},
+                {"type": "string", "pattern": "^[0-9a-f]{128}$"}
+              ]
+            }
+          }
+        },
+        "export_review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["classification", "review_state"],
+          "properties": {
+            "classification": {"const": "NOASSERTION"},
+            "review_state": {"const": "not-determined"}
+          }
+        },
+        "firmware": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["content_state", "redistribution_review"],
+          "properties": {
+            "content_state": {"const": "not-determined"},
+            "redistribution_review": {"const": "not-reviewed"}
+          }
+        },
+        "item_id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "license_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["declared_expression", "evidence", "review_state"],
+          "properties": {
+            "declared_expression": {"enum": ["NOASSERTION", "GPL-2.0-only"]},
+            "evidence": {"type": "string", "minLength": 1},
+            "review_state": {"enum": ["not-reviewed", "declared-metadata-recorded"]}
+          }
+        },
+        "notices": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provided", "required", "review_state"],
+          "properties": {
+            "provided": {"type": "string", "minLength": 1},
+            "required": {"const": "NOASSERTION"},
+            "review_state": {"enum": ["not-reviewed", "provided-files-recorded"]}
+          }
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["acquisition", "artifact_url", "container_filename", "container_url", "member_path", "record_state", "repository_url"],
+          "properties": {
+            "acquisition": {"enum": ["network", "container-member"]},
+            "artifact_url": {
+              "oneOf": [
+                {"const": "NOASSERTION"},
+                {"type": "string", "pattern": "^https://"}
+              ]
+            },
+            "container_filename": {"type": "string", "minLength": 1},
+            "container_url": {
+              "oneOf": [
+                {"const": "NOASSERTION"},
+                {"type": "string", "pattern": "^https://"}
+              ]
+            },
+            "member_path": {"type": "string", "minLength": 1},
+            "record_state": {"const": "locked"},
+            "repository_url": {
+              "oneOf": [
+                {"const": "NOASSERTION"},
+                {"type": "string", "pattern": "^https://"}
+              ]
+            }
+          }
+        },
+        "package": {"type": "string", "minLength": 1},
+        "redistribution_review": {"const": "not-cleared"},
+        "size_bytes": {
+          "oneOf": [
+            {"const": "NOASSERTION"},
+            {"type": "integer", "minimum": 1}
+          ]
+        },
+        "source_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin_package", "source_archive_digest", "upstream_source_url", "review_state"],
+          "properties": {
+            "origin_package": {"type": "string", "minLength": 1},
+            "source_archive_digest": {"type": "string", "minLength": 1},
+            "upstream_source_url": {
+              "oneOf": [
+                {"const": "NOASSERTION"},
+                {"type": "string", "pattern": "^https://"}
+              ]
+            },
+            "review_state": {"enum": ["not-reviewed", "exact-source-provenance-recorded"]}
+          }
+        },
+        "version": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

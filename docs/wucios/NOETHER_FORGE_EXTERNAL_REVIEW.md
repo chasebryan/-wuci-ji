@@ -1,0 +1,276 @@
+# Noether Forge source-only external review
+
+Status: **source-only external review candidate**.
+
+This repository publishes the Noether Forge source, repeat-build-checked build
+pipeline, pinned upstream identities, schemas, tests, and bounded review
+instructions. It does not distribute the resulting ISO, Alpine APK payloads,
+package caches, compiled Wuci-Ji binary, kernel, initramfs, modloop, EFI image,
+firmware, or bootloader binaries.
+
+The image is derived from authenticated Alpine inputs. It is not produced,
+approved, certified, or endorsed by the Alpine Linux project.
+
+Reviewers acquire the authenticated Alpine inputs directly from the upstream
+locations recorded in `alpine-input-lock.json`. The explicit fetch step checks
+both upstream release-media SHA-256 and SHA-512 values, verifies both detached
+GPG signatures, and verifies the locked APK closure before an offline build
+begins. Forty-nine APKs and the signed source index are extracted from the
+authenticated extended release ISO. Three post-release APKs use exact official
+Alpine v3.24 URLs with size, SHA-256, SHA-512, package identity, and exact
+6165-key verification. These URLs are mutable availability locators:
+authentication is fail-closed, but future CDN retention is not guaranteed.
+Alpine's [APK v2 package format](https://wiki.alpinelinux.org/wiki/Alpine_package_format)
+uses RSA signatures over a SHA-1 control stream, so exact whole-file SHA-256
+and SHA-512 locks are security-critical alongside signature verification. This
+does not establish immutable acquisition, freshness, or vulnerability-free
+status.
+
+This review lane is defined by
+`wucios/releases/noether-forge-v2.4.0/external-review.json`. It is not a GitHub
+Release or an official WuciOS release. Production authority is not established.
+External certification and permission to redistribute a reviewer-built binary
+are also not conferred.
+
+### Initramfs modification provenance
+
+Noether Forge modifies the authenticated `/init` member derived byte-for-byte
+from Alpine mkinitfs 3.14.0-r0 `initramfs-init.in`, whose upstream package
+metadata declares `GPL-2.0-only`. The separately marked GPL-2.0-only patch
+specification contains only WUCI-JI-authored replacement fragments; replaced
+upstream spans are referenced only by member-relative offset, length, and
+SHA-256. The exact upstream archive, template, instantiated member, and output
+member are digest-bound. See
+`wucios/releases/noether-forge-v2.4.0/initramfs-patch-spec.json` and its scoped
+`PATCH-NOTICE.md` and `LICENSES/GPL-2.0-only.txt`.
+
+This provenance record is an engineering disclosure, not legal advice, a
+license conclusion for other components, or redistribution clearance. This
+project does not distribute the generated ISO. Any proposed binary distribution
+remains prohibited pending independent review of corresponding-source, notice,
+license, trademark, export, firmware, and other obligations.
+
+## Review from source
+
+Start from a clean checkout of the review commit. Do not reuse an input cache
+from an unrelated checkout when recording independent review results.
+
+```sh
+make wucios-noether-forge-source-guard
+make wucios-noether-forge-review-evidence
+make wucios-noether-forge-test
+make wucios-validate
+make wucios-noether-forge-fetch
+make wucios-noether-forge-build
+make wucios-noether-forge-verify
+```
+
+Only `wucios-noether-forge-fetch` performs network acquisition. Build,
+inspection, BIOS/UEFI boot verification, and internal readiness consume the
+pinned local cache. This is a workflow property, not kernel-enforced network
+isolation.
+
+Generated files stay under `build/`, which is intentionally excluded from Git.
+Do not commit, attach, mirror, or publish the generated ISO or upstream binary
+inputs from this source-review lane.
+
+### Build prerequisites
+
+Use a Linux x86_64 host with Python 3, Git, GNU Make, GNU `as` and `ld`, `file`,
+GnuPG, `xorriso`, and `qemu-system-x86_64`. The input gate currently requires
+`xorriso` to report `1.5.8.pl02`; the recorded input lock identifies the tested
+GnuPG and QEMU versions but does not strictly pin them. UEFI verification also
+needs a stateless OVMF firmware image. The default path is
+`/usr/share/edk2/ovmf/OVMF.stateless.fd`. On another layout, run the Python tool
+directly and pass `--ovmf /path/to/OVMF.fd` to its `internal`, `boot`, or
+`launch` command.
+
+```sh
+make wucios-noether-forge-build
+python3 tools/wucios/noether_forge.py internal \
+  --firmware all --ovmf /path/to/OVMF.fd
+```
+
+Allow network access for the fetch step only. Plan for about 1.8 GB of network
+acquisition and at least 5 GiB of free space for the Alpine inputs, locked APK
+cache, two temporary ISO builds, inspection files, and the final private image.
+
+### Determinism boundary
+
+The build gate requires two complete builds to be byte-identical within one
+clean checkout and host toolchain. The embedded source manifest binds the Git
+commit, branch, and clean/dirty state. A checkout on a different branch, a
+detached HEAD, or a different host toolchain is therefore not promised to
+produce the same ISO digest. Cross-host reproducibility has not been
+established.
+
+### Third-party obligations inventory
+
+`wucios/releases/noether-forge-v2.4.0/third-party-obligations.json` is generated
+deterministically from `alpine-input-lock.json`, `package-lock.json`, and the
+initramfs patch specification. Check that the committed matrix still matches
+those records with:
+
+```sh
+python3 tools/wucios/noether_obligations.py check
+```
+
+Every row records its locked artifact origin and digest plus explicit package,
+version, source-metadata, license-metadata, notice, firmware, redistribution,
+and export-review fields. Facts absent from the locked records intentionally
+remain `NOASSERTION`, `not-reviewed`, or `not-determined`. The inventory does
+not inspect downloaded APK contents, perform network access, decide which
+notices are required, classify cryptography, or provide redistribution or
+export clearance. Regenerate it after an intentional lock change with
+`python3 tools/wucios/noether_obligations.py write`, review the diff, and rerun
+the source-review gates.
+
+The mkinitfs provenance row records upstream-declared license metadata, exact
+source archive/template/member digests, and provided notice/license-file paths.
+Those are recorded facts, not a license conclusion, compliance determination,
+or redistribution clearance.
+
+### Physical-hardware observation records
+
+The schema at
+`wucios/schemas/noether-forge-physical-hardware-observation.schema.json` binds
+an operator record to the reviewed Git commit and the privately built ISO's
+byte size, SHA-256, SHA-384, and SHA-512. It also records redacted hardware, firmware,
+capture-host, tool, and observed-result fields. Mutable record values use a
+closed vocabulary: enums, reviewer-number or hash identifiers, numeric versions, `redacted` /
+`not-observed` tokens, or `sha256:<hex>` tokens. There is no operator prose
+field. The tracked record under `fixtures/` is the format example; it is
+synthetic, its subject is not an ISO, and it records no boot result.
+
+For a real observation, copy the fixture outside the repository, change
+`record_status` to `operator-observation`, change `subject_kind` to
+`private-reviewer-built-iso`, set `subject_description` to that same exact
+token, set `iso_filename` to
+`WuciOS-v2.4.0-Noether-Forge-x86_64.iso`, and replace every fixture token with
+a schema-listed value. A structured operator record can, for example, use:
+
+```json
+{
+  "operator_id": "reviewer-7",
+  "hardware": {
+    "manufacturer": "redacted",
+    "model": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "architecture": "x86_64",
+    "identifiers_redacted": true
+  },
+  "firmware": {
+    "boot_mode": "uefi",
+    "vendor": "redacted",
+    "version": "version:1.2.3",
+    "secure_boot": "disabled"
+  },
+  "tools": {
+    "serial-capture": {
+      "version": "version:2.0",
+      "purpose": "boot-observation-capture"
+    }
+  },
+  "observations": {
+    "local-tty-login-prompt-visible": {
+      "result": "observed",
+      "notes": "observed-in-private-capture"
+    }
+  }
+}
+```
+
+This is a field fragment, not a complete record. Use the schema and fixture for
+the complete key set, capture-host values, timestamp, commit, ISO byte size, digest vector,
+and fixed claim boundary. Verify the complete record and its private local
+artifact with:
+
+```sh
+python3 tools/wucios/noether_hardware_observation.py \
+  /path/to/sanitized-hardware-observation.json \
+  --iso /path/to/WuciOS-v2.4.0-Noether-Forge-x86_64.iso \
+  --expected-commit 0123456789abcdef0123456789abcdef01234567
+```
+
+Replace the example commit with the exact reviewed commit. The verifier uses
+only the Python standard library. It rejects records over 128 KiB before JSON
+parsing, duplicate JSON keys, symlink and hardlink inputs, extra fields,
+out-of-vocabulary values, inconsistent result/note pairs, and fixture tokens in
+operator records. Tool and observation names are closed object keys, so the
+JSON parser's duplicate-key rejection also closes semantic duplicates. For
+this x86_64 ISO, both hardware and capture architecture must be `x86_64`.
+Firmware mode constrains the secure-boot state, and at least one boot-chain
+observation must have result `observed`. The verifier is authoritative for
+calendar-valid UTC timestamps and rejects a record more than five minutes
+ahead of verifier UTC. It reads the record through one descriptor and rejects
+device, inode, size, modification-time, or change-time movement during the
+read. With `--iso`, it enforces the recorded size,
+recomputes the digest vector, and rejects a file whose device, inode, size,
+modification time, or change time moves while streaming. The verifier establishes
+structured consistency only. It parses closed values instead of scanning free
+prose. A passing result is not independent hardware validation,
+certification, official release authority, or proof of OS containment.
+
+## What to review
+
+- Confirm every fetched object matches its pinned digest and signature.
+- Confirm the final ISO has exactly 52 APK files, no `APKINDEX`, no
+  `.boot_repository`, and the locked install wrapper rechecks SHA-256 before
+  invoking apk with an empty repository file and no network.
+- Treat the three post-release CDN URLs as a documented rebuild-availability
+  risk, not as immutable media, freshness, or a vulnerability-free claim.
+- Confirm both complete builds are byte-identical within the reviewed clean
+  checkout and toolchain.
+- Confirm SeaBIOS and OVMF boot the exact promoted ISO and observe its digest.
+- Review the locked accounts, command-restricted `doas` policy, OpenRC
+  runlevels, default-drop nftables rules, package closure, privileged-file
+  allowlist, and zero-listener evidence.
+- Review source-manifest coverage, safe archive handling, privacy checks, SBOM
+  scope, provenance, and bounded claim language.
+- Report licensing, corresponding-source, firmware-notice, export-control, or
+  hardware-evidence gaps separately from runtime defects.
+- Review every `NOASSERTION` and unreviewed row in the obligations inventory;
+  do not interpret a locked digest as legal clearance.
+
+## Reporting results
+
+Bind reports to the reviewed Git commit and, if an ISO was built privately, to
+its SHA-256, SHA-384, and SHA-512. State the exact commands and host-tool
+versions used. A boot screenshot or video may supplement a report after
+privacy review, but it does not replace a machine-readable, digest-bound
+hardware observation.
+
+Do not include private keys, tokens, credentials, workstation paths, serial or
+asset identifiers, MAC or IP addresses, Wi-Fi identifiers, shell history,
+faces, room details, or location metadata in a public report.
+
+Use [GitHub private vulnerability reporting](https://github.com/chasebryan/-wuci-ji/security/advisories/new)
+for a sensitive security finding; private reporting is enabled for this
+repository. Do not put an exploitable or privacy-sensitive report in a public
+issue. General, non-sensitive review results may use the repository issue
+tracker. Do not attach the locally built ISO to either route.
+
+## Claim boundary
+
+Use this description:
+
+> WuciOS 2.4.0 Noether Forge source-only external review candidate. Reviewers
+> fetch authenticated Alpine 3.24.1 inputs and build locally. No ISO or upstream
+> binary payload is distributed by this review lane. The candidate has not
+> passed the WuciOS public-release gate and is not an official or production
+> release.
+
+Repository-owned Daylight evidence is scoped provenance and claim checking; it
+is not external certification. Production cryptography is not claimed. Runtime
+sandboxing is not claimed. Quantum safety, government approval, and independent
+audit are not claimed. Publish authority is not claimed. Trust authority is not
+claimed.
+
+Wuci-Ji source is generally provided under the repository Apache-2.0 `LICENSE`
+and `NOTICE`, except for the release-scoped GPL-2.0-only initramfs patch
+specification and replacement fragments identified by `PATCH-NOTICE.md` and
+`LICENSES/GPL-2.0-only.txt`. Third-party binary redistribution and encryption
+export treatment remain separate legal questions. The generated SPDX document
+is an inventory whose license conclusions remain `NOASSERTION`; it is not
+license clearance.
+This engineering review policy is not legal advice or an export
+classification.

@@ -1,5 +1,5 @@
 name: Daylight Standard Gate
-description: Validate Daylight standard schemas, examples, conformance, product score, NPT, and site surfaces.
+description: Validate the claim firewall, Daylight schemas, examples, conformance, product score, NPT, and site surfaces.
 runs:
   using: composite
   steps:
@@ -12,6 +12,9 @@ runs:
     - name: Conformance test
       shell: bash
       run: make daylight-conformance-test
+    - name: Claim firewall
+      shell: bash
+      run: make daylight-claim-firewall-ci
     - name: Product score
       shell: bash
       run: make daylight-product-score

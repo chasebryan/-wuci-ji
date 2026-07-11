@@ -17,10 +17,12 @@
 </p>
 
 > [!IMPORTANT]
-> Wuci-Ji is a research and public-review artifact. It does not claim production
-> readiness, production cryptography, production trust authority, general
-> runtime containment, whole-system post-quantum safety, independent audit
-> completion, or official endorsement.
+> Wuci-Ji is a research and public-review artifact. Production readiness is not
+> claimed. Production cryptography is not claimed.
+> Production trust authority is not established.
+> General runtime containment is not claimed. Whole-system
+> post-quantum safety, independent audit completion, and official endorsement
+> are not claimed.
 
 ## Why Wuci-Ji Exists
 
@@ -36,7 +38,7 @@ message application.
 | The repository can demonstrate | The repository deliberately refuses to infer |
 | --- | --- |
 | Artifact bytes were sealed, inspected, hashed, and checked through explicit proof lanes. | That custom research cryptography is suitable for production. |
-| Rooted Gate contracts can authorize supported open/release paths and fail closed on reserved publish/trust actions. | Production publish or trust authority from fixture roots or denial-only commands. |
+| Rooted Gate contracts can authorize supported open/release paths and fail closed on reserved publish/trust actions. | Production publish authority is not established; trust authority is not established by fixture roots or denial-only commands. |
 | Witness and ledger tools can create deterministic public evidence and local history proofs. | An operated transparency-log service or proof of host cleanliness. |
 | CAGE, QCAGE, HARDEN, INSTALL, CARROT, and Daylight can emit bounded evidence about their implemented controls. | General OS containment, quantum safety, certification, accreditation, or absence of vulnerabilities. |
 
@@ -119,7 +121,7 @@ ownership table lives in [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md).
 
 | Surface | What it does | Boundary |
 | --- | --- | --- |
-| **WJSEAL / assembly core** | Hashes, seals, opens, inspects, armors, and manifests artifacts; implements the narrow authenticated-output path. | Research implementation; not independently audited production cryptography. |
+| **WJSEAL / assembly core** | Hashes, seals, opens, inspects, armors, and manifests artifacts; implements the narrow authenticated-output path. | Research implementation; not independently audited; not production cryptography. |
 | **Warrant** | Produces deterministic authorization receipts for review workflows. | Committed FROST authority is fixture-only. |
 | **Gate / Root / Anchor** | Verifies flat and rooted contracts for open/release, with fail-closed publish/trust decisions. | Positive production publish/trust authority is not implemented. |
 | **Witness** | Emits keyless public evidence bundles with a fixed public file profile. | Private keys, plaintext binaries, and private transcripts are excluded. |
@@ -194,8 +196,9 @@ reports visible WJSEAL structure, artifact hashes, and Gate-required status.
 | README status and claim anchors | `make readme-remaster-check` |
 
 `make high-attestation-proof` composes many local checks. Its success strengthens
-local evidence only; it does not create production authority, general runtime
-containment, external review, quantum safety, or a vulnerability-free claim.
+local evidence only. Production authority is not created. General runtime
+containment is not created. External review, quantum safety, and a
+vulnerability-free claim are also not created.
 
 ## Daylight Evidence Stack
 
@@ -399,8 +402,12 @@ defensive-development and claim-discipline rules.
 
 ## License and Citation
 
-Wuci-Ji is licensed under the [Apache License 2.0](LICENSE). Attribution and
-included-project notices are in [NOTICE](NOTICE).
+Wuci-Ji project material is licensed under the [Apache License 2.0](LICENSE),
+except for the Noether Forge release-scoped initramfs patch specification and
+replacement fragments, which are identified as GPL-2.0-only in
+[PATCH-NOTICE.md](wucios/releases/noether-forge-v2.4.0/PATCH-NOTICE.md) with
+their [license text](wucios/releases/noether-forge-v2.4.0/LICENSES/GPL-2.0-only.txt).
+Attribution and included-project notices are in [NOTICE](NOTICE).
 
 If you use the research artifact, cite **Wuci-Ji v2.2 — Aperture Bastion** with
 the metadata in [CITATION.cff](CITATION.cff).

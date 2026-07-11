@@ -1,0 +1,10 @@
+NAME="WuciOS"
+VERSION="2.4.0"
+ID=wucios
+ID_LIKE=alpine
+PRETTY_NAME="WuciOS 2.4.0 (Noether Forge)"
+VERSION_ID="2.4.0"
+VERSION_CODENAME=noether-forge
+HOME_URL="https://nosuchmachine.net/"
+DOCUMENTATION_URL="https://nosuchmachine.net/wucios.html"
+ALPINE_VERSION="3.24.1"

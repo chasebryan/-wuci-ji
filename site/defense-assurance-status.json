@@ -31,6 +31,6 @@
   "clean_external_validation_contingency": {
     "possible_score": "100.0/100.0",
     "scope": "defined evidence rubric and validated audit scope only",
-    "non_claim": "not perfection, invulnerability, government approval, production authority, or validity outside tested scope"
+    "non_claim": "Perfection and invulnerability are not claimed; government approval is not claimed; production authority is not claimed; validity outside tested scope is not claimed."
   }
 }

@@ -1,0 +1,5 @@
+alpine-base=3.24.1-r0
+doas=6.8.2-r8
+nftables=1.1.6-r1
+openssl=3.5.7-r0
+python3=3.14.5-r0

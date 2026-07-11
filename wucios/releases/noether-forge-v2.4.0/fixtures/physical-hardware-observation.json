@@ -1,0 +1,57 @@
+{
+  "claim_boundary": {
+    "external_validation_claimed": false,
+    "hardware_validation_claimed": false,
+    "official_release_claimed": false,
+    "production_authority_claimed": false,
+    "statement": "This record is a digest-bound operator observation only; it is not independent hardware validation, certification, official release authority, or proof of OS containment."
+  },
+  "observation": {
+    "capture_host": {
+      "architecture": "fixture-not-observed",
+      "kernel": "fixture-not-observed",
+      "operating_system": "fixture-not-observed"
+    },
+    "firmware": {
+      "boot_mode": "fixture-not-observed",
+      "secure_boot": "fixture-not-observed",
+      "vendor": "fixture-not-observed",
+      "version": "fixture-not-observed"
+    },
+    "hardware": {
+      "architecture": "fixture-not-observed",
+      "identifiers_redacted": true,
+      "manufacturer": "fixture-not-observed",
+      "model": "fixture-not-observed"
+    },
+    "observations": {
+      "fixture-record-shape": {
+        "notes": "fixture-shape-only",
+        "result": "not-tested"
+      }
+    },
+    "observed_at_utc": "2026-07-10T00:00:00Z",
+    "operator_id": "fixture-only",
+    "tools": {
+      "noether-hardware-observation": {
+        "purpose": "record-shape-check",
+        "version": "version:1"
+      }
+    }
+  },
+  "record_status": "fixture-only",
+  "release_id": "noether-forge-v2.4.0",
+  "schema": "wucios.noether_forge.physical_hardware_observation.v1",
+  "subject": {
+    "commit": "0000000000000000000000000000000000000000",
+    "iso_digests": {
+      "sha256": "4c43c4166122e63a4b22c6e84e36978c1a078ea3be86ff40fafd32c653faa6c4",
+      "sha384": "800a5ca96482debf68ca3f7ba1dbab916cb2408efec064a70cae7c1708b620b4ecc7518a5baf9d76baea1fd76881cf84",
+      "sha512": "36c628c2da87c880ae0cf963497c0ac716679f00fb34fb469302563df47b62bd2babfc6c8c838dd3fadafd8b5737ae8ee80ff2de5ca3aab7cc4271e4d1d2551d"
+    },
+    "iso_filename": "NOT-A-RELEASE-noether-hardware-observation-fixture.iso",
+    "iso_size_bytes": 43,
+    "subject_description": "synthetic-fixture-marker-only",
+    "subject_kind": "synthetic-fixture"
+  }
+}

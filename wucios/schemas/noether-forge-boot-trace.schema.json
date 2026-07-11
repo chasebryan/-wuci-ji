@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-boot-trace.v1.json",
+  "title": "WuciOS Noether Forge exact-image boot trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "firmware_mode",
+    "artifact",
+    "firmware",
+    "qemu",
+    "markers",
+    "runtime_report_sha256",
+    "serial_log_sha256",
+    "duration_seconds",
+    "failures"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.boot_trace.v1"},
+    "status": {"enum": ["pass", "fail"]},
+    "firmware_mode": {"enum": ["bios", "uefi"]},
+    "artifact": {
+      "type": "object",
+      "required": ["filename", "size", "sha256"],
+      "properties": {
+        "filename": {"type": "string", "minLength": 1},
+        "size": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "firmware": {"type": ["object", "null"]},
+    "qemu": {"type": "object"},
+    "markers": {"type": "object"},
+    "runtime_report_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "serial_log_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "duration_seconds": {"type": "number", "minimum": 0},
+    "failures": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -22,8 +22,8 @@ Wuci-Ji earns trust by refusing unsupported claims, not by maximizing claims.
 4. Public badge: generate non-misleading conformance badges such as
    `Daylight D2 Claim-Bounded`, `Daylight D3 Reproducible`,
    `Daylight D4 Release-Gated`, and `Daylight D5 Control-Mapped`.
-5. No fake authority: badges must not say secure, certified, unhackable,
-   government-approved, or production-authorized.
+5. No fake authority: badges are bounded labels. They are not government
+   approved and are not certifications or production authorizations.
 6. Third-party compatibility: allow other tools to generate
    Daylight-compatible evidence objects.
 7. Competitive neutrality: do not require users to replace current security
@@ -49,11 +49,10 @@ Wuci-Ji earns trust by refusing unsupported claims, not by maximizing claims.
 Do not say:
 
 - Wuci-Ji replaces EDR, SIEM, IAM, backup, patching, or incident response.
-- Wuci-Ji is production cryptography.
-- Wuci-Ji is a general runtime sandbox.
-- Wuci-Ji is post-quantum secure.
-- Wuci-Ji is certified, authorized, government endorsed, or independently
-  audited.
+- Production cryptography is not claimed.
+- A general runtime sandbox is not claimed.
+- Post-quantum secure is not claimed.
+- Not government endorsed; not independently audited.
 
 Do say:
 

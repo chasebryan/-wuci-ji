@@ -40,7 +40,7 @@ Current status:
 - public binary release authorized: false
 - binary assets published: false
 - substrate: authenticated Alpine Linux 3.24.1 x86_64 inputs
-- package closure: 52 locked signed APK payloads fetched directly from upstream
+- package closure: 49 locked APK members from authenticated release media plus three exact signed/hash-locked post-release Alpine packages; their versioned CDN locators carry future availability risk
 - private repeat builds were byte-identical within one clean checkout and host toolchain
 - the exact private image passed QEMU SeaBIOS and OVMF/UEFI gates
 - cross-host reproducibility is not established

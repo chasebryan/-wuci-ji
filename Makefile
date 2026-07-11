@@ -152,7 +152,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: daylight-npt daylight-npt-test daylight-npt-report daylight-npt-ci daylight-ssv daylight-ssv-test daylight-ssv-report daylight-ssv-ci daylight-score-integrity-audit daylight-score-integrity-audit-directory-check
 .PHONY: site-daylight-status site-daylight-status-check site-validate site-live-check
 .PHONY: readme-remaster-check readme-remaster-fix readme-remaster
-.PHONY: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
+.PHONY: daylight-claim-firewall daylight-claim-firewall-test daylight-claim-firewall-ci daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-standard-site-test daylight-standard-ci
 .PHONY: wucios-validate wucios-fluff-audit wucios-substrate-matrix wucios-euclid-trial-phase-1 wucios-euclid-trial-phase-2 wucios-euclid-trial-phase-2-json wucios-euclid-trial-phase-2b wucios-euclid-trial-phase-2b-json wucios-euclid-trial-phase-2-attempt wucios-euclid-probe-buildroot wucios-euclid-probe-alpine wucios-euclid-probe-debian-minimal wucios-euclid-probe-void wucios-euclid-probe-nixos wucios-euclid-probe-guix wucios-euclid-probe-yocto wucios-euclid-probe-openbsd-reference wucios-euclid-buildrooms-phase-3a wucios-euclid-buildrooms-phase-3a-json wucios-buildroom-probe-buildroot wucios-buildroom-probe-alpine wucios-buildroom-probe-debian-minimal wucios-buildroom-probe-void wucios-buildroom-probe-nixos wucios-buildroom-probe-guix wucios-buildroom-probe-yocto wucios-buildroom-probe-openbsd-reference euclid-phase-2 euclid-phase-3a euclid-build-probes buildroom-readiness wucios-surface-inventory wucios-review wucios-score noether-check godel-check euclid-matrix tarski-review kolmogorov-budget shannon-ledger
 .PHONY: wucios-euclid-buildrooms-phase-3b-readiness wucios-euclid-buildrooms-phase-3b-readiness-json wucios-buildroom-readiness-buildroot wucios-buildroom-readiness-alpine wucios-buildroom-readiness-debian-minimal wucios-buildroom-readiness-void wucios-buildroom-readiness-nixos wucios-buildroom-readiness-guix wucios-buildroom-readiness-yocto wucios-buildroom-readiness-openbsd-reference euclid-phase-3b-readiness buildroom-remediation-plan test-authorization-matrix
 .PHONY: wucios-euclid-buildrooms-phase-3c-a wucios-euclid-buildrooms-phase-3c-a-json wucios-euclid-buildrooms-phase-3c-a-smoke wucios-euclid-buildrooms-phase-3c-a-smoke-json wucios-euclid-buildrooms-phase-3c-a-guardrails euclid-phase-3c-a buildroom-smoke-l1 buildroom-smoke-l2 buildroom-smoke-guardrails
@@ -161,6 +161,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-euclid-yocto-phase-3c-d wucios-euclid-yocto-phase-3c-d-json wucios-euclid-yocto-phase-3c-d-scaffold wucios-euclid-yocto-phase-3c-d-scaffold-json wucios-euclid-yocto-phase-3c-d-guardrails wucios-yocto-prep euclid-phase-3c-d yocto-prep yocto-scaffold yocto-guardrails
 .PHONY: wucios-euclid-openbsd-reference-phase-3c-e wucios-euclid-openbsd-reference-phase-3c-e-json wucios-euclid-openbsd-reference-phase-3c-e-scaffold wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json wucios-euclid-openbsd-reference-phase-3c-e-guardrails wucios-openbsd-reference-prep euclid-phase-3c-e openbsd-reference-prep openbsd-reference-scaffold openbsd-reference-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
+.PHONY: wucios-noether-forge-source-guard wucios-noether-forge-review-evidence wucios-noether-forge-test wucios-noether-forge-fetch wucios-noether-forge-inputs wucios-noether-forge-build wucios-noether-forge-inspect wucios-noether-forge-boot wucios-noether-forge-launch wucios-noether-forge-internal wucios-noether-forge-verify
 .PHONY: zp1-upstream-test zp1-wuciji-bridge-test zp1-wuciji-coupling-test
 
 all: check-native $(TARGET)
@@ -171,6 +172,20 @@ help:
 	@printf '%s\n' "WuciOS v2.4 Reduction Gate:"
 	@printf '%s\n' "  make wucios-validate          Validate WuciOS v2.4 structure"
 	@printf '%s\n' "  make wucios-fluff-audit       Scan current surfaces for denied claim phrases"
+	@printf '%s\n' "  make wucios-noether-forge-test"
+	@printf '%s\n' "                                Test the Alpine Noether Forge pipeline"
+	@printf '%s\n' "  make wucios-noether-forge-source-guard"
+	@printf '%s\n' "                                Reject tracked Noether binary artifacts"
+	@printf '%s\n' "  make wucios-noether-forge-review-evidence"
+	@printf '%s\n' "                                Check bounded source-review evidence aids"
+	@printf '%s\n' "  make wucios-noether-forge-fetch"
+	@printf '%s\n' "                                Explicitly fetch and authenticate locked Alpine inputs"
+	@printf '%s\n' "  make wucios-noether-forge-build"
+	@printf '%s\n' "                                Build the offline ISO twice and require identical bytes"
+	@printf '%s\n' "  make wucios-noether-forge-verify"
+	@printf '%s\n' "                                Reinspect and boot the exact ISO in BIOS and UEFI"
+	@printf '%s\n' "  make wucios-noether-forge-launch"
+	@printf '%s\n' "                                Launch the built TTY-first ISO interactively"
 	@printf '%s\n' "  make wucios-substrate-matrix  Generate Euclid substrate matrix"
 	@printf '%s\n' "  make wucios-euclid-trial-phase-1"
 	@printf '%s\n' "                                Generate first-cohort substrate trial protocol"
@@ -275,6 +290,7 @@ help:
 	@printf '%s\n' "  make readme-remaster-fix      Repair bounded README status anchors"
 	@printf '%s\n' "  make readme-remaster          Remaster README and re-run anchor checks"
 	@printf '%s\n' "  make daylight-npt-test"
+	@printf '%s\n' "  make daylight-claim-firewall-ci"
 	@printf '%s\n' "  make daylight-standard-schema-test"
 
 daylight-npt:
@@ -314,6 +330,23 @@ daylight-score-integrity-audit: daylight-npt
 daylight-score-integrity-audit-directory-check:
 	$(PYTHON) tools/daylight_score_integrity_record.py check
 
+daylight-claim-firewall-test:
+	$(PYTHON) tests/daylight_claim_scanner.py --quiet
+
+daylight-claim-firewall:
+	@mkdir -p build/daylight/claim-firewall-v1
+	$(PYTHON) tools/daylight_conformance.py reject-overclaims \
+		--tracked-public \
+		--max-file-bytes 2097152 \
+		--report build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
+	$(PYTHON) tools/daylight_public_json_claims.py \
+		--report build/daylight/claim-firewall-v1/daylight-public-json-claim-report.json
+	$(PYTHON) tools/daylight_standard_validate.py verify-claim-scan-report \
+		--input build/daylight/claim-firewall-v1/daylight-claim-scan-report.json
+
+daylight-claim-firewall-ci: daylight-claim-firewall-test daylight-claim-firewall
+	@printf '%s\n' "daylight-claim-firewall-ci: complete"
+
 daylight-standard-schema-test:
 	$(PYTHON) tools/daylight_standard_validate.py schema-test
 
@@ -339,7 +372,7 @@ daylight-product-score:
 daylight-standard-site-test:
 	$(MAKE) site-validate
 
-daylight-standard-ci: daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-npt-ci daylight-standard-site-test
+daylight-standard-ci: daylight-claim-firewall-ci daylight-standard-schema-test daylight-standard-examples-test daylight-conformance-test daylight-product-score daylight-npt-ci daylight-standard-site-test
 	@printf '%s\n' "daylight-standard-ci: complete"
 
 daylight-cplus-score:
@@ -761,6 +794,39 @@ wucios-validate:
 
 wucios-fluff-audit:
 	$(PYTHON) tools/wucios/scan_claims.py
+
+wucios-noether-forge-source-guard:
+	$(PYTHON) tools/wucios/noether_source_guard.py
+
+wucios-noether-forge-review-evidence:
+	$(PYTHON) tools/wucios/noether_obligations.py check
+	$(PYTHON) tools/wucios/noether_hardware_observation.py
+
+wucios-noether-forge-test: wucios-noether-forge-source-guard wucios-noether-forge-review-evidence
+	$(PYTHON) tests/wucios_noether_forge.py --quiet
+
+wucios-noether-forge-fetch: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py fetch
+
+wucios-noether-forge-inputs: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py verify-inputs
+
+wucios-noether-forge-build: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py build
+
+wucios-noether-forge-inspect: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py inspect
+
+wucios-noether-forge-boot: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py boot --firmware all
+
+wucios-noether-forge-launch: wucios-noether-forge-test
+	$(PYTHON) tools/wucios/noether_forge.py launch --firmware bios
+
+wucios-noether-forge-internal: wucios-noether-forge-build
+	$(PYTHON) tools/wucios/noether_forge.py internal --firmware all
+
+wucios-noether-forge-verify: wucios-noether-forge-internal
 
 wucios-substrate-matrix:
 	$(PYTHON) tools/wucios/generate_substrate_matrix.py

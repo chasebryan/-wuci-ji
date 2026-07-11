@@ -43,9 +43,10 @@ make verify-release-bundle
 model for artifact authorization and release evidence. It checks structured
 fixture evidence, pressure levels, threshold/PQ-mode rules, custody-domain
 diversity, public witness/ledger/provenance/install evidence, and overclaim
-rejection. Passing this target is release evidence only; it does not establish
-production cryptography, host security, runtime sandbox completeness,
-post-quantum system security, independent audit, or production authority.
+rejection. Passing this target is release evidence only. Production
+cryptography is not established. Production authority is not established. Host
+security, runtime sandbox completeness, post-quantum system security, and
+independent audit are also not established.
 
 When the install root key holder is ready to bind the current build, sign the
 current manifest noninteractively:
@@ -104,10 +105,10 @@ REAL_PQ_VERIFIER_EVIDENCE=build/wuci-real-pq-verifier.json
 PQ_VERIFIER_PINS=build/wuci-pq-fips204-pins.json
 ```
 
-This clears only the real-PQ verifier evidence gate. It does not make WUCI-JI
-quantum-safe and does not replace independent audit.
+This clears only the real-PQ verifier evidence gate. WUCI-JI is not
+quantum-safe, and independent audit is not replaced.
 
-Optional non-fixture production authority evidence is also external. Emit and
+Optional non-fixture deployment-authority evidence is also external. Emit and
 ceremonially sign it outside fixture paths:
 
 ```sh
@@ -150,8 +151,8 @@ python3 tools/wuci_external_audit.py sign-evidence \
   --signature /absolute/path/to/wuci-external-audit.sig
 ```
 
-The verifier requires scope covering `crypto`, `pq-verifier`,
-`production-authority`, `release-bundle`, and `runtime-sandbox`, current
+The verifier requires scope covering crypto, the PQ verifier, deployment
+authority, the release bundle, and the runtime sandbox, plus the current
 `reviewed_commit`, report SHA-256/SHA-384/SHA-512 matches, and a valid
 OpenSSH signature in the `wuci-external-audit-v1` namespace. Unsigned
 verification is test-only.
@@ -175,11 +176,11 @@ make verify-release-bundle \
 `make verify-release-bundle` writes
 `build/wuci-release-bundle-verification.json`. The verifier recomputes binary
 digests, checks SBOM/provenance, CARROT, PQ detector, optional pinned real-PQ
-evidence, crypto self-audit, parser hardening replay, optional signed production
+evidence, crypto self-audit, parser hardening replay, optional signed deployment
 authority evidence, optional signed external audit evidence, witness, ledger,
 install signature, and Rust wrapper evidence. A successful verifier run is
-release evidence only; it does not create runtime sandbox completeness or
-quantum-safe system status.
+release evidence only. Runtime sandbox completeness is not created. The system
+is not quantum-safe based on this evidence.
 
 Do not publish a release that relies on fixture authority while describing it
 as production trust.

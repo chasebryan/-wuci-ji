@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-package-lock.v2.json",
+  "title": "WuciOS Noether Forge package lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "alpine_release",
+    "architecture",
+    "source_media",
+    "repository_path",
+    "post_release_overlay",
+    "world",
+    "packages"
+  ],
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.package_lock.v2"},
+    "alpine_release": {"const": "3.24.1"},
+    "architecture": {"const": "x86_64"},
+    "source_media": {"const": "alpine-extended-3.24.1-x86_64.iso"},
+    "repository_path": {"const": "/apks/x86_64"},
+    "post_release_overlay": {
+      "const": [
+        "libexpat-2.8.2-r0.apk",
+        "openrc-0.63.2-r0.apk",
+        "openrc-user-0.63.2-r0.apk"
+      ]
+    },
+    "world": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "prefixItems": [
+        {"const": "alpine-base=3.24.1-r0"},
+        {"const": "doas=6.8.2-r8"},
+        {"const": "nftables=1.1.6-r1"},
+        {"const": "openssl=3.5.7-r0"},
+        {"const": "python3=3.14.5-r0"}
+      ],
+      "items": false
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 52,
+      "maxItems": 52,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["filename", "size", "sha256"],
+        "properties": {
+          "filename": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._+~-]*-r[0-9]+\\.apk$"},
+          "size": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

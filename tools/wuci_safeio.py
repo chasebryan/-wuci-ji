@@ -124,6 +124,38 @@ def lstat_regular_file(
     )
 
 
+def _stable_read_stat(info: os.stat_result) -> tuple[int, int, int, int, int, int, int]:
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_mode,
+        info.st_nlink,
+        info.st_size,
+        info.st_mtime_ns,
+        info.st_ctime_ns,
+    )
+
+
+def _verify_stable_read_completion(
+    fd: int,
+    path: Path,
+    context: str,
+    opened: os.stat_result,
+    total: int,
+) -> None:
+    after = os.fstat(fd)
+    if total != opened.st_size:
+        raise SafeIOError(f"{context} byte count changed while being read: {path}")
+    if _stable_read_stat(opened) != _stable_read_stat(after):
+        raise SafeIOError(f"{context} changed while being read: {path}")
+    try:
+        path_after = os.lstat(path)
+    except OSError as exc:
+        raise SafeIOError(f"{context} path changed while being read: {path}") from exc
+    if _stable_read_stat(after) != _stable_read_stat(path_after):
+        raise SafeIOError(f"{context} path changed while being read: {path}")
+
+
 def reject_group_world_readable(path: Path, context: str) -> None:
     info = lstat_regular_file(path, context, reject_symlink=True)
     if info.st_mode & 0o077:
@@ -156,7 +188,7 @@ def read_regular_bytes(
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             raise SafeIOError(f"{context} must be a regular file: {path}")
-        if (expected.st_dev, expected.st_ino) != (info.st_dev, info.st_ino):
+        if _stable_read_stat(expected) != _stable_read_stat(info):
             raise SafeIOError(f"{context} changed while being opened: {path}")
         if reject_hardlink and info.st_nlink != 1:
             raise SafeIOError(f"{context} must not be hardlinked: {path}")
@@ -172,6 +204,7 @@ def read_regular_bytes(
             if max_bytes is not None and total > max_bytes:
                 raise SafeIOError(f"{context} exceeds maximum size: {path}")
             chunks.append(chunk)
+        _verify_stable_read_completion(fd, path, context, info, total)
         return b"".join(chunks)
     finally:
         os.close(fd)
@@ -186,6 +219,8 @@ def iter_regular_chunks(
     max_bytes: int | None = None,
     chunk_size: int = 1024 * 1024,
 ) -> Iterable[bytes]:
+    """Yield a regular file and verify stability when fully exhausted."""
+
     expected = lstat_regular_file(
         path,
         context,
@@ -204,7 +239,7 @@ def iter_regular_chunks(
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             raise SafeIOError(f"{context} must be a regular file: {path}")
-        if (expected.st_dev, expected.st_ino) != (info.st_dev, info.st_ino):
+        if _stable_read_stat(expected) != _stable_read_stat(info):
             raise SafeIOError(f"{context} changed while being opened: {path}")
         if reject_hardlink and info.st_nlink != 1:
             raise SafeIOError(f"{context} must not be hardlinked: {path}")
@@ -219,6 +254,7 @@ def iter_regular_chunks(
             if max_bytes is not None and total > max_bytes:
                 raise SafeIOError(f"{context} exceeds maximum size: {path}")
             yield chunk
+        _verify_stable_read_completion(fd, path, context, info, total)
     finally:
         os.close(fd)
 

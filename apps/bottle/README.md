@@ -6,8 +6,8 @@ static keyring and encrypts locally with `age-encryption`. The server stores
 only ciphertext and public metadata. A recipient fetches candidate ciphertexts
 and decrypts locally with a private identity that is never uploaded.
 
-Daylight evidence describes what the server accepted; it does not provide
-encryption secrecy or runtime containment.
+Daylight evidence describes what the server accepted. It does not provide
+encryption secrecy. Runtime containment is not provided.
 
 ## Architecture
 

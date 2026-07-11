@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+
+description="Bring up the Noether Core loopback interface"
+
+depend() {
+  need localmount
+  before nftables
+}
+
+start() {
+  ebegin "Bringing up loopback only"
+  ip link set dev lo up
+  eend $?
+}

@@ -50,6 +50,8 @@ REQUIRED_TOOLS = [
     "store_root_prep_common.py",
     "yocto_prep_common.py",
     "openbsd_reference_prep_common.py",
+    "noether_obligations.py",
+    "noether_hardware_observation.py",
 ]
 
 PROFILE_KEYS = {
@@ -150,6 +152,7 @@ REQUIRED_DOCS = [
     "COMPONENT_REGISTER.md",
     "FLUFF_EXTERMINATION_POLICY.md",
     "DAYLIGHT_WUCIOS_SCORE.md",
+    "NOETHER_FORGE_EXTERNAL_REVIEW.md",
 ]
 
 REQUIRED_COMPONENTS = {

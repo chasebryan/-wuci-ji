@@ -5,10 +5,44 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import stat
 import sys
 from pathlib import Path
 from typing import Any
+
+try:
+    from daylight_claim_scan import (
+        ClaimTextLimitError,
+        DEFAULT_MAX_INLINE_BYTES,
+        DEFAULT_MAX_INLINE_OCCURRENCES,
+        FORBIDDEN_AUTHORITY_PATTERNS,
+        dump_report as dump_claim_scan_report,
+        phrase_is_negated,
+        report_path_overlaps_inputs,
+        scan_paths as scan_claim_paths,
+        unsupported_claims_in_text,
+    )
+except ImportError:  # pragma: no cover - package import path used by tests
+    from tools.daylight_claim_scan import (  # type: ignore[no-redef]
+        ClaimTextLimitError,
+        DEFAULT_MAX_INLINE_BYTES,
+        DEFAULT_MAX_INLINE_OCCURRENCES,
+        FORBIDDEN_AUTHORITY_PATTERNS,
+        dump_report as dump_claim_scan_report,
+        phrase_is_negated,
+        report_path_overlaps_inputs,
+        scan_paths as scan_claim_paths,
+        unsupported_claims_in_text,
+    )
+
+try:
+    import wuci_safeio
+    if not hasattr(wuci_safeio, "read_regular_bytes"):
+        raise ImportError("wrong wuci_safeio module")
+except ImportError:  # pragma: no cover - package import path used by tests
+    from tools import wuci_safeio  # type: ignore[no-redef]
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,35 +59,80 @@ SCHEMA_BY_TAG = {
     "daylight-control-map-v1": "daylight-control-map.v1.schema.json",
     "daylight-monitor-signal-v1": "daylight-monitor-signal.v1.schema.json",
     "daylight-conformance-report-v1": "daylight-conformance-report.v1.schema.json",
+    "daylight-claim-scan-report-v1": "daylight-claim-scan-report.v1.schema.json",
 }
-
-FORBIDDEN_AUTHORITY_PATTERNS = [
-    "production cryptography",
-    "general runtime sandbox",
-    "post-quantum secure",
-    "independently audited",
-    "department of war approved",
-    "government endorsed",
-    "government approved",
-    "cato authorized",
-    "rmf authorized",
-    "fips validated",
-    "fedramp authorized",
-    "common criteria certified",
-    "niap certified",
-    "replacement for edr",
-    "replacement for siem",
-    "replacement for iam",
-]
 
 
 class ValidationError(Exception):
     pass
 
 
+MAX_CLAIM_REPORT_BYTES = 8_388_608
+MAX_VERIFIED_CLAIM_FILE_BYTES = 2_097_152
+MAX_VERIFIED_CLAIM_FILES = 256
+MAX_VERIFIED_CLAIM_OCCURRENCES = 10_000
+MAX_VERIFIED_CLAIM_TOTAL_BYTES = 8_388_608
+
+
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def _reject_duplicate_report_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValidationError(f"duplicate report key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_report_constant(value: str) -> None:
+    raise ValidationError(f"non-standard JSON constant in claim report: {value}")
+
+
+def load_claim_scan_report_safely(path: Path, root: Path) -> tuple[dict[str, Any], str, Path]:
+    root = root.resolve(strict=True)
+    candidate = path if path.is_absolute() else root / path
+    absolute = Path(os.path.abspath(os.fspath(candidate)))
+    try:
+        relative = absolute.relative_to(root)
+    except ValueError as exc:
+        raise ValidationError("claim report path must stay under the verification root") from exc
+    current = root
+    for part in relative.parts[:-1]:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except OSError as exc:
+            raise ValidationError("claim report ancestor could not be inspected") from exc
+        if stat.S_ISLNK(info.st_mode):
+            raise ValidationError("claim report ancestor must not be a symlink")
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValidationError("claim report ancestor must be a directory")
+    try:
+        data = wuci_safeio.read_regular_bytes(
+            absolute,
+            "Daylight claim report",
+            reject_symlink=True,
+            reject_hardlink=True,
+            max_bytes=MAX_CLAIM_REPORT_BYTES,
+        )
+        text = data.decode("utf-8")
+    except (wuci_safeio.SafeIOError, UnicodeDecodeError) as exc:
+        raise ValidationError("claim report must be a bounded regular UTF-8 file") from exc
+    try:
+        obj = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_report_keys,
+            parse_constant=_reject_nonfinite_report_constant,
+        )
+    except (ValueError, RecursionError) as exc:
+        raise ValidationError("claim report must contain valid JSON") from exc
+    if not isinstance(obj, dict):
+        raise ValidationError("claim report must contain a JSON object")
+    return obj, text, absolute
 
 
 def dump_json(data: Any) -> str:
@@ -119,6 +198,8 @@ def validate_against_schema(value: Any, schema: dict[str, Any], path: str = "$")
     if isinstance(value, str):
         if "minLength" in schema and len(value) < schema["minLength"]:
             raise ValidationError(f"{path}: string shorter than minLength")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            raise ValidationError(f"{path}: string longer than maxLength")
         if "pattern" in schema and re.search(schema["pattern"], value) is None:
             raise ValidationError(f"{path}: string does not match pattern {schema['pattern']!r}")
 
@@ -150,8 +231,111 @@ def validate_against_schema(value: Any, schema: dict[str, Any], path: str = "$")
                 validate_against_schema(value[key], child_schema, f"{path}.{key}")
 
 
+def validate_claim_scan_report_contract(obj: dict[str, Any]) -> None:
+    summary = obj["summary"]
+    files = obj["files"]
+    findings = obj["findings"]
+    errors = obj["errors"]
+    inputs = obj["inputs"]
+    limits = obj["limits"]
+
+    def validate_report_path(value: str, path: str, *, allow_dot: bool = False) -> None:
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ValidationError(f"{path}: path must be valid UTF-8") from exc
+        if value.startswith("/") or re.match(r"^[A-Za-z]:[\\/]", value) or "\\" in value:
+            raise ValidationError(f"{path}: path must be relative POSIX syntax")
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValidationError(f"{path}: path must not contain control characters")
+        parts = value.split("/")
+        if any(part == ".." for part in parts):
+            raise ValidationError(f"{path}: parent traversal is forbidden")
+        if any(part in {"", "."} for part in parts) and not (allow_dot and value == "."):
+            raise ValidationError(f"{path}: path must be normalized")
+
+    if inputs != sorted(set(inputs)):
+        raise ValidationError("$.inputs: paths must be sorted and unique")
+    for index, input_path in enumerate(inputs):
+        validate_report_path(input_path, f"$.inputs[{index}]", allow_dot=True)
+    file_paths = [item["path"] for item in files]
+    if file_paths != sorted(set(file_paths)):
+        raise ValidationError("$.files: paths must be sorted and unique")
+    for index, file_path in enumerate(file_paths):
+        validate_report_path(file_path, f"$.files[{index}].path")
+    if findings != sorted(
+        findings,
+        key=lambda item: (item["path"], item["line"], item["column"], item["phrase"]),
+    ):
+        raise ValidationError("$.findings: entries must use deterministic source order")
+    for index, finding in enumerate(findings):
+        validate_report_path(finding["path"], f"$.findings[{index}].path")
+    if errors != sorted(errors, key=lambda item: (item["path"], item["code"], item["message"])):
+        raise ValidationError("$.errors: entries must use deterministic order")
+    for index, error in enumerate(errors):
+        if not (error["path"].startswith("<") and error["path"].endswith(">")):
+            validate_report_path(error["path"], f"$.errors[{index}].path")
+    if len(files) > limits["max_files"]:
+        raise ValidationError("$.files: length exceeds limits.max_files")
+    if any(item["bytes"] > limits["max_file_bytes"] for item in files):
+        raise ValidationError("$.files: file byte count exceeds limits.max_file_bytes")
+    if summary["files_scanned"] != len(files):
+        raise ValidationError("$.summary.files_scanned: must equal files length")
+    if summary["bytes_scanned"] != sum(item["bytes"] for item in files):
+        raise ValidationError("$.summary.bytes_scanned: must equal scanned file bytes")
+    if summary["bytes_scanned"] > limits["max_total_bytes"]:
+        raise ValidationError("$.summary.bytes_scanned: exceeds limits.max_total_bytes")
+    if summary["phrase_occurrences"] != (
+        summary["negated_occurrences"] + summary["unsupported_occurrences"]
+    ):
+        raise ValidationError("$.summary.phrase_occurrences: must equal negated plus unsupported")
+    if summary["phrase_occurrences"] > limits["max_occurrences"]:
+        raise ValidationError("$.summary.phrase_occurrences: exceeds limits.max_occurrences")
+    if summary["unsupported_occurrences"] != len(findings):
+        raise ValidationError("$.summary.unsupported_occurrences: must equal findings length")
+    if len(findings) != len({(item["path"], item["line"], item["column"], item["phrase"]) for item in findings}):
+        raise ValidationError("$.findings: duplicate entries are not allowed")
+    unknown_finding_paths = sorted({item["path"] for item in findings} - set(file_paths))
+    if unknown_finding_paths:
+        raise ValidationError("$.findings: every finding path must name a scanned file")
+
+    def covers(input_path: str, file_path: str) -> bool:
+        return input_path == "." or file_path == input_path or file_path.startswith(input_path.rstrip("/") + "/")
+
+    for file_path in file_paths:
+        if not any(covers(input_path, file_path) for input_path in inputs):
+            raise ValidationError("$.files: every scanned file must be covered by a declared input")
+    if not errors:
+        for input_path in inputs:
+            if not any(covers(input_path, file_path) for file_path in file_paths):
+                raise ValidationError("$.inputs: every successful input must cover a scanned file")
+
+    status = obj["status"]
+    expected_status = "invalid-input" if errors else "fail" if findings else "pass"
+    if status != expected_status:
+        raise ValidationError(f"$.status: must be {expected_status!r} for the report contents")
+    if status in {"pass", "fail"} and (not inputs or not files):
+        raise ValidationError("$.status: completed report requires at least one input and one scanned file")
+
+
+def validate_claim_text_contract(obj: dict[str, Any]) -> None:
+    text = obj["claim_text"]
+    try:
+        unsupported_claims_in_text(
+            text,
+            max_bytes=DEFAULT_MAX_INLINE_BYTES,
+            max_occurrences=DEFAULT_MAX_INLINE_OCCURRENCES,
+        )
+    except ClaimTextLimitError as exc:
+        raise ValidationError(f"$.claim_text: {exc}") from exc
+
+
 def validate_object(obj: dict[str, Any]) -> None:
     validate_against_schema(obj, load_schema_for_object(obj))
+    if obj.get("schema") == "daylight-claim-scan-report-v1":
+        validate_claim_scan_report_contract(obj)
+    elif obj.get("schema") == "daylight-claim-v1":
+        validate_claim_text_contract(obj)
 
 
 def iter_schema_files() -> list[Path]:
@@ -191,31 +375,16 @@ def validate_schema_documents() -> list[str]:
     return findings
 
 
-def phrase_is_negated(text: str, start: int) -> bool:
-    prefix = text[max(0, start - 48):start]
-    return bool(re.search(r"\b(not|no|without|forbidden|must not|does not)\b[^.:\n]{0,48}$", prefix))
-
-
-def unsupported_claims_in_text(text: str) -> list[str]:
-    lowered = text.lower()
-    findings: list[str] = []
-    for phrase in FORBIDDEN_AUTHORITY_PATTERNS:
-        start = lowered.find(phrase)
-        if start == -1:
-            continue
-        if phrase_is_negated(lowered, start):
-            continue
-        findings.append(phrase)
-    return findings
-
-
 def policy_findings(obj: dict[str, Any]) -> list[str]:
     findings: list[str] = []
     schema = obj.get("schema")
     if schema == "daylight-claim-v1":
         text = str(obj.get("claim_text", ""))
-        for phrase in unsupported_claims_in_text(text):
-            findings.append(f"unsupported authority claim in {obj.get('claim_id')}: {phrase}")
+        try:
+            for phrase in unsupported_claims_in_text(text):
+                findings.append(f"unsupported authority claim in {obj.get('claim_id')}: {phrase}")
+        except ClaimTextLimitError as exc:
+            findings.append(f"claim text rejected in {obj.get('claim_id')}: {exc}")
         score_impact = obj.get("score_impact", {})
         if isinstance(score_impact, dict) and score_impact.get("manual_score_allowed") is not False:
             findings.append(f"manual score is not rejected in {obj.get('claim_id')}")
@@ -261,6 +430,18 @@ def validate_examples() -> list[str]:
     if no_evidence_gate.get("decision") != "fail" or "publish" not in no_evidence_gate.get("blocked_actions", []):
         findings.append("no-evidence release gate is not a failing closed example")
 
+    claim_scan_example = load_json(EXAMPLE_DIR / "claim-scan-report-example.json")
+    regenerated_claim_scan = scan_claim_paths(
+        claim_scan_example["inputs"],
+        root=ROOT,
+        max_file_bytes=claim_scan_example["limits"]["max_file_bytes"],
+        max_files=claim_scan_example["limits"]["max_files"],
+        max_occurrences=claim_scan_example["limits"]["max_occurrences"],
+        max_total_bytes=claim_scan_example["limits"]["max_total_bytes"],
+    )
+    if regenerated_claim_scan != claim_scan_example:
+        findings.append("claim scan report example is not reproducible from its declared input")
+
     return findings
 
 
@@ -301,6 +482,45 @@ def command_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_verify_claim_scan_report(args: argparse.Namespace) -> int:
+    root = Path(args.root)
+    try:
+        obj, source_text, report_path = load_claim_scan_report_safely(Path(args.input), root)
+        validate_object(obj)
+        if source_text != dump_claim_scan_report(obj):
+            raise ValidationError("claim report is not canonical JSON")
+        verifier_caps = {
+            "max_file_bytes": MAX_VERIFIED_CLAIM_FILE_BYTES,
+            "max_files": MAX_VERIFIED_CLAIM_FILES,
+            "max_occurrences": MAX_VERIFIED_CLAIM_OCCURRENCES,
+            "max_total_bytes": MAX_VERIFIED_CLAIM_TOTAL_BYTES,
+        }
+        for name, cap in verifier_caps.items():
+            if obj["limits"][name] > cap:
+                raise ValidationError(f"claim report limit {name} exceeds verifier cap {cap}")
+        if len(obj["inputs"]) > MAX_VERIFIED_CLAIM_FILES:
+            raise ValidationError("claim report input count exceeds verifier cap")
+        if report_path_overlaps_inputs(report_path, obj["inputs"], root=root):
+            raise ValidationError("claim report path overlaps a declared scan input")
+        regenerated = scan_claim_paths(
+            obj["inputs"],
+            root=root,
+            max_file_bytes=obj["limits"]["max_file_bytes"],
+            max_files=obj["limits"]["max_files"],
+            max_occurrences=obj["limits"]["max_occurrences"],
+            max_total_bytes=obj["limits"]["max_total_bytes"],
+        )
+        if regenerated != obj:
+            raise ValidationError("claim report does not match safe regeneration from declared inputs")
+        if source_text != dump_claim_scan_report(regenerated):
+            raise ValidationError("claim report does not use scanner-canonical key order")
+    except (OSError, ValidationError) as exc:
+        print(f"{args.input}: {exc}", file=sys.stderr)
+        return 1
+    print(f"{args.input}: verified by safe regeneration")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -315,6 +535,11 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--input", required=True)
     validate.add_argument("--policy", action="store_true")
     validate.set_defaults(func=command_validate)
+
+    verify_claim_report = sub.add_parser("verify-claim-scan-report")
+    verify_claim_report.add_argument("--input", required=True)
+    verify_claim_report.add_argument("--root", default=".")
+    verify_claim_report.set_defaults(func=command_verify_claim_scan_report)
 
     return parser
 

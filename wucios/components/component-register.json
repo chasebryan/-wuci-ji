@@ -216,6 +216,226 @@
       ]
     },
     {
+      "name": "alpine-openrc-init",
+      "display_name": "Alpine OpenRC Init",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "init",
+      "default_in_noether_core": true,
+      "reason": "Starts only the frozen Noether Core boot, firewall, audit, and shutdown services.",
+      "network_surface": "no network service enabled",
+      "privilege_surface": "PID 1 and root service control",
+      "language_surface": [
+        "C",
+        "shell",
+        "configuration"
+      ],
+      "dependency_notes": [
+        "Noether Forge pins OpenRC and records each enabled runlevel link."
+      ],
+      "risk_notes": [
+        "Unexpected package-generated runlevel links expand the privileged startup surface."
+      ],
+      "acceptance_gate": [
+        "exact service allowlist matches runtime",
+        "denied default network services absent"
+      ],
+      "evidence_hooks": [
+        "enabled-services.txt",
+        "runtime-contract.json"
+      ],
+      "rejection_conditions": [
+        "unregistered service enabled",
+        "network service enabled by default"
+      ]
+    },
+    {
+      "name": "alpine-filesystem-tooling",
+      "display_name": "Alpine Base and Filesystem Tooling",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "filesystem-tooling",
+      "default_in_noether_core": true,
+      "reason": "Provides the pinned musl, BusyBox, device, and filesystem substrate used by the live image.",
+      "network_surface": "utilities present; networking service disabled",
+      "privilege_surface": "base userspace and device management",
+      "language_surface": [
+        "C",
+        "shell"
+      ],
+      "dependency_notes": [
+        "Exact signed APK payloads are mapped in the Noether Forge component map."
+      ],
+      "risk_notes": [
+        "The authenticated kernel modloop remains a large hardware-support surface."
+      ],
+      "acceptance_gate": [
+        "package closure pinned",
+        "runtime package inventory matches lock",
+        "forbidden GUI and compiler packages absent"
+      ],
+      "evidence_hooks": [
+        "package-manifest.txt",
+        "sbom.spdx.json",
+        "surface-report.json"
+      ],
+      "rejection_conditions": [
+        "unlocked APK payload",
+        "forbidden runtime package present"
+      ]
+    },
+    {
+      "name": "alpine-signature-manifest-tooling",
+      "display_name": "Alpine Signature and Manifest Tooling",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "signature-tooling",
+      "default_in_noether_core": true,
+      "reason": "Verifies authenticated Alpine release media, signed package members, and exact whole-file hash locks.",
+      "network_surface": "none required for verification",
+      "privilege_surface": "local package database and evidence reads",
+      "language_surface": [
+        "C",
+        "configuration"
+      ],
+      "dependency_notes": [
+        "Uses Alpine apk-tools, Alpine public keys, and OpenSSL from the pinned closure."
+      ],
+      "risk_notes": [
+        "Package signatures authenticate package origin; they do not grant WuciOS production authority."
+      ],
+      "acceptance_gate": [
+        "extended-media signed APK index verified as source evidence only",
+        "49 release-media members and three post-release overlay APK signatures and digests verified",
+        "post-release overlay verified only with the authenticated Alpine 6165 key",
+        "manifest bound to ISO digest"
+      ],
+      "evidence_hooks": [
+        "input-verification.json",
+        "package-lock.json",
+        "manifest.json"
+      ],
+      "rejection_conditions": [
+        "unsigned package accepted",
+        "fixture key treated as release authority"
+      ]
+    },
+    {
+      "name": "wuci-ji-runtime",
+      "display_name": "Wuci-Ji Runtime",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "wuci-ji-tooling",
+      "default_in_noether_core": true,
+      "reason": "Provides the current static Wuci-Ji command surface inside the reviewer image.",
+      "network_surface": "none by default",
+      "privilege_surface": "local user tooling",
+      "language_surface": [
+        "assembly"
+      ],
+      "dependency_notes": [
+        "Built from the current repository assembly sources and copied by exact digest."
+      ],
+      "risk_notes": [
+        "Gate, publish, and trust decisions remain fail-closed and do not create production authority."
+      ],
+      "acceptance_gate": [
+        "binary digest recorded",
+        "selftest passes in exact booted ISO",
+        "assembly regression passes in exact booted ISO"
+      ],
+      "evidence_hooks": [
+        "source-manifest.json",
+        "runtime-contract.json"
+      ],
+      "rejection_conditions": [
+        "binary does not match source manifest",
+        "runtime selftest failure"
+      ]
+    },
+    {
+      "name": "noether-runtime-audit",
+      "display_name": "Noether Runtime Audit",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "local-audit-tooling",
+      "default_in_noether_core": true,
+      "reason": "Inventories accounts, packages, services, sockets, privileges, firewall policy, modules, and boot media.",
+      "network_surface": "read-only local inventory",
+      "privilege_surface": "root boot-time verification and unprivileged status reads",
+      "language_surface": [
+        "Python",
+        "shell"
+      ],
+      "dependency_notes": [
+        "Runs from the pinned Python closure and writes runtime evidence under /run only."
+      ],
+      "risk_notes": [
+        "A passing inventory is bounded to the measured boot and is not a general security proof."
+      ],
+      "acceptance_gate": [
+        "runtime PASS marker emitted only after every check passes",
+        "boot-media SHA-256 matches the host artifact",
+        "zero listeners recorded"
+      ],
+      "evidence_hooks": [
+        "runtime-contract.json",
+        "surface-report.json",
+        "listening-ports.txt"
+      ],
+      "rejection_conditions": [
+        "pre-baked PASS result",
+        "runtime evidence not bound to exact ISO"
+      ]
+    },
+    {
+      "name": "noether-review-generation",
+      "display_name": "Noether Review Generation",
+      "status": "REQUIRED",
+      "profiles": [
+        "noether-core"
+      ],
+      "component_class": "review-generation-tooling",
+      "default_in_noether_core": true,
+      "reason": "Generates deterministic manifests, SBOM, provenance, audits, boot traces, and readiness review material.",
+      "network_surface": "none during build or review generation",
+      "privilege_surface": "host build outputs only",
+      "language_surface": [
+        "Python"
+      ],
+      "dependency_notes": [
+        "Networked acquisition is a separate explicit command; build and review are offline."
+      ],
+      "risk_notes": [
+        "Internal readiness must remain distinct from signing, witness, hardware, tagging, and publication authority."
+      ],
+      "acceptance_gate": [
+        "two builds are byte-identical",
+        "BIOS and UEFI boot traces pass",
+        "privacy and link audits pass",
+        "local blocker list empty"
+      ],
+      "evidence_hooks": [
+        "review.json",
+        "review.md",
+        "internal-readiness.json"
+      ],
+      "rejection_conditions": [
+        "public release readiness claimed with external holds",
+        "stale boot evidence reused"
+      ]
+    },
+    {
       "name": "ratpoison",
       "display_name": "ratpoison",
       "status": "CANDIDATE",

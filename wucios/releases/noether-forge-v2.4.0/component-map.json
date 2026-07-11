@@ -1,0 +1,134 @@
+{
+  "schema": "wucios.noether_forge.component_map.v1",
+  "profile": "noether-core",
+  "components": [
+    {
+      "register_component": "kernel",
+      "implementation": "Alpine linux-lts 6.18.35-0-lts plus authenticated modloop",
+      "evidence": ["iso-layout.json", "kernel-modules.txt"]
+    },
+    {
+      "register_component": "bootloader",
+      "implementation": "Authenticated Alpine ISOLINUX BIOS and GRUB UEFI equipment replayed by xorriso",
+      "evidence": ["iso-layout.json", "boot-bios.json", "boot-uefi.json"]
+    },
+    {
+      "register_component": "shell",
+      "implementation": "BusyBox ash with locked local-console identities and narrowly configured doas",
+      "evidence": ["runtime-contract.json", "suid-sgid.txt"]
+    },
+    {
+      "register_component": "alpine-openrc-init",
+      "implementation": "Pinned OpenRC runlevels with no default network service",
+      "evidence": ["enabled-services.txt", "runtime-contract.json"]
+    },
+    {
+      "register_component": "alpine-filesystem-tooling",
+      "implementation": "Pinned Alpine base, musl, BusyBox filesystem and local inspection surface",
+      "evidence": ["package-manifest.txt", "sbom.spdx.json"]
+    },
+    {
+      "register_component": "alpine-signature-manifest-tooling",
+      "implementation": "Pinned apk-tools bootstrap, Alpine signing keys, authenticated release media, and whole-file hash enforcement",
+      "evidence": ["input-verification.json", "package-lock.json"]
+    },
+    {
+      "register_component": "firewall-tooling",
+      "implementation": "Pinned nftables with input, forward, and output default-drop policies",
+      "evidence": ["runtime-contract.json", "listening-ports.txt"]
+    },
+    {
+      "register_component": "daylight-validator",
+      "implementation": "Actual stdlib Python Daylight claim firewall with positive and negative runtime fixtures",
+      "evidence": ["runtime-contract.json", "daylight-wucios-score.json"]
+    },
+    {
+      "register_component": "wuci-ji-runtime",
+      "implementation": "Current statically linked x86_64 Wuci-Ji assembly binary",
+      "evidence": ["source-manifest.json", "runtime-contract.json"]
+    },
+    {
+      "register_component": "wuci-prism-tooling",
+      "implementation": "Actual keyless Wuci-Prism Python inspector with positive and negative runtime fixtures",
+      "evidence": ["runtime-contract.json", "review.json"]
+    },
+    {
+      "register_component": "noether-runtime-audit",
+      "implementation": "Local account, package, service, listener, privilege, firewall, and boot-media verifier",
+      "evidence": ["surface-report.json", "runtime-contract.json"]
+    },
+    {
+      "register_component": "noether-review-generation",
+      "implementation": "Deterministic manifests, SBOM, provenance, privacy, link, boot, and readiness reports",
+      "evidence": ["review.json", "review.md"]
+    }
+  ],
+  "package_assignments": {
+    "alpine-filesystem-tooling": [
+      "alpine-base",
+      "alpine-baselayout",
+      "alpine-baselayout-data",
+      "alpine-conf",
+      "alpine-release",
+      "bridge",
+      "ifupdown-ng",
+      "libcap2",
+      "mdev-conf",
+      "musl",
+      "musl-utils",
+      "ncurses-terminfo-base",
+      "scanelf"
+    ],
+    "alpine-openrc-init": [
+      "busybox-mdev-openrc",
+      "busybox-openrc",
+      "nftables-openrc",
+      "openrc",
+      "openrc-user"
+    ],
+    "alpine-signature-manifest-tooling": [
+      "alpine-keys",
+      "apk-tools",
+      "ca-certificates-bundle",
+      "libapk",
+      "libcrypto3",
+      "libssl3",
+      "openssl",
+      "ssl_client"
+    ],
+    "daylight-validator": [
+      "gdbm",
+      "libbz2",
+      "libexpat",
+      "libffi",
+      "libgcc",
+      "libpanelw",
+      "libstdc++",
+      "mpdecimal",
+      "pyc",
+      "python3",
+      "python3-pyc",
+      "python3-pycache-pyc0",
+      "sqlite-libs",
+      "xz-libs",
+      "zlib"
+    ],
+    "firewall-tooling": [
+      "gmp",
+      "jansson",
+      "libmnl",
+      "libncursesw",
+      "libnftnl",
+      "nftables",
+      "readline"
+    ],
+    "shell": [
+      "busybox",
+      "busybox-binsh",
+      "busybox-suid",
+      "doas"
+    ]
+  },
+  "runtime_library_boundary": "libgcc and libstdc++ are runtime libraries pulled by the signed closure; no compiler, build system, or development headers are present.",
+  "validation": "Every locked APK name must appear exactly once in package_assignments; each register_component must exist in the canonical component register."
+}

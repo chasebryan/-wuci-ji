@@ -29,7 +29,7 @@
     "not RMF authorized",
     "not FIPS validated",
     "not FedRAMP authorized",
-    "not NIAP/Common Criteria certified",
+    "not NIAP certified; not Common Criteria certified",
     "not a replacement for EDR, SIEM, IAM, backups, patch management, or incident response"
   ],
   "next_blocker": "third-party pilot adoption with signed external review evidence and copied CI workflow"

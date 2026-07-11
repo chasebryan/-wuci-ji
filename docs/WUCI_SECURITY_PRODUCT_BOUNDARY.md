@@ -37,7 +37,10 @@ Wuci-Ji / Daylight is not currently:
 - FIPS validated.
 - FedRAMP authorized.
 - NIAP/Common Criteria certified.
-- A replacement for EDR, SIEM, IAM, backups, patch management, or incident response.
+- A replacement for EDR.
+- A replacement for SIEM.
+- A replacement for IAM.
+- Replacement of backups, patch management, or incident response is not claimed.
 
 ## Product Boundary
 

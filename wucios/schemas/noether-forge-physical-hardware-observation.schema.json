@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/noether-forge-physical-hardware-observation.v1.json",
+  "title": "WuciOS Noether Forge digest-bound physical-hardware observation",
+  "description": "A size-bounded structured observation record with no operator prose lane. The verifier is authoritative for duplicate-key rejection, calendar-valid UTC timestamps, and stable ISO streaming.",
+  "$comment": "The verifier enforces a 131072-byte UTF-8 record limit before parsing and checks RFC 3339 calendar validity beyond the schema format annotation.",
+  "x-maxUtf8Bytes": 131072,
+  "x-maxIsoBytes": 4294967296,
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "release_id", "record_status", "subject", "observation", "claim_boundary"],
+  "$defs": {
+    "operatorId": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 71,
+      "oneOf": [
+        {"pattern": "^reviewer-[1-9][0-9]{0,5}$"},
+        {"pattern": "^sha256:[0-9a-f]{64}$"}
+      ]
+    },
+    "metadataToken": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 71,
+      "oneOf": [
+        {"enum": ["redacted", "not-observed", "fixture-not-observed"]},
+        {"pattern": "^sha256:[0-9a-f]{64}$"}
+      ]
+    },
+    "versionToken": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 71,
+      "oneOf": [
+        {"enum": ["redacted", "not-observed"]},
+        {"pattern": "^sha256:[0-9a-f]{64}$"},
+        {"pattern": "^version:[0-9]+(?:[._+-][0-9]+)*$"}
+      ]
+    },
+    "versionTokenWithFixture": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 71,
+      "oneOf": [
+        {"enum": ["redacted", "not-observed", "fixture-not-observed"]},
+        {"pattern": "^sha256:[0-9a-f]{64}$"},
+        {"pattern": "^version:[0-9]+(?:[._+-][0-9]+)*$"}
+      ]
+    },
+    "toolPurpose": {
+      "enum": [
+        "record-shape-check",
+        "iso-digest-comparison",
+        "boot-observation-capture",
+        "firmware-state-observation",
+        "local-runtime-status-observation",
+        "private-media-hash-recording"
+      ]
+    },
+    "toolEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "purpose"],
+      "properties": {
+        "version": {"$ref": "#/$defs/versionToken"},
+        "purpose": {"$ref": "#/$defs/toolPurpose"}
+      }
+    },
+    "observationEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "notes"],
+      "properties": {
+        "result": {"enum": ["observed", "not-observed", "not-tested"]},
+        "notes": {
+          "enum": [
+            "observed-on-attached-display",
+            "observed-on-local-console",
+            "observed-in-private-capture",
+            "observed-without-retained-capture",
+            "not-observed-during-session",
+            "not-tested",
+            "fixture-shape-only"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"result": {"const": "observed"}}, "required": ["result"]},
+          "then": {"properties": {"notes": {"enum": [
+            "observed-on-attached-display",
+            "observed-on-local-console",
+            "observed-in-private-capture",
+            "observed-without-retained-capture"
+          ]}}}
+        },
+        {
+          "if": {"properties": {"result": {"const": "not-observed"}}, "required": ["result"]},
+          "then": {"properties": {"notes": {"const": "not-observed-during-session"}}}
+        },
+        {
+          "if": {"properties": {"result": {"const": "not-tested"}}, "required": ["result"]},
+          "then": {"properties": {"notes": {"enum": ["not-tested", "fixture-shape-only"]}}}
+        }
+      ]
+    },
+    "operatorObservationEntry": {
+      "allOf": [
+        {"$ref": "#/$defs/observationEntry"},
+        {"properties": {"notes": {"not": {"const": "fixture-shape-only"}}}}
+      ]
+    }
+  },
+  "properties": {
+    "schema": {"const": "wucios.noether_forge.physical_hardware_observation.v1"},
+    "release_id": {"const": "noether-forge-v2.4.0"},
+    "record_status": {"enum": ["fixture-only", "operator-observation"]},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_description", "commit", "iso_filename", "iso_size_bytes", "iso_digests"],
+      "properties": {
+        "subject_kind": {"enum": ["synthetic-fixture", "private-reviewer-built-iso"]},
+        "subject_description": {"enum": ["synthetic-fixture-marker-only", "private-reviewer-built-iso"]},
+        "commit": {"type": "string", "minLength": 40, "maxLength": 40, "pattern": "^[0-9a-f]{40}$"},
+        "iso_filename": {"enum": [
+          "NOT-A-RELEASE-noether-hardware-observation-fixture.iso",
+          "WuciOS-v2.4.0-Noether-Forge-x86_64.iso"
+        ]},
+        "iso_size_bytes": {"type": "integer", "minimum": 1, "maximum": 4294967296},
+        "iso_digests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "sha384", "sha512"],
+          "properties": {
+            "sha256": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+            "sha384": {"type": "string", "minLength": 96, "maxLength": 96, "pattern": "^[0-9a-f]{96}$"},
+            "sha512": {"type": "string", "minLength": 128, "maxLength": 128, "pattern": "^[0-9a-f]{128}$"}
+          }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_at_utc", "operator_id", "hardware", "firmware", "capture_host", "tools", "observations"],
+      "properties": {
+        "observed_at_utc": {
+          "type": "string",
+          "format": "date-time",
+          "minLength": 20,
+          "maxLength": 20,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "operator_id": {
+          "oneOf": [
+            {"const": "fixture-only"},
+            {"$ref": "#/$defs/operatorId"}
+          ]
+        },
+        "hardware": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["manufacturer", "model", "architecture", "identifiers_redacted"],
+          "properties": {
+            "manufacturer": {"$ref": "#/$defs/metadataToken"},
+            "model": {"$ref": "#/$defs/metadataToken"},
+            "architecture": {"enum": ["x86_64", "fixture-not-observed"]},
+            "identifiers_redacted": {"const": true}
+          }
+        },
+        "firmware": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["boot_mode", "vendor", "version", "secure_boot"],
+          "properties": {
+            "boot_mode": {"enum": ["bios", "uefi", "not-observed", "fixture-not-observed"]},
+            "vendor": {"$ref": "#/$defs/metadataToken"},
+            "version": {"$ref": "#/$defs/versionTokenWithFixture"},
+            "secure_boot": {"enum": ["enabled", "disabled", "not-observed", "not-applicable", "fixture-not-observed"]}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"boot_mode": {"const": "bios"}}, "required": ["boot_mode"]},
+              "then": {"properties": {"secure_boot": {"const": "not-applicable"}}}
+            },
+            {
+              "if": {"properties": {"boot_mode": {"const": "uefi"}}, "required": ["boot_mode"]},
+              "then": {"properties": {"secure_boot": {"enum": ["enabled", "disabled", "not-observed"]}}}
+            },
+            {
+              "if": {"properties": {"boot_mode": {"const": "not-observed"}}, "required": ["boot_mode"]},
+              "then": {"properties": {"secure_boot": {"const": "not-observed"}}}
+            },
+            {
+              "if": {"properties": {"boot_mode": {"const": "fixture-not-observed"}}, "required": ["boot_mode"]},
+              "then": {"properties": {"secure_boot": {"const": "fixture-not-observed"}}}
+            }
+          ]
+        },
+        "capture_host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operating_system", "kernel", "architecture"],
+          "properties": {
+            "operating_system": {"enum": [
+              "linux", "windows", "macos", "freebsd", "openbsd", "netbsd",
+              "redacted", "not-observed", "fixture-not-observed"
+            ]},
+            "kernel": {"$ref": "#/$defs/versionTokenWithFixture"},
+            "architecture": {"enum": ["x86_64", "fixture-not-observed"]}
+          }
+        },
+        "tools": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 9,
+          "additionalProperties": false,
+          "properties": {
+            "noether-hardware-observation": {"$ref": "#/$defs/toolEntry"},
+            "sha256sum": {"$ref": "#/$defs/toolEntry"},
+            "sha384sum": {"$ref": "#/$defs/toolEntry"},
+            "sha512sum": {"$ref": "#/$defs/toolEntry"},
+            "serial-capture": {"$ref": "#/$defs/toolEntry"},
+            "console-capture": {"$ref": "#/$defs/toolEntry"},
+            "camera-capture": {"$ref": "#/$defs/toolEntry"},
+            "firmware-setup": {"$ref": "#/$defs/toolEntry"},
+            "boot-media-writer": {"$ref": "#/$defs/toolEntry"}
+          }
+        },
+        "observations": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 7,
+          "additionalProperties": false,
+          "properties": {
+            "fixture-record-shape": {"$ref": "#/$defs/observationEntry"},
+            "boot-menu-visible": {"$ref": "#/$defs/observationEntry"},
+            "kernel-start-visible": {"$ref": "#/$defs/observationEntry"},
+            "local-tty-login-prompt-visible": {"$ref": "#/$defs/observationEntry"},
+            "release-notes-visible": {"$ref": "#/$defs/observationEntry"},
+            "local-runtime-status-visible": {"$ref": "#/$defs/observationEntry"},
+            "shutdown-completed": {"$ref": "#/$defs/observationEntry"}
+          }
+        }
+      }
+    },
+    "claim_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hardware_validation_claimed", "external_validation_claimed", "official_release_claimed", "production_authority_claimed", "statement"],
+      "properties": {
+        "hardware_validation_claimed": {"const": false},
+        "external_validation_claimed": {"const": false},
+        "official_release_claimed": {"const": false},
+        "production_authority_claimed": {"const": false},
+        "statement": {"const": "This record is a digest-bound operator observation only; it is not independent hardware validation, certification, official release authority, or proof of OS containment."}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"record_status": {"const": "fixture-only"}}, "required": ["record_status"]},
+      "then": {"properties": {
+        "subject": {"properties": {
+          "subject_kind": {"const": "synthetic-fixture"},
+          "subject_description": {"const": "synthetic-fixture-marker-only"},
+          "iso_filename": {"const": "NOT-A-RELEASE-noether-hardware-observation-fixture.iso"},
+          "iso_size_bytes": {"const": 43}
+        }},
+        "observation": {"properties": {
+          "operator_id": {"const": "fixture-only"},
+          "hardware": {"properties": {
+            "manufacturer": {"const": "fixture-not-observed"},
+            "model": {"const": "fixture-not-observed"},
+            "architecture": {"const": "fixture-not-observed"}
+          }},
+          "firmware": {"properties": {
+            "boot_mode": {"const": "fixture-not-observed"},
+            "vendor": {"const": "fixture-not-observed"},
+            "version": {"const": "fixture-not-observed"},
+            "secure_boot": {"const": "fixture-not-observed"}
+          }},
+          "capture_host": {"properties": {
+            "operating_system": {"const": "fixture-not-observed"},
+            "kernel": {"const": "fixture-not-observed"},
+            "architecture": {"const": "fixture-not-observed"}
+          }},
+          "tools": {"const": {"noether-hardware-observation": {
+            "version": "version:1", "purpose": "record-shape-check"
+          }}},
+          "observations": {"const": {"fixture-record-shape": {
+            "result": "not-tested", "notes": "fixture-shape-only"
+          }}}
+        }}
+      }}
+    },
+    {
+      "if": {"properties": {"record_status": {"const": "operator-observation"}}, "required": ["record_status"]},
+      "then": {"properties": {
+        "subject": {"properties": {
+          "subject_kind": {"const": "private-reviewer-built-iso"},
+          "subject_description": {"const": "private-reviewer-built-iso"},
+          "commit": {"not": {"const": "0000000000000000000000000000000000000000"}},
+          "iso_filename": {"const": "WuciOS-v2.4.0-Noether-Forge-x86_64.iso"}
+        }},
+        "observation": {"properties": {
+          "operator_id": {"$ref": "#/$defs/operatorId"},
+          "hardware": {"properties": {
+            "manufacturer": {"not": {"const": "fixture-not-observed"}},
+            "model": {"not": {"const": "fixture-not-observed"}},
+            "architecture": {"const": "x86_64"}
+          }},
+          "firmware": {"properties": {
+            "boot_mode": {"not": {"const": "fixture-not-observed"}},
+            "vendor": {"not": {"const": "fixture-not-observed"}},
+            "version": {"not": {"const": "fixture-not-observed"}},
+            "secure_boot": {"not": {"const": "fixture-not-observed"}}
+          }},
+          "capture_host": {"properties": {
+            "operating_system": {"not": {"const": "fixture-not-observed"}},
+            "kernel": {"not": {"const": "fixture-not-observed"}},
+            "architecture": {"const": "x86_64"}
+          }},
+          "observations": {
+            "not": {"required": ["fixture-record-shape"]},
+            "properties": {
+              "boot-menu-visible": {"$ref": "#/$defs/operatorObservationEntry"},
+              "kernel-start-visible": {"$ref": "#/$defs/operatorObservationEntry"},
+              "local-tty-login-prompt-visible": {"$ref": "#/$defs/operatorObservationEntry"},
+              "release-notes-visible": {"$ref": "#/$defs/operatorObservationEntry"},
+              "local-runtime-status-visible": {"$ref": "#/$defs/operatorObservationEntry"},
+              "shutdown-completed": {"$ref": "#/$defs/operatorObservationEntry"}
+            },
+            "anyOf": [
+              {"required": ["boot-menu-visible"], "properties": {"boot-menu-visible": {"properties": {"result": {"const": "observed"}}}}},
+              {"required": ["kernel-start-visible"], "properties": {"kernel-start-visible": {"properties": {"result": {"const": "observed"}}}}},
+              {"required": ["local-tty-login-prompt-visible"], "properties": {"local-tty-login-prompt-visible": {"properties": {"result": {"const": "observed"}}}}},
+              {"required": ["local-runtime-status-visible"], "properties": {"local-runtime-status-visible": {"properties": {"result": {"const": "observed"}}}}}
+            ]
+          }
+        }}
+      }}
+    }
+  ]
+}
