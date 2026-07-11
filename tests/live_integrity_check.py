@@ -5,6 +5,7 @@ import base64
 import gzip
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -268,6 +269,17 @@ def assert_value_error(function, expected: str) -> None:
 
 
 def main() -> None:
+    module_help = subprocess.run(
+        [sys.executable, "-m", "tools.live_integrity_check", "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert module_help.returncode == 0, module_help.stderr
+    assert "--live" in module_help.stdout
+
     js_subject_vector = {
         "source": {
             "repository": live.CANONICAL_REPOSITORY,

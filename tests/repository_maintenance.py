@@ -20,6 +20,10 @@ def read(relative_path: str) -> str:
 
 
 def main() -> None:
+    makefile = read("Makefile")
+    assert "$(PYTHON) -m tools.live_integrity_check --live" in makefile
+    assert "$(PYTHON) tools/live_integrity_check.py --live" not in makefile
+
     for retired_path in [".github/workflows/pages.yml", "CNAME", "site/CNAME"]:
         assert not (REPO_ROOT / retired_path).exists(), f"retired Pages path remains: {retired_path}"
 
