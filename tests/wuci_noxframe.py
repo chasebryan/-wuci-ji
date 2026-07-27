@@ -248,6 +248,589 @@ def assert_console_multicommand_logic() -> None:
     ) == ["echo 'a; b'", "phase whereami"]
 
 
+def assert_private_demo_workspace() -> None:
+    first = wuci_black_ice.create_demo_workspace()
+    second = wuci_black_ice.create_demo_workspace()
+    first_root = Path(first.name)
+    second_root = Path(second.name)
+    try:
+        assert first_root != second_root
+        for root in (first_root, second_root):
+            info = os.lstat(root)
+            assert not root.is_symlink()
+            assert root.is_dir()
+            assert info.st_uid == os.geteuid()
+            assert info.st_mode & 0o777 == 0o700
+            assert root.parent.resolve() == Path("/tmp").resolve()
+            assert not (root / wuci_black_ice.GATE_DEMO_DIRNAME).exists()
+    finally:
+        first.cleanup()
+        second.cleanup()
+    assert not first_root.exists()
+    assert not second_root.exists()
+
+
+def assert_lovelace_lab_broker_contract() -> None:
+    marker = {
+        "schema": "wucios.lovelace.runtime.v1",
+        "profile": "lovelace-laboratory",
+        "authoritative_for_release": False,
+        "default_profile": False,
+        "noxframe_guest_broker": True,
+    }
+    assert wuci_black_ice.validate_lovelace_runtime_marker_payload(marker) == marker
+
+    def assert_rejected(callback: object) -> None:
+        assert callable(callback)
+        try:
+            callback()
+        except wuci_black_ice.NoxframeError:
+            return
+        raise AssertionError("invalid Lovelace lab broker input was accepted")
+
+    for key, replacement in (
+        ("schema", "wucios.lovelace.runtime.v2"),
+        ("profile", "noether-core"),
+        ("authoritative_for_release", True),
+        ("default_profile", True),
+        ("noxframe_guest_broker", False),
+    ):
+        invalid = dict(marker)
+        invalid[key] = replacement
+        assert_rejected(
+            lambda invalid=invalid: wuci_black_ice.validate_lovelace_runtime_marker_payload(invalid)
+        )
+    missing = dict(marker)
+    del missing["profile"]
+    assert_rejected(lambda: wuci_black_ice.validate_lovelace_runtime_marker_payload(missing))
+    extra = dict(marker)
+    extra["release_authority"] = False
+    assert_rejected(lambda: wuci_black_ice.validate_lovelace_runtime_marker_payload(extra))
+    assert_rejected(
+        lambda: wuci_black_ice._lovelace_json_object(
+            [("profile", "lovelace-laboratory"), ("profile", "noether-core")]
+        )
+    )
+
+    valid_requests = {
+        "python3": "hello.py",
+        "c": "hello.c",
+        "c++": "hello.cpp",
+        "assembly": "hello.S",
+        "rust": "hello.rs",
+        "go": "hello.go",
+    }
+    for language, source in valid_requests.items():
+        assert wuci_black_ice.lovelace_lab_command(language, source) == [
+            "/usr/local/bin/wuci-lab-run",
+            language,
+            source,
+        ]
+    assert wuci_black_ice.lovelace_ghidra_command("/work/sample.bin") == [
+        "/usr/local/bin/wuci-lab-run",
+        "ghidra",
+        "/work/sample.bin",
+    ]
+    assert wuci_black_ice.lovelace_broker_command(
+        "ghidra", "/work/sample.bin"
+    ) == [
+        "/usr/local/bin/wuci-lab-run",
+        "ghidra",
+        "/work/sample.bin",
+    ]
+    for language, source in (
+        ("ruby", "hello.rb"),
+        ("python3", "../hello.py"),
+        ("python3", "/work/hello.py"),
+        ("python3", "hello;id.py"),
+        ("python3", "hello$(id).py"),
+        ("python3", "hello world.py"),
+        ("python3", "-hello.py"),
+        ("python3", "hello.c"),
+        ("c", "hello.py"),
+    ):
+        assert_rejected(
+            lambda language=language, source=source: wuci_black_ice.lovelace_lab_command(
+                language, source
+            )
+        )
+    for input_path in (
+        "sample.bin",
+        "/work",
+        "/tmp/sample.bin",
+        "/work/../sample.bin",
+        "/work/subdir/sample.bin",
+        "/work/sample;id.bin",
+        "/work/sample$(id).bin",
+        "/work/sample input.bin",
+        "/work/-sample.bin",
+        "/work/" + "a" * 129,
+    ):
+        assert_rejected(
+            lambda input_path=input_path: wuci_black_ice.lovelace_ghidra_command(
+                input_path
+            )
+        )
+
+    assert wuci_black_ice.lovelace_lab_environment() == {
+        "HOME": "/work",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PATH": "/usr/local/bin:/usr/bin:/bin",
+    }
+    assert "PYTHONPATH" not in wuci_black_ice.lovelace_lab_environment()
+    assert "LD_PRELOAD" not in wuci_black_ice.lovelace_lab_environment()
+    escaped_output = wuci_black_ice.escape_lovelace_lab_output(
+        b"safe\tline\n\x1b]52;c;YXR0YWNr\x07\x1b[31mred\x1b[0m\r\x7f\xc3\xa9"
+    )
+    assert escaped_output == (
+        "safe\tline\n"
+        "\\x1b]52;c;YXR0YWNr\\x07"
+        "\\x1b[31mred\\x1b[0m\\x0d\\x7f\\xc3\\xa9"
+    )
+    assert "\x1b" not in escaped_output
+    assert "\x07" not in escaped_output
+    assert all(
+        value in {"\t", "\n"} or " " <= value <= "~"
+        for value in escaped_output
+    )
+    assert wuci_black_ice.LOVELACE_LAB_TIMEOUT_SECONDS == 660.0
+    assert wuci_black_ice.LOVELACE_LAB_OUTPUT_LIMIT == 64 * 1024
+    assert wuci_black_ice.LOVELACE_LAB_SOURCE_LIMIT == 1024 * 1024
+    assert wuci_black_ice.LOVELACE_LAB_GHIDRA_INPUT_LIMIT == 16 * 1024 * 1024
+    assert (
+        wuci_black_ice.LOVELACE_LAB_GHIDRA_SEMANTIC_SCRIPT
+        == "LovelaceGhidraBrokerSemanticCheck.java"
+    )
+    assert (
+        wuci_black_ice.LOVELACE_LAB_GHIDRA_SEMANTIC_MARKER
+        == "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS"
+    )
+    with tempfile.TemporaryDirectory(
+        prefix="wuci-lovelace-source-boundary-"
+    ) as source_tmp_name:
+        source_root = Path(source_tmp_name)
+        bounded_source = source_root / "bounded.py"
+        bounded_source.write_bytes(b"x" * (1024 * 1024))
+        wuci_black_ice._validate_lovelace_source_metadata(
+            bounded_source.lstat(), bounded_source.name
+        )
+        oversized_source = source_root / "oversized.py"
+        with oversized_source.open("wb") as stream:
+            stream.truncate(1024 * 1024 + 1)
+        assert_rejected(
+            lambda: wuci_black_ice._validate_lovelace_source_metadata(
+                oversized_source.lstat(), oversized_source.name
+            )
+        )
+        bounded_ghidra = source_root / "bounded.bin"
+        with bounded_ghidra.open("wb") as stream:
+            stream.truncate(16 * 1024 * 1024)
+        wuci_black_ice._validate_lovelace_ghidra_metadata(
+            bounded_ghidra.lstat(), "/work/bounded.bin"
+        )
+        oversized_ghidra = source_root / "oversized.bin"
+        with oversized_ghidra.open("wb") as stream:
+            stream.truncate(16 * 1024 * 1024 + 1)
+        assert_rejected(
+            lambda: wuci_black_ice._validate_lovelace_ghidra_metadata(
+                oversized_ghidra.lstat(), "/work/oversized.bin"
+            )
+        )
+        ghidra_link = source_root / "hardlinked.bin"
+        os.link(bounded_ghidra, ghidra_link)
+        assert_rejected(
+            lambda: wuci_black_ice._validate_lovelace_ghidra_metadata(
+                bounded_ghidra.lstat(), "/work/bounded.bin"
+            )
+        )
+    spec = wuci_black_ice.console_lookup("lab")
+    assert spec is not None
+    assert spec.capability == "guest.exec"
+    assert spec.guard == "guest-explicit-opt-in"
+    assert "ghidra /work/<input>" in spec.usage
+    status_text = wuci_black_ice.lovelace_lab_status_text(
+        argparse.Namespace(allow_lovelace_lab_run=True)
+    )
+    assert "pinned guest ghidra-headless" in status_text
+    assert "explicit /work/<plain-filename>" in status_text
+    assert "headless analysis only" in status_text
+    assert "process exit alone cannot pass" in status_text
+    assert wuci_black_ice.LOVELACE_LAB_GHIDRA_SEMANTIC_MARKER in status_text
+    assert "open files: programming routes=128 ghidra-headless=1024" in status_text
+    assert (
+        "ghidra resources: maximum-heap=2048MiB "
+        "cpu-seconds=670x-online-vCPU supported-online-vCPUs=1..8"
+        in status_text
+    )
+    assert "never executes the analyzed file" in status_text
+    assert "only TAB, LF, and printable ASCII are forwarded" in status_text
+    assert "NOXFRAME is not containment" in status_text
+
+    guest_runner_path = (
+        REPO
+        / "wucios/releases/lovelace-laboratory-v0.1.0/overlay/usr/local/bin/wuci-lab-run"
+    )
+    guest_runner = guest_runner_path.read_text(encoding="utf-8")
+    assert "env -i" in guest_runner
+    assert "ghidra_bin=/usr/local/bin/ghidra-headless" in guest_runner
+    assert 'timeout --signal=TERM --kill-after=30 600' in guest_runner
+    assert '-import "$snapshot_path" -overwrite' in guest_runner
+    assert 'semantic_script_name=LovelaceGhidraBrokerSemanticCheck.java' in guest_runner
+    assert '-postScript "$semantic_script_name"' in guest_runner
+    assert "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS" in guest_runner
+    assert "ghidra) nofile_limit=1024 ;;" in guest_runner
+    assert "*) nofile_limit=128 ;;" in guest_runner
+    assert 'ulimit -n "$nofile_limit"' in guest_runner
+    assert "ulimit -n 128" not in guest_runner
+    assert 'online_vcpus=$(getconf _NPROCESSORS_ONLN)' in guest_runner
+    assert 'ghidra_cpu_seconds=$((670 * online_vcpus))' in guest_runner
+    assert 'ulimit -t "$ghidra_cpu_seconds"' in guest_runner
+    assert "ulimit -t 620" not in guest_runner
+    assert "GHIDRA_HEADLESS_MAXMEM=2G" in guest_runner
+    assert 'semantic_count=$(grep -Fxc -- "$semantic_marker" "$ghidra_log")' in guest_runner
+    assert 'grep -Fx -- "$semantic_marker" "$ghidra_log"' in guest_runner
+    assert "noxframe-ghidra-headless:ok" in guest_runner
+    assert "eval " not in guest_runner
+
+    with tempfile.TemporaryDirectory(
+        prefix="wuci-noxframe-runner-limits-"
+    ) as runner_tmp_name:
+        runner_tmp = Path(runner_tmp_name)
+        runner_work = runner_tmp / "work"
+        runner_work.mkdir()
+        fake_ghidra = runner_tmp / "ghidra-headless"
+        fake_ghidra.write_text(
+            "#!/bin/sh\n"
+            "set -eu\n"
+            "python3 -c 'import os, resource; "
+            "assert resource.getrlimit(resource.RLIMIT_NOFILE) == (1024, 1024); "
+            "assert resource.getrlimit(resource.RLIMIT_CPU) == (1340, 1340); "
+            "assert os.environ[\"GHIDRA_HEADLESS_MAXMEM\"] == \"2G\"'\n"
+            "printf '%s\\n' LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS\n",
+            encoding="utf-8",
+        )
+        fake_ghidra.chmod(0o755)
+        semantic_root = runner_tmp / "scripts"
+        semantic_root.mkdir()
+        (semantic_root / "LovelaceGhidraBrokerSemanticCheck.java").write_text(
+            "// fixed test fixture\n", encoding="utf-8"
+        )
+        transformed_runner = runner_tmp / "wuci-lab-run"
+        # Debian dash has no `ulimit -u`; that independent process ceiling is
+        # statically asserted above while this host check exercises RLIMIT_NOFILE.
+        transformed_runner.write_text(
+            guest_runner.replace("/work", str(runner_work))
+            .replace("/usr/local/bin/ghidra-headless", str(fake_ghidra))
+            .replace(
+                "/usr/share/wucios/fixtures/ghidra/scripts",
+                str(semantic_root),
+            )
+            .replace(
+                "online_vcpus=$(getconf _NPROCESSORS_ONLN)",
+                "online_vcpus=2",
+            )
+            .replace("ulimit -u 128", ":"),
+            encoding="utf-8",
+        )
+        programming_input = runner_work / "limit.py"
+        programming_input.write_text(
+            "import resource\n"
+            "print(resource.getrlimit(resource.RLIMIT_NOFILE)[0])\n",
+            encoding="utf-8",
+        )
+        programming_limit = subprocess.run(
+            ["/bin/sh", str(transformed_runner), "python3", "limit.py"],
+            cwd=REPO,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+        assert programming_limit.returncode == 0, programming_limit.stderr
+        assert programming_limit.stdout == "128\n"
+        ghidra_input = runner_work / "sample.bin"
+        ghidra_input.write_bytes(b"fixed Ghidra limit fixture\n")
+        ghidra_limit = subprocess.run(
+            [
+                "/bin/sh",
+                str(transformed_runner),
+                "ghidra",
+                str(ghidra_input),
+            ],
+            cwd=REPO,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+        assert ghidra_limit.returncode == 0, ghidra_limit.stderr
+        assert ghidra_limit.stdout == (
+            "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS\n"
+            "noxframe-ghidra-headless:ok\n"
+        )
+
+    broker_semantic_path = (
+        REPO
+        / "wucios/releases/lovelace-laboratory-v0.1.0/overlay/usr/share/wucios/fixtures/ghidra/scripts/LovelaceGhidraBrokerSemanticCheck.java"
+    )
+    broker_semantic = broker_semantic_path.read_text(encoding="utf-8")
+    assert "class LovelaceGhidraBrokerSemanticCheck" in broker_semantic
+    assert "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS" in broker_semantic
+    assert "currentProgram != null" in broker_semantic
+    assert "isHeadlessAnalysisEnabled()" in broker_semantic
+    assert "!analysisTimeoutOccurred()" in broker_semantic
+    assert "GhidraProgramUtilities.isAnalyzed(currentProgram)" in broker_semantic
+    assert "getScriptArgs().length == 0" in broker_semantic
+    assert "Runtime.getRuntime" not in broker_semantic
+    assert "ProcessBuilder" not in broker_semantic
+    for runner_args, expected_status, expected_diagnostic in (
+        (("ghidra", "sample.bin"), 65, "explicit /work/<plain-filename>"),
+        (("ghidra", "/work/subdir/sample.bin"), 65, "unsafe Ghidra input path"),
+        (("python3", "hello.c"), 65, "source suffix does not match"),
+        (("ruby", "hello.rb"), 64, "usage: wuci-lab-run"),
+    ):
+        rejected = subprocess.run(
+            ["/bin/sh", str(guest_runner_path), *runner_args],
+            cwd=REPO,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        assert rejected.returncode == expected_status
+        assert expected_diagnostic in rejected.stderr
+
+    guest_smoke = (
+        REPO
+        / "wucios/releases/lovelace-laboratory-v0.1.0/overlay/usr/local/bin/wuci-noxframe-smoke"
+    ).read_text(encoding="utf-8")
+    assert "lab ghidra /work/$prefix.ghidra" in guest_smoke
+    assert (
+        'grep -Fxc "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS"'
+        in guest_smoke
+    )
+    assert '[ "$semantic_line" -lt "$ghidra_line" ]' in guest_smoke
+    assert 'grep -Fx "noxframe-ghidra-headless:ok"' in guest_smoke
+    assert 'grep -c \'^lab-run-result: 0$\'' in guest_smoke
+    assert "-eq 7" in guest_smoke
+
+    original_argv = sys.argv
+    try:
+        sys.argv = ["wuci-noxframe", "--allow-lovelace-lab-run"]
+        parsed = wuci_black_ice.parse_args()
+    finally:
+        sys.argv = original_argv
+    assert parsed.allow_lovelace_lab_run
+
+    original_status = wuci_black_ice.lovelace_guest_marker_status
+    original_run = wuci_black_ice.run_lovelace_lab
+    calls: list[tuple[str, str]] = []
+    try:
+        wuci_black_ice.lovelace_guest_marker_status = lambda: (True, "valid marker")
+
+        disabled_output = io.StringIO()
+        with contextlib.redirect_stdout(disabled_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=False),
+                ["lab", "run", "python3", "hello.py"],
+            )
+        assert "guest broker disabled" in disabled_output.getvalue()
+        assert not calls
+        disabled_ghidra_output = io.StringIO()
+        with contextlib.redirect_stdout(disabled_ghidra_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=False),
+                ["lab", "ghidra", "/work/sample.bin"],
+            )
+        assert "lab ghidra: guest broker disabled" in disabled_ghidra_output.getvalue()
+        assert not calls
+
+        wuci_black_ice.lovelace_guest_marker_status = lambda: (False, "missing marker")
+        unmarked_output = io.StringIO()
+        with contextlib.redirect_stdout(unmarked_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=True),
+                ["lab", "run", "python3", "hello.py"],
+            )
+        assert "unavailable outside a validated Lovelace Laboratory guest" in unmarked_output.getvalue()
+        assert not calls
+        unmarked_ghidra_output = io.StringIO()
+        with contextlib.redirect_stdout(unmarked_ghidra_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=True),
+                ["lab", "ghidra", "/work/sample.bin"],
+            )
+        assert (
+            "lab ghidra: unavailable outside a validated Lovelace Laboratory guest"
+            in unmarked_ghidra_output.getvalue()
+        )
+        assert not calls
+
+        wuci_black_ice.lovelace_guest_marker_status = lambda: (True, "valid marker")
+
+        def fake_run(language: str, source: str) -> wuci_black_ice.LovelaceLabRunResult:
+            calls.append((language, source))
+            return wuci_black_ice.LovelaceLabRunResult(0, "hello from lab\n", False, False)
+
+        wuci_black_ice.run_lovelace_lab = fake_run
+        enabled_output = io.StringIO()
+        with contextlib.redirect_stdout(enabled_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=True),
+                ["lab", "run", "python3", "hello.py"],
+            )
+        enabled_text = enabled_output.getvalue()
+        assert calls == [("python3", "hello.py")]
+        assert "argv: /usr/local/bin/wuci-lab-run python3 hello.py" in enabled_text
+        assert "hello from lab" in enabled_text
+        assert "NOXFRAME is not containment" in enabled_text
+        assert "lab-run-result: 0" in enabled_text
+
+        ghidra_output = io.StringIO()
+        with contextlib.redirect_stdout(ghidra_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=True),
+                ["lab", "ghidra", "/work/sample.bin"],
+            )
+        ghidra_text = ghidra_output.getvalue()
+        assert calls == [
+            ("python3", "hello.py"),
+            ("ghidra", "/work/sample.bin"),
+        ]
+        assert (
+            "argv: /usr/local/bin/wuci-lab-run ghidra /work/sample.bin"
+            in ghidra_text
+        )
+        assert "pinned guest Ghidra headless import" in ghidra_text
+        assert "analyzed, never executed" in ghidra_text
+        assert "NOXFRAME is not containment" in ghidra_text
+        assert "lab-run-result: 0" in ghidra_text
+
+        invalid_ghidra_output = io.StringIO()
+        with contextlib.redirect_stdout(invalid_ghidra_output):
+            wuci_black_ice.handle_lovelace_lab_command(
+                argparse.Namespace(allow_lovelace_lab_run=True),
+                ["lab", "ghidra", "/tmp/sample.bin"],
+            )
+        assert "explicit /work/<plain-filename>" in invalid_ghidra_output.getvalue()
+        assert calls == [
+            ("python3", "hello.py"),
+            ("ghidra", "/work/sample.bin"),
+        ]
+    finally:
+        wuci_black_ice.lovelace_guest_marker_status = original_status
+        wuci_black_ice.run_lovelace_lab = original_run
+
+    original_marker_reader = wuci_black_ice.read_lovelace_runtime_marker
+    original_runtime_validation = wuci_black_ice._validate_lovelace_runner_and_workdir
+    original_runner_path = wuci_black_ice.LOVELACE_LAB_RUNNER
+    original_workdir = wuci_black_ice.LOVELACE_LAB_WORKDIR
+    original_timeout = wuci_black_ice.LOVELACE_LAB_TIMEOUT_SECONDS
+    original_popen = wuci_black_ice.subprocess.Popen
+    popen_calls: list[tuple[list[str], dict[str, object]]] = []
+    with tempfile.TemporaryDirectory(prefix="wuci-lovelace-broker-") as broker_tmp_name:
+        broker_tmp = Path(broker_tmp_name)
+        workdir = broker_tmp / "work"
+        workdir.mkdir()
+        fake_runner = broker_tmp / "wuci-lab-run"
+        fake_runner.write_text(
+            "#!/usr/bin/python3\n"
+            "import os, sys, time\n"
+            "source = sys.argv[2]\n"
+            "if source == 'flood.py':\n"
+            "    os.write(1, b'x' * 70000)\n"
+            "elif source == 'control.py':\n"
+            "    os.write(1, b'safe\\tline\\n\\x1b]52;c;YXR0YWNr\\x07\\x1b[31mred\\x1b[0m\\r\\x7f\\xff')\n"
+            "elif source == 'slow.py':\n"
+            "    time.sleep(1)\n"
+            "else:\n"
+            "    print('|'.join(sys.argv[1:]))\n",
+            encoding="utf-8",
+        )
+        fake_runner.chmod(0o755)
+
+        def capture_popen(command: list[str], *args: object, **kwargs: object) -> object:
+            popen_calls.append((list(command), dict(kwargs)))
+            return original_popen(command, *args, **kwargs)
+
+        try:
+            wuci_black_ice.read_lovelace_runtime_marker = lambda: dict(marker)
+            wuci_black_ice._validate_lovelace_runner_and_workdir = lambda source: None
+            wuci_black_ice.LOVELACE_LAB_RUNNER = fake_runner
+            wuci_black_ice.LOVELACE_LAB_WORKDIR = workdir
+            wuci_black_ice.subprocess.Popen = capture_popen
+
+            bounded = wuci_black_ice.run_lovelace_lab("python3", "hello.py")
+            assert bounded.returncode == 0
+            assert bounded.output == "python3|hello.py\n"
+            assert not bounded.timed_out
+            assert not bounded.output_limited
+            command, kwargs = popen_calls[-1]
+            assert command == [str(fake_runner), "python3", "hello.py"]
+            assert kwargs["cwd"] == workdir
+            assert kwargs["env"] == wuci_black_ice.lovelace_lab_environment()
+            assert kwargs["stdin"] is subprocess.DEVNULL
+            assert kwargs["stdout"] is subprocess.PIPE
+            assert kwargs["stderr"] is subprocess.STDOUT
+            assert kwargs["shell"] is False
+            assert kwargs["close_fds"] is True
+            assert kwargs["start_new_session"] is True
+
+            controlled = wuci_black_ice.run_lovelace_lab(
+                "python3", "control.py"
+            )
+            assert controlled.returncode == 0
+            assert controlled.output == (
+                "safe\tline\n"
+                "\\x1b]52;c;YXR0YWNr\\x07"
+                "\\x1b[31mred\\x1b[0m\\x0d\\x7f\\xff"
+            )
+            assert "\x1b" not in controlled.output
+            assert "\x07" not in controlled.output
+            assert all(
+                value in {"\t", "\n"} or " " <= value <= "~"
+                for value in controlled.output
+            )
+
+            analyzed = wuci_black_ice.run_lovelace_lab(
+                "ghidra", "/work/sample.bin"
+            )
+            assert analyzed.returncode == 0
+            assert analyzed.output == "ghidra|/work/sample.bin\n"
+            assert not analyzed.timed_out
+            assert not analyzed.output_limited
+            command, kwargs = popen_calls[-1]
+            assert command == [
+                str(fake_runner),
+                "ghidra",
+                "/work/sample.bin",
+            ]
+            assert kwargs["shell"] is False
+            assert kwargs["cwd"] == workdir
+
+            flooded = wuci_black_ice.run_lovelace_lab("python3", "flood.py")
+            assert flooded.returncode == 125
+            assert len(flooded.output.encode("utf-8")) == 64 * 1024
+            assert flooded.output_limited
+            assert not flooded.timed_out
+
+            wuci_black_ice.LOVELACE_LAB_TIMEOUT_SECONDS = 0.05
+            timed = wuci_black_ice.run_lovelace_lab("python3", "slow.py")
+            assert timed.returncode == 124
+            assert timed.timed_out
+            assert not timed.output_limited
+        finally:
+            wuci_black_ice.read_lovelace_runtime_marker = original_marker_reader
+            wuci_black_ice._validate_lovelace_runner_and_workdir = original_runtime_validation
+            wuci_black_ice.LOVELACE_LAB_RUNNER = original_runner_path
+            wuci_black_ice.LOVELACE_LAB_WORKDIR = original_workdir
+            wuci_black_ice.LOVELACE_LAB_TIMEOUT_SECONDS = original_timeout
+            wuci_black_ice.subprocess.Popen = original_popen
+
+
 def assert_clock_decisions(tmp: Path) -> None:
     clock = tmp / "clock.json"
     now = dt.datetime(2026, 6, 29, 12, 0, 0, tzinfo=dt.UTC)
@@ -1340,6 +1923,7 @@ def console_command_matrix() -> dict[str, str]:
         "kaiju": "kaiju status",
         "wuci-os": "wuci-os status",
         "codex": "codex status",
+        "lab": "lab status",
         "avim": "avim /proc/version",
         "dev": "dev status",
         "repo": "repo status",
@@ -1483,6 +2067,14 @@ def assert_console_completion_logic() -> None:
     plugins = wuci_black_ice.console_completion_plan(session, "plugins po")
     assert plugins.matches == ("policy",)
     assert plugins.append_space is True
+
+    lab = wuci_black_ice.console_completion_plan(session, "lab r")
+    assert lab.matches == ("run",)
+    assert lab.append_space is True
+
+    lab_ghidra = wuci_black_ice.console_completion_plan(session, "lab g")
+    assert lab_ghidra.matches == ("ghidra",)
+    assert lab_ghidra.append_space is True
 
     split = wuci_black_ice.console_completion_plan(session, "xframe-split ")
     assert split.matches == ("2", "3", "4")
@@ -1712,6 +2304,8 @@ def assert_launcher(launcher: Path) -> None:
         assert_boot_voice_selection()
         assert_mechanics_terminal_handoff()
         assert_console_multicommand_logic()
+        assert_private_demo_workspace()
+        assert_lovelace_lab_broker_contract()
         assert_clock_decisions(tmp)
         assert_no_unavailable_command_markers()
         assert_console_completion_logic()

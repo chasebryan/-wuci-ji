@@ -18,6 +18,7 @@ WuciOS v2.4 is not attempting to ship a large consumer desktop OS. The serious b
 - Birkhoff Bastion
 - Tarski Review Appliance
 - Developer Desktop
+- Lovelace Laboratory
 
 ## Substrate Neutrality
 
@@ -70,6 +71,23 @@ boot the exact ISO under both locally supported firmware paths, satisfy the
 Noether runtime contract, and keep production signing, operated witness,
 reference-hardware, tagging, and publication authority as explicit later
 holds.
+
+## Lovelace Laboratory implementation scope
+
+A later explicit maintainer authorization opened the separate
+[Lovelace Laboratory](LOVELACE_LABORATORY.md) research/development and
+defensive-analysis profile. Lovelace may carry programming toolchains,
+explicit client networking, NOXFRAME guest integration, and pinned Ghidra
+headless support because it is non-default and non-release-authoritative. None
+of those packages, runtime results, or evidence may broaden Noether Core or its
+release score.
+
+Lovelace defaults to volatile storage and no guest network. Persistent storage
+and Internet NAT are separate operator selections. Its defensive hostile mode
+requires KVM and forbids persistence, a guest NIC, host shares, host-device
+passthrough, and TCG fallback. These are layered risk-reduction controls, not a
+claim of perfect isolation or safety for arbitrary malicious code. See the
+[containment boundary](LOVELACE_CONTAINMENT_BOUNDARY.md).
 
 ## Runtime Validation Status Preservation
 
@@ -126,6 +144,7 @@ make wucios-euclid-yocto-phase-3c-d
 make wucios-euclid-yocto-phase-3c-d-guardrails
 make wucios-euclid-openbsd-reference-phase-3c-e
 make wucios-euclid-openbsd-reference-phase-3c-e-guardrails
+make wucios-lovelace-source-test
 ```
 
 ## Controlling Doctrine
@@ -153,3 +172,4 @@ make wucios-euclid-openbsd-reference-phase-3c-e-guardrails
 21. Phase 3C-E OpenBSD reference preparation rules do not install, boot, inspect runtime behavior, run package/admin commands, clone source trees, download ports trees or install media, launch VMs, select a substrate, rank candidates, generate artifact hashes, or generate a numeric WuciOS score.
 22. Phase 3C is closed at `origin/wucios-v24-reduction-gate` commit `0f06b62`; no next implementation phase is authorized or inferred by this closeout.
 23. The Alpine substrate trial decision is scoped to WuciOS v2.4 substrate trial evidence. It does not claim production readiness, external validation, runtime validation, or broader substrate certification.
+24. Lovelace Laboratory is an explicitly authorized, separate non-authoritative implementation profile. Its compilers, networking, NOXFRAME broker, Ghidra runtime, and VM evidence do not enter Noether Core or establish release authority.

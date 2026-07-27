@@ -1,0 +1,60 @@
+{
+  "schema": "wucios.lovelace.release.v1",
+  "release_id": "lovelace-laboratory-v0.1.0",
+  "display_name": "WuciOS Lovelace Laboratory 0.1.0",
+  "profile": "lovelace-laboratory",
+  "status": "NON_AUTHORITATIVE_RESEARCH_DEVELOPMENT_ARTIFACT",
+  "architecture": "x86_64",
+  "substrate": "alpine-3.24.1",
+  "source_date_epoch": 1783753395,
+  "filesystem": {
+    "format": "ext4",
+    "size_mib": 8192,
+    "label": "WUCI_LOVELACE",
+    "uuid": "49a0ece5-da24-4a3d-91a2-91791dd7c2ac"
+  },
+  "boot": {
+    "kernel_iso_path": "/boot/vmlinuz-lts",
+    "initramfs_iso_path": "/boot/initramfs-lts",
+    "kernel_filename": "vmlinuz-lts",
+    "initramfs_filename": "initramfs-lts",
+    "kernel_size": 14468096,
+    "kernel_sha256": "77007123c0591ab4b2a5434ffa1b6a3985b3037d534be78bccfb30f3c9536c54",
+    "initramfs_size": 22501516,
+    "initramfs_sha256": "5fc19f53cf9cde467a696b33801c38b5ef586bc0c0d580d013f08c16d2a0a6be",
+    "kernel_arguments": [
+      "root=/dev/vda",
+      "rw",
+      "rootfstype=ext4",
+      "console=ttyS0,115200",
+      "panic=10"
+    ]
+  },
+  "shared_alpine_input": {
+    "path": "wucios/releases/noether-forge-v2.4.0/alpine-input-lock.json",
+    "canonical_sha256": "c19a85bec515fd4d0415d74f1ad57ecfeba8d4ff57b0b0da69bf983e87a92b0b",
+    "use": "The GPG-authenticated Alpine standard ISO and bootstrap apk only; no Noether package lock or release evidence is reused."
+  },
+  "output_files": {
+    "base_image": "lovelace-laboratory-x86_64.ext4",
+    "kernel": "vmlinuz-lts",
+    "initramfs": "initramfs-lts",
+    "manifest": "manifest.json"
+  },
+  "claims": [
+    "Separate non-authoritative research/development substrate",
+    "Volatile launch is the default",
+    "Persistent launch requires an explicitly named overlay",
+    "Networking is absent by default and Internet NAT is explicit",
+    "Hostile-code cells require usable KVM and fail closed otherwise"
+  ],
+  "non_claims": [
+    "No Noether Core equivalence",
+    "No release or production authority",
+    "No certification or independent evaluation",
+    "No perfect isolation or escape-proof execution",
+    "No guarantee that malicious code is safe to execute",
+    "No hostile-code isolation from TCG",
+    "No graphical Ghidra claim in the initial artifact"
+  ]
+}

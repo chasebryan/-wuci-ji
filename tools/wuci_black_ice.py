@@ -11,6 +11,7 @@ import re
 import select
 import shlex
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -21,7 +22,6 @@ import termios
 import threading
 import time
 import unicodedata
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -129,7 +129,6 @@ DEFAULT_DAYLIGHT_WRAP_DIR = "build/noxframe/daylight-wrap"
 DEFAULT_SUBSTRATE_MEMORY_ROOT = "build/noxframe/substrate-memory"
 DEFAULT_SUBSTRATE_LOCK_DEPTH = 9
 KAIJU_MANIFEST_PATH = "docs/noxframe/wuci_kaiju_manifest.json"
-DEFAULT_DEMO_ROOT = "build/wuci-noxframe-runs"
 XFRAME_MAX = 4
 XFRAME_SWITCH_INPUTS = ("\x1b[Z", "\x1b\x1b[Z", "\x1b[17~")
 XFRAME_SWITCH_HINT = "Shift+Tab/F6"
@@ -142,6 +141,50 @@ NOXFRAME_LEDGER_INCLUSION_PROOF = f"{NOXFRAME_LEDGER_DIR}/inclusion-proof.txt"
 NOXFRAME_LEDGER_CONSISTENCY_PROOF = f"{NOXFRAME_LEDGER_DIR}/consistency-proof.txt"
 DEFAULT_CODEX_BIN = "codex"
 DEFAULT_WUCI_BIN = "build/wuci-ji"
+LOVELACE_RUNTIME_MARKER = Path("/usr/share/wucios/lovelace-runtime.json")
+LOVELACE_LAB_RUNNER = Path("/usr/local/bin/wuci-lab-run")
+LOVELACE_LAB_WORKDIR = Path("/work")
+LOVELACE_LAB_GUEST_PATH_PREFIX = "/work/"
+LOVELACE_LAB_TIMEOUT_SECONDS = 660.0
+LOVELACE_LAB_OUTPUT_LIMIT = 64 * 1024
+LOVELACE_LAB_SOURCE_LIMIT = 1024 * 1024
+LOVELACE_LAB_GHIDRA_INPUT_LIMIT = 16 * 1024 * 1024
+LOVELACE_LAB_PROGRAMMING_OPEN_FILES = 128
+LOVELACE_LAB_GHIDRA_OPEN_FILES = 1024
+LOVELACE_LAB_GHIDRA_MAX_HEAP_MIB = 2048
+LOVELACE_LAB_GHIDRA_CPU_SECONDS_PER_VCPU = 670
+LOVELACE_LAB_GHIDRA_MIN_VCPUS = 1
+LOVELACE_LAB_GHIDRA_MAX_VCPUS = 8
+LOVELACE_LAB_GHIDRA_SEMANTIC_SCRIPT = (
+    "LovelaceGhidraBrokerSemanticCheck.java"
+)
+LOVELACE_LAB_GHIDRA_SEMANTIC_MARKER = (
+    "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS"
+)
+LOVELACE_MARKER_MAX_BYTES = 4096
+LOVELACE_MARKER_KEYS = frozenset(
+    {
+        "schema",
+        "profile",
+        "authoritative_for_release",
+        "default_profile",
+        "noxframe_guest_broker",
+    }
+)
+LOVELACE_LAB_LANGUAGES = {
+    "python3": (".py",),
+    "c": (".c",),
+    "c++": (".cc", ".cpp", ".cxx"),
+    "assembly": (".s", ".S", ".asm"),
+    "rust": (".rs",),
+    "go": (".go",),
+}
+LOVELACE_LAB_ENV = {
+    "HOME": "/work",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "PATH": "/usr/local/bin:/usr/bin:/bin",
+}
 GATE_DEMO_DIRNAME = "gate-demo"
 WUCI_OS_DOC_PATH = "docs/WUCI_OS.md"
 WEEK_SECONDS = 7 * 24 * 60 * 60
@@ -244,6 +287,11 @@ PHASE1_FEATURES = (
 )
 PLUGIN_CATALOG = (
     ("codex", "explicit opt-in host bridge", "metadata by default; host launch requires --allow-codex"),
+    (
+        "lovelace-lab",
+        "fixed guest-only programming and headless-analysis broker",
+        "requires --allow-lovelace-lab-run plus the exact Lovelace runtime marker",
+    ),
     ("wasi-lite", "Phase1-compatible plugin lane", "catalog only; module execution unavailable"),
     ("prism", "Wuci-Prism proof inspector", "available through launch matrix, not as host shell"),
     ("noxframe-self-release", "self-release evidence lane", "explicit self-release run writes under build/noxframe"),
@@ -423,6 +471,7 @@ CONSOLE_COMMANDS = (
     console_cmd("wuci-os", ("wucios",), "plugin", "wuci-os [status|source|plan|iso-plan|overlay|seal|boot|boundary|commands]", "Show Wuci-OS image-evidence and boot-plan metadata without launching host tools.", "wuci-os.read", "metadata-only"),
     console_cmd("update", ("upgrade",), "host", "update [plan|protocol]", "Update route retained as read-only guidance.", "host.exec", "metadata-only"),
     console_cmd("codex", ("agent",), "dev", "codex [status|handoff|version|doctor|start|exec|resume]", "Use the opt-in Codex bridge pinned to this Wuci-Ji checkout.", "host.exec", "explicit-opt-in"),
+    console_cmd("lab", ("lovelace",), "dev", "lab [status|run <language> <source>|ghidra /work/<input>]", "Use the fixed Lovelace guest programming and headless-analysis broker when explicitly enabled inside that guest.", "guest.exec", "guest-explicit-opt-in"),
     console_cmd("avim", ("vim", "edit"), "dev", "avim <file>", "Open a virtual read-only editor preview.", "fs.read", "metadata-only"),
     console_cmd("dev", ("dock", "selfdev"), "dev", "dev [status]", "Show self-development lane metadata.", "host.exec", "metadata-only"),
     console_cmd("repo", ("channels", "branches", "doctrine"), "dev", "repo [status]", "Show repository channel metadata.", "none", "metadata-only"),
@@ -503,6 +552,14 @@ class ClockDecision:
 class ConsoleCompletionPlan:
     matches: tuple[str, ...]
     append_space: bool
+
+
+@dataclass(frozen=True)
+class LovelaceLabRunResult:
+    returncode: int
+    output: str
+    timed_out: bool
+    output_limited: bool
 
 
 class NoxframeError(RuntimeError):
@@ -890,10 +947,38 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def run_demo_dir() -> str:
-    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
-    nonce = uuid.uuid4().hex[:12]
-    return f"{DEFAULT_DEMO_ROOT}/{stamp}-{os.getpid()}-{nonce}/{GATE_DEMO_DIRNAME}"
+def create_demo_workspace() -> tempfile.TemporaryDirectory:
+    """Create the disposable Gate-demo root on the host temporary filesystem.
+
+    The project checkout can live on a filesystem such as eCryptfs that rejects
+    ``renameat2(RENAME_NOREPLACE)``. The native Gate correctly fails closed on
+    that filesystem, so NOXFRAME runs its disposable proof artifact on the
+    host temporary filesystem instead of weakening the native commit rule.
+    """
+
+    try:
+        workspace = tempfile.TemporaryDirectory(
+            prefix="wuci-noxframe-run-",
+            dir="/tmp",
+        )
+    except OSError as exc:
+        raise NoxframeError("could not create private NOXFRAME demo workspace") from exc
+    root = Path(workspace.name)
+    try:
+        info = os.lstat(root)
+        if (
+            stat.S_ISLNK(info.st_mode)
+            or not stat.S_ISDIR(info.st_mode)
+            or info.st_uid != os.geteuid()
+            or stat.S_IMODE(info.st_mode) != 0o700
+        ):
+            raise NoxframeError(
+                "NOXFRAME demo workspace is not a private caller-owned directory"
+            )
+    except BaseException:
+        workspace.cleanup()
+        raise
+    return workspace
 
 
 def utc_now() -> str:
@@ -1259,6 +1344,7 @@ def console_help_text(args: list[str]) -> str:
         "and capabilities. They resolve to bounded local or metadata-only handlers.",
         "Host passthrough and network execution are not enabled by default.",
         "Codex is the explicit opt-in bridge: use codex status, codex handoff, and --allow-codex.",
+        "The lab broker is guest-only: lab run and lab ghidra also require --allow-lovelace-lab-run and the exact Lovelace marker.",
         "",
         "routes",
         "  help --compact       compact command map",
@@ -1738,7 +1824,7 @@ def plugin_catalog_text() -> str:
     rows.extend(
         [
             "",
-            "execution: unavailable through the console except explicit Codex bridge with --allow-codex",
+            "execution: unavailable except the explicit Codex bridge and the dual-gated Lovelace guest broker",
             "network: unused",
             "",
         ]
@@ -1754,6 +1840,7 @@ def plugin_policy_text() -> str:
             "wasm_run: unavailable",
             "network_fetch: unavailable",
             "codex_launch: explicit --allow-codex only",
+            "lovelace_lab_run: fixed programming/headless-Ghidra argv; explicit --allow-lovelace-lab-run plus exact guest marker only",
             "writes: session metadata or existing proof-lane artifacts only",
             "",
         ]
@@ -2442,6 +2529,8 @@ def command_argument_completion_plan(
         choices = ("status", "list", "show", "add", "clear")
     elif command == "codex":
         choices = ("status", "handoff", "version", "doctor", "start", "exec", "resume")
+    elif command == "lab":
+        choices = ("status", "run", "ghidra")
     elif command == "kaiju":
         choices = (
             "status",
@@ -2622,6 +2711,437 @@ def restore_console_readline(state: tuple[object, str] | None) -> None:
     readline.set_completer_delims(old_delims)
     if hasattr(readline, "set_completion_append_character"):
         readline.set_completion_append_character(" ")
+
+
+def _lovelace_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise NoxframeError(f"Lovelace runtime marker has duplicate key: {key}")
+        value[key] = item
+    return value
+
+
+def validate_lovelace_runtime_marker_payload(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise NoxframeError("Lovelace runtime marker must be a JSON object")
+    keys = frozenset(value)
+    if keys != LOVELACE_MARKER_KEYS:
+        missing = sorted(LOVELACE_MARKER_KEYS - keys)
+        extra = sorted(keys - LOVELACE_MARKER_KEYS)
+        details: list[str] = []
+        if missing:
+            details.append("missing=" + ",".join(missing))
+        if extra:
+            details.append("extra=" + ",".join(extra))
+        raise NoxframeError(
+            "Lovelace runtime marker keys do not match the exact contract"
+            + (": " + " ".join(details) if details else "")
+        )
+    if value.get("schema") != "wucios.lovelace.runtime.v1":
+        raise NoxframeError("Lovelace runtime marker schema mismatch")
+    if value.get("profile") != "lovelace-laboratory":
+        raise NoxframeError("Lovelace runtime marker profile mismatch")
+    if value.get("authoritative_for_release") is not False:
+        raise NoxframeError("Lovelace runtime marker must be non-authoritative")
+    if value.get("default_profile") is not False:
+        raise NoxframeError("Lovelace runtime marker must not identify the default profile")
+    if value.get("noxframe_guest_broker") is not True:
+        raise NoxframeError("Lovelace runtime marker does not enable the guest broker capability")
+    return dict(value)
+
+
+def read_lovelace_runtime_marker() -> dict[str, object]:
+    path = LOVELACE_RUNTIME_MARKER
+    try:
+        info = os.lstat(path)
+    except OSError as exc:
+        raise NoxframeError(f"missing fixed Lovelace runtime marker: {path}") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise NoxframeError(f"Lovelace runtime marker must not be a symlink: {path}")
+    if not stat.S_ISREG(info.st_mode):
+        raise NoxframeError(f"Lovelace runtime marker must be a regular file: {path}")
+    if info.st_nlink != 1:
+        raise NoxframeError(f"Lovelace runtime marker must not be hardlinked: {path}")
+    if info.st_uid != 0:
+        raise NoxframeError(f"Lovelace runtime marker must be root-owned: {path}")
+    if stat.S_IMODE(info.st_mode) & 0o022:
+        raise NoxframeError(f"Lovelace runtime marker must not be group/world writable: {path}")
+    if not 0 < info.st_size <= LOVELACE_MARKER_MAX_BYTES:
+        raise NoxframeError(
+            f"Lovelace runtime marker size must be 1..{LOVELACE_MARKER_MAX_BYTES} bytes: {path}"
+        )
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise NoxframeError(f"could not open fixed Lovelace runtime marker: {path}") from exc
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            raise NoxframeError(f"Lovelace runtime marker changed type while opening: {path}")
+        if opened.st_ino != info.st_ino or opened.st_dev != info.st_dev:
+            raise NoxframeError(f"Lovelace runtime marker changed while opening: {path}")
+        if opened.st_nlink != 1 or opened.st_uid != 0:
+            raise NoxframeError(f"Lovelace runtime marker ownership/link state changed: {path}")
+        if stat.S_IMODE(opened.st_mode) & 0o022:
+            raise NoxframeError(f"Lovelace runtime marker became group/world writable: {path}")
+        data = bytearray()
+        while len(data) <= LOVELACE_MARKER_MAX_BYTES:
+            chunk = os.read(fd, min(1024, LOVELACE_MARKER_MAX_BYTES + 1 - len(data)))
+            if not chunk:
+                break
+            data.extend(chunk)
+    finally:
+        os.close(fd)
+    if not data or len(data) > LOVELACE_MARKER_MAX_BYTES:
+        raise NoxframeError(f"Lovelace runtime marker changed size while reading: {path}")
+    try:
+        value = json.loads(data.decode("utf-8"), object_pairs_hook=_lovelace_json_object)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise NoxframeError(f"Lovelace runtime marker is not valid UTF-8 JSON: {path}") from exc
+    return validate_lovelace_runtime_marker_payload(value)
+
+
+def lovelace_guest_marker_status() -> tuple[bool, str]:
+    try:
+        read_lovelace_runtime_marker()
+    except NoxframeError as exc:
+        return False, str(exc)
+    return True, "valid non-authoritative Lovelace Laboratory guest marker"
+
+
+def validate_lovelace_lab_request(language: str, source: str) -> tuple[str, str]:
+    if language not in LOVELACE_LAB_LANGUAGES:
+        raise NoxframeError(
+            "lab run: unknown language; choose " + ", ".join(LOVELACE_LAB_LANGUAGES)
+        )
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", source)
+        or ".." in source
+        or "/" in source
+        or "\\" in source
+    ):
+        raise NoxframeError(
+            "lab run: source must be one plain filename under /work; traversal and metacharacters are rejected"
+        )
+    suffixes = LOVELACE_LAB_LANGUAGES[language]
+    if not any(source.endswith(suffix) for suffix in suffixes):
+        raise NoxframeError(
+            f"lab run: {language} source must end in " + " or ".join(suffixes)
+        )
+    return language, source
+
+
+def lovelace_lab_command(language: str, source: str) -> list[str]:
+    checked_language, checked_source = validate_lovelace_lab_request(language, source)
+    return [str(LOVELACE_LAB_RUNNER), checked_language, checked_source]
+
+
+def validate_lovelace_ghidra_request(input_path: str) -> str:
+    prefix = LOVELACE_LAB_GUEST_PATH_PREFIX
+    if not input_path.startswith(prefix):
+        raise NoxframeError(
+            "lab ghidra: input must be an explicit /work/<plain-filename> guest path"
+        )
+    filename = input_path.removeprefix(prefix)
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", filename)
+        or ".." in filename
+        or "/" in filename
+        or "\\" in filename
+    ):
+        raise NoxframeError(
+            "lab ghidra: input must be one plain regular file directly under /work; traversal and metacharacters are rejected"
+        )
+    return input_path
+
+
+def lovelace_ghidra_command(input_path: str) -> list[str]:
+    checked_path = validate_lovelace_ghidra_request(input_path)
+    return [str(LOVELACE_LAB_RUNNER), "ghidra", checked_path]
+
+
+def lovelace_broker_command(route: str, operand: str) -> list[str]:
+    if route == "ghidra":
+        return lovelace_ghidra_command(operand)
+    return lovelace_lab_command(route, operand)
+
+
+def lovelace_lab_environment() -> dict[str, str]:
+    return dict(LOVELACE_LAB_ENV)
+
+
+def escape_lovelace_lab_output(output: bytes) -> str:
+    """Render guest-tool bytes without forwarding terminal control sequences."""
+    rendered: list[str] = []
+    for value in output:
+        if value in {0x09, 0x0A} or 0x20 <= value <= 0x7E:
+            rendered.append(chr(value))
+        else:
+            rendered.append(f"\\x{value:02x}")
+    return "".join(rendered)
+
+
+def _validate_lovelace_source_metadata(
+    source_info: os.stat_result, source: str
+) -> None:
+    if stat.S_ISLNK(source_info.st_mode) or not stat.S_ISREG(
+        source_info.st_mode
+    ):
+        raise NoxframeError(
+            f"lab run: source must be a regular non-symlink file: {source}"
+        )
+    if source_info.st_nlink != 1:
+        raise NoxframeError(
+            f"lab run: source must not be hardlinked: {source}"
+        )
+    if source_info.st_size > LOVELACE_LAB_SOURCE_LIMIT:
+        raise NoxframeError(
+            "lab run: source exceeds the 1 MiB input limit"
+        )
+
+
+def _validate_lovelace_ghidra_metadata(
+    input_info: os.stat_result, input_path: str
+) -> None:
+    if stat.S_ISLNK(input_info.st_mode) or not stat.S_ISREG(
+        input_info.st_mode
+    ):
+        raise NoxframeError(
+            f"lab ghidra: input must be a regular non-symlink file: {input_path}"
+        )
+    if input_info.st_nlink != 1:
+        raise NoxframeError(
+            f"lab ghidra: input must not be hardlinked: {input_path}"
+        )
+    if input_info.st_size > LOVELACE_LAB_GHIDRA_INPUT_LIMIT:
+        raise NoxframeError(
+            "lab ghidra: input exceeds the 16 MiB input limit"
+        )
+
+
+def _validate_lovelace_runner_and_workdir(operand: str) -> None:
+    runner = LOVELACE_LAB_RUNNER
+    try:
+        runner_info = os.lstat(runner)
+    except OSError as exc:
+        raise NoxframeError(f"missing fixed Lovelace lab runner: {runner}") from exc
+    if stat.S_ISLNK(runner_info.st_mode) or not stat.S_ISREG(runner_info.st_mode):
+        raise NoxframeError(f"Lovelace lab runner must be a regular non-symlink file: {runner}")
+    if runner_info.st_nlink != 1:
+        raise NoxframeError(f"Lovelace lab runner must not be hardlinked: {runner}")
+    if runner_info.st_uid != 0 or stat.S_IMODE(runner_info.st_mode) & 0o022:
+        raise NoxframeError(f"Lovelace lab runner must be root-owned and not group/world writable: {runner}")
+    if not os.access(runner, os.X_OK):
+        raise NoxframeError(f"Lovelace lab runner is not executable: {runner}")
+
+    workdir = LOVELACE_LAB_WORKDIR
+    try:
+        work_info = os.lstat(workdir)
+    except OSError as exc:
+        raise NoxframeError(f"missing fixed Lovelace work directory: {workdir}") from exc
+    if stat.S_ISLNK(work_info.st_mode) or not stat.S_ISDIR(work_info.st_mode):
+        raise NoxframeError(f"Lovelace work directory must be a real directory: {workdir}")
+
+    if operand.startswith("/"):
+        input_path = Path(validate_lovelace_ghidra_request(operand))
+        missing_message = f"lab ghidra: missing input file: {operand}"
+    else:
+        input_path = workdir / operand
+        missing_message = f"lab run: missing source file under /work: {operand}"
+    try:
+        input_info = os.lstat(input_path)
+    except OSError as exc:
+        raise NoxframeError(missing_message) from exc
+    if operand.startswith("/"):
+        _validate_lovelace_ghidra_metadata(input_info, operand)
+    else:
+        _validate_lovelace_source_metadata(input_info, operand)
+
+
+def _kill_lovelace_process_group(process: subprocess.Popen[bytes]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+
+
+def run_lovelace_lab(route: str, operand: str) -> LovelaceLabRunResult:
+    command = lovelace_broker_command(route, operand)
+    # Defense in depth: direct callers cannot turn this helper into a host bridge.
+    read_lovelace_runtime_marker()
+    _validate_lovelace_runner_and_workdir(operand)
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=LOVELACE_LAB_WORKDIR,
+            env=lovelace_lab_environment(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            shell=False,
+            close_fds=True,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        raise NoxframeError(f"lab run: could not start fixed Lovelace guest runner: {exc}") from exc
+    if process.stdout is None:  # pragma: no cover - Popen contract defense
+        _kill_lovelace_process_group(process)
+        raise NoxframeError("lab run: fixed runner output pipe was not created")
+
+    output = bytearray()
+    timed_out = False
+    output_limited = False
+    eof = False
+    deadline = time.monotonic() + LOVELACE_LAB_TIMEOUT_SECONDS
+    fd = process.stdout.fileno()
+    cleanup_complete = False
+    try:
+        os.set_blocking(fd, False)
+        while not eof:
+            remaining_time = deadline - time.monotonic()
+            if remaining_time <= 0:
+                timed_out = True
+                break
+            ready, _, _ = select.select([fd], [], [], min(remaining_time, 0.1))
+            if not ready:
+                continue
+            try:
+                chunk = os.read(fd, 4096)
+            except BlockingIOError:
+                continue
+            if not chunk:
+                eof = True
+                continue
+            remaining_output = LOVELACE_LAB_OUTPUT_LIMIT - len(output)
+            if len(chunk) > remaining_output:
+                if remaining_output > 0:
+                    output.extend(chunk[:remaining_output])
+                output_limited = True
+                break
+            output.extend(chunk)
+        if timed_out or output_limited:
+            _kill_lovelace_process_group(process)
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            _kill_lovelace_process_group(process)
+            process.wait(timeout=2)
+        cleanup_complete = True
+    finally:
+        if not cleanup_complete:
+            _kill_lovelace_process_group(process)
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+        process.stdout.close()
+
+    if timed_out:
+        returncode = 124
+    elif output_limited:
+        returncode = 125
+    else:
+        returncode = int(process.returncode or 0)
+    return LovelaceLabRunResult(
+        returncode=returncode,
+        output=escape_lovelace_lab_output(bytes(output)),
+        timed_out=timed_out,
+        output_limited=output_limited,
+    )
+
+
+def lovelace_lab_status_text(args: argparse.Namespace) -> str:
+    marker_ok, marker_detail = lovelace_guest_marker_status()
+    enabled = bool(getattr(args, "allow_lovelace_lab_run", False))
+    return "\n".join(
+        [
+            "schema: wuci-noxframe-lovelace-lab-bridge-v1",
+            "lab bridge: " + ("enabled" if enabled else "disabled"),
+            "guest marker: " + ("valid" if marker_ok else "unavailable"),
+            f"marker detail: {marker_detail}",
+            f"marker path: {LOVELACE_RUNTIME_MARKER}",
+            f"fixed runner: {LOVELACE_LAB_RUNNER}",
+            f"fixed cwd: {LOVELACE_LAB_WORKDIR}",
+            "languages: " + ", ".join(LOVELACE_LAB_LANGUAGES),
+            "ghidra: pinned guest ghidra-headless; explicit /work/<plain-filename>; headless analysis only",
+            "ghidra acceptance: fixed generic semantic post-script; process exit alone cannot pass",
+            f"ghidra semantic marker: {LOVELACE_LAB_GHIDRA_SEMANTIC_MARKER}",
+            f"ghidra input limit: {LOVELACE_LAB_GHIDRA_INPUT_LIMIT}B",
+            "open files: programming routes="
+            f"{LOVELACE_LAB_PROGRAMMING_OPEN_FILES} "
+            f"ghidra-headless={LOVELACE_LAB_GHIDRA_OPEN_FILES}",
+            "ghidra resources: maximum-heap="
+            f"{LOVELACE_LAB_GHIDRA_MAX_HEAP_MIB}MiB "
+            "cpu-seconds="
+            f"{LOVELACE_LAB_GHIDRA_CPU_SECONDS_PER_VCPU}x-online-vCPU "
+            "supported-online-vCPUs="
+            f"{LOVELACE_LAB_GHIDRA_MIN_VCPUS}.."
+            f"{LOVELACE_LAB_GHIDRA_MAX_VCPUS}",
+            f"limits: timeout={int(LOVELACE_LAB_TIMEOUT_SECONDS)}s combined-output={LOVELACE_LAB_OUTPUT_LIMIT}B",
+            "output rendering: escaped ASCII; only TAB, LF, and printable ASCII are forwarded",
+            "default guard: metadata-only unless --allow-lovelace-lab-run was passed inside the marked Lovelace guest",
+            "shell: disabled; fixed argument vector with shell=False",
+            "execution: Ghidra imports the selected input; it never executes the analyzed file",
+            "boundary: NOXFRAME is not containment; the selected Lovelace execution domain owns isolation",
+            "",
+        ]
+    )
+
+
+def handle_lovelace_lab_command(args: argparse.Namespace, parts: list[str]) -> None:
+    action = parts[1].lower() if len(parts) > 1 else "status"
+    if action == "status":
+        print(lovelace_lab_status_text(args), end="")
+        return
+    if action == "run" and len(parts) == 4:
+        route = parts[2].lower()
+        operand = parts[3]
+        label = "lab run"
+    elif action == "ghidra" and len(parts) == 3:
+        route = "ghidra"
+        operand = parts[2]
+        label = "lab ghidra"
+    else:
+        print(
+            "usage: lab [status|run <python3|c|c++|assembly|rust|go> "
+            "<source-filename>|ghidra /work/<input-filename>]"
+        )
+        return
+    if not getattr(args, "allow_lovelace_lab_run", False):
+        print(f"{label}: guest broker disabled")
+        print("restart NOXFRAME inside Lovelace with --allow-lovelace-lab-run")
+        return
+    marker_ok, marker_detail = lovelace_guest_marker_status()
+    if not marker_ok:
+        print(f"{label}: unavailable outside a validated Lovelace Laboratory guest")
+        print(f"marker: {marker_detail}")
+        return
+    try:
+        command = lovelace_broker_command(route, operand)
+        result = run_lovelace_lab(route, operand)
+    except NoxframeError as exc:
+        print(str(exc))
+        return
+    print(f"{label}: launching fixed Lovelace guest broker")
+    print(f"cwd: {LOVELACE_LAB_WORKDIR}")
+    print(f"argv: {shlex.join(command)}")
+    if route == "ghidra":
+        print("mode: pinned guest Ghidra headless import; the input is analyzed, never executed")
+    print("boundary: NOXFRAME is not containment; this route remains inside the selected Lovelace guest")
+    if result.output:
+        print(result.output, end="" if result.output.endswith("\n") else "\n")
+    if result.timed_out:
+        print(f"{label}: terminated after {int(LOVELACE_LAB_TIMEOUT_SECONDS)} seconds")
+    if result.output_limited:
+        print(f"{label}: terminated after {LOVELACE_LAB_OUTPUT_LIMIT} output bytes")
+    print(f"lab-run-result: {result.returncode}")
 
 
 def codex_executable_status(args: argparse.Namespace) -> str:
@@ -5750,6 +6270,14 @@ def parse_args() -> argparse.Namespace:
         help="Codex executable for the opt-in console bridge",
     )
     parser.add_argument(
+        "--allow-lovelace-lab-run",
+        action="store_true",
+        help=(
+            "allow the fixed lab programming/headless-Ghidra guest broker only "
+            "when the exact Lovelace runtime marker also validates"
+        ),
+    )
+    parser.add_argument(
         "--allow-kaiju-boot",
         action="store_true",
         help="allow the NOXFRAME console kaiju boot command to launch non-graphical QEMU",
@@ -5781,8 +6309,32 @@ def run_launch_matrix(
     seal_path: Path,
     clock_path: Path,
 ) -> int:
+    workspace = create_demo_workspace()
+    try:
+        return _run_launch_matrix(
+            root,
+            args,
+            palette,
+            report_path=report_path,
+            seal_path=seal_path,
+            clock_path=clock_path,
+            demo_dir=str(Path(workspace.name) / GATE_DEMO_DIRNAME),
+        )
+    finally:
+        workspace.cleanup()
+
+
+def _run_launch_matrix(
+    root: Path,
+    args: argparse.Namespace,
+    palette: Palette,
+    *,
+    report_path: Path,
+    seal_path: Path,
+    clock_path: Path,
+    demo_dir: str,
+) -> int:
     started_utc = utc_now()
-    demo_dir = run_demo_dir()
     clock_state = read_clock_state(clock_path)
     clock_decision = resolve_profile(
         args.profile,
@@ -6874,6 +7426,9 @@ def handle_dev_or_host_command(
     if command == "codex":
         handle_codex_command(root, args, parts)
         return
+    if command == "lab":
+        handle_lovelace_lab_command(args, parts)
+        return
     if command == "update":
         print("update: use repository proof lanes outside the console")
         print("protocol: plan, validate, commit, push")
@@ -6925,8 +7480,8 @@ def handle_dev_or_host_command(
         print(base1_text(action), end="")
         return
     if command == "lang":
-        print("lang: host language runtimes are not executed from this console")
-        print("support: metadata only")
+        print("lang: direct host language commands remain metadata-only")
+        print("guest support: use lab status; lab run and lab ghidra are dual-gated inside Lovelace Laboratory")
         return
     spec = console_lookup(command)
     if spec is not None:

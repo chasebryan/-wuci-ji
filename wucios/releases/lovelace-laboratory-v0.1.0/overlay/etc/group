@@ -1,0 +1,9 @@
+root:x:0:
+bin:x:1:
+daemon:x:2:
+tty:x:5:
+disk:x:6:
+wheel:x:10:lab
+users:x:100:
+lab:x:1000:
+nobody:x:65534:

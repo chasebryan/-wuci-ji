@@ -18,11 +18,23 @@ the current repository has code and tests for that behavior.
 | CAGE boundary | Public witness bundle legitimacy, no private material, deny general runtime execution | Python policy/tooling | Artifact airlock; not OS sandboxing |
 | QCAGE boundary | Digest vectors, crypto inventory, build graph evidence, quantum migration debt, no false PQ claim | Python policy/tooling | Quantum-aware metadata; not PQ security |
 | CARROT runtime policy boundary | Policy says no network, FROST/Gate may attest policy only, seccomp denies network syscalls, user+network namespace entry is checked | Python policy plus assembly seccomp probe and Rust wrapper source | Local no-network syscall proof lane on supporting kernels; not general sandboxing or VM containment |
+| Lovelace Laboratory local VM control-observation boundary | Exact artifact binding, usable KVM, unprivileged QEMU, outer bubblewrap namespaces, QEMU sandboxing, bounded resources, absent guest networking/persistence/host shares/device passthrough, fixed benign acceptance commands, normal-unwind QEMU disappearance, and a separately gated fixed-benign read-only payload ingress check | Python Lovelace builder and host supervisor plus artifact-bound local evidence | Local KVM-plus-bubblewrap layered-control-presence and fixed-benign payload observations only when their distinct exact evidence gates pass; not general or production sandboxing, perfect isolation, operator-selected-sample validation, arbitrary-malware safety, cleanup after host failure, or release authority |
 | INSTALL boundary | Copied local install root key, OpenSSH signed manifest, digest vector, proof gates, atomic install, audit receipt | Python installer plus existing proof lanes | Signed zero-prompt install lane; no runtime/PQ claim |
 | Wuci-OS image evidence boundary | Operator-supplied musl source ISO safe copy, digest vector, live-layout check, deterministic overlay/source-kit output, Daylight/WJSEAL overlay seal, and serial QEMU boot plan metadata | Python `tools/wuci_os.py` plus NOXFRAME metadata adapter | Image evidence and boot planning only. OS runtime containment is not established; host containment, PQ safety, and independent OS authority are also not established. |
 | WJ* composition boundary | Golden Lock v1 transcript, 3-of-5 normal authority target, 4-of-5 ceremony target, Gate policy, Merkle evidence, witness root mapping | Formal model, Golden Lock policy matrix, plus existing proof lanes | Target composition model; fixture FROST remains test-only |
 | WJ-GOLD acceptance boundary | Canonical transcript target, one golden authorization hash, pressure/PQ modes, threshold and custody-domain checks, public evidence presence, fail-closed claims | JSON model plus Python model validator | Falsifiable model gate; not production cryptography. Runtime sandboxing is not implemented; production authority is not established; host/PQ system security is not established. |
 | WJ-next transcript boundary | Canonical transcript, digest vector, one authorization hash, typed verifier predicate, PQ mode discipline | Formal model plus parser hardening replay | Target transcript model; pq-secure remains false until earned |
+
+The Lovelace row does not change the repository-wide general-runtime-sandbox
+nonclaim. TCG Lovelace runs are functional checks only. Even an artifact-bound
+local KVM smoke pass observes only the named controls during one fixed benign
+run. Its separate payload gate observes only the exact committed benign fixture
+and does not satisfy the ordinary hostile gate. Neither establishes perfect VM
+containment, validates an operator-selected sample, demonstrates safety for arbitrary
+malicious code, cleanup after `SIGKILL` or host failure, independent review, or
+production readiness. `production_ready_claimed` remains `false`. See
+`docs/wucios/LOVELACE_CONTAINMENT_BOUNDARY.md` for the exact scope and residual
+risks.
 
 See `docs/wuci_wjstar_model.md` for the formal target composition:
 `WJ* = GoldenLock_v1(AEAD + FROST_(3/5,4/5) + H-Merkle + G + R)`.
