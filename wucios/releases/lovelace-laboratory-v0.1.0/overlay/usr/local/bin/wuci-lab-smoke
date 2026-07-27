@@ -1,0 +1,71 @@
+#!/bin/ash
+set -eu
+
+root=$(mktemp -d /work/.wuci-smoke.XXXXXX)
+cleanup() {
+  rm -rf -- "$root"
+}
+trap cleanup EXIT HUP INT TERM
+cd "$root"
+
+cat > hello.py <<'EOF'
+print("python:ok")
+EOF
+python3 -I hello.py | grep -Fx "python:ok"
+
+cat > hello.c <<'EOF'
+#include <stdio.h>
+int main(void) { puts("c:ok"); return 0; }
+EOF
+cc -O2 -Wall -Wextra -Werror -o hello-c hello.c
+./hello-c | grep -Fx "c:ok"
+
+cat > hello.cpp <<'EOF'
+#include <iostream>
+int main() { std::cout << "cpp:ok\n"; }
+EOF
+c++ -O2 -Wall -Wextra -Werror -o hello-cpp hello.cpp
+./hello-cpp | grep -Fx "cpp:ok"
+
+cat > hello.s <<'EOF'
+.global _start
+.section .rodata
+message: .ascii "assembly:ok\n"
+.section .text
+_start:
+  mov $1, %rax
+  mov $1, %rdi
+  lea message(%rip), %rsi
+  mov $12, %rdx
+  syscall
+  mov $60, %rax
+  xor %rdi, %rdi
+  syscall
+EOF
+cc -nostdlib -no-pie -o hello-asm hello.s
+./hello-asm | grep -Fx "assembly:ok"
+
+cat > hello.rs <<'EOF'
+fn main() { println!("rust:ok"); }
+EOF
+rustc -C opt-level=2 -o hello-rust hello.rs
+./hello-rust | grep -Fx "rust:ok"
+
+cat > hello.go <<'EOF'
+package main
+import "fmt"
+func main() { fmt.Println("go:ok") }
+EOF
+GOCACHE="$root/go-cache" GOPATH="$root/go-path" go build -trimpath -o hello-go hello.go
+./hello-go | grep -Fx "go:ok"
+
+wuci-ji selftest | grep -Fx "wuci-ji selftest: PASS"
+python3 /opt/wuci-ji/tools/wuci-noxframe --help >/dev/null
+noxframe --help >/dev/null
+test -x /opt/wucios/ghidra/support/analyzeHeadless
+java -version
+
+printf '%s\n' "LOVELACE_LANGUAGE_MATRIX_PASS python3 c cpp assembly rust go"
+printf '%s\n' "LOVELACE_NATIVE_WUCI_JI_SELFTEST_PASS"
+printf '%s\n' "LOVELACE_NOXFRAME_PRESENT_PASS"
+printf '%s\n' "LOVELACE_GHIDRA_HEADLESS_PRESENT_PASS"

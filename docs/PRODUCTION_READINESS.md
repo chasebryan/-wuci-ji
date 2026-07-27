@@ -12,6 +12,14 @@ trust authority is not established. A complete runtime sandbox and no-network
 containment outside the CARROT proof lane are not claimed until corresponding
 controls exist and pass proof gates.
 
+The separate Lovelace Laboratory lane can conditionally record an
+artifact-bound local KVM-plus-bubblewrap layered-control-presence observation
+for one fixed benign acceptance run. That narrow observation does not establish
+general or production VM containment, perfect isolation, arbitrary-malware
+safety, cleanup after host failure, release authority, or independent review.
+It does not change this readiness status: `production_ready_claimed` remains
+`false`.
+
 ## Current Evidence
 
 Run:
@@ -32,6 +40,18 @@ These targets produce or verify:
 - CARROT runtime policy validation and kernel no-network proof using
   `wuci-ji sandbox-seccomp-net-deny-selftest` plus namespace entry checks.
 - Compiled Rust wrapper evidence through `make rust-sandbox-test`.
+- A passing `make wucios-lovelace-hostile-smoke` can add local evidence that
+  the exact bound artifact was exercised with the named KVM, unprivileged-QEMU,
+  bubblewrap, QEMU-sandbox, resource, no-network, volatile-storage, no-share,
+  no-passthrough, and normal-unwind controls. The producer uses only fixed
+  benign fixtures. Missing evidence remains `NOT_MEASURED`, and a pass supports
+  only that local layered-control-presence observation.
+- A passing `make wucios-lovelace-hostile-payload-smoke` can separately record
+  exact-artifact local evidence for read-only ingress of the committed benign
+  payload fixture, including supervisor/guest byte checks, guest-root write
+  rejection, and normal-unwind cleanup. It neither satisfies the ordinary
+  hostile-cell gate nor supports claims about operator-selected or malicious
+  samples.
 - Fixture-authority production rejection gates.
 - Formal WJ* composition model checks through `make wjstar-model-test`, covering
   AEAD secrecy, Golden Lock v1 3-of-5 open/release authority, 4-of-5
@@ -103,9 +123,12 @@ These targets produce or verify:
   false until the signed ceremony workflow and deployment-authority verifier
   acceptance are linked.
 - General runtime sandboxing is not complete. Independent wrapper/seccomp
-  review and VM-grade containment are also incomplete. CARROT currently proves a narrow
-  network-syscall deny lane on kernels that allow seccomp filters and
-  unprivileged user+net namespaces.
+  review and production VM-grade containment are also incomplete. CARROT
+  currently proves a narrow network-syscall deny lane on kernels that allow
+  seccomp filters and unprivileged user+net namespaces. Lovelace's optional
+  artifact-bound local KVM-plus-bubblewrap result observes only the named
+  controls for one fixed benign run; it does not clear this blocker or make
+  arbitrary malicious code safe.
 - Real pinned PQ verifier evidence is available only when
   `tools/wuci_pq_verifier.py verify-real` passes against reviewed pins. The
   local Rust FIPS 204 verifier path can produce local ML-DSA verifier evidence

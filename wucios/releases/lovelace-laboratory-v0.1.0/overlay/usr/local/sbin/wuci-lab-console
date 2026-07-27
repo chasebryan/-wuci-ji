@@ -1,0 +1,3 @@
+#!/bin/ash
+printf '%s\n' "LOVELACE_LABORATORY_CONSOLE_READY"
+exec /sbin/runuser -u lab -- /bin/bash -l

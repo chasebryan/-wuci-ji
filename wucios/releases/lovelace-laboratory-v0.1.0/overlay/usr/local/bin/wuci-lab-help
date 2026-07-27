@@ -1,0 +1,22 @@
+#!/bin/ash
+cat <<'EOF'
+Lovelace Laboratory commands:
+  wuci-lab-status       machine-readable capability and boundary report
+  noxframe              launch the bounded NOXFRAME operator console
+  wuci-lab-run ...      run a fixed programming-language action in /work
+  ghidra-headless ...   run the pinned Ghidra headless entry point
+  doas <command>        obtain guest root for system-development work
+
+Examples:
+  wuci-lab-run python3 hello.py
+  wuci-lab-run c hello.c
+  wuci-lab-run c++ hello.cpp
+  wuci-lab-run assembly hello.s
+  wuci-lab-run rust hello.rs
+  wuci-lab-run go hello.go
+
+Guest-local users and doas are not containment boundaries. Do not run malicious
+or kernel-level experiments in an ordinary developer/analysis launch. The host
+`wuci-lab` supervisor must select a KVM-gated, networkless, volatile hostile
+cell for that work; that cell assumes the workload controls guest root.
+EOF

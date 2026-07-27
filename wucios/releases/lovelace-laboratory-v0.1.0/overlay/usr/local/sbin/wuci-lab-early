@@ -1,0 +1,41 @@
+#!/bin/ash
+set -eu
+
+mount -o remount,rw / 2>/dev/null || true
+mount -t proc proc /proc 2>/dev/null || true
+mount -t sysfs sysfs /sys 2>/dev/null || true
+mount -t devtmpfs dev /dev 2>/dev/null || true
+mkdir -p /dev/pts /run /tmp /work
+mount -t devpts devpts /dev/pts -o nosuid,noexec,gid=5,mode=0620 2>/dev/null || true
+mount -t tmpfs tmpfs /run -o nosuid,nodev,mode=0755 2>/dev/null || true
+mount -t tmpfs tmpfs /tmp -o nosuid,nodev,mode=1777 2>/dev/null || true
+chmod 1777 /tmp
+chmod 0700 /work /home/lab
+chown lab:lab /work /home/lab
+
+hostname lovelace
+echo /sbin/mdev > /proc/sys/kernel/hotplug 2>/dev/null || true
+mdev -s 2>/dev/null || true
+ln -s /proc/self/fd /dev/fd
+ln -s /proc/self/fd/0 /dev/stdin
+ln -s /proc/self/fd/1 /dev/stdout
+ln -s /proc/self/fd/2 /dev/stderr
+sysctl -p /etc/sysctl.d/90-wuci-lovelace.conf >/dev/null 2>&1 || true
+
+nft -f /etc/nftables.nft 2>/dev/null || true
+ip link set lo up 2>/dev/null || true
+network_mode=none
+if ip link show eth0 >/dev/null 2>&1; then
+  network_mode=unavailable
+  ip link set eth0 up
+  if ip -4 address replace 10.0.2.15/24 dev eth0 &&
+     ip -4 route replace default via 10.0.2.2 dev eth0 &&
+     test ! -L /etc/resolv.conf &&
+     (umask 022 &&
+      printf '%s\n' 'nameserver 10.0.2.3' \
+        'options timeout:2 attempts:3' > /etc/resolv.conf); then
+    network_mode=internet
+  fi
+fi
+
+printf '%s\n' "LOVELACE_LABORATORY_BOOT profile=lovelace-laboratory storage=host-selected network=$network_mode"

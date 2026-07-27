@@ -81,11 +81,11 @@ EXPECTED_LOCK_SECTION_SHA256 = {
     "boot_media": "119073981ac3cadfa5a89dd77838301728eb5ecb60c92a7204077fb4770e831b",
     "package_source_media": "1d795d5eefed841c719641a563c85890730764cbffd9b2bb80aed15f61f243bf",
     "post_release_overlay": "f22b6b436c956fbf2ab552e1e155a57d67e2f871a2b96a8080e46b7e30908870",
-    "bootstrap": "7fbff6e29a077f27855c3cb84968bc5e87d0095ff07c5ae7cf659b80cd0bb00e",
+    "bootstrap": "7105f2a06d45f6fc731431fc2dc9b512cd81db7687cd19a456673be34c0d3b18",
     "upstream_layout": "22611a90fddd9b8caea2262cddcdd52decc63887ee0d3be3059def7065b3ae7c",
     "required_host_tools": "d2fcda2bc9be60102f6e0c00f73165015fc154c73069a2d1f319fa720e882561",
 }
-EXPECTED_INPUT_LOCK_SHA256 = "06b6714a23715f5d4df2786d289a5f6930a6172703145285cc4cacdcacad42ce"
+EXPECTED_INPUT_LOCK_SHA256 = "c19a85bec515fd4d0415d74f1ad57ecfeba8d4ff57b0b0da69bf983e87a92b0b"
 EXPECTED_PACKAGE_LOCK_SHA256 = "cb1cb6149c4d8b8cd840ed31917cb53b1d8d3179d5c0c880572ba9506f3756b2"
 EXPECTED_RELEASE_BASE_URL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/"
 EXPECTED_OVERLAY_BASE_URL = "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/"

@@ -1,0 +1,7 @@
+WuciOS Lovelace Laboratory
+
+This is a non-authoritative research/development substrate, not Noether Core.
+The outer guest is a trusted development plane, not a hostile-code boundary.
+Use `wuci-lab-status`, `noxframe`, and `wuci-lab-help` to begin.
+Internet access exists only when the host launcher explicitly attaches a NIC.
+Defensive hostile-code work must use a separate KVM-gated volatile cell.

@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+import shutil
+from pathlib import Path
+
+
+def version(command: str, *args: str) -> str | None:
+    path = shutil.which(command)
+    if path is None:
+        return None
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            [path, *args],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=10,
+            check=False,
+            shell=False,
+            env={
+                "HOME": "/tmp",
+                "LANG": "C",
+                "LC_ALL": "C",
+                "PATH": "/usr/local/bin:/usr/bin:/bin",
+            },
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    lines = result.stdout.strip().splitlines()
+    return lines[0] if lines else None
+
+
+payload = {
+    "schema": "wucios.lovelace.runtime_status.v1",
+    "profile": "lovelace-laboratory",
+    "authoritative_for_release": False,
+    "uid": os.getuid(),
+    "workspace": {
+        "path": "/work",
+        "writable": os.access("/work", os.W_OK),
+        "persistence": "selected by the host overlay mode; not inferred in guest",
+    },
+    "network": {
+        "device_present": Path("/sys/class/net/eth0").exists(),
+        "default": "none",
+        "containment_claim": False,
+    },
+    "toolchains": {
+        "python3": version("python3", "--version"),
+        "cc": version("cc", "--version"),
+        "c++": version("c++", "--version"),
+        "as": version("as", "--version"),
+        "rustc": version("rustc", "--version"),
+        "go": version("go", "version"),
+        "java": version("java", "-version"),
+    },
+    "noxframe": {
+        "available": shutil.which("noxframe") is not None,
+        "default_behavior": "metadata-only",
+        "containment_boundary": False,
+    },
+    "ghidra": {
+        "headless_available": Path(
+            "/opt/wucios/ghidra/support/analyzeHeadless"
+        ).is_file(),
+        "containment_boundary": False,
+    },
+    "hostile_code": {
+        "outer_guest_allowed": False,
+        "required_host_mode": "KVM-gated volatile networkless cell",
+    },
+    "non_claims": [
+        "No release or production authority",
+        "No perfect isolation or escape-proof execution",
+        "No guarantee that malicious code is safe to execute",
+        "No hostile-code isolation from TCG",
+    ],
+}
+print(json.dumps(payload, indent=2, sort_keys=True))
