@@ -26,7 +26,7 @@ jobs:
       - name: Public evidence firewall
         run: python3 tools/daylight_public_evidence_firewall.py scan build/daylight/daylight-standard-public --profile public-docs
       - name: Upload conformance artifacts
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: daylight-standard
           path: build/daylight/daylight-standard-public/
