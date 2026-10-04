@@ -17,6 +17,6 @@ path = "src/main.rs"
 chacha20poly1305 = { version = "=0.10.1", default-features = false, features = ["alloc"] }
 getrandom = "=0.2.16"
 hkdf = "=0.12.4"
-sha2 = "=0.10.9"
+sha2 = "=0.11.0"
 subtle = "=2.6.1"
 zeroize = "=1.9.0"
