@@ -1,0 +1,4 @@
+::sysinit:/usr/local/sbin/wuci-lab-early
+ttyS0::respawn:/usr/local/sbin/wuci-lab-console
+::ctrlaltdel:/sbin/reboot
+::shutdown:/usr/local/sbin/wuci-lab-shutdown

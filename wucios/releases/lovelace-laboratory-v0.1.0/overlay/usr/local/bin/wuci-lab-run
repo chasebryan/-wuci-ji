@@ -1,0 +1,249 @@
+#!/bin/ash
+set -eu
+
+usage() {
+  printf '%s\n' "usage: wuci-lab-run {python3|c|c++|assembly|rust|go} SOURCE" >&2
+  printf '%s\n' "       wuci-lab-run ghidra /work/INPUT" >&2
+  exit 64
+}
+
+[ "$#" -eq 2 ] || usage
+route=$1
+operand=$2
+
+case "$route" in
+  python3|c|c++|assembly|rust|go)
+    filename=$operand
+    case "$filename" in
+      ""|.|..|*/*|*..*|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*)
+        printf '%s\n' "unsafe source filename" >&2
+        exit 65
+        ;;
+    esac
+    [ "${#filename}" -le 128 ] || {
+      printf '%s\n' "source filename exceeds the 128-byte limit" >&2
+      exit 65
+    }
+    case "$route:$filename" in
+      python3:*.py|c:*.c|c++:*.cc|c++:*.cpp|c++:*.cxx|assembly:*.s|assembly:*.S|assembly:*.asm|rust:*.rs|go:*.go) ;;
+      *) printf '%s\n' "source suffix does not match the selected language" >&2; exit 65 ;;
+    esac
+    input_path="/work/$filename"
+    input_limit=1048576
+    input_limit_label="1 MiB"
+    ;;
+  ghidra)
+    case "$operand" in
+      /work/*) filename=${operand#/work/} ;;
+      *)
+        printf '%s\n' "Ghidra input must be an explicit /work/<plain-filename> guest path" >&2
+        exit 65
+        ;;
+    esac
+    case "$filename" in
+      ""|.|..|*/*|*..*|*[!A-Za-z0-9._-]*|[!A-Za-z0-9]*)
+        printf '%s\n' "unsafe Ghidra input path" >&2
+        exit 65
+        ;;
+    esac
+    [ "${#filename}" -le 128 ] || {
+      printf '%s\n' "Ghidra input filename exceeds the 128-byte limit" >&2
+      exit 65
+    }
+    input_path=$operand
+    input_limit=16777216
+    input_limit_label="16 MiB"
+    ;;
+  *) usage ;;
+esac
+
+work=$(readlink -f /work)
+input_resolved=$(readlink -f -- "$input_path")
+case "$input_resolved" in
+  "$work"/*) ;;
+  *) printf '%s\n' "input escapes /work" >&2; exit 65 ;;
+esac
+[ -f "$input_resolved" ] && [ ! -L "$input_path" ] || {
+  printf '%s\n' "input must be a regular non-symlink file" >&2
+  exit 66
+}
+[ "$(stat -c %h -- "$input_resolved")" = 1 ] || {
+  printf '%s\n' "hardlinked input rejected" >&2
+  exit 66
+}
+input_size=$(stat -c %s -- "$input_resolved")
+[ "$input_size" -le "$input_limit" ] || {
+  printf '%s\n' "input exceeds the $input_limit_label input limit" >&2
+  exit 67
+}
+
+snapshot_root=$(mktemp -d /tmp/wuci-lab-run.XXXXXX)
+cleanup() {
+  rm -rf -- "$snapshot_root"
+}
+trap cleanup EXIT HUP INT TERM
+snapshot_path="$snapshot_root/$filename"
+python3 -I - "$input_resolved" "$snapshot_path" "$input_limit" <<'PY'
+import os
+import stat
+import sys
+
+source, destination, raw_limit = sys.argv[1:]
+limit = int(raw_limit, 10)
+source_fd = os.open(
+    source,
+    os.O_RDONLY | os.O_CLOEXEC | getattr(os, "O_NOFOLLOW", 0),
+)
+destination_fd = -1
+try:
+    before = os.fstat(source_fd)
+    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+        raise SystemExit("input snapshot rejected an unsafe file")
+    if before.st_size > limit:
+        raise SystemExit("input exceeds the bounded input limit")
+    destination_fd = os.open(
+        destination,
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | os.O_CLOEXEC
+        | getattr(os, "O_NOFOLLOW", 0),
+        0o400,
+    )
+    copied = 0
+    while True:
+        block = os.read(source_fd, min(65536, limit + 1 - copied))
+        if not block:
+            break
+        copied += len(block)
+        if copied > limit:
+            raise SystemExit("input exceeds the bounded input limit")
+        view = memoryview(block)
+        while view:
+            written = os.write(destination_fd, view)
+            view = view[written:]
+    os.fsync(destination_fd)
+    after = os.fstat(source_fd)
+    identity = (
+        "st_dev",
+        "st_ino",
+        "st_nlink",
+        "st_size",
+        "st_mtime_ns",
+        "st_ctime_ns",
+    )
+    if any(getattr(before, field) != getattr(after, field) for field in identity):
+        raise SystemExit("input changed while creating the private snapshot")
+finally:
+    if destination_fd >= 0:
+        os.close(destination_fd)
+    os.close(source_fd)
+PY
+
+cd /work
+ulimit -c 0
+ulimit -f 131072
+ulimit -u 128
+case "$route" in
+  ghidra) nofile_limit=1024 ;;
+  *) nofile_limit=128 ;;
+esac
+ulimit -n "$nofile_limit"
+output="$snapshot_root/program"
+case "$route" in
+  python3) ulimit -t 25; timeout -s KILL 30 python3 -I "$snapshot_path" ;;
+  c) ulimit -t 90; timeout -s KILL 120 cc -O2 -Wall -Wextra -Werror -o "$output" "$snapshot_path" ;;
+  c++) ulimit -t 150; timeout -s KILL 180 c++ -O2 -Wall -Wextra -Werror -x c++ -o "$output" "$snapshot_path" ;;
+  assembly) ulimit -t 90; timeout -s KILL 120 cc -nostdlib -no-pie -x assembler -o "$output" "$snapshot_path" ;;
+  rust) ulimit -t 480; timeout -s KILL 600 rustc -C opt-level=2 -o "$output" "$snapshot_path" ;;
+  go) ulimit -t 480; env GOCACHE="$snapshot_root/go-cache" GOPATH="$snapshot_root/go" timeout -s KILL 600 go build -trimpath -o "$output" "$snapshot_path" ;;
+  ghidra)
+    ghidra_bin=/usr/local/bin/ghidra-headless
+    semantic_script_root=/usr/share/wucios/fixtures/ghidra/scripts
+    semantic_script_name=LovelaceGhidraBrokerSemanticCheck.java
+    semantic_script="$semantic_script_root/$semantic_script_name"
+    semantic_marker=LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS
+    [ -x "$ghidra_bin" ] && [ ! -L "$ghidra_bin" ] || {
+      printf '%s\n' "fixed guest ghidra-headless launcher is unavailable" >&2
+      exit 69
+    }
+    [ -f "$semantic_script" ] && [ ! -L "$semantic_script" ] || {
+      printf '%s\n' "fixed Ghidra broker semantic script is unavailable" >&2
+      exit 69
+    }
+    mkdir -m 700 \
+      "$snapshot_root/projects" \
+      "$snapshot_root/home" \
+      "$snapshot_root/config" \
+      "$snapshot_root/cache" \
+      "$snapshot_root/tmp"
+    ghidra_log="$snapshot_root/ghidra.log"
+    online_vcpus=$(getconf _NPROCESSORS_ONLN)
+    case "$online_vcpus" in
+      ""|*[!0-9]*)
+        printf '%s\n' "could not determine the bounded online-vCPU count" >&2
+        exit 69
+        ;;
+    esac
+    [ "$online_vcpus" -ge 1 ] && [ "$online_vcpus" -le 8 ] || {
+      printf '%s\n' "online-vCPU count is outside the supported 1..8 range" >&2
+      exit 69
+    }
+    # RLIMIT_CPU is aggregate process CPU across threads. Keep its finite
+    # ceiling beyond NOXFRAME's 660-second outer wall deadline on every
+    # supported vCPU count so it cannot preempt the wall-clock contract.
+    ghidra_cpu_seconds=$((670 * online_vcpus))
+    ulimit -t "$ghidra_cpu_seconds"
+    set +e
+    timeout --signal=TERM --kill-after=30 600 \
+      env -i \
+      HOME="$snapshot_root/home" \
+      XDG_CONFIG_HOME="$snapshot_root/config" \
+      XDG_CACHE_HOME="$snapshot_root/cache" \
+      TMPDIR="$snapshot_root/tmp" \
+      PATH=/usr/local/bin:/usr/bin:/bin \
+      LANG=C.UTF-8 \
+      LC_ALL=C.UTF-8 \
+      JAVA_HOME=/usr/lib/jvm/default-jvm \
+      GHIDRA_HEADLESS_MAXMEM=2G \
+      JAVA_TOOL_OPTIONS="-XX:-TieredCompilation -Duser.home=$snapshot_root/home -Djava.io.tmpdir=$snapshot_root/tmp" \
+      "$ghidra_bin" "$snapshot_root/projects" noxframe-import \
+      -import "$snapshot_path" -overwrite \
+      -scriptPath "$semantic_script_root" \
+      -postScript "$semantic_script_name" \
+      -deleteProject \
+      </dev/null >"$ghidra_log" 2>&1
+    ghidra_status=$?
+    set -e
+    if [ "$ghidra_status" -ne 0 ]; then
+      tail -c 32768 -- "$ghidra_log" >&2 || true
+      printf '%s\n' "Ghidra headless analysis failed with status $ghidra_status" >&2
+      exit "$ghidra_status"
+    fi
+    set +e
+    semantic_count=$(grep -Fxc -- "$semantic_marker" "$ghidra_log")
+    semantic_status=$?
+    set -e
+    if [ "$semantic_status" -ne 0 ] || [ "$semantic_count" -ne 1 ]; then
+      tail -c 32768 -- "$ghidra_log" >&2 || true
+      printf '%s\n' "Ghidra headless semantic acceptance failed" >&2
+      exit 70
+    fi
+    project_remnants="$snapshot_root/project-remnants"
+    if ! find "$snapshot_root/projects" -mindepth 1 -print -quit > "$project_remnants"; then
+      printf '%s\n' "Ghidra project cleanup inspection failed" >&2
+      exit 71
+    fi
+    if [ -s "$project_remnants" ]; then
+      printf '%s\n' "Ghidra project cleanup left private project residue" >&2
+      exit 71
+    fi
+    rm -f -- "$project_remnants"
+    grep -Fx -- "$semantic_marker" "$ghidra_log"
+    printf '%s\n' "noxframe-ghidra-headless:ok"
+    ;;
+esac
+
+if [ "$route" != python3 ] && [ "$route" != ghidra ]; then
+  timeout -s KILL 30 "$output"
+fi

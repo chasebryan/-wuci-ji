@@ -3,7 +3,7 @@
     {
       "path": "wucios/releases/noether-forge-v2.4.0/alpine-input-lock.json",
       "schema": "wucios.noether_forge.alpine_input_lock.v2",
-      "sha256": "16fac1f4ceed74f03683fbc4110e2f1ad467a753a1a82cbac2a87e5cde81aec0"
+      "sha256": "ea253e106721a487706a5c37e30f25a46bcc3013c1812152c5954a1e02fb2d10"
     },
     {
       "path": "wucios/releases/noether-forge-v2.4.0/package-lock.json",

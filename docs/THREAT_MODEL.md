@@ -47,11 +47,36 @@ secret. Fixture authority is test-only.
   private-material absence, and overclaim rejection. It is a model gate, not a
   cryptographic verifier.
 
+## Bounded Local VM Observation
+
+The separate, non-authoritative Lovelace Laboratory lane can record an
+artifact-bound local observation that KVM, an unprivileged QEMU process, outer
+bubblewrap namespaces, QEMU sandboxing, resource bounds, and the configured
+absence of guest networking, persistence, host shares, and device passthrough
+were present for one fixed benign acceptance run. A passing record also checks
+normal-unwind QEMU disappearance for the observed process identity.
+
+A distinct artifact-bound payload-ingress gate can additionally observe that
+the exact committed benign fixture and its canonical manifest survived
+supervisor and guest byte checks, the guest mounted the secondary media
+read-only, a guest-root write probe failed without residue, and transient state
+was removed on normal unwind. It does not validate an operator-selected sample
+and cannot satisfy the ordinary hostile-cell gate.
+
+That evidence is only a local KVM-plus-bubblewrap layered-control-presence
+observation. It is not a general runtime-sandbox or perfect-VM-containment
+claim, does not make arbitrary malicious code safe, does not prove cleanup
+after `SIGKILL`, host crash, or power loss, and supplies no production or
+release authority. TCG Lovelace runs remain functional-only.
+`production_ready_claimed` remains `false`. The exact boundary and residual
+risks are defined in `docs/wucios/LOVELACE_CONTAINMENT_BOUNDARY.md`.
+
 ## Not Enforced Today
 
 - Production FROST authority or arbitrary signer material.
-- General runtime sandboxing is not enforced. Seccomp policy beyond the CARROT
-  network-syscall deny filter, VM containment, and no-network claims outside the
+- General runtime sandboxing is not enforced. The bounded Lovelace observation
+  above does not establish general VM containment. Seccomp policy beyond the
+  CARROT network-syscall deny filter and general no-network claims outside the
   CARROT proof lane are also not enforced.
 - The system is not quantum-safe; post-quantum signature verification is not
   implemented.
@@ -87,8 +112,9 @@ secret. Fixture authority is test-only.
 ## Non-Goals
 
 - Production cryptography is not claimed in Wuci-ji marketing.
-- Runtime sandboxing is not claimed. Real OS-level enforcement is required
-  before that boundary can change.
+- General runtime sandboxing is not claimed. Lovelace's artifact-bound local
+  layered-control observation does not change that boundary; independently
+  reviewed OS/hypervisor enforcement would be required for a broader claim.
 - Do not claim post-quantum security until real PQ signatures are verified.
 - Do not treat fixture authority roots as production trust anchors.
 - Do not use Python/Zig policy emitters as a substitute for assembly-enforced

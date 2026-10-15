@@ -81,7 +81,8 @@ commands (`env`, `set`, `export`, `unset`, `alias`, `unalias`, `which`,
 metadata contexts (`nest`), metadata-only plugin/WASI catalogs (`plugins`,
 `wasm`), the WUCI-KAIJU Kali purpose catalog (`kaiju`), guarded Base1/B1/B2
 metadata (`base1`), the Wuci-OS image-lane metadata adapter (`wuci-os`), and
-the bounded Codex bridge command (`codex`).
+the bounded Codex bridge command (`codex`), and the dual-gated Lovelace guest
+programming and headless-analysis broker (`lab`).
 
 Phase1 host, network, dev, hardware-mutation, and plugin route names are
 discoverable through `help` and `capabilities`, but they do not execute host
@@ -91,6 +92,90 @@ future explicit, allowlisted, transcripted bridge is added. Formerly reserved
 names now resolve to bounded local handlers or metadata-only dry-run outputs.
 Plugin and WASI routes are catalogs and policy views only; `wasm run` and host
 plugin execution remain unavailable.
+
+Lovelace Laboratory adds one narrow exception for programming and headless
+Ghidra analysis inside that guest. It does not enable the existing `python3`,
+`gcc`, `cargo`, `go`, or other host-style route names; those remain
+metadata-only. Start NOXFRAME from inside the Lovelace guest with the explicit
+broker flag. Programming routes accept one allowlisted language and one source
+filename located directly under `/work`; the Ghidra route requires an explicit
+absolute guest path to one plain input file directly under `/work`:
+
+```sh
+wuci-noxframe --console --allow-lovelace-lab-run
+```
+
+```text
+lab status
+lab run python3 hello.py
+lab run c hello.c
+lab run c++ hello.cpp
+lab run assembly hello.S
+lab run rust hello.rs
+lab run go hello.go
+lab ghidra /work/sample.bin
+```
+
+`lab run` and `lab ghidra` stay disabled unless both guards pass: the CLI opt-in
+must be present, and the fixed root-owned marker at
+`/usr/share/wucios/lovelace-runtime.json` must exactly identify the
+non-authoritative `lovelace-laboratory` profile and enable its guest-broker
+capability. Passing the flag on the host or in another guest does not create a
+host execution route. The command cannot select an executable, working
+directory, environment variable, compiler option, or arbitrary host path. It
+always invokes one of these fixed guest vectors with `shell=False` and
+`cwd=/work`:
+
+```text
+/usr/local/bin/wuci-lab-run <allowlisted-language> <plain-source-filename>
+/usr/local/bin/wuci-lab-run ghidra /work/<plain-input-filename>
+```
+
+The broker supplies only `HOME`, `LANG`, `LC_ALL`, and `PATH`; closes other file
+descriptors; provides no stdin; rejects traversal, shell metacharacters,
+unrecognized languages, mismatched filename extensions, symlinks, and
+hardlinks; rejects programming source files above 1 MiB and Ghidra inputs above
+16 MiB; and terminates the runner after 660 seconds or 64 KiB of raw combined
+output. Before displaying that output, NOXFRAME renders every byte other than
+TAB, LF, and printable ASCII as a visible lowercase `\xNN` escape. OSC, CSI,
+other ESC sequences, C0 controls, DEL, and non-ASCII bytes therefore do not
+reach the operator terminal through this broker. The guest runner makes a
+bounded private `O_NOFOLLOW` input snapshot before compilation or analysis and
+applies CPU/wall-time, file-descriptor, process, and file-size limits.
+Programming routes inherit a 128-open-file ceiling; the Java-based Ghidra
+route inherits a separate bounded 1,024-open-file ceiling.
+Printable guest text remains unauthenticated and can imitate prompts or status
+messages; output escaping reduces terminal-parser exposure but is not
+containment.
+
+`lab ghidra` uses only the pinned guest `/usr/local/bin/ghidra-headless`
+launcher. It creates private project, home, configuration, cache, and temporary
+directories; starts Ghidra with a cleared, fixed environment; imports the
+snapshot with a fixed project name; applies a 600-second inner deadline; runs
+the fixed `LovelaceGhidraBrokerSemanticCheck.java` post-script; and requests
+project deletion. It fixes the headless heap ceiling at 2 GiB. Its finite CPU
+ceiling is `670 * online-vCPU` seconds after fail-closed validation of the
+supported 1..8 online-vCPU range; this keeps aggregate multithreaded CPU time
+beyond NOXFRAME's 660-second outer wall deadline instead of prematurely
+terminating a valid Ghidra run. The post-script accepts no arguments and emits the exact
+`LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS` line only when a current program
+exists, headless analysis is enabled, no analysis timeout was reported, and
+Ghidra marks the program analyzed. The runner requires that exact line once
+before emitting `noxframe-ghidra-headless:ok`; process exit status alone cannot
+promote success. It is headless-only: there is no GUI route, operator-selected
+plugin or pre/post-script argument, or analyzed-file execution through this
+command. Successful import and analysis are an operability result, not a
+verdict that the input is benign.
+The installed `wuci-noxframe-smoke` requires the semantic line before its
+separate `LOVELACE_NOXFRAME_GHIDRA_HEADLESS_PASS` line, allowing the host-side
+runtime evidence verifier to bind semantic completion instead of trusting a
+process exit code.
+
+NOXFRAME is still not containment, and Ghidra is part of the analysis trusted
+computing base rather than a sandbox boundary. Ghidra parses attacker-controlled
+formats, so untrusted samples belong only in a separately selected disposable
+Lovelace VM/cell with the desired network and storage policy. Neither broker
+route makes hostile code safe or creates ambient host execution.
 
 `xframe-split` divides one NOXFRAME console session into session-local frame
 boxes without starting host shells or subprocess terminals. `xframe-split 2`

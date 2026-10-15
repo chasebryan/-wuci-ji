@@ -1,0 +1,22 @@
+{
+  "schema": "wucios.lovelace.ghidra_lock.v1",
+  "name": "Ghidra",
+  "version": "12.1.2",
+  "release_tag": "Ghidra_12.1.2_build",
+  "filename": "ghidra_12.1.2_PUBLIC_20260605.zip",
+  "url": "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.2_build/ghidra_12.1.2_PUBLIC_20260605.zip",
+  "size": 572803866,
+  "sha256": "b62e81a0390618466c019c60d8c2f796ced2509c4c1aea4a37644a77272cf99d",
+  "published_digest_source": "https://github.com/NationalSecurityAgency/ghidra/releases/tag/Ghidra_12.1.2_build",
+  "published_detached_signature": false,
+  "required_java_major": 21,
+  "install_path": "/opt/wucios/ghidra",
+  "entry_point": "support/analyzeHeadless",
+  "extensions": [],
+  "limitations": [
+    "The official release page publishes SHA-256 but no detached asset signature.",
+    "Alpine musl and bundled native-component compatibility must be established by the guest acceptance test.",
+    "Ghidra parses attacker-controlled formats and is not a containment layer.",
+    "Graphical operation is outside this initial headless acceptance target."
+  ]
+}

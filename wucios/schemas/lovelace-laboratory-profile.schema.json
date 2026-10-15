@@ -1,0 +1,1361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nosuchmachine.net/schemas/wucios/lovelace-laboratory-profile.v1.json",
+  "title": "WuciOS Lovelace Laboratory profile contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "display_name",
+    "status",
+    "role",
+    "default_profile",
+    "authoritative_for_release",
+    "allowed_component_classes",
+    "forbidden_component_classes",
+    "required_evidence_outputs",
+    "invariants",
+    "disqualifying_conditions",
+    "notes",
+    "profile_separation",
+    "evidence_contract",
+    "execution_classes",
+    "storage",
+    "network",
+    "virtualization",
+    "programming",
+    "noxframe",
+    "ghidra",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {
+      "const": "wucios.profile.v1"
+    },
+    "id": {
+      "const": "lovelace-laboratory"
+    },
+    "display_name": {
+      "const": "Lovelace Laboratory"
+    },
+    "status": {
+      "const": "NON_AUTHORITATIVE_RESEARCH_DEVELOPMENT_PROFILE"
+    },
+    "role": {
+      "const": "Disposable development and defensive analysis profile, separate from Noether Core."
+    },
+    "default_profile": {
+      "const": false
+    },
+    "authoritative_for_release": {
+      "const": false
+    },
+    "allowed_component_classes": {
+      "const": [
+        "shell",
+        "editor",
+        "compiler",
+        "assembler",
+        "debugger",
+        "build-tooling",
+        "version-control-client",
+        "network-client",
+        "reverse-engineering-tooling",
+        "noxframe-console",
+        "guest-command-broker",
+        "virtual-machine-supervisor-tooling"
+      ]
+    },
+    "forbidden_component_classes": {
+      "const": [
+        "default-network-service",
+        "ambient-host-command-passthrough",
+        "host-filesystem-share-by-default",
+        "host-device-passthrough-by-default",
+        "release-authoritative-claim",
+        "production-authority-claim",
+        "certification-claim",
+        "perfect-isolation-claim",
+        "escape-proof-claim",
+        "safe-malware-claim"
+      ]
+    },
+    "required_evidence_outputs": {
+      "const": [
+        "manifest.json",
+        "evidence/reproducibility.json",
+        "evidence/boot-test.json",
+        "evidence/ghidra-headless.json",
+        "evidence/noxframe-guest.json",
+        "evidence/persistent-round-trip.json",
+        "evidence/network-internet.json",
+        "evidence/hostile-kvm-cell.json",
+        "evidence/hostile-payload-ingress.json"
+      ]
+    },
+    "invariants": {
+      "const": [
+        "Noether Core builds and validates without Lovelace Laboratory",
+        "volatile storage and no network are the defaults",
+        "persistent storage and Internet access require separate explicit selections",
+        "defensive untrusted-system-code execution requires KVM, an outer bubblewrap namespace, and the QEMU sandbox and fails closed without any required layer",
+        "defensive untrusted-system-code execution has no network, persistence, host shares, or host device passthrough",
+        "defensive untrusted-system-code execution treats the workload as attacker-controlled guest root and relies on no guest-local UID boundary",
+        "optional hostile payload ingress requires an explicit source and exact SHA-256 and is limited to bounded guest-read-only secondary media without host execution, a host source share, guest networking, or persistence",
+        "TCG is functional-only and never establishes the untrusted-code isolation claim",
+        "NOXFRAME remains metadata-only unless its guest broker is explicitly enabled",
+        "NOXFRAME guest execution never becomes ambient host command execution",
+        "Ghidra headless operation is an analysis target and not a containment boundary",
+        "Internet evidence is limited to one exact artifact-bound HTTPS response over the fixed QEMU user-NAT topology",
+        "all containment claims name the exact exercised layers and residual limitations",
+        "missing capability evidence remains NOT_MEASURED and grants no claim"
+      ]
+    },
+    "disqualifying_conditions": {
+      "const": [
+        "selected as the default WuciOS profile",
+        "used as release-authoritative evidence",
+        "presented as Noether Core",
+        "persistent storage selected implicitly",
+        "network access selected implicitly",
+        "hostile mode launched through TCG or without KVM, the required outer bubblewrap namespace, or the QEMU sandbox",
+        "hostile mode receives a network device, persistent disk, host share, or host device",
+        "hostile payload ingress is accepted without its source digest, outside offline volatile KVM hostile mode, through writable media or a host source share, or with host execution",
+        "NOXFRAME executes an ambient host command",
+        "Ghidra availability is described as containment",
+        "Internet reachability is claimed without the exact topology, boot line, successful listener probe, exact sidecar response, and independently revalidated full console transcript",
+        "hostile isolation claimed while its artifact-bound evidence gate is NOT_MEASURED",
+        "payload-ingress runtime validation is claimed without manifest.validation.hostile_payload_ingress and its exact artifact-bound evidence gate",
+        "perfect isolation, escape-proof operation, or safe malware execution is claimed"
+      ]
+    },
+    "notes": {
+      "const": [
+        "Programming and analysis packages intentionally enlarge this profile's trusted computing base.",
+        "The defensive untrusted-system-code cell is a layered risk-reduction boundary, not a proof that guest escape is impossible.",
+        "The hostile guest intentionally permits guest-root administration; unprivileged QEMU refers only to the host-side QEMU process.",
+        "Read-only hostile payload ingress narrows data-transfer authority but does not make the sample, guest, hypervisor, or host safe.",
+        "A profile contract does not demonstrate that its runtime targets have been built or exercised.",
+        "The installed bubblewrap package is not evidence that the required outer host namespace was entered.",
+        "The ordinary hostile-kvm-cell evidence does not exercise payload ingress and cannot promote manifest.validation.hostile_payload_ingress; payload-ingress evidence cannot promote manifest.validation.hostile_kvm_cell.",
+        "The Internet probe supports only an artifact-bound single-endpoint reachability observation and does not establish network isolation, anonymity, containment, availability, release authority, or arbitrary-malware safety.",
+        "required_evidence_outputs is the exact canonical output set; missing hostile-cell and payload-ingress records keep their separate manifest validation fields NOT_MEASURED and leave the corresponding capabilities unclaimed."
+      ]
+    },
+    "profile_separation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "noether_core_dependency",
+        "noether_core_package_lock_reused",
+        "noether_core_release_evidence_accepted",
+        "release_score_allowed"
+      ],
+      "properties": {
+        "noether_core_dependency": {
+          "const": false
+        },
+        "noether_core_package_lock_reused": {
+          "const": false
+        },
+        "noether_core_release_evidence_accepted": {
+          "const": false
+        },
+        "release_score_allowed": {
+          "const": false
+        }
+      }
+    },
+    "evidence_contract": {
+      "const": {
+        "artifact_root": "build/wucios/lovelace-laboratory-v0.1.0/release",
+        "missing_evidence_status": "NOT_MEASURED",
+        "canonical_outputs": [
+          {
+            "path": "manifest.json",
+            "producer_command": "build",
+            "claim_scope": "artifact-binding-and-static-runtime-surface",
+            "validation_fields": [],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/reproducibility.json",
+            "producer_command": "reproducibility-test",
+            "claim_scope": "offline-two-build-byte-for-byte-reproducibility",
+            "validation_fields": [
+              "reproducible_build"
+            ],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/boot-test.json",
+            "producer_command": "boot-test",
+            "claim_scope": "volatile-offline-tcg-language-matrix",
+            "validation_fields": [
+              "boot",
+              "language_matrix"
+            ],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/ghidra-headless.json",
+            "producer_command": "ghidra-test",
+            "claim_scope": "volatile-offline-tcg-ghidra-headless",
+            "validation_fields": [
+              "ghidra_headless"
+            ],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/noxframe-guest.json",
+            "producer_command": "noxframe-test",
+            "claim_scope": "volatile-offline-tcg-noxframe-programming-and-ghidra-broker",
+            "validation_fields": [
+              "noxframe_guest_broker"
+            ],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/persistent-round-trip.json",
+            "producer_command": "persistent-test",
+            "claim_scope": "offline-tcg-two-boot-persistent-round-trip",
+            "validation_fields": [
+              "persistent_round_trip"
+            ],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/network-internet.json",
+            "producer_command": "network-test",
+            "claim_scope": "explicit-internet-nat-tcg-https-reachability",
+            "validation_fields": [
+              "network_internet"
+            ],
+            "isolation_claim": false
+          },
+          {
+            "path": "evidence/hostile-kvm-cell.json",
+            "producer_command": "hostile-test",
+            "claim_scope": "local-kvm-bwrap-layered-control-presence",
+            "validation_fields": [
+              "hostile_kvm_cell"
+            ],
+            "isolation_claim": true,
+            "claim_gate": "hostile-kvm-bwrap-cell"
+          },
+          {
+            "path": "evidence/hostile-payload-ingress.json",
+            "producer_command": "hostile-payload-test",
+            "claim_scope": "local-kvm-bwrap-fixed-benign-read-only-payload-ingress",
+            "validation_fields": [
+              "hostile_payload_ingress"
+            ],
+            "isolation_claim": false,
+            "claim_gate": "hostile-payload-ingress-fixed-fixture"
+          }
+        ],
+        "claim_gates": [
+          {
+            "id": "hostile-kvm-bwrap-cell",
+            "required_evidence_path": "evidence/hostile-kvm-cell.json",
+            "manifest_status_source": "manifest.validation.hostile_kvm_cell",
+            "manifest_evidence_source": "manifest.validation_evidence.hostile_kvm_cell",
+            "missing_status": "NOT_MEASURED",
+            "measured_status": "locally-validated-kvm-layered-control-presence",
+            "claim_allowed_when": {
+              "manifest_status_equals_measured_status": true,
+              "exact_artifact_binding_validated": true,
+              "evidence_status_pass": true,
+              "all_required_layers_validated": true,
+              "forbidden_guest_runtime_diagnostics_absent": true,
+              "console_ready_within_bounded_deadline": true,
+              "hostile_console_byte_allowlist_enforced": true,
+              "hostile_stdin_one_way_pipe_validated": true,
+              "hostile_normal_unwind_cleanup_validated": true
+            },
+            "required_layers": [
+              "usable-kvm-device",
+              "unprivileged-qemu-process",
+              "outer-bwrap-namespace",
+              "qemu-sandbox-enabled",
+              "resource-bounds-applied",
+              "volatile-overlay-cleanup-observed",
+              "observed-qemu-identity-disappearance",
+              "network-device-absent",
+              "host-shares-and-device-passthrough-absent"
+            ]
+          },
+          {
+            "id": "hostile-payload-ingress-fixed-fixture",
+            "required_evidence_path": "evidence/hostile-payload-ingress.json",
+            "manifest_status_source": "manifest.validation.hostile_payload_ingress",
+            "manifest_evidence_source": "manifest.validation_evidence.hostile_payload_ingress",
+            "missing_status": "NOT_MEASURED",
+            "measured_status": "locally-validated-kvm-fixed-benign-read-only-payload-ingress",
+            "claim_allowed_when": {
+              "manifest_status_equals_measured_status": true,
+              "exact_artifact_binding_validated": true,
+              "evidence_status_pass": true,
+              "all_required_layers_validated": true,
+              "fixed_benign_fixture_identity_validated": true,
+              "payload_sha256_bound_at_supervisor_launch": true,
+              "supervisor_semantic_readback_validated": true,
+              "guest_payload_exact_bytes_validated": true,
+              "guest_manifest_exact_bytes_validated": true,
+              "guest_read_only_mount_validated": true,
+              "guest_root_write_rejected_and_probe_absent": true,
+              "post_dispatch_challenge_results_validated": true,
+              "forbidden_guest_runtime_diagnostics_absent": true,
+              "console_ready_within_bounded_deadline": true,
+              "hostile_console_byte_allowlist_enforced": true,
+              "hostile_stdin_one_way_pipe_validated": true,
+              "hostile_normal_unwind_cleanup_validated": true
+            },
+            "required_layers": [
+              "usable-kvm-device",
+              "unprivileged-qemu-process",
+              "outer-bwrap-namespace",
+              "qemu-sandbox-enabled",
+              "resource-bounds-applied",
+              "volatile-overlay-cleanup-observed",
+              "observed-qemu-identity-disappearance",
+              "network-device-absent",
+              "host-shares-and-device-passthrough-absent",
+              "fixed-benign-payload-fixture-bound",
+              "supervisor-payload-sha256-bound",
+              "exact-trusted-debugfs-semantic-readback",
+              "guest-payload-and-manifest-bytes-verified",
+              "guest-read-only-mount-and-write-rejection",
+              "payload-media-cleanup-observed"
+            ]
+          }
+        ]
+      }
+    },
+    "execution_classes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default",
+        "allowed",
+        "defensive_untrusted_system_code"
+      ],
+      "properties": {
+        "default": {
+          "const": "benign-development"
+        },
+        "allowed": {
+          "const": [
+            "benign-development",
+            "analysis",
+            "defensive-untrusted-system-code"
+          ]
+        },
+        "defensive_untrusted_system_code": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hardware_accelerator",
+            "kvm_required",
+            "fail_closed_without_kvm",
+            "software_emulation_fallback",
+            "network_mode",
+            "storage_mode",
+            "guest_privilege_assumption",
+            "persistent_storage_allowed",
+            "host_shares_allowed",
+            "host_device_passthrough_allowed",
+            "bounded_read_only_payload_ingress_allowed",
+            "payload_ingress_enabled_by_default"
+          ],
+          "properties": {
+            "hardware_accelerator": {
+              "const": "kvm"
+            },
+            "kvm_required": {
+              "const": true
+            },
+            "fail_closed_without_kvm": {
+              "const": true
+            },
+            "software_emulation_fallback": {
+              "const": false
+            },
+            "network_mode": {
+              "const": "none"
+            },
+            "storage_mode": {
+              "const": "volatile"
+            },
+            "guest_privilege_assumption": {
+              "const": "attacker-controlled-root"
+            },
+            "persistent_storage_allowed": {
+              "const": false
+            },
+            "host_shares_allowed": {
+              "const": false
+            },
+            "host_device_passthrough_allowed": {
+              "const": false
+            },
+            "bounded_read_only_payload_ingress_allowed": {
+              "const": true
+            },
+            "payload_ingress_enabled_by_default": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_mode",
+        "modes"
+      ],
+      "properties": {
+        "default_mode": {
+          "const": "volatile"
+        },
+        "modes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "volatile",
+            "persistent"
+          ],
+          "properties": {
+            "volatile": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "explicit_selection_required",
+                "base_image_read_only",
+                "discard_on_clean_exit",
+                "discard_on_handled_failed_launch",
+                "cleanup_after_sigkill_or_host_crash_claimed"
+              ],
+              "properties": {
+                "explicit_selection_required": {
+                  "const": false
+                },
+                "base_image_read_only": {
+                  "const": true
+                },
+                "discard_on_clean_exit": {
+                  "const": true
+                },
+                "discard_on_handled_failed_launch": {
+                  "const": true
+                },
+                "cleanup_after_sigkill_or_host_crash_claimed": {
+                  "const": false
+                }
+              }
+            },
+            "persistent": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "explicit_selection_required",
+                "named_store_required",
+                "exclusive_lock_required",
+                "owner_only_permissions_required",
+                "base_digest_binding_required",
+                "destructive_lifecycle",
+                "allowed_execution_classes",
+                "prohibited_execution_classes"
+              ],
+              "properties": {
+                "explicit_selection_required": {
+                  "const": true
+                },
+                "named_store_required": {
+                  "const": true
+                },
+                "exclusive_lock_required": {
+                  "const": true
+                },
+                "owner_only_permissions_required": {
+                  "const": true
+                },
+                "base_digest_binding_required": {
+                  "const": true
+                },
+                "destructive_lifecycle": {
+                  "const": {
+                    "explicit_confirmation_required": true,
+                    "confirmation_binding": "action:name:base-sha256",
+                    "remove_action": "remove",
+                    "reset_action": "reset",
+                    "exact_image_and_manifest_only": true,
+                    "symlinks_allowed": false,
+                    "hardlinks_allowed": false,
+                    "per_name_lock_held": true,
+                    "inode_recheck_before_unlink": true,
+                    "recursive_deletion_allowed": false,
+                    "reset_removal_committed_before_recreation": true
+                  }
+                },
+                "allowed_execution_classes": {
+                  "const": [
+                    "benign-development",
+                    "analysis"
+                  ]
+                },
+                "prohibited_execution_classes": {
+                  "const": [
+                    "defensive-untrusted-system-code"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_mode",
+        "modes"
+      ],
+      "properties": {
+        "default_mode": {
+          "const": "none"
+        },
+        "modes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "none",
+            "internet"
+          ],
+          "properties": {
+            "none": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "guest_network_device_attached"
+              ],
+              "properties": {
+                "guest_network_device_attached": {
+                  "const": false
+                }
+              }
+            },
+            "internet": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "explicit_selection_required",
+                "backend",
+                "allowed_execution_classes",
+                "prohibited_execution_classes",
+                "host_port_forwarding_allowed",
+                "host_filesystem_shares_allowed",
+                "guest_topology",
+                "exact_boot_line",
+                "guest_listening_sockets",
+                "launch_contract",
+                "launch_argument_policy",
+                "https_probe",
+                "timeouts",
+                "claim_scope",
+                "isolation_claim",
+                "network_isolation_claim",
+                "anonymity_claim",
+                "containment_claim",
+                "release_authority_derived",
+                "arbitrary_malware_safety_claim"
+              ],
+              "properties": {
+                "explicit_selection_required": {
+                  "const": true
+                },
+                "backend": {
+                  "const": "qemu-user-nat"
+                },
+                "allowed_execution_classes": {
+                  "const": [
+                    "benign-development",
+                    "analysis"
+                  ]
+                },
+                "prohibited_execution_classes": {
+                  "const": [
+                    "defensive-untrusted-system-code"
+                  ]
+                },
+                "host_port_forwarding_allowed": {
+                  "const": false
+                },
+                "host_filesystem_shares_allowed": {
+                  "const": false
+                },
+                "guest_topology": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "qemu_netdev",
+                    "ipv4_cidr",
+                    "gateway_ipv4",
+                    "dns_proxy_ipv4",
+                    "resolv_conf_bytes",
+                    "resolv_conf_sha256"
+                  ],
+                  "properties": {
+                    "qemu_netdev": {
+                      "const": "user,id=wuci-net,restrict=off,ipv6=off,net=10.0.2.0/24,host=10.0.2.2,dns=10.0.2.3,dhcpstart=10.0.2.15"
+                    },
+                    "ipv4_cidr": {
+                      "const": "10.0.2.15/24"
+                    },
+                    "gateway_ipv4": {
+                      "const": "10.0.2.2"
+                    },
+                    "dns_proxy_ipv4": {
+                      "const": "10.0.2.3"
+                    },
+                    "resolv_conf_bytes": {
+                      "const": 49
+                    },
+                    "resolv_conf_sha256": {
+                      "const": "c235c3d266651c3825b8d5974a0d1ca99a8d592ce1d31e847ca691c97f8866f7"
+                    }
+                  }
+                },
+                "exact_boot_line": {
+                  "const": "LOVELACE_LABORATORY_BOOT profile=lovelace-laboratory storage=host-selected network=internet"
+                },
+                "guest_listening_sockets": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "command",
+                    "command_succeeded",
+                    "observed",
+                    "scope"
+                  ],
+                  "properties": {
+                    "command": {
+                      "const": "ss -H -lntup"
+                    },
+                    "command_succeeded": {
+                      "const": true
+                    },
+                    "observed": {
+                      "const": []
+                    },
+                    "scope": {
+                      "const": "TCP/UDP listening sockets visible to the guest lab user"
+                    }
+                  }
+                },
+                "launch_contract": {
+                  "const": {
+                    "machine": "q35,accel=tcg",
+                    "accelerator": "tcg",
+                    "netdev": "user,id=wuci-net,restrict=off,ipv6=off,net=10.0.2.0/24,host=10.0.2.2,dns=10.0.2.3,dhcpstart=10.0.2.15",
+                    "network_device": "virtio-net-pci,netdev=wuci-net",
+                    "host_forwarding": false,
+                    "root_disk_format": "qcow2",
+                    "temporary_overlay": true,
+                    "base_image_directly_writable": false,
+                    "qemu_snapshot_flag": false
+                  }
+                },
+                "launch_argument_policy": {
+                  "const": {
+                    "exact_whole_vector_required": true,
+                    "extra_arguments_allowed": false,
+                    "legacy_net_option_allowed": false,
+                    "readconfig_option_allowed": false
+                  }
+                },
+                "https_probe": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "sidecar_role",
+                    "required_evidence_fields",
+                    "url_binding",
+                    "curl_success_required",
+                    "private_temporary_response_file_required",
+                    "expected_response_bytes_source",
+                    "expected_response_sha256_source",
+                    "maximum_response_bytes_source",
+                    "connect_timeout_seconds",
+                    "transfer_timeout_seconds",
+                    "subshell_required",
+                    "failure_returns_to_interactive_shell",
+                    "queued_poweroff_executes_after_failure",
+                    "entire_response_byte_count_must_match",
+                    "entire_response_sha256_must_match",
+                    "exact_semantic_line_required",
+                    "extra_response_content_allowed"
+                  ],
+                  "properties": {
+                    "sidecar_role": {
+                      "const": "sha256-digest"
+                    },
+                    "required_evidence_fields": {
+                      "const": [
+                        "url",
+                        "expected_exact_line",
+                        "expected_response_bytes",
+                        "expected_response_sha256",
+                        "maximum_response_bytes",
+                        "connect_timeout_seconds",
+                        "transfer_timeout_seconds"
+                      ]
+                    },
+                    "url_binding": {
+                      "const": "shared_alpine_lock.boot_media.sidecars[role=sha256-digest].url"
+                    },
+                    "curl_success_required": {
+                      "const": true
+                    },
+                    "private_temporary_response_file_required": {
+                      "const": true
+                    },
+                    "expected_response_bytes_source": {
+                      "const": "shared_alpine_lock.boot_media.sidecars[role=sha256-digest].size"
+                    },
+                    "expected_response_sha256_source": {
+                      "const": "shared_alpine_lock.boot_media.sidecars[role=sha256-digest].sha256"
+                    },
+                    "maximum_response_bytes_source": {
+                      "const": "shared_alpine_lock.boot_media.sidecars[role=sha256-digest].size"
+                    },
+                    "connect_timeout_seconds": {
+                      "const": 15
+                    },
+                    "transfer_timeout_seconds": {
+                      "const": 90
+                    },
+                    "subshell_required": {
+                      "const": true
+                    },
+                    "failure_returns_to_interactive_shell": {
+                      "const": true
+                    },
+                    "queued_poweroff_executes_after_failure": {
+                      "const": true
+                    },
+                    "entire_response_byte_count_must_match": {
+                      "const": true
+                    },
+                    "entire_response_sha256_must_match": {
+                      "const": true
+                    },
+                    "exact_semantic_line_required": {
+                      "const": true
+                    },
+                    "extra_response_content_allowed": {
+                      "const": false
+                    }
+                  }
+                },
+                "timeouts": {
+                  "const": {
+                    "connect_seconds": 15,
+                    "transfer_seconds": 90,
+                    "vm_seconds": 1500
+                  }
+                },
+                "claim_scope": {
+                  "const": "artifact-bound single-endpoint HTTPS response validation only"
+                },
+                "isolation_claim": {
+                  "const": false
+                },
+                "network_isolation_claim": {
+                  "const": false
+                },
+                "anonymity_claim": {
+                  "const": false
+                },
+                "containment_claim": {
+                  "const": false
+                },
+                "release_authority_derived": {
+                  "const": false
+                },
+                "arbitrary_malware_safety_claim": {
+                  "const": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "virtualization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "functional",
+        "defensive_cell"
+      ],
+      "properties": {
+        "functional": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "accelerator",
+            "cpu_model",
+            "kernel_argument_policy",
+            "exact_boot_lines",
+            "runtime_evidence",
+            "allowed_execution_classes",
+            "isolation_claim",
+            "hostile_code_allowed"
+          ],
+          "properties": {
+            "accelerator": {
+              "const": "tcg"
+            },
+            "cpu_model": {
+              "const": "Broadwell-v4,pcid=off,x2apic=off,tsc-deadline=off,invpcid=off,spec-ctrl=off"
+            },
+            "kernel_argument_policy": {
+              "const": {
+                "tcg_only_extra_arguments": [
+                  "nosoftlockup"
+                ],
+                "canonical_builder_arguments": [
+                  "root=/dev/vda",
+                  "rw",
+                  "rootfstype=ext4",
+                  "console=ttyS0,115200",
+                  "panic=10",
+                  "nosoftlockup"
+                ],
+                "interactive_supervisor_arguments": [
+                  "root=/dev/vda",
+                  "rw",
+                  "rootfstype=ext4",
+                  "console=ttyS0,115200",
+                  "panic=10",
+                  "nosoftlockup"
+                ],
+                "soft_lockup_detector_enabled": false,
+                "hard_lockup_detector_disabled_by_policy": false,
+                "liveness_gates": [
+                  "bounded-host-wall-clock-timeout",
+                  "exact-ordered-guest-markers",
+                  "zero-qemu-exit-status"
+                ]
+              }
+            },
+            "exact_boot_lines": {
+              "const": {
+                "offline": "LOVELACE_LABORATORY_BOOT profile=lovelace-laboratory storage=host-selected network=none",
+                "internet": "LOVELACE_LABORATORY_BOOT profile=lovelace-laboratory storage=host-selected network=internet"
+              }
+            },
+            "runtime_evidence": {
+              "const": {
+                "console_byte_limit": 8388608,
+                "transcript_encoding": "canonical-rfc4648-base64",
+                "required_transcript_fields": [
+                  "console_bytes",
+                  "console_transcript_base64",
+                  "console_sha256",
+                  "console_tail",
+                  "markers",
+                  "console_ready_line_end_offset",
+                  "command_dispatch_offset",
+                  "console_eof_observed",
+                  "console_drain_timeout_seconds"
+                ],
+                "console_eof_observed": true,
+                "console_drain_timeout_seconds": 5,
+                "bounded_stdout_drain_before_complete_transcript_claim": true,
+                "canonical_base64_reencoding_rechecked": true,
+                "decoded_byte_count_recomputed": true,
+                "decoded_sha256_recomputed": true,
+                "diagnostic_tail_recomputed": true,
+                "full_transcript_forbidden_diagnostics_rechecked": true,
+                "conflicting_boot_marker_lines_rejected": true,
+                "exact_ordered_markers_rechecked": true,
+                "result_marker_post_dispatch_placement_rechecked": true
+              }
+            },
+            "allowed_execution_classes": {
+              "const": [
+                "benign-development",
+                "analysis"
+              ]
+            },
+            "isolation_claim": {
+              "const": false
+            },
+            "hostile_code_allowed": {
+              "const": false
+            }
+          }
+        },
+        "defensive_cell": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "accelerator",
+            "required_host_gates",
+            "fail_closed",
+            "manifest_status_source",
+            "guest_privilege_assumption",
+            "claim_condition",
+            "required_evidence_path",
+            "payload_ingress",
+            "kernel_arguments",
+            "console_ready_timeout_seconds",
+            "forbidden_guest_runtime_diagnostics",
+            "qemu_configuration"
+          ],
+          "properties": {
+            "accelerator": {
+              "const": "kvm"
+            },
+            "required_host_gates": {
+              "const": [
+                "usable-kvm-device",
+                "unprivileged-qemu-process",
+                "outer-bwrap-namespace",
+                "qemu-sandbox-enabled",
+                "resource-bounds-applied"
+              ]
+            },
+            "fail_closed": {
+              "const": true
+            },
+            "manifest_status_source": {
+              "const": "manifest.validation.hostile_kvm_cell"
+            },
+            "guest_privilege_assumption": {
+              "const": "attacker-controlled-root"
+            },
+            "claim_condition": {
+              "const": "local layered-control presence may be claimed only when exact artifact-bound hostile evidence validates every required layer"
+            },
+            "required_evidence_path": {
+              "const": "evidence/hostile-kvm-cell.json"
+            },
+            "payload_ingress": {
+              "const": {
+                "implementation_status": "implemented-source-tested",
+                "artifact_bound_runtime_evidence_status_source": "manifest.validation.hostile_payload_ingress",
+                "artifact_bound_runtime_evidence_source": "manifest.validation_evidence.hostile_payload_ingress",
+                "required_evidence_path": "evidence/hostile-payload-ingress.json",
+                "missing_status": "NOT_MEASURED",
+                "measured_status": "locally-validated-kvm-fixed-benign-read-only-payload-ingress",
+                "claim_gate": "hostile-payload-ingress-fixed-fixture",
+                "runtime_capability_claimed_without_valid_gate": false,
+                "canonical_runtime_test": {
+                  "producer_command": "hostile-payload-test",
+                  "make_target": "wucios-lovelace-hostile-payload-smoke",
+                  "fixture": {
+                    "path": "wucios/fixtures/lovelace/hostile-payload.txt",
+                    "size": 44,
+                    "sha256": "cf7fe660be24036a09dfde459549fc0cb2fa57fd6551d6b207e450d1f9b320d5",
+                    "classification": "fixed-benign-acceptance-fixture"
+                  }
+                },
+                "enabled_by_default": false,
+                "required_controls": [
+                  "explicit-source-and-sha256",
+                  "bounded-single-link-regular-source",
+                  "private-nofollow-snapshot",
+                  "exact-trusted-mke2fs",
+                  "exact-trusted-debugfs-semantic-readback",
+                  "read-only-secondary-media",
+                  "no-host-source-share-or-execution",
+                  "offline-volatile-kvm-hostile-only",
+                  "exact-supervisor-unwind-cleanup"
+                ],
+                "explicit_source_and_sha256_required": true,
+                "source_type": "single-link-regular-file",
+                "maximum_source_bytes": 67108864,
+                "private_snapshot_required": true,
+                "host_source_shared": false,
+                "host_source_executed": false,
+                "media_builder_path": "/usr/sbin/mke2fs",
+                "media_builder_version": "1.47.0",
+                "media_readback_path": "/usr/sbin/debugfs",
+                "media_readback_version": "1.47.0",
+                "semantic_readback_required": true,
+                "payload_readback_path": "/payload.bin",
+                "payload_exact_bytes_readback_required": true,
+                "manifest_readback_path": "/manifest.json",
+                "manifest_exact_bytes_readback_required": true,
+                "media_format": "raw-ext4",
+                "maximum_media_bytes": 100663296,
+                "host_media_mode": "0400",
+                "guest_device": "/dev/vdb",
+                "guest_attachment": "read-only-secondary-virtio-block",
+                "guest_mount_policy": "read-only",
+                "network_device_added": false,
+                "persistent_storage_added": false,
+                "host_share_added": false,
+                "cleanup_on_supervisor_unwind": true,
+                "cleanup_after_sigkill_or_host_crash_claimed": false,
+                "containment_or_malware_safety_claimed": false
+              }
+            },
+            "kernel_arguments": {
+              "const": [
+                "root=/dev/vda",
+                "rw",
+                "rootfstype=ext4",
+                "console=ttyS0,115200",
+                "panic=10"
+              ]
+            },
+            "console_ready_timeout_seconds": {
+              "const": 180
+            },
+            "forbidden_guest_runtime_diagnostics": {
+              "const": [
+                "Kernel panic - not syncing:",
+                "watchdog: BUG: soft lockup",
+                "BUG: unable to handle",
+                "Oops:",
+                "general protection fault",
+                "EXT4-fs error",
+                "Buffer I/O error",
+                "Mounting root: failed.",
+                "Launching initramfs emergency recovery shell.",
+                "mount: mounting /dev/vda on /sysroot failed",
+                "VFS: Cannot open root device",
+                "VFS: Unable to mount root fs",
+                "No filesystem could mount root",
+                "No working init found.",
+                "Failed to execute /init",
+                "Attempted to kill init!"
+              ]
+            },
+            "qemu_configuration": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "nodefaults",
+                "no_user_config",
+                "monitor",
+                "qmp",
+                "exact_boot_line",
+                "console_rendering",
+                "console_forwarded_byte_allowlist",
+                "non_allowlisted_console_bytes_forwarded",
+                "console_stderr_merged",
+                "console_byte_limit",
+                "console_input_buffer_byte_limit",
+                "stdin_transport",
+                "tty_restoration_on_handled_exit",
+                "tty_input_flushed_before_handoff",
+                "process_group_absence_checked",
+                "handled_signals",
+                "descendant_drain_timeout_seconds",
+                "leader_exit_confirm_timeout_seconds",
+                "network_device",
+                "persistent_disk",
+                "host_filesystem_share",
+                "clipboard_integration",
+                "usb_passthrough",
+                "host_device_passthrough"
+              ],
+              "properties": {
+                "nodefaults": {
+                  "const": true
+                },
+                "no_user_config": {
+                  "const": true
+                },
+                "monitor": {
+                  "const": "disabled"
+                },
+                "qmp": {
+                  "const": "disabled"
+                },
+                "exact_boot_line": {
+                  "const": "LOVELACE_LABORATORY_BOOT profile=lovelace-laboratory storage=host-selected network=none"
+                },
+                "console_rendering": {
+                  "const": "escaped-ascii"
+                },
+                "console_forwarded_byte_allowlist": {
+                  "const": [
+                    "tab-0x09",
+                    "line-feed-0x0a",
+                    "printable-ascii-0x20-0x7e"
+                  ]
+                },
+                "non_allowlisted_console_bytes_forwarded": {
+                  "const": false
+                },
+                "console_stderr_merged": {
+                  "const": true
+                },
+                "console_byte_limit": {
+                  "const": 33554432
+                },
+                "console_input_buffer_byte_limit": {
+                  "const": 1048576
+                },
+                "stdin_transport": {
+                  "const": "one-way-pipe"
+                },
+                "tty_restoration_on_handled_exit": {
+                  "const": true
+                },
+                "tty_input_flushed_before_handoff": {
+                  "const": true
+                },
+                "process_group_absence_checked": {
+                  "const": true
+                },
+                "handled_signals": {
+                  "const": [
+                    "SIGHUP",
+                    "SIGINT",
+                    "SIGQUIT",
+                    "SIGTERM",
+                    "SIGTSTP"
+                  ]
+                },
+                "descendant_drain_timeout_seconds": {
+                  "const": 5
+                },
+                "leader_exit_confirm_timeout_seconds": {
+                  "const": 0.1
+                },
+                "network_device": {
+                  "const": "absent"
+                },
+                "persistent_disk": {
+                  "const": "absent"
+                },
+                "host_filesystem_share": {
+                  "const": "absent"
+                },
+                "clipboard_integration": {
+                  "const": "absent"
+                },
+                "usb_passthrough": {
+                  "const": "absent"
+                },
+                "host_device_passthrough": {
+                  "const": "absent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "programming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guest_targets",
+        "language_targets",
+        "network_required_for_use",
+        "release_authority_derived"
+      ],
+      "properties": {
+        "guest_targets": {
+          "const": [
+            "wucios-shell",
+            "noxframe-guest-broker"
+          ]
+        },
+        "language_targets": {
+          "const": [
+            "python3",
+            "c",
+            "c++",
+            "assembly",
+            "rust",
+            "go"
+          ]
+        },
+        "network_required_for_use": {
+          "const": false
+        },
+        "release_authority_derived": {
+          "const": false
+        }
+      }
+    },
+    "noxframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_behavior",
+        "containment_boundary",
+        "ambient_host_execution_allowed",
+        "guest_broker"
+      ],
+      "properties": {
+        "default_behavior": {
+          "const": "metadata-only"
+        },
+        "containment_boundary": {
+          "const": false
+        },
+        "ambient_host_execution_allowed": {
+          "const": false
+        },
+        "guest_broker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "default_enabled",
+            "explicit_enable_required",
+            "execution_target",
+            "host_passthrough_allowed",
+            "argument_vector_boundary_required",
+            "programming_languages",
+            "analysis_tools",
+            "analysis_input_executed",
+            "resource_limits",
+            "ghidra_success_contract",
+            "output_policy"
+          ],
+          "properties": {
+            "default_enabled": {
+              "const": false
+            },
+            "explicit_enable_required": {
+              "const": true
+            },
+            "execution_target": {
+              "const": "selected-guest-domain"
+            },
+            "host_passthrough_allowed": {
+              "const": false
+            },
+            "argument_vector_boundary_required": {
+              "const": true
+            },
+            "programming_languages": {
+              "const": [
+                "python3",
+                "c",
+                "c++",
+                "assembly",
+                "rust",
+                "go"
+              ]
+            },
+            "analysis_tools": {
+              "const": [
+                "ghidra-headless"
+              ]
+            },
+            "analysis_input_executed": {
+              "const": false
+            },
+            "resource_limits": {
+              "const": {
+                "open_files": {
+                  "programming_routes": 128,
+                  "ghidra_headless_route": 1024,
+                  "inherited_by_child": true
+                },
+                "ghidra_headless_route": {
+                  "maximum_heap_mib": 2048,
+                  "inner_wall_timeout_seconds": 600,
+                  "inner_termination_grace_seconds": 30,
+                  "outer_broker_timeout_seconds": 660,
+                  "online_vcpu_range": [
+                    1,
+                    8
+                  ],
+                  "cpu_seconds_per_online_vcpu": 670,
+                  "cpu_limit_inherited_by_child": true
+                }
+              }
+            },
+            "ghidra_success_contract": {
+              "const": {
+                "zero_exit_status_required": true,
+                "zero_exit_status_sufficient": false,
+                "semantic_marker": "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS",
+                "semantic_marker_required_exactly_once": true,
+                "completion_marker": "noxframe-ghidra-headless:ok",
+                "semantic_marker_precedes_completion_marker": true
+              }
+            },
+            "output_policy": {
+              "const": {
+                "maximum_combined_output_bytes": 65536,
+                "forwarded_byte_classes": [
+                  "tab-0x09",
+                  "line-feed-0x0a",
+                  "printable-ascii-0x20-0x7e"
+                ],
+                "other_bytes_rendered_as_lowercase_hex_escape": true,
+                "terminal_control_sequences_forwarded": false,
+                "printable_text_authenticated": false,
+                "printable_prompt_spoofing_prevented": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "ghidra": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acceptance_target",
+        "entry_point",
+        "runtime",
+        "default_network_mode",
+        "graphical_operation_claimed",
+        "containment_boundary"
+      ],
+      "properties": {
+        "acceptance_target": {
+          "const": "headless"
+        },
+        "entry_point": {
+          "const": "analyzeHeadless"
+        },
+        "runtime": {
+          "const": "openjdk21"
+        },
+        "default_network_mode": {
+          "const": "none"
+        },
+        "graphical_operation_claimed": {
+          "const": false
+        },
+        "containment_boundary": {
+          "const": false
+        }
+      }
+    },
+    "non_claims": {
+      "const": [
+        "No production readiness",
+        "No release authority",
+        "No certification or independent security evaluation",
+        "No perfect isolation or escape-proof execution",
+        "No guarantee that malicious code is safe to execute",
+        "No hostile-code isolation from TCG",
+        "No hostile-cell isolation claim while KVM and outer-bwrap runtime evidence is NOT_MEASURED",
+        "No outer-bwrap namespace claim from package presence alone",
+        "No containment or arbitrary-malware safety from read-only payload ingress",
+        "No containment from NOXFRAME metadata or Ghidra",
+        "No confidentiality guarantee against side channels or virtualization defects"
+      ]
+    }
+  }
+}

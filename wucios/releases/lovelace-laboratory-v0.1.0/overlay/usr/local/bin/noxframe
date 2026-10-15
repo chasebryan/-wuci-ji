@@ -1,0 +1,16 @@
+#!/bin/ash
+set -eu
+
+state=/work/.noxframe
+umask 077
+mkdir -p "$state"
+
+exec /opt/wuci-ji/tools/wuci-noxframe \
+  --report "$state/launch-report.md" \
+  --seal "$state/self-seal.json" \
+  --clock "$state/clock.json" \
+  --substrate-state "$state/substrate-state.json" \
+  --substrate-seal "$state/substrate-seal.json" \
+  --daylight-wrap-out "$state/daylight-wrap" \
+  --bin /usr/local/bin/wuci-ji \
+  "$@"

@@ -1,0 +1,5 @@
+#!/bin/ash
+set -eu
+export JAVA_HOME=/usr/lib/jvm/default-jvm
+export HOME=${HOME:-/home/lab}
+exec /opt/wucios/ghidra/support/analyzeHeadless "$@"

@@ -3,12 +3,108 @@
 
 from __future__ import annotations
 
+import ast
+import hashlib
 import json
+import re
+import stat
 import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+LOVELACE_PROFILE_SCHEMA_PATH = (
+    ROOT / "wucios/schemas/lovelace-laboratory-profile.schema.json"
+)
+LOVELACE_PROFILE_SCHEMA_ID = (
+    "https://nosuchmachine.net/schemas/"
+    "wucios/lovelace-laboratory-profile.v1.json"
+)
+
+LOVELACE_HOSTILE_PAYLOAD_FIELD = "hostile_payload_ingress"
+LOVELACE_HOSTILE_PAYLOAD_STATUS = (
+    "locally-validated-kvm-fixed-benign-read-only-payload-ingress"
+)
+LOVELACE_HOSTILE_PAYLOAD_EVIDENCE = (
+    "evidence/hostile-payload-ingress.json"
+)
+LOVELACE_HOSTILE_PAYLOAD_SCHEMA = (
+    "wucios.lovelace.hostile_payload_ingress_evidence.v1"
+)
+LOVELACE_HOSTILE_PAYLOAD_GATE_ID = (
+    "hostile-payload-ingress-fixed-fixture"
+)
+LOVELACE_HOSTILE_PAYLOAD_FIXTURE = {
+    "path": "wucios/fixtures/lovelace/hostile-payload.txt",
+    "size": 44,
+    "sha256": (
+        "cf7fe660be24036a09dfde459549fc0c"
+        "b2fa57fd6551d6b207e450d1f9b320d5"
+    ),
+    "classification": "fixed-benign-acceptance-fixture",
+}
+LOVELACE_HOSTILE_REQUIRED_LAYERS = [
+    "usable-kvm-device",
+    "unprivileged-qemu-process",
+    "outer-bwrap-namespace",
+    "qemu-sandbox-enabled",
+    "resource-bounds-applied",
+    "volatile-overlay-cleanup-observed",
+    "observed-qemu-identity-disappearance",
+    "network-device-absent",
+    "host-shares-and-device-passthrough-absent",
+]
+LOVELACE_HOSTILE_PAYLOAD_LAYERS = LOVELACE_HOSTILE_REQUIRED_LAYERS + [
+    "fixed-benign-payload-fixture-bound",
+    "supervisor-payload-sha256-bound",
+    "exact-trusted-debugfs-semantic-readback",
+    "guest-payload-and-manifest-bytes-verified",
+    "guest-read-only-mount-and-write-rejection",
+    "payload-media-cleanup-observed",
+]
+LOVELACE_HOSTILE_PAYLOAD_OUTPUT = {
+    "path": LOVELACE_HOSTILE_PAYLOAD_EVIDENCE,
+    "producer_command": "hostile-payload-test",
+    "claim_scope": (
+        "local-kvm-bwrap-fixed-benign-read-only-payload-ingress"
+    ),
+    "validation_fields": [LOVELACE_HOSTILE_PAYLOAD_FIELD],
+    "isolation_claim": False,
+    "claim_gate": LOVELACE_HOSTILE_PAYLOAD_GATE_ID,
+}
+LOVELACE_HOSTILE_PAYLOAD_GATE = {
+    "id": LOVELACE_HOSTILE_PAYLOAD_GATE_ID,
+    "required_evidence_path": LOVELACE_HOSTILE_PAYLOAD_EVIDENCE,
+    "manifest_status_source": (
+        "manifest.validation.hostile_payload_ingress"
+    ),
+    "manifest_evidence_source": (
+        "manifest.validation_evidence.hostile_payload_ingress"
+    ),
+    "missing_status": "NOT_MEASURED",
+    "measured_status": LOVELACE_HOSTILE_PAYLOAD_STATUS,
+    "claim_allowed_when": {
+        "manifest_status_equals_measured_status": True,
+        "exact_artifact_binding_validated": True,
+        "evidence_status_pass": True,
+        "all_required_layers_validated": True,
+        "fixed_benign_fixture_identity_validated": True,
+        "payload_sha256_bound_at_supervisor_launch": True,
+        "supervisor_semantic_readback_validated": True,
+        "guest_payload_exact_bytes_validated": True,
+        "guest_manifest_exact_bytes_validated": True,
+        "guest_read_only_mount_validated": True,
+        "guest_root_write_rejected_and_probe_absent": True,
+        "post_dispatch_challenge_results_validated": True,
+        "forbidden_guest_runtime_diagnostics_absent": True,
+        "console_ready_within_bounded_deadline": True,
+        "hostile_console_byte_allowlist_enforced": True,
+        "hostile_stdin_one_way_pipe_validated": True,
+        "hostile_normal_unwind_cleanup_validated": True,
+    },
+    "required_layers": LOVELACE_HOSTILE_PAYLOAD_LAYERS,
+}
 
 REQUIRED_DIRS = [
     "wucios/profiles",
@@ -52,6 +148,7 @@ REQUIRED_TOOLS = [
     "openbsd_reference_prep_common.py",
     "noether_obligations.py",
     "noether_hardware_observation.py",
+    "lovelace_builder.py",
 ]
 
 PROFILE_KEYS = {
@@ -111,6 +208,7 @@ REQUIRED_PROFILE_FILES = [
     "birkhoff-bastion.json",
     "tarski-review-appliance.json",
     "developer-desktop.json",
+    "lovelace-laboratory.json",
 ]
 
 REQUIRED_SUBSTRATE_FILES = [
@@ -153,6 +251,8 @@ REQUIRED_DOCS = [
     "FLUFF_EXTERMINATION_POLICY.md",
     "DAYLIGHT_WUCIOS_SCORE.md",
     "NOETHER_FORGE_EXTERNAL_REVIEW.md",
+    "LOVELACE_LABORATORY.md",
+    "LOVELACE_CONTAINMENT_BOUNDARY.md",
 ]
 
 REQUIRED_COMPONENTS = {
@@ -633,13 +733,29 @@ BUILDROOM_KEYS = {
 }
 
 
+def reject_duplicate_json_keys(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON key rejected: {key}")
+        value[key] = item
+    return value
+
+
 def load_json(path: Path, failures: list[str]) -> object | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicate_json_keys,
+        )
     except FileNotFoundError:
         failures.append(f"missing JSON file: {path.relative_to(ROOT)}")
     except json.JSONDecodeError as exc:
         failures.append(f"invalid JSON {path.relative_to(ROOT)}:{exc.lineno}:{exc.colno}: {exc.msg}")
+    except ValueError as exc:
+        failures.append(f"invalid JSON {path.relative_to(ROOT)}: {exc}")
     return None
 
 
@@ -650,6 +766,112 @@ def require_keys(path: Path, data: object, keys: set[str], failures: list[str]) 
     missing = sorted(keys - set(data))
     if missing:
         failures.append(f"{path.relative_to(ROOT)} missing keys: {', '.join(missing)}")
+
+
+class LovelaceSchemaError(ValueError):
+    pass
+
+
+def json_values_equal_exact(left: object, right: object) -> bool:
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict):
+        return set(left) == set(right) and all(
+            json_values_equal_exact(left[key], right[key])
+            for key in left
+        )
+    if isinstance(left, list):
+        return len(left) == len(right) and all(
+            json_values_equal_exact(left_item, right_item)
+            for left_item, right_item in zip(left, right, strict=True)
+        )
+    return left == right
+
+
+def validate_lovelace_schema_instance(
+    instance: object,
+    schema: object,
+    path: str = "$",
+) -> None:
+    if not isinstance(schema, dict):
+        raise LovelaceSchemaError(f"{path}: schema node is not an object")
+    allowed_keywords = {
+        "$schema",
+        "$id",
+        "title",
+        "type",
+        "additionalProperties",
+        "required",
+        "properties",
+        "const",
+    }
+    unsupported = sorted(set(schema) - allowed_keywords)
+    if unsupported:
+        raise LovelaceSchemaError(
+            f"{path}: unsupported schema keywords {unsupported}"
+        )
+    if "const" in schema and not json_values_equal_exact(
+        instance, schema["const"]
+    ):
+        raise LovelaceSchemaError(f"{path}: value does not match const")
+
+    expected_type = schema.get("type")
+    if expected_type is None:
+        if set(schema) != {"const"}:
+            raise LovelaceSchemaError(
+                f"{path}: non-object schema node is not an exact const"
+            )
+        return
+    if expected_type != "object":
+        raise LovelaceSchemaError(
+            f"{path}: unsupported schema type {expected_type!r}"
+        )
+    if not isinstance(instance, dict):
+        raise LovelaceSchemaError(f"{path}: expected object")
+    properties = schema.get("properties")
+    required = schema.get("required")
+    if (
+        not isinstance(properties, dict)
+        or not isinstance(required, list)
+        or any(not isinstance(key, str) for key in required)
+        or len(required) != len(set(required))
+        or set(required) != set(properties)
+        or schema.get("additionalProperties") is not False
+    ):
+        raise LovelaceSchemaError(
+            f"{path}: object schema is not an exact-key contract"
+        )
+    missing = sorted(set(required) - set(instance))
+    extra = sorted(set(instance) - set(properties))
+    if missing or extra:
+        raise LovelaceSchemaError(
+            f"{path}: object keys differ; missing={missing}; extra={extra}"
+        )
+    for key, child_schema in properties.items():
+        validate_lovelace_schema_instance(
+            instance[key], child_schema, f"{path}.{key}"
+        )
+
+
+def validate_lovelace_profile_schema(
+    profile: object, failures: list[str]
+) -> None:
+    schema = load_json(LOVELACE_PROFILE_SCHEMA_PATH, failures)
+    if not isinstance(schema, dict):
+        return
+    if (
+        schema.get("$schema")
+        != "https://json-schema.org/draft/2020-12/schema"
+        or schema.get("$id") != LOVELACE_PROFILE_SCHEMA_ID
+        or schema.get("title")
+        != "WuciOS Lovelace Laboratory profile contract"
+    ):
+        failures.append("Lovelace strict profile schema identity is invalid")
+        return
+    try:
+        validate_lovelace_schema_instance(profile, schema)
+    except LovelaceSchemaError as exc:
+        failures.append(f"Lovelace strict profile schema rejected profile: {exc}")
 
 
 def validate_profiles(failures: list[str]) -> dict[str, dict]:
@@ -663,6 +885,8 @@ def validate_profiles(failures: list[str]) -> dict[str, dict]:
             profiles[data.get("id", filename)] = data
             if data.get("schema") != "wucios.profile.v1":
                 failures.append(f"{path.relative_to(ROOT)} has wrong schema")
+            if filename == "lovelace-laboratory.json":
+                validate_lovelace_profile_schema(data, failures)
     return profiles
 
 
@@ -752,6 +976,504 @@ def validate_noether_policy(profiles: dict[str, dict], components: dict[str, dic
     browser = components.get("browser")
     if browser and browser.get("default_in_noether_core") is True:
         failures.append("browser must not be default_in_noether_core")
+
+
+def validate_lovelace_laboratory(
+    profiles: dict[str, dict], failures: list[str]
+) -> None:
+    profile = profiles.get("lovelace-laboratory")
+    if not profile:
+        failures.append("Lovelace Laboratory profile missing")
+        return
+    if profile.get("default_profile") is not False:
+        failures.append("Lovelace Laboratory must not be the default profile")
+    if profile.get("authoritative_for_release") is not False:
+        failures.append("Lovelace Laboratory must not be release-authoritative")
+
+    separation = profile.get("profile_separation")
+    if separation != {
+        "noether_core_dependency": False,
+        "noether_core_package_lock_reused": False,
+        "noether_core_release_evidence_accepted": False,
+        "release_score_allowed": False,
+    }:
+        failures.append("Lovelace Laboratory separation from Noether Core is invalid")
+
+    storage = profile.get("storage")
+    if not isinstance(storage, dict) or storage.get("default_mode") != "volatile":
+        failures.append("Lovelace Laboratory storage must default to volatile")
+    else:
+        storage_modes = storage.get("modes")
+        volatile = (
+            storage_modes.get("volatile", {})
+            if isinstance(storage_modes, dict)
+            else {}
+        )
+        if volatile != {
+            "explicit_selection_required": False,
+            "base_image_read_only": True,
+            "discard_on_clean_exit": True,
+            "discard_on_handled_failed_launch": True,
+            "cleanup_after_sigkill_or_host_crash_claimed": False,
+        }:
+            failures.append(
+                "Lovelace volatile cleanup boundary is overstated or invalid"
+            )
+        persistent = (
+            storage_modes.get("persistent", {})
+            if isinstance(storage_modes, dict)
+            else {}
+        )
+        if persistent.get("explicit_selection_required") is not True:
+            failures.append("Lovelace persistent storage must require explicit selection")
+        if persistent.get("prohibited_execution_classes") != [
+            "defensive-untrusted-system-code"
+        ]:
+            failures.append("Lovelace hostile execution must forbid persistent storage")
+
+    network = profile.get("network")
+    if not isinstance(network, dict) or network.get("default_mode") != "none":
+        failures.append("Lovelace Laboratory network must default to none")
+    else:
+        network_modes = network.get("modes")
+        internet = (
+            network_modes.get("internet", {})
+            if isinstance(network_modes, dict)
+            else {}
+        )
+        if internet.get("explicit_selection_required") is not True:
+            failures.append("Lovelace Internet mode must require explicit selection")
+        if internet.get("prohibited_execution_classes") != [
+            "defensive-untrusted-system-code"
+        ]:
+            failures.append("Lovelace hostile execution must forbid Internet mode")
+
+    execution_classes = profile.get("execution_classes")
+    execution = (
+        execution_classes.get("defensive_untrusted_system_code", {})
+        if isinstance(execution_classes, dict)
+        else {}
+    )
+    expected_hostile = {
+        "hardware_accelerator": "kvm",
+        "kvm_required": True,
+        "fail_closed_without_kvm": True,
+        "software_emulation_fallback": False,
+        "network_mode": "none",
+        "storage_mode": "volatile",
+        "guest_privilege_assumption": "attacker-controlled-root",
+        "persistent_storage_allowed": False,
+        "host_shares_allowed": False,
+        "host_device_passthrough_allowed": False,
+        "bounded_read_only_payload_ingress_allowed": True,
+        "payload_ingress_enabled_by_default": False,
+    }
+    if execution != expected_hostile:
+        failures.append("Lovelace hostile execution contract is not fail-closed")
+
+    virtualization = profile.get("virtualization")
+    functional = (
+        virtualization.get("functional", {})
+        if isinstance(virtualization, dict)
+        else {}
+    )
+    expected_kernel_argument_policy = {
+        "tcg_only_extra_arguments": ["nosoftlockup"],
+        "canonical_builder_arguments": [
+            "root=/dev/vda",
+            "rw",
+            "rootfstype=ext4",
+            "console=ttyS0,115200",
+            "panic=10",
+            "nosoftlockup",
+        ],
+        "interactive_supervisor_arguments": [
+            "root=/dev/vda",
+            "rw",
+            "rootfstype=ext4",
+            "console=ttyS0,115200",
+            "panic=10",
+            "nosoftlockup",
+        ],
+        "soft_lockup_detector_enabled": False,
+        "hard_lockup_detector_disabled_by_policy": False,
+        "liveness_gates": [
+            "bounded-host-wall-clock-timeout",
+            "exact-ordered-guest-markers",
+            "zero-qemu-exit-status",
+        ],
+    }
+    if (
+        functional.get("accelerator") != "tcg"
+        or functional.get("cpu_model")
+        != (
+            "Broadwell-v4,pcid=off,x2apic=off,tsc-deadline=off,"
+            "invpcid=off,spec-ctrl=off"
+        )
+        or functional.get("kernel_argument_policy")
+        != expected_kernel_argument_policy
+        or functional.get("isolation_claim") is not False
+        or functional.get("hostile_code_allowed") is not False
+    ):
+        failures.append("Lovelace TCG mode must remain functional-only")
+    defensive_cell = (
+        virtualization.get("defensive_cell", {})
+        if isinstance(virtualization, dict)
+        else {}
+    )
+    expected_payload_ingress = {
+        "implementation_status": "implemented-source-tested",
+        "artifact_bound_runtime_evidence_status_source": (
+            "manifest.validation.hostile_payload_ingress"
+        ),
+        "artifact_bound_runtime_evidence_source": (
+            "manifest.validation_evidence.hostile_payload_ingress"
+        ),
+        "required_evidence_path": LOVELACE_HOSTILE_PAYLOAD_EVIDENCE,
+        "missing_status": "NOT_MEASURED",
+        "measured_status": LOVELACE_HOSTILE_PAYLOAD_STATUS,
+        "claim_gate": LOVELACE_HOSTILE_PAYLOAD_GATE_ID,
+        "runtime_capability_claimed_without_valid_gate": False,
+        "canonical_runtime_test": {
+            "producer_command": "hostile-payload-test",
+            "make_target": "wucios-lovelace-hostile-payload-smoke",
+            "fixture": LOVELACE_HOSTILE_PAYLOAD_FIXTURE,
+        },
+        "enabled_by_default": False,
+        "required_controls": [
+            "explicit-source-and-sha256",
+            "bounded-single-link-regular-source",
+            "private-nofollow-snapshot",
+            "exact-trusted-mke2fs",
+            "exact-trusted-debugfs-semantic-readback",
+            "read-only-secondary-media",
+            "no-host-source-share-or-execution",
+            "offline-volatile-kvm-hostile-only",
+            "exact-supervisor-unwind-cleanup",
+        ],
+        "explicit_source_and_sha256_required": True,
+        "source_type": "single-link-regular-file",
+        "maximum_source_bytes": 64 * 1024 * 1024,
+        "private_snapshot_required": True,
+        "host_source_shared": False,
+        "host_source_executed": False,
+        "media_builder_path": "/usr/sbin/mke2fs",
+        "media_builder_version": "1.47.0",
+        "media_readback_path": "/usr/sbin/debugfs",
+        "media_readback_version": "1.47.0",
+        "semantic_readback_required": True,
+        "payload_readback_path": "/payload.bin",
+        "payload_exact_bytes_readback_required": True,
+        "manifest_readback_path": "/manifest.json",
+        "manifest_exact_bytes_readback_required": True,
+        "media_format": "raw-ext4",
+        "maximum_media_bytes": 96 * 1024 * 1024,
+        "host_media_mode": "0400",
+        "guest_device": "/dev/vdb",
+        "guest_attachment": "read-only-secondary-virtio-block",
+        "guest_mount_policy": "read-only",
+        "network_device_added": False,
+        "persistent_storage_added": False,
+        "host_share_added": False,
+        "cleanup_on_supervisor_unwind": True,
+        "cleanup_after_sigkill_or_host_crash_claimed": False,
+        "containment_or_malware_safety_claimed": False,
+    }
+    if (
+        not isinstance(defensive_cell, dict)
+        or defensive_cell.get("accelerator") != "kvm"
+        or defensive_cell.get("fail_closed") is not True
+        or defensive_cell.get("guest_privilege_assumption")
+        != "attacker-controlled-root"
+        or defensive_cell.get("payload_ingress")
+        != expected_payload_ingress
+    ):
+        failures.append(
+            "Lovelace defensive-cell payload ingress contract is invalid"
+        )
+
+    evidence_contract = profile.get("evidence_contract")
+    canonical_outputs = (
+        evidence_contract.get("canonical_outputs", [])
+        if isinstance(evidence_contract, dict)
+        else []
+    )
+    payload_outputs = [
+        output
+        for output in canonical_outputs
+        if isinstance(output, dict)
+        and (
+            output.get("path") == LOVELACE_HOSTILE_PAYLOAD_EVIDENCE
+            or (
+                isinstance(output.get("validation_fields"), list)
+                and LOVELACE_HOSTILE_PAYLOAD_FIELD
+                in output["validation_fields"]
+            )
+        )
+    ]
+    if payload_outputs != [LOVELACE_HOSTILE_PAYLOAD_OUTPUT]:
+        failures.append(
+            "Lovelace hostile payload canonical evidence output is invalid"
+        )
+    claim_gates = (
+        evidence_contract.get("claim_gates", [])
+        if isinstance(evidence_contract, dict)
+        else []
+    )
+    gate_ids = [
+        gate.get("id") if isinstance(gate, dict) else None
+        for gate in claim_gates
+    ]
+    if gate_ids != [
+        "hostile-kvm-bwrap-cell",
+        LOVELACE_HOSTILE_PAYLOAD_GATE_ID,
+    ]:
+        failures.append(
+            "Lovelace hostile and payload evidence gates are not separate"
+        )
+    payload_gates = [
+        gate
+        for gate in claim_gates
+        if isinstance(gate, dict)
+        and gate.get("id") == LOVELACE_HOSTILE_PAYLOAD_GATE_ID
+    ]
+    if payload_gates != [LOVELACE_HOSTILE_PAYLOAD_GATE]:
+        failures.append("Lovelace hostile payload evidence gate is invalid")
+
+    fixture_path = ROOT / LOVELACE_HOSTILE_PAYLOAD_FIXTURE["path"]
+    try:
+        fixture_info = fixture_path.lstat()
+        fixture_regular = (
+            stat.S_ISREG(fixture_info.st_mode)
+            and not stat.S_ISLNK(fixture_info.st_mode)
+            and fixture_info.st_nlink == 1
+            and fixture_info.st_size
+            == LOVELACE_HOSTILE_PAYLOAD_FIXTURE["size"]
+        )
+        fixture_bytes = fixture_path.read_bytes() if fixture_regular else b""
+    except OSError:
+        fixture_bytes = b""
+        fixture_info = None
+        fixture_regular = False
+    if (
+        fixture_info is None
+        or not fixture_regular
+        or len(fixture_bytes) != LOVELACE_HOSTILE_PAYLOAD_FIXTURE["size"]
+        or hashlib.sha256(fixture_bytes).hexdigest()
+        != LOVELACE_HOSTILE_PAYLOAD_FIXTURE["sha256"]
+    ):
+        failures.append(
+            "Lovelace hostile payload fixed benign fixture is invalid"
+        )
+
+    builder_path = ROOT / "tools/wucios/lovelace_builder.py"
+    try:
+        builder_tree = ast.parse(builder_path.read_text(encoding="utf-8"))
+        validation_contract = next(
+            ast.literal_eval(statement.value)
+            for statement in builder_tree.body
+            if isinstance(statement, ast.AnnAssign)
+            and isinstance(statement.target, ast.Name)
+            and statement.target.id == "VALIDATION_CONTRACT"
+            and statement.value is not None
+        )
+    except (OSError, SyntaxError, StopIteration, ValueError):
+        validation_contract = None
+    expected_payload_validation = {
+        "measured_status": LOVELACE_HOSTILE_PAYLOAD_STATUS,
+        "evidence_path": LOVELACE_HOSTILE_PAYLOAD_EVIDENCE,
+        "evidence_schema": LOVELACE_HOSTILE_PAYLOAD_SCHEMA,
+    }
+    if (
+        not isinstance(validation_contract, dict)
+        or validation_contract.get(LOVELACE_HOSTILE_PAYLOAD_FIELD)
+        != expected_payload_validation
+    ):
+        failures.append(
+            "Lovelace hostile payload builder validation contract is invalid"
+        )
+    noxframe = profile.get("noxframe")
+    if not isinstance(noxframe, dict):
+        noxframe = {}
+    if (
+        noxframe.get("default_behavior") != "metadata-only"
+        or noxframe.get("containment_boundary") is not False
+        or noxframe.get("ambient_host_execution_allowed") is not False
+    ):
+        failures.append("Lovelace NOXFRAME boundary is invalid")
+    guest_broker = noxframe.get("guest_broker", {})
+    expected_broker_resource_limits = {
+        "open_files": {
+            "programming_routes": 128,
+            "ghidra_headless_route": 1024,
+            "inherited_by_child": True,
+        },
+        "ghidra_headless_route": {
+            "maximum_heap_mib": 2048,
+            "inner_wall_timeout_seconds": 600,
+            "inner_termination_grace_seconds": 30,
+            "outer_broker_timeout_seconds": 660,
+            "online_vcpu_range": [1, 8],
+            "cpu_seconds_per_online_vcpu": 670,
+            "cpu_limit_inherited_by_child": True,
+        },
+    }
+    runner_path = (
+        ROOT
+        / "wucios/releases/lovelace-laboratory-v0.1.0/overlay/usr/local/bin/wuci-lab-run"
+    )
+    try:
+        runner_text = runner_path.read_text(encoding="utf-8")
+    except OSError:
+        runner_text = ""
+    if (
+        not isinstance(guest_broker, dict)
+        or guest_broker.get("resource_limits")
+        != expected_broker_resource_limits
+        or "ghidra) nofile_limit=1024 ;;" not in runner_text
+        or "*) nofile_limit=128 ;;" not in runner_text
+        or 'ulimit -n "$nofile_limit"' not in runner_text
+        or "ulimit -n 128" in runner_text
+        or 'online_vcpus=$(getconf _NPROCESSORS_ONLN)' not in runner_text
+        or 'ghidra_cpu_seconds=$((670 * online_vcpus))' not in runner_text
+        or 'ulimit -t "$ghidra_cpu_seconds"' not in runner_text
+        or "ulimit -t 620" in runner_text
+        or "GHIDRA_HEADLESS_MAXMEM=2G" not in runner_text
+        or guest_broker.get("ghidra_success_contract")
+        != {
+            "zero_exit_status_required": True,
+            "zero_exit_status_sufficient": False,
+            "semantic_marker": "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS",
+            "semantic_marker_required_exactly_once": True,
+            "completion_marker": "noxframe-ghidra-headless:ok",
+            "semantic_marker_precedes_completion_marker": True,
+        }
+        or guest_broker.get("output_policy")
+        != {
+            "maximum_combined_output_bytes": 65536,
+            "forwarded_byte_classes": [
+                "tab-0x09",
+                "line-feed-0x0a",
+                "printable-ascii-0x20-0x7e",
+            ],
+            "other_bytes_rendered_as_lowercase_hex_escape": True,
+            "terminal_control_sequences_forwarded": False,
+            "printable_text_authenticated": False,
+            "printable_prompt_spoofing_prevented": False,
+        }
+    ):
+        failures.append(
+            "Lovelace NOXFRAME Ghidra/output/resource contract is invalid"
+        )
+    ghidra = profile.get("ghidra")
+    if not isinstance(ghidra, dict):
+        ghidra = {}
+    if (
+        ghidra.get("acceptance_target") != "headless"
+        or ghidra.get("containment_boundary") is not False
+        or ghidra.get("graphical_operation_claimed") is not False
+    ):
+        failures.append("Lovelace Ghidra target must remain headless and non-containment")
+
+    required_paths = [
+        "tools/wuci_lab.py",
+        "tools/wucios/lovelace_builder.py",
+        "tests/wuci_lab.py",
+        "tests/wucios_lovelace_builder.py",
+        "tests/wucios_lovelace_profile.py",
+        "wucios/schemas/lovelace-laboratory-profile.schema.json",
+        "wucios/releases/lovelace-laboratory-v0.1.0/release.json",
+        "wucios/releases/lovelace-laboratory-v0.1.0/package-seeds.json",
+        "wucios/releases/lovelace-laboratory-v0.1.0/package-lock.json",
+        "wucios/releases/lovelace-laboratory-v0.1.0/ghidra-lock.json",
+        "wucios/releases/lovelace-laboratory-v0.1.0/overlay/usr/local/bin/wuci-lab-run",
+        "wucios/fixtures/lovelace/hostile-payload.txt",
+    ]
+    for relative in required_paths:
+        if not (ROOT / relative).is_file():
+            failures.append(f"missing Lovelace Laboratory file: {relative}")
+
+    release_path = ROOT / "wucios/releases/lovelace-laboratory-v0.1.0/release.json"
+    release = load_json(release_path, failures)
+    if isinstance(release, dict):
+        if release.get("profile") != "lovelace-laboratory":
+            failures.append("Lovelace artifact profile identity is invalid")
+        if release.get("status") != "NON_AUTHORITATIVE_RESEARCH_DEVELOPMENT_ARTIFACT":
+            failures.append("Lovelace artifact status must remain non-authoritative")
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    required_targets = [
+        "wucios-lovelace-source-test",
+        "wucios-lovelace-fetch",
+        "wucios-lovelace-inputs",
+        "wucios-lovelace-build",
+        "wucios-lovelace-reproducibility",
+        "wucios-lovelace-structural-verify",
+        "wucios-lovelace-boot-smoke",
+        "wucios-lovelace-ghidra-headless",
+        "wucios-lovelace-noxframe-smoke",
+        "wucios-lovelace-persistent-round-trip",
+        "wucios-lovelace-hostile-smoke",
+        "wucios-lovelace-hostile-payload-smoke",
+        "wucios-lovelace-network-smoke",
+        "wucios-lovelace-status",
+        "wucios-lovelace-overlay-create",
+        "wucios-lovelace-overlay-inspect",
+        "wucios-lovelace-overlay-remove",
+        "wucios-lovelace-overlay-reset",
+        "wucios-lovelace-hostile-payload-launch-plan",
+        "wucios-lovelace-hostile-payload-launch",
+        "wucios-lovelace-launch-plan",
+        "wucios-lovelace-launch",
+    ]
+    for target in required_targets:
+        if re.search(rf"(?m)^{re.escape(target)}(?:\s*:[^\n]*)?$", makefile) is None:
+            failures.append(f"Makefile must contain Lovelace target {target}")
+
+    workflow_path = ROOT / ".github/workflows/lovelace-source-review.yml"
+    if not workflow_path.is_file():
+        failures.append("missing Lovelace source-review workflow")
+    else:
+        workflow = workflow_path.read_text(encoding="utf-8")
+        run_commands = [
+            line.strip()[len("run:") :].strip()
+            for line in workflow.splitlines()
+            if line.strip().startswith("run:")
+        ]
+        if run_commands != [
+            "make wucios-lovelace-source-test",
+            "make wucios-validate",
+        ]:
+            failures.append(
+                "Lovelace workflow must run only the source test and WuciOS "
+                "registry validation"
+            )
+        for binding in (
+            "HTTP_PROXY: http://127.0.0.1:9",
+            "HTTPS_PROXY: http://127.0.0.1:9",
+            "ALL_PROXY: http://127.0.0.1:9",
+            'NO_PROXY: ""',
+        ):
+            if sum(
+                line.strip() == binding for line in workflow.splitlines()
+            ) != 2:
+                failures.append(
+                    "Lovelace workflow must poison each source-test proxy "
+                    f"binding exactly twice: {binding}"
+                )
+        if any(
+            line.strip().startswith(("paths:", "paths-ignore:"))
+            for line in workflow.splitlines()
+        ):
+            failures.append(
+                "Lovelace source workflow must remain free of path filters"
+            )
+        for line in workflow.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("uses:") and re.fullmatch(
+                r"uses:\s+[^@\s]+@[0-9a-f]{40}(?:\s+#.*)?", stripped
+            ) is None:
+                failures.append("Lovelace workflow actions must use full commit pins")
 
 
 def validate_euclid_trial_phase_1(failures: list[str]) -> None:
@@ -2042,6 +2764,7 @@ def main() -> int:
     components = validate_components(failures)
     validate_budgets(failures)
     validate_noether_policy(profiles, components, failures)
+    validate_lovelace_laboratory(profiles, failures)
     validate_euclid_trial_phase_1(failures)
     validate_euclid_trial_phase_2(failures, warnings)
     validate_euclid_buildrooms_phase_3a(failures, warnings)
@@ -2085,6 +2808,7 @@ def main() -> int:
     print(f"- Euclid Phase 3C-D Yocto preparation candidates: {len(YOCTO_CANDIDATES)}")
     print(f"- Euclid Phase 3C-E OpenBSD reference preparation targets: {len(OPENBSD_REFERENCES)}")
     print("- Noether Core forbids GUI, browser, desktop environment, and default network services")
+    print("- Lovelace Laboratory remains non-default, non-authoritative, volatile, and offline by default")
     print("- Void remains a candidate substrate")
     print("- Xfce, ratpoison, and DWM are not in Noether Core")
     return 0

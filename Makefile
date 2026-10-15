@@ -14,6 +14,38 @@ ZIG_TOOL_IMPL ?= $(if $(filter 0.13.%,$(ZIG_VERSION)),python-compat,zig)
 QEMU_X86_64 ?= qemu-x86_64
 QEMU_CPU ?= Haswell-v4
 QEMU_RUNNER ?= $(QEMU_X86_64) -cpu $(QEMU_CPU)
+LOVELACE_CACHE ?= build/wucios/inputs/lovelace-laboratory-v0.1.0
+LOVELACE_OUTPUT ?= build/wucios/lovelace-laboratory-v0.1.0
+LOVELACE_XORRISO ?=
+LOVELACE_PROFILE ?= developer
+LOVELACE_STORAGE ?= volatile
+LOVELACE_NETWORK ?= none
+LOVELACE_ACCEL ?= auto
+LOVELACE_OVERLAY ?=
+LOVELACE_OVERLAY_REMOVE_CONFIRM ?=
+LOVELACE_OVERLAY_RESET_CONFIRM ?=
+LOVELACE_HOSTILE_PAYLOAD ?=
+LOVELACE_HOSTILE_PAYLOAD_SHA256 ?=
+LOVELACE_MEMORY_MIB ?= 4096
+LOVELACE_CPUS ?= 2
+# GNU Make command-line and environment variables are recursive by default.
+# Convert every operator-supplied Lovelace value to simple flavor before it is
+# exported so literal path bytes such as `$(...)` cannot invoke Make functions
+# while a recipe environment is being assembled.
+override export LOVELACE_CACHE := $(value LOVELACE_CACHE)
+override export LOVELACE_OUTPUT := $(value LOVELACE_OUTPUT)
+override export LOVELACE_XORRISO := $(value LOVELACE_XORRISO)
+override export LOVELACE_PROFILE := $(value LOVELACE_PROFILE)
+override export LOVELACE_STORAGE := $(value LOVELACE_STORAGE)
+override export LOVELACE_NETWORK := $(value LOVELACE_NETWORK)
+override export LOVELACE_ACCEL := $(value LOVELACE_ACCEL)
+override export LOVELACE_OVERLAY := $(value LOVELACE_OVERLAY)
+override export LOVELACE_OVERLAY_REMOVE_CONFIRM := $(value LOVELACE_OVERLAY_REMOVE_CONFIRM)
+override export LOVELACE_OVERLAY_RESET_CONFIRM := $(value LOVELACE_OVERLAY_RESET_CONFIRM)
+override export LOVELACE_HOSTILE_PAYLOAD := $(value LOVELACE_HOSTILE_PAYLOAD)
+override export LOVELACE_HOSTILE_PAYLOAD_SHA256 := $(value LOVELACE_HOSTILE_PAYLOAD_SHA256)
+override export LOVELACE_MEMORY_MIB := $(value LOVELACE_MEMORY_MIB)
+override export LOVELACE_CPUS := $(value LOVELACE_CPUS)
 
 HOST_OS := $(shell uname -s)
 HOST_ARCH := $(shell uname -m)
@@ -162,6 +194,7 @@ FROST_FIXTURE_GROUP_PUBLIC_KEY ?= 022f8bde4d1a07209355b4a7250a5c5128e88b84bddc61
 .PHONY: wucios-euclid-openbsd-reference-phase-3c-e wucios-euclid-openbsd-reference-phase-3c-e-json wucios-euclid-openbsd-reference-phase-3c-e-scaffold wucios-euclid-openbsd-reference-phase-3c-e-scaffold-json wucios-euclid-openbsd-reference-phase-3c-e-guardrails wucios-openbsd-reference-prep euclid-phase-3c-e openbsd-reference-prep openbsd-reference-scaffold openbsd-reference-guardrails
 .PHONY: wucios-idempotence-check wucios-clean-validation
 .PHONY: wucios-noether-forge-source-guard wucios-noether-forge-review-evidence wucios-noether-forge-test wucios-noether-forge-fetch wucios-noether-forge-inputs wucios-noether-forge-build wucios-noether-forge-inspect wucios-noether-forge-boot wucios-noether-forge-launch wucios-noether-forge-internal wucios-noether-forge-verify
+.PHONY: wucios-lovelace-profile-test wucios-lovelace-supervisor-test wucios-lovelace-builder-test wucios-lovelace-source-test wucios-lovelace-fetch wucios-lovelace-inputs wucios-lovelace-build wucios-lovelace-reproducibility wucios-lovelace-structural-verify wucios-lovelace-boot-smoke wucios-lovelace-ghidra-headless wucios-lovelace-noxframe-smoke wucios-lovelace-persistent-round-trip wucios-lovelace-hostile-smoke wucios-lovelace-hostile-payload-smoke wucios-lovelace-network-smoke wucios-lovelace-status wucios-lovelace-overlay-create wucios-lovelace-overlay-inspect wucios-lovelace-overlay-remove wucios-lovelace-overlay-reset wucios-lovelace-hostile-payload-launch-plan wucios-lovelace-hostile-payload-launch wucios-lovelace-launch-plan wucios-lovelace-launch
 .PHONY: zp1-upstream-test zp1-wuciji-bridge-test zp1-wuciji-coupling-test
 
 all: check-native $(TARGET)
@@ -186,6 +219,48 @@ help:
 	@printf '%s\n' "                                Reinspect and boot the exact ISO in BIOS and UEFI"
 	@printf '%s\n' "  make wucios-noether-forge-launch"
 	@printf '%s\n' "                                Launch the built TTY-first ISO interactively"
+	@printf '%s\n' ""
+	@printf '%s\n' "WuciOS Lovelace Laboratory (non-authoritative research/development):"
+	@printf '%s\n' "  make wucios-lovelace-source-test"
+	@printf '%s\n' "                                Run network-free profile, supervisor, and builder source tests"
+	@printf '%s\n' "  make wucios-lovelace-fetch    Explicitly use the network to acquire exact Alpine/Ghidra inputs"
+	@printf '%s\n' "  make wucios-lovelace-inputs   Verify the complete local input cache without network access"
+	@printf '%s\n' "  make wucios-lovelace-build    Build the ext4 base image from the local cache without network access"
+	@printf '%s\n' "  make wucios-lovelace-reproducibility"
+	@printf '%s\n' "                                Build twice offline and require byte-for-byte identical artifacts"
+	@printf '%s\n' "  make wucios-lovelace-structural-verify"
+	@printf '%s\n' "                                Inspect the built image and exact runtime paths without booting"
+	@printf '%s\n' "  make wucios-lovelace-boot-smoke"
+	@printf '%s\n' "                                TCG functional boot and programming-language smoke; no isolation claim"
+	@printf '%s\n' "  make wucios-lovelace-ghidra-headless"
+	@printf '%s\n' "                                TCG functional Ghidra analyzeHeadless smoke; no isolation claim"
+	@printf '%s\n' "  make wucios-lovelace-noxframe-smoke"
+	@printf '%s\n' "                                TCG NOXFRAME language+Ghidra semantic broker matrix"
+	@printf '%s\n' "  make wucios-lovelace-persistent-round-trip"
+	@printf '%s\n' "                                Offline two-boot qcow2 persistence test in temporary state"
+	@printf '%s\n' "  make wucios-lovelace-hostile-smoke"
+	@printf '%s\n' "                                Host-local KVM+bwrap fixed-fixture control-presence smoke"
+	@printf '%s\n' "  make wucios-lovelace-hostile-payload-smoke"
+	@printf '%s\n' "                                KVM+bwrap fixed benign read-only payload ingress smoke"
+	@printf '%s\n' "  make wucios-lovelace-network-smoke"
+	@printf '%s\n' "                                Explicitly attach Internet NAT and run a bounded HTTPS probe"
+	@printf '%s\n' "  make wucios-lovelace-status   Report digest-bound host launch capability"
+	@printf '%s\n' "  make wucios-lovelace-overlay-create LOVELACE_OVERLAY=workbench"
+	@printf '%s\n' "                                Create a named persistent overlay without overwrite"
+	@printf '%s\n' "  make wucios-lovelace-overlay-inspect LOVELACE_OVERLAY=workbench"
+	@printf '%s\n' "                                Revalidate a named overlay and immutable-base binding"
+	@printf '%s\n' "  make wucios-lovelace-overlay-remove LOVELACE_OVERLAY=workbench"
+	@printf '%s\n' "                                Remove exact validated state; requires LOVELACE_OVERLAY_REMOVE_CONFIRM"
+	@printf '%s\n' "  make wucios-lovelace-overlay-reset LOVELACE_OVERLAY=workbench"
+	@printf '%s\n' "                                Replace exact validated state; requires LOVELACE_OVERLAY_RESET_CONFIRM"
+	@printf '%s\n' "  make wucios-lovelace-hostile-payload-launch-plan"
+	@printf '%s\n' "                                Plan bounded read-only hostile payload ingress; path and SHA-256 required"
+	@printf '%s\n' "  make wucios-lovelace-hostile-payload-launch"
+	@printf '%s\n' "                                Launch the KVM hostile cell with bounded read-only payload media"
+	@printf '%s\n' "  make wucios-lovelace-launch-plan [LOVELACE_PROFILE=developer]"
+	@printf '%s\n' "                                Emit the exact launch plan without starting QEMU"
+	@printf '%s\n' "  make wucios-lovelace-launch [LOVELACE_PROFILE=developer]"
+	@printf '%s\n' "                                Launch volatile/offline by default through the host supervisor"
 	@printf '%s\n' "  make wucios-substrate-matrix  Generate Euclid substrate matrix"
 	@printf '%s\n' "  make wucios-euclid-trial-phase-1"
 	@printf '%s\n' "                                Generate first-cohort substrate trial protocol"
@@ -849,6 +924,80 @@ wucios-noether-forge-internal: wucios-noether-forge-build
 	$(PYTHON) tools/wucios/noether_forge.py internal --firmware all
 
 wucios-noether-forge-verify: wucios-noether-forge-internal
+
+wucios-lovelace-profile-test:
+	$(PYTHON) tests/wucios_lovelace_profile.py --quiet
+
+wucios-lovelace-supervisor-test:
+	$(PYTHON) tests/wuci_lab.py --quiet
+
+wucios-lovelace-builder-test:
+	$(PYTHON) tests/wucios_lovelace_builder.py --quiet
+
+wucios-lovelace-source-test: wucios-lovelace-profile-test wucios-lovelace-supervisor-test wucios-lovelace-builder-test
+
+wucios-lovelace-fetch: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py fetch
+
+wucios-lovelace-inputs: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py verify-inputs
+
+wucios-lovelace-build: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py build
+
+wucios-lovelace-reproducibility: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py reproducibility-test
+
+wucios-lovelace-structural-verify: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py verify
+
+wucios-lovelace-boot-smoke: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py boot-test
+
+wucios-lovelace-ghidra-headless: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py ghidra-test
+
+wucios-lovelace-noxframe-smoke: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py noxframe-test
+
+wucios-lovelace-persistent-round-trip: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py persistent-test
+
+wucios-lovelace-hostile-smoke: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py hostile-test
+
+wucios-lovelace-hostile-payload-smoke: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py hostile-payload-test
+
+wucios-lovelace-network-smoke: wucios-lovelace-source-test
+	$(PYTHON) tools/wucios/lovelace_builder.py network-test
+
+wucios-lovelace-status: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); artifacts = manifest["artifacts"]; report = wuci_lab.status_report(kernel=paths["kernel"], kernel_sha256=artifacts["kernel"]["sha256"], initrd=paths["initramfs"], initrd_sha256=artifacts["initramfs"]["sha256"], base_image=paths["base_image"], base_sha256=artifacts["base_image"]["sha256"]); print(wuci_lab.canonical_json(report), end="")'
+
+wucios-lovelace-overlay-create: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); result = wuci_lab.create_overlay(state_root=wuci_lab.DEFAULT_STATE_ROOT, name=os.environ["LOVELACE_OVERLAY"], base_image=paths["base_image"], base_sha256=manifest["artifacts"]["base_image"]["sha256"]); print(wuci_lab.canonical_json(result), end="")'
+
+wucios-lovelace-overlay-inspect: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); result = wuci_lab.inspect_overlay(state_root=wuci_lab.DEFAULT_STATE_ROOT, name=os.environ["LOVELACE_OVERLAY"], base_image=paths["base_image"], base_sha256=manifest["artifacts"]["base_image"]["sha256"]); print(wuci_lab.canonical_json(result), end="")'
+
+wucios-lovelace-overlay-remove: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; verification = builder.verify_build(Path(os.environ["LOVELACE_OUTPUT"])); _manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); result = wuci_lab.remove_overlay(state_root=wuci_lab.DEFAULT_STATE_ROOT, name=os.environ["LOVELACE_OVERLAY"], base_image=paths["base_image"], base_sha256=verification["artifacts"]["base_image"]["sha256"], confirmation=os.environ["LOVELACE_OVERLAY_REMOVE_CONFIRM"]); print(wuci_lab.canonical_json(result), end="")'
+
+wucios-lovelace-overlay-reset: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; verification = builder.verify_build(Path(os.environ["LOVELACE_OUTPUT"])); _manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); result = wuci_lab.reset_overlay(state_root=wuci_lab.DEFAULT_STATE_ROOT, name=os.environ["LOVELACE_OVERLAY"], base_image=paths["base_image"], base_sha256=verification["artifacts"]["base_image"]["sha256"], confirmation=os.environ["LOVELACE_OVERLAY_RESET_CONFIRM"]); print(wuci_lab.canonical_json(result), end="")'
+
+wucios-lovelace-hostile-payload-launch-plan: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; verification = builder.verify_build(Path(os.environ["LOVELACE_OUTPUT"])); _manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); artifacts = verification["artifacts"]; arguments = ["launch", "--kernel", str(paths["kernel"]), "--kernel-sha256", artifacts["kernel"]["sha256"], "--initrd", str(paths["initramfs"]), "--initrd-sha256", artifacts["initramfs"]["sha256"], "--base-image", str(paths["base_image"]), "--base-sha256", artifacts["base_image"]["sha256"], "--profile", "hostile", "--storage", "volatile", "--network", "none", "--accel", "kvm", "--memory-mib", os.environ["LOVELACE_MEMORY_MIB"], "--cpus", os.environ["LOVELACE_CPUS"], "--hostile-payload", os.environ["LOVELACE_HOSTILE_PAYLOAD"], "--hostile-payload-sha256", os.environ["LOVELACE_HOSTILE_PAYLOAD_SHA256"], "--dry-run"]; raise SystemExit(wuci_lab.main(arguments))'
+
+wucios-lovelace-hostile-payload-launch: wucios-lovelace-structural-verify
+	$(PYTHON) -c 'import os, sys; from pathlib import Path; sys.path[:0] = ["tools", "tools/wucios"]; import lovelace_builder as builder; import wuci_lab; verification = builder.verify_build(Path(os.environ["LOVELACE_OUTPUT"])); _manifest, paths = builder.artifact_paths(Path(os.environ["LOVELACE_OUTPUT"])); artifacts = verification["artifacts"]; arguments = ["launch", "--kernel", str(paths["kernel"]), "--kernel-sha256", artifacts["kernel"]["sha256"], "--initrd", str(paths["initramfs"]), "--initrd-sha256", artifacts["initramfs"]["sha256"], "--base-image", str(paths["base_image"]), "--base-sha256", artifacts["base_image"]["sha256"], "--profile", "hostile", "--storage", "volatile", "--network", "none", "--accel", "kvm", "--memory-mib", os.environ["LOVELACE_MEMORY_MIB"], "--cpus", os.environ["LOVELACE_CPUS"], "--hostile-payload", os.environ["LOVELACE_HOSTILE_PAYLOAD"], "--hostile-payload-sha256", os.environ["LOVELACE_HOSTILE_PAYLOAD_SHA256"]]; raise SystemExit(wuci_lab.main(arguments))'
+
+wucios-lovelace-launch-plan: wucios-lovelace-structural-verify
+	$(PYTHON) tools/wucios/lovelace_builder.py launch --dry-run
+
+wucios-lovelace-launch: wucios-lovelace-structural-verify
+	$(PYTHON) tools/wucios/lovelace_builder.py launch
 
 wucios-substrate-matrix:
 	$(PYTHON) tools/wucios/generate_substrate_matrix.py

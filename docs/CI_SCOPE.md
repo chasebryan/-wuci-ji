@@ -5,7 +5,7 @@ production-readiness certificate.
 
 ## CI Guarantees
 
-The checked-in workflow runs on Ubuntu Linux x86_64 and currently verifies:
+The checked-in workflows run on Ubuntu Linux x86_64 and currently verify:
 
 - Native `make clean && make test`.
 - Reproducible build metadata.
@@ -34,6 +34,15 @@ The checked-in workflow runs on Ubuntu Linux x86_64 and currently verifies:
 - Defensive CodeQL analysis for repository-owned JavaScript/TypeScript and
   Python. Third-party, frozen-fixture, dependency, build, and deployment-output
   paths are excluded by the checked-in CodeQL configuration.
+- The separate `lovelace-source-review` workflow runs the strict Lovelace
+  profile tests, host-supervisor unit and negative tests, builder
+  configuration/lock/source-manifest checks, and WuciOS registry validation.
+  This covers the hostile-smoke and separate fixed-benign payload-smoke
+  contracts and producer logic, not either KVM runtime invocation.
+  Its test steps poison HTTP proxy routes and do not acquire Alpine packages,
+  Ghidra, or any other runtime input. Checkout and Python setup still use the
+  normal GitHub Actions infrastructure; this is a source-test property, not a
+  kernel-enforced runner network-isolation claim.
 
 Dependabot proposes reviewable updates for the two npm locks, GitHub Actions,
 and only the first-party Cargo directories listed in `.github/dependabot.yml`.
@@ -51,6 +60,11 @@ CI does not claim:
 - That CodeQL or dependency automation covers every language, dependency,
   generated artifact, or deployment behavior.
 - Release authority for any artifact.
+- That a Lovelace image was fetched, built, structurally inspected, booted, or
+  exercised with Ghidra.
+- Lovelace KVM availability, hostile-cell containment, persistent-storage
+  round trips, execution of either host-local hostile smoke, operator-selected
+  payload behavior, or safety for arbitrary malicious code.
 
 ## Local-Only Or Runner-Dependent Gates
 
@@ -65,3 +79,49 @@ The following gates may depend on host CPU, kernel, or local tool availability:
 - `make rust-sandbox-build` and `make rust-sandbox-test` require `rustc`.
 - `make pq-verifier-detect` records local OpenSSL/PQ verifier availability and
   does not claim quantum safety unless a real pinned verifier is detected.
+- `make wucios-lovelace-fetch` is the explicit networked acquisition and lock
+  maintenance step for Alpine and Ghidra runtime inputs; CI does not run it.
+- `make wucios-lovelace-inputs`, `make wucios-lovelace-build`,
+  `make wucios-lovelace-reproducibility`, and
+  `make wucios-lovelace-structural-verify` require the complete local input
+  cache and host image-building tools. Those commands perform no network
+  requests; the reproducibility target builds in two independent roots and
+  requires byte-identical artifacts.
+- `make wucios-lovelace-boot-smoke`,
+  `make wucios-lovelace-ghidra-headless`,
+  `make wucios-lovelace-noxframe-smoke`, and
+  `make wucios-lovelace-persistent-round-trip` require QEMU system emulation
+  and are functional TCG checks only. They do not establish hostile-code
+  isolation. Their runtime producers reject named fatal/kernel/storage
+  diagnostics from the complete bounded console before evidence can pass; CI
+  reviews that logic but does not execute the VMs.
+- `make wucios-lovelace-network-smoke` is a separately explicit live guest
+  Internet-NAT test. It retrieves only the exact locked Alpine digest sidecar
+  for its bounded HTTPS probe and is never an offline-target prerequisite.
+- `make wucios-lovelace-hostile-smoke` is the canonical host-local KVM and
+  bubblewrap layered-control-presence check. It requires a securely configured,
+  usable `/dev/kvm`, a non-root operator, and exact root-owned,
+  non-setuid/non-setgid `/usr/bin/qemu-system-x86_64`, `/usr/bin/qemu-img`, and
+  `/usr/bin/bwrap` executables. It exercises only fixed benign fixtures with
+  volatile storage and no network, persistence, host share, or device
+  passthrough. CI reviews this contract but does not run it; its runtime result
+  remains `NOT_MEASURED` until a local artifact-backed run passes. A pass is
+  gated on observing the exact QEMU security state before dispatch and that
+  QEMU PID/start-time/executable identity disappearing after normal supervisor
+  exit. This host-local normal-unwind observation is not perfect-isolation
+  evidence, arbitrary-malware safety, cleanup-after-crash evidence, or release
+  authority.
+- `make wucios-lovelace-hostile-payload-smoke` is a separate host-local KVM and
+  bubblewrap gate for the exact committed 44-byte benign fixture. It requires
+  supervisor and guest exact-byte checks, guest read-only enforcement and write
+  rejection, and normal-unwind payload/overlay cleanup. CI reviews but does not
+  run this gate. It cannot satisfy the ordinary hostile-cell gate, validate an
+  operator-selected sample, or establish containment or malware safety.
+- Lovelace hostile mode requires a usable KVM device, trusted outer
+  bubblewrap namespaces, non-root QEMU, volatile storage, no guest NIC or host
+  share, exact read-only runtime/boot bindings, QEMU sandbox flags, and bounded
+  resources. The supervisor fails closed without those gates, and CI does not
+  claim they are available.
+- Named Lovelace persistent overlays are local state under `build/wuci-lab/`.
+  CI unit-tests their binding and failure behavior with fixtures but does not
+  claim an artifact-backed persistence round trip.

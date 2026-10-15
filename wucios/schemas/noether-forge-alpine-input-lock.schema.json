@@ -262,8 +262,8 @@
             "gzip_mtime": {"const": 1783641600},
             "output_member_size": {"const": 30037},
             "output_member_sha256": {"const": "07b8c155078c02433409e5d95e4d0e6a4b391058c9913d830dacecd8bee6bf98"},
-            "output_size": {"const": 22550781},
-            "output_sha256": {"const": "5d28a50212edce297396624bef3f75429b7876f104868c696e5a14518fbd992e"},
+            "output_size": {"const": 22535116},
+            "output_sha256": {"const": "06dcc830e53439ad8b5beb41357d80447800430b368212101f49cff84d628c3f"},
             "output_uncompressed_size": {"const": 74039300},
             "output_uncompressed_sha256": {"const": "86e41758ec86664be88ea36fdbafceef40c86e98f692ee4ac7168651b5c1d62d"}
           }

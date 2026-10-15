@@ -17,8 +17,8 @@
 </p>
 
 > [!IMPORTANT]
-> Wuci-Ji is a research and public-review artifact. Production readiness is not
-> claimed. Production cryptography is not claimed.
+> Wuci-Ji is a research and public-review artifact.
+> Production readiness is not claimed. Production cryptography is not claimed.
 > Production trust authority is not established.
 > General runtime containment is not claimed. Whole-system
 > post-quantum safety, independent audit completion, and official endorsement
@@ -303,6 +303,46 @@ make wucios-fluff-audit
 make wucios-substrate-matrix
 make noxframe-launch
 ```
+
+For the separate non-authoritative terminal development and defensive-analysis
+guest, use the
+[Lovelace Laboratory guide](docs/wucios/LOVELACE_LABORATORY.md). It provides
+volatile-by-default or explicitly named persistent storage, opt-in Internet
+NAT, six programming-language routes, native Wuci-Ji, NOXFRAME integration,
+and pinned Ghidra headless support. On a fresh checkout, follow the explicit
+acquisition and offline build sequence before asking for status or launching.
+`fetch` is the only command in this sequence that acquires runtime inputs from
+the network; review its generated package-lock diff as described in the guide:
+
+```sh
+make wucios-lovelace-source-test
+make wucios-lovelace-fetch
+make wucios-lovelace-inputs
+make wucios-lovelace-build
+make wucios-lovelace-reproducibility
+make wucios-lovelace-structural-verify
+make wucios-lovelace-status
+make wucios-lovelace-launch-plan LOVELACE_ACCEL=tcg LOVELACE_MEMORY_MIB=6144
+make wucios-lovelace-launch LOVELACE_ACCEL=tcg LOVELACE_MEMORY_MIB=6144
+```
+
+TCG is functional-only. The defensive untrusted-code cell is a distinct,
+fail-closed KVM plus bubblewrap mode; neither mode makes arbitrary malware
+safe. The operator guide also gives the exact destructive confirmations for
+removing or resetting one named persistent overlay and the separate
+`wucios-lovelace-hostile-payload-launch-plan` flow for copying one bounded,
+digest-bound sample into transient guest-read-only secondary media. That path
+does not share or execute the host source and does not add guest networking or
+persistence; it is data ingress, not a malware-safety claim. This path is
+source-tested and has a separate fixed-benign-fixture runtime gate:
+
+```sh
+make wucios-lovelace-hostile-payload-smoke
+```
+
+That command does not exercise an operator-selected sample and cannot satisfy
+the ordinary hostile-cell evidence gate. Payload ingress remains
+`NOT_MEASURED` unless its own exact artifact-bound evidence validates.
 
 NOXFRAME is a bounded local operator console with session-local state, virtual
 files, proof-lane commands, and explicit dry-run adapters. It does not provide a

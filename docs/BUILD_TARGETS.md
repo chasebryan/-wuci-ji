@@ -32,6 +32,188 @@ make aead-boundary-test
 make secret-path-isolation-test
 ```
 
+## WuciOS Lovelace Laboratory
+
+Lovelace Laboratory is a separate, non-default and non-release-authoritative
+research/development profile. Its toolchains, NOXFRAME guest broker, optional
+networking, and Ghidra headless runtime do not broaden Noether Core. See the
+[operator guide](wucios/LOVELACE_LABORATORY.md) and
+[containment boundary](wucios/LOVELACE_CONTAINMENT_BOUNDARY.md).
+
+The network-free source and configuration gate is:
+
+```sh
+make wucios-lovelace-source-test
+```
+
+Runtime input acquisition is deliberately isolated to one explicit networked
+target. All subsequent input verification and build operations consume the
+local cache:
+
+```sh
+make wucios-lovelace-fetch              # explicit network access
+make wucios-lovelace-inputs             # offline exact-input verification
+make wucios-lovelace-build              # offline ext4 image build
+make wucios-lovelace-reproducibility    # two offline byte-identical builds
+make wucios-lovelace-structural-verify  # offline image inspection
+make wucios-lovelace-boot-smoke         # offline TCG functional boot
+make wucios-lovelace-ghidra-headless    # offline TCG analyzeHeadless smoke
+make wucios-lovelace-noxframe-smoke     # offline TCG language/Ghidra broker matrix
+make wucios-lovelace-persistent-round-trip # offline two-boot qcow2 test
+```
+
+TCG results are functional evidence only and cannot support a hostile-code
+isolation claim. These functional tests use temporary overlays, attach no
+network device, verify that the read-only base digest remains unchanged, and
+reject kernel panic, oops, soft-lockup, general-protection-fault, ext4-error,
+and buffer-I/O-error diagnostics even when an acceptance marker is present.
+The reproducibility target performs two complete independent builds from the
+same locked cache and source tree, then requires exact byte equality for the
+base image, kernel, initramfs, and pre-validation manifest. It records only a
+local reproducibility result and grants no release authority.
+
+The NOXFRAME smoke exercises the six fixed programming routes and the bounded
+headless-Ghidra broker. Ghidra success requires a zero process exit plus exactly
+one `LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS` line before the exact
+`noxframe-ghidra-headless:ok` completion line; exit zero alone is insufficient.
+The broker caps raw combined output at 64 KiB and forwards only TAB, LF, and
+printable ASCII, rendering every other byte as a lowercase `\xNN` escape.
+Printable text remains unauthenticated and can imitate prompts or status text.
+
+The separate canonical hostile-cell smoke is host-local and KVM-only:
+
+```sh
+make wucios-lovelace-hostile-smoke
+make wucios-lovelace-hostile-payload-smoke
+```
+
+It requires a securely configured, usable `/dev/kvm`, a non-root operator, and
+exact root-owned, non-setuid/non-setgid `/usr/bin/qemu-system-x86_64`,
+`/usr/bin/qemu-img`, and `/usr/bin/bwrap` executables. It runs only fixed benign
+fixtures with volatile storage and no guest network, persistent state, host
+share, or device passthrough. Before dispatch, the producer observes the exact
+unprivileged QEMU process and its security controls. A pass also requires the
+observed QEMU PID, `/proc` start time, and executable identity to be gone or
+reused after normal supervisor exit. It records local KVM-plus-bubblewrap
+layered-control presence for the exact artifact. It is not proof of perfect
+isolation, safety for arbitrary malware, release authority, or cleanup after
+`SIGKILL` or host failure. Until this target passes locally, its runtime result
+remains `NOT_MEASURED`.
+
+The second target is a distinct artifact-bound KVM+bubblewrap check of the
+committed 44-byte benign payload fixture. It requires the supervisor's exact
+payload and canonical-manifest semantic readback, exact guest byte comparisons,
+a read-only guest mount, a rejected guest-root write probe, and cleanup of both
+the transient payload operation root and volatile overlay. It writes
+`release/evidence/hostile-payload-ingress.json`; it does not satisfy the
+`hostile-kvm-bwrap-cell` claim gate (whose manifest field is
+`hostile_kvm_cell`), authorize arbitrary samples, or establish malware safety.
+
+The only live-connectivity test is separately explicit:
+
+```sh
+make wucios-lovelace-network-smoke      # explicit guest Internet NAT
+```
+
+It performs one bounded HTTPS check against the exact locked Alpine sidecar;
+it is never a prerequisite of an offline target.
+
+The digest-bound supervisor exposes status, named persistent overlay, dry-run,
+and launch operations:
+
+```sh
+make wucios-lovelace-status
+make wucios-lovelace-overlay-create LOVELACE_OVERLAY=workbench
+make wucios-lovelace-overlay-inspect LOVELACE_OVERLAY=workbench
+make wucios-lovelace-launch-plan
+make wucios-lovelace-launch
+```
+
+Named overlay retirement is explicit and destructive. Both commands first
+revalidate the exact qcow2, its single-link manifest, and immutable-base
+binding while holding the per-name lock. The confirmation token binds the
+operation, validated name, and the exact base-image SHA-256 reported by the
+current structural verification:
+
+```sh
+LOVELACE_OUTPUT="${LOVELACE_OUTPUT:-build/wucios/lovelace-laboratory-v0.1.0}"
+BASE_IMAGE="$LOVELACE_OUTPUT/release/lovelace-laboratory-x86_64.ext4"
+BASE_SHA256="$(sha256sum -- "$BASE_IMAGE" | awk '{print $1}')"
+make wucios-lovelace-overlay-remove \
+  LOVELACE_OUTPUT="$LOVELACE_OUTPUT" \
+  LOVELACE_OVERLAY=workbench \
+  LOVELACE_OVERLAY_REMOVE_CONFIRM="remove:workbench:$BASE_SHA256"
+make wucios-lovelace-overlay-reset \
+  LOVELACE_OUTPUT="$LOVELACE_OUTPUT" \
+  LOVELACE_OVERLAY=workbench \
+  LOVELACE_OVERLAY_RESET_CONFIRM="reset:workbench:$BASE_SHA256"
+```
+
+`remove` deletes only the exact validated image and manifest. `reset` commits
+that removal before creating a fresh overlay, so a failed recreation leaves
+the old state removed and reports the partial outcome; neither target uses a
+glob or recursive deletion.
+
+All supervisor launch plans require exact, root-owned, non-set-ID
+`/usr/bin/qemu-system-x86_64`; this is stricter than the builder-local TCG
+functional smokes. The hostile profile additionally requires exact trusted
+`/usr/bin/qemu-img` and `/usr/bin/bwrap`. A functional smoke pass therefore
+does not by itself validate the interactive supervisor path.
+
+Launch defaults are `LOVELACE_PROFILE=developer`,
+`LOVELACE_STORAGE=volatile`, `LOVELACE_NETWORK=none`, and
+`LOVELACE_ACCEL=auto`, with 4096 MiB and two vCPUs. Set
+`LOVELACE_MEMORY_MIB=6144` for the runtime-validated Ghidra headless envelope
+and use `LOVELACE_CPUS` for an explicit bounded vCPU count. The dedicated
+`wucios-lovelace-ghidra-headless` and `wucios-lovelace-noxframe-smoke` gates
+select 6144 MiB automatically because both execute Ghidra under TCG.
+Persistent mode requires both
+`LOVELACE_STORAGE=persistent` and an existing named `LOVELACE_OVERLAY`.
+Internet NAT requires `LOVELACE_NETWORK=internet` and is prohibited for hostile
+mode. Hostile mode also forbids persistence and TCG and requires usable KVM:
+
+```sh
+make wucios-lovelace-launch-plan \
+  LOVELACE_PROFILE=hostile LOVELACE_STORAGE=volatile \
+  LOVELACE_NETWORK=none LOVELACE_ACCEL=kvm
+```
+
+Passing that plan is layered, KVM-backed risk reduction, not proof of perfect
+isolation or a guarantee that arbitrary malicious code is safe.
+
+One explicitly selected, digest-bound regular file of at most 64 MiB may be
+transferred to that same hostile cell through bounded, transient, read-only
+secondary ext4 media. Review the exact plan before launching:
+
+```sh
+SAMPLE=/absolute/path/to/sample.bin
+SAMPLE_SHA256="$(sha256sum -- "$SAMPLE" | awk '{print $1}')"
+make wucios-lovelace-hostile-payload-launch-plan \
+  LOVELACE_HOSTILE_PAYLOAD="$SAMPLE" \
+  LOVELACE_HOSTILE_PAYLOAD_SHA256="$SAMPLE_SHA256"
+make wucios-lovelace-hostile-payload-launch \
+  LOVELACE_HOSTILE_PAYLOAD="$SAMPLE" \
+  LOVELACE_HOSTILE_PAYLOAD_SHA256="$SAMPLE_SHA256"
+```
+
+These targets force `hostile`, KVM, volatile storage, and no guest network.
+The original host path is not shared with the guest and the supervisor never
+executes or parses the sample. It copies exact bytes into private media,
+semantically reads back the payload and manifest through exact trusted
+`/usr/sbin/debugfs`, attaches that media `readonly=on` as `/dev/vdb`, and adds
+no host share, network, or persistent storage. Exact private-staging cleanup is
+performed on normal/error unwind and on handled `SIGHUP`, `SIGINT`, `SIGQUIT`,
+`SIGTERM`, and `SIGTSTP` while the hostile supervisor allocates or materializes
+the payload and volatile overlay or runs its escaped-console relay. Cleanup
+after `SIGKILL`, host-process destruction, host crash, storage failure, or host
+compromise is not claimed,
+and read-only ingress does not make arbitrary malware safe. The canonical
+fixed-benign-fixture producer is
+`make wucios-lovelace-hostile-payload-smoke`; its runtime capability status
+remains `NOT_MEASURED` until that separate artifact-bound evidence validates.
+The ordinary hostile-cell smoke must not be cited as payload-ingress evidence,
+and the fixed fixture does not validate an operator-selected sample.
+
 ## Website
 
 ```sh

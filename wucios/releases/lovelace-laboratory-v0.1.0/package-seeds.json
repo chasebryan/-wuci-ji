@@ -1,0 +1,61 @@
+{
+  "schema": "wucios.lovelace.package_seeds.v1",
+  "alpine_branch": "v3.24",
+  "architecture": "x86_64",
+  "repositories": [
+    {
+      "name": "main",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main"
+    },
+    {
+      "name": "community",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/community"
+    }
+  ],
+  "packages": [
+    "alpine-base",
+    "bash",
+    "bubblewrap",
+    "build-base",
+    "ca-certificates",
+    "cargo",
+    "cmake",
+    "coreutils",
+    "curl",
+    "doas",
+    "e2fsprogs",
+    "file",
+    "findutils",
+    "gawk",
+    "gcompat",
+    "gdb",
+    "git",
+    "go",
+    "grep",
+    "iproute2",
+    "less",
+    "linux-headers",
+    "lua5.4",
+    "nano",
+    "nftables",
+    "openjdk21-jdk",
+    "pkgconf",
+    "procps-ng",
+    "py3-pip",
+    "python3",
+    "python3-dev",
+    "rust",
+    "samurai",
+    "sed",
+    "strace",
+    "util-linux"
+  ],
+  "policy": {
+    "fetch_only_by_explicit_command": true,
+    "build_network_disabled": true,
+    "exact_transitive_closure_required": true,
+    "package_signatures_required": true,
+    "package_scripts_during_build": false,
+    "runtime_package_changes_redefine_baseline": false
+  }
+}

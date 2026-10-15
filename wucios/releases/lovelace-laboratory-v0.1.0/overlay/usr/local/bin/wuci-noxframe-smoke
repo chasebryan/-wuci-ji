@@ -1,0 +1,98 @@
+#!/bin/ash
+set -eu
+
+prefix="noxframe-smoke-$$"
+transcript="/tmp/$prefix.out"
+commands="/tmp/$prefix.commands"
+cleanup() {
+  rm -f -- \
+    "/work/$prefix.py" \
+    "/work/$prefix.c" \
+    "/work/$prefix.cpp" \
+    "/work/$prefix.s" \
+    "/work/$prefix.rs" \
+    "/work/$prefix.go" \
+    "/work/$prefix.ghidra" \
+    /work/.wuci-lab-c \
+    /work/.wuci-lab-cpp \
+    /work/.wuci-lab-assembly \
+    /work/.wuci-lab-rust \
+    /work/.wuci-lab-go \
+    "$transcript" \
+    "$commands"
+}
+trap cleanup EXIT HUP INT TERM
+
+cat > "/work/$prefix.py" <<'EOF'
+print("noxframe-python:ok")
+EOF
+cat > "/work/$prefix.c" <<'EOF'
+#include <stdio.h>
+int main(void) { puts("noxframe-c:ok"); return 0; }
+EOF
+cat > "/work/$prefix.cpp" <<'EOF'
+#include <iostream>
+int main() { std::cout << "noxframe-cpp:ok\n"; }
+EOF
+cat > "/work/$prefix.s" <<'EOF'
+.global _start
+.section .rodata
+message: .ascii "noxframe-assembly:ok\n"
+.section .text
+_start:
+  mov $1, %rax
+  mov $1, %rdi
+  lea message(%rip), %rsi
+  mov $21, %rdx
+  syscall
+  mov $60, %rax
+  xor %rdi, %rdi
+  syscall
+EOF
+cat > "/work/$prefix.rs" <<'EOF'
+fn main() { println!("noxframe-rust:ok"); }
+EOF
+cat > "/work/$prefix.go" <<'EOF'
+package main
+import "fmt"
+func main() { fmt.Println("noxframe-go:ok") }
+EOF
+cp -- /usr/share/wucios/fixtures/ghidra/ghidra-smoke "/work/$prefix.ghidra"
+
+cat > "$commands" <<EOF
+lab status
+lab run python3 $prefix.py
+lab run c $prefix.c
+lab run c++ $prefix.cpp
+lab run assembly $prefix.s
+lab run rust $prefix.rs
+lab run go $prefix.go
+lab ghidra /work/$prefix.ghidra
+exit
+EOF
+
+noxframe \
+  --no-boot-prompt \
+  --no-boot-animation \
+  --no-countdown \
+  --color never \
+  --console \
+  --allow-lovelace-lab-run \
+  < "$commands" > "$transcript"
+cat "$transcript"
+grep -Fx "guest marker: valid" "$transcript"
+grep -Fx "noxframe-python:ok" "$transcript"
+grep -Fx "noxframe-c:ok" "$transcript"
+grep -Fx "noxframe-cpp:ok" "$transcript"
+grep -Fx "noxframe-assembly:ok" "$transcript"
+grep -Fx "noxframe-rust:ok" "$transcript"
+grep -Fx "noxframe-go:ok" "$transcript"
+[ "$(grep -Fxc "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS" "$transcript")" -eq 1 ]
+[ "$(grep -Fxc "noxframe-ghidra-headless:ok" "$transcript")" -eq 1 ]
+semantic_line=$(grep -n -Fx "LOVELACE_NOXFRAME_GHIDRA_SEMANTIC_PASS" "$transcript" | cut -d: -f1)
+ghidra_line=$(grep -n -Fx "noxframe-ghidra-headless:ok" "$transcript" | cut -d: -f1)
+[ "$semantic_line" -lt "$ghidra_line" ]
+grep -Fx "noxframe-ghidra-headless:ok" "$transcript"
+[ "$(grep -c '^lab-run-result: 0$' "$transcript")" -eq 7 ]
+printf '%s\n' "LOVELACE_NOXFRAME_GHIDRA_HEADLESS_PASS"
+printf '%s\n' "LOVELACE_NOXFRAME_BROKER_PASS python3 c cpp assembly rust go"
