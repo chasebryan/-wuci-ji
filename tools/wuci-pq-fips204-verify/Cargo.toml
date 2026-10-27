@@ -5,4 +5,4 @@ edition = "2021"
 publish = false
 
 [dependencies]
-fips204 = { version = "=0.4.6", default-features = false, features = ["ml-dsa-65"] }
+fips204 = { version = "=0.5.0", default-features = false, features = ["ml-dsa-65"] }
